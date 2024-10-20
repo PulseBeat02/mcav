@@ -17,7 +17,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("io.netty:netty-all:4.1.87.Final")
     compileOnly("com.google.guava:guava:31.1-jre")
-    compileOnly("it.unimi.dsi:fastutil:8.5.14")
+    compileOnly("it.unimi.dsi:fastutil:8.5.15")
 
     // Test dependencies
     testImplementation("uk.co.caprica:vlcj:4.8.3")
