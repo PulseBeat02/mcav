@@ -5,7 +5,7 @@ dependencies {
     implementation(project(":ezmediacore:nms-api"))
 
     // Project dependencies
-    implementation("org.bytedeco:javacv-platform:1.5.10")
+    implementation("org.bytedeco:javacv-platform:1.5.11")
     implementation("org.jsoup:jsoup:1.18.1")
     implementation("uk.co.caprica:vlcj:4.8.3")
     implementation("uk.co.caprica:vlcj-natives:4.8.3")
