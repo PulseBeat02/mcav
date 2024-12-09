@@ -12,7 +12,7 @@ var runtimeDeps = listOf(
     "org.incendo:cloud-paper:2.0.0-beta.10",
     "org.incendo:cloud-minecraft-extras:2.0.0-beta.10",
     "me.lucko:commodore:2.2",
-    "com.github.stefvanschie.inventoryframework:IF:0.10.17"
+    "com.github.stefvanschie.inventoryframework:IF:0.10.19"
 );
 
 dependencies {
