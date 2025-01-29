@@ -44,7 +44,8 @@ public final class AnnotationParserHandler {
     new VideoEntityCommand(),
     new VideoChatCommand(),
     new VideoScoreboardCommand(),
-    new VirtualizeCommand()
+    new VirtualizeCommand(),
+    new VideoBlockCommand()
   );
 
   private final CommandManager<CommandSender> manager;
