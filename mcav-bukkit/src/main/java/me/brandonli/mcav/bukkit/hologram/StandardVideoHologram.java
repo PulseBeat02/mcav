@@ -76,11 +76,10 @@ public class StandardVideoHologram extends VideoHologram {
     final Component component = MINI_MESSAGE.deserialize(minimessage);
     final TextDisplay entity = world.spawn(location, TextDisplay.class, display -> {
       display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.CENTER);
+      display.setBillboard(Display.Billboard.VERTICAL);
       display.setVisibleByDefault(true);
       display.setSeeThrough(false);
       display.setBackgroundColor(Color.BLACK);
-      display.setDefaultBackground(true);
       display.text(component);
     });
     this.setDisplay(entity);
@@ -137,7 +136,7 @@ public class StandardVideoHologram extends VideoHologram {
 
   private void updateTimerDisplay(final TextDisplay display) {
     final StringBuilder progressBar = new StringBuilder();
-    final int totalSquares = 10;
+    final int totalSquares = 20;
     final int greenSquares = (int) Math.ceil(((double) this.currentSecond / this.durationSeconds) * totalSquares);
     for (int i = 0; i < totalSquares; i++) {
       if (i < greenSquares) {

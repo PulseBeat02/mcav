@@ -23,7 +23,10 @@ import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.Image;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.image.ImagePlayer;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import org.bukkit.Bukkit;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class ImageManager {
@@ -32,33 +35,43 @@ public final class ImageManager {
   private @Nullable DisplayableImage image;
   private @Nullable Image currentImage;
 
+  private final MCAVSandbox plugin;
   private final ExecutorService service;
 
-  public ImageManager() {
+  public ImageManager(final MCAVSandbox plugin) {
+    this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
   }
 
   public void shutdown() {
-    this.releaseImage();
+    this.releaseImage(true);
     ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 
-  public void releaseImage() {
-    if (this.image != null) {
-      this.image.release();
-      this.image = null;
-    }
-    if (this.currentImage != null) {
-      try {
-        this.currentImage.close();
-      } catch (final Exception e) {
-        throw new AssertionError(e);
+  public void releaseImage(final boolean force) {
+    final Runnable task = () -> {
+      if (this.image != null) {
+        this.image.release();
+        this.image = null;
       }
-      this.currentImage = null;
-    }
-    if (this.player != null) {
-      this.player.release();
-      this.player = null;
+      if (this.currentImage != null) {
+        try {
+          this.currentImage.close();
+        } catch (final Exception e) {
+          throw new AssertionError(e);
+        }
+        this.currentImage = null;
+      }
+      if (this.player != null) {
+        this.player.release();
+        this.player = null;
+      }
+    };
+    if (force) {
+      task.run();
+    } else {
+      final BukkitScheduler scheduler = Bukkit.getScheduler();
+      scheduler.runTask(this.plugin, task);
     }
   }
 

@@ -100,12 +100,6 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, this::release0);
-  }
-
-  private void release0() {
     for (final Team team : this.teamLines) {
       if (team == null) {
         continue;

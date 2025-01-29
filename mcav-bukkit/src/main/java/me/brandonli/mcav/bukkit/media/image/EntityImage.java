@@ -36,7 +36,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitScheduler;
 
 /**
  * Represents an entity-based image display implementation. Uses a {@link TextDisplay} entity to display images in the world.
@@ -69,10 +68,9 @@ public class EntityImage implements DisplayableImage {
       display.setCustomNameVisible(false);
       display.setSeeThrough(false);
       display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.CENTER);
+      display.setBillboard(Display.Billboard.VERTICAL);
       display.setVisibleByDefault(false);
       display.setBackgroundColor(Color.BLACK);
-      display.setDefaultBackground(true);
       display.setShadowed(false);
       display.setText("");
       display.setCustomName("");
@@ -104,15 +102,6 @@ public class EntityImage implements DisplayableImage {
    */
   @Override
   public void release() {
-    if (this.entity == null) {
-      return;
-    }
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, this::release0);
-  }
-
-  private void release0() {
     if (this.entity == null) {
       return;
     }

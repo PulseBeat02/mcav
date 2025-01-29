@@ -46,7 +46,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final CommandSender player) {
     final ExecutorService service = this.manager.getService();
     player.sendMessage(Message.RELEASE_IMAGE_START.build());
-    CompletableFuture.runAsync(this.manager::releaseImage, service).thenRun(
+    CompletableFuture.runAsync(() -> this.manager.releaseImage(false), service).thenRun(
       TaskUtils.handleAsyncTask(this.sandbox, () -> player.sendMessage(Message.RELEASE_IMAGE.build()))
     );
   }

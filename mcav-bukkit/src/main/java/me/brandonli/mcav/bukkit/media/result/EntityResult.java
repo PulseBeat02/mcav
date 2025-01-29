@@ -38,7 +38,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitScheduler;
 
 /**
  * Represents a filter for displaying frames as a {@link TextDisplay} entity.
@@ -82,14 +81,8 @@ public class EntityResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void start() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, this::start0);
-  }
-
   @SuppressWarnings("deprecation")
-  private void start0() {
+  public void start() {
     final Location pos = this.entityConfiguration.getPosition();
     final Location clone = pos.clone();
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
@@ -97,13 +90,12 @@ public class EntityResult implements FunctionalVideoFilter {
     final Plugin plugin = BukkitModule.getPlugin();
     this.entity = world.spawn(clone, TextDisplay.class, display -> {
       display.setInvulnerable(true);
-      display.setCustomNameVisible(true);
+      display.setCustomNameVisible(false);
       display.setSeeThrough(false);
       display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.CENTER);
+      display.setBillboard(Display.Billboard.VERTICAL);
       display.setVisibleByDefault(false);
       display.setBackgroundColor(Color.BLACK);
-      display.setDefaultBackground(true);
       display.setShadowed(false);
       display.setText("");
       display.setCustomName("");
@@ -123,12 +115,6 @@ public class EntityResult implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, this::release0);
-  }
-
-  private void release0() {
     if (this.entity == null) {
       return;
     }

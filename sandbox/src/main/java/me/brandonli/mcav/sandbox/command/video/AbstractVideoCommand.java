@@ -232,25 +232,25 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       player.start(video, audio);
     }
 
-    final Hologram existing = this.manager.getHologram();
-    if (existing != null) {
-      existing.kill();
-      this.manager.setHologram(null);
-    }
-
-    final Location location = this.manager.getHologramLocation();
-    if (location == null) {
-      return;
-    }
-
-    final URLParseDump dump = source.dump;
-    if (dump == null) {
-      return;
-    }
-
-    final Hologram hologram = Hologram.basic();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTask(this.plugin, () -> {
+      final Hologram existing = this.manager.getHologram();
+      if (existing != null) {
+        existing.kill();
+        this.manager.setHologram(null);
+      }
+
+      final Location location = this.manager.getHologramLocation();
+      if (location == null) {
+        return;
+      }
+
+      final URLParseDump dump = source.dump;
+      if (dump == null) {
+        return;
+      }
+
+      final Hologram hologram = Hologram.basic();
       hologram.handleRequest(location, dump);
       hologram.start();
       this.manager.setHologram(hologram);

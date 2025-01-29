@@ -78,15 +78,9 @@ public class ScoreboardImage implements DisplayableImage {
    * {@inheritDoc}
    */
   @Override
+  @SuppressWarnings("deprecation")
   public void displayImage(final ImageBuffer data) {
     this.release();
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, () -> this.display0(data));
-  }
-
-  @SuppressWarnings("deprecation")
-  private void display0(final ImageBuffer data) {
     final int lines = this.configuration.getLines();
     final Collection<UUID> viewers = this.configuration.getViewers();
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());

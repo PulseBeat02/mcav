@@ -99,7 +99,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;
     }
-    this.manager.releaseImage();
+    this.manager.releaseImage(false);
     try {
       this.processImage(resolution, source, configProvider);
     } catch (final IOException e) {
