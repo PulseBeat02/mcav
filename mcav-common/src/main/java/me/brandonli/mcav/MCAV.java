@@ -138,7 +138,7 @@ public final class MCAV implements MCAVApi {
   private void loadOpenCVModules() {
     final OS os = OSUtils.getOS();
     if (os == OS.LINUX) {
-      // avoid loading headless libraries
+      // load headless libraries only
       System.setProperty("org.bytedeco.javacpp.loadlibraries", "false");
       Loader.load(opencv_core.class);
       Loader.load(opencv_imgproc.class);
