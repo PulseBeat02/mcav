@@ -62,6 +62,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
@@ -116,7 +117,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "id") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String mrl
+    @Greedy final String mrl
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
@@ -209,7 +210,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     final MapResult result = new MapResult(configuration);
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-    return PipelineBuilder.video().then(ditherFilter).then(VideoFilter.FRAME_RATE).build();
+    return PipelineBuilder.video().then(ditherFilter).build();
   }
 
   private MapConfiguration constructMapConfiguration(

@@ -21,7 +21,6 @@ import com.sun.jna.Pointer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
@@ -29,7 +28,6 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
-import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -61,9 +59,7 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32Buffe
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private final EmbeddedMediaPlayer player;
-  private final ExecutorService processor;
   private final String[] args;
-  private final Object lock;
 
   private CompletableFuture<Void> playbackCompletionFuture;
 
@@ -73,9 +69,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public VLCPlayer(final String[] args) {
     final MediaPlayerFactory factory = MediaPlayerFactoryProvider.getPlayerFactory();
     final MediaPlayerApi mediaPlayerApi = factory.mediaPlayers();
-    this.lock = new Object();
     this.player = mediaPlayerApi.newEmbeddedMediaPlayer();
-    this.processor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     this.playbackCompletionFuture = new CompletableFuture<>();
     this.args = args;
     this.setupEventListeners(this.player);
@@ -109,28 +103,26 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final Source video,
     final Source audio
   ) throws Exception {
-    synchronized (this.lock) {
-      if (this.playbackCompletionFuture.isDone()) {
-        this.playbackCompletionFuture = new CompletableFuture<>();
-      }
-
-      final MediaApi mediaApi = this.player.media();
-      final String audioResource = audio.getResource();
-      final String videoResource = video.getResource();
-      mediaApi.addSlave(MediaSlaveType.AUDIO, audioResource, true);
-
-      this.video = video;
-      this.audio = audio;
-
-      this.addCallbacks(audioPipeline, videoPipeline);
-      if (this.args != null && this.args.length > 0) {
-        mediaApi.play(videoResource, this.args);
-      } else {
-        mediaApi.play(videoResource);
-      }
-
-      return true;
+    if (this.playbackCompletionFuture.isDone()) {
+      this.playbackCompletionFuture = new CompletableFuture<>();
     }
+
+    final MediaApi mediaApi = this.player.media();
+    final String audioResource = audio.getResource();
+    final String videoResource = video.getResource();
+    mediaApi.addSlave(MediaSlaveType.AUDIO, audioResource, true);
+
+    this.video = video;
+    this.audio = audio;
+
+    this.addCallbacks(audioPipeline, videoPipeline);
+    if (this.args != null && this.args.length > 0) {
+      mediaApi.play(videoResource, this.args);
+    } else {
+      mediaApi.play(videoResource);
+    }
+
+    return true;
   }
 
   /**
@@ -139,25 +131,23 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Override
   public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined)
     throws Exception {
-    synchronized (this.lock) {
-      if (this.playbackCompletionFuture.isDone()) {
-        this.playbackCompletionFuture = new CompletableFuture<>();
-      }
-
-      final MediaApi mediaApi = this.player.media();
-      final String resource = combined.getResource();
-      this.video = combined;
-      this.audio = combined;
-
-      this.addCallbacks(audioPipeline, videoPipeline);
-      if (this.args != null && this.args.length > 0) {
-        mediaApi.play(resource, this.args);
-      } else {
-        mediaApi.play(resource);
-      }
-
-      return true;
+    if (this.playbackCompletionFuture.isDone()) {
+      this.playbackCompletionFuture = new CompletableFuture<>();
     }
+
+    final MediaApi mediaApi = this.player.media();
+    final String resource = combined.getResource();
+    this.video = combined;
+    this.audio = combined;
+
+    this.addCallbacks(audioPipeline, videoPipeline);
+    if (this.args != null && this.args.length > 0) {
+      mediaApi.play(resource, this.args);
+    } else {
+      mediaApi.play(resource);
+    }
+
+    return true;
   }
 
   private void addCallbacks(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline) {
@@ -169,7 +159,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     surfaceApi.set(surface);
 
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(this.audio);
-    final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata, this.processor);
+    final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata);
     final AudioApi audioApi = this.player.audio();
     audioApi.callback("s16be", audioMetadata.getAudioBitrate(), audioMetadata.getAudioChannels(), audioCallback);
   }
@@ -190,11 +180,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean pause() throws Exception {
-    synchronized (this.lock) {
-      final ControlsApi controls = this.player.controls();
-      controls.pause();
-      return true;
-    }
+    final ControlsApi controls = this.player.controls();
+    controls.pause();
+    return true;
   }
 
   /**
@@ -202,11 +190,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean resume() throws Exception {
-    synchronized (this.lock) {
-      final ControlsApi controls = this.player.controls();
-      controls.play();
-      return true;
-    }
+    final ControlsApi controls = this.player.controls();
+    controls.start();
+    return true;
   }
 
   /**
@@ -214,11 +200,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean seek(final long time) throws Exception {
-    synchronized (this.lock) {
-      final ControlsApi controls = this.player.controls();
-      controls.setTime(time);
-      return false;
-    }
+    final ControlsApi controls = this.player.controls();
+    controls.setTime(time);
+    return false;
   }
 
   /**
@@ -226,15 +210,12 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean release() throws Exception {
-    synchronized (this.lock) {
-      this.pause();
-      if (!this.playbackCompletionFuture.isDone()) {
-        this.playbackCompletionFuture.complete(null);
-      }
-      this.player.release();
-      ExecutorUtils.shutdownExecutorGracefully(this.processor);
-      return true;
+    this.pause();
+    if (!this.playbackCompletionFuture.isDone()) {
+      this.playbackCompletionFuture.complete(null);
     }
+    this.player.release();
+    return true;
   }
 
   private final class BufferCallback implements BufferFormatCallback {
@@ -288,19 +269,16 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     private final AudioPipelineStep step;
     private final AudioMetadata metadata;
-    private final ExecutorService executor;
 
     /**
      * Constructs an AudioCallback instance with the specified audio processing step, metadata, and executor service.
      *
      * @param step     The audio processing step to be executed.
      * @param metadata The metadata associated with the audio processing.
-     * @param executor The executor service for managing the asynchronous processing.
      */
-    public AudioCallback(final AudioPipelineStep step, final AudioMetadata metadata, final ExecutorService executor) {
+    public AudioCallback(final AudioPipelineStep step, final AudioMetadata metadata) {
       this.step = step;
       this.metadata = metadata;
-      this.executor = executor;
     }
 
     /**

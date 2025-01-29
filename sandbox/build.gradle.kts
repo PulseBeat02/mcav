@@ -48,7 +48,13 @@ tasks.withType<AbstractRun>().configureEach {
         vendor = JvmVendorSpec.JETBRAINS
         languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     })
-    jvmArgs("-Xmx8192m", "-XX:+AllowEnhancedClassRedefinition", "-XX:+AllowRedefinitionToAddDeleteMethods")
+    jvmArgs(
+        "-Xmx8192m",
+        "-XX:+AllowEnhancedClassRedefinition",
+        "-XX:+AllowRedefinitionToAddDeleteMethods",
+        "-verbose:gc",
+        "-Xlog:gc*:file=gc.log"
+    )
 }
 
 tasks {

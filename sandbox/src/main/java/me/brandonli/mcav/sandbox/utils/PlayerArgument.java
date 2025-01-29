@@ -23,7 +23,6 @@ import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 public enum PlayerArgument {
   VLC(VideoPlayer::vlc),
   FFMPEG(VideoPlayer::ffmpeg),
-  OPENCV(VideoPlayer::opencv),
   DEVICE(VideoPlayer::device);
 
   @FunctionalInterface
