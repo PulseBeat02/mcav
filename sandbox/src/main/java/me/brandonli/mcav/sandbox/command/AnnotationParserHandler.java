@@ -19,10 +19,7 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.command.video.VideoChatCommand;
-import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
-import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
-import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
+import me.brandonli.mcav.sandbox.command.video.*;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.incendo.cloud.CommandManager;
@@ -43,7 +40,8 @@ public final class AnnotationParserHandler {
     new VideoMapCommand(),
     new VideoControlCommand(),
     new VideoEntityCommand(),
-    new VideoChatCommand()
+    new VideoChatCommand(),
+    new VideoScoreboardCommand()
   );
 
   private final CommandManager<CommandSender> manager;

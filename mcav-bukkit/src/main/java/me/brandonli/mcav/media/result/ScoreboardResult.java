@@ -26,15 +26,12 @@ import me.brandonli.mcav.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.scores.PlayerTeam;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.ScoreboardManager;
-import org.bukkit.scoreboard.Team;
+import org.bukkit.scoreboard.*;
 
 /**
  * Represents the result of processing a scoreboard using a functional video filter.
@@ -79,20 +76,39 @@ public class ScoreboardResult implements FunctionalVideoFilter {
     final Collection<UUID> viewers = this.configuration.getViewers();
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
     final Scoreboard scoreboard = scoreboardManager.getNewScoreboard();
+    final UUID randomUUID = UUID.randomUUID();
+    final String objectiveName = randomUUID.toString();
+    @SuppressWarnings("deprecation")
+    final Objective objective = scoreboard.registerNewObjective(objectiveName, "dummy", "");
+    objective.setDisplaySlot(DisplaySlot.SIDEBAR);
     for (int i = 0; i < lines; i++) {
       final UUID random = UUID.randomUUID();
       final String name = random.toString();
       final Team team = scoreboard.registerNewTeam(name);
-      for (final UUID viewer : viewers) {
-        final Player player = Bukkit.getPlayer(viewer);
-        if (player == null) {
-          continue;
-        }
-        final String viewerName = viewer.toString();
-        team.addEntry(viewerName);
-      }
+      final String value = this.getUniqueString(i);
+      team.addEntry(value);
+      final Score score = objective.getScore(value);
+      score.setScore(lines - i - 1);
       this.teamLines[i] = team;
     }
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
+      player.setScoreboard(scoreboard);
+    }
+  }
+
+  private String getUniqueString(final int index) {
+    final StringBuilder entry = new StringBuilder();
+    final String hex = Integer.toHexString(index);
+    for (final char c : hex.toCharArray()) {
+      @SuppressWarnings("deprecation")
+      final ChatColor color = ChatColor.getByChar(c);
+      entry.append(color);
+    }
+    return entry.toString();
   }
 
   /**
@@ -100,8 +116,24 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final Plugin plugin = MCAVBukkit.getPlugin();
+    scheduler.runTask(plugin, this::release0);
+  }
+
+  private void release0() {
     for (final Team team : this.teamLines) {
       team.unregister();
+    }
+    final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
+      final Scoreboard fresh = scoreboardManager.getNewScoreboard();
+      player.setScoreboard(fresh);
     }
   }
 
@@ -109,6 +141,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
+  @SuppressWarnings("deprecation")
   public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
@@ -117,9 +150,8 @@ public class ScoreboardResult implements FunctionalVideoFilter {
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < lines; i++) {
       final Team team = this.teamLines[i];
-      final PlayerTeam playerTeam = (PlayerTeam) team;
-      final Component prefix = ChatUtils.createLine(resizedData, character, width, lines - i - 1);
-      playerTeam.setPlayerPrefix(prefix);
+      final String suffix = ChatUtils.createRawLine(resizedData, character, width, i);
+      team.setSuffix(suffix);
     }
   }
 }

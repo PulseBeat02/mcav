@@ -41,15 +41,33 @@ public final class ChatUtils {
   }
 
   /**
-   * Creates a single line of color-coded text in string format based on pixel values from an array.
+   * Creates a formatted Component representing a single line from an array of pixel data.
+   * The method maps pixel data to corresponding characters with specific color codes
+   * and converts the result into a Component.
    *
-   * @param data      an array of integers representing RGB values for pixels in the image
-   * @param character the character to use for building the line
-   * @param width     the total width of the line in pixels
-   * @param y         the vertical index or row in the data array to process
-   * @return a String representing the constructed line with color-coded text
+   * @param data      an array of integers representing pixel data in RGB format
+   * @param character the character to use for visual representation of each pixel
+   * @param width     the width of the line in characters
+   * @param y         the vertical index of the line within the pixel data
+   * @return a Component representing the formatted line with applied color codes
    */
   public static Component createLine(final int[] data, final String character, final int width, final int y) {
+    final String line = createRawLine(data, character, width, y);
+    return CraftChatMessage.fromStringOrNull(line);
+  }
+
+  /**
+   * Generates a string representing a line of colored characters based on pixel data.
+   * Each distinct color change in the data array is prefixed with a Minecraft-style
+   * color code, followed by the specified character.
+   *
+   * @param data      an array of integers representing pixel data in RGB format
+   * @param character the character to use for visual representation of each pixel
+   * @param width     the width of the image being represented
+   * @param y         the index of the row from the data array to be converted
+   * @return a string containing color codes and characters representing the specified row of pixel data
+   */
+  public static String createRawLine(final int[] data, final String character, final int width, final int y) {
     final StringBuilder builder = new StringBuilder(width * (14 + character.length()));
     int before = -1;
     for (int x = 0; x < width; ++x) {
@@ -67,8 +85,7 @@ public final class ChatUtils {
         builder.append(character);
       }
     }
-    final String line = builder.toString();
-    return CraftChatMessage.fromStringOrNull(line);
+    return builder.toString();
   }
 
   /**

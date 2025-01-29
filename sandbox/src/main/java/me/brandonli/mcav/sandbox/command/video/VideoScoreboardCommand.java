@@ -33,14 +33,14 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
-import me.brandonli.mcav.media.config.ChatConfiguration;
+import me.brandonli.mcav.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.result.ChatResult;
 import me.brandonli.mcav.media.result.FunctionalVideoFilter;
+import me.brandonli.mcav.media.result.ScoreboardResult;
 import me.brandonli.mcav.media.source.*;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
@@ -60,7 +60,7 @@ import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.*;
 
-public final class VideoChatCommand implements AnnotationCommandFeature {
+public final class VideoScoreboardCommand implements AnnotationCommandFeature {
 
   private VideoPlayerManager manager;
 
@@ -69,10 +69,10 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
     this.manager = plugin.getVideoPlayerManager();
   }
 
-  @Command("mcav video chat <playerType> <videoResolution> <character> <mrl>")
-  @Permission("mcav.command.video.chat")
-  @CommandDescription("mcav.command.video.chat.info")
-  public void playChatVideo(
+  @Command("mcav video scoreboard <playerType> <videoResolution> <character> <mrl>")
+  @Permission("mcav.command.video.scoreboard")
+  @CommandDescription("mcav.command.video.scoreboard.info")
+  public void playScoreboardVideo(
     final Player player,
     final PlayerArgument playerType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
@@ -100,7 +100,7 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
     audience.sendMessage(Message.VIDEO_LOADING.build());
 
     final ExecutorService service = this.manager.getService();
-    CompletableFuture.runAsync(() -> this.synchronizeChatPlayer(playerType, mrl, audience, character, resolution), service)
+    CompletableFuture.runAsync(() -> this.synchronizeScoreboardPlayer(playerType, mrl, audience, character, resolution), service)
       .exceptionally(this.handleException())
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> audience.sendMessage(Message.VIDEO_STARTED.build()));
@@ -114,7 +114,7 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
     };
   }
 
-  private synchronized void synchronizeChatPlayer(
+  private synchronized void synchronizeScoreboardPlayer(
     final PlayerArgument playerType,
     final String mrl,
     final Audience audience,
@@ -128,16 +128,16 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
       return;
     }
     this.manager.releaseVideoPlayer();
-    this.startChatPlayer(playerType, character, resolution, sources);
+    this.startScoreboardPlayer(playerType, character, resolution, sources);
   }
 
-  private void startChatPlayer(
+  private void startScoreboardPlayer(
     final PlayerArgument playerType,
     final String character,
     final Pair<Integer, Integer> resolution,
     final @Nullable Source[] sources
   ) {
-    final VideoPipelineStep videoPipelineStep = this.createChatVideoFilter(character, resolution);
+    final VideoPipelineStep videoPipelineStep = this.createScoreboardVideoFilter(character, resolution);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final Source video = sources[0];
     final Source audio = sources[1];
@@ -152,24 +152,24 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
     }
   }
 
-  private VideoPipelineStep createChatVideoFilter(final String character, final Pair<Integer, Integer> resolution) {
+  private VideoPipelineStep createScoreboardVideoFilter(final String character, final Pair<Integer, Integer> resolution) {
     final Collection<UUID> players = this.getAllViewers();
-    final ChatConfiguration configuration = this.constructChatConfiguration(resolution, character, players);
-    final FunctionalVideoFilter result = new ChatResult(configuration);
+    final ScoreboardConfiguration configuration = this.constructScoreboardConfiguration(resolution, character, players);
+    final FunctionalVideoFilter result = new ScoreboardResult(configuration);
     result.start();
     this.manager.setFilter(result);
     return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(result).build();
   }
 
-  private ChatConfiguration constructChatConfiguration(
+  private ScoreboardConfiguration constructScoreboardConfiguration(
     final Pair<@NonNull Integer, @NonNull Integer> resolution,
     final String character,
     final Collection<UUID> players
   ) {
-    return ChatConfiguration.builder()
+    return ScoreboardConfiguration.builder()
       .viewers(players)
-      .chatWidth(resolution.getFirst())
-      .chatHeight(resolution.getSecond())
+      .width(resolution.getFirst())
+      .lines(resolution.getSecond())
       .character(character)
       .build();
   }
