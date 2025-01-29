@@ -1,6 +1,4 @@
 High Priority Tasks:
-  - Optimize Code for Browser / Virtual Machine
-    - Fix the messy ugly little/big endian issues
   - Write Documentation for Plugin
   - Rewrite all JavaDocs (mcav-common)
 

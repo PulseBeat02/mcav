@@ -104,7 +104,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     super.releaseResource(sender, Message.VM_RELEASE.build());
   }
 
-  @Command("mcav vm create <playerSelector> <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>")
+  @Command(
+    "mcav vm create <playerSelector> <browserResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
+  )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
   public void playVM(
