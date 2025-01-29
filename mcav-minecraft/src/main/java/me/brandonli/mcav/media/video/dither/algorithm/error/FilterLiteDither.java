@@ -49,10 +49,20 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
         }
       }
     } else if (os == OS.WINDOWS) {
-      if (bits == Bits.BITS_32) {
+      if (arch == Arch.X86 && bits == Bits.BITS_32) {
         libraryName = "filterlite-win32.dll";
-      } else if (bits == Bits.BITS_64) {
+      } else if (arch == Arch.X86 && bits == Bits.BITS_64) {
         libraryName = "filterlite-win64.dll";
+      } else if (arch == Arch.ARM && bits == Bits.BITS_32) {
+        libraryName = "filterlite-win-arm32.dll";
+      } else if (arch == Arch.ARM && bits == Bits.BITS_64) {
+        libraryName = "filterlite-win-arm64.dll";
+      }
+    } else if (os == OS.MAC) {
+      if (arch == Arch.X86 && bits == Bits.BITS_64) {
+        libraryName = "libfilterlite-darwin-x86_64.dylib";
+      } else if (arch == Arch.ARM && bits == Bits.BITS_64) {
+        libraryName = "libfilterlite-darwin-aarch64.dylib";
       }
     }
     if (libraryName != null) {
