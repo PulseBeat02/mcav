@@ -22,40 +22,12 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
-/**
- * The BurkesDither class implements the Burkes error diffusion dithering algorithm
- * by extending the {@code ErrorDiffusionDither} class. This algorithm applies
- * error diffusion to reduce color depth while maintaining visual quality by distributing
- * quantization errors to neighboring pixels in a weighted manner. It is suitable
- * for applications like video dithering or image processing that require color quantization.
- */
 public final class BurkesDither extends ErrorDiffusionDither {
 
-  /**
-   * Constructs a new instance of the BurkesDither dithering algorithm using the specified color palette.
-   * This algorithm applies the Burkes error diffusion technique to reduce the color depth of an image
-   * while maintaining visual quality. The palette provided will define the available colors to map the
-   * dithered image.
-   *
-   * @param palette the Palette instance defining the set of colors to be used for dithering. It provides
-   *                methods to access the available colors and perform efficient color lookup during the
-   *                dithering process.
-   */
   public BurkesDither(final Palette palette) {
     super(palette);
   }
 
-  /**
-   * Applies dithering to an image represented by a one-dimensional integer array (buffer),
-   * modifying the pixel colors to approximate the original with a limited color palette.
-   * This method uses the Burkes error diffusion algorithm to distribute the quantization
-   * error of each pixel to its neighboring pixels.
-   *
-   * @param buffer a one-dimensional integer array representing an image, where each element
-   *               contains ARGB pixel data. The array is modified in place.
-   * @param width  the width of the image being processed, used to calculate the height and
-   *               index positions in the buffer.
-   */
   @Override
   public void dither(final int[] buffer, final int width) {
     final Palette palette = this.getPalette();
@@ -88,6 +60,11 @@ public final class BurkesDither extends ErrorDiffusionDither {
             buf1[bufferIndex] = (delta_r << 3) >> 5; // 8/32
             buf1[bufferIndex + 1] = (delta_g << 3) >> 5; // 8/32
             buf1[bufferIndex + 2] = (delta_b << 3) >> 5; // 8/32
+            if (x + 2 < width) { // Two positions to the right
+              buf1[bufferIndex + 6] = (delta_r << 2) >> 5; // 4/32
+              buf1[bufferIndex + 7] = (delta_g << 2) >> 5; // 4/32
+              buf1[bufferIndex + 8] = (delta_b << 2) >> 5; // 4/32
+            }
           }
           if (hasNextY) {
             if (x > 0) {
@@ -102,6 +79,16 @@ public final class BurkesDither extends ErrorDiffusionDither {
               buf2[bufferIndex] = (delta_r << 2) >> 5; // 4/32
               buf2[bufferIndex + 1] = (delta_g << 2) >> 5; // 4/32
               buf2[bufferIndex + 2] = (delta_b << 2) >> 5; // 4/32
+            }
+            if (x > 1) { // Two positions diagonally left
+              buf2[bufferIndex - 9] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex - 8] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex - 7] = (delta_b << 1) >> 5; // 2/32
+            }
+            if (x + 2 < width) { // Two positions diagonally right
+              buf2[bufferIndex + 6] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex + 7] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex + 8] = (delta_b << 1) >> 5; // 2/32
             }
           }
           buffer[index] = closest;
@@ -125,23 +112,38 @@ public final class BurkesDither extends ErrorDiffusionDither {
           final int delta_g = green - ((closest >> 8) & 0xFF);
           final int delta_b = blue - (closest & 0xFF);
           if (hasNextX) {
-            buf1[bufferIndex] = (delta_b << 3) >> 5; // 8/32
-            buf1[bufferIndex - 1] = (delta_g << 3) >> 5; // 8/32
-            buf1[bufferIndex - 2] = (delta_r << 3) >> 5; // 8/32
+            buf1[bufferIndex] = (delta_r << 3) >> 5; // 8/32
+            buf1[bufferIndex + 1] = (delta_g << 3) >> 5; // 8/32
+            buf1[bufferIndex + 2] = (delta_b << 3) >> 5; // 8/32
+            if (x + 2 < width) { // Two positions to the right
+              buf1[bufferIndex + 6] = (delta_r << 2) >> 5; // 4/32
+              buf1[bufferIndex + 7] = (delta_g << 2) >> 5; // 4/32
+              buf1[bufferIndex + 8] = (delta_b << 2) >> 5; // 4/32
+            }
           }
           if (hasNextY) {
-            if (x < widthMinus) {
-              buf2[bufferIndex + 6] = (delta_b << 3) >> 5; // 8/32
-              buf2[bufferIndex + 5] = (delta_g << 3) >> 5; // 8/32
-              buf2[bufferIndex + 4] = (delta_r << 3) >> 5; // 8/32
+            if (x > 0) {
+              buf2[bufferIndex - 6] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex - 5] = (delta_g << 2) >> 5; // 4/32
+              buf2[bufferIndex - 4] = (delta_b << 2) >> 5; // 4/32
             }
-            buf2[bufferIndex + 3] = (delta_b << 3) >> 5; // 8/32
-            buf2[bufferIndex + 2] = (delta_g << 3) >> 5; // 8/32
-            buf2[bufferIndex + 1] = (delta_r << 3) >> 5; // 8/32
+            buf2[bufferIndex - 3] = (delta_r << 3) >> 5; // 8/32
+            buf2[bufferIndex - 2] = (delta_g << 3) >> 5; // 8/32
+            buf2[bufferIndex - 1] = (delta_b << 3) >> 5; // 8/32
             if (hasNextX) {
-              buf2[bufferIndex] = (delta_b << 2) >> 5; // 4/32
-              buf2[bufferIndex - 1] = (delta_g << 2) >> 5; // 4/32
-              buf2[bufferIndex - 2] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex + 1] = (delta_g << 2) >> 5; // 4/32
+              buf2[bufferIndex + 2] = (delta_b << 2) >> 5; // 4/32
+            }
+            if (x > 1) { // Two positions diagonally left
+              buf2[bufferIndex - 9] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex - 8] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex - 7] = (delta_b << 1) >> 5; // 2/32
+            }
+            if (x + 2 < width) { // Two positions diagonally right
+              buf2[bufferIndex + 6] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex + 7] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex + 8] = (delta_b << 1) >> 5; // 2/32
             }
           }
           buffer[index] = closest;
@@ -150,13 +152,6 @@ public final class BurkesDither extends ErrorDiffusionDither {
     }
   }
 
-  /**
-   * Applies Burkes dithering to the given image and converts it into a byte array.
-   *
-   * @param image the static image to be dithered
-   * @param width the width of the image
-   * @return a byte array representing the dithered image
-   */
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();
@@ -195,6 +190,11 @@ public final class BurkesDither extends ErrorDiffusionDither {
             buf1[bufferIndex] = (delta_r << 3) >> 5; // 8/32
             buf1[bufferIndex + 1] = (delta_g << 3) >> 5; // 8/32
             buf1[bufferIndex + 2] = (delta_b << 3) >> 5; // 8/32
+            if (x + 2 < width) { // Two positions to the right
+              buf1[bufferIndex + 6] = (delta_r << 2) >> 5; // 4/32
+              buf1[bufferIndex + 7] = (delta_g << 2) >> 5; // 4/32
+              buf1[bufferIndex + 8] = (delta_b << 2) >> 5; // 4/32
+            }
           }
           if (hasNextY) {
             if (x > 0) {
@@ -209,6 +209,16 @@ public final class BurkesDither extends ErrorDiffusionDither {
               buf2[bufferIndex] = (delta_r << 2) >> 5; // 4/32
               buf2[bufferIndex + 1] = (delta_g << 2) >> 5; // 4/32
               buf2[bufferIndex + 2] = (delta_b << 2) >> 5; // 4/32
+            }
+            if (x > 1) { // Two positions diagonally left
+              buf2[bufferIndex - 9] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex - 8] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex - 7] = (delta_b << 1) >> 5; // 2/32
+            }
+            if (x + 2 < width) { // Two positions diagonally right
+              buf2[bufferIndex + 6] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex + 7] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex + 8] = (delta_b << 1) >> 5; // 2/32
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
@@ -235,23 +245,38 @@ public final class BurkesDither extends ErrorDiffusionDither {
           final int delta_g = green - g;
           final int delta_b = blue - b;
           if (hasNextX) {
-            buf1[bufferIndex] = (delta_b << 3) >> 5; // 8/32
-            buf1[bufferIndex - 1] = (delta_g << 3) >> 5; // 8/32
-            buf1[bufferIndex - 2] = (delta_r << 3) >> 5; // 8/32
+            buf1[bufferIndex] = (delta_r << 3) >> 5; // 8/32
+            buf1[bufferIndex + 1] = (delta_g << 3) >> 5; // 8/32
+            buf1[bufferIndex + 2] = (delta_b << 3) >> 5; // 8/32
+            if (x + 2 < width) { // Two positions to the right
+              buf1[bufferIndex + 6] = (delta_r << 2) >> 5; // 4/32
+              buf1[bufferIndex + 7] = (delta_g << 2) >> 5; // 4/32
+              buf1[bufferIndex + 8] = (delta_b << 2) >> 5; // 4/32
+            }
           }
           if (hasNextY) {
-            if (x < widthMinus) {
-              buf2[bufferIndex + 6] = (delta_b << 3) >> 5; // 8/32
-              buf2[bufferIndex + 5] = (delta_g << 3) >> 5; // 8/32
-              buf2[bufferIndex + 4] = (delta_r << 3) >> 5; // 8/32
+            if (x > 0) {
+              buf2[bufferIndex - 6] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex - 5] = (delta_g << 2) >> 5; // 4/32
+              buf2[bufferIndex - 4] = (delta_b << 2) >> 5; // 4/32
             }
-            buf2[bufferIndex + 3] = (delta_b << 3) >> 5; // 8/32
-            buf2[bufferIndex + 2] = (delta_g << 3) >> 5; // 8/32
-            buf2[bufferIndex + 1] = (delta_r << 3) >> 5; // 8/32
+            buf2[bufferIndex - 3] = (delta_r << 3) >> 5; // 8/32
+            buf2[bufferIndex - 2] = (delta_g << 3) >> 5; // 8/32
+            buf2[bufferIndex - 1] = (delta_b << 3) >> 5; // 8/32
             if (hasNextX) {
-              buf2[bufferIndex] = (delta_b << 2) >> 5; // 4/32
-              buf2[bufferIndex - 1] = (delta_g << 2) >> 5; // 4/32
-              buf2[bufferIndex - 2] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex] = (delta_r << 2) >> 5; // 4/32
+              buf2[bufferIndex + 1] = (delta_g << 2) >> 5; // 4/32
+              buf2[bufferIndex + 2] = (delta_b << 2) >> 5; // 4/32
+            }
+            if (x > 1) { // Two positions diagonally left
+              buf2[bufferIndex - 9] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex - 8] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex - 7] = (delta_b << 1) >> 5; // 2/32
+            }
+            if (x + 2 < width) { // Two positions diagonally right
+              buf2[bufferIndex + 6] = (delta_r << 1) >> 5; // 2/32
+              buf2[bufferIndex + 7] = (delta_g << 1) >> 5; // 2/32
+              buf2[bufferIndex + 8] = (delta_b << 1) >> 5; // 2/32
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));

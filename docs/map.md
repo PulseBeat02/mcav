@@ -35,10 +35,22 @@ algorithms include:
   of dithering, not really useful in practice but straightforward to implement.
 - Nearest Neighbor: This method simply replaces a pixel with the nearest color in the palette.
 
+```{note}
+Many of these error-diffusion algorithms aren't true to the exact algorithm, and some use approximations that have less
+than 1% error for a much faster performance gain.
+```
+
 You would be surprised that Nearest Neighbor is probably the worst-looking algorithm. Though it is one of the fastest 
 and simplest, it does not produce good results. Because it doesn't really trick your eyes into blending the colors
 at all. I will leave the algorithms as an exercise for the reader and their proper resources to learn about them as 
 shown above.
+
+```{note}
+All error-diffusion implementations in MCAV use serpentine error diffusion 
+(or [boustrophedon transform](https://en.wikipedia.org/wiki/Boustrophedon_transform)), which means that the error is 
+applied alternatingly left to right and right to left. This is a common technique in error diffusion to reduce artifacts 
+and improve the quality of the dithered image.
+```
 
 To use these dithering algorithms, you must use the specific builders for each algorithm. For example, to use the
 `ErrorDiffusionDitherBuilder` for error diffusion dithering, the `OrderedDitherBuilder` for ordered dithering, and so

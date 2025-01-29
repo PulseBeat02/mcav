@@ -29,27 +29,10 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  */
 public final class FloydDither extends ErrorDiffusionDither {
 
-  /**
-   * Constructs an instance of the {@code FloydDither} class with the specified color palette.
-   * This constructor initializes the dithering algorithm, setting up the provided palette
-   * to be used for color quantization in the Floyd-Steinberg error diffusion process.
-   *
-   * @param palette the {@code Palette} object representing the set of colors to be used for
-   *                the Floyd-Steinberg dithering process. This palette defines the limited
-   *                color space to which image pixels are mapped.
-   */
   public FloydDither(final Palette palette) {
     super(palette);
   }
 
-  /**
-   * Applies Floyd-Steinberg dithering to the given image buffer, adjusting colors in the buffer
-   * to the closest colors in the associated palette while distributing the quantization errors
-   * to neighboring pixels in a serpentine pattern.
-   *
-   * @param buffer the array representing the image pixels in ARGB format
-   * @param width  the width of the image; used to calculate the height and index offsets
-   */
   @Override
   public void dither(final int[] buffer, final int width) {
     final Palette palette = this.getPalette();
@@ -148,14 +131,6 @@ public final class FloydDither extends ErrorDiffusionDither {
     }
   }
 
-  /**
-   * Applies the Floyd-Steinberg dithering algorithm to convert a static image into a byte array
-   * representation using a selected palette.
-   *
-   * @param image the static image to be dithered
-   * @param width the width of the image in pixels
-   * @return a byte array representing the dithered image
-   */
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();

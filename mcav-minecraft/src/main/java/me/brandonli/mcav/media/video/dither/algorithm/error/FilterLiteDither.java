@@ -22,25 +22,8 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
-/**
- * The {@code FilterLiteDither} class performs optimized error diffusion dithering
- * using a simplified variation of the Sierra 2-4A algorithm. This ditherer
- * achieves a balance between image quality and computational efficiency,
- * making it suitable for scenarios where high performance is essential.
- */
 public final class FilterLiteDither extends ErrorDiffusionDither {
 
-  /**
-   * Constructs an instance of the {@code FilterLiteDither} class, initializing it
-   * with the provided color palette. This constructor sets up the necessary
-   * configuration for performing Filter Lite Dithering, a more optimized variation
-   * of error diffusion dithering designed for speed and efficiency while maintaining
-   * quality results.
-   *
-   * @param palette the {@code Palette} object representing the set of colors to be used
-   *                during the dithering process. This defines the restricted color
-   *                space to which the input image or media will be quantized.
-   */
   public FilterLiteDither(final Palette palette) {
     super(palette);
   }
@@ -149,16 +132,6 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     }
   }
 
-  /**
-   * Applies the Filter Lite Dithering algorithm to a {@code StaticImage} and returns the result
-   * as a byte array. The method processes the image pixel-by-pixel using an error diffusion
-   * technique to approximate colors based on the specified palette.
-   *
-   * @param image the {@code StaticImage} to be dithered, containing the pixel data of the image.
-   * @param width the width of the image in pixels, used for determining dimensions and position.
-   * @return a byte array representing the dithered image, where each byte corresponds to the
-   * quantized palette index or the mapped color.
-   */
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();

@@ -22,45 +22,12 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
-/**
- * The {@code JarvisJudiceNinkeDither} class implements the Jarvis-Judice-Ninke
- * error diffusion dithering algorithm. This algorithm is a specific type of error
- * diffusion process that is used to reduce the color depth of an image while
- * preserving visual quality by distributing the quantization error of each pixel
- * to its neighboring pixels according to a predefined diffusion kernel.
- * <p>
- * The Jarvis-Judice-Ninke algorithm distributes the error over a larger area
- * compared to simpler algorithms such as Floyd-Steinberg, which leads to smoother
- * gradients and better overall image quality when reducing colors.
- * <p>
- * This class extends {@link ErrorDiffusionDither} and relies on a specified
- * {@link Palette} for mapping colors to a limited set of predefined values. The
- * algorithm adjusts pixel values and propagates the error in a specific
- * distribution pattern to surrounding pixels, following the kernel design of
- * Jarvis-Judice-Ninke.
- */
 public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
 
-  /**
-   * Constructs an instance of the {@code JarvisJudiceNinkeDither} class with the specified color
-   * palette. This constructor initializes the dithering algorithm using the provided palette,
-   * which defines the set of colors to be used for mapping pixel values during the dithering
-   * process.
-   *
-   * @param palette the {@code Palette} object representing the color space to be used by the
-   *                Jarvis-Judice-Ninke dithering algorithm. This specifies the restricted set
-   *                of colors that image pixels will be quantized to.
-   */
   public JarvisJudiceNinkeDither(final Palette palette) {
     super(palette);
   }
 
-  /**
-   * Applies the Jarvis-Judice-Ninke error diffusion dithering algorithm to an image buffer.
-   *
-   * @param buffer the array of pixel data in RGB format to be dithered
-   * @param width  the width of the image represented by the buffer
-   */
   @Override
   public void dither(final int[] buffer, final int width) {
     final Palette palette = this.getPalette();
@@ -187,13 +154,6 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
     }
   }
 
-  /**
-   * Processes the given static image using a dithering algorithm and converts it into a byte array representation.
-   *
-   * @param image the static image to be processed
-   * @param width the width of the image in pixels
-   * @return the processed byte array generated from the dithered image
-   */
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();

@@ -22,44 +22,12 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
-/**
- * The AtkinsonDither class applies the Atkinson dithering algorithm to reduce
- * the color palette of an image while preserving visual detail by distributing
- * the quantization error to neighboring pixels.
- * <p>
- * Atkinson dithering is a variation of error diffusion dithering that
- * distributes error to the neighboring pixels in a fixed and controlled
- * pattern, resulting in a fine-grained halftone effect. This is particularly
- * useful for reducing colors to a limited palette without introducing banding.
- * <p>
- * This implementation extends the base ErrorDiffusionDither class and operates
- * by processing an image buffer row by row, alternating processing directions
- * between odd and even rows. The method supports both in-place dithering and
- * generating a dithered byte array from an image.
- */
 public final class AtkinsonDither extends ErrorDiffusionDither {
 
-  /**
-   * Constructs a new instance of the AtkinsonDither algorithm.
-   *
-   * @param palette the color palette used for the dithering process. This palette provides
-   *                the set of colors to map the image's pixels to during the error diffusion
-   *                dithering process.
-   */
   public AtkinsonDither(final Palette palette) {
     super(palette);
   }
 
-  /**
-   * Applies the Atkinson dithering algorithm to a given buffer of pixel data.
-   * This algorithm is used to reduce the number of colors in the image while maintaining
-   * visual detail by distributing the error generated in pixel color quantization to neighboring pixels.
-   *
-   * @param buffer the pixel buffer containing the image data to dither. Each pixel is represented
-   *               as an integer, typically using 32-bit ARGB encoding (alpha, red, green, blue).
-   * @param width  the width of the image in pixels. This determines how the one-dimensional
-   *               pixel buffer is divided into rows.
-   */
   @Override
   public void dither(final int[] buffer, final int width) {
     final Palette palette = this.getPalette();
@@ -95,6 +63,11 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
             buf1[bufferIndex] = delta_r >> 3;
             buf1[bufferIndex + 1] = delta_g >> 3;
             buf1[bufferIndex + 2] = delta_b >> 3;
+            if (x + 2 < width) {
+              buf1[bufferIndex + 6] = delta_r >> 3;
+              buf1[bufferIndex + 7] = delta_g >> 3;
+              buf1[bufferIndex + 8] = delta_b >> 3;
+            }
           }
           if (hasNextY) {
             buf2[bufferIndex - 3] = delta_r >> 3;
@@ -109,6 +82,11 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
               buf2[bufferIndex + 3] = delta_r >> 3;
               buf2[bufferIndex + 4] = delta_g >> 3;
               buf2[bufferIndex + 5] = delta_b >> 3;
+            }
+            if (y + 2 < height) {
+              buf2[bufferIndex] = delta_r >> 3;
+              buf2[bufferIndex + 1] = delta_g >> 3;
+              buf2[bufferIndex + 2] = delta_b >> 3;
             }
           }
           buffer[index] = closest;
@@ -135,23 +113,33 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
           final int delta_g = green - g;
           final int delta_b = blue - b;
           if (hasNextX) {
-            buf1[bufferIndex] = delta_b >> 3;
-            buf1[bufferIndex - 1] = delta_g >> 3;
-            buf1[bufferIndex - 2] = delta_r >> 3;
+            buf1[bufferIndex] = delta_r >> 3;
+            buf1[bufferIndex + 1] = delta_g >> 3;
+            buf1[bufferIndex + 2] = delta_b >> 3;
+            if (x + 2 < width) {
+              buf1[bufferIndex + 6] = delta_r >> 3;
+              buf1[bufferIndex + 7] = delta_g >> 3;
+              buf1[bufferIndex + 8] = delta_b >> 3;
+            }
           }
           if (hasNextY) {
-            buf2[bufferIndex + 3] = delta_b >> 3;
-            buf2[bufferIndex + 2] = delta_g >> 3;
-            buf2[bufferIndex + 1] = delta_r >> 3;
-            if (x < widthMinus) {
-              buf2[bufferIndex + 6] = delta_b >> 3;
-              buf2[bufferIndex + 5] = delta_g >> 3;
-              buf2[bufferIndex + 4] = delta_r >> 3;
-            }
+            buf2[bufferIndex - 3] = delta_r >> 3;
+            buf2[bufferIndex - 2] = delta_g >> 3;
+            buf2[bufferIndex - 1] = delta_b >> 3;
             if (x > 0) {
-              buf2[bufferIndex - 3] = delta_b >> 3;
-              buf2[bufferIndex - 2] = delta_g >> 3;
-              buf2[bufferIndex - 1] = delta_r >> 3;
+              buf2[bufferIndex - 6] = delta_r >> 3;
+              buf2[bufferIndex - 5] = delta_g >> 3;
+              buf2[bufferIndex - 4] = delta_b >> 3;
+            }
+            if (x < widthMinus) {
+              buf2[bufferIndex + 3] = delta_r >> 3;
+              buf2[bufferIndex + 4] = delta_g >> 3;
+              buf2[bufferIndex + 5] = delta_b >> 3;
+            }
+            if (y + 2 < height) {
+              buf2[bufferIndex] = delta_r >> 3;
+              buf2[bufferIndex + 1] = delta_g >> 3;
+              buf2[bufferIndex + 2] = delta_b >> 3;
             }
           }
           buffer[index] = closest;
@@ -160,13 +148,6 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
     }
   }
 
-  /**
-   * Converts a static image into a dithered byte array using the Atkinson dithering algorithm.
-   *
-   * @param image The input static image to be dithered.
-   * @param width The width of the input image in pixels.
-   * @return A byte array containing the dithered result.
-   */
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();
@@ -204,6 +185,11 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
             buf1[bufferIndex] = delta_r >> 3;
             buf1[bufferIndex + 1] = delta_g >> 3;
             buf1[bufferIndex + 2] = delta_b >> 3;
+            if (x + 2 < width) {
+              buf1[bufferIndex + 6] = delta_r >> 3;
+              buf1[bufferIndex + 7] = delta_g >> 3;
+              buf1[bufferIndex + 8] = delta_b >> 3;
+            }
           }
           if (hasNextY) {
             buf2[bufferIndex - 3] = delta_r >> 3;
@@ -218,6 +204,11 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
               buf2[bufferIndex + 3] = delta_r >> 3;
               buf2[bufferIndex + 4] = delta_g >> 3;
               buf2[bufferIndex + 5] = delta_b >> 3;
+            }
+            if (y + 2 < height) {
+              buf2[bufferIndex] = delta_r >> 3;
+              buf2[bufferIndex + 1] = delta_g >> 3;
+              buf2[bufferIndex + 2] = delta_b >> 3;
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
@@ -244,23 +235,33 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
           final int delta_g = green - g;
           final int delta_b = blue - b;
           if (hasNextX) {
-            buf1[bufferIndex] = delta_b >> 3;
-            buf1[bufferIndex - 1] = delta_g >> 3;
-            buf1[bufferIndex - 2] = delta_r >> 3;
+            buf1[bufferIndex] = delta_r >> 3;
+            buf1[bufferIndex + 1] = delta_g >> 3;
+            buf1[bufferIndex + 2] = delta_b >> 3;
+            if (x + 2 < width) {
+              buf1[bufferIndex + 6] = delta_r >> 3;
+              buf1[bufferIndex + 7] = delta_g >> 3;
+              buf1[bufferIndex + 8] = delta_b >> 3;
+            }
           }
           if (hasNextY) {
-            buf2[bufferIndex + 3] = delta_b >> 3;
-            buf2[bufferIndex + 2] = delta_g >> 3;
-            buf2[bufferIndex + 1] = delta_r >> 3;
-            if (x < widthMinus) {
-              buf2[bufferIndex + 6] = delta_b >> 3;
-              buf2[bufferIndex + 5] = delta_g >> 3;
-              buf2[bufferIndex + 4] = delta_r >> 3;
-            }
+            buf2[bufferIndex - 3] = delta_r >> 3;
+            buf2[bufferIndex - 2] = delta_g >> 3;
+            buf2[bufferIndex - 1] = delta_b >> 3;
             if (x > 0) {
-              buf2[bufferIndex - 3] = delta_b >> 3;
-              buf2[bufferIndex - 2] = delta_g >> 3;
-              buf2[bufferIndex - 1] = delta_r >> 3;
+              buf2[bufferIndex - 6] = delta_r >> 3;
+              buf2[bufferIndex - 5] = delta_g >> 3;
+              buf2[bufferIndex - 4] = delta_b >> 3;
+            }
+            if (x < widthMinus) {
+              buf2[bufferIndex + 3] = delta_r >> 3;
+              buf2[bufferIndex + 4] = delta_g >> 3;
+              buf2[bufferIndex + 5] = delta_b >> 3;
+            }
+            if (y + 2 < height) {
+              buf2[bufferIndex] = delta_r >> 3;
+              buf2[bufferIndex + 1] = delta_g >> 3;
+              buf2[bufferIndex + 2] = delta_b >> 3;
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
