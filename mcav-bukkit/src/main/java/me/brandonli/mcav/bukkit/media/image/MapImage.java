@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -26,21 +28,16 @@ import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import org.bukkit.Bukkit;
-import org.bukkit.map.MapRenderer;
-import org.bukkit.map.MapView;
 
 /**
  * Represents a map-based image display implementation.
  */
 public class MapImage implements DisplayableImage {
 
-  private final Set<Integer> mapIds;
   private final MapConfiguration mapConfiguration;
   private final DitherAlgorithm algorithm;
 
   MapImage(final MapConfiguration mapConfiguration, final DitherAlgorithm algorithm) {
-    this.mapIds = new HashSet<>();
     this.mapConfiguration = mapConfiguration;
     this.algorithm = algorithm;
   }
@@ -95,7 +92,6 @@ public class MapImage implements DisplayableImage {
         final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
         final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
         packetArray[arrIndex++] = packet;
-        this.mapIds.add(mapId);
       }
     }
     PacketUtils.sendPackets(viewers, packetArray);
@@ -106,13 +102,19 @@ public class MapImage implements DisplayableImage {
    */
   @Override
   public void release() {
-    for (final int mapId : this.mapIds) {
-      final MapView mapView = Bukkit.getMap(mapId);
-      if (mapView == null) {
-        continue;
-      }
-      final List<MapRenderer> renderers = mapView.getRenderers();
-      renderers.clear();
+    final int start = this.mapConfiguration.getMap();
+    final int mapWidth = this.mapConfiguration.getMapBlockWidth();
+    final int mapHeight = this.mapConfiguration.getMapBlockHeight();
+    final int end = start + (mapWidth * mapHeight);
+    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
+    final Collection<MapDecoration> empty = new ArrayList<>();
+    final ClientboundMapItemDataPacket[] emptyPackets = new ClientboundMapItemDataPacket[end - start];
+    final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(0, 0, 128, 128, new byte[128 * 128]);
+    for (int i = start; i < end; i++) {
+      final MapId id = new MapId(i);
+      final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
+      emptyPackets[i - start] = packet;
     }
+    PacketUtils.sendPackets(viewers, emptyPackets);
   }
 }

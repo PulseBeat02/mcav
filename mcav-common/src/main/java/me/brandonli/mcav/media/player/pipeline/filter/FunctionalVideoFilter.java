@@ -15,30 +15,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
+package me.brandonli.mcav.media.player.pipeline.filter;
 
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 
 /**
- * Represents an interface used to handle the result of a dithering operation.
+ * Represents a functional video filter that can be started and released. Extends the
+ * {@link VideoFilter} interface to provide additional functionality for managing the lifecycle of the filter.
  */
-public interface DitherResultStep {
+public interface FunctionalVideoFilter extends VideoFilter {
   /**
-   * Processes the dithered video output and its associated metadata.
-   *
-   * @param samples  the {@link ImageBuffer} containing the original image samples
-   * @param algorithm the {@link DitherAlgorithm} used for dithering
-   */
-  void process(final ImageBuffer samples, final DitherAlgorithm algorithm);
-
-  /**
-   * Starts the dithering result process.
+   * Starts the video filter, initializing any necessary resources or processes.
+   * This method should be called before applying the filter to the pipeline.
    */
   void start();
 
   /**
-   * Releases any resources associated with this step.
+   * Releases any resources or processes associated with the video filter.
+   * This method should be called when the filter is no longer needed to prevent memory leaks.
    */
   void release();
 }

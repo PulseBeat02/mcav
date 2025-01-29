@@ -78,6 +78,25 @@ stream OBS output by setting the `mrl` argument to be `dshow:video=OBS Virtual C
 
 ---
 
+| **Command**                        | `/mcav video hologram set`                               |
+|------------------------------------|----------------------------------------------------------|
+| **Usage**                          | `/mcav video hologram set <location>`                    |
+| **Permission**                     | `mcav.command.hologram.set`                              |
+| **Description**                    | Sets the location for displaying hologram video content. |
+| **Arguments**                      |                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location` | The location in the World to display the hologram        |
+
+---
+
+| **Command**     | `/mcav video hologram disable`                   |
+|-----------------|--------------------------------------------------|
+| **Usage**       | `/mcav video hologram disable`                   |
+| **Permission**  | `mcav.command.hologram.disable`                  |
+| **Description** | Disables the hologram display for video content. |
+| **Arguments**   | None                                             |
+
+---
+
 | **Command**                               | `/mcav video block`                                                                                      |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------|
 | **Usage**                                 | `/mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <flags> <mrl>` |

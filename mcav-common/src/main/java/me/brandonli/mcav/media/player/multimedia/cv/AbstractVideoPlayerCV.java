@@ -132,7 +132,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         this.currentSource = video;
         this.startPlaybackWithSeparateAudio(audio);
         return true;
-      } catch (final Exception e) {
+      } catch (final Throwable e) {
         this.stop();
         final String msg = e.getMessage();
         requireNonNull(msg);
@@ -250,7 +250,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
     Frame videoFrame;
     while ((videoFrame = videoGrabber.grab()) != null && this.running.get()) {
-      if (videoFrame.image != null) {
+      if (videoFrame.image != null && this.videoCallback.isAttached()) {
         final Frame copy = videoFrame.clone();
         videoExec.submit(() -> this.processVideoFrame(copy, videoMeta));
       }
@@ -274,7 +274,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         final Frame finalCopy = copy;
         audioExec.submit(() -> this.processAudioFrame(finalCopy, audioMeta));
       }
-      if (frame.image != null) {
+      if (frame.image != null && this.videoCallback.isAttached()) {
         final Frame copied = copy == null ? frame.clone() : copy;
         videoExec.submit(() -> this.processVideoFrame(copied, videoMeta));
       }
@@ -291,6 +291,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     grabber.setOption("flags", "low_delay");
     grabber.setOption("audio_buffer_size", "16384");
     grabber.setOption("thread_queue_size", "16384");
+    grabber.setOption("http_persistent", "0");
 
     grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
     grabber.setSampleFormat(AV_SAMPLE_FMT_S16);
@@ -325,7 +326,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         this.currentSource = combined;
         this.startPlayback();
         return true;
-      } catch (final Exception e) {
+      } catch (final Throwable e) {
         this.stop();
         final String msg = e.getMessage();
         requireNonNull(msg);
@@ -353,6 +354,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     grabber.setOption("rtbufsize", "2048k");
     grabber.setOption("buffer_size", "2048k");
     grabber.setOption("hwaccel", "auto");
+    grabber.setOption("http_persistent", "0");
     grabber.setPixelFormat(AV_PIX_FMT_BGR24);
     grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
     grabber.setSampleFormat(AV_SAMPLE_FMT_S16);
@@ -437,7 +439,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           final Frame finalCopy = copy;
           audioExec.submit(() -> this.processAudioFrame(finalCopy, audioMeta));
         }
-        if (frame.image != null) {
+        if (frame.image != null && this.videoCallback.isAttached()) {
           //          if (skipCount.getAndDecrement() > 0) {
           //            continue;
           //          }
@@ -468,7 +470,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         step.process(data, meta);
         step = step.next();
       }
-    } catch (final Exception e) {
+    } catch (final Throwable e) {
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);
@@ -526,7 +528,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         step = step.next();
       }
       img.release();
-    } catch (final Exception e) {
+    } catch (final Throwable e) {
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);

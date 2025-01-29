@@ -236,6 +236,8 @@
             this.audioCtx = options.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
             this.setupHowler();
             this.lastData = new Float32Array(barCount);
+            this.isDestroyed = false;
+            this.activeSources = new Set();
 
             this.gainNode = this.audioCtx.createGain();
             this.gainNode.connect(this.audioCtx.destination);
@@ -247,6 +249,8 @@
         }
 
         feed(data) {
+            if (this.isDestroyed) return;
+
             const view = new DataView(data);
             const float32Array = new Float32Array(data.byteLength / 2);
             for (let i = 0; i < float32Array.length; i++) {
@@ -266,6 +270,7 @@
         }
 
         updateVisualizer(data) {
+            if (this.isDestroyed) return;
 
             if (!animationId) {
                 this.animateVisualizer();
@@ -289,6 +294,8 @@
             visualizerPlaceholder.style.display = 'none';
 
             const updateBars = () => {
+                if (this.isDestroyed) return;
+
                 for (let i = 0; i < barCount; i++) {
                     const height = this.lastData[i] * 100;
                     bars[i].style.height = `${Math.max(4, height)}px`;
@@ -300,7 +307,8 @@
         }
 
         play() {
-            if (this.samples.length === 0) return;
+            if (this.samples.length === 0 || this.isDestroyed) return;
+
             const bufferSource = this.audioCtx.createBufferSource();
             const length = this.samples.length / this.options.channels;
             const audioBuffer = this.audioCtx.createBuffer(
@@ -308,6 +316,7 @@
                 length,
                 this.options.sampleRate
             );
+
             for (let channel = 0; channel < this.options.channels; channel++) {
                 const audioData = audioBuffer.getChannelData(channel);
                 let offset = channel;
@@ -323,11 +332,19 @@
                     offset += this.options.channels;
                 }
             }
+
             if (this.startTime < this.audioCtx.currentTime) {
                 this.startTime = this.audioCtx.currentTime;
             }
+
             bufferSource.buffer = audioBuffer;
             bufferSource.connect(this.gainNode);
+
+            this.activeSources.add(bufferSource);
+
+            bufferSource.onended = () => {
+                this.activeSources.delete(bufferSource);
+            };
 
             bufferSource.start(this.startTime);
             this.startTime += audioBuffer.duration;
@@ -335,26 +352,52 @@
         }
 
         destroy() {
+            this.isDestroyed = true;
+
+            this.activeSources.forEach(source => {
+                try {
+                    source.stop();
+                    source.disconnect();
+                } catch (e) {
+                }
+            });
+            this.activeSources.clear();
+
+            if (this.gainNode) {
+                this.gainNode.disconnect();
+            }
+
             this.samples = new Float32Array();
+
             if (animationId) {
                 cancelAnimationFrame(animationId);
                 animationId = null;
             }
+
             visualizerPlaceholder.style.display = 'block';
             bars.forEach(bar => bar.style.height = '4px');
+
+            this.lastData = new Float32Array(barCount);
         }
     }
 
     startBtn.onclick = function () {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            statusEl.textContent = 'Audio permission: ' + audioContext.state;
+
+        if (audioContext) {
+            try {
+                audioContext.close();
+            } catch (e) {
+            }
         }
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        statusEl.textContent = 'Audio permission: ' + audioContext.state;
+
         if (audioContext.state === 'running') {
             connectWebSocket();
         } else {
             audioContext.resume().then(() => {
-                statusEl.textContent = 'Audio permission granted! Click Start again to connect.';
+                statusEl.textContent = 'Audio permission granted!';
                 if (audioContext.state === 'running') {
                     connectWebSocket();
                 }
@@ -365,39 +408,48 @@
     };
 
     function connectWebSocket() {
-        if (pcmProcessor) return;
+        if (pcmProcessor) {
+            pcmProcessor.destroy();
+            pcmProcessor = null;
+        }
+
         try {
             statusEl.textContent = 'Connecting...';
+
             pcmProcessor = new PCMProcessor({
                 encoding: '16bitInt',
                 channels: 2,
                 sampleRate: 48000,
                 flushingTime: 2000,
-                audioCtx: Howler.ctx
+                audioCtx: audioContext
             });
 
             pcmProcessor.gainNode.gain.value = volumeSlider.value / 100;
 
             ws = new WebSocket('ws://' + location.hostname + ':%%PORT%%');
             ws.binaryType = 'arraybuffer';
+
             ws.onopen = function () {
                 statusEl.textContent = 'Connected';
                 statusEl.className = 'status-connected';
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
             };
+
             ws.onmessage = function (e) {
-                if (e.data.byteLength > 0) {
+                if (e.data.byteLength > 0 && pcmProcessor && !pcmProcessor.isDestroyed) {
                     statusEl.textContent = 'Streaming audio';
                     pcmProcessor.feed(e.data);
                 }
             };
+
             ws.onerror = function (e) {
                 statusEl.textContent = 'Connection error';
                 statusEl.className = '';
                 console.error('WebSocket error:', e);
                 stopStream();
             };
+
             ws.onclose = function () {
                 statusEl.textContent = 'Disconnected';
                 statusEl.className = '';
@@ -432,6 +484,16 @@
             pcmProcessor.gainNode.gain.value = this.value / 100;
         }
         Howler.volume(this.value / 100);
+    });
+
+    window.addEventListener('beforeunload', function() {
+        stopStream();
+        if (audioContext) {
+            try {
+                audioContext.close();
+            } catch (e) {
+            }
+        }
     });
 </script>
 </body>

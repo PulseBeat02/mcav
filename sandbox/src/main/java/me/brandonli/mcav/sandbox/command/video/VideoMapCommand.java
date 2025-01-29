@@ -22,8 +22,8 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -81,7 +81,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final MapConfiguration mapConfig = config.mapConfiguration();
     final MapResult result = new MapResult(mapConfig);
     final DitherAlgorithm algorithm = config.ditheringAlgorithm().getAlgorithm();
-    final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
+    final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
+    this.manager.setFilter(ditherFilter);
     return PipelineBuilder.video().then(new FPSFilter()).then(ditherFilter).build();
   }
 

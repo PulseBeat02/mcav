@@ -306,7 +306,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
           current.process(converted, this.metadata);
           current = current.next();
         }
-      } catch (final Exception e) {
+      } catch (final Throwable e) {
         final String msg = e.getMessage();
         requireNonNull(msg);
         VLCPlayer.this.exceptionHandler.accept(msg, e);
@@ -352,7 +352,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
           current = current.next();
         }
         image.release();
-      } catch (final Exception e) {
+      } catch (final Throwable e) {
         final String msg = e.getMessage();
         requireNonNull(msg);
         VLCPlayer.this.exceptionHandler.accept(msg, e);

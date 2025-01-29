@@ -207,7 +207,7 @@ public class VNCPlayerImpl implements VNCPlayer {
         current = current.next();
       }
       staticImage.release();
-    } catch (final Exception e) {
+    } catch (final Throwable e) {
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);

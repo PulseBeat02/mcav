@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -97,6 +98,10 @@ public class HttpResultImpl implements HttpResult {
       return;
     }
 
+    if (this.wsClients.isEmpty()) {
+      return;
+    }
+
     final ByteBuffer clamped = samples.order(ByteOrder.BIG_ENDIAN);
     final int position = clamped.position();
     final int remaining = clamped.remaining();
@@ -105,12 +110,18 @@ public class HttpResultImpl implements HttpResult {
     copy.flip();
     clamped.position(position);
 
-    for (final WsContext client : this.wsClients) {
+    final Iterator<WsContext> iterator = this.wsClients.iterator();
+    while (iterator.hasNext()) {
+      final WsContext client = iterator.next();
       final Session session = client.session;
-      if (session.isOpen()) {
+      if (!session.isOpen()) {
+        iterator.remove();
+        continue;
+      }
+      try {
         client.send(copy);
-      } else {
-        this.wsClients.remove(client);
+      } catch (final Exception e) {
+        iterator.remove();
       }
     }
   }

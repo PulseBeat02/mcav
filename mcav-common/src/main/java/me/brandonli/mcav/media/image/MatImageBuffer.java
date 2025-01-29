@@ -36,7 +36,7 @@ import me.brandonli.mcav.utils.examinable.ExaminableObject;
 import me.brandonli.mcav.utils.examinable.ExaminableProperty;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Frame;
-import org.bytedeco.javacv.Java2DFrameUtils;
+import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 import org.bytedeco.opencv.global.opencv_imgproc;
@@ -57,9 +57,10 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   public static final ExaminableProperty<Mat> MAT_PROPERTY = ExaminableProperty.property("mat", Mat.class);
 
   private static final OpenCVFrameConverter.ToMat CONVERTER = new OpenCVFrameConverter.ToMat();
+  private static final Java2DFrameConverter IMAGE_CONVERTER = new Java2DFrameConverter();
 
-  private final Mat mat;
   private @Nullable BytePointer pointer;
+  private final Mat mat;
 
   MatImageBuffer(final Mat mat) {
     this.mat = mat;
@@ -79,7 +80,6 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     this.mat = new Mat();
     opencv_imgproc.cvtColor(converted, this.mat, opencv_imgproc.COLOR_YUV2BGR_I420);
     this.assignMat(this.mat);
-    throw new AssertionError();
   }
 
   MatImageBuffer(final ByteBuffer bytes, final int width, final int height) {
@@ -190,10 +190,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public BufferedImage toBufferedImage() {
-    try {
-      return Java2DFrameUtils.toBufferedImage(this.mat);
-    } catch (final Exception e) {
-      throw new RuntimeException("Failed to convert Mat to BufferedImage", e);
+    try (final Frame f = CONVERTER.convert(this.mat)) {
+      return IMAGE_CONVERTER.getBufferedImage(f);
     }
   }
 

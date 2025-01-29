@@ -20,6 +20,8 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
+  NullComponent<Sender> HOLOGRAM_DISABLED = direct("mcav.command.hologram.disable");
+  NullComponent<Sender> HOLOGRAM_LOCATION_SET = direct("mcav.command.hologram.set");
   NullComponent<Sender> QEMU_NOT_INSTALLED = direct("mcav.qemu.error");
   NullComponent<Sender> SCREEN_BUILD = direct("mcav.command.screen.build");
   NullComponent<Sender> RELEASE_IMAGE = direct("mcav.command.image.release");

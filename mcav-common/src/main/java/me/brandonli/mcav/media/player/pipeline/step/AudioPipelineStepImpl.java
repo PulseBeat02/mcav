@@ -48,7 +48,7 @@ public final class AudioPipelineStepImpl implements AudioPipelineStep {
    * {@inheritDoc}
    */
   @Override
-  public synchronized void process(final ByteBuffer buffer, final OriginalAudioMetadata metadata) {
+  public void process(final ByteBuffer buffer, final OriginalAudioMetadata metadata) {
     this.filter.applyFilter(buffer, metadata);
   }
 }

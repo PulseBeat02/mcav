@@ -39,8 +39,8 @@ public final class HttpAudioExample {
     final MCAVApi api = MCAV.api();
     api.install();
 
-    final HttpResult result = HttpResult.port(3001);
-    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+    final HttpResult result = HttpResult.port(3000);
+    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8"));
     final YTDLPParser parser = YTDLPParser.simple();
     final URLParseDump dump = parser.parse(source);
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
@@ -52,6 +52,19 @@ public final class HttpAudioExample {
     result.start();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    multiplexer.setExceptionHandler((context, throwable) -> {
+      System.err.println("Error occurred while processing media: " + context);
+      throwable.printStackTrace();
+    });
+
+    Thread.getAllStackTraces()
+      .keySet()
+      .forEach(thread1 -> {
+        thread1.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+          System.err.println("Uncaught exception in thread: " + thread.getName());
+          throwable.printStackTrace();
+        });
+      });
 
     final VideoAttachableCallback video = multiplexer.getVideoAttachableCallback();
     video.attach(videoPipelineStep);

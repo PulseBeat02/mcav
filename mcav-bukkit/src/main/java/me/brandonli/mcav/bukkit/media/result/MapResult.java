@@ -105,4 +105,33 @@ public class MapResult implements DitherResultStep {
     }
     PacketUtils.sendPackets(viewers, packetArray);
   }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void start() {
+    // no-op
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void release() {
+    final int start = this.mapConfiguration.getMap();
+    final int mapWidth = this.mapConfiguration.getMapBlockWidth();
+    final int mapHeight = this.mapConfiguration.getMapBlockHeight();
+    final int end = start + (mapWidth * mapHeight);
+    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
+    final Collection<MapDecoration> empty = new ArrayList<>();
+    final ClientboundMapItemDataPacket[] emptyPackets = new ClientboundMapItemDataPacket[end - start];
+    final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(0, 0, 128, 128, new byte[128 * 128]);
+    for (int i = start; i < end; i++) {
+      final MapId id = new MapId(i);
+      final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
+      emptyPackets[i - start] = packet;
+    }
+    PacketUtils.sendPackets(viewers, emptyPackets);
+  }
 }

@@ -227,7 +227,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
         staticImage.release();
         this.waitForNextFrame(frameInterval);
       }
-    } catch (final Exception e) {
+    } catch (final Throwable e) {
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);

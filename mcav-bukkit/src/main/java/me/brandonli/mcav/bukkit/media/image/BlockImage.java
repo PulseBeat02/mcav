@@ -17,17 +17,21 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
+import me.brandonli.mcav.bukkit.media.result.LocationData;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
@@ -40,7 +44,7 @@ public class BlockImage implements DisplayableImage {
   private final BlockConfiguration blockConfiguration;
   private final FilterLiteDither dither;
 
-  private Location[] locationCache;
+  private LocationData[] locationCache;
 
   BlockImage(final BlockConfiguration configuration) {
     this.blockConfiguration = configuration;
@@ -56,14 +60,19 @@ public class BlockImage implements DisplayableImage {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
     final Location origin = this.blockConfiguration.getPosition();
-    this.locationCache = new Location[blockWidth * blockHeight];
+    this.locationCache = new LocationData[blockWidth * blockHeight];
     for (int i = 0; i < this.locationCache.length; i++) {
       final int x = i % blockWidth;
       final int y = i / blockWidth;
       final int adjustedX = x - (blockWidth / 2);
       final int adjustedY = blockHeight - 1 - y;
       final Location clone = origin.clone();
-      this.locationCache[i] = clone.add(adjustedX, adjustedY, 0);
+      final Location adjusted = clone.add(adjustedX, adjustedY, 0);
+      final Block block = adjusted.getBlock();
+      final BlockState state = block.getState();
+      final BlockState copy = state.copy(adjusted);
+      final LocationData locationData = new LocationData(adjusted, copy);
+      this.locationCache[i] = locationData;
     }
 
     final ResizeFilter resizeFilter = new ResizeFilter(blockWidth, blockHeight);
@@ -80,7 +89,8 @@ public class BlockImage implements DisplayableImage {
 
     final Collection<BlockState> blockStates = new HashSet<>();
     for (int i = 0; i < materials.length; i++) {
-      final Location location = this.locationCache[i];
+      final LocationData locationData = this.locationCache[i];
+      final Location location = locationData.location();
       final BlockData blockData = materials[i].createBlockData();
       final BlockState blockState = blockData.createBlockState();
       final BlockState copy = blockState.copy(location);
@@ -106,14 +116,7 @@ public class BlockImage implements DisplayableImage {
       return;
     }
 
-    final BlockData empty = Material.AIR.createBlockData();
-    final BlockState emptyState = empty.createBlockState();
-    final Collection<BlockState> blockStates = new HashSet<>();
-    for (final Location location : this.locationCache) {
-      final BlockState copy = emptyState.copy(location);
-      blockStates.add(copy);
-    }
-
+    final Collection<BlockState> blockStates = Arrays.stream(this.locationCache).map(LocationData::blockState).collect(Collectors.toList());
     final Collection<UUID> viewers = this.blockConfiguration.getViewers();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);

@@ -15,24 +15,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.media.result;
+package me.brandonli.mcav.bukkit.hologram;
 
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import org.bukkit.entity.TextDisplay;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a functional video filter that can be started and released. Extends the
- * {@link VideoFilter} interface to provide additional functionality for managing the lifecycle of the filter.
+ * Represents a video hologram that can be displayed in the game.
  */
-public interface FunctionalVideoFilter extends VideoFilter {
-  /**
-   * Starts the video filter, initializing any necessary resources or processes.
-   * This method should be called before applying the filter to the pipeline.
-   */
-  void start();
+public abstract class VideoHologram implements Hologram {
+
+  private @Nullable TextDisplay display;
+
+  VideoHologram() {
+    // no-op
+  }
 
   /**
-   * Releases any resources or processes associated with the video filter.
-   * This method should be called when the filter is no longer needed to prevent memory leaks.
+   * {@inheritDoc}
    */
-  void release();
+  @Override
+  public void kill() {
+    if (this.display != null) {
+      this.display.remove();
+      this.display = null;
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public @Nullable TextDisplay getDisplay() {
+    return this.display;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setDisplay(final @Nullable TextDisplay display) {
+    this.display = display;
+  }
 }

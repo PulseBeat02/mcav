@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
@@ -26,7 +27,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  * A filter that applies a dithering effect to video frames using a specified dithering algorithm
  * and a result-processing callback.
  */
-public final class DitherFilter implements VideoFilter {
+public final class DitherFilter implements FunctionalVideoFilter {
 
   private final DitherAlgorithm algorithm;
   private final DitherResultStep callback;
@@ -37,13 +38,13 @@ public final class DitherFilter implements VideoFilter {
   }
 
   /**
-   * A factory method for creating a {@link VideoFilter} that applies a dithering effect to video frames.
+   * A factory method for creating a {@link FunctionalVideoFilter} that applies a dithering effect to video frames.
    *
    * @param algorithm the dithering algorithm to be used for the transformation of video frames
    * @param callback  the callback to handle the dithered video output and its associated metadata
    * @return a {@link VideoFilter} instance that applies the specified dithering algorithm and uses the callback for result processing
    */
-  public static VideoFilter dither(final DitherAlgorithm algorithm, final DitherResultStep callback) {
+  public static FunctionalVideoFilter dither(final DitherAlgorithm algorithm, final DitherResultStep callback) {
     return new DitherFilter(algorithm, callback);
   }
 
@@ -53,5 +54,21 @@ public final class DitherFilter implements VideoFilter {
   @Override
   public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     this.callback.process(samples, this.algorithm);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void start() {
+    this.callback.start();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void release() {
+    this.callback.release();
   }
 }

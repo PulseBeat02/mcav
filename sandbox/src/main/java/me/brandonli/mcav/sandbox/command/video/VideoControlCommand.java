@@ -24,6 +24,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
@@ -58,7 +59,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final CommandSender player) {
     final ExecutorService service = this.manager.getService();
     player.sendMessage(Message.RELEASE_PLAYER_START.build());
-    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(
+    CompletableFuture.runAsync(() -> this.manager.releaseVideoPlayer(false), service).thenRun(
       TaskUtils.handleAsyncTask(this.sandbox, () -> player.sendMessage(Message.RELEASE_PLAYER.build()))
     );
   }
@@ -72,5 +73,21 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
       videoPlayer.pause();
     }
     player.sendMessage(Message.PAUSE_PLAYER.build());
+  }
+
+  @Command("mcav video hologram set <location>")
+  @Permission("mcav.command.hologram.set")
+  @CommandDescription("mcav.command.hologram.set.info")
+  public void setHologramLocation(final CommandSender sender, final Location location) {
+    this.manager.setHologramLocation(location);
+    sender.sendMessage(Message.HOLOGRAM_LOCATION_SET.build());
+  }
+
+  @Command("mcav video hologram disable")
+  @Permission("mcav.command.hologram.disable")
+  @CommandDescription("mcav.command.hologram.disable.info")
+  public void disableHologram(final CommandSender sender) {
+    this.manager.setHologramLocation(null);
+    sender.sendMessage(Message.HOLOGRAM_DISABLED.build());
   }
 }

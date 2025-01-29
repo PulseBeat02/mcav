@@ -102,7 +102,7 @@ public class ImagePlayerImpl implements ImagePlayer {
         }
         image.release();
       }
-    } catch (final Exception e) {
+    } catch (final Throwable e) {
       this.exceptionHandler.accept("Error processing frame in ImagePlayer", e);
     }
   }

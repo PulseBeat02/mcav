@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -51,8 +52,11 @@ import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
@@ -184,12 +188,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configProvider
   ) {
-    @Nullable final Source[] sources = this.retrievePair(playerType, mrl, arguments);
-    if (sources == null) {
+    final RetrievalResult sources = this.retrievePair(playerType, mrl, arguments);
+    if (sources.audio == null && sources.video == null) {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;
     }
-    this.manager.releaseVideoPlayer();
+    this.manager.releaseVideoPlayer(false);
 
     this.startPlayer(playerType, audioType, resolution, sources, configProvider);
   }
@@ -198,14 +202,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlayerArgument playerType,
     final AudioArgument audioType,
     final Pair<Integer, Integer> resolution,
-    final @Nullable Source[] sources,
+    final RetrievalResult source,
     final VideoConfigurationProvider configProvider
   ) {
     final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
     final AudioFilter filter = this.provider.constructFilter(audioType);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
-    final Source video = sources[0];
-    final Source audio = sources[1];
+    final Source video = source.video;
+    final Source audio = source.audio;
     final VideoPlayerMultiplexer player = playerType.createPlayer();
     this.manager.setPlayer(player);
     requireNonNull(video);
@@ -227,13 +231,38 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } else {
       player.start(video, audio);
     }
+
+    final Hologram existing = this.manager.getHologram();
+    if (existing != null) {
+      existing.kill();
+      this.manager.setHologram(null);
+    }
+
+    final Location location = this.manager.getHologramLocation();
+    if (location == null) {
+      return;
+    }
+
+    final URLParseDump dump = source.dump;
+    if (dump == null) {
+      return;
+    }
+
+    final Hologram hologram = Hologram.basic();
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(this.plugin, () -> {
+      hologram.handleRequest(location, dump);
+      hologram.start();
+      this.manager.setHologram(hologram);
+    });
   }
 
   public abstract VideoPipelineStep createVideoFilter(Pair<Integer, Integer> resolution, VideoConfigurationProvider configProvider);
 
-  private @Nullable Source@Nullable[] retrievePair(final PlayerArgument argument, final String mrl, final String[] arguments) {
+  private RetrievalResult retrievePair(final PlayerArgument argument, final String mrl, final String[] arguments) {
     final Source video;
     Source audio = null;
+    URLParseDump dump = null;
     final Integer deviceId = Ints.tryParse(mrl);
     if (SourceUtils.isPath(mrl)) {
       video = FileSource.path(Path.of(mrl));
@@ -242,7 +271,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } else if (SourceUtils.isUri(mrl)) {
       final UriSource uri = UriSource.uri(URI.create(mrl));
       if (!SourceUtils.isDirectVideoFile(mrl)) {
-        final URLParseDump dump = this.getUrlParseDump(uri, arguments);
+        dump = this.getUrlParseDump(uri, arguments);
         final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
@@ -257,13 +286,15 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } else {
       video = null;
     }
-    return new Source[] { video, audio };
+    return new RetrievalResult(video, audio, dump);
   }
 
-  protected URLParseDump getUrlParseDump(final UriSource uri, final String[] arguments) {
+  private record RetrievalResult(@Nullable Source video, @Nullable Source audio, @Nullable URLParseDump dump) {}
+
+  private URLParseDump getUrlParseDump(final UriSource uri, final String[] arguments) {
     final YTDLPParser parser = YTDLPParser.simple();
     try {
-      return parser.parse(uri);
+      return parser.parse(uri, arguments);
     } catch (final IOException e) {
       throw new AssertionError(e);
     }
