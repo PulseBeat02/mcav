@@ -292,7 +292,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
           dump.title = IOUtils.getFileNameFromUrl(mrl);
           dump.description = "Video from URL";
         } else {
-          final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
+          final StrategySelector selector = StrategySelector.of(FormatStrategy.LOWEST_QUALITY_AUDIO, FormatStrategy.LOWEST_QUALITY_VIDEO);
           dump = this.getUrlParseDump(uri, arguments);
           source = selector.getVideoSource(dump).toUriSource();
           audio = selector.getAudioSource(dump).toUriSource();

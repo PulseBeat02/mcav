@@ -29,8 +29,6 @@ dependencies {
     api("com.google.guava:guava:33.4.8-jre")
     api("com.google.code.gson:gson:2.13.1")
     api("org.slf4j:slf4j-simple:2.1.0-alpha1")
-    api("net.java.dev.jna:jna-jpms:5.14.0")
-    api("net.java.dev.jna:jna-platform-jpms:5.14.0")
 }
 
 tasks {
