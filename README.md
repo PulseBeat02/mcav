@@ -73,6 +73,8 @@ license that is compatible with the [GPLv3](https://opensource.org/license/lgpl-
 | Vijay Pondini  | $10.00   |
 | Matthew Holden | $6.00    |
 
+---
+
 ### MCAV Projects
 
 | Project                                                   | Description                            |
