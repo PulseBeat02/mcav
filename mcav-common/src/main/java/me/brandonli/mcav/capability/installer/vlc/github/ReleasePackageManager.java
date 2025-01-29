@@ -54,8 +54,8 @@ public final class ReleasePackageManager {
   }
 
   public static Download[] readVLCDownloadsFromJsonResource(final String resourcePath) {
-    final String installerJson = String.format("/installers/%s", resourcePath);
-    try (final Reader reader = IOUtils.getResourceAsStream(installerJson)) {
+    final String installerJson = String.format("installers/%s", resourcePath);
+    try (final Reader reader = IOUtils.getResourceAsStreamReader(installerJson)) {
       final Gson gson = new Gson();
       final Type downloadArrayType = new TypeToken<Download[]>() {}.getType();
       final Download[] downloads = requireNonNull(gson.fromJson(reader, downloadArrayType));

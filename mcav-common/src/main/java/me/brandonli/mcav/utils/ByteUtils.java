@@ -39,8 +39,8 @@ public final class ByteUtils {
    * @param nativeBuffer the ByteBuffer to be converted to big-endian format
    * @return a ByteBuffer containing data in big-endian format
    */
-  public static ByteBuffer clampNativeBufferToBigEndian(final ByteBuffer nativeBuffer) {
-    if (LITTLE_ENDIAN) {
+  public static ByteBuffer clampNormalBufferToBigEndian(final ByteBuffer nativeBuffer) {
+    if (LITTLE_ENDIAN && nativeBuffer.order() == ByteOrder.LITTLE_ENDIAN) {
       final ByteBuffer duplicate = nativeBuffer.duplicate();
       final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
       result.order(ByteOrder.BIG_ENDIAN);

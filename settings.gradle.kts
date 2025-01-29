@@ -17,3 +17,4 @@ include("mcav-jda")
 project(":mcav-jda").name = "mcav-jda"
 
 include("sandbox")
+include("mcav-http")

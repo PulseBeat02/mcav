@@ -18,7 +18,7 @@
 package me.brandonli.mcav.sandbox.command;
 
 import java.util.stream.Stream;
-import me.brandonli.mcav.media.result.Characters;
+import me.brandonli.mcav.bukkit.media.result.Characters;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;

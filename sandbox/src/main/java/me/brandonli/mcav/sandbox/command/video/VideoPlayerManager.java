@@ -21,9 +21,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.bukkit.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
-import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.utils.ExecutorUtils;
@@ -53,7 +53,7 @@ public final class VideoPlayerManager {
   }
 
   public boolean isVLCSupported() {
-    return api.hasCapability(Capability.VLC);
+    return this.api.hasCapability(Capability.VLC);
   }
 
   public void releaseVideoPlayer() {

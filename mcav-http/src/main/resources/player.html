@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Audio Player</h1>
+<audio id="player" controls autoplay>
+    <source src="/audio" type="audio/wav">
+    Your browser does not support the audio element.
+</audio>
+<script>
+    setInterval(() => {
+        const player = document.getElementById('player');
+        const wasPlaying = !player.paused;
+        player.src = '/audio?' + new Date().getTime();
+        if (wasPlaying) player.play();
+    }, 5000);
+</script>
+</body>
+</html>

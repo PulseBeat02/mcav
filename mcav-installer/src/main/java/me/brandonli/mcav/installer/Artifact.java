@@ -24,7 +24,18 @@ public enum Artifact {
   /**
    * Represents the common artifact, identified by the artifact ID "mcav-common".
    */
-  COMMON("mcav-common");
+  COMMON("mcav-common"),
+
+  /**
+   * Represents the JDA artifact, identified by the artifact ID "mcav-jda".
+   * This artifact is associated with the JDA functionality within the mcav project.
+   */
+  JDA("mcav-jda"),
+
+  /**
+   * Represents the HTTP artifact, identified by the artifact ID "mcav-http".
+   */
+  HTTP("mcav-http");
 
   private final String artifactId;
 

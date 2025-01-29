@@ -20,11 +20,15 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import javax.sound.sampled.*;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.combined.VideoPlayer;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -57,13 +61,26 @@ public final class SingleCombinedInputExample {
     final UriSource source = UriSource.uri(
       URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4")
     );
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
+
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(
+      new AudioFilter() {
+        AudioFormat audioFormat = new AudioFormat(48000, 16, 2, true, false);
+        Line.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+        SourceDataLine dataLine = (SourceDataLine) AudioSystem.getLine(info);
+
+        @Override
+        public void applyFilter(ByteBuffer samples, AudioMetadata metadata) {
+          dataLine.write(samples.array(), 0, samples.limit());
+        }
+      }
+    );
+
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(VideoFilter.FRAME_RATE)
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
     multiplexer.start(audioPipelineStep, videoPipelineStep, source);
 
     Runtime.getRuntime()

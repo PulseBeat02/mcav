@@ -22,7 +22,7 @@ import java.nio.file.Path;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
-import me.brandonli.mcav.MCAVBukkit;
+import me.brandonli.mcav.bukkit.MCAVBukkit;
 import me.brandonli.mcav.installer.Artifact;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;

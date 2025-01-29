@@ -255,8 +255,8 @@ public final class IOUtils {
    * @throws JsonSyntaxException if the JSON is invalid
    */
   public static Download[] readDownloadsFromJsonResource(final String resourcePath) {
-    final String installerJson = String.format("/installers/%s", resourcePath);
-    try (final Reader reader = getResourceAsStream(installerJson)) {
+    final String installerJson = String.format("installers/%s", resourcePath);
+    try (final Reader reader = getResourceAsStreamReader(installerJson)) {
       final Gson gson = new Gson();
       final Type downloadArrayType = new TypeToken<Download[]>() {}.getType();
       return gson.fromJson(reader, downloadArrayType);
@@ -272,9 +272,22 @@ public final class IOUtils {
    * @return an InputStreamReader for the specified resource
    * @throws NullPointerException if the resource path is null or if the resource cannot be found
    */
-  public static Reader getResourceAsStream(final String resource) {
+  public static Reader getResourceAsStreamReader(final String resource) {
     Preconditions.checkNotNull(resource);
-    return new InputStreamReader(requireNonNull(IOUtils.class.getResourceAsStream(resource)));
+    return new InputStreamReader(getResourceAsInputStream(resource));
+  }
+
+  /**
+   * Retrieves a resource as an InputStream from the classpath.
+   *
+   * @param resource the path to the resource to be loaded; must not be null
+   * @return an InputStream for the specified resource
+   * @throws NullPointerException if the resource path is null or if the resource cannot be found
+   */
+  public static InputStream getResourceAsInputStream(final String resource) {
+    Preconditions.checkNotNull(resource);
+    final ClassLoader classLoader = requireNonNull(IOUtils.class.getClassLoader());
+    return requireNonNull(classLoader.getResourceAsStream(resource));
   }
 
   /**

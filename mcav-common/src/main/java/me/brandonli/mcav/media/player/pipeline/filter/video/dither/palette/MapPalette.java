@@ -36,7 +36,7 @@ import java.util.List;
 public final class MapPalette extends ColorPalette {
 
   /**
-   * Constructs a DefaultPalette instance initialized with a predefined set of 256 colors.
+   * Constructs a DefaultPalette instance initialized with a predefined set of ~128 colors.
    * These colors are derived using the MapPalette utility, which maps byte indices to RGB
    * color values. The resulting color list is passed to the parent class, ColorPalette,
    * for further initialization of the palette and associated mapping structures.

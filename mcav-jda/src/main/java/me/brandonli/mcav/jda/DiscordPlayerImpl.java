@@ -68,7 +68,7 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    */
   @Override
   public void applyFilter(final ByteBuffer samples, final AudioMetadata metadata) {
-    final ByteBuffer clamped = ByteUtils.clampNativeBufferToBigEndian(samples);
+    final ByteBuffer clamped = ByteUtils.clampNormalBufferToBigEndian(samples);
     if (this.buffer.remaining() >= clamped.remaining()) {
       this.buffer.put(clamped);
     } else {

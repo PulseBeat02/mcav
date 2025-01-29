@@ -5,7 +5,6 @@ plugins {
 dependencies {
     // project dependencies
     api("net.dv8tion:JDA:5.5.1")
-    api("dev.arbjerg:lavaplayer:2.2.3")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
@@ -13,6 +12,7 @@ dependencies {
     // testing
     testImplementation("net.dv8tion:JDA:5.5.1")
     testImplementation(project(":mcav-common"))
+    testImplementation("org.openjfx:javafx:11")
 }
 
 tasks {

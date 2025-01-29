@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.combined.cv;
 
 import static java.util.Objects.requireNonNull;
+import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S16LE;
 import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
 import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
 
@@ -36,8 +37,8 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.utils.ByteUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
-import org.bytedeco.ffmpeg.global.avcodec;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -138,8 +139,8 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
       final FrameGrabber finalAudio = requireNonNull(this.audio);
       finalAudio.setSampleMode(FrameGrabber.SampleMode.SHORT);
-      finalAudio.setAudioCodec(avcodec.AV_CODEC_ID_PCM_S16BE);
-      finalAudio.setSampleRate(48000);
+      finalAudio.setSampleFormat(AV_SAMPLE_FMT_S16);
+      finalAudio.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
 
       final FrameGrabber finalVideo = requireNonNull(this.video);
       finalVideo.setPixelFormat(AV_PIX_FMT_BGR24);
@@ -275,9 +276,12 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         if (shouldSkip && this.audioFrameBuffer.size() > 15) {
           continue;
         }
+        final ByteBuffer buffer = frame.data;
         AudioPipelineStep next = this.audioPipeline;
+        final AudioMetadata audioMetadata = (AudioMetadata) frame.metadata;
+        final ByteBuffer samples = ByteUtils.resampleBufferLinearly(buffer, audioMetadata.getAudioSampleRate(), 48000);
         while (next != null) {
-          next.process(frame.data, (AudioMetadata) frame.metadata);
+          next.process(samples, audioMetadata);
           next = next.next();
         }
       }
@@ -330,8 +334,6 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   // audio sample specialization
   // PCM S16LE
-  // 2 Channels
-  // 48 kHz
   @Override
   public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
     synchronized (this.lock) {
@@ -347,12 +349,10 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       this.audio = null;
 
       final FrameGrabber finalGrabber = requireNonNull(this.video);
-      finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
       finalGrabber.setPixelFormat(AV_PIX_FMT_BGR24);
       finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
       finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
-      finalGrabber.setAudioCodec(avcodec.AV_CODEC_ID_PCM_S16LE);
-      finalGrabber.setSampleRate(48000);
+      finalGrabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
 
       if (combined instanceof FFmpegDirectSource) {
         final FFmpegDirectSource directSource = (FFmpegDirectSource) combined;

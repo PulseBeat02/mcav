@@ -40,13 +40,13 @@ import me.brandonli.mcav.utils.IOUtils;
  */
 public final class MapPaletteLoader {
 
-  private static final String PALETTE_PATH = "/palette.json";
+  private static final String PALETTE_PATH = "palette.json";
 
   public static final Color[] NMS_PALETTE;
 
   static {
     final Gson gson = GsonProvider.getSimple();
-    try (final Reader reader = IOUtils.getResourceAsStream(PALETTE_PATH)) {
+    try (final Reader reader = IOUtils.getResourceAsStreamReader(PALETTE_PATH)) {
       final TypeToken<int[][]> token = new TypeToken<>() {};
       final Type type = token.getType();
       final int[][] colors = requireNonNull(gson.fromJson(reader, type));

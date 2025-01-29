@@ -29,7 +29,11 @@ parts:
     chapters:
       - file: installer.md
       - file: installer-use.md
-  - caption: JDA Installer Module 🔊
+  - caption: MCAV JDA Module 🔊
     chapters:
       - file: jda.md
       - file: jda-use.md
+  - caption: MCAV HTTP Module 🌐
+    chapters:
+      - file: http.md
+      - file: http-use.md

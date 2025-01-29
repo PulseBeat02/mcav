@@ -31,6 +31,7 @@ import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;
+import org.bytedeco.javacv.FFmpegLogCallback;
 import org.bytedeco.opencv.opencv_java;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +123,7 @@ public final class MCAV implements MCAVApi {
   private void loadModules() {
     final long start = System.currentTimeMillis();
     LOGGER.info("Loading JavaCV modules...");
+    FFmpegLogCallback.set();
     Loader.load(Loader.class);
     Loader.load(opencv_java.class);
     Loader.load(ffmpeg.class);
