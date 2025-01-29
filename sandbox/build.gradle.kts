@@ -39,8 +39,8 @@ tasks.withType<AbstractRun>().configureEach {
         languageVersion = JavaLanguageVersion.of(21)
     })
     jvmArgs(
-        "-Xms8192m",
-        "-Xmx8192m",
+        "-Xms2048m",
+        "-Xmx2048m",
         "-XX:+AllowEnhancedClassRedefinition",
         "-XX:+AllowRedefinitionToAddDeleteMethods"
     )
