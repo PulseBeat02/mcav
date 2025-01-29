@@ -35,7 +35,7 @@ public final class MediaPlayerFactoryProvider {
   private static final Cleaner CLEANER = Cleaner.create();
   private static final FactoryHolder HOLDER = new FactoryHolder();
 
-  private static class FactoryHolder {
+  private static class FactoryHolder implements AutoCloseable {
 
     private @Nullable MediaPlayerFactory factory;
     private Cleaner.@Nullable Cleanable cleanable;
@@ -58,7 +58,8 @@ public final class MediaPlayerFactoryProvider {
       return this.factory;
     }
 
-    void release() {
+    @Override
+    public void close() {
       if (this.cleanable != null) {
         this.cleanable.clean();
         this.factory = null;
@@ -115,6 +116,6 @@ public final class MediaPlayerFactoryProvider {
    * the media player functionality to ensure resources are cleaned up appropriately.
    */
   public static void shutdown() {
-    HOLDER.release();
+    HOLDER.close();
   }
 }

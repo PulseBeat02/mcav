@@ -52,7 +52,10 @@ public final class NativeUtils {
       final String fileNamePrefix = fileName.substring(0, lastDotIndex);
       final String fileNameSuffix = fileName.substring(lastDotIndex);
       final Path parent = IOUtils.getCachedFolder();
-      final File file = parent.toFile();
+      final Path natives = parent.resolve("natives");
+      IOUtils.createDirectoryIfNotExists(natives);
+
+      final File file = natives.toFile();
       final File tempFile = File.createTempFile(fileNamePrefix, fileNameSuffix, file);
       tempFile.deleteOnExit();
 

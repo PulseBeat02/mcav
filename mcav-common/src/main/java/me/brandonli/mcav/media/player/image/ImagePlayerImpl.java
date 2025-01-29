@@ -84,6 +84,7 @@ public class ImagePlayerImpl implements ImagePlayer {
         next.process(image, metadata);
         next = next.next();
       }
+      image.release();
     }
   }
 

@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.result;
+package me.brandonli.mcav.media.image;
 
 import static net.kyori.adventure.text.Component.empty;
 
@@ -25,67 +25,31 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.media.config.ScoreboardConfiguration;
-import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
- * Represents the result of processing a scoreboard using a functional video filter.
- * This class implements the {@link FunctionalVideoFilter} interface and provides specific
- * functionality to manage the lifecycle and application of a video filter configured
- * for scoreboard rendering.
+ * The ScoreboardImage class is responsible for managing and displaying scoreboard-style images based
+ * on the provided configuration. It implements the DisplayableImage interface, allowing it to manage
+ * reusable scoreboard resources effectively.
  * <p>
- * ScoreboardResult is responsible for:
- * - Initializing the scoreboard filter using team-based entities and configurations defined in {@link ScoreboardConfiguration}.
- * - Releasing resources and cleaning up the scoreboard elements upon completion.
- * - Applying the functional filter logic to process static images and render scoreboard-related data.
+ * This class leverages teams within a scoreboard to display images by manipulating prefixes with character
+ * sequences that represent pixel data. The visual representation is configured using the ScoreboardConfiguration
+ * parameters, including dimensions, characters, and viewers.
+ * <p>
+ * Instances of this class manage the lifecycle of a scoreboard image, including creating, updating, and releasing
+ * associated resources.
  */
-public class ScoreboardResult implements FunctionalVideoFilter {
+public class ScoreboardImage implements DisplayableImage {
 
   private final ScoreboardConfiguration configuration;
   private final List<String> teamLines;
 
-  /**
-   * Constructs a new instance of the {@code ScoreboardResult} class using the provided
-   * {@code ScoreboardConfiguration}.
-   *
-   * @param configuration the configuration object that defines the properties of the
-   *                      scoreboard, including viewers, character, lines, and width.
-   */
-  public ScoreboardResult(final ScoreboardConfiguration configuration) {
+  ScoreboardImage(final ScoreboardConfiguration configuration) {
     this.configuration = configuration;
     this.teamLines = new ArrayList<>();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void start() {
-    final int lines = this.configuration.getLines();
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    for (int i = 0; i < lines; i++) {
-      final UUID random = UUID.randomUUID();
-      final String name = random.toString();
-      final WrapperPlayServerTeams.ScoreBoardTeamInfo teamInfo = new WrapperPlayServerTeams.ScoreBoardTeamInfo(
-        empty(),
-        empty(),
-        empty(),
-        WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
-        WrapperPlayServerTeams.CollisionRule.ALWAYS,
-        NamedTextColor.WHITE,
-        WrapperPlayServerTeams.OptionData.ALL
-      );
-      final WrapperPlayServerTeams create = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.CREATE, teamInfo);
-      PacketUtils.sendPackets(viewers, create);
-      final String[] entries = viewers.stream().map(UUID::toString).toArray(String[]::new);
-      final WrapperPlayServerTeams add = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES, teamInfo, entries);
-      PacketUtils.sendPackets(viewers, add);
-      this.teamLines.add(name);
-    }
   }
 
   /**
@@ -110,11 +74,31 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void displayImage(final StaticImage data) {
+    this.release();
+    final int lines = this.configuration.getLines();
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
-    final int lines = this.configuration.getLines();
     final Collection<UUID> viewers = this.configuration.getViewers();
+    for (int i = 0; i < lines; i++) {
+      final UUID random = UUID.randomUUID();
+      final String name = random.toString();
+      final WrapperPlayServerTeams.ScoreBoardTeamInfo teamInfo = new WrapperPlayServerTeams.ScoreBoardTeamInfo(
+        empty(),
+        empty(),
+        empty(),
+        WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
+        WrapperPlayServerTeams.CollisionRule.ALWAYS,
+        NamedTextColor.WHITE,
+        WrapperPlayServerTeams.OptionData.ALL
+      );
+      final WrapperPlayServerTeams create = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.CREATE, teamInfo);
+      PacketUtils.sendPackets(viewers, create);
+      final String[] entries = viewers.stream().map(UUID::toString).toArray(String[]::new);
+      final WrapperPlayServerTeams add = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES, teamInfo, entries);
+      PacketUtils.sendPackets(viewers, add);
+      this.teamLines.add(name);
+    }
     data.resize(width, lines);
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < lines; i++) {

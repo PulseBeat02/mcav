@@ -18,171 +18,36 @@
 package me.brandonli.mcav.media.result;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
-import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.utils.PacketUtils;
 
 /**
- * Represents the result of processing a mapped video frame in a dithering operation.
- * This class is immutable and provides all necessary properties to define a mapping transformation
- * applied to video data and its subsequent processing.
- * <p>
- * MapResult holds information about the viewers, map properties, map dimensions, and resolutions.
- * It also implements the DitherResultStep interface, enabling it to process video frame data
- * and generate packets containing mapped visual data for the viewers.
- * <p>
- * The builder pattern is used to construct instances of MapResult, ensuring that all necessary
- * properties are validated and set correctly before the object is created. This design facilitates
- * safe, flexible, and reusable usage of the class in different contexts.
+ * The {@code MapResult} class implements {@code DitherResultStep} and
+ * is responsible for processing dithered video data and associated metadata
+ * to generate map-based visual output suitable for rendering.
+ *
+ * <p>This class uses a {@code MapConfiguration} instance to determine
+ * the parameters for processing, such as map resolution, block sizes,
+ * and the list of viewers. It computes and sends packets to viewers
+ * based on the provided map configuration and video frame data.
  */
 public class MapResult implements DitherResultStep {
 
-  private final Collection<UUID> viewers;
-  private final int map;
-  private final int mapBlockWidth;
-  private final int mapBlockHeight;
-  private final int mapWidthResolution;
-  private final int mapHeightResolution;
-
-  private MapResult(final Builder<?> builder) {
-    this.viewers = builder.viewers;
-    this.map = builder.map;
-    this.mapBlockWidth = builder.mapBlockWidth;
-    this.mapBlockHeight = builder.mapBlockHeight;
-    this.mapWidthResolution = builder.mapWidthResolution;
-    this.mapHeightResolution = builder.mapHeightResolution;
-  }
+  private final MapConfiguration mapConfiguration;
 
   /**
-   * Map Result builder class for constructing instances of {@link MapResult}.
-   */
-  public static final class MapResultBuilder extends Builder<MapResultBuilder> {
-
-    @Override
-    protected MapResultBuilder self() {
-      return this;
-    }
-  }
-
-  /**
-   * Creates a new {@link Builder} instance for constructing {@link MapResult} objects.
-   * The builder allows for configuring various properties of the map result such as
-   * viewers, map ID, block dimensions, and resolution.
+   * Constructs a new instance of {@code MapResult} using the specified configuration.
    *
-   * @return a new instance of {@link MapResultBuilder}, which extends {@link Builder}
-   * and provides methods for configuring and building a {@link MapResult} object
+   * @param configuration the {@link MapConfiguration} object containing the settings
+   *                      for the map result, such as map dimensions, resolution,
+   *                      viewers, and map ID
    */
-  public static Builder<?> builder() {
-    return new MapResultBuilder();
-  }
-
-  /**
-   * Abstract builder class for constructing instances of {@link MapResult}.
-   * This class provides methods to set the properties of the map result,
-   * including viewers, map ID, block dimensions, and resolution.
-   *
-   * @param <T> the type of the builder extending this abstract class
-   */
-  public abstract static class Builder<T extends Builder<T>> {
-
-    private Collection<UUID> viewers;
-    private int map;
-    private int mapBlockWidth;
-    private int mapBlockHeight;
-    private int mapWidthResolution;
-    private int mapHeightResolution;
-
-    protected abstract T self();
-
-    /**
-     * Sets the collection of viewers for the builder.
-     *
-     * @param viewers a collection of UUIDs representing the viewers to be set
-     * @return the builder instance
-     */
-    public T viewers(final Collection<UUID> viewers) {
-      this.viewers = viewers;
-      return this.self();
-    }
-
-    /**
-     * Sets the map ID to be used.
-     *
-     * @param map the map ID, which must be non-negative
-     * @return the builder instance for method chaining
-     */
-    public T map(final int map) {
-      this.map = map;
-      return this.self();
-    }
-
-    /**
-     * Sets the block width of the map and updates the builder with this value.
-     *
-     * @param mapBlockWidth the block width of the map to be set
-     * @return the builder instance for method chaining
-     */
-    public T mapBlockWidth(final int mapBlockWidth) {
-      this.mapBlockWidth = mapBlockWidth;
-      return this.self();
-    }
-
-    /**
-     * Sets the block height of the map and updates the builder with this value.
-     *
-     * @param mapBlockHeight the block height of the map to be set
-     * @return the builder instance for method chaining
-     */
-    public T mapBlockHeight(final int mapBlockHeight) {
-      this.mapBlockHeight = mapBlockHeight;
-      return this.self();
-    }
-
-    /**
-     * Sets the resolution of the map width. The resolution determines the number of pixels
-     * or units representing the width of the map.
-     *
-     * @param mapWidthResolution the resolution of the map width
-     * @return the builder instance for chaining additional configuration
-     */
-    public T mapWidthResolution(final int mapWidthResolution) {
-      this.mapWidthResolution = mapWidthResolution;
-      return this.self();
-    }
-
-    /**
-     * Sets the resolution of the map height. This resolution determines the number
-     * of pixels or units representing the height of the map.
-     *
-     * @param mapHeightResolution the resolution of the map height to be set
-     * @return the builder instance for chaining additional configuration
-     */
-    public T mapHeightResolution(final int mapHeightResolution) {
-      this.mapHeightResolution = mapHeightResolution;
-      return this.self();
-    }
-
-    /**
-     * Builds and returns a {@link DitherResultStep} instance configured with the specified parameters.
-     * Validates that all required fields have been properly initialized and applies default values
-     * for resolution if they are not explicitly set.
-     *
-     * @return a new {@link DitherResultStep} instance constructed based on the configured properties of the builder
-     * @throws IllegalArgumentException if any of the required parameters (e.g., map, map block width, map block height) are invalid
-     * @throws NullPointerException     if the viewers collection is not set
-     */
-    public DitherResultStep build() {
-      Preconditions.checkArgument(this.map >= 0, "Map ID must be non-negative");
-      Preconditions.checkArgument(this.mapBlockWidth > 0, "Map block width must be positive");
-      Preconditions.checkArgument(this.mapBlockHeight > 0, "Map block height must be positive");
-      Preconditions.checkNotNull(this.viewers);
-      this.mapWidthResolution = this.mapWidthResolution == 0 ? 128 * this.mapBlockWidth : this.mapWidthResolution;
-      this.mapHeightResolution = this.mapHeightResolution == 0 ? 128 * this.mapBlockHeight : this.mapHeightResolution;
-      return new MapResult(this);
-    }
+  public MapResult(final MapConfiguration configuration) {
+    this.mapConfiguration = configuration;
   }
 
   /**
@@ -190,17 +55,22 @@ public class MapResult implements DitherResultStep {
    */
   @Override
   public void process(final byte[] rgb, final VideoMetadata metadata) {
-    final int height = rgb.length / this.mapWidthResolution;
-    final int pixW = this.mapBlockWidth << 7;
-    final int pixH = this.mapBlockHeight << 7;
-    final int xOff = (pixW - this.mapWidthResolution) >> 1;
+    final int mapWidthResolution = this.mapConfiguration.getMapWidthResolution();
+    final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
+    final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
+    final int map = this.mapConfiguration.getMap();
+    final int height = rgb.length / mapWidthResolution;
+    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
+    final int pixW = mapBlockWidth << 7;
+    final int pixH = mapBlockHeight << 7;
+    final int xOff = (pixW - mapWidthResolution) >> 1;
     final int yOff = (pixH - height) >> 1;
-    final int vidHeight = rgb.length / this.mapWidthResolution;
-    final int negXOff = xOff + this.mapWidthResolution;
+    final int vidHeight = rgb.length / mapWidthResolution;
+    final int negXOff = xOff + mapWidthResolution;
     final int negYOff = yOff + vidHeight;
     final int xLoopMin = Math.max(0, xOff >> 7);
     final int yLoopMin = Math.max(0, yOff >> 7);
-    final int xLoopMax = Math.min(this.mapWidthResolution, (int) Math.ceil(negXOff / 128.0));
+    final int xLoopMax = Math.min(mapWidthResolution, (int) Math.ceil(negXOff / 128.0));
     final int yLoopMax = Math.min(height, (int) Math.ceil(negYOff / 128.0));
     final WrapperPlayServerMapData[] packetArray = new WrapperPlayServerMapData[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
     int arrIndex = 0;
@@ -217,12 +87,12 @@ public class MapResult implements DitherResultStep {
         final byte[] mapData = new byte[xDiff * yDiff];
         for (int iy = topY; iy < yPixMax; iy++) {
           final int yPos = relY + iy;
-          final int indexY = (yPos - yOff) * this.mapWidthResolution;
+          final int indexY = (yPos - yOff) * mapWidthResolution;
           for (int ix = topX; ix < xPixMax; ix++) {
             mapData[(iy - topY) * xDiff + ix - topX] = rgb[indexY + relX + ix - xOff];
           }
         }
-        final int mapId = this.map + this.mapWidthResolution * y + x;
+        final int mapId = map + mapWidthResolution * y + x;
         final WrapperPlayServerMapData packet = new WrapperPlayServerMapData(
           mapId,
           (byte) 0,
@@ -238,6 +108,6 @@ public class MapResult implements DitherResultStep {
         packetArray[arrIndex++] = packet;
       }
     }
-    PacketUtils.sendPackets(this.viewers, packetArray);
+    PacketUtils.sendPackets(viewers, packetArray);
   }
 }

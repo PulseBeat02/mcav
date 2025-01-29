@@ -24,6 +24,7 @@ parts:
       - file: resourcepack.md
       - file: map.md
       - file: result.md
+      - file: display.md
   - caption: MCAV Installer 🛠️
     chapters:
       - file: installer.md

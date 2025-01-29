@@ -153,6 +153,7 @@ public class VNCPlayerImpl implements VNCPlayer {
             current.process(image, this.videoMetadata);
             current = current.next();
           }
+          image.release();
         } catch (final IOException e) {
           throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
         }

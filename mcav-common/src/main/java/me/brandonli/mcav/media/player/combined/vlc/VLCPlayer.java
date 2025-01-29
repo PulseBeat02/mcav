@@ -460,6 +460,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
         current.process(image, this.metadata);
         current = current.next();
       }
+      image.release();
     }
 
     /**

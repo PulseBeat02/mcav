@@ -52,6 +52,29 @@ public final class IOUtils {
   }
 
   /**
+   * Creates a directory at the specified path if it does not already exist.
+   * If the directory is created successfully, its parent directories are also created.
+   *
+   * @param path the {@link Path} specifying the directory to be created. Must not be {@code null}.
+   * @return {@code true} if the directory was created successfully, {@code false} if the directory already exists.
+   * @throws NullPointerException if the specified path or its parent is {@code null}.
+   * @throws UncheckedIOException if an I/O error occurs while attempting to create the directory.
+   */
+  public static boolean createDirectoryIfNotExists(final Path path) {
+    try {
+      if (Files.notExists(path)) {
+        final Path parent = requireNonNull(path.getParent());
+        Files.createDirectories(parent);
+        Files.createDirectory(path);
+        return true;
+      }
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e.getMessage());
+    }
+    return false;
+  }
+
+  /**
    * Creates a new file at the specified path if it does not already exist.
    *
    * @param path the path of the file to create if it does not exist

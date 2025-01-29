@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.result;
+package me.brandonli.mcav.media.image;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
@@ -28,41 +28,30 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import java.util.*;
 import me.brandonli.mcav.media.config.EntityConfiguration;
-import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
 import net.kyori.adventure.text.Component;
 
 /**
- * Represents the result of an entity-based operation that applies a functional video filter.
- * The filter dynamically creates and manages virtual entities, modifies their metadata, and
- * applies visual effects based on the video data provided.
+ * The EntityImage class represents an implementation of the DisplayableImage interface that
+ * is responsible for rendering and managing images as collections of virtual entities in a 3D space.
+ * The images are displayed using in-game entities such as Armor Stands.
  * <p>
- * This class is built using a builder pattern to allow flexible initialization of its
- * properties, such as entity dimensions, position, and viewers. It ensures that all resources
- * associated with the entities are appropriately created and released during the lifecycle
- * of the filter.
+ * This class uses an instance of {@link EntityConfiguration} to define the display parameters,
+ * such as the position, dimensions, and character representation of the entities. It supports
+ * resizing of the input image and ensures proper cleanup of resources when the entities are no longer needed.
  * <p>
- * Implements the {@link FunctionalVideoFilter} interface, providing additional control over
- * the initialization (`start`), application (`applyFilter`), and cleanup (`release`) phases
- * of the filter's lifecycle.
+ * Instances of EntityImage are immutable with respect to their configuration but are stateful
+ * in managing the entities used for rendering the image.
  */
-public class EntityResult implements FunctionalVideoFilter {
+public class EntityImage implements DisplayableImage {
 
   private static final SplittableRandom SPLITTABLE_RANDOM = new SplittableRandom();
 
   private final EntityConfiguration entityConfiguration;
   private final List<Integer> entityIds;
 
-  /**
-   * Constructs an instance of {@code EntityResult} with the specified configuration.
-   *
-   * @param configuration the {@code EntityConfiguration} object containing the configuration
-   *                      details for the entity, including its dimensions, position, associated viewers,
-   *                      and character. Must not be null.
-   */
-  public EntityResult(final EntityConfiguration configuration) {
+  EntityImage(final EntityConfiguration configuration) {
     this.entityConfiguration = configuration;
     this.entityIds = new ArrayList<>();
   }
@@ -71,11 +60,24 @@ public class EntityResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void displayImage(final StaticImage data) {
+    this.release();
+    final int random = SPLITTABLE_RANDOM.nextInt();
+    final int entityHeight = this.entityConfiguration.getEntityHeight();
+    final Vector3d pos = this.entityConfiguration.getPosition();
+    final Vector3d clone = pos.add(0, 0, 0);
     final String character = this.entityConfiguration.getCharacter();
     final int entityWidth = this.entityConfiguration.getEntityWidth();
-    final int entityHeight = this.entityConfiguration.getEntityHeight();
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
+    for (int i = 0; i < entityHeight; i++) {
+      final int id = random + i;
+      final UUID randomUUID = UUID.randomUUID();
+      final EntityType type = EntityTypes.ARMOR_STAND;
+      final Location position = new Location(clone.add(0, 0.1, 0), 0, 0);
+      final WrapperPlayServerSpawnEntity spawnEntity = new WrapperPlayServerSpawnEntity(id, randomUUID, type, position, 0f, 0, null);
+      PacketUtils.sendPackets(viewers, spawnEntity);
+      this.entityIds.add(id);
+    }
     data.resize(entityWidth, entityHeight);
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < entityHeight; i++) {
@@ -87,27 +89,6 @@ public class EntityResult implements FunctionalVideoFilter {
       final List<EntityData> dataList = List.of(invisible, name, show);
       final WrapperPlayServerEntityMetadata update = new WrapperPlayServerEntityMetadata(id, dataList);
       PacketUtils.sendPackets(viewers, update);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void start() {
-    final int random = SPLITTABLE_RANDOM.nextInt();
-    final int entityHeight = this.entityConfiguration.getEntityHeight();
-    final Vector3d pos = this.entityConfiguration.getPosition();
-    final Vector3d clone = pos.add(0, 0, 0);
-    final Collection<UUID> viewers = this.entityConfiguration.getViewers();
-    for (int i = 0; i < entityHeight; i++) {
-      final int id = random + i;
-      final UUID randomUUID = UUID.randomUUID();
-      final EntityType type = EntityTypes.ARMOR_STAND;
-      final Location position = new Location(clone.add(0, 0.1, 0), 0, 0);
-      final WrapperPlayServerSpawnEntity spawnEntity = new WrapperPlayServerSpawnEntity(id, randomUUID, type, position, 0f, 0, null);
-      PacketUtils.sendPackets(viewers, spawnEntity);
-      this.entityIds.add(id);
     }
   }
 

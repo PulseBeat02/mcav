@@ -278,6 +278,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           next.process(staticImage, (VideoMetadata) frame.metadata);
           next = next.next();
         }
+        staticImage.release();
       }
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();

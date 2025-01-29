@@ -143,6 +143,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
             current.process(staticImage, metadata);
             current = current.next();
           }
+          staticImage.release();
         }
       }
     } catch (final IOException e) {

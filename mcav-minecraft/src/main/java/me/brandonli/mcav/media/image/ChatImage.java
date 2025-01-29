@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.result;
+package me.brandonli.mcav.media.image;
 
 import com.github.retrooper.packetevents.protocol.chat.ChatTypes;
 import com.github.retrooper.packetevents.protocol.chat.message.ChatMessageLegacy;
@@ -23,40 +23,28 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.media.config.ChatConfiguration;
-import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
 import net.kyori.adventure.text.Component;
 
 /**
- * The ChatResult class implements the {@link VideoFilter} interface and provides
- * the functionality to apply a chat-based transformation to video data. It uses
- * the configuration provided by {@link ChatConfiguration} to customize the
- * chat display and interaction settings.
+ * The ChatImage class provides an implementation of the DisplayableImage interface
+ * to display static images in a chat environment. It leverages configurations
+ * from a ChatConfiguration object to customize the representation of the image
+ * using text displayed in the chat.
  * <p>
- * This class processes video frames by resizing them according to the chat
- * configuration dimensions and generating a chat component based on the frame
- * data. The chat component is then sent to the viewers provided by the configuration.
+ * Responsibilities:
+ * - Resizes the given StaticImage to match the dimensions specified in the ChatConfiguration.
+ * - Converts the image data into a text-based representation using a specified character.
+ * - Sends the resulting text image to a collection of viewers identified by their UUIDs.
  * <p>
- * Responsibilities of this class include:
- * - Resizing video frames to the specified chat width and height
- * - Creating chat components from processed frames
- * - Sending chat messages to the configured set of viewers
+ * This class is immutable and thread-safe as it does not modify shared state during usage.
  */
-public class ChatResult implements VideoFilter {
+public class ChatImage implements DisplayableImage {
 
   private final ChatConfiguration configuration;
 
-  /**
-   * Constructs a new instance of {@code ChatResult} using the provided configuration.
-   *
-   * @param configuration the {@link ChatConfiguration} object used to configure the chat result.
-   *                      This object contains parameters such as viewers, character, chat width,
-   *                      and chat height. Cannot be null.
-   */
-  public ChatResult(final ChatConfiguration configuration) {
+  ChatImage(final ChatConfiguration configuration) {
     this.configuration = configuration;
   }
 
@@ -64,7 +52,8 @@ public class ChatResult implements VideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void displayImage(final StaticImage data) {
+    this.release();
     final int chatWdith = this.configuration.getChatWdith();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
@@ -76,5 +65,13 @@ public class ChatResult implements VideoFilter {
     final ChatMessageLegacy chatMessageLegacy = new ChatMessageLegacy(msg, ChatTypes.GAME_INFO);
     final WrapperPlayServerChatMessage packet = new WrapperPlayServerChatMessage(chatMessageLegacy);
     PacketUtils.sendPackets(viewers, packet);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void release() {
+    // none
   }
 }
