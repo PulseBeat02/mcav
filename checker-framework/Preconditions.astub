@@ -1,0 +1,18 @@
+package com.google.common.base;
+
+import org.checkerframework.checker.nullness.qual.*;
+import org.checkerframework.dataflow.qual.*;
+
+public final class Preconditions {
+  @EnsuresNonNull("#1")
+  @Pure
+  public static <T> @NonNull T checkNotNull(@Nullable T reference) throws NullPointerException;
+
+  @EnsuresNonNull("#1")
+  @Pure
+  public static <T> @NonNull T checkNotNull(@Nullable T reference, @Nullable Object errorMessage) throws NullPointerException;
+
+  @EnsuresNonNull("#1")
+  @Pure
+  public static <T> @NonNull T checkNotNull(@Nullable T reference, @Nullable String errorMessageTemplate, @Nullable Object... errorMessageArgs) throws NullPointerException;
+}

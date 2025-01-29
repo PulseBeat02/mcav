@@ -1,0 +1,38 @@
+[
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-x86_64-static",
+    "hash": "7132ffd39aef71c26d3344cc0c7dffc530e10e3e720c58c8279a97ef6fdd7784"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-aarch64-static",
+    "hash": "dce64b2dc6b005485c7aa735a7ea39cb0006bf7e5badc28b324b2cd0c73d883f"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_32"
+    },
+    "url": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-i386-static",
+    "hash": "34f4268e06b87af48f434282caf9a03b162d98f10a1bd7125f92729cd82b41ca"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_32"
+    },
+    "url": "https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-arm-static",
+    "hash": "9f07762a3cd0f8a199cb5471a92402a4765f8e2fcb7fe91a87ee75da9616a806"
+  }
+]

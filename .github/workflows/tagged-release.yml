@@ -1,0 +1,29 @@
+name: "tagged-release"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tagged-release:
+    permissions: write-all
+    name: "Tagged Release"
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+      - run: ./gradlew build
+      - uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: false
+          title: "Development Build"
+          files: |
+            sandbox/build/libs/*-all.jar

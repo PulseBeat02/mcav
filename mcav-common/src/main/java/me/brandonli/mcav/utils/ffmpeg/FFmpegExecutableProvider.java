@@ -1,0 +1,71 @@
+/*
+ * This file is part of mcav, a media playback library for Minecraft
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.utils.ffmpeg;
+
+import java.nio.file.Path;
+import org.bytedeco.ffmpeg.ffmpeg;
+import org.bytedeco.javacpp.Loader;
+
+/**
+ * Provides the path to the FFmpeg executable required for executing FFmpeg-related commands.
+ * <p>
+ * This class is responsible for locating and managing the FFmpeg executable through
+ * its {@link #getFFmpegPath()} method. It leverages the `Loader` utility to resolve
+ * the executable required for media processing tasks.
+ * <p>
+ * The FFmpegExecutableProvider ensures that the FFmpeg executable path is initialized
+ * once and used throughout the application lifecycle.
+ */
+public final class FFmpegExecutableProvider {
+
+  private static final Path FFMPEG_PATH;
+
+  static {
+    final String path = Loader.load(ffmpeg.class);
+    FFMPEG_PATH = Path.of(path);
+  }
+
+  /**
+   * Initializes and prepares the FFmpegExecutableProvider class for use.
+   * <p>
+   * This method ensures that the static initialization of the FFmpeg executable path
+   * is triggered. While the class will initialize itself on first access through
+   * other methods or static blocks, calling this method explicitly can guarantee the
+   * readiness of the FFmpeg executable path in advance, avoiding any potential
+   * delays on first usage.
+   * <p>
+   * This is especially useful in scenarios where you want to initialize resources
+   * or perform checks early in the application lifecycle.
+   */
+  public static void init() {
+    // init
+  }
+
+  /**
+   * Returns the path to the FFmpeg executable.
+   * <p>
+   * This method retrieves the pre-initialized path of the FFmpeg executable,
+   * which is required to execute FFmpeg commands. The path is resolved using
+   * the `Loader` utility during the application initialization process.
+   *
+   * @return the path to the FFmpeg executable as a {@code Path} object
+   */
+  public static Path getFFmpegPath() {
+    return FFMPEG_PATH;
+  }
+}

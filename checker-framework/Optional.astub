@@ -1,0 +1,8 @@
+import org.checkerframework.checker.nullness.qual.*;
+
+package java.util;
+import org.checkerframework.checker.nullness.qual.*;
+
+class Optional<T extends @NonNull Object> {
+  @Nullable T orElse(@Nullable T other);
+}

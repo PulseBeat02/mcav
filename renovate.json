@@ -5,7 +5,9 @@
   ],
   "packageRules": [
     {
-      "matchDatasources": ["maven"],
+      "matchDatasources": [
+        "maven"
+      ],
       "versioning": "semver"
     }
   ]

@@ -1,6 +1,9 @@
 ---
-name: Feature Request about: Suggest a feature for EzMediaCore title: ''
-labels: enhancement assignees: ''
+name:
+  Feature Request about:
+    Suggest a feature for MCAV title: ''
+labels:
+  enhancement assignees: ''
 
 ---
 

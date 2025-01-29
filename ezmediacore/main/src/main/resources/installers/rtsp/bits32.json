@@ -1,9 +1,0 @@
-{
-  "LINUX": {
-    "true": "https://github.com/MinecraftMediaLibrary/rtsmp-binaries/raw/main/executables/linux-arm",
-    "false": "https://github.com/MinecraftMediaLibrary/rtsmp-binaries/raw/main/executables/linux-ia32"
-  },
-  "WINDOWS": {
-    "false": "https://github.com/MinecraftMediaLibrary/rtsmp-binaries/raw/main/executables/windows-ia32.exe"
-  }
-}

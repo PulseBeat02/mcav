@@ -1,9 +1,0 @@
-{
-  "LINUX": {
-    "true": "https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.1/linux-arm",
-    "false": "https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.1/linux-ia32"
-  },
-  "WINDOWS": {
-    "false": "https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.1/win32-ia32"
-  }
-}

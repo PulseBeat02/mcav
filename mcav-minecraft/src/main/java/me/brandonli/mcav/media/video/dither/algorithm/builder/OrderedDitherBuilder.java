@@ -1,0 +1,55 @@
+/*
+ * This file is part of mcav, a media playback library for Minecraft
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.media.video.dither.algorithm.builder;
+
+import me.brandonli.mcav.media.video.dither.algorithm.ordered.OrderedDither;
+import me.brandonli.mcav.media.video.dither.algorithm.ordered.PixelMapper;
+
+/**
+ * Defines a builder interface for the construction of {@code OrderedDither} objects,
+ * providing functionality to configure and set a dither matrix for ordered dithering.
+ *
+ * @param <T> the type of {@code OrderedDither} object to be constructed
+ * @param <B> the type of the builder extending this interface
+ */
+public interface OrderedDitherBuilder<T extends OrderedDither, B extends OrderedDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
+  /**
+   * Configures the builder with a specific {@link PixelMapper} representing a dither matrix
+   * and returns the builder instance for method-chaining purposes.
+   *
+   * @param matrix the {@link PixelMapper} instance defining the dither matrix to be applied.
+   *               This matrix determines how pixel data is transformed during the dithering process.
+   * @return the builder instance after the dither matrix has been set.
+   */
+  @SuppressWarnings("unchecked")
+  default B withDitherMatrix(final PixelMapper matrix) {
+    this.setDitherMatrix(matrix);
+    return (B) this;
+  }
+
+  /**
+   * Sets the dither matrix to be used for ordered dithering. The dither matrix is
+   * represented by a {@link PixelMapper}, which defines a two-dimensional float array
+   * used to map or transform pixel data for dithering purposes.
+   *
+   * @param matrix the {@link PixelMapper} representing the dither matrix.
+   *               The provided matrix defines how pixel values are transformed
+   *               during the dithering process. It must not be null.
+   */
+  void setDitherMatrix(final PixelMapper matrix);
+}

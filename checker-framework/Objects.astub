@@ -1,0 +1,9 @@
+package java.util;
+
+import org.checkerframework.checker.nullness.qual.*;
+
+class Objects {
+  @NonNull static <T> T requireNonNull(@Nullable T obj);
+  @NonNull static <T> T requireNonNull(@Nullable T obj, @Nullable String message);
+  @NonNull static <T> T requireNonNull(@Nullable T obj, @Nullable Supplier<String> messageSupplier);
+}

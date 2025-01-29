@@ -1,12 +1,14 @@
 ---
-name: Bug Report about: Report an EzMediaCore Bug title: ''
-labels: bug assignees: ''
-
+name:
+  Bug Report about:
+    Report an MCAV Bug title: ''
+labels:
+  bug assignees: ''
 ---
 
 **Basic Information**
-EzMediaCore Version: (Do not say LATEST, say an exact version)
-Minecraft Server Version: (Example: 1.18.2)
+MCAV Version: (Do not say LATEST, say an exact version)
+Minecraft Server Version: (Example: 1.21.5)
 Server Type: (Example: Paper)
 
 **Describe the Bug**

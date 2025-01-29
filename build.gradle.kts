@@ -1,77 +1,84 @@
-group = "io.github.pulsebeat02"
-version = "1.0.0"
-
 plugins {
-    java
-    id("com.diffplug.spotless") version "7.0.0.BETA2"
+    id("java")
+    id("java-library")
     id("com.github.node-gradle.node") version "7.1.0"
+    id("com.diffplug.spotless") version "7.0.0.BETA4"
+    id("org.checkerframework") version "0.6.53"
+    id("maven-publish")
+}
+
+group = "me.brandonli"
+version = "1.0.0-SNAPSHOT"
+description = "mcav"
+
+repositories {
+    mavenCentral()
 }
 
 subprojects {
 
     apply(plugin = "java")
-    apply(plugin = "com.diffplug.spotless")
+    apply(plugin = "java-library")
+    apply(plugin = "org.checkerframework")
     apply(plugin = "com.github.node-gradle.node")
+    apply(plugin = "com.diffplug.spotless")
+    apply(plugin = "maven-publish")
 
-    val targetJavaVersion = 21
+    publishing {
+        repositories {
+            maven {
+                name = "brandonli"
+                url = uri("https://repo.brandonli.me/snapshots")
+                credentials(PasswordCredentials::class)
+                authentication {
+                    create<BasicAuthentication>("basic")
+                }
+            }
+        }
+        publications {
+            create<MavenPublication>("maven") {
+                groupId = "me.brandonli"
+                artifactId = project.name
+                version = "${rootProject.version}"
+                from(components["java"])
+            }
+        }
+    }
+
     java {
-        val javaVersion = JavaVersion.toVersion(targetJavaVersion)
-        sourceCompatibility = javaVersion
-        targetCompatibility = javaVersion
-        if (JavaVersion.current() < javaVersion) {
-            toolchain.languageVersion.set(JavaLanguageVersion.of(targetJavaVersion))
-        }
-    }
-
-    sourceSets {
-        main {
-            java.srcDir("src/main/java")
-            resources.srcDir("src/main/resources")
-        }
-    }
-
-    repositories {
-        mavenCentral()
-        mavenLocal()
-        maven("https://repo.maven.apache.org/maven2/")
-        maven("https://papermc.io/repo/repository/maven-public/")
-        maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
-        maven("https://oss.sonatype.org/content/repositories/snapshots/")
-        maven("https://oss.sonatype.org/content/repositories/central/")
-        maven("https://libraries.minecraft.net/")
-        maven("https://jitpack.io/")
-        maven("https://repo.codemc.org/repository/maven-public/")
-        maven("https://m2.dv8tion.net/releases/")
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        toolchain.languageVersion.set(JavaLanguageVersion.of(11))
     }
 
     tasks {
 
+        repositories {
+            mavenCentral()
+            google()
+            maven("https://repo.brandonli.me/snapshots")
+            maven("https://repo.papermc.io/repository/maven-public/")
+            maven("https://oss.sonatype.org/content/repositories/snapshots")
+            maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+            maven("https://repo.codemc.io/repository/maven-releases/")
+        }
+
         withType<JavaCompile>().configureEach {
-            options.compilerArgs.add("-parameters")
+            val set = setOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked")
+            options.compilerArgs.addAll(set)
             options.encoding = "UTF-8"
-            options.release.set(targetJavaVersion)
             options.isFork = true
             options.forkOptions.memoryMaximumSize = "4g"
         }
 
-        node {
-            download = true
-            version = "22.9.0"
-            workDir = file("build/nodejs")
+        processResources {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            filteringCharset = "UTF-8"
         }
 
-        val windows = System.getProperty("os.name").lowercase().contains("windows")
-        fun setupNodeEnvironment(): File {
-            val npmExec = if (windows) "node.exe" else "bin/node"
-            val folder = node.resolvedNodeDir.get()
-            val executable = folder.file(npmExec).asFile
-            return executable
-        }
-
-        whenTaskAdded {
-            if (name == "spotlessJava") {
-                dependsOn("nodeSetup", "npmSetup")
-            }
+        build {
+            dependsOn("spotlessApply")
         }
 
         spotless {
@@ -79,13 +86,54 @@ subprojects {
                 importOrder()
                 removeUnusedImports()
                 prettier(mapOf("prettier" to "3.3.3", "prettier-plugin-java" to "2.6.4"))
-                    .config(mapOf("parser" to "java",
-                        "tabWidth" to 2,
-                        "plugins" to listOf("prettier-plugin-java"),
-                        "printWidth" to 140))
+                    .config(
+                        mapOf(
+                            "parser" to "java",
+                            "tabWidth" to 2,
+                            "plugins" to listOf("prettier-plugin-java"),
+                            "printWidth" to 140
+                        )
+                    )
                     .nodeExecutable(provider { setupNodeEnvironment() })
+                val file = rootProject.file("HEADER")
+                licenseHeaderFile(file)
             }
+        }
+
+        afterEvaluate {
+            tasks.findByName("spotlessInternalRegisterDependencies")?.dependsOn("nodeSetup", "npmSetup")
+        }
+
+        checkerFramework {
+            checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
+            val file = project.file("checker-framework")
+            if (!file.exists()) {
+                file.mkdirs()
+            }
+            val rootFile = rootProject.file("checker-framework")
+            if (!rootFile.exists()) {
+                rootFile.mkdirs()
+            }
+            extraJavacArgs = listOf(
+                "-AsuppressWarnings=uninitialized",
+                "-Astubs=${file}",
+                "-Astubs=${rootFile}"
+            )
+        }
+
+        node {
+            download = true
+            version = "22.12.0"
+            workDir = file("build/nodejs")
         }
     }
 }
 
+val windows = System.getProperty("os.name").lowercase().contains("windows")
+
+fun setupNodeEnvironment(): File {
+    val npmExec = if (windows) "node.exe" else "bin/node"
+    val folder = node.resolvedNodeDir.get()
+    val executable = folder.file(npmExec).asFile
+    return executable
+}

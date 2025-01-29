@@ -1,9 +1,0 @@
-{
-  "MAC": {
-    "true": "https://mirror.csclub.uwaterloo.ca/vlc/vlc/3.0.18/macosx/vlc-3.0.18-arm64.dmg",
-    "false": "https://mirror.csclub.uwaterloo.ca/vlc/vlc/3.0.18/macosx/vlc-3.0.18-universal.dmg"
-  },
-  "WINDOWS": {
-    "false": "https://mirror.csclub.uwaterloo.ca/vlc/vlc/3.0.18/win64/vlc-3.0.18-win64.zip"
-  }
-}

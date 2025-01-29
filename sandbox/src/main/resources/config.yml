@@ -1,0 +1,31 @@
+# MCAV Configuration File
+
+# Sets the language for the plugin
+# Valid options are:
+# Default is EN_US
+language: EN_US
+
+# Sets the method to host the pack that is used by the plugin
+# Valid options are LOCALLY_HOSTED_DAEMON and MC_PACK_HOSTING
+# Default is MC_PACK_HOSTING
+
+# LOCALLY_HOSTED_DAEMON will start a local daemon that will host the pack using the below options.
+# This option requires port-forwarding to work properly.
+
+# MC_PACK_HOSTING will upload the pack on https://mc-packs.net/ and cache the pack link
+# This option doesn't require port-forwarding, but may be limited by web requests. There has
+# been issues with this option in the past, so it is not recommended.
+pack-provider: MC_PACK_HOSTING
+
+# If using LOCALLY_HOSTED_DAEMON, the below options will be used
+server:
+
+  # The host name of the daemon (for example: google.com)
+  # Default is localhost
+  host-name: localhost
+
+  # The port of the daemon (for example, 7270)
+  # Default is 7270
+  port: 7270
+
+  # With this configuration, the final pack link will be: http://localhost:7270/

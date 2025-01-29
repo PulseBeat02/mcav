@@ -1,5 +1,13 @@
-rootProject.name = "ezmediacore"
-include(":ezmediacore:main")
-include(":deluxemediaplugin")
-include(":ezmediacore:nms-api")
-include(":ezmediacore:v1_21_R1")
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+}
+
+rootProject.name = "mcav"
+
+include("mcav-common")
+project(":mcav-common").name = "mcav-common"
+
+include("mcav-minecraft")
+project(":mcav-minecraft").name = "mcav-minecraft"
+
+include("sandbox")

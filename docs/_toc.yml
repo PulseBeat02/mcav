@@ -1,0 +1,26 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+- caption: Getting Started 🚀
+  chapters:
+    - file: started.md
+    - file: licensing.md
+- caption: MCAV Commons 🪄
+  chapters:
+    - file: instance.md
+    - file: source.md
+    - file: pipeline.md
+    - file: player.md
+    - file: yt-dlp.md
+    - file: image.md
+    - file: ffmpeg.md
+    - file: examples.md
+- caption: MCAV Minecraft Platform 🧱
+  chapters:
+    - file: minecraft.md
+    - file: resourcepack.md
+    - file: map.md
+    - file: result.md
