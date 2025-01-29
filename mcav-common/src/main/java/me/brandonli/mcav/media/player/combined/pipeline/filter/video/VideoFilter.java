@@ -41,7 +41,7 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
  * - {@code GRAYSCALE}: A filter that converts the video frame to grayscale.
  * <p>
  * Implementors can create custom video filters by implementing the
- * {@link Filter#applyFilter(StaticImage, VideoMetadata)} method to define new
+ * applyFilter(StaticImage, VideoMetadata) method to define new
  * transformation logic.
  */
 @FunctionalInterface

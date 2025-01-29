@@ -23,34 +23,6 @@ import java.util.concurrent.RecursiveTask;
 
 /**
  * @author jetp250
- * <p>
- * LoadRed is a subclass of RecursiveTask responsible for parallel processing
- * of color matching operations based on the red channel of an RGB color palette.
- * It forms the root of a hierarchical task structure that delegates tasks
- * for processing green channel computations to the LoadGreen class.
- * <p>
- * This class operates within the Fork/Join framework to improve computational
- * efficiency by dividing the problem into smaller subtasks, executing them
- * in parallel, and combining the results.
- * <p>
- * Key Responsibilities:
- * - Initialize and distribute color matching tasks for the green channel
- * by creating LoadGreen instances.
- * - Aggregate results from the green channel computations into a single
- * byte array representing the closest color matches for all combinations
- * of green and blue channels with the specified red channel value.
- * <p>
- * Constructor:
- * - Requires an integer array representing the color palette and an integer
- * specifying the red channel value.
- * <p>
- * Methods:
- * - compute(): Entry point for the task execution, coordinating green channel
- * computations and collecting their results.
- * - forkGreen(List<LoadGreen>): Creates and forks LoadGreen instances to
- * handle parallel processing for the green channel.
- * - copyColors(List<LoadGreen>): Combines results from all green channel
- * LoadGreen subtasks into a single byte array.
  */
 public final class LoadRed extends RecursiveTask<byte[]> {
 

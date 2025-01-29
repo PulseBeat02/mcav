@@ -21,14 +21,15 @@ import com.github.retrooper.packetevents.protocol.chat.ChatTypes;
 import com.github.retrooper.packetevents.protocol.chat.message.ChatMessageLegacy;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChatMessage;
 import com.google.common.base.Preconditions;
-import java.util.Collection;
-import java.util.UUID;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
 import net.kyori.adventure.text.Component;
+
+import java.util.Collection;
+import java.util.UUID;
 
 /**
  * ChatResult is an implementation of the VideoFilter interface that processes
@@ -82,6 +83,8 @@ public class ChatResult implements VideoFilter {
 
   /**
    * Creates a new builder instance for constructing a {@link ChatResult} object.
+   *
+   * @return a new instance of {@link ChatResultBuilder} for building
    */
   public static Builder<?> builder() {
     return new ChatResultBuilder();

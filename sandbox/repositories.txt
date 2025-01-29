@@ -1,9 +1,0 @@
-https://dl.google.com/dl/android/maven2/
-https://hub.spigotmc.org/nexus/content/repositories/snapshots/
-https://oss.sonatype.org/content/repositories/snapshots
-https://repo.brandonli.me/snapshots
-https://repo.codemc.io/repository/maven-releases/
-https://repo.maven.apache.org/maven2/
-https://repo.maven.apache.org/maven2/
-https://repo.papermc.io/repository/maven-public/
-https://s01.oss.sonatype.org/content/repositories/snapshots/

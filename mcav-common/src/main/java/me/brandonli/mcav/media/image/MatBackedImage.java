@@ -17,15 +17,6 @@
  */
 package me.brandonli.mcav.media.image;
 
-import static org.opencv.imgcodecs.Imgcodecs.imread;
-
-import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -39,6 +30,16 @@ import org.opencv.imgproc.CLAHE;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.photo.Photo;
+
+import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.opencv.imgcodecs.Imgcodecs.imread;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -723,9 +724,9 @@ public class MatBackedImage implements StaticImage {
    * {@inheritDoc}
    */
   @Override
-  public void drawPolygon(final List<Point> points, final boolean isClosed, final double[] scalarColor, final int thickness) {
+  public void drawPolygon(final List<me.brandonli.mcav.utils.immutable.Point> points, final boolean isClosed, final double[] scalarColor, final int thickness) {
     final MatOfPoint matOfPoint = new MatOfPoint();
-    matOfPoint.fromList(points);
+    matOfPoint.fromList(points.stream().map(p -> new Point(p.getX(), p.getY()) ).collect(Collectors.toList()));
     final List<MatOfPoint> contours = new ArrayList<>();
     contours.add(matOfPoint);
     Imgproc.polylines(this.mat, contours, isClosed, new Scalar(scalarColor), thickness);
@@ -735,9 +736,9 @@ public class MatBackedImage implements StaticImage {
    * {@inheritDoc}
    */
   @Override
-  public void fillPolygon(final List<Point> points, final double[] scalarColor) {
+  public void fillPolygon(final List<me.brandonli.mcav.utils.immutable.Point> points, final double[] scalarColor) {
     final MatOfPoint matOfPoint = new MatOfPoint();
-    matOfPoint.fromList(points);
+    matOfPoint.fromList(points.stream().map(p -> new Point(p.getX(), p.getY()) ).collect(Collectors.toList()));
     final List<MatOfPoint> contours = new ArrayList<>();
     contours.add(matOfPoint);
     Imgproc.fillPoly(this.mat, contours, new Scalar(scalarColor));

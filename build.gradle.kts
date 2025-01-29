@@ -49,6 +49,8 @@ subprojects {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
         toolchain.languageVersion.set(JavaLanguageVersion.of(11))
+        withSourcesJar()
+        withJavadocJar()
     }
 
     tasks {
@@ -70,6 +72,10 @@ subprojects {
             options.encoding = "UTF-8"
             options.isFork = true
             options.forkOptions.memoryMaximumSize = "4g"
+        }
+
+        withType<Javadoc>().configureEach {
+            options.encoding = "UTF-8"
         }
 
         processResources {

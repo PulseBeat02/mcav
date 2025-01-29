@@ -21,7 +21,14 @@ import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
-public interface DitherAlgorithms {
+public enum DitherAlgorithms {
+
+  ;
+
+  private static DitherAlgorithm nearest(final int weight) {
+    return DitherAlgorithm.random().withPalette(Palette.DEFAULT).withWeight(weight).build();
+  }
+
   private static DitherAlgorithm random(final int weight) {
     return DitherAlgorithm.random().withPalette(Palette.DEFAULT).withWeight(weight).build();
   }

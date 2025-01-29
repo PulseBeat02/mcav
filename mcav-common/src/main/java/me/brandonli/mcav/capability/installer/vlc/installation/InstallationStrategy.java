@@ -42,6 +42,7 @@ public interface InstallationStrategy {
    * Attempts to download and install VLC binaries for the current platform. This method will also set up any paths.
    *
    * @return the path to the installed VLC binaries
+   * @throws IOException if an error occurs during the installation process
    */
   Path execute() throws IOException;
 }

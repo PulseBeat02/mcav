@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.utils;
 
-import static java.util.Objects.requireNonNull;
-
 import com.google.common.base.Preconditions;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
@@ -26,6 +24,9 @@ import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+import me.brandonli.mcav.capability.installer.Download;
+import me.brandonli.mcav.media.source.UriSource;
+
 import java.io.*;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
@@ -39,8 +40,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-import me.brandonli.mcav.capability.installer.Download;
-import me.brandonli.mcav.media.source.UriSource;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Utility class providing various input/output operations and utilities, primarily focusing
@@ -261,7 +262,6 @@ public final class IOUtils {
    *
    * @param resourcePath path to the JSON resource
    * @return array of Download objects
-   * @throws IOException         if an I/O error occurs
    * @throws JsonSyntaxException if the JSON is invalid
    */
   public static Download[] readDownloadsFromJsonResource(final String resourcePath) {

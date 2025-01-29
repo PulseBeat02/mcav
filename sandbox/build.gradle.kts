@@ -17,7 +17,7 @@ dependencies {
     compileOnly("me.lucko:commodore:2.2")
     compileOnly("org.bstats:bstats-bukkit:3.1.0")
     compileOnly("dev.triumphteam:triumph-gui:3.1.12")
-    compileOnly("net.kyori:adventure-api:4.20.0")
+    compileOnly("net.kyori:adventure-api:4.21.0")
     compileOnly("net.kyori:adventure-platform-bukkit:4.3.4")
     compileOnly("net.kyori:adventure-text-minimessage:4.20.0")
     compileOnly("net.kyori:adventure-text-serializer-legacy:4.20.0")

@@ -19,11 +19,12 @@ package me.brandonli.mcav.media.video.result;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 import com.google.common.base.Preconditions;
-import java.util.Collection;
-import java.util.UUID;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.video.DitherResultStep;
 import me.brandonli.mcav.utils.PacketUtils;
+
+import java.util.Collection;
+import java.util.UUID;
 
 /**
  * Represents the result of processing a mapped video frame in a dithering operation.
@@ -67,8 +68,14 @@ public class MapResult implements DitherResultStep {
     }
   }
 
+
   /**
+   * Creates a new {@link Builder} instance for constructing {@link MapResult} objects.
+   * The builder allows for configuring various properties of the map result such as
+   * viewers, map ID, block dimensions, and resolution.
    *
+   * @return a new instance of {@link MapResultBuilder}, which extends {@link Builder}
+   *         and provides methods for configuring and building a {@link MapResult} object
    */
   public static Builder<?> builder() {
     return new MapResultBuilder();
@@ -115,7 +122,10 @@ public class MapResult implements DitherResultStep {
     }
 
     /**
-     * Sets the map block width for the builder
+     * Sets the block width of the map and updates the builder with this value.
+     *
+     * @param mapBlockWidth the block width of the map to be set
+     * @return the builder instance for method chaining
      */
     public T mapBlockWidth(final int mapBlockWidth) {
       this.mapBlockWidth = mapBlockWidth;
@@ -125,7 +135,8 @@ public class MapResult implements DitherResultStep {
     /**
      * Sets the block height of the map and updates the builder with this value.
      *
-     * @param mapBlockHeight the block height of the map to be set; must be
+     * @param mapBlockHeight the block height of the map to be set
+     * @return the builder instance for method chaining
      */
     public T mapBlockHeight(final int mapBlockHeight) {
       this.mapBlockHeight = mapBlockHeight;

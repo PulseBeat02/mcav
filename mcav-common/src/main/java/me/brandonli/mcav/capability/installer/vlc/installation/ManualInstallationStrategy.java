@@ -40,8 +40,9 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   }
 
   /**
-   * Deletes the installed binary if it exists.
+   * Deletes the specified file if it exists.
    *
+   * @param dmg the path to the file to be deleted
    * @throws IOException if an I/O error occurs
    */
   public void deleteFile(final Path dmg) throws IOException {
