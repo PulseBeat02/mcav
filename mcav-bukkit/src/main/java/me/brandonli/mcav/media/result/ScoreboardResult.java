@@ -111,6 +111,9 @@ public class ScoreboardResult implements FunctionalVideoFilter {
 
   private void release0() {
     for (final Team team : this.teamLines) {
+      if (team == null) {
+        continue;
+      }
       team.unregister();
     }
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());

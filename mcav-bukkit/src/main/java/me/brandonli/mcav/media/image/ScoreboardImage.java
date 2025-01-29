@@ -64,6 +64,9 @@ public class ScoreboardImage implements DisplayableImage {
 
   private void release0() {
     for (final Team team : this.teamLines) {
+      if (team == null) {
+        continue;
+      }
       team.unregister();
     }
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());

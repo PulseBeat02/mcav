@@ -17,15 +17,14 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.runtime.CommandTask;
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
  * {@inheritDoc}

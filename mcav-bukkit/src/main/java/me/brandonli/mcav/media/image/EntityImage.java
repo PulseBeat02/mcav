@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav.media.image;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.Collection;
-import java.util.SplittableRandom;
-import java.util.UUID;
 import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.media.config.EntityConfiguration;
 import me.brandonli.mcav.utils.ChatUtils;
@@ -30,12 +25,18 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.entity.CraftTextDisplay;
 import org.bukkit.entity.Display;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
+
+import java.util.Collection;
+import java.util.SplittableRandom;
+import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * The EntityImage class represents an implementation of the DisplayableImage interface that
@@ -54,60 +55,58 @@ public class EntityImage implements DisplayableImage {
   private static final SplittableRandom SPLITTABLE_RANDOM = new SplittableRandom();
 
   private final EntityConfiguration entityConfiguration;
-  private final Entity[] entities;
+
+  private TextDisplay entity;
 
   EntityImage(final EntityConfiguration configuration) {
     this.entityConfiguration = configuration;
-    this.entities = new Entity[configuration.getEntityHeight()];
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
+  @SuppressWarnings("deprecation")
   public void displayImage(final StaticImage data) {
     this.release();
-    final int entityHeight = this.entityConfiguration.getEntityHeight();
+
     final Location pos = this.entityConfiguration.getPosition();
     final Location clone = pos.clone();
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
     final World world = requireNonNull(clone.getWorld());
     final Plugin plugin = MCAVBukkit.getPlugin();
-    for (int i = 0; i < entityHeight; i++) {
-      final Location position = clone.add(0, 0.2, 0);
-      @SuppressWarnings("deprecation")
-      final TextDisplay entity = world.spawn(position, TextDisplay.class, display -> {
-        display.setInvulnerable(true);
-        display.setCustomNameVisible(true);
-        display.setSeeThrough(false);
-        display.setAlignment(TextDisplay.TextAlignment.CENTER);
-        display.setBillboard(Display.Billboard.CENTER);
-        display.setVisibleByDefault(false);
-        display.setBackgroundColor(Color.BLACK);
-        display.setDefaultBackground(true);
-        display.setShadowed(false);
-        display.setText("");
-      });
-      for (final UUID viewer : viewers) {
-        final Player player = Bukkit.getPlayer(viewer);
-        if (player == null) {
-          continue;
-        }
-        player.showEntity(plugin, entity);
+    this.entity = world.spawn(clone, TextDisplay.class, display -> {
+      display.setInvulnerable(true);
+      display.setCustomNameVisible(false);
+      display.setSeeThrough(false);
+      display.setAlignment(TextDisplay.TextAlignment.CENTER);
+      display.setBillboard(Display.Billboard.CENTER);
+      display.setVisibleByDefault(false);
+      display.setBackgroundColor(Color.BLACK);
+      display.setDefaultBackground(true);
+      display.setShadowed(false);
+      display.setText("");
+      display.setCustomName("");
+      display.setLineWidth(Integer.MAX_VALUE);
+    });
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
       }
-      this.entities[i] = entity;
+      player.showEntity(plugin, this.entity);
     }
+
     final String character = this.entityConfiguration.getCharacter();
     final int entityWidth = this.entityConfiguration.getEntityWidth();
+    final int entityHeight = this.entityConfiguration.getEntityHeight();
     data.resize(entityWidth, entityHeight);
+
     final int[] resizedData = data.getAllPixels();
-    for (int i = 0; i < entityHeight; i++) {
-      final Entity entity = this.entities[i];
-      final CraftEntity glow = (CraftEntity) entity;
-      final net.minecraft.world.entity.Entity nmsEntity = glow.getHandle();
-      final Component prefix = ChatUtils.createLine(resizedData, character, entityWidth, entityHeight - i - 1);
-      nmsEntity.setCustomName(prefix);
-    }
+    final Component prefix = ChatUtils.createChatComponent(resizedData, character, entityWidth, entityHeight);
+    final CraftTextDisplay craftEntity = (CraftTextDisplay) this.entity;
+    final net.minecraft.world.entity.Display.TextDisplay frame = craftEntity.getHandle();
+    frame.setText(prefix);
   }
 
   /**
@@ -115,8 +114,15 @@ public class EntityImage implements DisplayableImage {
    */
   @Override
   public void release() {
-    for (final Entity entity : this.entities) {
-      entity.remove();
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final Plugin plugin = MCAVBukkit.getPlugin();
+    scheduler.runTask(plugin, this::release0);
+  }
+
+  private void release0() {
+    if (this.entity == null) {
+      return;
     }
+    this.entity.remove();
   }
 }

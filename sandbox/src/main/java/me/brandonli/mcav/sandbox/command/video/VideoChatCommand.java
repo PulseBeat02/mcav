@@ -36,7 +36,6 @@ import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.config.ChatConfiguration;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.result.ChatResult;
@@ -163,7 +162,7 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
     final FunctionalVideoFilter result = new ChatResult(configuration);
     result.start();
     this.manager.setFilter(result);
-    return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(result).build();
+    return PipelineBuilder.video().then(result).build();
   }
 
   private ChatConfiguration constructChatConfiguration(

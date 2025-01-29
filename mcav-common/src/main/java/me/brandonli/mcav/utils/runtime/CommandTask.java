@@ -32,6 +32,7 @@ public class CommandTask {
 
   private final String[] command;
   private Process process;
+  private String errorOutput;
   private String output;
 
   /**
@@ -79,8 +80,9 @@ public class CommandTask {
   private void readOutput(@UnderInitialization CommandTask this, final Process process) throws IOException {
     if (this.output == null && process != null) {
       final StringBuilder outputBuilder = new StringBuilder();
+      final StringBuilder errorOutputBuilder = new StringBuilder();
       final Thread stdoutThread = this.createStdOutReader(process, outputBuilder);
-      final Thread stderrThread = this.createStdErrReader(process, outputBuilder);
+      final Thread stderrThread = this.createStdErrReader(process, errorOutputBuilder);
       stdoutThread.start();
       stderrThread.start();
       try {
@@ -92,6 +94,7 @@ public class CommandTask {
         throw new IOException("Process interrupted", e);
       }
       this.output = outputBuilder.toString();
+      this.errorOutput = errorOutputBuilder.toString();
     }
   }
 
@@ -132,6 +135,19 @@ public class CommandTask {
       throw new IOException("Process has not been started");
     }
     return this.output != null ? this.output : "";
+  }
+
+  /**
+   * Gets the error output for the command
+   *
+   * @return the command error output
+   * @throws IOException if the process hasn't been started
+   */
+  public String getErrorOutput() throws IOException {
+    if (this.process == null) {
+      throw new IOException("Process has not been started");
+    }
+    return this.errorOutput != null ? this.errorOutput : "";
   }
 
   private BufferedReader getStdErrBufferedReader(@UnderInitialization CommandTask this, final Process process) {
