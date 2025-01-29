@@ -24,5 +24,4 @@ public enum Capability {
   VLC,
   FFMPEG,
   YT_DLP,
-  QEMU,
 }

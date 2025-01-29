@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.capability.installer.qemu;
+package me.brandonli.mcav.vm;
 
 import java.nio.file.Path;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;

@@ -52,11 +52,13 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   protected static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
   protected @Nullable T player;
+  protected MCAVSandbox plugin;
   protected Set<Player> activePlayers;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     this.activePlayers = Collections.newSetFromMap(new WeakHashMap<>());
+    this.plugin = plugin;
     final Server server = plugin.getServer();
     final PluginManager pluginManager = server.getPluginManager();
     pluginManager.registerEvents(this, plugin);

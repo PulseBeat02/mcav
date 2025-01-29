@@ -21,14 +21,41 @@ import me.brandonli.mcav.MCAVModule;
 
 public final class VMModule implements MCAVModule {
 
+  private boolean isQemuInstalled;
+
   public VMModule() {
     // no-op
   }
 
   @Override
   public void start() {
-    // no-op
+    // this.installQemu();
+    final ExecutableFinder finder = new ExecutableFinder();
+    this.isQemuInstalled = finder.find("qemu-system-x86_64") != null;
   }
+
+  //  private void installQemu() {
+  //    try {
+  //      final QemuInstaller installer = QemuInstaller.create();
+  //      if (!installer.isSupported()) {
+  //        this.capabilities.remove(Capability.QEMU);
+  //        LOGGER.info("QEMU is not enabled, skipping installation.");
+  //        return;
+  //      }
+  //      LOGGER.info("Installing QEMU...");
+  //      final long start = System.currentTimeMillis();
+  //      installer.download(true);
+  //      final long end = System.currentTimeMillis();
+  //      LOGGER.info("QEMU installation took {} ms", end - start);
+  //    } catch (final IOException e) {
+  //      this.capabilities.remove(Capability.QEMU);
+  //      final String msg = e.getMessage();
+  //      if (msg != null) {
+  //        LOGGER.error(msg);
+  //      }
+  //      LOGGER.info("Failed to install QEMU, skipping installation.");
+  //    }
+  //  }
 
   @Override
   public void stop() {
@@ -38,5 +65,9 @@ public final class VMModule implements MCAVModule {
   @Override
   public String getModuleName() {
     return "vm";
+  }
+
+  public boolean isQemuInstalled() {
+    return this.isQemuInstalled;
   }
 }

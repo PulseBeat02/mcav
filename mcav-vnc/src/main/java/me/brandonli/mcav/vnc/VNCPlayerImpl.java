@@ -19,12 +19,19 @@ package me.brandonli.mcav.vnc;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -40,8 +48,10 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.CollectionUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -66,6 +76,28 @@ public class VNCPlayerImpl implements VNCPlayer {
     client -> client.updateMouseButton(1, true),
     client -> client.updateMouseButton(1, false)
   );
+
+  private static final Map<String, Integer> KEY_SYMBOLS;
+
+  static {
+    final Gson gson = GsonProvider.getSimple();
+    try (final Reader reader = IOUtils.getResourceAsStreamReader("keysyms.json")) {
+      final TypeToken<Map<String, String>> token = new TypeToken<>() {};
+      final Type type = token.getType();
+      final Map<String, String> map = requireNonNull(gson.fromJson(reader, type));
+      final Set<Map.Entry<@KeyFor("map") String, String>> entries = map.entrySet();
+      final Map<String, Integer> symbols = new HashMap<>();
+      for (final Map.Entry<String, String> entry : entries) {
+        final String key = entry.getKey();
+        final String value = entry.getValue();
+        final int decode = Integer.decode(value);
+        symbols.put(key, decode);
+      }
+      KEY_SYMBOLS = Map.copyOf(symbols);
+    } catch (final IOException e) {
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
 
   private final ExecutorService frameProcessorExecutor;
   private final AtomicReference<@Nullable BufferedImage> current;
@@ -255,6 +287,12 @@ public class VNCPlayerImpl implements VNCPlayer {
     LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get() && this.vncClient != null) {
         final VernacularClient client = requireNonNull(this.vncClient);
+        if (KEY_SYMBOLS.containsKey(text)) {
+          final int ks = KEY_SYMBOLS.get(text);
+          client.updateKey(ks, true);
+          client.updateKey(ks, false);
+          return;
+        }
         client.type(text);
       }
     });

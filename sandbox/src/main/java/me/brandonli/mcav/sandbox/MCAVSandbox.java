@@ -28,6 +28,7 @@ import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
+import me.brandonli.mcav.vm.VMModule;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAVSandbox extends JavaPlugin {
@@ -35,6 +36,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private Logger logger;
 
   private MCAVApi mcav;
+  private boolean isQemuInstalled;
+
   private JukeBoxListener listener;
   private AudioProvider audioProvider;
   private ImageManager imageManager;
@@ -70,10 +73,16 @@ public final class MCAVSandbox extends JavaPlugin {
     final long startTime = System.currentTimeMillis();
 
     this.mcav = MCAV.api();
-    this.mcav.install(BukkitModule.class, BrowserModule.class);
+    this.mcav.install(BukkitModule.class, BrowserModule.class, VMModule.class);
 
     final BukkitModule module = this.mcav.getModule(BukkitModule.class);
     module.inject(this);
+
+    final VMModule vmModule = this.mcav.getModule(VMModule.class);
+    this.isQemuInstalled = vmModule.isQemuInstalled();
+    if (!this.isQemuInstalled) {
+      this.logger.warning("QEMU is not installed. VM playback will not be available.");
+    }
 
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
@@ -159,5 +168,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
   public ImageManager getImageManager() {
     return this.imageManager;
+  }
+
+  public boolean isQemuInstalled() {
+    return this.isQemuInstalled;
   }
 }

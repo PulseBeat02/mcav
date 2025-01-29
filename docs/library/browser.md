@@ -28,4 +28,4 @@ page to connect to.
 
 To interact with the browser, you can use methods like the `sendMouseEvent` to send a mouse click or the `sendKeyEvent`
 to send keyboard input into the browser. The `sendMouseEvent` provides an enum `MouseClick` to specify the type of mouse
-click you want to use.
+click you want to use. For sending keys, you must use 

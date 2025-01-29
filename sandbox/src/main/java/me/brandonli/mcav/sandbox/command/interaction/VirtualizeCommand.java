@@ -117,6 +117,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final VMPlayer.Architecture architecture,
     @Greedy final String flags
   ) {
+    if (!this.plugin.isQemuInstalled()) {
+      sender.sendMessage(Message.QEMU_NOT_INSTALLED.build());
+      return;
+    }
+
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {

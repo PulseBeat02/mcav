@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
-import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
@@ -98,7 +97,6 @@ public final class MCAV implements MCAVApi {
   public void install(final Class<?>... plugins) {
     this.installYTDLP();
     this.installVLC();
-    this.installQemu();
     this.installMisc();
     this.loadPlugins(plugins);
     this.updateLoadStatus();
@@ -202,29 +200,6 @@ public final class MCAV implements MCAVApi {
     }
     FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
     avutil.setLogCallback(new FFmpegLogger());
-  }
-
-  private void installQemu() {
-    try {
-      final QemuInstaller installer = QemuInstaller.create();
-      if (true || !installer.isSupported()) {
-        this.capabilities.remove(Capability.QEMU);
-        LOGGER.info("QEMU is not enabled, skipping installation.");
-        return;
-      }
-      LOGGER.info("Installing QEMU...");
-      final long start = System.currentTimeMillis();
-      installer.download(true);
-      final long end = System.currentTimeMillis();
-      LOGGER.info("QEMU installation took {} ms", end - start);
-    } catch (final IOException e) {
-      this.capabilities.remove(Capability.QEMU);
-      final String msg = e.getMessage();
-      if (msg != null) {
-        LOGGER.error(msg);
-      }
-      LOGGER.info("Failed to install QEMU, skipping installation.");
-    }
   }
 
   private void installVLC() {

@@ -112,7 +112,7 @@ public final class JukeBoxListener implements Listener {
 
     final Path absolute = path.toAbsolutePath();
     final String raw = absolute.toString();
-    final String cmd = "mcav vm create @a 640x640 5x5 0 filter_lite x86_64 -cdrom %s -m 2048M".formatted(raw);
+    final String cmd = "mcav vm create PulseBeat_02 640x640 100 5x5 0 filter_lite x86_64 -cdrom %s -m 2048M".formatted(raw);
     final Player player = event.getPlayer();
     player.performCommand(cmd);
   }
