@@ -19,8 +19,6 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import java.util.Collection;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -52,12 +50,9 @@ import org.slf4j.LoggerFactory;
 
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer> {
 
-  private ExecutorService service;
-
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     super.registerFeature(plugin, parser);
-    this.service = Executors.newVirtualThreadPerTaskExecutor();
   }
 
   @Override
@@ -83,10 +78,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   @Override
   protected void releasePlayer() {
-    if (this.player == null) {
-      return;
+    if (this.player != null) {
+      this.player.release();
+      this.player = null;
     }
-    this.player.release();
+    if (this.result != null) {
+      this.result.release();
+      this.result = null;
+    }
   }
 
   @Command("mcav vm interact")
@@ -134,10 +133,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       return;
     }
 
-    if (this.player != null) {
+    if (this.player != null || this.result != null) {
       try {
         this.releasePlayer();
         this.player = null;
+        this.result = null;
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
@@ -167,12 +167,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       final VMPlayer player = VMPlayer.vm();
       final VideoAttachableCallback callback = player.getVideoAttachableCallback();
       callback.attach(pipeline);
-
       player
         .startAsync(settings, architecture, config, this.service)
         .exceptionally(throwable -> handleException(sender, throwable))
         .thenRun(TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(Message.VM_CREATE.build())));
       this.player = player;
+      this.result = result;
     } catch (final Exception e) {
       throw new AssertionError(e);
     }

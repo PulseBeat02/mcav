@@ -19,6 +19,9 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
@@ -51,7 +54,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   protected static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
+  protected @Nullable MapResult result;
   protected @Nullable T player;
+
+  protected ExecutorService service;
   protected MCAVSandbox plugin;
   protected Set<Player> activePlayers;
 
@@ -59,6 +65,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     this.activePlayers = Collections.newSetFromMap(new WeakHashMap<>());
     this.plugin = plugin;
+    this.service = Executors.newSingleThreadExecutor();
     final Server server = plugin.getServer();
     final PluginManager pluginManager = server.getPluginManager();
     pluginManager.registerEvents(this, plugin);
@@ -66,9 +73,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   @Override
   public void shutdown() {
-    if (this.player != null) {
+    if (this.player != null || this.result != null) {
       this.releasePlayer();
       this.player = null;
+      this.result = null;
     }
     HandlerList.unregisterAll(this);
   }
@@ -211,9 +219,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   protected void releaseResource(final CommandSender sender, final Component message) {
-    if (this.player != null) {
+    if (this.player != null || this.result != null) {
       this.releasePlayer();
       this.player = null;
+      this.result = null;
     }
     sender.sendMessage(message);
   }

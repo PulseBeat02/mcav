@@ -28,7 +28,7 @@ import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -67,10 +67,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   @Override
   protected void releasePlayer() {
-    if (this.player == null) {
-      return;
+    if (this.player != null) {
+      this.player.release();
+      this.player = null;
     }
-    this.player.release();
+    if (this.result != null) {
+      this.result.release();
+      this.result = null;
+    }
   }
 
   @Command("mcav browser interact")
@@ -124,10 +128,11 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     }
     requireNonNull(uri);
 
-    if (this.player != null) {
+    if (this.player != null || this.result != null) {
       try {
         this.releasePlayer();
         this.player = null;
+        this.result = null;
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
@@ -147,7 +152,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final MapResult result = new MapResult(configuration);
-    final VideoFilter filter = DitherFilter.dither(algorithm, result);
+    final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);
 
@@ -155,8 +160,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       final BrowserPlayer player = BrowserPlayer.playwright();
       final VideoAttachableCallback callback = player.getVideoAttachableCallback();
       callback.attach(pipeline);
-
-      player.start(source);
+      player.startAsync(source, this.service);
+      this.result = result;
       this.player = player;
     } catch (final Exception e) {
       throw new AssertionError(e);

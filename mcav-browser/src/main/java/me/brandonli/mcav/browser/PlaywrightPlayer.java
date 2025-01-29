@@ -214,7 +214,10 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final ResizeFilter resizeFilter = new ResizeFilter(width, height);
     try {
       while (this.running.get() && this.page != null) {
-        final Page page = requireNonNull(this.page);
+        final Page page = this.page;
+        if (page == null) {
+          break;
+        }
         final byte[] buffer = page.screenshot(screenshotOptions);
         final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
         final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
@@ -338,14 +341,27 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
       this.pageIds.clear();
+
+      try {
+        Thread.sleep(100);
+      } catch (final InterruptedException e) {
+        final Thread currentThread = Thread.currentThread();
+        currentThread.interrupt();
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        this.exceptionHandler.accept(msg, e);
+      }
+
       if (this.browser != null) {
         final Browser browser = requireNonNull(this.browser);
         browser.close();
         this.browser = null;
       }
+
       ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
       ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);
       ExecutorUtils.shutdownExecutorGracefully(this.tabExecutor);
+
       return true;
     });
   }
