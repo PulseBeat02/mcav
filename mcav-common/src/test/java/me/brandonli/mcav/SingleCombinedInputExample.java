@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
-import javax.swing.*;
-import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -33,6 +28,14 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
+
+import javax.swing.*;
+import javax.swing.border.LineBorder;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
@@ -59,7 +62,7 @@ public final class SingleCombinedInputExample {
     BufferedImage bufferedImage;
     ImageIcon icon;
     final UriSource source = UriSource.uri(
-      URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4")
+      URI.create("http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_native_60fps_normal.mp4")
     );
 
     final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(new DirectAudioOutput()).build();
@@ -81,6 +84,18 @@ public final class SingleCombinedInputExample {
     dimensionCallback.attach(dimension);
 
     multiplexer.start(source);
+
+    CompletableFuture.runAsync(() -> {
+      while (true) {
+        System.gc();
+        try {
+          Thread.sleep(1000);
+        } catch (final InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }, Executors.newSingleThreadExecutor());
 
     Runtime.getRuntime()
       .addShutdownHook(
