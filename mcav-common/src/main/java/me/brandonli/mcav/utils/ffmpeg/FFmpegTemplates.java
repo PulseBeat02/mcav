@@ -39,7 +39,14 @@ public final class FFmpegTemplates {
    * @return an {@code FFmpegCommand} object representing the audio extraction command
    */
   public static FFmpegCommand extractAudio(final String input, final String codec, final String output) {
-    return FFmpegCommand.builder().addInput(input).addArgument("-vn").addAudioCodec(codec).addOverwrite().addOutput(output).build();
+    return FFmpegCommand.builder()
+      .addInput(input)
+      .addArgument("-vn")
+      .addArguments("-strict", "-2")
+      .addAudioCodec(codec)
+      .addOverwrite()
+      .addOutput(output)
+      .build();
   }
 
   /**
