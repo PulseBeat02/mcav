@@ -52,6 +52,8 @@ public interface BrowserPlayer extends ReleasablePlayer {
     "--enable-automation",
     "--password-store=basic",
     "--use-mock-keychain",
+    "--start-maximized",
+    "--start-fullscreen",
   };
 
   /**

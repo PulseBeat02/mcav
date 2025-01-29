@@ -23,15 +23,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Enumeration;
 import java.util.Properties;
+import java.util.ServiceLoader;
 import java.util.function.Consumer;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -332,10 +335,24 @@ public class MCAVInstaller {
   }
 
   private void loadJar(final Path path) {
-    try {
+    try (final JarFile jarFile = new JarFile(path.toFile())) {
       final URL jarUrl = path.toUri().toURL();
       this.urlClassLoaderAccess.addURL(jarUrl);
-    } catch (final MalformedURLException e) {
+      final Enumeration<JarEntry> entries = jarFile.entries();
+      final String servicesPrefix = "META-INF/services/";
+      while (entries.hasMoreElements()) {
+        final JarEntry entry = entries.nextElement();
+        final String name = entry.getName();
+        if (name.startsWith(servicesPrefix) && !entry.isDirectory()) {
+          final String serviceName = name.substring(servicesPrefix.length());
+          try {
+            final ClassLoader loader = this.urlClassLoaderAccess.getClassLoader();
+            final Class<?> serviceClass = Class.forName(serviceName, false, loader);
+            ServiceLoader.load(serviceClass, loader);
+          } catch (final ClassNotFoundException e) {}
+        }
+      }
+    } catch (final IOException e) {
       throw new AssertionError(e);
     }
   }

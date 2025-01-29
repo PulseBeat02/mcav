@@ -52,6 +52,30 @@ public interface FormatStrategy {
     dump.formats.stream().filter(format -> !format.video_ext.equals("none")).min(Comparator.comparingDouble(format -> format.quality));
 
   /**
+   * A {@link FormatStrategy} that selects the audio format with the highest quality from a given
+   * {@link URLParseDump}, excluding formats with no audio extension.
+   * <p>
+   * This strategy filters out formats where the audio extension is "none" and selects the format
+   * with the maximum quality value based on a comparator.
+   * </p>
+   */
+  FormatStrategy BEST_QUALITY_AUDIO = dump ->
+    dump.formats.stream().filter(format -> !format.audio_ext.equals("none")).max(Comparator.comparingDouble(format -> format.quality));
+
+  /**
+   * A {@link FormatStrategy} that selects the video format with the highest quality
+   * from the provided {@link URLParseDump}.
+   * <p>
+   * This strategy filters out formats where the video extension is "none" and
+   * selects the format with the highest quality value.
+   * <p>
+   * The quality comparison is based on a descending order, ensuring the
+   * highest quality video format is chosen.
+   */
+  FormatStrategy BEST_QUALITY_VIDEO = dump ->
+    dump.formats.stream().filter(format -> !format.video_ext.equals("none")).max(Comparator.comparingDouble(format -> format.quality));
+
+  /**
    * Selects the first available audio format from the given {@link URLParseDump}.
    */
   FormatStrategy FIRST_AUDIO = dump -> dump.formats.stream().filter(format -> !format.audio_ext.equals("none")).findAny();

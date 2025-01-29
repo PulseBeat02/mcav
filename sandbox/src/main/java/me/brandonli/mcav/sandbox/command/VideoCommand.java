@@ -17,8 +17,13 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.primitives.Ints;
 import com.mojang.brigadier.context.CommandContext;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -50,12 +55,6 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-
 public final class VideoCommand implements AnnotationCommandFeature {
 
   private static final String SOUND_KEY = "mcav.video.sound";
@@ -74,13 +73,13 @@ public final class VideoCommand implements AnnotationCommandFeature {
   @Permission("mcav.maps")
   @CommandDescription("mcav.command.maps.info")
   public void playMapsVideo(
-          final Player player,
-          final PlayerArgument playerType,
-          @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
-          @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-          @Argument(suggestions = "id") @Range(min = "0") final int mapId,
-          final DitheringArgument ditheringAlgorithm,
-          @Quoted final String mrl
+    final Player player,
+    final PlayerArgument playerType,
+    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
+    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+    @Argument(suggestions = "id") @Range(min = "0") final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    @Quoted final String mrl
   ) throws Exception {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
@@ -118,19 +117,19 @@ public final class VideoCommand implements AnnotationCommandFeature {
 
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-            .then(
-                    DitherFilter.dither(
-                            ditheringAlgorithm.getAlgorithm(),
-                            MapResult.builder()
-                                    .map(mapId)
-                                    .mapBlockWidth(dimensions.getFirst())
-                                    .mapBlockHeight(dimensions.getSecond())
-                                    .mapWidthResolution(resolution.getFirst())
-                                    .mapHeightResolution(resolution.getSecond())
-                                    .build()
-                    )
-            )
-            .build();
+      .then(
+        DitherFilter.dither(
+          ditheringAlgorithm.getAlgorithm(),
+          MapResult.builder()
+            .map(mapId)
+            .mapBlockWidth(dimensions.getFirst())
+            .mapBlockHeight(dimensions.getSecond())
+            .mapWidthResolution(resolution.getFirst())
+            .mapHeightResolution(resolution.getSecond())
+            .build()
+        )
+      )
+      .build();
 
     final VideoPlayerMultiplexer multiplexer = playerType.createPlayer();
     if (audio == null) {

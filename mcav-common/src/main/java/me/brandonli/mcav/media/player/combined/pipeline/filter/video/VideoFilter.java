@@ -64,15 +64,32 @@ public interface VideoFilter extends Filter<StaticImage, VideoMetadata> {
    * A predefined {@link VideoFilter} implementation that applies a transformation
    * to convert a video frame to grayscale.
    * <p>
-   * This filter leverages the {@code invertColors} method of the provided
-   * {@link StaticImage}. Although named "GRAYSCALE," the internal logic currently
-   * uses the inversion of colors as a placeholder or misnomer. Implementers or
-   * users may adapt or refine the filter to ensure it performs accurate grayscale
-   * conversions if intended.
+   * This filter leverages the {@code toGrayscale} method of the provided
+   * {@link StaticImage}. Implementers or users may adapt or refine the filter
+   * to ensure it performs accurate grayscale conversions if intended.
    * <p>
    * GRAYSCALE is part of the standard filter constants available in {@link VideoFilter}
    * and can be applied directly to enhance or modify video frame data in
    * processing pipelines.
    */
-  VideoFilter GRAYSCALE = (samples, metadata) -> samples.invertColors();
+  VideoFilter GRAYSCALE = (samples, metadata) -> samples.toGrayscale();
+
+  /**
+   * A predefined {@link VideoFilter} implementation that overlays the frame rate
+   * value onto the video frames in real-time.
+   * <p>
+   * This filter calculates the frame rate based on the time elapsed
+   * between consecutive frames and displays the frame rate as text on
+   * the video frames. The text is rendered in a specific position
+   * with customizable font size and color.
+   * <p>
+   * FRAME_RATE is part of the standard filter constants provided by {@link VideoFilter},
+   * and it can be utilized in processing pipelines where monitoring or displaying
+   * the current frame rate is necessary.
+   * <p>
+   * The frame rate is computed using the system's current time and the time
+   * elapsed since the last frame was processed. This helps measure playback
+   * performance and diagnose issues in video rendering pipelines.
+   */
+  VideoFilter FRAME_RATE = new FrameRateFilter();
 }

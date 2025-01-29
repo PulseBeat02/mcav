@@ -17,10 +17,9 @@
  */
 package me.brandonli.mcav;
 
-import me.brandonli.mcav.capability.Capability;
-
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.capability.Capability;
 
 /**
  * Represents the main API interface for handling media playback capabilities,

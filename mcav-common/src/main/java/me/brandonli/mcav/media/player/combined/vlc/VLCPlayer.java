@@ -21,8 +21,10 @@ import static java.util.Objects.requireNonNull;
 
 import com.sun.jna.Pointer;
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
@@ -64,7 +66,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private final EmbeddedMediaPlayer player;
   private final ExecutorService processor;
-  private final List<CompletableFuture<?>> pendingTasks;
   private final String[] args;
   private final Object lock;
 
@@ -80,7 +81,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     this.lock = new Object();
     this.player = mediaPlayerApi.newEmbeddedMediaPlayer();
     this.processor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    this.pendingTasks = new CopyOnWriteArrayList<>();
     this.playbackCompletionFuture = new CompletableFuture<>();
     this.args = args;
     this.setupEventListeners(this.player);
@@ -129,7 +129,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.audio = audio;
 
       this.addCallbacks(audioPipeline, videoPipeline);
-      mediaApi.play(videoResource, this.args);
+      if (this.args != null && this.args.length > 0) {
+        mediaApi.play(videoResource, this.args);
+      } else {
+        mediaApi.play(videoResource);
+      }
 
       return true;
     }
@@ -183,7 +187,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.audio = combined;
 
       this.addCallbacks(audioPipeline, videoPipeline);
-      mediaApi.play(resource, this.args);
+      if (this.args != null && this.args.length > 0) {
+        mediaApi.play(resource, this.args);
+      } else {
+        mediaApi.play(resource);
+      }
 
       return true;
     }
@@ -257,11 +265,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean release() throws Exception {
     synchronized (this.lock) {
       this.pause();
-      try {
-        CompletableFuture.allOf(this.pendingTasks.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
-      } catch (final TimeoutException e) {
-        throw new AssertionError(e);
-      }
       if (!this.playbackCompletionFuture.isDone()) {
         this.playbackCompletionFuture.complete(null);
       }
@@ -277,7 +280,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private static final class BufferCallback implements BufferFormatCallback {
+  private final class BufferCallback implements BufferFormatCallback {
 
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
@@ -356,18 +359,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
       final byte[] bytes = samples.getByteArray(0, sampleCount);
       final ByteBuffer buffer = ByteBuffer.wrap(bytes);
-      final CompletableFuture<?> task = CompletableFuture.runAsync(
-        () -> {
-          AudioPipelineStep current = this.step;
-          while (current != null) {
-            current.process(buffer, this.metadata);
-            current = current.next();
-          }
-        },
-        this.executor
-      );
-      VLCPlayer.this.pendingTasks.add(task);
-      task.whenComplete((result, ex) -> VLCPlayer.this.pendingTasks.remove(task));
+      AudioPipelineStep current = this.step;
+      while (current != null) {
+        current.process(buffer, this.metadata);
+        current = current.next();
+      }
     }
   }
 
@@ -453,21 +449,16 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final int displayWidth,
       final int displayHeight
     ) {
-      final int[] buffer = new int[displayWidth * displayHeight];
-      nativeBuffers[0].asIntBuffer().get(buffer, 0, displayWidth * displayHeight);
-      final CompletableFuture<?> task = CompletableFuture.runAsync(
-        () -> {
-          final StaticImage image = StaticImage.buffer(buffer, displayWidth, displayHeight);
-          VideoPipelineStep current = this.step;
-          while (current != null) {
-            current.process(image, this.metadata);
-            current = current.next();
-          }
-        },
-        this.executor
-      );
-      VLCPlayer.this.pendingTasks.add(task);
-      task.whenComplete((result, ex) -> VLCPlayer.this.pendingTasks.remove(task));
+      final int width = bufferFormat.getWidth();
+      final int height = bufferFormat.getHeight();
+      final int[] buffer = new int[width * height];
+      nativeBuffers[0].asIntBuffer().get(buffer, 0, width * height);
+      final StaticImage image = StaticImage.buffer(buffer, width, height);
+      VideoPipelineStep current = this.step;
+      while (current != null) {
+        current.process(image, this.metadata);
+        current = current.next();
+      }
     }
 
     /**

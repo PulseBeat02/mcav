@@ -42,6 +42,13 @@ public interface VideoMetadata {
   int DEFAULT_BITRATE = 4000;
 
   /**
+   * The default frame rate used for video playback or metadata processing.
+   * It represents the number of frames displayed per second, typically measured in frames per second (fps).
+   * This constant can be used as a fallback value when a specific frame rate is not provided or available.
+   */
+  int DEFAULT_FRAME_RATE = 30;
+
+  /**
    * Retrieves the width of the video in pixels.
    *
    * @return the width of the video as an integer value, measured in pixels
@@ -108,6 +115,6 @@ public interface VideoMetadata {
    * along with default values for bitrate and frame rate
    */
   static VideoMetadata of(final int width, final int height) {
-    return new VideoMetadataImpl(width, height, DEFAULT_BITRATE, NO_OP);
+    return new VideoMetadataImpl(width, height, DEFAULT_BITRATE, DEFAULT_FRAME_RATE);
   }
 }

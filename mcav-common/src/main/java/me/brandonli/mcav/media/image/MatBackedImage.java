@@ -21,20 +21,22 @@ import static org.opencv.imgcodecs.Imgcodecs.imread;
 
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
-import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.opencv.core.*;
 import org.opencv.dnn.Dnn;
 import org.opencv.dnn.Net;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.CLAHE;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
@@ -48,10 +50,9 @@ public class MatBackedImage implements StaticImage {
 
   private final Mat mat;
 
-  MatBackedImage(final byte[] bytes) {
-    final Mat originalMat = new Mat();
-    originalMat.put(0, 0, bytes);
-    this.mat = originalMat;
+  MatBackedImage(final byte[] bytes, final int width, final int height) {
+    this.mat = new Mat(height, width, CvType.CV_8UC3);
+    this.mat.put(0, 0, bytes);
   }
 
   MatBackedImage(final UriSource source) throws IOException {
@@ -93,9 +94,13 @@ public class MatBackedImage implements StaticImage {
    */
   @Override
   public BufferedImage toBufferedImage() {
-    try (final OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat()) {
-      final Frame frame = converter.convert(this.mat);
-      return Java2DFrameUtils.toBufferedImage(frame);
+    try {
+      final MatOfByte mob = new MatOfByte();
+      Imgcodecs.imencode(".jpg", this.mat, mob);
+      final byte[] ba = mob.toArray();
+      return ImageIO.read(new ByteArrayInputStream(ba));
+    } catch (final IOException e) {
+      throw new AssertionError(e);
     }
   }
 
@@ -117,8 +122,8 @@ public class MatBackedImage implements StaticImage {
   public void toGrayscale() {
     final Mat grayMat = new Mat();
     Imgproc.cvtColor(this.mat, grayMat, Imgproc.COLOR_BGR2GRAY);
-    this.mat.release();
-    this.mat.assignTo(grayMat);
+    Imgproc.cvtColor(grayMat, this.mat, Imgproc.COLOR_GRAY2BGR);
+    grayMat.release();
   }
 
   /**

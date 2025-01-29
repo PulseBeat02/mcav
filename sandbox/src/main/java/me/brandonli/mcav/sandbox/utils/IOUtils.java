@@ -52,6 +52,8 @@ public final class IOUtils {
   public static boolean createFileIfNotExists(final Path path) {
     try {
       if (Files.notExists(path)) {
+        final Path parent = requireNonNull(path.getParent());
+        Files.createDirectories(parent);
         Files.createFile(path);
         return true;
       }

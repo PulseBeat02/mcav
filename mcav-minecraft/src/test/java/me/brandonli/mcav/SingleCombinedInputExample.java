@@ -17,47 +17,63 @@
  */
 package me.brandonli.mcav;
 
-import java.net.URI;
-import me.brandonli.mcav.capability.Capability;
-import me.brandonli.mcav.json.ytdlp.YTDLPParser;
-import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
-import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import javax.swing.*;
+import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.combined.VideoPlayer;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.combined.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.FileSource;
 
-public final class InstallerTest {
+@SuppressWarnings("all") // checker
+public final class SingleCombinedInputExample {
 
   public static void main(final String[] args) throws Exception {
     final MCAVApi api = MCAV.api();
     api.install();
-    System.out.println(api.hasCapability(Capability.FFMPEG));
-    System.out.println(api.hasCapability(Capability.YTDLP));
-    System.out.println(api.hasCapability(Capability.VLC));
-    System.out.println(api.hasCapability(Capability.QEMU));
-    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
-    final YTDLPParser parser = YTDLPParser.simple();
-    final URLParseDump dump = parser.parse(source);
-    final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
-    final UriSource videoFormat = selector.getVideoSource(dump).toUriSource();
-    final UriSource audioFormat = selector.getAudioSource(dump).toUriSource();
+
+    final JFrame video = new JFrame("Video Player");
+    video.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    video.setSize(1920, 1080);
+    video.getContentPane().setBackground(Color.GREEN);
+
+    final JLabel videoLabel = new JLabel();
+    videoLabel.setPreferredSize(new Dimension(1800, 1000));
+    videoLabel.setHorizontalAlignment(JLabel.CENTER);
+    videoLabel.setVerticalAlignment(JLabel.CENTER);
+    videoLabel.setBorder(new LineBorder(Color.BLACK, 3));
+
+    video.setLayout(new BorderLayout());
+    video.add(videoLabel, BorderLayout.CENTER);
+    video.setVisible(true);
+
+    BufferedImage bufferedImage;
+    ImageIcon icon;
+    final FileSource source = FileSource.path(Path.of("video.mp4"));
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(VideoFilter.GRAYSCALE)
-      .then((samples, metadata) -> System.out.println("T"))
+      .then(VideoFilter.FRAME_RATE)
+      .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
-    //    final BrowserPlayer player = BrowserPlayer.defaultChrome();
-    //    player.start(videoPipelineStep, BrowserSource.uri(URI.create("https://google.com"), VideoMetadata.of(1200, 1200)));
+
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
-    Thread.sleep(10000);
-    //    player.release();
-    multiplexer.release();
-    api.release();
+    multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+
+    Runtime.getRuntime()
+      .addShutdownHook(
+        new Thread(() -> {
+          try {
+            multiplexer.release();
+          } catch (final Exception e) {
+            throw new RuntimeException(e);
+          }
+          api.release();
+        })
+      );
   }
 }

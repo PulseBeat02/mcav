@@ -17,20 +17,23 @@
  */
 package me.brandonli.mcav;
 
-import me.brandonli.mcav.capability.Capability;
-import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
-import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
-import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
-import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
-import org.bytedeco.javacpp.Loader;
-import org.bytedeco.opencv.opencv_java;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
+import javax.imageio.ImageIO;
+import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
+import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
+import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
+import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.opencv.opencv_java;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * MCAV is the main implementation of the {@link MCAVApi} interface, providing core functionality
@@ -43,6 +46,8 @@ import java.util.stream.Collectors;
  * This class is immutable and thread-safe.
  */
 public final class MCAV implements MCAVApi {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
 
   private final Set<Capability> capabilities;
 
@@ -78,8 +83,14 @@ public final class MCAV implements MCAVApi {
     final CompletableFuture<Void> ytDlpTask = CompletableFuture.runAsync(this::installYTDLP, service);
     final CompletableFuture<Void> vlcTask = CompletableFuture.runAsync(this::installVLC, service);
     final CompletableFuture<Void> qemuTask = CompletableFuture.runAsync(this::installQemu, service);
-    final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::loadMisc, service);
-    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, miscTask).join();
+    final CompletableFuture<Void> webDriverTask = CompletableFuture.runAsync(this::installWebDriver, service);
+    final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::installMisc, service);
+    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, webDriverTask, miscTask)
+      .exceptionally(e -> {
+        LOGGER.error("Failed to install required capabilities", e);
+        throw new AssertionError("Failed to install required capabilities", e);
+      })
+      .join();
   }
 
   /**
@@ -88,6 +99,11 @@ public final class MCAV implements MCAVApi {
   @Override
   public void release() {
     MediaPlayerFactoryProvider.shutdown();
+  }
+
+  private void installMisc() {
+    Loader.load(opencv_java.class);
+    ImageIO.setUseCache(false);
   }
 
   private void installQemu() {
@@ -99,13 +115,6 @@ public final class MCAV implements MCAVApi {
     } catch (final IOException e) {
       throw new AssertionError(e);
     }
-  }
-
-  private void loadMisc() {
-    if (!this.hasCapability(Capability.FFMPEG)) {
-      return;
-    }
-    Loader.load(opencv_java.class);
   }
 
   private void installVLC() {
@@ -128,5 +137,9 @@ public final class MCAV implements MCAVApi {
     } catch (final IOException e) {
       throw new AssertionError(e);
     }
+  }
+
+  private void installWebDriver() {
+    ChromeDriverServiceProvider.init();
   }
 }

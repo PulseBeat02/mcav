@@ -17,13 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import io.github.classgraph.ScanResult;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.util.List;
 import me.brandonli.mcav.sandbox.MCAV;
-import me.brandonli.mcav.sandbox.utils.ClassGraphUtils;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.incendo.cloud.CommandManager;
@@ -34,6 +28,14 @@ import org.incendo.cloud.minecraft.extras.RichDescription;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
 public final class AnnotationParserHandler {
+
+  private static final AnnotationCommandFeature[] COMMAND_FEATURES = {
+    new BrowserCommand(),
+    new DumpCommand(),
+    new HelpCommand(),
+    new ScreenCommand(),
+    new VideoCommand(),
+  };
 
   private final CommandManager<CommandSender> manager;
   private final AnnotationParser<CommandSender> parser;
@@ -76,19 +78,9 @@ public final class AnnotationParserHandler {
   }
 
   public void registerCommands() {
-    try {
-      final ScanResult result = ClassGraphUtils.getCachedScanResult();
-      final List<Class<?>> features = result.getClassesImplementing(AnnotationCommandFeature.class).loadClasses();
-      final MethodHandles.Lookup lookup = MethodHandles.lookup();
-      final MethodType type = MethodType.methodType(void.class);
-      for (final Class<?> feature : features) {
-        final MethodHandle constructor = lookup.findConstructor(feature, type);
-        final AnnotationCommandFeature instance = (AnnotationCommandFeature) constructor.invoke();
-        instance.registerFeature(this.plugin, this.parser);
-        this.parser.parse(instance);
-      }
-    } catch (final Throwable e) {
-      throw new AssertionError(e);
+    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
+      feature.registerFeature(this.plugin, this.parser);
+      this.parser.parse(feature);
     }
   }
 }

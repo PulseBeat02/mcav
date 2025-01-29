@@ -18,11 +18,10 @@
 package me.brandonli.mcav.media.player.browser;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
+import java.nio.file.Path;
 import me.brandonli.mcav.utils.IOUtils;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel;
-
-import java.nio.file.Path;
 
 /**
  * A provider class for managing the ChromeDriver service setup and initialization.

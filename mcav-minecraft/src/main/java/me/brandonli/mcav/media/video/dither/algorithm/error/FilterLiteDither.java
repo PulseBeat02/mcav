@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.video.dither.algorithm.error;
 
+import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
@@ -25,8 +26,6 @@ import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
-
-import java.nio.ByteBuffer;
 
 public final class FilterLiteDither extends ErrorDiffusionDither {
 

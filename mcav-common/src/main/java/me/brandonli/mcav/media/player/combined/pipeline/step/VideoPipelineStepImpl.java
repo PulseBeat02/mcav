@@ -51,7 +51,7 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
    * {@inheritDoc}
    */
   @Override
-  public void process(final StaticImage buffer, final VideoMetadata metadata) {
+  public synchronized void process(final StaticImage buffer, final VideoMetadata metadata) {
     this.filter.applyFilter(buffer, metadata);
   }
 }

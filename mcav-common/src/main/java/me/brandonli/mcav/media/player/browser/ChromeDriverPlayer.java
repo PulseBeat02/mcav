@@ -19,10 +19,7 @@ package me.brandonli.mcav.media.player.browser;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.Base64;
-import java.util.List;
-import java.util.Optional;
+import java.io.File;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
@@ -30,58 +27,66 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.source.BrowserSource;
+import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.devtools.Command;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.Event;
-import org.openqa.selenium.devtools.v135.page.Page;
-import org.openqa.selenium.devtools.v135.page.model.ScreencastFrame;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
 /**
  * A browser-based player implementation using ChromeDriver to facilitate video streaming,
  * browser interaction, and screen capture processing. The {@code ChromeDriverPlayer} class
- * manages a ChromeDriver instance, DevTools API access, video pipeline step execution for video
- * processing, and sending mouse events within the browser's window.
+ * manages a ChromeDriver instance, frame rate controlled screenshot capture, video pipeline
+ * step execution for video processing, and sending mouse events within the browser's window.
  * <p>
- * This class provides functionalities such as session management, screen recording, video pipeline
- * integration, and executing tasks in a thread-safe manner with concurrency control.
+ * This class provides functionalities such as session management, screen capture at specific frame rates,
+ * video pipeline integration, and executing tasks in a thread-safe manner with concurrency control.
  */
 public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private final ChromeDriver driver;
-  private final DevTools tools;
-  private final AtomicBoolean started;
-  private final ExecutorService executor;
-  private final List<CompletableFuture<?>> pendingTasks;
+  private final AtomicBoolean running;
+  private final ExecutorService captureExecutor;
+  private final ExecutorService processingExecutor;
   private final Object lock;
 
-  private volatile CompletableFuture<Void> videoTask;
+  private volatile CompletableFuture<Void> captureTask;
+  private volatile CompletableFuture<Void> processingTask;
+
   private volatile VideoPipelineStep videoPipeline;
   private volatile BrowserSource source;
+  private final BlockingQueue<byte[]> frameBuffer;
+
+  private static final int BUFFER_CAPACITY = 128;
 
   /**
    * Initializes an instance of {@code ChromeDriverPlayer} with the specified arguments.
-   * This implementation sets up a ChromeDriver instance with given browser arguments,
-   * schedules background tasks using a thread pool, and prepares developer tools interaction.
+   * This implementation sets up a ChromeDriver instance with given browser arguments
+   * and prepares three executors - one for capturing frames, one for processing them,
+   * and one for handling miscellaneous tasks.
    *
-   * @param args the arguments to configure the Chrome browser instance. These arguments
-   *             can include flags for performance optimization, debugging, or specific
-   *             browser behaviors.
+   * @param args the arguments to configure the Chrome browser instance.
    */
   public ChromeDriverPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     this.lock = new Object();
     this.driver = new ChromeDriver(service, new ChromeOptions().addArguments(args));
-    this.tools = this.driver.getDevTools();
-    this.started = new AtomicBoolean(false);
-    this.executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    this.pendingTasks = new CopyOnWriteArrayList<>();
+    this.running = new AtomicBoolean(false);
+    this.captureExecutor = Executors.newSingleThreadExecutor(r -> {
+      final Thread t = new Thread(r, "chrome-capture-thread");
+      t.setDaemon(true);
+      return t;
+    });
+    this.processingExecutor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 1), r -> {
+      final Thread t = new Thread(r, "chrome-processing-thread");
+      t.setDaemon(true);
+      return t;
+    });
+    this.frameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
   }
 
   /**
@@ -92,59 +97,78 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     synchronized (this.lock) {
       this.source = combined;
       this.videoPipeline = videoPipeline;
-      this.videoTask = CompletableFuture.runAsync(this::startScreenCapture, this.executor);
+      this.running.set(true);
+      this.captureTask = CompletableFuture.runAsync(this::startScreenCapture, this.captureExecutor);
+      this.processingTask = CompletableFuture.runAsync(this::processFrames, this.processingExecutor);
       return true;
     }
   }
 
   private void startScreenCapture() {
-    this.tools.createSession();
     final VideoMetadata metadata = this.source.getMetadata();
     final int width = metadata.getVideoWidth();
     final int height = metadata.getVideoHeight();
-    final int bitrate = metadata.getVideoBitrate();
-    final int quality = Math.min(100, (bitrate / 80));
+    final double frameRate = metadata.getVideoFrameRate();
+    final long frameIntervalMs = (long) (1000.0 / frameRate);
     final Dimension size = new Dimension(width, height);
     this.driver.manage().window().setSize(size);
-    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality1 = Optional.of(quality);
-    final Optional<Integer> width1 = Optional.of(width);
-    final Optional<Integer> height1 = Optional.of(height);
-    final Optional<Integer> nth = Optional.of(1);
-    final Command<Void> command = Page.startScreencast(format, quality1, width1, height1, nth);
-    this.tools.send(command);
-    final Event<ScreencastFrame> event = Page.screencastFrame();
-    final Base64.Decoder decoder = Base64.getDecoder();
-    this.tools.addListener(event, frame -> {
-        final String base64 = frame.getData();
-        final byte[] data = decoder.decode(base64);
-        final CompletableFuture<?> task = CompletableFuture.runAsync(
-          () -> {
-            final StaticImage image = StaticImage.bytes(data);
-            VideoPipelineStep current = this.videoPipeline;
-            while (current != null) {
-              current.process(image, metadata);
-              current = current.next();
-            }
-          },
-          this.executor
-        );
-        this.pendingTasks.add(task);
-        task.whenComplete((result, ex) -> this.pendingTasks.remove(task));
-        final int id = frame.getSessionId();
-        final Command<Void> next = Page.screencastFrameAck(id);
-        this.tools.send(next);
-      });
-
     final String resource = this.source.getResource();
     this.driver.get(resource);
-    this.started.set(true);
+    long nextFrameTime = System.currentTimeMillis();
+    try {
+      while (this.running.get() && !Thread.currentThread().isInterrupted()) {
+        final long currentTime = System.currentTimeMillis();
+        if (currentTime >= nextFrameTime) {
+          final byte[] frameBytes = this.driver.getScreenshotAs(OutputType.BYTES);
+          final boolean added = this.frameBuffer.offer(frameBytes);
+          if (!added) {
+            this.frameBuffer.poll();
+            this.frameBuffer.offer(frameBytes);
+          }
+          nextFrameTime += frameIntervalMs;
+          if (nextFrameTime < currentTime) {
+            nextFrameTime = currentTime;
+          }
+        } else {
+          Thread.sleep(Math.max(1, nextFrameTime - currentTime));
+        }
+      }
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new AssertionError(e);
+    }
   }
 
-  private BufferedImage toBufferedImage(final byte[] bytes) {
-    try (final ByteArrayInputStream stream = new ByteArrayInputStream(bytes)) {
-      return ImageIO.read(stream);
-    } catch (final IOException e) {
+  private void processFrames() {
+    try {
+      final int bufferingThreshold = BUFFER_CAPACITY / 2;
+      if (this.running.get()) {
+        while (this.frameBuffer.size() < bufferingThreshold && this.running.get()) {
+          Thread.sleep(50);
+        }
+      }
+      final File bufferedImageFile = File.createTempFile("screenshot_", ".jpg");
+      bufferedImageFile.deleteOnExit();
+      while (this.running.get() && !Thread.currentThread().isInterrupted()) {
+        try {
+          final byte[] frameData = this.frameBuffer.poll(500, TimeUnit.MILLISECONDS);
+          if (frameData != null) {
+            final BufferedImage image = ImageIO.read(new ByteArrayInputStream(frameData));
+            ImageIO.write(image, "jpg", bufferedImageFile);
+            final VideoMetadata metadata = this.source.getMetadata();
+            final StaticImage staticImage = StaticImage.path(FileSource.path(bufferedImageFile.toPath()));
+            VideoPipelineStep current = this.videoPipeline;
+            while (current != null) {
+              current.process(staticImage, metadata);
+              current = current.next();
+            }
+          }
+        } catch (final InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    } catch (final Exception e) {
       throw new AssertionError(e);
     }
   }
@@ -154,18 +178,11 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public void sendMouseEvent(final int x, final int y, final MouseClick type) {
-    final CompletableFuture<?> task = CompletableFuture.runAsync(
-      () -> {
-        final Actions actions = new Actions(this.driver);
-        final Actions move = actions.moveToLocation(x, y);
-        final Actions modified = this.getAction(type, move);
-        final Action action = modified.build();
-        action.perform();
-      },
-      this.executor
-    );
-    this.pendingTasks.add(task);
-    task.whenComplete((result, ex) -> this.pendingTasks.remove(task));
+    final Actions actions = new Actions(this.driver);
+    final Actions move = actions.moveToLocation(x, y);
+    final Actions modified = this.getAction(type, move);
+    final Action action = modified.build();
+    action.perform();
   }
 
   private Actions getAction(final MouseClick type, final Actions move) {
@@ -191,24 +208,25 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   @Override
   public boolean release() throws Exception {
     synchronized (this.lock) {
-      if (!this.started.get()) {
+      if (!this.running.get()) {
         return false;
       }
-      if (this.videoTask != null) {
-        this.videoTask.cancel(true);
+
+      this.running.set(false);
+
+      if (this.captureTask != null) {
+        this.captureTask.cancel(true);
       }
-      final Command<Void> stop = Page.stopScreencast();
-      this.tools.send(stop);
-      this.tools.clearListeners();
-      this.tools.close();
-      this.started.set(false);
+      if (this.processingTask != null) {
+        this.processingTask.cancel(true);
+      }
+
+      this.frameBuffer.clear();
       this.driver.quit();
-      try {
-        CompletableFuture.allOf(this.pendingTasks.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
-      } catch (final TimeoutException e) {
-        throw new AssertionError(e);
-      }
-      ExecutorUtils.shutdownExecutorGracefully(this.executor);
+
+      ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
+      ExecutorUtils.shutdownExecutorGracefully(this.processingExecutor);
+
       return true;
     }
   }

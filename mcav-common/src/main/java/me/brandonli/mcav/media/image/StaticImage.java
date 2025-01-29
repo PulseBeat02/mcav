@@ -33,13 +33,15 @@ import me.brandonli.mcav.utils.immutable.Point;
  */
 public interface StaticImage extends Image {
   /**
-   * Creates a StaticImage instance from a byte array.
+   * Creates a new StaticImage instance using the given byte data, width, and height.
    *
-   * @param data the byte array representing the image data
-   * @return a StaticImage instance
+   * @param data   the byte array representing the image data
+   * @param width  the width of the image
+   * @param height the height of the image
+   * @return a new StaticImage instance containing the provided data, width, and height
    */
-  static StaticImage bytes(final byte[] data) {
-    return new MatBackedImage(data);
+  static StaticImage bytes(final byte[] data, final int width, final int height) {
+    return new MatBackedImage(data, width, height);
   }
 
   /**
@@ -326,8 +328,8 @@ public interface StaticImage extends Image {
    * used in image processing to smooth regions of an image while preserving
    * sharp edges, enhancing the overall image quality.
    *
-   * @param flags Specifies the operation mode for the filter. The specific
-   *              values and their meaning depend on the implementation context.
+   * @param flags  Specifies the operation mode for the filter. The specific
+   *               values and their meaning depend on the implementation context.
    * @param sigmaS The range parameter that controls the spatial extent of the
    *               filter. Larger values result in smoothing over larger regions.
    * @param sigmaR The range parameter that controls the amplitude of the
@@ -451,9 +453,9 @@ public interface StaticImage extends Image {
    * Extracts a submatrix from the source matrix starting at the specified coordinates
    * with the specified width and height.
    *
-   * @param x the x-coordinate of the top-left corner of the submatrix
-   * @param y the y-coordinate of the top-left corner of the submatrix
-   * @param width the width of the submatrix to be extracted
+   * @param x      the x-coordinate of the top-left corner of the submatrix
+   * @param y      the y-coordinate of the top-left corner of the submatrix
+   * @param width  the width of the submatrix to be extracted
    * @param height the height of the submatrix to be extracted
    * @return a MatBackedImage representing the extracted submatrix
    */
@@ -462,8 +464,8 @@ public interface StaticImage extends Image {
   /**
    * Replaces a specific submatrix within the current matrix at a given position.
    *
-   * @param x the x-coordinate of the top-left corner where the submatrix will be placed
-   * @param y the y-coordinate of the top-left corner where the submatrix will be placed
+   * @param x   the x-coordinate of the top-left corner where the submatrix will be placed
+   * @param y   the y-coordinate of the top-left corner where the submatrix will be placed
    * @param mat the submatrix to replace the corresponding section of the main matrix
    */
   void replaceSubmatrix(int x, int y, MatBackedImage mat);
@@ -666,12 +668,12 @@ public interface StaticImage extends Image {
   /**
    * Draws a line between two points with specified color and thickness.
    *
-   * @param startX       The x-coordinate of the starting point of the line.
-   * @param startY       The y-coordinate of the starting point of the line.
-   * @param endX         The x-coordinate of the ending point of the line.
-   * @param endY         The y-coordinate of the ending point of the line.
-   * @param colorScalar  An array representing the color of the line, typically in a format such as RGB or RGBA.
-   * @param thickness    The thickness of the line.
+   * @param startX      The x-coordinate of the starting point of the line.
+   * @param startY      The y-coordinate of the starting point of the line.
+   * @param endX        The x-coordinate of the ending point of the line.
+   * @param endY        The y-coordinate of the ending point of the line.
+   * @param colorScalar An array representing the color of the line, typically in a format such as RGB or RGBA.
+   * @param thickness   The thickness of the line.
    */
   void drawLine(int startX, int startY, int endX, int endY, double[] colorScalar, int thickness);
 
@@ -703,12 +705,12 @@ public interface StaticImage extends Image {
   /**
    * Draws a polygon based on the provided list of points.
    *
-   * @param points       the list of points representing the vertices of the polygon
-   * @param isClosed     a boolean indicating whether the polygon should be closed by connecting
-   *                     the last point back to the first
-   * @param scalarColor  an array of doubles representing the color of the polygon in an appropriate
-   *                     format (e.g., RGB or similar, depending on implementation)
-   * @param thickness    the thickness of the polygon's edges
+   * @param points      the list of points representing the vertices of the polygon
+   * @param isClosed    a boolean indicating whether the polygon should be closed by connecting
+   *                    the last point back to the first
+   * @param scalarColor an array of doubles representing the color of the polygon in an appropriate
+   *                    format (e.g., RGB or similar, depending on implementation)
+   * @param thickness   the thickness of the polygon's edges
    */
   void drawPolygon(List<Point> points, boolean isClosed, double[] scalarColor, int thickness);
 
@@ -834,7 +836,7 @@ public interface StaticImage extends Image {
   /**
    * Applies a color tint to an element with a specified opacity.
    *
-   * @param tint An array representing the color tint in RGBA format, where each component is a value between 0 and 1.
+   * @param tint  An array representing the color tint in RGBA format, where each component is a value between 0 and 1.
    * @param alpha The opacity level of the tint, represented as a value between 0 (completely transparent) and 1 (completely opaque).
    */
   void addColorTint(double[] tint, double alpha);
