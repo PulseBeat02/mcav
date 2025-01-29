@@ -28,16 +28,17 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
+import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.result.MapResult;
 import me.brandonli.mcav.media.source.DeviceSource;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.UriSource;
-import me.brandonli.mcav.media.video.result.MapResult;
 import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -115,20 +116,17 @@ public final class VideoCommand implements AnnotationCommandFeature {
     }
     requireNonNull(video);
 
+    final MapConfiguration configuration = MapConfiguration.builder()
+      .map(mapId)
+      .mapBlockWidth(dimensions.getFirst())
+      .mapBlockHeight(dimensions.getSecond())
+      .mapWidthResolution(resolution.getFirst())
+      .mapHeightResolution(resolution.getSecond())
+      .build();
+    final MapResult result = new MapResult(configuration);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(
-        DitherFilter.dither(
-          ditheringAlgorithm.getAlgorithm(),
-          MapResult.builder()
-            .map(mapId)
-            .mapBlockWidth(dimensions.getFirst())
-            .mapBlockHeight(dimensions.getSecond())
-            .mapWidthResolution(resolution.getFirst())
-            .mapHeightResolution(resolution.getSecond())
-            .build()
-        )
-      )
+      .then(DitherFilter.dither(ditheringAlgorithm.getAlgorithm(), result))
       .build();
 
     final VideoPlayerMultiplexer multiplexer = playerType.createPlayer();

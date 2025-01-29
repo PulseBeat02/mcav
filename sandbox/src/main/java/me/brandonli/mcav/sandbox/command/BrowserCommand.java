@@ -25,15 +25,15 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.stream.Stream;
+import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.result.MapResult;
 import me.brandonli.mcav.media.source.BrowserSource;
-import me.brandonli.mcav.media.video.result.MapResult;
 import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -110,13 +110,14 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final int blockHeight = dimensions.getSecond();
 
     final Collection<UUID> players = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
-    final DitherResultStep result = MapResult.builder()
+    final MapConfiguration configuration = MapConfiguration.builder()
       .map(mapId)
       .mapBlockHeight(blockHeight)
       .mapBlockWidth(blockWidth)
       .viewers(players)
       .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
+    final MapResult result = new MapResult(configuration);
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);

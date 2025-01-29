@@ -1,5 +1,4 @@
 plugins {
-    id("com.gradleup.shadow") version "8.3.6"
     id("maven-publish")
 }
 
@@ -26,15 +25,6 @@ tasks {
         dependsOn("copyCppOutput")
     }
 
-    assemble {
-        dependsOn(shadowJar)
-    }
-
-    shadowJar {
-        archiveClassifier.set("all")
-        mergeServiceFiles()
-    }
-
     java {
         withSourcesJar()
         withJavadocJar()
@@ -57,17 +47,11 @@ publishing {
         }
     }
     publications {
-        create<MavenPublication>("mavenJava") {
+        create<MavenPublication>("maven") {
             groupId = "me.brandonli"
             artifactId = project.name
             version = "${rootProject.version}"
             from(components["java"])
-        }
-        create<MavenPublication>("mavenShadow") {
-            groupId = "me.brandonli"
-            artifactId = "${project.name}-all"
-            version = "${rootProject.version}"
-            artifact(tasks["shadowJar"])
         }
     }
 }

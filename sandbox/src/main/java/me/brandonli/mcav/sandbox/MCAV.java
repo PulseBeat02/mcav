@@ -18,19 +18,16 @@
 package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.installer.Artifact;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
-import org.bukkit.Bukkit;
-import org.bukkit.Server;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAV extends JavaPlugin {
@@ -84,22 +81,16 @@ public final class MCAV extends JavaPlugin {
   }
 
   private void loadDependencies() {
-    try {
-      this.logger.info("Loading MCAV Dependencies");
-      final long startTime = System.currentTimeMillis();
-      final ClassLoader loader = this.getClassLoader();
-      final Path folder = IOUtils.getPluginDataFolderPath();
-      final Logger loggerFactory = Logger.getLogger("MCAV Installer");
-      final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
-      installer.loadMCAVDependencies(line -> loggerFactory.log(Level.INFO, line));
-      final long endTime = System.currentTimeMillis();
-      this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
-    } catch (final IOException e) {
-      final Server server = Bukkit.getServer();
-      final PluginManager pluginManager = server.getPluginManager();
-      pluginManager.disablePlugin(this);
-      throw new AssertionError(e);
-    }
+    this.logger.info("Loading MCAV Dependencies");
+    final long startTime = System.currentTimeMillis();
+    final ClassLoader loader = this.getClassLoader();
+    final Path folder = IOUtils.getPluginDataFolderPath();
+    final Path libs = folder.resolve("libs");
+    final Logger loggerFactory = Logger.getLogger("MCAV Installer");
+    final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
+    installer.loadMCAVDependencies(Artifact.MINECRAFT, line -> loggerFactory.log(Level.INFO, line));
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }
 
   private void shutdownAudience() {

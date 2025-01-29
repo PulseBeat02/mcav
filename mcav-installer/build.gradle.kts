@@ -1,5 +1,6 @@
 plugins {
     id("maven-publish")
+    id("com.gradleup.shadow") version "8.3.6"
 }
 
 dependencies {
@@ -7,6 +8,7 @@ dependencies {
     implementation("org.apache.maven.resolver:maven-resolver-supplier:2.0.0-alpha-8")
     implementation("org.slf4j:slf4j-nop:2.1.0-alpha1")
 }
+
 tasks {
 
     java {
@@ -18,6 +20,23 @@ tasks {
         options.encoding = "UTF-8"
     }
 
+    assemble {
+        dependsOn(shadowJar)
+    }
+
+    shadowJar {
+        archiveClassifier.set("")
+        mergeServiceFiles()
+        val relocations = listOf(
+            "com.ctc",
+            "jakarta.inject",
+            "org.apache",
+            "org.codehaus",
+            "org.eclipse",
+            "org.slf4j"
+        )
+        relocations.forEach { relocate(it, "me.brandonli.mcav.libs.$it") }
+    }
 }
 
 publishing {
@@ -36,7 +55,9 @@ publishing {
             groupId = "me.brandonli"
             artifactId = project.name
             version = "${rootProject.version}"
-            from(components["java"])
+            artifact(tasks["shadowJar"])
+            artifact(tasks["sourcesJar"])
+            artifact(tasks["javadocJar"])
         }
     }
 }

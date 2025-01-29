@@ -12,8 +12,8 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.5-R0.1-SNAPSHOT")
 
     // mcav
-    implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT") { isChanging = true }
-    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT") { isChanging = true }
+    implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT")
 
     // plugin dependencies
     compileOnly("org.incendo:cloud-core:2.0.0")
