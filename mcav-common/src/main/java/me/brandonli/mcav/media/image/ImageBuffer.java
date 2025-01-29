@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.examinable.Examinable;
+import org.bytedeco.javacv.Frame;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
@@ -50,6 +51,16 @@ public interface ImageBuffer extends Image, Examinable {
    */
   static ImageBuffer bytes(final byte[] data, final int width, final int height) {
     return new MatImageBuffer(data, width, height);
+  }
+
+  /**
+   * Creates a new StaticImage instance using the given Frame object.
+   *
+   * @param frame the Frame object representing the image
+   * @return a new StaticImage instance containing the provided Frame object
+   */
+  static ImageBuffer frame(final Frame frame) {
+    return new MatImageBuffer(frame);
   }
 
   /**

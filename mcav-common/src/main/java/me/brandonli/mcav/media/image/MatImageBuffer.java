@@ -35,7 +35,9 @@ import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.examinable.ExaminableObject;
 import me.brandonli.mcav.utils.examinable.ExaminableProperty;
 import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.Java2DFrameUtils;
+import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -54,6 +56,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   public static final ExaminableProperty<Mat> MAT_PROPERTY = ExaminableProperty.property("mat", Mat.class);
 
+  private static final OpenCVFrameConverter.ToMat CONVERTER = new OpenCVFrameConverter.ToMat();
+
   private final Mat mat;
   private @Nullable BytePointer pointer;
 
@@ -68,6 +72,14 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     this.mat = new Mat(height, width, CV_8UC3, ptr, step);
     this.pointer = ptr;
     this.assignMat(this.mat);
+  }
+
+  MatImageBuffer(final Frame frame) {
+    final Mat converted = CONVERTER.convert(frame);
+    this.mat = new Mat();
+    opencv_imgproc.cvtColor(converted, this.mat, opencv_imgproc.COLOR_YUV2BGR_I420);
+    this.assignMat(this.mat);
+    throw new AssertionError();
   }
 
   MatImageBuffer(final ByteBuffer bytes, final int width, final int height) {

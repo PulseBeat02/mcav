@@ -29,6 +29,8 @@ dependencies {
     api("com.google.guava:guava:33.4.8-jre")
     api("com.google.code.gson:gson:2.13.1")
     api("org.slf4j:slf4j-simple:2.1.0-alpha1")
+
+    api("org.agrona:agrona:2.2.4")
 }
 
 tasks {

@@ -25,6 +25,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.module.MCAVModule;
 import me.brandonli.mcav.module.ModuleLoader;
+import me.brandonli.mcav.utils.CopyUtils;
 import me.brandonli.mcav.utils.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,7 @@ public final class MCAV implements MCAVApi {
   @Override
   public void release() {
     this.moduleLoader.shutdownPlugins();
+    CopyUtils.shutdown();
   }
 
   /**
@@ -103,6 +105,7 @@ public final class MCAV implements MCAVApi {
     this.loadMapCache();
     ImageIO.setUseCache(false);
     DirectAudioOutput.init();
+    CopyUtils.init();
   }
 
   private void loadMapCache() {

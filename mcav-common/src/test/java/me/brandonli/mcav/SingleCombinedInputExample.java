@@ -23,6 +23,7 @@ import java.net.URI;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -46,7 +47,7 @@ public final class SingleCombinedInputExample {
     video.getContentPane().setBackground(Color.GREEN);
 
     final JLabel videoLabel = new JLabel();
-    videoLabel.setPreferredSize(new Dimension(1800, 1000));
+    videoLabel.setPreferredSize(new Dimension(1920, 1080));
     videoLabel.setHorizontalAlignment(JLabel.CENTER);
     videoLabel.setVerticalAlignment(JLabel.CENTER);
     videoLabel.setBorder(new LineBorder(Color.BLACK, 3));
@@ -79,9 +80,9 @@ public final class SingleCombinedInputExample {
     final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
     videoCallback.attach(videoPipelineStep);
 
-    //    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    //    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(900, 500);
-    //    dimensionCallback.attach(dimension);
+    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
+    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1920, 1080);
+    dimensionCallback.attach(dimension);
 
     Thread.getAllStackTraces()
       .keySet()
