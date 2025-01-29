@@ -19,6 +19,8 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.interaction.BrowserCommand;
+import me.brandonli.mcav.sandbox.command.interaction.VirtualizeCommand;
 import me.brandonli.mcav.sandbox.command.video.*;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;

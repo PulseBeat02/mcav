@@ -40,7 +40,6 @@ public class ImagePlayerImpl implements ImagePlayer {
 
   private final AtomicBoolean running;
   private final ExecutorService executor;
-  private final ExecutorService processor;
   private final Object lock;
 
   private volatile CompletableFuture<Void> future;
@@ -50,8 +49,7 @@ public class ImagePlayerImpl implements ImagePlayer {
   ImagePlayerImpl() {
     this.lock = new Object();
     this.running = new AtomicBoolean(false);
-    this.executor = Executors.newCachedThreadPool();
-    this.processor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    this.executor = Executors.newSingleThreadExecutor();
   }
 
   /**
@@ -99,7 +97,6 @@ public class ImagePlayerImpl implements ImagePlayer {
         this.future.cancel(true);
       }
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
-      ExecutorUtils.shutdownExecutorGracefully(this.processor);
       return true;
     }
   }

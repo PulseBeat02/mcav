@@ -107,6 +107,7 @@ public final class MCAV implements MCAVApi {
   @Override
   public void release() {
     MediaPlayerFactoryProvider.shutdown();
+    ChromeDriverServiceProvider.shutdown();
   }
 
   private void installMisc() {

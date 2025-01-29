@@ -58,7 +58,8 @@ public class VNCPlayerImpl implements VNCPlayer {
   private volatile VideoMetadata videoMetadata;
 
   VNCPlayerImpl() {
-    this.frameProcessorExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    final int availableProcessors = Runtime.getRuntime().availableProcessors();
+    this.frameProcessorExecutor = Executors.newFixedThreadPool(availableProcessors);
     this.running = new AtomicBoolean(false);
   }
 

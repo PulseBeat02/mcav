@@ -51,6 +51,10 @@ public final class ChromeDriverServiceProvider {
     SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.DEBUG).usingAnyFreePort().build();
   }
 
+  private ChromeDriverServiceProvider() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
   /**
    * Initializes the ChromeDriverService used for managing ChromeDriver processes.
    * This method ensures that the service is properly configured and ready for use.
@@ -73,5 +77,10 @@ public final class ChromeDriverServiceProvider {
    */
   public static ChromeDriverService getService() {
     return SERVICE;
+  }
+
+  public static void shutdown() {
+    SERVICE.close();
+    SERVICE.stop();
   }
 }

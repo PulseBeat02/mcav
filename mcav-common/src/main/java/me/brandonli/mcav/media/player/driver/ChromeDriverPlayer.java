@@ -73,19 +73,12 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   public ChromeDriverPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
+    final int processors = Runtime.getRuntime().availableProcessors();
     this.lock = new Object();
     this.driver = new ChromeDriver(service, new ChromeOptions().addArguments(args));
     this.running = new AtomicBoolean(false);
-    this.captureExecutor = Executors.newSingleThreadExecutor(r -> {
-      final Thread t = new Thread(r, "chrome-capture-thread");
-      t.setDaemon(true);
-      return t;
-    });
-    this.processingExecutor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 1), r -> {
-      final Thread t = new Thread(r, "chrome-processing-thread");
-      t.setDaemon(true);
-      return t;
-    });
+    this.captureExecutor = Executors.newSingleThreadExecutor();
+    this.processingExecutor = Executors.newFixedThreadPool(processors);
     this.tools = this.driver.getDevTools();
   }
 
@@ -135,7 +128,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   private void processFrames() {
     try {
       final VideoMetadata metadata = this.source.getMetadata();
-      while (this.running.get() && !Thread.currentThread().isInterrupted()) {
+      while (this.running.get()) {
         if (this.frameBuffer != null) {
           final StaticImage staticImage = StaticImage.bytes(this.frameBuffer);
           VideoPipelineStep current = this.videoPipeline;
@@ -209,9 +202,6 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
       if (this.processingTask != null) {
         this.processingTask.cancel(true);
       }
-
-      this.driver.close();
-      this.driver.quit();
 
       ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
       ExecutorUtils.shutdownExecutorGracefully(this.processingExecutor);
