@@ -15,8 +15,8 @@ dependencies {
     // mcav
     implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
     implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
     compileOnly("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
 
     // plugin dependencies
@@ -55,9 +55,7 @@ tasks.withType<AbstractRun>().configureEach {
     jvmArgs(
         "-Xmx8192m",
         "-XX:+AllowEnhancedClassRedefinition",
-        "-XX:+AllowRedefinitionToAddDeleteMethods",
-        "-verbose:gc",
-        "-Xlog:gc*:file=gc.log"
+        "-XX:+AllowRedefinitionToAddDeleteMethods"
     )
 }
 

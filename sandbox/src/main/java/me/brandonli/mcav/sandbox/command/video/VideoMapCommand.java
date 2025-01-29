@@ -45,7 +45,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class VideoMapCommand extends AbstractVideoCommand {
 
-  @Command("mcav video map <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
+  @Command(
+    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>"
+  )
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
   public void playMapVideo(

@@ -19,14 +19,20 @@ package me.brandonli.mcav.sandbox.data;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Locale;
+import me.brandonli.mcav.sandbox.utils.IOUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 public final class PluginDataConfigurationMapper {
 
@@ -61,7 +67,6 @@ public final class PluginDataConfigurationMapper {
     this.plugin = plugin;
     this.readLock = lock.readLock();
     this.service = Executors.newVirtualThreadPerTaskExecutor();
-    this.plugin.saveDefaultConfig();
   }
 
   public synchronized void shutdown() {
@@ -74,8 +79,7 @@ public final class PluginDataConfigurationMapper {
 
   public synchronized void deserialize() {
     this.readLock.lock();
-    final FileConfiguration config = this.plugin.getConfig();
-    this.plugin.saveConfig();
+    final FileConfiguration config = this.retrieveConfiguration();
     this.locale = this.getLocale(config);
     this.discordBotToken = this.getDiscordBotToken(config);
     this.discordBotChannelId = this.getDiscordBotChannelId(config);
@@ -85,6 +89,19 @@ public final class PluginDataConfigurationMapper {
     this.discordBotEnabled = this.isDiscordBotEnabled(config);
     this.httpEnabled = this.isHttpEnabled(config);
     this.readLock.unlock();
+  }
+
+  private FileConfiguration retrieveConfiguration() {
+    final Path path = IOUtils.getPluginDataFolderPath();
+    final Path configPath = path.resolve("config.yml");
+    if (Files.notExists(configPath)) {
+      this.plugin.saveResource("config.yml", false);
+    }
+    try (final Reader reader = IOUtils.getResourceAsStreamReader("config.yml")) {
+      return YamlConfiguration.loadConfiguration(reader);
+    } catch (final IOException e) {
+      throw new AssertionError(e);
+    }
   }
 
   private boolean isDiscordBotEnabled(final FileConfiguration config) {

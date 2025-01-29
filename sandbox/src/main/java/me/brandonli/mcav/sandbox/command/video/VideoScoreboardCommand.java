@@ -40,7 +40,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
-  @Command("mcav video scoreboard <playerType> <videoResolution> <character> <mrl>")
+  @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <mrl>")
   @Permission("mcav.command.video.scoreboard")
   @CommandDescription("mcav.command.video.scoreboard.info")
   public void playScoreboardVideo(

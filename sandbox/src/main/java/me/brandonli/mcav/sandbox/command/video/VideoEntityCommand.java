@@ -49,7 +49,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     this.plugin = plugin;
   }
 
-  @Command("mcav video entity <playerType> <videoResolution> <character> <location> <mrl>")
+  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <mrl>")
   @Permission("mcav.command.video.entity")
   @CommandDescription("mcav.command.video.entity.info")
   public void playEntityVideo(

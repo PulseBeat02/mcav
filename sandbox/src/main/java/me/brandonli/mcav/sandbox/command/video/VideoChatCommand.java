@@ -40,7 +40,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class VideoChatCommand extends AbstractVideoCommand {
 
-  @Command("mcav video chat <playerType> <videoResolution> <character> <mrl>")
+  @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <mrl>")
   @Permission("mcav.command.video.chat")
   @CommandDescription("mcav.command.video.chat.info")
   public void playChatVideo(

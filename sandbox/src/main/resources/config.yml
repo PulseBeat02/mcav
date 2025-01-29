@@ -21,16 +21,16 @@ discord-bot:
   enabled: false
 
   # The token of the discord bot
-  # Default is null
-  token: null
+  # Default is none
+  token: none
 
   # The server id of the guild (server) to play audio in
-  # Default is null
-  guild-id: null
+  # Default is none
+  guild-id: none
 
   # The channel id of the voice channel to send audio to
-  # Default is null
-  channel-id: null
+  # Default is none
+  channel-id: none
 
 # ======================================================================
 # HTTP WEBSITE CONFIGURATION

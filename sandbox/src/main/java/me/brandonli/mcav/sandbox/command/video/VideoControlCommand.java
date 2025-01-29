@@ -40,7 +40,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     this.manager = plugin.getVideoPlayerManager();
   }
 
-  @Command("mcav video release")
+  @Command("mcav video resume")
   @Permission("mcav.command.video.resume")
   @CommandDescription("mcav.command.video.resume.info")
   public void resumeVideo(final CommandSender player) {

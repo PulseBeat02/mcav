@@ -66,8 +66,8 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private void loadManager() {
-    this.videoPlayerManager = new VideoPlayerManager(this);
     this.audioProvider = new AudioProvider(this);
+    this.videoPlayerManager = new VideoPlayerManager(this);
   }
 
   private void loadMCAV() {
@@ -88,8 +88,6 @@ public final class MCAVSandbox extends JavaPlugin {
     final Path libs = folder.resolve("libs");
     final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
     installer.loadMCAVDependencies(Artifact.COMMON);
-    installer.loadMCAVDependencies(Artifact.HTTP);
-    installer.loadMCAVDependencies(Artifact.JDA);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }
