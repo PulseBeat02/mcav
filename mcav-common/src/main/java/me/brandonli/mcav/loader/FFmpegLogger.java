@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.loader;
 
 import static org.bytedeco.ffmpeg.global.avutil.*;
 
@@ -24,10 +24,13 @@ import org.bytedeco.javacpp.BytePointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class FFmpegLogger extends LogCallback {
+final class FFmpegLogger extends LogCallback {
 
   private static final Logger INTERNAL_LOGGER = LoggerFactory.getLogger(FFmpegLogger.class);
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void call(final int level, final BytePointer msg) {
     final String line = msg.getString();

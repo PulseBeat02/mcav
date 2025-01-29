@@ -40,7 +40,7 @@ final class VMProcess {
     this.architecture = architecture;
   }
 
-  public void start() {
+  void start() {
     try {
       final String[] arguments = this.constructCommand();
       final ProcessBuilder processBuilder = new ProcessBuilder(arguments);
@@ -51,7 +51,7 @@ final class VMProcess {
     }
   }
 
-  public void shutdown() {
+  void shutdown() {
     final Process qemuProcess = this.qemuProcess;
     if (qemuProcess != null) {
       final long id = qemuProcess.pid();

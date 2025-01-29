@@ -45,7 +45,7 @@ public class ChatImage implements DisplayableImage {
   @Override
   public void displayImage(final ImageBuffer data) {
     this.release();
-    final int chatWidth = this.configuration.getChatWdith();
+    final int chatWidth = this.configuration.getChatWidth();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
     final Collection<UUID> viewers = this.configuration.getViewers();

@@ -23,8 +23,6 @@ import java.util.List;
 
 /**
  * A builder class for creating QEMU virtual machine configurations.
- * Provides methods to configure various VM parameters like memory, CPU cores,
- * disk images, display options, and other QEMU settings.
  */
 public class VMConfiguration {
 

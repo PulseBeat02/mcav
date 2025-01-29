@@ -174,8 +174,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configProvider
   ) {
-    @Nullable
-    final Source[] sources = this.retrievePair(mrl, playerType);
+    @Nullable final Source[] sources = this.retrievePair(mrl, playerType);
     if (sources == null) {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;

@@ -55,14 +55,7 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Implementation of the {@link VNCPlayer} interface that provides functionality
- * to start, pause, resume, and release a Virtual Network Computing (VNC) player.
- * This class is thread-safe and manages the lifecycle of a VNC client and associated
- * video processing pipeline steps.
- * <p>
- * The class uses an {@link ExecutorService} for frame capturing and processing, with
- * distinct executors for these tasks. Frames received from the VNC server are processed
- * synchronously using a video processing pipeline.
+ * A VNCPlayer implementation that handles VNC connections and video frame processing.
  */
 public class VNCPlayerImpl implements VNCPlayer {
 
@@ -104,11 +97,9 @@ public class VNCPlayerImpl implements VNCPlayer {
   private final AtomicBoolean running;
   private final Lock lock;
 
-  @Nullable
-  private volatile VernacularClient vncClient;
+  @Nullable private volatile VernacularClient vncClient;
 
-  @Nullable
-  private volatile VNCSource source;
+  @Nullable private volatile VNCSource source;
 
   VNCPlayerImpl() {
     this.frameProcessorExecutor = Executors.newSingleThreadExecutor();

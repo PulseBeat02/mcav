@@ -73,17 +73,13 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final String[] args;
   private final Lock lock;
 
-  @Nullable
-  private volatile VideoCallback videoCallback;
+  @Nullable private volatile VideoCallback videoCallback;
 
-  @Nullable
-  private volatile AudioCallback audioCallback;
+  @Nullable private volatile AudioCallback audioCallback;
 
-  @Nullable
-  private volatile CallbackVideoSurface videoSurface;
+  @Nullable private volatile CallbackVideoSurface videoSurface;
 
-  @Nullable
-  private volatile BufferFormatCallback bufferFormatCallback;
+  @Nullable private volatile BufferFormatCallback bufferFormatCallback;
 
   public VLCPlayer(final String[] args) {
     final MediaPlayerFactory factory = MediaPlayerFactoryProvider.getPlayerFactory();

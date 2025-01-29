@@ -20,12 +20,7 @@ package me.brandonli.mcav.utils;
 import java.io.Serial;
 
 /**
- * Exception thrown to indicate that a ZIP entry integrity check has failed.
- * This exception extends {@code AssertionError}, signifying that the integrity
- * of a ZIP file entry could not be verified as expected.
- * <p>
- * It is used to signal critical errors encountered when dealing with ZIP file
- * entry operations, particularly when integrity constraints are violated.
+ * Exception thrown when a zip entry's integrity check fails.
  */
 public class ZipEntryIntegrityException extends AssertionError {
 

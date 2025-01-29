@@ -17,24 +17,36 @@
  */
 package me.brandonli.mcav.jda;
 
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
+/**
+ * The main entry point for the JDA module of MCAV.
+ */
 public class JDAModule implements MCAVModule {
 
-  public JDAModule() {
+  JDAModule() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void stop() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getModuleName() {
     return "jda";

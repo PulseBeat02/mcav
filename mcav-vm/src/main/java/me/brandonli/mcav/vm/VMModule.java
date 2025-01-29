@@ -17,16 +17,22 @@
  */
 package me.brandonli.mcav.vm;
 
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
+/**
+ * The entry point for the VM module.
+ */
 public final class VMModule implements MCAVModule {
 
   private boolean isQemuInstalled;
 
-  public VMModule() {
+  VMModule() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     // this.installQemu();
@@ -57,16 +63,27 @@ public final class VMModule implements MCAVModule {
   //    }
   //  }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void stop() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getModuleName() {
     return "vm";
   }
 
+  /**
+   * Checks if QEMU is installed.
+   *
+   * @return true if QEMU is installed, false otherwise
+   */
   public boolean isQemuInstalled() {
     return this.isQemuInstalled;
   }

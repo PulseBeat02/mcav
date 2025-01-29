@@ -21,10 +21,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * Represents the main API interface for handling media playback capabilities,
- * installation, and resource management in the MCAV library.
+ * The main API interface for the mcav library, providing methods to check capabilities,
+ * install dependencies, and manage resources.
  */
 public interface MCAVApi {
   /**
@@ -37,41 +38,44 @@ public interface MCAVApi {
 
   /**
    * Installs all dependencies and resources required for the library's functionality.
-   * This method initializes the installation of tools and components such as VLC, QEMU,
-   * YTDLP, and other required dependencies, based on the capabilities enabled in the library.
-   * <p>
-   * If any errors occur during the installation process, an exception is thrown to indicate
-   * failure and halt further installations.
-   * <p>
-   * It is recommended to invoke this method before attempting to utilize any
-   * capabilities provided by the library.
+   *
+   * @param plugins an array of plugin classes to be installed
    */
   void install(final Class<?>... plugins);
 
   /**
-   * Asynchronously installs the required resources and dependencies for the library.
-   * This method utilizes a default executor service, specifically the {@link ForkJoinPool#commonPool()},
-   * to execute the installation process in an asynchronous manner.
+   * Asynchronously installs all dependencies and resources required for the library's functionality.
    *
-   * @return a {@link CompletableFuture} that completes when the installation process has finished.
+   * @param plugins an array of plugin classes to be installed
+   * @return a CompletableFuture that completes when the installation is finished
    */
   default CompletableFuture<Void> installAsync(final Class<?>... plugins) {
     return this.installAsync(ForkJoinPool.commonPool(), plugins);
   }
 
+  /**
+   * Asynchronously installs all dependencies and resources required for the library's functionality
+   * using a specified ExecutorService.
+   *
+   * @param service the ExecutorService to run the installation on
+   * @param plugins an array of plugin classes to be installed
+   * @return a CompletableFuture that completes when the installation is finished
+   */
   default CompletableFuture<Void> installAsync(final ExecutorService service, final Class<?>... plugins) {
     return CompletableFuture.runAsync(() -> this.install(plugins), service);
   }
 
   /**
    * Releases resources and performs cleanup operations as required by the library.
-   * <p>
-   * This method ensures that all components and services initialized by the API,
-   * such as media player factories or any background processes, are properly
-   * shut down. It is essential to invoke this method when the library's functionalities
-   * are no longer needed to prevent resource leaks.
    */
   void release();
 
-  <T extends MCAVModule> T getModule(Class<T> moduleClass);
+  /**
+   * Retrieves a module of the specified class type.
+   *
+   * @param moduleClass the class of the module to retrieve
+   * @param <T> the type of the module
+   * @return an instance of the specified module class, or null if not found
+   */
+  <T extends MCAVModule> T getModule(final Class<T> moduleClass);
 }

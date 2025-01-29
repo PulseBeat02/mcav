@@ -28,13 +28,30 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 /**
  * Interface representing a browser-based player that supports interaction with browser elements,
  * video pipeline processing, and mouse event handling.
- * Extends the functionality of {@link ReleasablePlayer}.
  */
 public interface BrowserPlayer extends ReleasablePlayer {
+  /**
+   * Default arguments for Selenium ChromeDriver.
+   */
   String[] DEFAULT_CHROME_ARGUMENTS = { "--headless", "--disable-gpu", "--disable-software-rasterizer" };
 
+  /**
+   * Starts the browser player with the specified video pipeline step and combined browser source.
+   *
+   * @param videoPipeline the video pipeline step to be used for processing video frames.
+   * @param combined the combined browser source that provides the video content to be played.
+   * @return true if the player started successfully, false otherwise.
+   */
   boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined);
 
+  /**
+   * Asynchronously starts the browser player with the specified video pipeline step and combined browser source.
+   *
+   * @param videoPipeline the video pipeline step to be used for processing video frames.
+   * @param combined the combined browser source that provides the video content to be played.
+   * @param service the executor service to run the asynchronous task on.
+   * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
+   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep videoPipeline,
     final BrowserSource combined,
@@ -43,39 +60,67 @@ public interface BrowserPlayer extends ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
   }
 
+  /**
+   * Asynchronously starts the browser player with the specified video pipeline step and combined browser source
+   * using the common ForkJoinPool.
+   *
+   * @param videoPipeline the video pipeline step to be used for processing video frames.
+   * @param combined the combined browser source that provides the video content to be played.
+   * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
+   */
   default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
     return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
   }
 
+  /**
+   * Moves the mouse cursor to the specified coordinates.
+   *
+   * @param x the x-coordinate to move the mouse to.
+   * @param y the y-coordinate to move the mouse to.
+   */
   void moveMouse(final int x, final int y);
 
+  /**
+   * Sends a mouse event of the specified type at the given coordinates.
+   *
+   * @param type the type of mouse click event to send (e.g., click, double-click).
+   * @param x the x-coordinate where the mouse event should occur.
+   * @param y the y-coordinate where the mouse event should occur.
+   */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
 
+  /**
+   * Sends a key event with the specified text.
+   *
+   * @param text the text to be sent as a key event. This can include special characters or sequences.
+   */
   void sendKeyEvent(final String text);
 
   /**
-   * Creates a default instance of {@code ChromeDriverPlayer} with pre-defined arguments to
-   * configure the Chrome browser in a headless environment.
-   * The default arguments include configurations for performance, security, and resource optimization.
+   * Creates a new instance of a Selenium browser using the default Chrome arguments.
    *
-   * @return a {@code BrowserPlayer} instance configured with default Chrome arguments.
+   * @return a Selenium browser instance configured with default Chrome arguments.
    */
-  static BrowserPlayer defaultSelenium() {
+  static BrowserPlayer selenium() {
     return new SeleniumPlayer(DEFAULT_CHROME_ARGUMENTS);
   }
 
   /**
-   * Creates a new instance of a {@link BrowserPlayer} using the given arguments for the Chrome browser.
+   * Creates a new instance of a Selenium browser with the specified arguments.
    *
-   * @param args the arguments to be passed to the Chrome browser instance. These arguments
-   *             can be used to customize browser behavior, such as enabling or disabling features.
-   *             If no arguments are provided, default Chrome arguments can be used via {@link BrowserPlayer#defaultSelenium()}.
-   * @return a {@link BrowserPlayer} instance configured with the specified Chrome arguments.
+   * @param args the command-line arguments to configure the Selenium browser.
+   * @return a Selenium browser instance configured with the provided arguments.
    */
   static BrowserPlayer selenium(final String... args) {
     return new SeleniumPlayer(args);
   }
 
+  /**
+   * Creates a new instance of a Playwright browser using the default arguments.
+   *
+   * @param args the command-line arguments to configure the Playwright browser.
+   * @return a Playwright browser instance configured with default arguments.
+   */
   static BrowserPlayer playwright(final String... args) {
     return new PlaywrightPlayer(args);
   }

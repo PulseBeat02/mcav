@@ -20,7 +20,7 @@ package me.brandonli.mcav.browser;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.impl.driver.jar.DriverJar;
 
-public final class PlaywrightServiceProvider {
+final class PlaywrightServiceProvider {
 
   private static final Playwright PLAYWRIGHT;
 

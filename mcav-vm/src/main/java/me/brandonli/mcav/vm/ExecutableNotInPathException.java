@@ -19,11 +19,19 @@ package me.brandonli.mcav.vm;
 
 import java.io.Serial;
 
+/**
+ * Exception thrown when an executable required by the library is not found in the system PATH.
+ */
 public class ExecutableNotInPathException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = 2760594791392402124L;
 
+  /**
+   * Constructs a new exception with a detailed message indicating the missing executable.
+   *
+   * @param executable the name of the executable that is not found in the PATH
+   */
   public ExecutableNotInPathException(final String executable) {
     super(
       "Executable %s is not in the system PATH. Please ensure it is installed and available in the PATH environment variable.".formatted(

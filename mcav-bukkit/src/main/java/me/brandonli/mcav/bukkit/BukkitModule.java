@@ -17,9 +17,9 @@
  */
 package me.brandonli.mcav.bukkit;
 
-import me.brandonli.mcav.MCAVModule;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
+import me.brandonli.mcav.module.MCAVModule;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -30,7 +30,7 @@ public final class BukkitModule implements MCAVModule {
 
   private static Plugin PLUGIN;
 
-  public BukkitModule() {
+  BukkitModule() {
     // no-op
   }
 

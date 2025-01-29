@@ -45,8 +45,7 @@ final class HttpRequest {
     this.protocolVersion = this.requestParts[2];
   }
 
-  @Nullable
-  String get(final String header) {
+  @Nullable String get(final String header) {
     return this.headers.get(header);
   }
 

@@ -15,21 +15,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.utils;
 
-import java.io.Serial;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
-public class ModuleException extends AssertionError {
+public final class ReflectionUtils {
 
-  @Serial
-  private static final long serialVersionUID = -2431307065385281467L;
-
-  public ModuleException(final String message) {
-    super(message);
+  private ReflectionUtils() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  public ModuleException(final @Nullable String message, final Throwable cause) {
-    super(message, cause);
+  @SuppressWarnings("unchecked")
+  public static <T> T newInstance(final Class<T> clazz) {
+    try {
+      final MethodHandles.Lookup lookup = MethodHandles.lookup();
+      final MethodType type = MethodType.methodType(void.class);
+      final MethodHandle constructor = lookup.findConstructor(clazz, type);
+      return (T) constructor.invoke();
+    } catch (final Throwable e) {
+      throw new RuntimeException(e);
+    }
   }
 }

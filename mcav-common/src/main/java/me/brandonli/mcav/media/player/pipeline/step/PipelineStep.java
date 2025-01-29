@@ -36,8 +36,7 @@ public interface PipelineStep<A, B, C> {
    *
    * @return the next step in the pipeline, or null if this is the last step
    */
-  @Nullable
-  C next();
+  @Nullable C next();
 
   /**
    * Determines whether this is the last step in the pipeline.

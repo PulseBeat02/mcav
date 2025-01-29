@@ -29,24 +29,15 @@ import me.brandonli.mcav.vnc.VNCPlayer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Provides an implementation of the {@link VMPlayer} interface to manage
- * virtual machine operations using QEMU and VNC.
- * <p>
- * This class handles the initialization and control of a QEMU process
- * for virtualization along with a VNC player to interact with the
- * virtual machine. It supports features such as starting the VM, controlling
- * input actions (mouse and keyboard), pausing, resuming, and releasing
- * resources.
+ * An implementation of the {@link VMPlayer} interface that provides VM support.
  */
 public class VMPlayerImpl implements VMPlayer {
 
   private final Lock lock;
 
-  @Nullable
-  private volatile VNCPlayer vncPlayer;
+  @Nullable private volatile VNCPlayer vncPlayer;
 
-  @Nullable
-  private volatile VMProcess process;
+  @Nullable private volatile VMProcess process;
 
   VMPlayerImpl() {
     this.lock = new ReentrantLock();

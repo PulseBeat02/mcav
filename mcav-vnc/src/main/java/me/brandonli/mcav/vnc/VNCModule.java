@@ -17,24 +17,36 @@
  */
 package me.brandonli.mcav.vnc;
 
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
+/**
+ * The main entry point for the VNC module of MCAV.
+ */
 public final class VNCModule implements MCAVModule {
 
-  public VNCModule() {
+  VNCModule() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void stop() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getModuleName() {
     return "vnc";

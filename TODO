@@ -1,6 +1,4 @@
 High Priority Tasks:
-  - Rigorously test Linux
-
-Medium Priority Tasks:
+  - Write Dialog API
+  - Write JavaDocs for common module
   - Update demo video
-  - Write JavaDocs (cba)

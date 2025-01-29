@@ -27,61 +27,36 @@ import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * The {@code VNCPlayer} interface defines a media player for handling VNC (Virtual Network Computing) streams.
- * It extends {@link ControllablePlayer} and {@link ReleasablePlayer}, providing playback control and resource
- * management functionalities. Additionally, this interface supports interaction mechanisms such as mouse movement
- * and keyboard input simulation.
- * <p>
- * Core functionalities include:
- * - Starting a playback session with a specified video pipeline and VNC source.
- * - Simulating mouse and keyboard inputs within the VNC session.
- * - Managing playback with pause, resume, and release operations inherited from its superinterfaces.
+ * An interface representing a VNC (Virtual Network Computing) player, useful for handling virtual desktops, etc.
  */
 public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
   /**
    * Starts the playback process with the specified video pipeline and VNC source.
-   * This method initializes and begins the processing of video frames and metadata
-   * from the provided VNC source, applying the specified video pipeline operations.
    *
    * @param videoPipeline the video pipeline to be used, consisting of processing steps
-   *                      for handling video frames and metadata. Must not be null.
-   * @param combined      the VNC source representing the input data, including host,
-   *                      port, password, and video metadata. Must not be null.
-   * @return true if the playback starts successfully, false otherwise.
+   * @param combined the VNC source representing the input data, including host
+   * @return {@code true} if the playback starts successfully, or {@code false} if it fails to start.
    */
   boolean start(final VideoPipelineStep videoPipeline, final VNCSource combined);
 
   /**
-   * Asynchronously starts the playback process with the specified video pipeline and VNC source.
-   * This method initializes and begins the processing of video frames and metadata
-   * from the provided VNC source, applying the specified video pipeline operations.
-   * The execution is performed using the common ForkJoinPool.
+   * Asynchronously initiates the playback process with the specified video pipeline with a ForkJoinPool.
    *
    * @param videoPipeline the video pipeline to be used, consisting of processing steps
-   *                      for handling video frames and metadata. Must not be null.
-   * @param combined      the VNC source representing the input data, including host,
-   *                      port, password, and video metadata. Must not be null.
-   * @return a {@link CompletableFuture} that completes with {@code true} if the playback
-   * starts successfully, or {@code false} if it fails to start.
+   * @param combined the VNC source representing the input data
+   * @return a CompletableFuture that completes with {@code true} if the playback starts
    */
   default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final VNCSource combined) {
     return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
   }
 
   /**
-   * Initiates the asynchronous playback process with the specified video pipeline
-   * and VNC source using the provided executor service.
-   * This method begins the processing of video frames and metadata in an asynchronous
-   * manner, delegating the execution to the specified executor service.
+   * Asynchronously initiates the playback process with the specified video pipeline
    *
    * @param videoPipeline the video pipeline to be used, consisting of processing steps
-   *                      for handling video frames and metadata. Must not be null.
-   * @param combined      the VNC source representing the input data, including host,
-   *                      port, password, and video metadata. Must not be null.
-   * @param service       the executor service responsible for executing the asynchronous
-   *                      operation. Must not be null.
+   * @param combined the VNC source representing the input data
+   * @param service the ExecutorService to run the task on, allowing for custom thread management
    * @return a CompletableFuture that completes with {@code true} if the playback starts
-   * successfully, or {@code false} otherwise.
    */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep videoPipeline,
@@ -91,10 +66,28 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
   }
 
+  /**
+   * Moves the mouse to the specified coordinates.
+   *
+   * @param x the x-coordinate to move the mouse to
+   * @param y the y-coordinate to move the mouse to
+   */
   void moveMouse(final int x, final int y);
 
+  /**
+   * Sends a key event with the specified text.
+   *
+   * @param text the text to send as a key event
+   */
   void sendKeyEvent(final String text);
 
+  /**
+   * Sends a mouse event of the specified type at the given coordinates.
+   *
+   * @param type the type of mouse click (e.g., left click, right click)
+   * @param x the x-coordinate where the mouse event occurs
+   * @param y the y-coordinate where the mouse event occurs
+   */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**

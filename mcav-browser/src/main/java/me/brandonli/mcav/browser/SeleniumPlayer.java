@@ -50,6 +50,9 @@ import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
+/**
+ * A Selenium-based browser player that captures screencasts.
+ */
 public final class SeleniumPlayer implements BrowserPlayer {
 
   private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
@@ -70,19 +73,15 @@ public final class SeleniumPlayer implements BrowserPlayer {
   private final DevTools tools;
   private final Lock lock;
 
-  @Nullable
-  private volatile Long frameWidth;
+  @Nullable private volatile Long frameWidth;
 
-  @Nullable
-  private volatile Long frameHeight;
+  @Nullable private volatile Long frameHeight;
 
-  @Nullable
-  private volatile VideoPipelineStep videoPipeline;
+  @Nullable private volatile VideoPipelineStep videoPipeline;
 
-  @Nullable
-  private volatile BrowserSource source;
+  @Nullable private volatile BrowserSource source;
 
-  public SeleniumPlayer(final String... args) {
+  SeleniumPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final ChromeOptions options = new ChromeOptions().addArguments(args);
     this.driver = new ChromeDriver(service, options);
@@ -238,6 +237,9 @@ public final class SeleniumPlayer implements BrowserPlayer {
     this.lock.unlock();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void moveMouse(final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {

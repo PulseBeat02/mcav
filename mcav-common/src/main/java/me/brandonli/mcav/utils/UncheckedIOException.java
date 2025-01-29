@@ -22,23 +22,25 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An unchecked exception that wraps an {@link java.io.IOException}.
- * This class extends {@link AssertionError} and can be used to
- * indicate that an I/O operation has failed and should be treated as
- * an unexpected fatal error in the application flow.
- * <p>
- * This exception is primarily intended for scenarios where an {@link java.io.IOException}
- * must be thrown in a context where only unchecked exceptions are permitted,
- * for instance in stream processing pipelines or lambda expressions.
  */
 public class UncheckedIOException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = 4402912769150611890L;
 
+  /**
+   * Constructs a new unchecked IOException with the specified detail message.
+   * @param message the detail message, or {@code null} if none
+   */
   public UncheckedIOException(final @Nullable String message) {
     super(message);
   }
 
+  /**
+   * Constructs a new unchecked IOException with the specified detail message and cause.
+   * @param message the detail message, or {@code null} if none
+   * @param cause the cause of the exception, or {@code null} if none
+   */
   public UncheckedIOException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);
   }

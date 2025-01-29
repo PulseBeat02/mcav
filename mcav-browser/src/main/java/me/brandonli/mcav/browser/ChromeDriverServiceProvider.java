@@ -24,19 +24,7 @@ import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
-/**
- * A provider class for managing the ChromeDriver service setup and initialization.
- * This class is responsible for configuring, creating, and providing access to a
- * singleton instance of the ChromeDriverService.
- * <p>
- * The service is initialized statically using {@link WebDriverManager} and is configured
- * to use any available free port. The cache location for ChromeDriver binaries is determined
- * by invoking the {@code IOUtils.getCachedFolder()} method.
- * <p>
- * The class is final and cannot be extended. It provides static methods for initializing
- * the service and obtaining the configured instance.
- */
-public final class ChromeDriverServiceProvider {
+final class ChromeDriverServiceProvider {
 
   private static final ChromeDriverService SERVICE;
 
@@ -57,31 +45,15 @@ public final class ChromeDriverServiceProvider {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * Initializes the ChromeDriverService used for managing ChromeDriver processes.
-   * This method ensures that the service is properly configured and ready for use.
-   * It is designed to handle the setup process, including defining the cache
-   * location for ChromeDriver binaries and specifying other necessary parameters.
-   * <p>
-   * This method is intended to be called before any operation requiring the
-   * ChromeDriverService, to ensure that the service is properly initialized.
-   */
   static void init() {
     // init
   }
 
-  /**
-   * Retrieves the singleton instance of the configured {@link ChromeDriverService}.
-   * This service is used to manage ChromeDriver processes
-   * and is initialized with predefined configurations, such as logging level and port allocation.
-   *
-   * @return the singleton instance of {@link ChromeDriverService}.
-   */
   static ChromeDriverService getService() {
     return SERVICE;
   }
 
-  public static void shutdown() {
+  static void shutdown() {
     SERVICE.close();
     SERVICE.stop();
   }

@@ -47,6 +47,9 @@ import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * A Playwright-based browser player implementation that takes screenshots.
+ */
 public final class PlaywrightPlayer implements BrowserPlayer {
 
   private static final Set<String> PLAYWRIGHT_SPECIAL_KEYS;
@@ -78,22 +81,17 @@ public final class PlaywrightPlayer implements BrowserPlayer {
   private final Set<String> pageIds;
   private final Lock lock;
 
-  @Nullable
-  private volatile Browser browser;
+  @Nullable private volatile Browser browser;
 
-  @Nullable
-  private volatile Page page;
+  @Nullable private volatile Page page;
 
-  @Nullable
-  private volatile Long frameWidth;
+  @Nullable private volatile Long frameWidth;
 
-  @Nullable
-  private volatile Long frameHeight;
+  @Nullable private volatile Long frameHeight;
 
-  @Nullable
-  private volatile BrowserSource source;
+  @Nullable private volatile BrowserSource source;
 
-  public PlaywrightPlayer(final String... args) {
+  PlaywrightPlayer(final String... args) {
     final List<String> launchArgs = Arrays.asList(args);
     this.pageIds = Collections.synchronizedSet(new HashSet<>());
     this.running = new AtomicBoolean(false);
@@ -215,6 +213,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void moveMouse(final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {

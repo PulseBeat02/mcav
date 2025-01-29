@@ -17,24 +17,36 @@
  */
 package me.brandonli.mcav.http;
 
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
+/**
+ * The main entry point for the HTTP module.
+ */
 public final class HttpModule implements MCAVModule {
 
-  public HttpModule() {
+  HttpModule() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void stop() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getModuleName() {
     return "http";

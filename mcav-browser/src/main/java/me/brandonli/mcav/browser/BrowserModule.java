@@ -17,26 +17,38 @@
  */
 package me.brandonli.mcav.browser;
 
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
+/**
+ * The entry point for the browser module. Contains start and shutdown methods for browser services.
+ */
 public final class BrowserModule implements MCAVModule {
 
-  public BrowserModule() {
+  BrowserModule() {
     // no-op
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     ChromeDriverServiceProvider.init();
     PlaywrightServiceProvider.init();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void stop() {
     PlaywrightServiceProvider.shutdown();
     ChromeDriverServiceProvider.shutdown();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getModuleName() {
     return "browser";

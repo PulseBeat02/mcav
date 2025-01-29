@@ -26,23 +26,39 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * The VMPlayer interface defines the contract for a virtual machine-based
- * video media player. It extends {@code ControllablePlayer} and {@code ReleasablePlayer},
- * providing additional methods for managing video processing pipelines asynchronously
- * or synchronously across various architecture types.
+ * Represents a virtual machine player interface that extends the capabilities of a controllable player
  */
 public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
   /**
-   * Provides a new instance of the VMPlayer implementation.
+   * Creates a new instance of the VMPlayer implementation.
    *
-   * @return a new implementation of {@code VMPlayer}.
+   * @return a new instance of VMPlayer
    */
   static VMPlayer vm() {
     return new VMPlayerImpl();
   }
 
+  /**
+   * Starts the virtual machine with the specified settings and architecture.
+   *
+   * @param step       the video pipeline step to start
+   * @param settings   the VM settings to use
+   * @param architecture the architecture of the VM
+   * @param arguments  additional configuration arguments for the VM
+   * @return true if the VM started successfully, false otherwise
+   */
   boolean start(final VideoPipelineStep step, final VMSettings settings, final Architecture architecture, final VMConfiguration arguments);
 
+  /**
+   * Starts the virtual machine asynchronously with the specified settings and architecture.
+   *
+   * @param step       the video pipeline step to start
+   * @param settings   the VM settings to use
+   * @param architecture the architecture of the VM
+   * @param arguments  additional configuration arguments for the VM
+   * @param service    the executor service to run the task on
+   * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
+   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep step,
     final VMSettings settings,
@@ -53,6 +69,15 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(step, settings, architecture, arguments), service);
   }
 
+  /**
+   * Starts the virtual machine asynchronously with the specified settings and architecture.
+   *
+   * @param step       the video pipeline step to start
+   * @param settings   the VM settings to use
+   * @param architecture the architecture of the VM
+   * @param arguments  additional configuration arguments for the VM
+   * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
+   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep step,
     final VMSettings settings,
@@ -62,43 +87,48 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
     return this.startAsync(step, settings, architecture, arguments, ForkJoinPool.commonPool());
   }
 
+  /**
+   * Moves the mouse cursor to the specified coordinates within the virtual machine.
+   *
+   * @param x the x-coordinate to move the mouse to
+   * @param y the y-coordinate to move the mouse to
+   */
   void moveMouse(final int x, final int y);
 
+  /**
+   * Sends a key event with the specified text to the virtual machine.
+   *
+   * @param text the text to send as a key event
+   */
   void sendKeyEvent(final String text);
 
+  /**
+   * Sends a mouse event of the specified type at the given coordinates within the virtual machine.
+   *
+   * @param type the type of mouse click event (e.g., CLICK, DOUBLE_CLICK, RIGHT_CLICK)
+   * @param x    the x-coordinate where the mouse event should occur
+   * @param y    the y-coordinate where the mouse event should occur
+   */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**
    * Represents supported architectures for virtualization and emulation.
-   * Each enum constant is associated with a specific QEMU system command
-   * that pertains to the respective architecture.
    */
   enum Architecture {
     /**
-     * Represents the x86_64 architecture used for virtualization.
-     * This architecture corresponds to the "qemu-system-x86_64" command,
-     * which is used to emulate and run virtual machines for the x86_64 architecture.
+     * Represents the x86_64 architecture
      */
     X86_64("qemu-system-x86_64"),
     /**
-     * Represents the ARM architecture for virtualization, specifically using the QEMU system emulator.
-     * The associated command for this architecture is "qemu-system-arm".
-     * This is used to specify the platform to emulate in virtual machine configurations.
+     * Represents the ARM architecture
      */
     ARM("qemu-system-arm"),
     /**
-     * Represents the AARCH64 architecture used for virtualization.
-     * This constant specifies the corresponding QEMU system command
-     * for running AARCH64-based virtual machines.
+     * Represents the AARCH64 architecture
      */
     AARCH64("qemu-system-aarch64"),
     /**
-     * Specifies the RISC-V 64-bit architecture for virtualization and emulation.
-     * This constant is associated with the `qemu-system-riscv64` command, which is used for
-     * launching QEMU instances targeting the RISC-V 64-bit architecture.
-     * <p>
-     * It is a member of the {@code Architecture} enum, which represents supported
-     * architectures for virtualization.
+     * Represents the RISC-V 64-bit architecture
      */
     RISCV64("qemu-system-riscv64");
 

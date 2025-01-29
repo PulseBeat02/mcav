@@ -93,8 +93,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution,
     final ImageConfigurationProvider configProvider
   ) {
-    @Nullable
-    final Source source = this.retrievePair(image);
+    @Nullable final Source source = this.retrievePair(image);
     if (source == null) {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;

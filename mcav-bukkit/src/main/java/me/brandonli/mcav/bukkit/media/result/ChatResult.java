@@ -51,14 +51,14 @@ public class ChatResult implements FunctionalVideoFilter {
    */
   @Override
   public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
-    final int chatWdith = this.configuration.getChatWdith();
+    final int chatWidth = this.configuration.getChatWidth();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
     final Collection<UUID> viewers = this.configuration.getViewers();
-    final ResizeFilter resize = new ResizeFilter(chatWdith, chatHeight);
+    final ResizeFilter resize = new ResizeFilter(chatWidth, chatHeight);
     resize.applyFilter(data, metadata);
     final int[] resizedData = data.getPixels();
-    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWdith, chatHeight);
+    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);
   }

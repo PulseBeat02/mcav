@@ -15,12 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.module;
 
+/**
+ * An interface representing a module in the MCAV library.
+ */
 public interface MCAVModule {
+  /**
+   * Initializes the module.
+   *
+   * @throws ModuleException if the module fails to initialize.
+   */
   void start();
 
+  /**
+   * Stops the module and releases any resources it holds.
+   */
   void stop();
 
+  /**
+   * Returns the name of the module.
+   *
+   * @return the name of the module
+   */
   String getModuleName();
 }

@@ -20,8 +20,23 @@ package me.brandonli.mcav;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 
+/**
+ * JNA interface for the C library, specifically for the setenv function.
+ * This allows setting environment variables from Java code.
+ */
 public interface CLibrary extends Library {
+  /**
+   * The singleton instance of the CLibrary.
+   */
   CLibrary INSTANCE = Native.load("c", CLibrary.class);
 
+  /**
+   * Sets an environment variable.
+   *
+   * @param name The name of the environment variable.
+   * @param value The value to set for the environment variable.
+   * @param overwrite If non-zero, the variable will be overwritten if it already exists.
+   * @return 0 on success, or -1 on error.
+   */
   int setenv(String name, String value, int overwrite);
 }

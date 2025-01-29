@@ -14,7 +14,7 @@ Now, create your module by implementing the `MCAVModule` interface. To use your 
 when you call the `install` method on the `MCAVApi` class.
 
 ```java
-import me.brandonli.mcav.MCAVModule;
+import me.brandonli.mcav.module.MCAVModule;
 
 public final class ExampleModule implements MCAVModule {
 

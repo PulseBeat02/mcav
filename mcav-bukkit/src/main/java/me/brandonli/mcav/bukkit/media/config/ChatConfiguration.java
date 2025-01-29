@@ -61,7 +61,7 @@ public class ChatConfiguration {
    *
    * @return the chat width
    */
-  public int getChatWdith() {
+  public int getChatWidth() {
     return this.chatWdith;
   }
 

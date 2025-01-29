@@ -68,9 +68,6 @@ subprojects {
 
         spotless {
             java {
-                importOrder()
-                removeUnusedImports()
-                formatAnnotations()
                 prettier(mapOf("prettier" to "3.3.3", "prettier-plugin-java" to "2.6.4"))
                     .config(
                         mapOf(
@@ -83,6 +80,9 @@ subprojects {
                     .nodeExecutable(provider { setupNodeEnvironment() })
                 val file = rootProject.file("HEADER")
                 licenseHeaderFile(file)
+                importOrder()
+                removeUnusedImports()
+                formatAnnotations()
             }
         }
 

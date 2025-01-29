@@ -15,20 +15,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.module;
 
 import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An exception thrown when the MCAV library fails to load.
+ * An exception that is thrown when a module encounters an error.
  */
-public class MCAVLoadingException extends AssertionError {
+public class ModuleException extends AssertionError {
 
   @Serial
-  private static final long serialVersionUID = 5512824472714665790L;
+  private static final long serialVersionUID = -2431307065385281467L;
 
-  MCAVLoadingException(final @Nullable String message) {
+  /**
+   * Constructs a new ModuleException with the specified detail message.
+   * @param message the detail message, which is saved for later retrieval by the {@link #getMessage()} method.
+   */
+  public ModuleException(final String message) {
     super(message);
+  }
+
+  /**
+   * Constructs a new ModuleException with the specified detail message and cause.
+   * @param message the detail message, which is saved for later retrieval by the {@link #getMessage()} method.
+   * @param cause the cause of the exception, which is saved for later retrieval by the {@link #getCause()} method.
+   */
+  public ModuleException(final @Nullable String message, final Throwable cause) {
+    super(message, cause);
   }
 }
