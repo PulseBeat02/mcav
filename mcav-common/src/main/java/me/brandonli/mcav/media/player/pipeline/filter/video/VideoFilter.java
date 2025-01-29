@@ -26,4 +26,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.Filter;
  * to video data.
  */
 @FunctionalInterface
-public interface VideoFilter extends Filter<ImageBuffer, VideoMetadata> {}
+public interface VideoFilter extends Filter<ImageBuffer, VideoMetadata> {
+  default void applyFilter(final ImageBuffer samples) {
+    this.applyFilter(samples, VideoMetadata.EMPTY);
+  }
+}

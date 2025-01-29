@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.loader.DependencyLoader;
-import me.brandonli.mcav.media.player.multimedia.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.module.MCAVModule;
 import me.brandonli.mcav.module.ModuleLoader;
@@ -88,7 +87,6 @@ public final class MCAV implements MCAVApi {
   @Override
   public void release() {
     this.moduleLoader.shutdownPlugins();
-    MediaPlayerFactoryProvider.shutdown();
   }
 
   /**

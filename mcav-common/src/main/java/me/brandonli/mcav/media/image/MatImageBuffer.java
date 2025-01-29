@@ -81,6 +81,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   }
 
   MatImageBuffer(final BufferedImage image) throws IOException {
+    image.setAccelerationPriority(1.0f);
     final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     ImageIO.write(image, "jpg", byteArrayOutputStream);
     byteArrayOutputStream.flush();
@@ -109,7 +110,9 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
       final byte[] byteArray = new byte[(int) bytePointer.limit()];
       bytePointer.get(byteArray);
       bytePointer.deallocate();
-      return ImageIO.read(new ByteArrayInputStream(byteArray));
+      final BufferedImage img = ImageIO.read(new ByteArrayInputStream(byteArray));
+      img.setAccelerationPriority(1.0f);
+      return img;
     } catch (final IOException e) {
       throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
     }

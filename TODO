@@ -1,6 +1,5 @@
 High Priority Tasks:
-  - Fix JNA Callback GC Issues for VLC Player
-
+  - Use JProfiler and OPTIMIZE
   - Update demo video
     - Scoreboard, Chat, Entity, Block, Map
     - Audio Callbacks

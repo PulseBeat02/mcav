@@ -18,6 +18,12 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import com.sun.jna.Pointer;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -27,10 +33,7 @@ import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.natives.ByteUtils;
-import me.brandonli.mcav.utils.os.OSUtils;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.media.MediaSlavePriority;
 import uk.co.caprica.vlcj.media.MediaSlaveType;
@@ -42,25 +45,22 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi;
-import uk.co.caprica.vlcj.player.embedded.videosurface.*;
+import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback;
+import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
-
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.
  */
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
+  private static final String[] LIBVLC_INIT_ARGS = { "--reset-plugins-cache" };
+
+  private final MediaPlayerFactory factory;
   private final EmbeddedMediaPlayer player;
-  private final VideoSurfaceAdapter adapter;
   private final AtomicBoolean running;
   private final String[] args;
   private final Lock lock;
@@ -79,10 +79,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * @param args the command-line arguments to pass to the VLC player
    */
   public VLCPlayer(final String[] args) {
-    final MediaPlayerFactory factory = MediaPlayerFactoryProvider.getPlayerFactory();
-    final MediaPlayerApi mediaPlayerApi = factory.mediaPlayers();
-    this.player = mediaPlayerApi.newEmbeddedMediaPlayer();
-    this.adapter = this.getAdapter();
+    this.factory = new MediaPlayerFactory(LIBVLC_INIT_ARGS);
+    this.player = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.args = args;
@@ -145,29 +143,28 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final Source video,
     final Source audio
   ) {
+    final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
+    final AudioApi audioApi = this.player.audio();
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
-    this.bufferFormatCallback = new BufferCallback(videoMetadata);
-    this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.videoSurface = new CallbackVideoSurface(this.bufferFormatCallback, this.videoCallback, true, this.adapter);
-    surfaceApi.set(this.videoSurface);
+    final uk.co.caprica.vlcj.factory.VideoSurfaceApi videoSurfaceApi = this.factory.videoSurfaces();
+
+    final BufferCallback bufferCallback = new BufferCallback(videoMetadata);
+    final VideoCallback videoCallback = new VideoCallback(videoPipeline, videoMetadata);
+    final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata);
+    final CallbackVideoSurface videoSurface = videoSurfaceApi.newVideoSurface(bufferCallback, videoCallback, true);
+
+    this.bufferFormatCallback = bufferCallback;
+    this.videoCallback = videoCallback;
+    this.audioCallback = audioCallback;
+    this.videoSurface = videoSurface;
 
     // audio sample specialization
     // PCM S16LE
     // 2 Channels
     // 48 kHz
-    final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
-    final AudioApi audioApi = this.player.audio();
-    this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
-    audioApi.callback("S16N", 48000, 2, this.audioCallback);
-  }
-
-  private VideoSurfaceAdapter getAdapter(@UnderInitialization VLCPlayer this) {
-    return switch (OSUtils.getOS()) {
-      case WINDOWS -> new WindowsVideoSurfaceAdapter();
-      case MAC -> new OsxVideoSurfaceAdapter();
-      default -> new LinuxVideoSurfaceAdapter();
-    };
+    surfaceApi.set(videoSurface);
+    audioApi.callback("S16N", 48000, 2, audioCallback);
   }
 
   /**
@@ -218,11 +215,12 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
       this.player.release();
+      this.factory.release();
       return true;
     });
   }
 
-  private static final class BufferCallback implements BufferFormatCallback {
+  private final class BufferCallback extends BufferFormatCallbackAdapter {
 
     private final RV32BufferFormat format;
 
@@ -234,21 +232,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
       return this.format;
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void newFormatSize(final int bufferWidth, final int bufferHeight, final int displayWidth, final int displayHeight) {}
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void allocatedBuffers(final ByteBuffer[] buffers) {}
   }
 
-  private static final class AudioCallback extends AudioCallbackAdapter {
+  private final class AudioCallback extends AudioCallbackAdapter {
 
     private static final int BLOCK_SIZE = 4;
 
@@ -265,6 +251,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
      */
     @Override
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
+      if (!VLCPlayer.this.running.get()) {
+        return;
+      }
       final int bufferSize = sampleCount * BLOCK_SIZE;
       final byte[] bytes = samples.getByteArray(0, bufferSize);
       final ByteBuffer buffer = ByteBuffer.wrap(bytes);
@@ -277,8 +266,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-
-  private static final class VideoCallback extends RenderCallbackAdapter {
+  private final class VideoCallback extends RenderCallbackAdapter {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
@@ -294,16 +282,18 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     @Override
     protected void onDisplay(final MediaPlayer mediaPlayer, final int[] buffer) {
+      if (!VLCPlayer.this.running.get()) {
+        return;
+      }
       final int width = this.metadata.getVideoWidth();
       final int height = this.metadata.getVideoHeight();
-//      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
-//      VideoPipelineStep current = this.step;
-//      while (current != null) {
-//        current.process(image, this.metadata);
-//        current = current.next();
-//      }
-//      image.release();
-      System.gc();
+      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
+      VideoPipelineStep current = this.step;
+      while (current != null) {
+        current.process(image, this.metadata);
+        current = current.next();
+      }
+      image.release();
     }
   }
 }

@@ -20,6 +20,7 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.nio.file.Path;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
@@ -29,6 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 
 @SuppressWarnings("all") // checker
@@ -68,7 +70,7 @@ public final class SingleCombinedInputExample {
       .build();
 
     multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+    multiplexer.start(audioPipelineStep, videoPipelineStep, FileSource.path(Path.of("C://rickroll.mp4")));
 
     Runtime.getRuntime()
       .addShutdownHook(
