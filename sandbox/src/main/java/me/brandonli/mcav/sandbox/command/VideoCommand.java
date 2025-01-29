@@ -18,10 +18,6 @@
 package me.brandonli.mcav.sandbox.command;
 
 import com.mojang.brigadier.context.CommandContext;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.stream.Stream;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.UriSource;
@@ -30,6 +26,7 @@ import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.resourcepack.SoundExtractorUtils;
@@ -42,7 +39,14 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.stream.Stream;
+
 public final class VideoCommand implements AnnotationCommandFeature {
+
+  private static final String SOUND_KEY = "mcav.video.sound";
 
   private MCAV plugin;
   private BukkitAudiences audiences;
@@ -54,15 +58,16 @@ public final class VideoCommand implements AnnotationCommandFeature {
     this.audiences = provider.retrieve();
   }
 
-  @Command("mcav maps <videoResolution> <blockDimensions> <mapId> <mrl>")
-  @Permission("mcav.browser")
-  @CommandDescription("mcav.command.browser.info")
+  @Command("mcav maps <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
+  @Permission("mcav.maps")
+  @CommandDescription("mcav.command.maps.info")
   public void playMapsVideo(
-    final Player player,
-    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
-    @Quoted final String mrl
+          final Player player,
+          @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
+          @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+          @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
+          final DitheringArgument ditheringAlgorithm,
+          @Quoted final String mrl
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
@@ -81,11 +86,13 @@ public final class VideoCommand implements AnnotationCommandFeature {
         final Source source = SourceUtils.isPath(mrl) ? FileSource.path(Path.of(mrl)) : UriSource.uri(URI.create(mrl));
         final Path ogg = SoundExtractorUtils.extractOggAudio(source);
         final SimpleResourcePack pack = SimpleResourcePack.pack();
-        //        pack.sound();
+        pack.sound(SOUND_KEY, ogg);
       } catch (final IOException e) {
         throw new AssertionError(e);
       }
     }
+
+
   }
 
   @Suggestions("id")

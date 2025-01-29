@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
  * data according to a specific algorithm.
  */
 public interface PixelMapper {
-
   float MIN_STRENGTH = 0.0f;
   float NORMAL_STRENGTH = 1.0f;
   float MAX_STRENGTH = 2.0f;
@@ -39,23 +38,17 @@ public interface PixelMapper {
   float[][] getMatrix();
 
   /**
-   * Creates a new instance of a {@link PixelMapper} that processes the provided input matrix
-   * using an ordered dithering algorithm. The method calculates a matrix of precomputed float
-   * values derived from the input integer matrix, a maximum threshold value, and a strength
-   * factor.
+   * Creates a new instance of {@link PixelMapper} using the provided pixel mapping matrix,
+   * maximum value, and strength factor.
    *
-   * @param matrix   a two-dimensional array of integers representing the input matrix to be
-   *                 processed. Each element of the matrix contributes to the final computed
-   *                 float values based on the dithering algorithm.
-   * @param strength a floating-point factor that adjusts the scaling strength of the dithering
-   *                 algorithm. This affects the degree of pixel intensity modification.
-   * @return an instance of {@link PixelMapper} containing the processed float matrix derived
-   * from the input values, maximum threshold, and strength.
+   * @param matrix the two-dimensional integer array representing the pixel mapping matrix
+   * @param max the maximum value for the pixel mapping
+   * @param strength the strength factor for the pixel mapping
+   * @return a new instance of {@link PixelMapper}
    */
-  static PixelMapper ofPixelMapper(final int[][] matrix, final float strength) {
+  static PixelMapper ofPixelMapper(final int[][] matrix, final int max, final float strength) {
     Preconditions.checkNotNull(matrix, "Matrix cannot be null");
     Preconditions.checkArgument(matrix.length > 0, "Matrix must have at least one row");
-    final int max = matrix.length * matrix[0].length - 1;
     return new OrderedPixelMapper(matrix, max, strength);
   }
 }

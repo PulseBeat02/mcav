@@ -27,6 +27,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAV extends JavaPlugin {
 
+  /*
+
+  Things to implement into plugin
+  - Example showing VNC player
+  - Example showing video player (map, entities, chat, scoreboard)
+    - Must be able to use resource pack to sever audio, otherwise stream
+  - Discord Audio Support
+  - Add resource pack hosting + Netty injection
+
+   */
+
   private AudienceProvider audienceProvider;
 
   private MCAVApi mcav;

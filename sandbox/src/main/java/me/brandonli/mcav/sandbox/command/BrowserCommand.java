@@ -17,12 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import static java.util.Objects.requireNonNull;
-
 import com.mojang.brigadier.context.CommandContext;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
@@ -31,13 +26,12 @@ import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.media.video.DitherFilter;
 import me.brandonli.mcav.media.video.DitherResultStep;
 import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
-import me.brandonli.mcav.media.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
-import me.brandonli.mcav.media.video.dither.palette.Palette;
 import me.brandonli.mcav.media.video.result.MapResult;
 import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
@@ -48,6 +42,12 @@ import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.stream.Stream;
+
+import static java.util.Objects.requireNonNull;
 
 public final class BrowserCommand implements AnnotationCommandFeature {
 
@@ -64,11 +64,12 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   @Permission("mcav.browser")
   @CommandDescription("mcav.command.browser.info")
   public void playBrowser(
-    final Player player,
-    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
-    @Quoted final String url
+          final Player player,
+          @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+          @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+          @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
+          final DitheringArgument ditheringAlgorithm,
+          @Quoted final String url
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
@@ -111,10 +112,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final int blockHeight = dimensions.getSecond();
 
     final DitherResultStep result = MapResult.builder().map(mapId).mapBlockHeight(blockHeight).mapBlockWidth(blockWidth).build();
-    final DitherAlgorithm algorithm = DitherAlgorithm.errorDiffusion()
-      .withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)
-      .withPalette(Palette.DEFAULT)
-      .build();
+    final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);

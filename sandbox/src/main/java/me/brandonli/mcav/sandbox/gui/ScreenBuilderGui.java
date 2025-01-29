@@ -17,12 +17,6 @@
  */
 package me.brandonli.mcav.sandbox.gui;
 
-import static java.util.Objects.requireNonNull;
-import static net.kyori.adventure.text.Component.join;
-import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
-import static net.kyori.adventure.text.format.NamedTextColor.*;
-
 import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.components.GuiContainer;
 import dev.triumphteam.gui.components.InteractionModifier;
@@ -30,9 +24,6 @@ import dev.triumphteam.gui.components.InventoryProvider;
 import dev.triumphteam.gui.components.util.Legacy;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
-import java.io.IOException;
-import java.util.Map;
-import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.utils.JsonUtils;
 import me.brandonli.mcav.sandbox.utils.MapUtils;
 import me.brandonli.mcav.sandbox.utils.SkullUtils;
@@ -45,6 +36,15 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+
+import java.io.IOException;
+import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
+import static net.kyori.adventure.text.Component.join;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public final class ScreenBuilderGui extends Gui {
 
@@ -63,40 +63,40 @@ public final class ScreenBuilderGui extends Gui {
     }
   }
 
-  public static void init() {}
-
-  private final MCAV neon;
   private final Player viewer;
   private final MutableInt width;
   private final MutableInt height;
+  private final MutableInt id;
   private Material material;
 
-  public ScreenBuilderGui(final MCAV neon, final Player player) {
+  public ScreenBuilderGui(final Player player) {
     super(new GuiContainer.Chest(text(""), INVENTORY_PROVIDER, 5), InteractionModifier.VALUES);
-    this.neon = neon;
     this.material = Material.OAK_PLANKS;
     this.viewer = player;
     this.width = new MutableInt(5);
     this.height = new MutableInt(5);
+    this.id = new MutableInt(0);
     this.initialize();
     this.open(player);
   }
 
   // ____________________________
   // │__│__│__│__│__│__│__│__│__│
-  // │__│XX│__│XX│__│__│__│__│__│
+  // │__│XX│XX│XX│__│__│__│__│__│
   // │__│__│__│__│__│XX│__│XX│__│
-  // │__│XX│__│XX│__│__│__│__│__│
+  // │__│XX│XX│XX│__│__│__│__│__│
   // │__│__│__│__│__│__│__│__│__│
   // ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 
   private void initialize() {
-    this.setItem(3, 8, this.getBuildScreenItem());
     this.setItem(2, 2, this.getGuiItem(this.getIncreaseArrow("Block Width"), this.width, true));
     this.setItem(4, 2, this.getGuiItem(this.getDecreaseArrow("Block Width"), this.width, false));
-    this.setItem(2, 4, this.getGuiItem(this.getIncreaseArrow("Block Height"), this.height, true));
-    this.setItem(4, 4, this.getGuiItem(this.getDecreaseArrow("Block Height"), this.height, false));
+    this.setItem(2, 3, this.getGuiItem(this.getIncreaseArrow("Block Height"), this.height, true));
+    this.setItem(4, 3, this.getGuiItem(this.getDecreaseArrow("Block Height"), this.height, false));
+    this.setItem(2, 4, this.getGuiItem(this.getIncreaseArrow("Map ID"), this.id, true));
+    this.setItem(4, 4, this.getGuiItem(this.getDecreaseArrow("Map ID"), this.id, false));
     this.setItem(3, 6, this.getMaterialItem());
+    this.setItem(3, 8, this.getBuildScreenItem());
     this.update();
   }
 
@@ -163,10 +163,10 @@ public final class ScreenBuilderGui extends Gui {
   }
 
   private ItemStack getIncreaseArrow(final String data) {
-    return ItemBuilder.from(SkullUtils.getSkull(INCREASE_BASE64)).name(text("Increase %s by One".formatted(data), GREEN)).build();
+    return ItemBuilder.from(SkullUtils.getSkull(INCREASE_BASE64)).name(text("%s (+1)".formatted(data), GREEN)).build();
   }
 
   private ItemStack getDecreaseArrow(final String data) {
-    return ItemBuilder.from(SkullUtils.getSkull(DECREASE_BASE64)).name(text("Decrease %s by One".formatted(data), RED)).build();
+    return ItemBuilder.from(SkullUtils.getSkull(DECREASE_BASE64)).name(text("%s (-1)".formatted(data), RED)).build();
   }
 }
