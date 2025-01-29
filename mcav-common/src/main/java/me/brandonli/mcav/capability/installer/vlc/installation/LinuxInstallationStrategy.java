@@ -84,7 +84,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     final String rawFolder = folder.toString();
     this.runNativeProcess("chmod", "+x", rawAppImage);
     this.runNativeProcess(rawAppImage, "--appimage-extract");
-    this.runNativeProcess("rsync", "-a", "squashfs-root/", rawFolder);
+    this.runNativeProcess("cp", "-aLfr", "squashfs-root", rawFolder);
     this.runNativeProcess("rm", "-rf", "squashfs-root");
     Files.deleteIfExists(appImage);
 

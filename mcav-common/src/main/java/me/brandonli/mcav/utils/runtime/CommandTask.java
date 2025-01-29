@@ -79,14 +79,46 @@ public class CommandTask {
   private void readOutput(@UnderInitialization CommandTask this, final Process process) throws IOException {
     if (this.output == null && process != null) {
       final StringBuilder outputBuilder = new StringBuilder();
-      try (final BufferedReader reader = this.getBufferedReader(process)) {
+      final Thread stdoutThread = this.createStdOutReader(process, outputBuilder);
+      final Thread stderrThread = this.createStdErrReader(this.getStdErrBufferedReader(process), outputBuilder);
+      stdoutThread.start();
+      stderrThread.start();
+      try {
+        process.waitFor();
+        stdoutThread.join();
+        stderrThread.join();
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Process interrupted", e);
+      }
+      this.output = outputBuilder.toString();
+    }
+  }
+
+  private Thread createStdOutReader(final Process process, final StringBuilder outputBuilder) {
+    return new Thread(() -> {
+      try (final BufferedReader reader = this.getStdBufferedReader(process)) {
         String str;
         while ((str = reader.readLine()) != null) {
           outputBuilder.append(str).append(System.lineSeparator());
         }
+      } catch (final IOException e) {
+        throw new ProcessException(e.getMessage());
       }
-      this.output = outputBuilder.toString();
-    }
+    });
+  }
+
+  private Thread createStdErrReader(final BufferedReader process, final StringBuilder outputBuilder) {
+    return new Thread(() -> {
+      try (final BufferedReader reader = process) {
+        String str;
+        while ((str = reader.readLine()) != null) {
+          outputBuilder.append(str).append(System.lineSeparator());
+        }
+      } catch (final IOException e) {
+        throw new ProcessException(e.getMessage());
+      }
+    });
   }
 
   /**
@@ -102,7 +134,11 @@ public class CommandTask {
     return this.output != null ? this.output : "";
   }
 
-  private BufferedReader getBufferedReader(@UnderInitialization CommandTask this, final Process process) {
+  private BufferedReader getStdErrBufferedReader(@UnderInitialization CommandTask this, final Process process) {
+    return new BufferedReader(new InputStreamReader(process.getErrorStream()));
+  }
+
+  private BufferedReader getStdBufferedReader(@UnderInitialization CommandTask this, final Process process) {
     return new BufferedReader(new InputStreamReader(process.getInputStream()));
   }
 
