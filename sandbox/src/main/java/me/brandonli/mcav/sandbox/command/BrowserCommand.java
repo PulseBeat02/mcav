@@ -76,7 +76,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   }
 
   @Command("mcav browser create <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
-  @Permission("mcav.browser.create")
+  @Permission("mcav.command.browser.create")
   @CommandDescription("mcav.command.browser.create.info")
   public void playBrowser(
     final Player player,

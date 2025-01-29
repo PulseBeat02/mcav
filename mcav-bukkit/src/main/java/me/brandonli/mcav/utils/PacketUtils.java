@@ -20,10 +20,11 @@ package me.brandonli.mcav.utils;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.PacketEventsAPI;
 import com.github.retrooper.packetevents.manager.player.PlayerManager;
-import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import java.util.Collection;
 import java.util.UUID;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 /**
  * Utility class for sending packets to a collection of viewers in a Minecraft server context.
@@ -48,10 +49,12 @@ public final class PacketUtils {
     final PacketEventsAPI<?> api = PacketEvents.getAPI();
     final PlayerManager manager = api.getPlayerManager();
     for (final UUID viewer : viewers) {
-      final Object channel = manager.getChannel(viewer);
-      final User user = manager.getUser(channel);
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
       for (final PacketWrapper<?> packet : packets) {
-        manager.sendPacket(user, packet);
+        manager.sendPacket(player, packet);
       }
     }
   }

@@ -203,6 +203,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         this.processingTask.cancel(true);
       }
 
+      this.driver.close();
       this.driver.quit();
 
       ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);

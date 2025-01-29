@@ -36,7 +36,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
   }
 
   @Command("mcav screen")
-  @Permission("mcav.screen")
+  @Permission("mcav.command.screen")
   @CommandDescription("mcav.command.screen.info")
   public void showScreenBuilderGui(final Player player) {
     final ScreenBuilderGui gui = new ScreenBuilderGui(player);

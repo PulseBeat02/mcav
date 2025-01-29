@@ -101,7 +101,7 @@ tasks {
 
     runServer {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
-        minecraftVersion("1.21.5")
+        minecraftVersion("1.21.4")
     }
 }
 

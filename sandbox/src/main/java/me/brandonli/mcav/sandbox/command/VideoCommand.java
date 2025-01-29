@@ -22,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.primitives.Ints;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.UUID;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -47,8 +49,10 @@ import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
@@ -57,6 +61,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
 
   private static final String SOUND_KEY = "mcav.video.sound";
 
+  private @Nullable VideoPlayerMultiplexer videoPlayer;
   private MCAV plugin;
   private BukkitAudiences audiences;
 
@@ -67,8 +72,13 @@ public final class VideoCommand implements AnnotationCommandFeature {
     this.audiences = provider.retrieve();
   }
 
+  @Command("mcav release")
+  @Permission("mcav.command.release")
+  @CommandDescription("mcav.command.release.info")
+  public void releaseVideo(final Player player) {}
+
   @Command("mcav maps <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
-  @Permission("mcav.maps")
+  @Permission("mcav.command.maps")
   @CommandDescription("mcav.command.maps.info")
   public void playMapsVideo(
     final Player player,
@@ -90,7 +100,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    Source video = null;
+    final Source video;
     Source audio = null;
 
     final Integer deviceId = Ints.tryParse(mrl);
@@ -106,6 +116,8 @@ public final class VideoCommand implements AnnotationCommandFeature {
         final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
+      } else {
+        video = uri;
       }
     } else {
       audience.sendMessage(Message.MRL_ERROR.build());
@@ -113,12 +125,19 @@ public final class VideoCommand implements AnnotationCommandFeature {
     }
     requireNonNull(video);
 
+    if (this.videoPlayer != null) {
+      this.videoPlayer.release();
+      this.videoPlayer = null;
+    }
+
+    final Collection<UUID> players = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
     final MapConfiguration configuration = MapConfiguration.builder()
       .map(mapId)
       .mapBlockWidth(dimensions.getFirst())
       .mapBlockHeight(dimensions.getSecond())
       .mapWidthResolution(resolution.getFirst())
       .mapHeightResolution(resolution.getSecond())
+      .viewers(players)
       .build();
     final MapResult result = new MapResult(configuration);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;

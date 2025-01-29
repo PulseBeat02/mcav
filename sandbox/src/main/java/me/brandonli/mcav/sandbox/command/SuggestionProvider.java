@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import com.mojang.brigadier.context.CommandContext;
 import java.util.stream.Stream;
 import me.brandonli.mcav.sandbox.MCAV;
 import org.bukkit.command.CommandSender;
@@ -27,17 +26,17 @@ import org.incendo.cloud.annotations.suggestion.Suggestions;
 public final class SuggestionProvider implements AnnotationCommandFeature {
 
   @Suggestions("id")
-  public Stream<Integer> suggestId(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of(0, 5, 10, 100, 1000, 10000, 100000);
+  public Stream<String> suggestId() {
+    return Stream.of(0, 5, 10, 100, 1000, 10000, 100000).map(String::valueOf);
   }
 
   @Suggestions("dimensions")
-  public Stream<String> suggestDimensions(final CommandContext<CommandSender> ctx, final String input) {
+  public Stream<String> suggestDimensions() {
     return Stream.of("4x4", "5x5", "16x9", "32x18");
   }
 
   @Suggestions("resolutions")
-  public Stream<String> suggestResolutions(final CommandContext<CommandSender> ctx, final String input) {
+  public Stream<String> suggestResolutions() {
     return Stream.of("512x512", "640x640", "1280x720", "1920x1080");
   }
 
