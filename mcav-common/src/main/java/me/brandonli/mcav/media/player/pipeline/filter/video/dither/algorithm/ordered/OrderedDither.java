@@ -61,14 +61,13 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    * @param image the input image to be dithered, represented as a StaticImage object.
    *              The image's pixels are retrieved and processed for dithering based
    *              on the provided width and the precomputed dither matrix.
-   * @param width the width of the image in pixels. This is used to determine the
-   *              dimensions of the image and to correctly apply the dithering pattern row by row.
    * @return a byte array where each byte represents a color index from the palette corresponding
    * to a dithered pixel in the image.
    */
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final int[] buffer = image.getAllPixels();
+    final int width = image.getWidth();
     final int length = buffer.length;
     final int height = length / width;
     final ByteBuffer data = ByteBuffer.allocate(length);

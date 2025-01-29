@@ -155,15 +155,15 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
   }
 
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
+    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
     final int[][] dither_buffer = new int[3][(width + width) << 1];
     final ByteBuffer data = ByteBuffer.allocate(buffer.length);
-
     for (int y = 0; y < height; y++) {
       final boolean hasNextY = y < heightMinus;
       final int yIndex = y * width;

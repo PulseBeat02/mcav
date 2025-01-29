@@ -56,7 +56,7 @@ public class MapImage implements DisplayableImage {
   @Override
   public void displayImage(final StaticImage image) {
     this.release();
-    final byte[] rgb = this.algorithm.ditherIntoBytes(image, image.getWidth());
+    final byte[] rgb = this.algorithm.ditherIntoBytes(image);
     final int mapWidthResolution = this.mapConfiguration.getMapWidthResolution();
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
     final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();

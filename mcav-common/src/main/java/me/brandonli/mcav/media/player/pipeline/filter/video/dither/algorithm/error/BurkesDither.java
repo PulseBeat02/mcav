@@ -153,8 +153,9 @@ public final class BurkesDither extends ErrorDiffusionDither {
   }
 
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
+    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;

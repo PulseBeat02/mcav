@@ -40,12 +40,10 @@ public interface DitherAlgorithm {
    *
    * @param buffer the static image to be dithered, represented as a {@code StaticImage} object.
    *               This is the source data upon which the dithering operation is performed.
-   * @param width  the width of the {@code buffer} in pixels. It is assumed that the width
-   *               aligns with the actual structure of the image buffer.
    * @return a byte array containing the palette index for each pixel in the dithered image.
    * The size of this array corresponds to the total number of pixels in the image.
    */
-  byte[] ditherIntoBytes(final StaticImage buffer, final int width);
+  byte[] ditherIntoBytes(final StaticImage buffer);
 
   /**
    * Applies a dithering algorithm to the given pixel buffer. The dithering

@@ -69,12 +69,12 @@ public final class RandomDitherImpl extends AbstractDitherAlgorithm implements R
    * Applies a dithering algorithm to the given {@link StaticImage} and converts it to an array of bytes.
    *
    * @param image the input static image containing pixel data
-   * @param width the width of the image, used to calculate dimensions and pixel positions
    * @return a byte array representing the dithered image data
    */
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
+    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
     final int length = buffer.length;
     final int height = length / width;

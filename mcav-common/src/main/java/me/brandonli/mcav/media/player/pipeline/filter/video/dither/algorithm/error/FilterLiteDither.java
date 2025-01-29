@@ -266,7 +266,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
   }
 
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
     //    if (NATIVE_SUPPORTED) {
     //      final int[] colors = palette.getFullColorMap();
@@ -274,6 +274,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     //      final int[] buffer = image.getAllPixels();
     //      return this.ditherNatively(buffer, width, colors, mapColors);
     //    }
+    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
     final int length = buffer.length;
     final int height = length / width;

@@ -72,13 +72,13 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
    * color for each pixel based on its RGB components and the provided palette.
    *
    * @param image the {@link StaticImage} instance containing the pixel data to be processed
-   * @param width the width of the image in pixels
    * @return a byte array representing the dithered image, where each byte corresponds
    * to the closest matching color in the palette
    */
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image, final int width) {
+  public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
+    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
     final int length = buffer.length;
     final int height = length / width;
