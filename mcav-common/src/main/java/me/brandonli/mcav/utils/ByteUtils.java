@@ -59,6 +59,34 @@ public final class ByteUtils {
   }
 
   /**
+   * Ensures the provided ByteBuffer is in little-endian format for HTTP reads. If the system's native
+   * byte order is big-endian, the method converts the actual bytes to match little-endian order.
+   * This is useful for network or I/O operations requiring little-endian formatting.
+   *
+   * @param nativeBuffer the ByteBuffer to be converted to little-endian format for HTTP reads
+   * @return a ByteBuffer containing data in little-endian format or the original buffer if no
+   * conversion was required
+   */
+  public static ByteBuffer clampNormalBufferToLittleEndianHttpReads(final ByteBuffer nativeBuffer) {
+    if (nativeBuffer.order() == ByteOrder.BIG_ENDIAN) {
+      final ByteBuffer duplicate = nativeBuffer.duplicate();
+      final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
+      result.order(ByteOrder.BIG_ENDIAN);
+      while (duplicate.remaining() >= 2) {
+        final short value = duplicate.getShort();
+        final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
+        result.putShort(swapped);
+      }
+      if (duplicate.remaining() > 0) {
+        result.put(duplicate.get());
+      }
+      result.flip();
+      return result;
+    }
+    return nativeBuffer.order(ByteOrder.BIG_ENDIAN);
+  }
+
+  /**
    * Ensures the provided ByteBuffer is in little-endian format. If the system's native byte order
    * is big-endian, the method converts the actual bytes to little-endian order.
    *
@@ -94,41 +122,53 @@ public final class ByteUtils {
    * @param targetSampleRate the desired target sample rate in hertz (Hz)
    * @return a new ByteBuffer containing the resampled audio data, or the original ByteBuffer if no resampling was necessary
    */
-  public static ByteBuffer resampleBufferLinearly(final ByteBuffer samples, final float sampleRate, final float targetSampleRate) {
+  public static ByteBuffer resampleBufferCubic(final ByteBuffer samples, final float sampleRate, final float targetSampleRate) {
     final ByteBuffer duplicate = samples.duplicate();
-    if (Math.abs(sampleRate - targetSampleRate) > 1) {
-      try {
-        final float ratio = targetSampleRate / sampleRate;
-        final short[] inputSamples = new short[duplicate.remaining() / 2];
-        for (int i = 0; i < inputSamples.length; i++) {
-          inputSamples[i] = duplicate.getShort();
-        }
-        final int outputLength = (int) Math.ceil(inputSamples.length * ratio);
-        final short[] outputSamples = new short[outputLength];
-        for (int i = 0; i < outputLength; i++) {
-          final float srcPos = i / ratio;
-          final int srcIndex = (int) srcPos;
-          if (srcIndex >= inputSamples.length - 1) {
-            outputSamples[i] = inputSamples[inputSamples.length - 1];
-          } else {
-            final float fraction = srcPos - srcIndex;
-            final short sample1 = inputSamples[srcIndex];
-            final short sample2 = inputSamples[srcIndex + 1];
-            outputSamples[i] = (short) (sample1 + fraction * (sample2 - sample1));
-          }
-        }
-        final ByteBuffer resampledBuffer = ByteBuffer.allocate(outputSamples.length * 2);
-        resampledBuffer.order(duplicate.order());
-        for (final short sample : outputSamples) {
-          resampledBuffer.putShort(sample);
-        }
-        resampledBuffer.flip();
-        return resampledBuffer;
-      } catch (final Exception e) {
-        System.err.println("Audio resampling failed: " + e.getMessage());
-        return samples.duplicate();
-      }
+    if (Math.abs(sampleRate - targetSampleRate) <= 1) {
+      return duplicate;
     }
-    return duplicate;
+
+    try {
+      final float ratio = targetSampleRate / sampleRate;
+      final short[] inputSamples = new short[duplicate.remaining() / 2];
+      for (int i = 0; i < inputSamples.length; i++) {
+        inputSamples[i] = duplicate.getShort();
+      }
+
+      final int outputLength = (int) Math.ceil(inputSamples.length * ratio);
+      final short[] outputSamples = new short[outputLength];
+
+      for (int i = 0; i < outputLength; i++) {
+        final float srcPos = i / ratio;
+        final int index = (int) srcPos;
+        final float fract = srcPos - index;
+
+        // Get sample points for cubic interpolation
+        final short y0 = (index > 0) ? inputSamples[index - 1] : inputSamples[0];
+        final short y1 = inputSamples[index];
+        final short y2 = (index < inputSamples.length - 1) ? inputSamples[index + 1] : y1;
+        final short y3 = (index < inputSamples.length - 2) ? inputSamples[index + 2] : y2;
+
+        // Cubic interpolation formula
+        final float a0 = y3 - y2 - y0 + y1;
+        final float a1 = y0 - y1 - a0;
+        final float a2 = y2 - y0;
+        final float a3 = y1;
+
+        final float value = a0 * fract * fract * fract + a1 * fract * fract + a2 * fract + a3;
+        outputSamples[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, Math.round(value)));
+      }
+
+      final ByteBuffer resampledBuffer = ByteBuffer.allocate(outputSamples.length * 2);
+      resampledBuffer.order(duplicate.order());
+      for (final short sample : outputSamples) {
+        resampledBuffer.putShort(sample);
+      }
+      resampledBuffer.flip();
+      return resampledBuffer;
+    } catch (final Exception e) {
+      System.err.println("Audio resampling failed: " + e.getMessage());
+      return samples.duplicate();
+    }
   }
 }

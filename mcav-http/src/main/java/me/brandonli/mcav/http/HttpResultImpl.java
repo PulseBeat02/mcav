@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.utils.ByteUtils;
 import me.brandonli.mcav.utils.IOUtils;
 
 public class HttpResultImpl implements HttpResult {
@@ -59,7 +60,6 @@ public class HttpResultImpl implements HttpResult {
     this.wsClients = new CopyOnWriteArrayList<>();
     this.port = port;
     this.html = html.replace("%%PORT%%", String.valueOf(port));
-    System.out.println(this.html);
   }
 
   /**
@@ -84,20 +84,19 @@ public class HttpResultImpl implements HttpResult {
     if (samples == null || metadata == null) {
       return;
     }
-    final int position = samples.position();
-    final ByteBuffer copy = ByteBuffer.allocate(samples.remaining());
-    copy.put(samples);
+    final ByteBuffer clamped = ByteUtils.clampNormalBufferToLittleEndianHttpReads(samples);
+    final int position = clamped.position();
+    final ByteBuffer copy = ByteBuffer.allocate(clamped.remaining());
+    copy.put(clamped);
     copy.flip();
-    samples.position(position);
+    clamped.position(position);
     this.streamPCMToClients(copy);
   }
 
   private void streamPCMToClients(final ByteBuffer samples) {
-    final byte[] data = new byte[samples.remaining()];
-    samples.get(data);
     for (final WsContext client : this.wsClients) {
       try {
-        client.send(ByteBuffer.wrap(data));
+        client.send(samples);
       } catch (final Exception e) {
         this.wsClients.remove(client);
       }

@@ -65,7 +65,9 @@ public final class MultiplexerInputExample {
 
     BufferedImage bufferedImage;
     ImageIcon icon;
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of((samples, metadata) -> {
+      System.out.println(samples);
+    });
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(VideoFilter.FRAME_RATE)
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))

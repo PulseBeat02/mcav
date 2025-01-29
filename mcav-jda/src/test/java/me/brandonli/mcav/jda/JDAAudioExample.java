@@ -42,7 +42,7 @@ public final class JDAAudioExample {
 
     // "MTM3MjczNDQyNDQwMzE0ODk3MA.Gv7sgZ.3t5njZYT97wAFvM6dHSKjaEh6VZ9IfJRu4jg_0"
 
-    final JDA jda = JDABuilder.createDefault("MTM3MjczNDQyNDQwMzE0ODk3MA.GPpQHo.h_0M3p5vjNF-_C-HYR28XM4198XPNjb4eQRVus").build();
+    final JDA jda = JDABuilder.createDefault("MTM3MjczNDQyNDQwMzE0ODk3MA.Gywon0.8YE4dZkQAq7AFEjKUSitxSSB39hAe_xcf6qN-M").build();
     jda.awaitReady();
 
     final Guild guild = requireNonNull(jda.getGuildById("1372733795769520271"));
@@ -57,7 +57,7 @@ public final class JDAAudioExample {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
     audioManager.setSendingHandler(player);
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
     multiplexer.start(audioPipelineStep, videoPipelineStep, source);
 
     Runtime.getRuntime()

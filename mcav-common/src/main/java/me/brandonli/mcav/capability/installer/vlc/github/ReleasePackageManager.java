@@ -30,13 +30,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import me.brandonli.mcav.capability.installer.Download;
-import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.Platform;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class ReleasePackageManager {
 
@@ -69,6 +69,9 @@ public final class ReleasePackageManager {
   private static Download[] getDownloads() {
     final ReleasePackage releasePackage = download(true);
     final ReleasePackage other = download(false);
+    if (releasePackage == null || other == null) {
+      return new Download[0];
+    }
     final Download linux64 = new Download(
       Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64),
       releasePackage.getUrl(),
@@ -78,8 +81,11 @@ public final class ReleasePackageManager {
     return new Download[] { linux64, linux32 };
   }
 
-  private static ReleasePackage download(final boolean continuous) {
+  private static @Nullable ReleasePackage download(final boolean continuous) {
     final JsonArray assets = getJsonAssets(continuous);
+    if (assets == null) {
+      return null;
+    }
     String downloadUrl = "";
     final int size = assets.size();
     for (int i = 0; i < size; i++) {
@@ -94,7 +100,7 @@ public final class ReleasePackageManager {
     }
 
     if (downloadUrl.isEmpty()) {
-      throw new UnsupportedOperatingSystemException("No AppImage found in the release assets.");
+      return null;
     }
 
     final String hash = IOUtils.getSHA256Hash(downloadUrl);

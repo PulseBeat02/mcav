@@ -67,6 +67,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadManager() {
     this.audioProvider = new AudioProvider(this);
+    this.audioProvider.initialize();
     this.videoPlayerManager = new VideoPlayerManager(this);
   }
 

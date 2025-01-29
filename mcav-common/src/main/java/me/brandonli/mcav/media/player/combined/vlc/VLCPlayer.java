@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.combined.vlc;
 
 import com.sun.jna.Pointer;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -34,7 +35,9 @@ import me.brandonli.mcav.utils.os.OSUtils;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.media.MediaSlavePriority;
 import uk.co.caprica.vlcj.media.MediaSlaveType;
+import uk.co.caprica.vlcj.media.SlaveApi;
 import uk.co.caprica.vlcj.player.base.*;
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
@@ -114,7 +117,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final MediaApi mediaApi = this.player.media();
     final String audioResource = audio.getResource();
     final String videoResource = video.getResource();
-    mediaApi.addSlave(MediaSlaveType.AUDIO, audioResource, true);
 
     this.video = video;
     this.audio = audio;
@@ -125,6 +127,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     } else {
       mediaApi.play(videoResource);
     }
+
+    final URI audioUri = URI.create(audioResource);
+    final String result = audioUri.toString();
+    final SlaveApi slaveApi = mediaApi.slaves();
+    slaveApi.add(MediaSlaveType.AUDIO, MediaSlavePriority.HIGHEST, result);
 
     return true;
   }

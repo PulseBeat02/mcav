@@ -279,7 +279,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         final ByteBuffer buffer = frame.data;
         AudioPipelineStep next = this.audioPipeline;
         final AudioMetadata audioMetadata = (AudioMetadata) frame.metadata;
-        final ByteBuffer samples = ByteUtils.resampleBufferLinearly(buffer, audioMetadata.getAudioSampleRate(), 48000);
+        final ByteBuffer samples = ByteUtils.resampleBufferCubic(buffer, audioMetadata.getAudioSampleRate(), 48000);
         while (next != null) {
           next.process(samples, audioMetadata);
           next = next.next();
@@ -350,8 +350,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
       final FrameGrabber finalGrabber = requireNonNull(this.video);
       finalGrabber.setPixelFormat(AV_PIX_FMT_BGR24);
-      finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
+
       finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
+      finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
       finalGrabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
 
       if (combined instanceof FFmpegDirectSource) {

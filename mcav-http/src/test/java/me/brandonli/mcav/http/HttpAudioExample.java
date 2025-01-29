@@ -17,30 +17,40 @@
  */
 package me.brandonli.mcav.http;
 
-import java.nio.file.Path;
+import java.io.IOException;
+import java.net.URI;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.json.ytdlp.YTDLPParser;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
+import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
+import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.player.combined.VideoPlayer;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.FileSource;
-import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.media.source.UriSource;
 
 public final class HttpAudioExample {
 
-  public static void main(final String[] args) {
+  public static void main(final String[] args) throws IOException {
     final MCAVApi api = MCAV.api();
     api.install();
 
     final HttpResult result = HttpResult.port(3000);
-    final Source source = FileSource.path(Path.of("C:\\rickroll.mp4"));
+    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+    final YTDLPParser parser = YTDLPParser.simple();
+    final URLParseDump dump = parser.parse(source);
+    final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
+    final UriSource videoFormat = selector.getVideoSource(dump).toUriSource();
+    final UriSource audioFormat = selector.getAudioSource(dump).toUriSource();
+
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(result);
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
     result.start();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+    multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
 
     Runtime.getRuntime()
       .addShutdownHook(

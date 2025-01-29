@@ -97,7 +97,7 @@ public final class PluginDataConfigurationMapper {
     if (Files.notExists(configPath)) {
       this.plugin.saveResource("config.yml", false);
     }
-    try (final Reader reader = IOUtils.getResourceAsStreamReader("config.yml")) {
+    try (final Reader reader = Files.newBufferedReader(configPath)) {
       return YamlConfiguration.loadConfiguration(reader);
     } catch (final IOException e) {
       throw new AssertionError(e);
