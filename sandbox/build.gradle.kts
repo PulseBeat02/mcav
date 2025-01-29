@@ -25,9 +25,9 @@ dependencies {
     compileOnly("dev.triumphteam:triumph-gui:3.1.12")
     compileOnly("net.kyori:adventure-api:4.21.0")
     compileOnly("net.kyori:adventure-platform-bukkit:4.3.4")
-    compileOnly("net.kyori:adventure-text-minimessage:4.20.0")
-    compileOnly("net.kyori:adventure-text-serializer-legacy:4.20.0")
-    compileOnly("net.kyori:adventure-text-serializer-plain:4.20.0")
+    compileOnly("net.kyori:adventure-text-minimessage:4.21.0")
+    compileOnly("net.kyori:adventure-text-serializer-legacy:4.21.0")
+    compileOnly("net.kyori:adventure-text-serializer-plain:4.21.0")
     compileOnly("io.github.classgraph:classgraph:4.8.179")
 }
 
