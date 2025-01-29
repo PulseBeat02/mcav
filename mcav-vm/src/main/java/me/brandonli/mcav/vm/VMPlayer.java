@@ -23,6 +23,7 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * The VMPlayer interface defines the contract for a virtual machine-based
@@ -61,41 +62,11 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
     return this.startAsync(step, settings, architecture, arguments, ForkJoinPool.commonPool());
   }
 
-  /**
-   * Moves the mouse pointer to the specified coordinates within the VNC session.
-   *
-   * @param x the x-coordinate to move the mouse to, in pixels
-   * @param y the y-coordinate to move the mouse to, in pixels
-   */
   void moveMouse(final int x, final int y);
 
-  /**
-   * Simulates typing the provided text into the VNC session by sending corresponding keyboard input events.
-   *
-   * @param text the string of characters to be sent as keyboard events within the VNC session;
-   *             cannot be null or empty. Each character in the string is processed individually.
-   */
-  void type(final String text);
+  void sendKeyEvent(final String text);
 
-  /**
-   * Updates the state of a mouse button in the VNC player session.
-   * This method simulates mouse button press or release actions
-   * and sends the corresponding event to the VNC session.
-   *
-   * @param type    the mouse button type, where 0 typically represents the left button,
-   *                1 represents the middle button, and 2 represents the right button.
-   * @param pressed a boolean value representing the button state; true for pressed,
-   *                and false for released.
-   */
-  void updateMouseButton(final int type, final boolean pressed);
-
-  /**
-   * Updates the state of a keyboard button in the VNC session.
-   *
-   * @param keyCode the code of the keyboard key to update
-   * @param pressed {@code true} if the key is to be pressed, {@code false} if it is to be released
-   */
-  void updateKeyButton(final int keyCode, final boolean pressed);
+  void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**
    * Represents supported architectures for virtualization and emulation.

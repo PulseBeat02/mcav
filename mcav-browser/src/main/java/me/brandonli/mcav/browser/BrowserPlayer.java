@@ -23,6 +23,7 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * Interface representing a browser-based player that supports interaction with browser elements,
@@ -32,24 +33,8 @@ import me.brandonli.mcav.media.source.BrowserSource;
 public interface BrowserPlayer extends ReleasablePlayer {
   String[] DEFAULT_CHROME_ARGUMENTS = { "--headless", "--disable-gpu", "--disable-software-rasterizer" };
 
-  /**
-   * Starts the browser player with the provided video pipeline step and browser source.
-   *
-   * @param videoPipeline the video processing pipeline to be applied to the browser's video output.
-   * @param combined      the browser source that contains the video metadata and URI information.
-   * @return true if the browser player starts successfully, false otherwise.
-   */
   boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined);
 
-  /**
-   * Starts the browser player asynchronously with the provided video pipeline step,
-   * browser source, and an executor service for handling the asynchronous task.
-   *
-   * @param videoPipeline the video processing pipeline to be applied to the browser's video output
-   * @param combined      the browser source that contains the video metadata and URI information
-   * @param service       the executor service to be used for running the asynchronous task
-   * @return a CompletableFuture that resolves to true if the browser player starts successfully, false otherwise
-   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep videoPipeline,
     final BrowserSource combined,
@@ -58,36 +43,14 @@ public interface BrowserPlayer extends ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
   }
 
-  /**
-   * Starts the browser player asynchronously using the provided video pipeline step
-   * and browser source. The method runs with a default asynchronous execution
-   * using the common fork/join pool.
-   *
-   * @param videoPipeline the video processing pipeline to be applied to the browser's video output
-   * @param combined      the browser source containing the video metadata and URI information
-   * @return a CompletableFuture that resolves to true if the browser player starts successfully,
-   * or false otherwise
-   */
   default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
     return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
   }
 
-  /**
-   * Sends a mouse event at the specified coordinates with the specified mouse click type.
-   *
-   * @param x    the x-coordinate where the mouse event should occur
-   * @param y    the y-coordinate where the mouse event should occur
-   * @param type the type of mouse click to be performed, represented by the {@link MouseClick} enum
-   */
-  void sendMouseEvent(final int x, final int y, final MouseClick type);
+  void moveMouse(final int x, final int y);
 
-  /**
-   * Sends a key event by simulating the entry of the specified text.
-   *
-   * @param text the text to be sent as a key event. This parameter represents
-   *             the string of characters or input sequence that the method simulates
-   *             being typed.
-   */
+  void sendMouseEvent(final MouseClick type, final int x, final int y);
+
   void sendKeyEvent(final String text);
 
   /**

@@ -24,6 +24,7 @@ import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * The {@code VNCPlayer} interface defines a media player for handling VNC (Virtual Network Computing) streams.
@@ -90,57 +91,11 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
   }
 
-  /**
-   * Moves the mouse pointer to the specified coordinates within the VNC session.
-   *
-   * @param x the x-coordinate to move the mouse to, in pixels
-   * @param y the y-coordinate to move the mouse to, in pixels
-   */
   void moveMouse(final int x, final int y);
 
-  /**
-   * Simulates a mouse click at the specified coordinates within the VNC session.
-   * This method moves the mouse to the given position and performs a press-and-release
-   * action for the specified mouse button type.
-   *
-   * @param x    the x-coordinate to click at, in pixels
-   * @param y    the y-coordinate to click at, in pixels
-   * @param type the mouse button type to click, where 0 typically represents the left button,
-   *             1 represents the middle button, and 2 represents the right button
-   */
-  default void click(final int x, final int y, final int type) {
-    this.moveMouse(x, y);
-    this.updateMouseButton(type, true);
-    this.updateMouseButton(type, false);
-  }
+  void sendKeyEvent(final String text);
 
-  /**
-   * Simulates typing the provided text into the VNC session by sending corresponding keyboard input events.
-   *
-   * @param text the string of characters to be sent as keyboard events within the VNC session;
-   *             cannot be null or empty. Each character in the string is processed individually.
-   */
-  void type(final String text);
-
-  /**
-   * Updates the state of a mouse button in the VNC player session.
-   * This method simulates mouse button press or release actions
-   * and sends the corresponding event to the VNC session.
-   *
-   * @param type    the mouse button type, where 0 typically represents the left button,
-   *                1 represents the middle button, and 2 represents the right button.
-   * @param pressed a boolean value representing the button state; true for pressed,
-   *                and false for released.
-   */
-  void updateMouseButton(final int type, final boolean pressed);
-
-  /**
-   * Updates the state of a keyboard button in the VNC session.
-   *
-   * @param keyCode the code of the keyboard key to update
-   * @param pressed {@code true} if the key is to be pressed, {@code false} if it is to be released
-   */
-  void updateKeyButton(final int keyCode, final boolean pressed);
+  void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**
    * Returns an instance of the {@link VNCPlayer} interface.

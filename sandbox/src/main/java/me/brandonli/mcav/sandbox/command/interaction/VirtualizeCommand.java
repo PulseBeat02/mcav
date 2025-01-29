@@ -33,6 +33,7 @@ import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
 import me.brandonli.mcav.vm.VMConfiguration;
 import me.brandonli.mcav.vm.VMPlayer;
@@ -65,21 +66,17 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   @Override
   protected void handleLeftClick(final VMPlayer player, final int x, final int y) {
-    player.moveMouse(x, y);
-    player.updateMouseButton(1, true);
-    player.updateMouseButton(1, false);
+    player.sendMouseEvent(MouseClick.LEFT, x, y);
   }
 
   @Override
   protected void handleRightClick(final VMPlayer player, final int x, final int y) {
-    player.moveMouse(x, y);
-    player.updateMouseButton(3, true);
-    player.updateMouseButton(3, false);
+    player.sendMouseEvent(MouseClick.RIGHT, x, y);
   }
 
   @Override
   protected void handleTextInput(final VMPlayer player, final String text) {
-    player.type(text);
+    player.sendKeyEvent(text);
   }
 
   @Override

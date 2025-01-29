@@ -15,9 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.browser.utils;
-
-import org.openqa.selenium.Keys;
+package me.brandonli.mcav.utils.interaction;
 
 public final class KeyUtils {
 
@@ -27,7 +25,7 @@ public final class KeyUtils {
 
   public static String replaceKeysWithKeyCodes(final String input) {
     String output = input;
-    for (final Keys key : Keys.values()) {
+    for (final KeyCode key : KeyCode.values()) {
       final String keyName = key.name();
       final String keyCode = String.valueOf(key.charAt(0));
       int idx = 0;
@@ -47,7 +45,7 @@ public final class KeyUtils {
       }
       output = result.toString();
     }
-    for (final Keys key : Keys.values()) {
+    for (final KeyCode key : KeyCode.values()) {
       final String escaped = "\\" + key.name();
       output = output.replace(escaped, key.name());
     }

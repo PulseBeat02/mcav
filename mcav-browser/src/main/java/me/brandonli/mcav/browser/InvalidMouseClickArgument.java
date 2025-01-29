@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import me.brandonli.mcav.utils.interaction.MouseClick;
+
 /**
  * Exception thrown to indicate that an invalid argument was provided for a mouse click operation.
  * This exception is a specific subclass of {@link IllegalArgumentException}, indicating that the

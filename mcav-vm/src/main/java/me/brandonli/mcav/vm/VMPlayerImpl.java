@@ -27,6 +27,7 @@ import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.UncheckedIOException;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.natives.NativeUtils;
 import me.brandonli.mcav.vnc.VNCPlayer;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -159,9 +160,9 @@ public class VMPlayerImpl implements VMPlayer {
    * {@inheritDoc}
    */
   @Override
-  public void updateMouseButton(final int button, final boolean pressed) {
+  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     if (this.vncPlayer != null) {
-      this.vncPlayer.updateMouseButton(button, pressed);
+      this.vncPlayer.sendMouseEvent(type, x, y);
     }
   }
 
@@ -169,19 +170,9 @@ public class VMPlayerImpl implements VMPlayer {
    * {@inheritDoc}
    */
   @Override
-  public void updateKeyButton(final int keyCode, final boolean pressed) {
+  public void sendKeyEvent(final String text) {
     if (this.vncPlayer != null) {
-      this.vncPlayer.updateKeyButton(keyCode, pressed);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void type(final String text) {
-    if (this.vncPlayer != null) {
-      this.vncPlayer.type(text);
+      this.vncPlayer.sendKeyEvent(text);
     }
   }
 

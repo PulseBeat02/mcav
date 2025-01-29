@@ -85,8 +85,10 @@ subprojects {
             }
         }
 
-        afterEvaluate {
-            tasks.findByName("spotlessInternalRegisterDependencies")?.dependsOn("nodeSetup", "npmSetup")
+        whenTaskAdded {
+            if (name == "spotlessInternalRegisterDependencies") {
+                dependsOn("nodeSetup", "npmSetup")
+            }
         }
 
         checkerFramework {

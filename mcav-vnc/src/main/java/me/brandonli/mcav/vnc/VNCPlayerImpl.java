@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vnc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
@@ -32,6 +34,7 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -218,29 +221,35 @@ public class VNCPlayerImpl implements VNCPlayer {
    * {@inheritDoc}
    */
   @Override
-  public void type(final String text) {
+  public void sendKeyEvent(final String text) {
     if (this.vncClient != null) {
       this.vncClient.type(text);
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public void updateMouseButton(final int type, final boolean pressed) {
+  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     if (this.vncClient != null) {
-      this.vncClient.updateMouseButton(type, pressed);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void updateKeyButton(final int keyCode, final boolean pressed) {
-    if (this.vncClient != null) {
-      this.vncClient.updateKey(keyCode, pressed);
+      final VernacularClient client = requireNonNull(this.vncClient);
+      this.moveMouse(x, y);
+      switch (type) {
+        case LEFT:
+          client.click(1);
+          break;
+        case RIGHT:
+          client.click(2);
+          break;
+        case DOUBLE:
+          client.click(1);
+          client.click(1);
+          break;
+        case HOLD:
+          client.updateMouseButton(1, true);
+          break;
+        case RELEASE:
+          client.updateMouseButton(1, false);
+          break;
+      }
     }
   }
 }

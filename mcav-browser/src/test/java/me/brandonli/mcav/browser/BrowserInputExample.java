@@ -30,6 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
 @SuppressWarnings("all")
 public final class BrowserInputExample {
@@ -71,7 +72,7 @@ public final class BrowserInputExample {
           int x = e.getX();
           int y = e.getY();
           System.out.println("Mouse clicked at: " + x + ", " + y);
-          browser.sendMouseEvent(x, y, MouseClick.LEFT);
+          browser.sendMouseEvent(MouseClick.LEFT, x, y);
         }
       }
     );

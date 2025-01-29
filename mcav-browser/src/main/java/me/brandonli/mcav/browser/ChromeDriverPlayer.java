@@ -23,15 +23,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import me.brandonli.mcav.browser.utils.KeyUtils;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -179,11 +178,25 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     }
   }
 
+  @Override
+  public void moveMouse(final int x, final int y) {
+    if (!this.running.get()) {
+      return;
+    }
+    final int[] translated = this.translateCoordinates(x, y);
+    final int newX = translated[0];
+    final int newY = translated[1];
+    final Actions actions = new Actions(this.driver);
+    final Actions move = actions.moveToLocation(newX, newY);
+    final Action action = move.build();
+    CompletableFuture.runAsync(action::perform, this.actionExecutor);
+  }
+
   /**
    * {@inheritDoc}
    */
   @Override
-  public void sendMouseEvent(final int x, final int y, final MouseClick type) {
+  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     if (!this.running.get()) {
       return;
     }
@@ -194,7 +207,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Actions move = actions.moveToLocation(newX, newY);
     final Actions modified = this.getAction(type, move);
     final Action action = modified.build();
-    CompletableFuture.runAsync(action::perform, this.actionExecutor).completeOnTimeout(null, 1, TimeUnit.SECONDS);
+    CompletableFuture.runAsync(action::perform, this.actionExecutor);
   }
 
   private int[] translateCoordinates(final int x, final int y) {
@@ -219,11 +232,10 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     if (!this.running.get()) {
       return;
     }
-    final String replaced = KeyUtils.replaceKeysWithKeyCodes(text);
     final Actions actions = new Actions(this.driver);
-    final Actions move = actions.sendKeys(replaced);
+    final Actions move = actions.sendKeys(text);
     final Action action = move.build();
-    CompletableFuture.runAsync(action::perform, this.actionExecutor).completeOnTimeout(null, 1, TimeUnit.SECONDS);
+    CompletableFuture.runAsync(action::perform, this.actionExecutor);
   }
 
   private Actions getAction(final MouseClick type, final Actions move) {

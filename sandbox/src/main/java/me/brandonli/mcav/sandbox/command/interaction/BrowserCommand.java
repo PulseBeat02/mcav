@@ -24,7 +24,6 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.browser.BrowserPlayer;
-import me.brandonli.mcav.browser.MouseClick;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -36,6 +35,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.annotation.specifier.Greedy;
@@ -51,12 +51,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   @Override
   protected void handleLeftClick(final BrowserPlayer player, final int x, final int y) {
-    player.sendMouseEvent(x, y, MouseClick.LEFT);
+    player.sendMouseEvent(MouseClick.LEFT, x, y);
   }
 
   @Override
   protected void handleRightClick(final BrowserPlayer player, final int x, final int y) {
-    player.sendMouseEvent(x, y, MouseClick.RIGHT);
+    player.sendMouseEvent(MouseClick.RIGHT, x, y);
   }
 
   @Override
