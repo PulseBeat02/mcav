@@ -22,6 +22,7 @@ import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.craftbukkit.util.CraftChatMessage;
 import org.bukkit.entity.Player;
 
@@ -38,6 +39,24 @@ public final class ChatUtils {
 
   private ChatUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Generates a unique colored string based on the hexadecimal representation of the given index.
+   * Each character in the hexadecimal string is mapped to a corresponding color using Minecraft color codes.
+   *
+   * @param index an integer value whose hexadecimal representation will be used to generate the string
+   * @return a string containing Minecraft-style color codes corresponding to each character in the hexadecimal representation of the index
+   */
+  public static String getUniqueString(final int index) {
+    final StringBuilder entry = new StringBuilder();
+    final String hex = Integer.toHexString(index);
+    for (final char c : hex.toCharArray()) {
+      @SuppressWarnings("deprecation")
+      final ChatColor color = ChatColor.getByChar(c);
+      entry.append(color);
+    }
+    return entry.toString();
   }
 
   /**

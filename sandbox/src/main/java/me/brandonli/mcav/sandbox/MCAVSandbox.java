@@ -165,6 +165,10 @@ public final class MCAVSandbox extends JavaPlugin {
     }
   }
 
+  public MCAVApi getMCAV() {
+    return this.mcav;
+  }
+
   public PluginDataConfigurationMapper getConfiguration() {
     return this.configurationMapper;
   }

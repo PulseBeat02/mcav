@@ -97,6 +97,11 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
       return;
     }
 
+    if (playerType == PlayerArgument.VLC && !this.manager.isVLCSupported()) {
+      audience.sendMessage(Message.VIDEO_PLAYER_UNSUPPORTED.build());
+      return;
+    }
+
     if (initializing.get()) {
       audience.sendMessage(Message.VIDEO_LOADING_ERROR.build());
       return;

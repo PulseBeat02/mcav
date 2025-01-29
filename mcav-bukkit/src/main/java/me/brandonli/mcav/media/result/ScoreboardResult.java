@@ -27,7 +27,6 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -85,7 +84,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
       final UUID random = UUID.randomUUID();
       final String name = random.toString();
       final Team team = scoreboard.registerNewTeam(name);
-      final String value = this.getUniqueString(i);
+      final String value = ChatUtils.getUniqueString(i);
       team.addEntry(value);
       final Score score = objective.getScore(value);
       score.setScore(lines - i - 1);
@@ -98,17 +97,6 @@ public class ScoreboardResult implements FunctionalVideoFilter {
       }
       player.setScoreboard(scoreboard);
     }
-  }
-
-  private String getUniqueString(final int index) {
-    final StringBuilder entry = new StringBuilder();
-    final String hex = Integer.toHexString(index);
-    for (final char c : hex.toCharArray()) {
-      @SuppressWarnings("deprecation")
-      final ChatColor color = ChatColor.getByChar(c);
-      entry.append(color);
-    }
-    return entry.toString();
   }
 
   /**

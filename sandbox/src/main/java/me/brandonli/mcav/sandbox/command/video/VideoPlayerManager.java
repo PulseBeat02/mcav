@@ -20,6 +20,8 @@ package me.brandonli.mcav.sandbox.command.video;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -33,6 +35,7 @@ public final class VideoPlayerManager {
   private @Nullable VideoPlayerMultiplexer player;
   private @Nullable FunctionalVideoFilter filter;
 
+  private final MCAVApi api;
   private final AtomicBoolean status;
   private final ExecutorService service;
   private final BukkitAudiences audiences;
@@ -42,10 +45,15 @@ public final class VideoPlayerManager {
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.audiences = provider.retrieve();
+    this.api = plugin.getMCAV();
   }
 
   public void shutdown() {
     ExecutorUtils.shutdownExecutorGracefully(this.service);
+  }
+
+  public boolean isVLCSupported() {
+    return api.hasCapability(Capability.VLC);
   }
 
   public void releaseVideoPlayer() {
