@@ -10,5 +10,8 @@
       ],
       "versioning": "semver"
     }
+  ],
+  "ignorePaths": [
+    "mcav-installer/build.gradle.kts"
   ]
 }
