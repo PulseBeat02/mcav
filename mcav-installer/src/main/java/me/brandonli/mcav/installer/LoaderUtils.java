@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.ServiceLoader;
 import java.util.jar.JarEntry;
@@ -41,9 +42,18 @@ public final class LoaderUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  static boolean loadJarPath(final Path jarPath, final ClassLoader loader) throws IOException {
-    addJarPath(jarPath, loader);
-    loadServiceProviders(jarPath, loader);
+  static boolean loadJarPaths(final Collection<Path> jars, final ClassLoader loader) {
+    jars.forEach(jar -> loadJarPath(jar, loader));
+    return true;
+  }
+
+  static boolean loadJarPath(final Path jarPath, final ClassLoader loader) {
+    try {
+      addJarPath(jarPath, loader);
+      loadServiceProviders(jarPath, loader);
+    } catch (final IOException e) {
+      throw new JarInjectorException(e.getMessage());
+    }
     return true;
   }
 

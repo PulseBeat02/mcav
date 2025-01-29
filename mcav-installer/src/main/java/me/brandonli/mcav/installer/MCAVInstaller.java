@@ -19,8 +19,8 @@ package me.brandonli.mcav.installer;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.function.Consumer;
 
 /**
@@ -67,20 +67,32 @@ public class MCAVInstaller {
   }
 
   /**
-   * Downloads and loads the required dependencies for the application. The method
-   * provides feedback through the specified progress logger as the dependencies
-   * are downloaded and loaded into the system.
+   * Downloads and loads the required dependencies for the given artifact. Progress updates are
+   * provided through the specified progress logger during the download and loading process.
    *
+   * @param artifact       the artifact whose dependencies need to be downloaded and loaded
+   * @param progressLogger a Consumer function that logs progress messages during the operation
+   * @param loader         the JarLoader implementation used for dynamically loading the dependencies
+   */
+  public void loadMCAVDependencies(final Artifact artifact, final Consumer<String> progressLogger, final JarLoader loader) {
+    try (final InstallationManager manager = new InstallationManager(this.folder, progressLogger)) {
+      progressLogger.accept("Downloading dependencies...");
+      final Collection<Path> jars = manager.downloadDependencies(artifact);
+      progressLogger.accept("Loading dependencies...");
+      loader.loadJars(jars, this.classLoader);
+      progressLogger.accept("Successfully loaded dependencies!");
+    }
+  }
+
+  /**
+   * Downloads and loads the required dependencies for the given artifact. This method provides
+   * progress updates via the specified progress logger during the download and loading processes.
+   *
+   * @param artifact       the artifact for which dependencies need to be downloaded and loaded
    * @param progressLogger a Consumer function to handle log messages indicating
    *                       the progress of the operation
-   * @return the Path object representing the location of the downloaded dependencies
-   * @throws IOException if an error occurs during the download or loading of dependencies
    */
-  public Path loadMCAVDependencies(final Consumer<String> progressLogger) throws IOException {
-    final Path jar = HttpUtils.downloadDependencies(progressLogger, this.folder);
-    progressLogger.accept(String.format("Loading dependencies from %s", jar));
-    LoaderUtils.loadJarPath(jar, this.classLoader);
-    progressLogger.accept("Successfully loaded dependencies!");
-    return jar;
+  public void loadMCAVDependencies(final Artifact artifact, final Consumer<String> progressLogger) {
+    this.loadMCAVDependencies(artifact, progressLogger, JarLoader.DEFAULT_URL_LOADER);
   }
 }

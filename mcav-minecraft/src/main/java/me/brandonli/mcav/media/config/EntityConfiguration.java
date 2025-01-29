@@ -19,11 +19,10 @@ package me.brandonli.mcav.media.config;
 
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.google.common.base.Preconditions;
-import me.brandonli.mcav.media.result.EntityResult;
-import me.brandonli.mcav.media.result.FunctionalVideoFilter;
-
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.media.result.EntityResult;
+import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 
 /**
  * Represents the configuration of an entity, including its dimensions, position, associated
