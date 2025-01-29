@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.video.dither.algorithm.simple;
+package me.brandonli.mcav.media.video.dither.algorithm.nearest;
 
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.StaticImage;
@@ -47,7 +47,19 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  * within the palette or utility methods. If thread safety is required, use synchronization
  * or create separate instances for concurrent use.
  */
-public final class NearestDither extends AbstractDitherAlgorithm {
+public final class NearestDitherImpl extends AbstractDitherAlgorithm implements NearestDither {
+
+  /**
+   * Constructs an instance of the {@code NearestDitherImpl} class using the specified {@code Palette}.
+   * This implementation applies a nearest-color dithering algorithm, where each pixel in an image
+   * is mapped to the closest matching color in the provided palette.
+   *
+   * @param palette the {@code Palette} object containing the set of colors to be used for
+   *                approximating pixel values during the dithering process.
+   */
+  public NearestDitherImpl(final Palette palette) {
+    super(palette);
+  }
 
   /**
    * Converts the pixel data of the specified {@link StaticImage} into a byte array

@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.video.dither.algorithm.builder;
 
-import me.brandonli.mcav.media.video.dither.algorithm.ordered.OrderedDither;
+import me.brandonli.mcav.media.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.video.dither.algorithm.ordered.PixelMapper;
 
 /**
@@ -27,7 +27,7 @@ import me.brandonli.mcav.media.video.dither.algorithm.ordered.PixelMapper;
  * @param <T> the type of {@code OrderedDither} object to be constructed
  * @param <B> the type of the builder extending this interface
  */
-public interface OrderedDitherBuilder<T extends OrderedDither, B extends OrderedDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
+public interface OrderedDitherBuilder<T extends BayerDither, B extends OrderedDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
   /**
    * Configures the builder with a specific {@link PixelMapper} representing a dither matrix
    * and returns the builder instance for method-chaining purposes.

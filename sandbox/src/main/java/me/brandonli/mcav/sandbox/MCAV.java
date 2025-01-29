@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox;
 
+import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.dependency.DependencyManager;
@@ -28,12 +29,13 @@ public final class MCAV extends JavaPlugin {
 
   private AudienceProvider audienceProvider;
 
+  private MCAVApi mcav;
   private PluginDataConfigurationMapper configurationMapper;
 
   @Override
   public void onLoad() {
-    final DependencyManager manager = new DependencyManager(this);
-    manager.loadDependencies();
+    this.loadDependencies();
+    this.loadMCAV();
   }
 
   @Override
@@ -42,6 +44,22 @@ public final class MCAV extends JavaPlugin {
     this.loadPluginData();
     this.initLookupTables();
     this.loadCommands();
+  }
+
+  private void unloadMCAV() {
+    if (this.mcav != null) {
+      this.mcav.release();
+    }
+  }
+
+  private void loadMCAV() {
+    this.mcav = me.brandonli.mcav.MCAV.api();
+    this.mcav.install();
+  }
+
+  private void loadDependencies() {
+    final DependencyManager manager = new DependencyManager(this);
+    manager.loadDependencies();
   }
 
   private void shutdownAudience() {
@@ -63,6 +81,7 @@ public final class MCAV extends JavaPlugin {
   public void onDisable() {
     this.savePluginData();
     this.shutdownLookupTables();
+    this.unloadMCAV();
     this.shutdownAudience();
   }
 

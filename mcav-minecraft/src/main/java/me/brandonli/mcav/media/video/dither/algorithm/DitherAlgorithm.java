@@ -20,8 +20,9 @@ package me.brandonli.mcav.media.video.dither.algorithm;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.algorithm.builder.*;
 import me.brandonli.mcav.media.video.dither.algorithm.error.ErrorDiffusionDither;
-import me.brandonli.mcav.media.video.dither.algorithm.ordered.OrderedDither;
+import me.brandonli.mcav.media.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDither;
+import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDitherImpl;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 /**
@@ -79,10 +80,10 @@ public interface DitherAlgorithm {
   }
 
   /**
-   * Creates a builder for constructing instances of {@link RandomDither}, which
+   * Creates a builder for constructing instances of {@link RandomDitherImpl}, which
    * applies random noise to image data for dithering purposes.
    *
-   * @return a builder for {@link RandomDither} instances, allowing customization
+   * @return a builder for {@link RandomDitherImpl} instances, allowing customization
    * of the dithering algorithm's parameters such as the weight and palette.
    */
   static RandomDitherBuilder<RandomDither, RandomDitherBuilderImpl> random() {
@@ -96,7 +97,7 @@ public interface DitherAlgorithm {
    *
    * @return an instance of {@code OrderedDitherBuilderImpl} for constructing an {@code OrderedDither}.
    */
-  static OrderedDitherBuilder<OrderedDither, OrderedDitherBuilderImpl> ordered() {
+  static OrderedDitherBuilder<BayerDither, OrderedDitherBuilderImpl> ordered() {
     return new OrderedDitherBuilderImpl();
   }
 }

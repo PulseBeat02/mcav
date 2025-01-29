@@ -17,29 +17,22 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import static java.util.Objects.requireNonNull;
-
 import com.mojang.brigadier.context.CommandContext;
+import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.stream.Stream;
-import me.brandonli.mcav.media.player.browser.BrowserPlayer;
-import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-import me.brandonli.mcav.media.source.BrowserSource;
-import me.brandonli.mcav.media.video.DitherFilter;
-import me.brandonli.mcav.media.video.DitherResultStep;
-import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
-import me.brandonli.mcav.media.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
-import me.brandonli.mcav.media.video.dither.palette.Palette;
-import me.brandonli.mcav.media.video.result.MapResult;
+import me.brandonli.mcav.media.source.FileSource;
+import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.resourcepack.SimpleResourcePack;
 import me.brandonli.mcav.sandbox.MCAV;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
-import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
+import me.brandonli.mcav.utils.resourcepack.SoundExtractorUtils;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.CommandSender;
@@ -49,81 +42,49 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
-public final class BrowserCommand implements AnnotationCommandFeature {
+public final class VideoCommand implements AnnotationCommandFeature {
 
+  private MCAV plugin;
   private BukkitAudiences audiences;
-  private BrowserPlayer browser;
 
   @Override
   public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
     final AudienceProvider provider = plugin.getAudience();
+    this.plugin = plugin;
     this.audiences = provider.retrieve();
   }
 
-  @Command("mcav browser <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
+  @Command("mcav maps <videoResolution> <blockDimensions> <mapId> <mrl>")
   @Permission("mcav.browser")
   @CommandDescription("mcav.command.browser.info")
-  public void playBrowser(
+  public void playMapsVideo(
     final Player player,
-    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
-    @Quoted final String url
+    @Quoted final String mrl
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {
-      resolution = ArgumentUtils.parseDimensions(browserResolution);
+      resolution = ArgumentUtils.parseDimensions(videoResolution);
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
       audience.sendMessage(Message.DIMENSION_ERROR.build());
       return;
     }
 
-    boolean failed = false;
-    URI uri = null;
-    try {
-      uri = new URI(url);
-      if (!IOUtils.checkValidUrl(uri)) {
-        failed = true;
-      }
-    } catch (final URISyntaxException e) {
-      failed = true;
-    }
-    if (failed) {
-      audience.sendMessage(Message.URL_ERROR.build());
-      return;
-    }
-    requireNonNull(uri);
-
-    if (this.browser != null) {
+    final boolean isStream = SourceUtils.isDynamicStream(mrl);
+    if (!isStream) {
       try {
-        this.browser.release();
-      } catch (final Exception e) {
+        final Source source = SourceUtils.isPath(mrl) ? FileSource.path(Path.of(mrl)) : UriSource.uri(URI.create(mrl));
+        final Path ogg = SoundExtractorUtils.extractOggAudio(source);
+        final SimpleResourcePack pack = SimpleResourcePack.pack();
+        //        pack.sound();
+      } catch (final IOException e) {
         throw new AssertionError(e);
       }
-    }
-
-    final int resolutionWidth = resolution.getFirst();
-    final int resolutionHeight = resolution.getSecond();
-    final int blockWidth = dimensions.getFirst();
-    final int blockHeight = dimensions.getSecond();
-
-    final DitherResultStep result = MapResult.builder().map(mapId).mapBlockHeight(blockHeight).mapBlockWidth(blockWidth).build();
-    final DitherAlgorithm algorithm = DitherAlgorithm.errorDiffusion()
-      .withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)
-      .withPalette(Palette.DEFAULT)
-      .build();
-    final VideoFilter filter = DitherFilter.dither(algorithm, result);
-    final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
-    final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);
-    final BrowserSource source = BrowserSource.uri(uri, metadata);
-    try {
-      this.browser = BrowserPlayer.defaultChrome();
-      this.browser.start(pipeline, source);
-    } catch (final Exception e) {
-      throw new AssertionError(e);
     }
   }
 

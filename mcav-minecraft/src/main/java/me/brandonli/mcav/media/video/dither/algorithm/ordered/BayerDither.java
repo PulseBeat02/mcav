@@ -17,11 +17,30 @@
  */
 package me.brandonli.mcav.media.video.dither.algorithm.ordered;
 
+import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
+
 /**
- * See https://github.com/makeworld-the-better-one/dither/blob/master/ordered_ditherers.go Added
- * some personal implementations of ordered dithering matrices.
+ * The BayerDither interface represents a dithering algorithm using Bayer matrix (ordered dithering).
+ * It is a specialized implementation of the {@link DitherAlgorithm} interface to approximate
+ * colors in an image by systematically arranging pixels using a threshold matrix.
+ *
+ * Bayer dithering operates by comparing pixel intensities with values from a pre-defined
+ * two-dimensional Bayer matrix. This process creates a perception of gradient and shading
+ * when mapped to a limited color palette.
+ *
+ * Implementations of this interface are expected to define how the Bayer matrix is applied
+ * during the dithering process.
+ *
+ * This algorithm is particularly well-suited for applications requiring uniform patterns
+ * without artifacts of randomness, making it popular for image processing tasks in low-bit
+ * displays or environments with constrained color palettes.
  */
-public interface BayerMatrices {
+public interface BayerDither extends DitherAlgorithm {
+  /**
+   * See https://github.com/makeworld-the-better-one/dither/blob/master/ordered_ditherers.go Added
+   * some personal implementations of ordered dithering matrices.
+   */
+
   // Basic 2x2 matrix.
   int NORMAL_2X2_MAX = 4;
   int[][] NORMAL_2X2 = new int[][] { { 1, 3 }, { 4, 2 } };

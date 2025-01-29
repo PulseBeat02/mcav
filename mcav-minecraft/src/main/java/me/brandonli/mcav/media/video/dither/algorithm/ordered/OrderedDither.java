@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.video.dither.algorithm.ordered;
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.DitherUtils;
-import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.video.dither.algorithm.AbstractDitherAlgorithm;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 /**
@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  * This implementation uses a predefined palette and a pixel mapping matrix to process
  * the input image.
  */
-public final class OrderedDither implements DitherAlgorithm {
+public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither {
 
   private final Palette palette;
   private final float[][] precalc;

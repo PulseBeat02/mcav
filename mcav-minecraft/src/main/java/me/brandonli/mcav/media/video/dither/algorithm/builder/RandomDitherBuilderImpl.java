@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.video.dither.algorithm.builder;
 
 import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDither;
+import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDitherImpl;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 /**
@@ -43,7 +44,7 @@ public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither
    */
   @Override
   public RandomDither build() {
-    return new RandomDither(this.palette, this.weight);
+    return new RandomDitherImpl(this.palette, this.weight);
   }
 
   /**
