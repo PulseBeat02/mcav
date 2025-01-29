@@ -1,29 +1,437 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Audio Player</title>
+    <title>Audio Stream Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --primary-color: #1db954;
+            --secondary-color: #191414;
+            --text-color: #f5f5f5;
+            --background-color: #121212;
+            --panel-bg: rgba(40, 40, 40, 0.8);
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--secondary-color), #333);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .player-container {
+            background: var(--panel-bg);
+            width: 90%;
+            max-width: 600px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .player-header {
+            background: var(--secondary-color);
             padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .player-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .visualizer {
+            background: rgba(0, 0, 0, 0.2);
+            height: 120px;
+            margin: 20px;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .visualizer-bars {
+            display: flex;
+            align-items: flex-end;
+            height: 100%;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .bar {
+            background: var(--primary-color);
+            width: 4px;
+            height: 5px;
+            margin: 0 2px;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s ease;
+        }
+
+        .visualizer-placeholder {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            gap: 15px;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 100px;
+            outline: none;
+        }
+
+        .btn:hover {
+            background: #1ed760;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            padding: 0 20px 20px;
+            gap: 10px;
+        }
+
+        .volume-icon {
+            font-size: 20px;
+            min-width: 24px;
+        }
+
+        .volume-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .status-panel {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 20px;
+            font-size: 14px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #status {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .status-connected {
+            color: var(--primary-color) !important;
+        }
+
+        @media (max-width: 600px) {
+            .player-container {
+                width: 95%;
+            }
+
+            .visualizer {
+                height: 80px;
+            }
         }
     </style>
 </head>
 <body>
-<h1>Audio Player</h1>
-<audio id="player" controls autoplay>
-    <source src="/audio" type="audio/wav">
-    Your browser does not support the audio element.
-</audio>
+<div class="player-container">
+    <div class="player-header">
+        <h1>Audio Stream Player</h1>
+    </div>
+
+    <div class="visualizer">
+        <div class="visualizer-placeholder">Connect to start visualization</div>
+        <div class="visualizer-bars" id="visualizer-bars"></div>
+    </div>
+
+    <div class="volume-control">
+        <div class="volume-icon">&#128266;</div>
+        <input type="range" min="0" max="100" value="100" class="volume-slider" id="volume">
+    </div>
+
+    <div class="controls">
+        <button id="start" class="btn">Start</button>
+        <button id="stop" class="btn" disabled>Stop</button>
+    </div>
+
+    <div class="status-panel">
+        <div id="status">Disconnected</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 <script>
-    setInterval(() => {
-        const player = document.getElementById('player');
-        const wasPlaying = !player.paused;
-        player.src = '/audio?' + new Date().getTime();
-        if (wasPlaying) player.play();
-    }, 5000);
+    let audioContext;
+    let ws;
+    let pcmProcessor;
+    let animationId;
+    const statusEl = document.getElementById('status');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const volumeSlider = document.getElementById('volume');
+    const visualizerBars = document.getElementById('visualizer-bars');
+    const visualizerPlaceholder = document.querySelector('.visualizer-placeholder');
+
+    const barCount = 64;
+    for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        visualizerBars.appendChild(bar);
+    }
+    const bars = document.querySelectorAll('.bar');
+
+    class PCMProcessor {
+        constructor(options) {
+            this.options = {
+                encoding: options.encoding || '16bitInt',
+                channels: options.channels || 2,
+                sampleRate: options.sampleRate || 48000,
+                flushingTime: options.flushingTime || 2000
+            };
+            this.samples = new Float32Array();
+            this.audioCtx = options.audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            this.setupHowler();
+            this.lastData = new Float32Array(barCount);
+
+            this.gainNode = this.audioCtx.createGain();
+            this.gainNode.connect(this.audioCtx.destination);
+        }
+
+        setupHowler() {
+            Howler.ctx = this.audioCtx;
+            this.startTime = this.audioCtx.currentTime;
+        }
+
+        feed(data) {
+            const view = new DataView(data);
+            const float32Array = new Float32Array(data.byteLength / 2);
+            for (let i = 0; i < float32Array.length; i++) {
+                const int16 = view.getInt16(i * 2, true);
+                float32Array[i] = int16 / 32768.0;
+            }
+
+            this.updateVisualizer(float32Array);
+
+            const newSamples = new Float32Array(this.samples.length + float32Array.length);
+            newSamples.set(this.samples);
+            newSamples.set(float32Array, this.samples.length);
+            this.samples = newSamples;
+            if (this.samples.length / this.options.channels > this.options.sampleRate / 2) {
+                this.play();
+            }
+        }
+
+        updateVisualizer(data) {
+
+            if (!animationId) {
+                this.animateVisualizer();
+            }
+
+            const samplesPerBar = Math.floor(data.length / barCount);
+            for (let i = 0; i < barCount; i++) {
+                const startSample = i * samplesPerBar;
+                let sum = 0;
+                for (let j = 0; j < samplesPerBar; j++) {
+                    if (startSample + j < data.length) {
+                        sum += Math.abs(data[startSample + j]);
+                    }
+                }
+                const avg = sum / samplesPerBar;
+                this.lastData[i] = this.lastData[i] * 0.7 + avg * 0.3;
+            }
+        }
+
+        animateVisualizer() {
+            visualizerPlaceholder.style.display = 'none';
+
+            const updateBars = () => {
+                for (let i = 0; i < barCount; i++) {
+                    const height = this.lastData[i] * 100;
+                    bars[i].style.height = `${Math.max(4, height)}px`;
+                }
+                animationId = requestAnimationFrame(updateBars);
+            };
+
+            animationId = requestAnimationFrame(updateBars);
+        }
+
+        play() {
+            if (this.samples.length === 0) return;
+            const bufferSource = this.audioCtx.createBufferSource();
+            const length = this.samples.length / this.options.channels;
+            const audioBuffer = this.audioCtx.createBuffer(
+                this.options.channels,
+                length,
+                this.options.sampleRate
+            );
+            for (let channel = 0; channel < this.options.channels; channel++) {
+                const audioData = audioBuffer.getChannelData(channel);
+                let offset = channel;
+                let decrement = 50;
+                for (let i = 0; i < length; i++) {
+                    audioData[i] = this.samples[offset];
+                    if (i < 50) {
+                        audioData[i] = (audioData[i] * i) / 50;
+                    }
+                    if (i >= (length - 51)) {
+                        audioData[i] = (audioData[i] * decrement--) / 50;
+                    }
+                    offset += this.options.channels;
+                }
+            }
+            if (this.startTime < this.audioCtx.currentTime) {
+                this.startTime = this.audioCtx.currentTime;
+            }
+            bufferSource.buffer = audioBuffer;
+            bufferSource.connect(this.gainNode);
+
+            bufferSource.start(this.startTime);
+            this.startTime += audioBuffer.duration;
+            this.samples = new Float32Array();
+        }
+
+        destroy() {
+            this.samples = new Float32Array();
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            visualizerPlaceholder.style.display = 'block';
+            bars.forEach(bar => bar.style.height = '4px');
+        }
+    }
+
+    startBtn.onclick = function () {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            statusEl.textContent = 'Audio permission: ' + audioContext.state;
+        }
+        if (audioContext.state === 'running') {
+            connectWebSocket();
+        } else {
+            audioContext.resume().then(() => {
+                statusEl.textContent = 'Audio permission granted! Click Start again to connect.';
+                if (audioContext.state === 'running') {
+                    connectWebSocket();
+                }
+            }).catch(err => {
+                statusEl.textContent = 'Failed to get audio permission: ' + err;
+            });
+        }
+    };
+
+    function connectWebSocket() {
+        if (pcmProcessor) return;
+        try {
+            statusEl.textContent = 'Connecting...';
+            pcmProcessor = new PCMProcessor({
+                encoding: '16bitInt',
+                channels: 2,
+                sampleRate: 48000,
+                flushingTime: 2000,
+                audioCtx: Howler.ctx
+            });
+
+            pcmProcessor.gainNode.gain.value = volumeSlider.value / 100;
+
+            ws = new WebSocket('ws://' + location.hostname + ':%%PORT%%');
+            ws.binaryType = 'arraybuffer';
+            ws.onopen = function () {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status-connected';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            };
+            ws.onmessage = function (e) {
+                if (e.data.byteLength > 0) {
+                    statusEl.textContent = 'Streaming audio';
+                    pcmProcessor.feed(e.data);
+                }
+            };
+            ws.onerror = function (e) {
+                statusEl.textContent = 'Connection error';
+                statusEl.className = '';
+                console.error('WebSocket error:', e);
+                stopStream();
+            };
+            ws.onclose = function () {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = '';
+                stopStream();
+            };
+        } catch (error) {
+            console.error('Error starting stream:', error);
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = '';
+        }
+    }
+
+    stopBtn.onclick = stopStream;
+
+    function stopStream() {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+        if (pcmProcessor) {
+            pcmProcessor.destroy();
+            pcmProcessor = null;
+        }
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = '';
+    }
+
+    volumeSlider.addEventListener('input', function () {
+        if (pcmProcessor && pcmProcessor.gainNode) {
+            pcmProcessor.gainNode.gain.value = this.value / 100;
+        }
+        Howler.volume(this.value / 100);
+    });
 </script>
 </body>
 </html>
