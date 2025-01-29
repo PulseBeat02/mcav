@@ -25,6 +25,7 @@ parts:
       - file: library/yt-dlp.md
       - file: library/installer.md
       - file: library/ffmpeg.md
+      - file: library/extension.md
       - file: library/examples.md
   - caption: Bukkit Integration 🧱
     chapters:
