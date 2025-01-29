@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.image;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.List;
 import me.brandonli.mcav.media.source.FileSource;
@@ -37,15 +38,42 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  */
 public class DynamicImageImpl implements DynamicImage {
 
+  // safety net for cleaning up Mat resources
+  private static final Cleaner MAT_CLEANER = Cleaner.create();
+
+  private static class DynamicImageResources implements Runnable {
+
+    private final List<StaticImage> frames;
+
+    DynamicImageResources(final List<StaticImage> frames) {
+      this.frames = frames;
+    }
+
+    @Override
+    public void run() {
+      if (this.frames != null) {
+        for (final StaticImage frame : this.frames) {
+          try {
+            frame.close();
+          } catch (final Exception ignored) {}
+        }
+      }
+    }
+  }
+
+  private final Cleaner.Cleanable cleanable;
+
+  @SuppressWarnings("all")
+  private final Object cleanerKey = new Object(); // checker
+
   private final List<StaticImage> frames;
-  private final FileSource source;
   private float frameRate;
   private int frameCount;
 
   DynamicImageImpl(final FileSource source) throws IOException {
-    this.source = source;
     this.frames = new ArrayList<>();
     this.getGifFrames(this.frames, source);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new DynamicImageResources(this.frames));
   }
 
   DynamicImageImpl(final UriSource source) throws IOException {
@@ -99,5 +127,17 @@ public class DynamicImageImpl implements DynamicImage {
   @Override
   public int getFrameCount() {
     return this.frameCount;
+  }
+
+  /**
+   * Closes all resources associated with this DynamicImage instance.
+   * <p>
+   * Releases any resources held by the frames of the image, ensuring
+   * proper cleanup. This method should be called when the instance is
+   * no longer needed to free system resources.
+   */
+  @Override
+  public void close() {
+    this.cleanable.clean();
   }
 }

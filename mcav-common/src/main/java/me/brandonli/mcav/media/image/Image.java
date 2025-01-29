@@ -22,4 +22,4 @@ package me.brandonli.mcav.media.image;
  * This interface serves as a blueprint for image processing functionality
  * and can be implemented by classes dealing with image-related operations.
  */
-public interface Image {}
+public interface Image extends AutoCloseable {}

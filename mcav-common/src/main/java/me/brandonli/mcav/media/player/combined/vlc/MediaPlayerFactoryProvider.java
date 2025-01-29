@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.combined.vlc;
 
+import java.lang.ref.Cleaner;
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -31,13 +32,55 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
  */
 public final class MediaPlayerFactoryProvider {
 
-  private static @Nullable MediaPlayerFactory PLAYER_FACTORY;
+  private static final Cleaner CLEANER = Cleaner.create();
+  private static final FactoryHolder HOLDER = new FactoryHolder();
 
-  static {
-    try {
-      PLAYER_FACTORY = new MediaPlayerFactory();
-    } catch (final Throwable e) {
-      PLAYER_FACTORY = null;
+  private static class FactoryHolder {
+
+    private @Nullable MediaPlayerFactory factory;
+    private Cleaner.@Nullable Cleanable cleanable;
+
+    @SuppressWarnings("all")
+    private final Object cleanerKey = new Object(); // checker
+
+    FactoryHolder() {
+      try {
+        this.factory = new MediaPlayerFactory();
+        this.cleanable = CLEANER.register(this.cleanerKey, new FactoryResources(this.factory));
+      } catch (final Throwable e) {
+        this.factory = null;
+        this.cleanable = null;
+      }
+    }
+
+    @Nullable
+    MediaPlayerFactory getFactory() {
+      return this.factory;
+    }
+
+    void release() {
+      if (this.cleanable != null) {
+        this.cleanable.clean();
+        this.factory = null;
+      }
+    }
+  }
+
+  private static class FactoryResources implements Runnable {
+
+    private final MediaPlayerFactory factory;
+
+    FactoryResources(final MediaPlayerFactory factory) {
+      this.factory = factory;
+    }
+
+    @Override
+    public void run() {
+      if (this.factory != null) {
+        try {
+          this.factory.release();
+        } catch (final Exception ignored) {}
+      }
     }
   }
 
@@ -54,10 +97,11 @@ public final class MediaPlayerFactoryProvider {
    * @throws UnsupportedOperationException if VLC is not supported on the current system.
    */
   public static MediaPlayerFactory getPlayerFactory() {
-    if (PLAYER_FACTORY == null) {
+    final MediaPlayerFactory factory = HOLDER.getFactory();
+    if (factory == null) {
       throw new UnsupportedOperatingSystemException("VLC is not supported on your system!");
     }
-    return PLAYER_FACTORY;
+    return factory;
   }
 
   /**
@@ -71,9 +115,6 @@ public final class MediaPlayerFactoryProvider {
    * the media player functionality to ensure resources are cleaned up appropriately.
    */
   public static void shutdown() {
-    if (PLAYER_FACTORY == null) {
-      return;
-    }
-    PLAYER_FACTORY.release();
+    HOLDER.release();
   }
 }

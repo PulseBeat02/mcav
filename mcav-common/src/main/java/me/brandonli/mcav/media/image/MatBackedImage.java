@@ -21,6 +21,7 @@ import static org.opencv.imgcodecs.Imgcodecs.imread;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,16 +44,41 @@ import org.opencv.photo.Photo;
  */
 public class MatBackedImage implements StaticImage {
 
+  // safety net for cleaning up Mat resources
+  private static final Cleaner MAT_CLEANER = Cleaner.create();
+
+  @SuppressWarnings("all")
+  private final Object cleanerKey = new Object(); // checker
+
+  private final Cleaner.Cleanable cleanable;
   private final Mat mat;
+
+  private static class MatResources implements Runnable {
+
+    private final Mat mat;
+
+    MatResources(final Mat mat) {
+      this.mat = mat;
+    }
+
+    @Override
+    public void run() {
+      if (this.mat != null) {
+        this.mat.release();
+      }
+    }
+  }
 
   MatBackedImage(final byte[] bytes, final int width, final int height) {
     this.mat = new Mat(height, width, CvType.CV_8UC3);
     this.mat.put(0, 0, bytes);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   MatBackedImage(final byte[] bytes, final int width, final int height, final int type) {
     this.mat = new Mat(height, width, type);
     this.mat.put(0, 0, bytes);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   MatBackedImage(final UriSource source) throws IOException {
@@ -62,6 +88,7 @@ public class MatBackedImage implements StaticImage {
   MatBackedImage(final FileSource source) {
     final String path = source.getResource();
     this.mat = imread(path);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   MatBackedImage(final int[] data, final int width, final int height) {
@@ -77,6 +104,7 @@ public class MatBackedImage implements StaticImage {
     }
     originalMat.put(0, 0, byteData);
     this.mat = originalMat;
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   MatBackedImage(final BufferedImage image) throws IOException {
@@ -84,14 +112,17 @@ public class MatBackedImage implements StaticImage {
     ImageIO.write(image, "jpg", byteArrayOutputStream);
     byteArrayOutputStream.flush();
     this.mat = Imgcodecs.imdecode(new MatOfByte(byteArrayOutputStream.toByteArray()), Imgcodecs.IMREAD_UNCHANGED);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
-  MatBackedImage(final byte[] bytes) throws IOException {
+  MatBackedImage(final byte[] bytes) {
     this.mat = Imgcodecs.imdecode(new MatOfByte(bytes), Imgcodecs.IMREAD_UNCHANGED);
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   MatBackedImage(final Mat mat) {
     this.mat = mat;
+    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
   /**
@@ -933,5 +964,15 @@ public class MatBackedImage implements StaticImage {
     this.mat.release();
     this.mat.assignTo(dst);
     kernel.release();
+  }
+
+  /**
+   * Releases the resources associated with the 'mat' object and ensures proper cleanup.
+   * If the 'mat' object is not null, it calls the release method on it and sets it to null.
+   * This method is invoked to free up memory and prevent resource leaks.
+   */
+  @Override
+  public void close() {
+    this.cleanable.clean();
   }
 }

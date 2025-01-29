@@ -35,6 +35,14 @@ import org.bytedeco.opencv.opencv_java;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/*
+
+Things to do:
+
+- Add Image Implementations for Minecraft
+
+ */
+
 /**
  * MCAV is the main implementation of the {@link MCAVApi} interface, providing core functionality
  * to manage and handle media playback capabilities, installation of dependencies, and resource cleanup.
