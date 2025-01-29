@@ -239,7 +239,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
   @Override
   public void moveMouse(final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
+      if (!this.running.get()) {
         return;
       }
       final int[] translated = this.translateCoordinates(x, y);
@@ -258,7 +258,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock()) {
+      if (!this.running.get()) {
         return;
       }
       final int[] translated = this.translateCoordinates(x, y);
@@ -297,7 +297,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
   @Override
   public void sendKeyEvent(final String text) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock()) {
+      if (!this.running.get()) {
         return;
       }
       final Actions actions = new Actions(this.driver);

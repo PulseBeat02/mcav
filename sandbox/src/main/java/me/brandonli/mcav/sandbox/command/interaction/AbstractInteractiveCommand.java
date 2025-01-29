@@ -23,7 +23,6 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
 import me.brandonli.mcav.sandbox.utils.Keys;
-import me.brandonli.mcav.utils.interaction.KeyUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.FluidCollisionMode;
@@ -196,8 +195,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     final Component message = event.message();
     final String raw = PLAIN_TEXT_SERIALIZER.serialize(message);
-    final String converted = KeyUtils.replaceKeysWithKeyCodes(raw);
-    this.handleTextInput(player, converted);
+    this.handleTextInput(player, raw);
   }
 
   protected void activateInteraction(final Player player, final Component enableMessage, final Component disableMessage) {

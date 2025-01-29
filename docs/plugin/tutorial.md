@@ -66,8 +66,8 @@ browser that all players can see on the 5x5 screen you just created with a resol
 and snapshots taken every second with Filter Lite dithering. It will display the Google homepage by default.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which will take all your
 chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type the
-key in caps like ENTER to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse
-clicks.
+key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse
+clicks. For more information on possible keys, see the `KeyboardEvent.key` column [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
 
 ### If you would like to stream OBS output, here are the steps to take:

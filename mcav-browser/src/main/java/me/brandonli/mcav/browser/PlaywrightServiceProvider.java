@@ -18,10 +18,21 @@
 package me.brandonli.mcav.browser;
 
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.impl.driver.jar.DriverJar;
 
 public final class PlaywrightServiceProvider {
 
-  private static final Playwright PLAYWRIGHT = Playwright.create();
+  private static final Playwright PLAYWRIGHT;
+
+  static {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader classLoader = thread.getContextClassLoader();
+    final Class<?> clazz = DriverJar.class;
+    final ClassLoader driverClassLoader = clazz.getClassLoader();
+    thread.setContextClassLoader(driverClassLoader);
+    PLAYWRIGHT = Playwright.create();
+    thread.setContextClassLoader(classLoader);
+  }
 
   private PlaywrightServiceProvider() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");

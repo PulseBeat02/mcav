@@ -195,7 +195,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
   @Override
   public void moveMouse(final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock() || this.page == null) {
+      if (!this.running.get()) {
         return;
       }
       final int[] translated = this.translateCoordinates(x, y);
@@ -213,7 +213,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock() || this.page == null) {
+      if (!this.running.get()) {
         return;
       }
       final int id = type.getId();
@@ -247,18 +247,57 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     return new int[] { clampedX, clampedY };
   }
 
+  private static final Set<String> PLAYWRIGHT_SPECIAL_KEYS = Set.of(
+    "Enter",
+    "Tab",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "Escape",
+    "Backspace",
+    "Delete",
+    "Shift",
+    "Control",
+    "Alt",
+    "Meta",
+    "Home",
+    "End",
+    "PageUp",
+    "PageDown",
+    "Insert",
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6",
+    "F7",
+    "F8",
+    "F9",
+    "F10",
+    "F11",
+    "F12"
+  ); // add more if needed
+
   /**
    * {@inheritDoc}
    */
   @Override
   public void sendKeyEvent(final String text) {
     LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || !this.lock.tryLock() || this.page == null) {
+      if (!this.running.get()) {
         return;
       }
       final Page page = requireNonNull(this.page);
       final Keyboard keyboard = page.keyboard();
-      this.actionExecutor.submit(() -> keyboard.type(text));
+      this.actionExecutor.submit(() -> {
+          if (PLAYWRIGHT_SPECIAL_KEYS.contains(text)) {
+            keyboard.press(text);
+            return;
+          }
+          keyboard.type(text);
+        });
     });
   }
 

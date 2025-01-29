@@ -40,7 +40,7 @@ public final class InteractUtils {
   public static int@Nullable[] getBoardCoordinates(final Player player) {
     final Entity firstEntity = player.getTargetEntity(100);
     if (firstEntity == null) {
-      throw new IllegalArgumentException("No target entity found within range");
+      return null;
     }
     return getBoardCoordinates(player, firstEntity);
   }
