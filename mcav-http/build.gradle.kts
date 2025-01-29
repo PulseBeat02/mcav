@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // project dependencies
-    api("io.javalin:javalin:6.6.0")
+    api("io.javalin:javalin:6.7.0")
 
     // provided
     compileOnlyApi(project(":mcav-common"))

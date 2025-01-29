@@ -18,12 +18,6 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import com.sun.jna.Pointer;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -53,6 +47,12 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
+
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.
@@ -147,10 +147,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   ) {
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
-    final BufferFormatCallback callback = PhantomDebug.watch(new BufferCallback(videoMetadata));
-    this.bufferFormatCallback = callback;
-    this.videoCallback = PhantomDebug.watch(new VideoCallback(videoPipeline, videoMetadata));
-    this.videoSurface = PhantomDebug.watch(new CallbackVideoSurface(callback, this.videoCallback, true, this.adapter));
+    this.bufferFormatCallback = new BufferCallback(videoMetadata);
+    this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
+    this.videoSurface = new CallbackVideoSurface(this.bufferFormatCallback, this.videoCallback, true, this.adapter);
     surfaceApi.set(this.videoSurface);
 
     // audio sample specialization
@@ -159,7 +158,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     // 48 kHz
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
     final AudioApi audioApi = this.player.audio();
-    this.audioCallback = PhantomDebug.watch(new AudioCallback(audioPipeline, audioMetadata));
+    this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
     audioApi.callback("S16N", 48000, 2, this.audioCallback);
   }
 
@@ -278,6 +277,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
+
   private static final class VideoCallback extends RenderCallbackAdapter {
 
     private final VideoPipelineStep step;
@@ -296,13 +296,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     protected void onDisplay(final MediaPlayer mediaPlayer, final int[] buffer) {
       final int width = this.metadata.getVideoWidth();
       final int height = this.metadata.getVideoHeight();
-      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
-      VideoPipelineStep current = this.step;
-      while (current != null) {
-        current.process(image, this.metadata);
-        current = current.next();
-      }
-      image.release();
+//      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
+//      VideoPipelineStep current = this.step;
+//      while (current != null) {
+//        current.process(image, this.metadata);
+//        current = current.next();
+//      }
+//      image.release();
+      System.gc();
     }
   }
 }

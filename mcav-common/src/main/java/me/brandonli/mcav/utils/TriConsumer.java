@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.browser;
+package me.brandonli.mcav.utils;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 

@@ -1,7 +1,7 @@
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
-    id("com.gradleup.shadow") version "8.3.6"
+    id("com.gradleup.shadow") version "8.3.7"
     id("xyz.jpenilla.run-paper") version "2.3.1"
     id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.0"
     id("xyz.jpenilla.gremlin-gradle") version "0.0.8"
@@ -27,7 +27,7 @@ dependencies {
     runtimeDownload("me.lucko:commodore:2.2")
     runtimeDownload("org.bstats:bstats-bukkit:3.1.0")
     runtimeDownload("net.dv8tion:JDA:5.6.1")
-    runtimeDownload("io.javalin:javalin:6.6.0")
+    runtimeDownload("io.javalin:javalin:6.7.0")
 }
 
 configurations.compileOnly {
