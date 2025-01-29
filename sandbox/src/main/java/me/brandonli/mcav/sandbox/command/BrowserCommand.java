@@ -32,7 +32,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.result.MapResult;
 import me.brandonli.mcav.media.source.BrowserSource;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
@@ -54,7 +54,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   private @Nullable BrowserPlayer browser;
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     final AudienceProvider provider = plugin.getAudience();
     this.audiences = provider.retrieve();
   }

@@ -29,7 +29,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.minimessage.PluginTranslator;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
@@ -50,13 +50,13 @@ public final class TranslationManager {
   private final PluginTranslator translator;
 
   public TranslationManager() {
-    final MCAV plugin = JavaPlugin.getPlugin(MCAV.class);
+    final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
     this.propertiesPath = this.getPropertiesPath(plugin);
     this.bundle = this.getBundle(this.propertiesPath);
     this.translator = new PluginTranslator(ADVENTURE_KEY, this.bundle);
   }
 
-  private String getPropertiesPath(@UnderInitialization TranslationManager this, final MCAV plugin) {
+  private String getPropertiesPath(@UnderInitialization TranslationManager this, final MCAVSandbox plugin) {
     final PluginDataConfigurationMapper mapper = plugin.getConfiguration();
     final me.brandonli.mcav.sandbox.locale.Locale locale = mapper.getLocale();
     final String name = locale.name();

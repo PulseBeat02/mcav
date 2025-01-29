@@ -17,10 +17,10 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 
 public interface AnnotationCommandFeature {
-  void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser);
+  void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser);
 }

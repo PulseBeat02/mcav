@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
@@ -33,113 +34,117 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
     final Palette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
-    final int heightMinus = height - 1;
-    final int[][] ditherBuffer = new int[2][width + (width << 1)];
+    final int[][] ditherBuffer = new int[3][width * 3];
     for (int y = 0; y < height; y++) {
-      final boolean hasNextY = y < heightMinus;
+      final boolean hasNextY = y < height - 1;
       final int yIndex = y * width;
+      if (hasNextY) {
+        Arrays.fill(ditherBuffer[(y + 1) % 3], 0);
+      }
+      if (y < height - 2) {
+        Arrays.fill(ditherBuffer[(y + 2) % 3], 0);
+      }
+      final int[] buf1 = ditherBuffer[y % 3];
+      final int[] buf2 = ditherBuffer[(y + 1) % 3];
+      final int[] buf3 = ditherBuffer[(y + 2) % 3];
       if ((y & 0x1) == 0) {
-        int bufferIndex = 0;
-        final int[] buf1 = ditherBuffer[0];
-        final int[] buf2 = ditherBuffer[1];
         for (int x = 0; x < width; x++) {
           final boolean hasNextX = x < widthMinus;
           final int index = yIndex + x;
+          final int bufferIndex = x * 3;
           final int rgb = buffer[index];
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          red = (red += buf1[bufferIndex++]) > 255 ? 255 : Math.max(red, 0);
-          green = (green += buf1[bufferIndex++]) > 255 ? 255 : Math.max(green, 0);
-          blue = (blue += buf1[bufferIndex++]) > 255 ? 255 : Math.max(blue, 0);
+          red = (red + buf1[bufferIndex]) > 255 ? 255 : Math.max(red, 0);
+          green = (green + buf1[bufferIndex + 1]) > 255 ? 255 : Math.max(green, 0);
+          blue = (blue + buf1[bufferIndex + 2]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
           final int b = closest & 0xFF;
-          final int delta_r = red - r;
-          final int delta_g = green - g;
-          final int delta_b = blue - b;
+          final int delta_r = (red - r) >> 3;
+          final int delta_g = (green - g) >> 3;
+          final int delta_b = (blue - b) >> 3;
           if (hasNextX) {
-            buf1[bufferIndex] = delta_r >> 3;
-            buf1[bufferIndex + 1] = delta_g >> 3;
-            buf1[bufferIndex + 2] = delta_b >> 3;
-            if (x + 2 < width) {
-              buf1[bufferIndex + 6] = delta_r >> 3;
-              buf1[bufferIndex + 7] = delta_g >> 3;
-              buf1[bufferIndex + 8] = delta_b >> 3;
+            buf1[bufferIndex + 3] += delta_r;
+            buf1[bufferIndex + 4] += delta_g;
+            buf1[bufferIndex + 5] += delta_b;
+            if (x < width - 2) {
+              buf1[bufferIndex + 6] += delta_r;
+              buf1[bufferIndex + 7] += delta_g;
+              buf1[bufferIndex + 8] += delta_b;
             }
           }
           if (hasNextY) {
-            buf2[bufferIndex - 3] = delta_r >> 3;
-            buf2[bufferIndex - 2] = delta_g >> 3;
-            buf2[bufferIndex - 1] = delta_b >> 3;
             if (x > 0) {
-              buf2[bufferIndex - 6] = delta_r >> 3;
-              buf2[bufferIndex - 5] = delta_g >> 3;
-              buf2[bufferIndex - 4] = delta_b >> 3;
+              buf2[bufferIndex - 3] += delta_r;
+              buf2[bufferIndex - 2] += delta_g;
+              buf2[bufferIndex - 1] += delta_b;
             }
-            if (x < widthMinus) {
-              buf2[bufferIndex + 3] = delta_r >> 3;
-              buf2[bufferIndex + 4] = delta_g >> 3;
-              buf2[bufferIndex + 5] = delta_b >> 3;
+            buf2[bufferIndex] += delta_r;
+            buf2[bufferIndex + 1] += delta_g;
+            buf2[bufferIndex + 2] += delta_b;
+            if (hasNextX) {
+              buf2[bufferIndex + 3] += delta_r;
+              buf2[bufferIndex + 4] += delta_g;
+              buf2[bufferIndex + 5] += delta_b;
             }
-            if (y + 2 < height) {
-              buf2[bufferIndex] = delta_r >> 3;
-              buf2[bufferIndex + 1] = delta_g >> 3;
-              buf2[bufferIndex + 2] = delta_b >> 3;
+            if (y < height - 2) {
+              buf3[bufferIndex] += delta_r;
+              buf3[bufferIndex + 1] += delta_g;
+              buf3[bufferIndex + 2] += delta_b;
             }
           }
           buffer[index] = closest;
         }
       } else {
-        int bufferIndex = width + (width << 1) - 1;
-        final int[] buf1 = ditherBuffer[1];
-        final int[] buf2 = ditherBuffer[0];
         for (int x = width - 1; x >= 0; x--) {
           final boolean hasNextX = x > 0;
           final int index = yIndex + x;
+          final int bufferIndex = x * 3;
           final int rgb = buffer[index];
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          blue = (blue += buf1[bufferIndex--]) > 255 ? 255 : Math.max(blue, 0);
-          green = (green += buf1[bufferIndex--]) > 255 ? 255 : Math.max(green, 0);
-          red = (red += buf1[bufferIndex--]) > 255 ? 255 : Math.max(red, 0);
+          red = (red + buf1[bufferIndex]) > 255 ? 255 : Math.max(red, 0);
+          green = (green + buf1[bufferIndex + 1]) > 255 ? 255 : Math.max(green, 0);
+          blue = (blue + buf1[bufferIndex + 2]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
           final int b = closest & 0xFF;
-          final int delta_r = red - r;
-          final int delta_g = green - g;
-          final int delta_b = blue - b;
+          final int delta_r = (red - r) >> 3;
+          final int delta_g = (green - g) >> 3;
+          final int delta_b = (blue - b) >> 3;
           if (hasNextX) {
-            buf1[bufferIndex] = delta_r >> 3;
-            buf1[bufferIndex + 1] = delta_g >> 3;
-            buf1[bufferIndex + 2] = delta_b >> 3;
-            if (x + 2 < width) {
-              buf1[bufferIndex + 6] = delta_r >> 3;
-              buf1[bufferIndex + 7] = delta_g >> 3;
-              buf1[bufferIndex + 8] = delta_b >> 3;
+            buf1[bufferIndex - 3] += delta_r;
+            buf1[bufferIndex - 2] += delta_g;
+            buf1[bufferIndex - 1] += delta_b;
+            if (x > 1) {
+              buf1[bufferIndex - 6] += delta_r;
+              buf1[bufferIndex - 5] += delta_g;
+              buf1[bufferIndex - 4] += delta_b;
             }
           }
           if (hasNextY) {
-            buf2[bufferIndex - 3] = delta_r >> 3;
-            buf2[bufferIndex - 2] = delta_g >> 3;
-            buf2[bufferIndex - 1] = delta_b >> 3;
-            if (x > 0) {
-              buf2[bufferIndex - 6] = delta_r >> 3;
-              buf2[bufferIndex - 5] = delta_g >> 3;
-              buf2[bufferIndex - 4] = delta_b >> 3;
-            }
             if (x < widthMinus) {
-              buf2[bufferIndex + 3] = delta_r >> 3;
-              buf2[bufferIndex + 4] = delta_g >> 3;
-              buf2[bufferIndex + 5] = delta_b >> 3;
+              buf2[bufferIndex + 3] += delta_r;
+              buf2[bufferIndex + 4] += delta_g;
+              buf2[bufferIndex + 5] += delta_b;
             }
-            if (y + 2 < height) {
-              buf2[bufferIndex] = delta_r >> 3;
-              buf2[bufferIndex + 1] = delta_g >> 3;
-              buf2[bufferIndex + 2] = delta_b >> 3;
+            buf2[bufferIndex] += delta_r;
+            buf2[bufferIndex + 1] += delta_g;
+            buf2[bufferIndex + 2] += delta_b;
+            if (hasNextX) {
+              buf2[bufferIndex - 3] += delta_r;
+              buf2[bufferIndex - 2] += delta_g;
+              buf2[bufferIndex - 1] += delta_b;
+            }
+            if (y < height - 2) {
+              buf3[bufferIndex] += delta_r;
+              buf3[bufferIndex + 1] += delta_g;
+              buf3[bufferIndex + 2] += delta_b;
             }
           }
           buffer[index] = closest;
@@ -151,118 +156,126 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
   @Override
   public byte[] ditherIntoBytes(final StaticImage image) {
     final Palette palette = this.getPalette();
-    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
-    final int height = buffer.length / width;
+    final int width = image.getWidth();
+    final int height = image.getHeight();
     final int widthMinus = width - 1;
-    final int heightMinus = height - 1;
-    final int[][] ditherBuffer = new int[2][width + (width << 1)];
     final ByteBuffer data = ByteBuffer.allocate(buffer.length);
+    final int[][] ditherBuffer = new int[3][width * 3];
     for (int y = 0; y < height; y++) {
-      final boolean hasNextY = y < heightMinus;
+      final boolean hasNextY = y < height - 1;
       final int yIndex = y * width;
+      if (hasNextY) {
+        Arrays.fill(ditherBuffer[(y + 1) % 3], 0);
+      }
+      if (y < height - 2) {
+        Arrays.fill(ditherBuffer[(y + 2) % 3], 0);
+      }
+      final int[] buf1 = ditherBuffer[y % 3];
+      final int[] buf2 = ditherBuffer[(y + 1) % 3];
+      final int[] buf3 = ditherBuffer[(y + 2) % 3];
       if ((y & 0x1) == 0) {
-        int bufferIndex = 0;
-        final int[] buf1 = ditherBuffer[0];
-        final int[] buf2 = ditherBuffer[1];
         for (int x = 0; x < width; x++) {
           final boolean hasNextX = x < widthMinus;
           final int index = yIndex + x;
+          final int bufferIndex = x * 3;
           final int rgb = buffer[index];
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          red = (red += buf1[bufferIndex++]) > 255 ? 255 : Math.max(red, 0);
-          green = (green += buf1[bufferIndex++]) > 255 ? 255 : Math.max(green, 0);
-          blue = (blue += buf1[bufferIndex++]) > 255 ? 255 : Math.max(blue, 0);
+          red = (red + buf1[bufferIndex]) > 255 ? 255 : Math.max(red, 0);
+          green = (green + buf1[bufferIndex + 1]) > 255 ? 255 : Math.max(green, 0);
+          blue = (blue + buf1[bufferIndex + 2]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
           final int b = closest & 0xFF;
-          final int delta_r = red - r;
-          final int delta_g = green - g;
-          final int delta_b = blue - b;
-          if (hasNextX) {
-            buf1[bufferIndex] = delta_r >> 3;
-            buf1[bufferIndex + 1] = delta_g >> 3;
-            buf1[bufferIndex + 2] = delta_b >> 3;
-            if (x + 2 < width) {
-              buf1[bufferIndex + 6] = delta_r >> 3;
-              buf1[bufferIndex + 7] = delta_g >> 3;
-              buf1[bufferIndex + 8] = delta_b >> 3;
+          final int delta_r = (red - r) >> 3;
+          final int delta_g = (green - g) >> 3;
+          final int delta_b = (blue - b) >> 3;
+          if (hasNextX && bufferIndex + 5 < buf1.length) {
+            buf1[bufferIndex + 3] += delta_r;
+            buf1[bufferIndex + 4] += delta_g;
+            buf1[bufferIndex + 5] += delta_b;
+            if (x < width - 2 && bufferIndex + 8 < buf1.length) {
+              buf1[bufferIndex + 6] += delta_r;
+              buf1[bufferIndex + 7] += delta_g;
+              buf1[bufferIndex + 8] += delta_b;
             }
           }
           if (hasNextY) {
-            buf2[bufferIndex - 3] = delta_r >> 3;
-            buf2[bufferIndex - 2] = delta_g >> 3;
-            buf2[bufferIndex - 1] = delta_b >> 3;
-            if (x > 0) {
-              buf2[bufferIndex - 6] = delta_r >> 3;
-              buf2[bufferIndex - 5] = delta_g >> 3;
-              buf2[bufferIndex - 4] = delta_b >> 3;
+            if (x > 0 && bufferIndex - 1 >= 0) {
+              buf2[bufferIndex - 3] += delta_r;
+              buf2[bufferIndex - 2] += delta_g;
+              buf2[bufferIndex - 1] += delta_b;
             }
-            if (x < widthMinus) {
-              buf2[bufferIndex + 3] = delta_r >> 3;
-              buf2[bufferIndex + 4] = delta_g >> 3;
-              buf2[bufferIndex + 5] = delta_b >> 3;
+            if (bufferIndex + 2 < buf2.length) {
+              buf2[bufferIndex] += delta_r;
+              buf2[bufferIndex + 1] += delta_g;
+              buf2[bufferIndex + 2] += delta_b;
             }
-            if (y + 2 < height) {
-              buf2[bufferIndex] = delta_r >> 3;
-              buf2[bufferIndex + 1] = delta_g >> 3;
-              buf2[bufferIndex + 2] = delta_b >> 3;
+            if (hasNextX && bufferIndex + 5 < buf2.length) {
+              buf2[bufferIndex + 3] += delta_r;
+              buf2[bufferIndex + 4] += delta_g;
+              buf2[bufferIndex + 5] += delta_b;
+            }
+            if (y < height - 2 && bufferIndex + 2 < buf3.length) {
+              buf3[bufferIndex] += delta_r;
+              buf3[bufferIndex + 1] += delta_g;
+              buf3[bufferIndex + 2] += delta_b;
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
         }
       } else {
-        int bufferIndex = width + (width << 1) - 1;
-        final int[] buf1 = ditherBuffer[1];
-        final int[] buf2 = ditherBuffer[0];
         for (int x = width - 1; x >= 0; x--) {
           final boolean hasNextX = x > 0;
           final int index = yIndex + x;
+          final int bufferIndex = x * 3;
           final int rgb = buffer[index];
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          blue = (blue += buf1[bufferIndex--]) > 255 ? 255 : Math.max(blue, 0);
-          green = (green += buf1[bufferIndex--]) > 255 ? 255 : Math.max(green, 0);
-          red = (red += buf1[bufferIndex--]) > 255 ? 255 : Math.max(red, 0);
+          red = (red + buf1[bufferIndex]) > 255 ? 255 : Math.max(red, 0);
+          green = (green + buf1[bufferIndex + 1]) > 255 ? 255 : Math.max(green, 0);
+          blue = (blue + buf1[bufferIndex + 2]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
           final int b = closest & 0xFF;
-          final int delta_r = red - r;
-          final int delta_g = green - g;
-          final int delta_b = blue - b;
-          if (hasNextX) {
-            buf1[bufferIndex] = delta_r >> 3;
-            buf1[bufferIndex + 1] = delta_g >> 3;
-            buf1[bufferIndex + 2] = delta_b >> 3;
-            if (x + 2 < width) {
-              buf1[bufferIndex + 6] = delta_r >> 3;
-              buf1[bufferIndex + 7] = delta_g >> 3;
-              buf1[bufferIndex + 8] = delta_b >> 3;
+          final int delta_r = (red - r) >> 3;
+          final int delta_g = (green - g) >> 3;
+          final int delta_b = (blue - b) >> 3;
+          if (hasNextX && bufferIndex - 1 >= 0) {
+            buf1[bufferIndex - 3] += delta_r;
+            buf1[bufferIndex - 2] += delta_g;
+            buf1[bufferIndex - 1] += delta_b;
+            if (x > 1 && bufferIndex - 4 >= 0) {
+              buf1[bufferIndex - 6] += delta_r;
+              buf1[bufferIndex - 5] += delta_g;
+              buf1[bufferIndex - 4] += delta_b;
             }
           }
           if (hasNextY) {
-            buf2[bufferIndex - 3] = delta_r >> 3;
-            buf2[bufferIndex - 2] = delta_g >> 3;
-            buf2[bufferIndex - 1] = delta_b >> 3;
-            if (x > 0) {
-              buf2[bufferIndex - 6] = delta_r >> 3;
-              buf2[bufferIndex - 5] = delta_g >> 3;
-              buf2[bufferIndex - 4] = delta_b >> 3;
+            if (x < widthMinus && bufferIndex + 5 < buf2.length) {
+              buf2[bufferIndex + 3] += delta_r;
+              buf2[bufferIndex + 4] += delta_g;
+              buf2[bufferIndex + 5] += delta_b;
             }
-            if (x < widthMinus) {
-              buf2[bufferIndex + 3] = delta_r >> 3;
-              buf2[bufferIndex + 4] = delta_g >> 3;
-              buf2[bufferIndex + 5] = delta_b >> 3;
+            if (bufferIndex + 2 < buf2.length) {
+              buf2[bufferIndex] += delta_r;
+              buf2[bufferIndex + 1] += delta_g;
+              buf2[bufferIndex + 2] += delta_b;
             }
-            if (y + 2 < height) {
-              buf2[bufferIndex] = delta_r >> 3;
-              buf2[bufferIndex + 1] = delta_g >> 3;
-              buf2[bufferIndex + 2] = delta_b >> 3;
+            if (hasNextX && bufferIndex - 1 >= 0) {
+              buf2[bufferIndex - 3] += delta_r;
+              buf2[bufferIndex - 2] += delta_g;
+              buf2[bufferIndex - 1] += delta_b;
+            }
+            if (y < height - 2 && bufferIndex + 2 < buf3.length) {
+              buf3[bufferIndex] += delta_r;
+              buf3[bufferIndex + 1] += delta_g;
+              buf3[bufferIndex + 2] += delta_b;
             }
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));

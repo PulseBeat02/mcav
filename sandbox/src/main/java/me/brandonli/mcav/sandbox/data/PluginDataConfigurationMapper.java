@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -37,7 +37,7 @@ public final class PluginDataConfigurationMapper {
   private static final String SERVER_HOST_FIELD = "server.host-name";
 
   private final ExecutorService service;
-  private final MCAV plugin;
+  private final MCAVSandbox plugin;
   private final Lock readLock;
   private final Lock writeLock;
 
@@ -46,7 +46,7 @@ public final class PluginDataConfigurationMapper {
   private String hostName;
   private int port;
 
-  public PluginDataConfigurationMapper(final MCAV plugin) {
+  public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
     final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     this.plugin = plugin;
     this.readLock = lock.readLock();
@@ -59,7 +59,7 @@ public final class PluginDataConfigurationMapper {
     ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 
-  public synchronized MCAV getPlugin() {
+  public synchronized MCAVSandbox getPlugin() {
     return this.plugin;
   }
 

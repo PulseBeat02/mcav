@@ -25,7 +25,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 
 public final class IOUtils {
 
@@ -34,7 +34,7 @@ public final class IOUtils {
   }
 
   public static Path getPluginDataFolderPath() {
-    final MCAV plugin = MCAV.getPlugin(MCAV.class);
+    final MCAVSandbox plugin = MCAVSandbox.getPlugin(MCAVSandbox.class);
     final File dataFolder = plugin.getDataFolder();
     final Path dataFolderPath = dataFolder.toPath();
     return dataFolderPath.toAbsolutePath();

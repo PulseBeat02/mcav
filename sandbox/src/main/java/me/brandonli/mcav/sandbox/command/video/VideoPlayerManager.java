@@ -1,0 +1,67 @@
+/*
+ * This file is part of mcav, a media playback library for Minecraft
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.sandbox.command.video;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.locale.AudienceProvider;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public final class VideoPlayerManager {
+
+  private @Nullable VideoPlayerMultiplexer player;
+
+  private final AtomicBoolean status;
+  private final ExecutorService service;
+  private final BukkitAudiences audiences;
+
+  // create separate classes for each video player (map, entity, scoreboard, chat)
+  // create basic video player control class
+  // create class to extend
+
+  public VideoPlayerManager(final MCAVSandbox plugin) {
+    final AudienceProvider provider = plugin.getAudience();
+    this.status = new AtomicBoolean(false);
+    this.service = Executors.newSingleThreadExecutor();
+    this.audiences = provider.retrieve();
+  }
+
+  public BukkitAudiences getAudiences() {
+    return this.audiences;
+  }
+
+  public ExecutorService getService() {
+    return this.service;
+  }
+
+  public AtomicBoolean getStatus() {
+    return this.status;
+  }
+
+  public void setPlayer(final @Nullable VideoPlayerMultiplexer player) {
+    this.player = player;
+  }
+
+  public @Nullable VideoPlayerMultiplexer getPlayer() {
+    return this.player;
+  }
+}

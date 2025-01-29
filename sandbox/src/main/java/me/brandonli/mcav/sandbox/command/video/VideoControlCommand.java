@@ -1,0 +1,80 @@
+/*
+ * This file is part of mcav, a media playback library for Minecraft
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.sandbox.command.video;
+
+import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
+import me.brandonli.mcav.sandbox.locale.Message;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Permission;
+
+public final class VideoControlCommand implements AnnotationCommandFeature {
+
+  private VideoPlayerManager manager;
+
+  @Override
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.manager = plugin.getVideoPlayerManager();
+  }
+
+  @Command("mcav video release")
+  @Permission("mcav.command.video.release")
+  @CommandDescription("mcav.command.video.release.info")
+  public void releaseVideo(final Player player) {
+    final BukkitAudiences audiences = this.manager.getAudiences();
+    final Audience audience = audiences.sender(player);
+    this.releaseVideoPlayer();
+    audience.sendMessage(Message.VIDEO_RELEASED.build());
+  }
+
+  private void releaseVideoPlayer() {
+    final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
+    if (videoPlayer != null) {
+      try {
+        videoPlayer.release();
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+      this.manager.setPlayer(null);
+    }
+  }
+
+  @Command("mcav video pause")
+  @Permission("mcav.command.video.pause")
+  @CommandDescription("mcav.command.video.pause.info")
+  public void pauseVideo(final Player player) {
+    final BukkitAudiences audiences = this.manager.getAudiences();
+    final Audience audience = audiences.sender(player);
+    final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
+    if (videoPlayer != null) {
+      try {
+        videoPlayer.pause();
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+    }
+    audience.sendMessage(Message.VIDEO_PAUSED.build());
+  }
+}

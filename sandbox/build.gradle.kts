@@ -76,7 +76,7 @@ tasks {
         authors = listOf("PulseBeat_02")
         apiVersion = "1.21"
         prefix = "MCAV Sandbox"
-        main = "me.brandonli.mcav.sandbox.MCAV"
+        main = "me.brandonli.mcav.sandbox.MCAVSandbox"
         libraries = listOf(
             "org.incendo:cloud-core:2.0.0",
             "org.incendo:cloud-annotations:2.0.0",

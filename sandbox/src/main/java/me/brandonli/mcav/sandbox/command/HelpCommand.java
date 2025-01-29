@@ -21,7 +21,7 @@ import static org.incendo.cloud.minecraft.extras.MinecraftHelp.*;
 
 import java.util.HashMap;
 import java.util.Map;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.LocaleTools;
 import me.brandonli.mcav.sandbox.locale.TranslationManager;
@@ -42,7 +42,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
   private BukkitAudiences bukkitAudiences;
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     final AudienceProvider handler = plugin.getAudience();
     this.bukkitAudiences = handler.retrieve();
     this.manager = parser.manager();

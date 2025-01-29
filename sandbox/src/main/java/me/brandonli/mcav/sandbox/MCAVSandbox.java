@@ -22,17 +22,19 @@ import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.installer.Artifact;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
+import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public final class MCAV extends JavaPlugin {
+public final class MCAVSandbox extends JavaPlugin {
 
   /*
 
@@ -49,6 +51,7 @@ public final class MCAV extends JavaPlugin {
   private AudienceProvider audienceProvider;
   private Logger logger;
 
+  private VideoPlayerManager videoPlayerManager;
   private MCAVApi mcav;
   private PluginDataConfigurationMapper configurationMapper;
 
@@ -69,14 +72,19 @@ public final class MCAV extends JavaPlugin {
   public void onEnable() {
     this.loadAudience();
     this.loadPluginData();
+    this.loadManager();
     this.loadCommands();
     this.initLookupTables();
+  }
+
+  private void loadManager() {
+    this.videoPlayerManager = new VideoPlayerManager(this);
   }
 
   private void loadMCAV() {
     this.logger.info("Loading MCAV Library");
     final long startTime = System.currentTimeMillis();
-    this.mcav = me.brandonli.mcav.MCAV.api();
+    this.mcav = MCAV.api();
     this.mcav.install();
     MCAVBukkit.inject(this);
     final long endTime = System.currentTimeMillis();
@@ -161,5 +169,9 @@ public final class MCAV extends JavaPlugin {
 
   public AudienceProvider getAudience() {
     return this.audienceProvider;
+  }
+
+  public VideoPlayerManager getVideoPlayerManager() {
+    return this.videoPlayerManager;
   }
 }

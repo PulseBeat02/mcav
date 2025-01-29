@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.gui.ScreenBuilderGui;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -28,10 +28,10 @@ import org.incendo.cloud.annotations.Permission;
 
 public final class ScreenCommand implements AnnotationCommandFeature {
 
-  private MCAV plugin;
+  private MCAVSandbox plugin;
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     this.plugin = plugin;
   }
 

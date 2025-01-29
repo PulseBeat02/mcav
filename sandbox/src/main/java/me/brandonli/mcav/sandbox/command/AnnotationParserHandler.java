@@ -18,7 +18,9 @@
 package me.brandonli.mcav.sandbox.command;
 
 import java.util.List;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.incendo.cloud.CommandManager;
@@ -36,14 +38,15 @@ public final class AnnotationParserHandler {
     new DumpCommand(),
     new HelpCommand(),
     new ScreenCommand(),
-    new VideoCommand()
+    new VideoMapCommand(),
+    new VideoControlCommand()
   );
 
   private final CommandManager<CommandSender> manager;
   private final AnnotationParser<CommandSender> parser;
-  private final MCAV plugin;
+  private final MCAVSandbox plugin;
 
-  public AnnotationParserHandler(final MCAV plugin) {
+  public AnnotationParserHandler(final MCAVSandbox plugin) {
     this.plugin = plugin;
     this.manager = this.getCommandManager(plugin);
     this.parser = this.getAnnotationParser(this.manager);
@@ -59,7 +62,7 @@ public final class AnnotationParserHandler {
     return parser;
   }
 
-  private CommandManager<CommandSender> getCommandManager(@UnderInitialization AnnotationParserHandler this, final MCAV plugin) {
+  private CommandManager<CommandSender> getCommandManager(@UnderInitialization AnnotationParserHandler this, final MCAVSandbox plugin) {
     final ExecutionCoordinator<CommandSender> coordinator = ExecutionCoordinator.simpleCoordinator();
     final LegacyPaperCommandManager<CommandSender> manager = LegacyPaperCommandManager.createNative(plugin, coordinator);
     this.registerBrigadierCapability(manager);

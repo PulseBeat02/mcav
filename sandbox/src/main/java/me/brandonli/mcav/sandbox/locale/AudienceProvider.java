@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.locale;
 
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
@@ -26,7 +26,7 @@ public final class AudienceProvider {
 
   private final BukkitAudiences audience;
 
-  public AudienceProvider(final MCAV neon) {
+  public AudienceProvider(final MCAVSandbox neon) {
     this.audience = BukkitAudiences.create(neon);
   }
 

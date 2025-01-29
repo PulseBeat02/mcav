@@ -18,6 +18,8 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered;
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
@@ -34,6 +36,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
 
   private final Palette palette;
   private final float[][] precalc;
+  private final int avgLevel;
   private final int xdim;
   private final int ydim;
 
@@ -50,6 +53,23 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     this.precalc = mapper.getMatrix();
     this.ydim = this.precalc.length;
     this.xdim = this.precalc[0].length;
+    this.avgLevel = this.calculateAverageLevel(this.palette);
+  }
+
+  private int calculateAverageLevel(final Palette palette) {
+    final int[] colors = palette.getPalette();
+    final Set<Integer> redValues = new HashSet<>();
+    final Set<Integer> greenValues = new HashSet<>();
+    final Set<Integer> blueValues = new HashSet<>();
+    for (final int color : colors) {
+      redValues.add((color >> 16) & 0xFF);
+      greenValues.add((color >> 8) & 0xFF);
+      blueValues.add(color & 0xFF);
+    }
+    final int redLevels = redValues.size();
+    final int greenLevels = greenValues.size();
+    final int blueLevels = blueValues.size();
+    return Math.max(2, (redLevels + greenLevels + blueLevels) / 3);
   }
 
   /**
@@ -79,13 +99,22 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
         int r = (color >> 16) & 0xFF;
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
-        r = (r += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(r, 0);
-        g = (g += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(g, 0);
-        b = (b += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(b, 0);
+        final float threshold = this.precalc[y % this.ydim][x % this.xdim];
+        r = this.adjustColorBasedOnThreshold(r, threshold);
+        g = this.adjustColorBasedOnThreshold(g, threshold);
+        b = this.adjustColorBasedOnThreshold(b, threshold);
         data.put(DitherUtils.getBestColor(this.palette, r, g, b));
       }
     }
     return data.array();
+  }
+
+  private int adjustColorBasedOnThreshold(final int colorValue, final float threshold) {
+    final float step = 255.0f / (this.avgLevel - 1);
+    final float normalizedThreshold = (threshold / 255.0f) * step;
+    final float adjustedValue = colorValue + normalizedThreshold;
+    final int quantizedLevel = Math.round(adjustedValue / step);
+    return Math.min(255, Math.max(0, Math.round(quantizedLevel * step)));
   }
 
   /**

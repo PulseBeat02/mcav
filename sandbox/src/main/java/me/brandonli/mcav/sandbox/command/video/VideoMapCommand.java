@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.sandbox.command;
+package me.brandonli.mcav.sandbox.command.video;
 
 import static java.util.Objects.requireNonNull;
 
@@ -27,7 +27,6 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
@@ -47,8 +46,8 @@ import me.brandonli.mcav.media.source.DeviceSource;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.UriSource;
-import me.brandonli.mcav.sandbox.MCAV;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
@@ -67,44 +66,13 @@ import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 
-public final class VideoCommand implements AnnotationCommandFeature {
+public final class VideoMapCommand implements AnnotationCommandFeature {
 
-  private @Nullable VideoPlayerMultiplexer videoPlayer;
-  private AtomicBoolean initializing;
-
-  private ExecutorService service;
-  private BukkitAudiences audiences;
+  private VideoPlayerManager manager;
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
-    final AudienceProvider provider = plugin.getAudience();
-    this.initializing = new AtomicBoolean(false);
-    this.service = Executors.newSingleThreadExecutor();
-    this.audiences = provider.retrieve();
-  }
-
-  @Command("mcav video release")
-  @Permission("mcav.command.video.release")
-  @CommandDescription("mcav.command.video.release.info")
-  public void releaseVideo(final Player player) {
-    final Audience audience = this.audiences.sender(player);
-    this.releaseVideoPlayer();
-    audience.sendMessage(Message.VIDEO_RELEASED.build());
-  }
-
-  @Command("mcav video pause")
-  @Permission("mcav.command.video.pause")
-  @CommandDescription("mcav.command.video.pause.info")
-  public void pauseVideo(final Player player) {
-    final Audience audience = this.audiences.sender(player);
-    if (this.videoPlayer != null) {
-      try {
-        this.videoPlayer.pause();
-      } catch (final Exception e) {
-        throw new AssertionError(e);
-      }
-    }
-    audience.sendMessage(Message.VIDEO_PAUSED.build());
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.manager = plugin.getVideoPlayerManager();
   }
 
   @Command("mcav video map <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
@@ -115,11 +83,13 @@ public final class VideoCommand implements AnnotationCommandFeature {
     final PlayerArgument playerType,
     @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "id") @Range(min = "0") final int mapId,
+    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Greedy final String mrl
   ) {
-    final Audience audience = this.audiences.sender(player);
+    final BukkitAudiences audiences = this.manager.getAudiences();
+    final AtomicBoolean initializing = this.manager.getStatus();
+    final Audience audience = audiences.sender(player);
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {
@@ -130,26 +100,29 @@ public final class VideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    if (this.initializing.get()) {
+    if (initializing.get()) {
       audience.sendMessage(Message.VIDEO_LOADING_ERROR.build());
       return;
     }
 
-    this.initializing.set(true);
+    initializing.set(true);
 
     audience.sendMessage(Message.VIDEO_LOADING.build());
+
+    final ExecutorService service = this.manager.getService();
     CompletableFuture.runAsync(
       () -> this.synchronizeMapPlayer(playerType, mapId, ditheringAlgorithm, mrl, audience, dimensions, resolution),
-      this.service
+      service
     )
       .exceptionally(this.handleException())
-      .thenRun(() -> this.initializing.set(false))
+      .thenRun(() -> initializing.set(false))
       .thenRun(() -> audience.sendMessage(Message.VIDEO_STARTED.build()));
   }
 
   private @NonNull Function<Throwable, Void> handleException() {
+    final AtomicBoolean initializing = this.manager.getStatus();
     return e -> {
-      this.initializing.set(false);
+      initializing.set(false);
       throw new AssertionError(e);
     };
   }
@@ -186,7 +159,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     final Source video = sources[0];
     final Source audio = sources[1];
     final VideoPlayerMultiplexer player = playerType.createPlayer();
-    this.videoPlayer = player;
+    this.manager.setPlayer(player);
     try {
       requireNonNull(video);
       if (audio == null) {
@@ -236,13 +209,14 @@ public final class VideoCommand implements AnnotationCommandFeature {
   }
 
   private void releaseVideoPlayer() {
-    if (this.videoPlayer != null) {
+    final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
+    if (videoPlayer != null) {
       try {
-        this.videoPlayer.release();
+        videoPlayer.release();
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
-      this.videoPlayer = null;
+      this.manager.setPlayer(null);
     }
   }
 

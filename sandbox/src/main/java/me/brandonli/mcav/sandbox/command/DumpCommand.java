@@ -18,7 +18,7 @@
 package me.brandonli.mcav.sandbox.command;
 
 import java.util.concurrent.CompletableFuture;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.DumpUtils;
@@ -36,7 +36,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   private BukkitAudiences audiences;
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     final AudienceProvider handler = plugin.getAudience();
     this.audiences = handler.retrieve();
   }

@@ -19,7 +19,7 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.result.Characters;
-import me.brandonli.mcav.sandbox.MCAV;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
@@ -52,7 +52,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   }
 
   @Override
-  public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     // do nothing
   }
 }
