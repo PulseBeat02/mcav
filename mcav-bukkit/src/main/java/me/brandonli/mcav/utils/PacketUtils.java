@@ -43,6 +43,15 @@ public final class PacketUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Sends an array of packets to a collection of viewers identified by their UUIDs.
+   * This method ensures that all viewers in the collection have an active connection
+   * before sending the specified packets.
+   *
+   * @param viewers a collection of {@link UUID} objects representing the viewers to
+   *                whom the packets will be sent
+   * @param packets an array of packets to send to the specified viewers
+   */
   public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
     for (final UUID viewer : viewers) {
       if (!PLAYER_CONNECTIONS.containsKey(viewer)) {

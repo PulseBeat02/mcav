@@ -93,7 +93,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) throws Exception {
+  public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
     synchronized (this.lock) {
       this.source = combined;
       this.videoPipeline = videoPipeline;
@@ -187,7 +187,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean release() throws Exception {
+  public boolean release() {
     synchronized (this.lock) {
       if (!this.running.get()) {
         return false;

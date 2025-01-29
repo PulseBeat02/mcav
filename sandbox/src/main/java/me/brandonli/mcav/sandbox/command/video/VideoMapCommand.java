@@ -157,16 +157,12 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
     final Source audio = sources[1];
     final VideoPlayerMultiplexer player = playerType.createPlayer();
     this.manager.setPlayer(player);
-    try {
-      requireNonNull(video);
-      if (audio == null) {
-        player.start(audioPipelineStep, videoPipelineStep, video);
-      } else {
-        requireNonNull(audio);
-        player.start(audioPipelineStep, videoPipelineStep, video, audio);
-      }
-    } catch (final Exception e) {
-      throw new AssertionError(e);
+    requireNonNull(video);
+    if (audio == null) {
+      player.start(audioPipelineStep, videoPipelineStep, video);
+    } else {
+      requireNonNull(audio);
+      player.start(audioPipelineStep, videoPipelineStep, video, audio);
     }
   }
 
@@ -208,11 +204,7 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
   private void releaseVideoPlayer() {
     final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
     if (videoPlayer != null) {
-      try {
-        videoPlayer.release();
-      } catch (final Exception e) {
-        throw new AssertionError(e);
-      }
+      videoPlayer.release();
       this.manager.setPlayer(null);
     }
   }

@@ -29,6 +29,11 @@ public class HttpServerException extends AssertionError {
 
   private static final long serialVersionUID = -6775463807604247034L;
 
+  /**
+   * Constructs a new {@code HttpServerException} with the specified detail message.
+   *
+   * @param message the detail message explaining the exception. This can be {@code null}.
+   */
   public HttpServerException(final @Nullable String message) {
     super(message);
   }

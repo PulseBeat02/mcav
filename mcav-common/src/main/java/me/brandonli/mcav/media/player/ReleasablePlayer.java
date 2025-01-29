@@ -17,6 +17,10 @@
  */
 package me.brandonli.mcav.media.player;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+
 /**
  * The ReleasablePlayer interface defines a contract for releasing resources
  * associated with a player once it is no longer needed. This interface is useful
@@ -39,7 +43,32 @@ public interface ReleasablePlayer {
    * It ensures proper cleanup to prevent resource leaks.
    *
    * @return true if the resources were successfully released, false otherwise
-   * @throws Exception if an error occurs during the release process
    */
-  boolean release() throws Exception;
+  boolean release();
+
+  /**
+   * Asynchronously releases all resources associated with the current instance
+   * by delegating the operation to the {@link ForkJoinPool#commonPool()} executor.
+   * Once the resources are released, the instance should no longer be used.
+   *
+   * @return a {@link CompletableFuture} that resolves to {@code true} if the resources
+   * were successfully released, or {@code false} otherwise
+   */
+  default CompletableFuture<Boolean> releaseAsync() {
+    return this.releaseAsync(ForkJoinPool.commonPool());
+  }
+
+  /**
+   * Asynchronously releases all resources associated with the current instance
+   * using the provided {@link ExecutorService}. Once this method is invoked,
+   * the instance should no longer be used. The execution of the release operation
+   * will be performed in a non-blocking manner on the given executor.
+   *
+   * @param executor the {@link ExecutorService} to execute the release operation asynchronously
+   * @return a {@link CompletableFuture} that resolves to {@code true} if the resources
+   * were successfully released, or {@code false} otherwise
+   */
+  default CompletableFuture<Boolean> releaseAsync(final ExecutorService executor) {
+    return CompletableFuture.supplyAsync(this::release, executor);
+  }
 }

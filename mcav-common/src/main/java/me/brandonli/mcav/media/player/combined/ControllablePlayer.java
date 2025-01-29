@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.media.player.combined;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 
 /**
@@ -38,9 +41,33 @@ public interface ControllablePlayer {
    * Pauses media playback if it is currently playing.
    *
    * @return true if the media playback is successfully paused; false otherwise.
-   * @throws Exception if an error occurs during the pause operation.
    */
-  boolean pause() throws Exception;
+  boolean pause();
+
+  /**
+   * Asynchronously pauses media playback using the default {@link ForkJoinPool#commonPool()} executor.
+   * This method is a non-blocking, asynchronous version of the {@code pause()} method, allowing the
+   * pause operation to be executed in a separate thread.
+   *
+   * @return a {@code CompletableFuture} representing the asynchronous operation, which completes
+   * with {@code true} if the media playback is successfully paused, or {@code false} otherwise.
+   */
+  default CompletableFuture<Boolean> pauseAsync() {
+    return this.pauseAsync(ForkJoinPool.commonPool());
+  }
+
+  /**
+   * Pauses media playback asynchronously using the provided {@link ExecutorService}.
+   * This method is a non-blocking, asynchronous version of the {@code pause()} method,
+   * allowing media playback to be paused in the background without blocking the main thread.
+   *
+   * @param executor the {@link ExecutorService} to be used for executing the asynchronous operation
+   * @return a {@code CompletableFuture} that completes with {@code true} if the media playback
+   * is successfully paused, or {@code false} otherwise
+   */
+  default CompletableFuture<Boolean> pauseAsync(final ExecutorService executor) {
+    return CompletableFuture.supplyAsync(this::pause, executor);
+  }
 
   /**
    * Resumes the playback of the media from the current timestamp. If the player has been
@@ -52,7 +79,33 @@ public interface ControllablePlayer {
    * depending on the presence of audio data.
    *
    * @return {@code true} if the playback was successfully resumed, {@code false} otherwise.
-   * @throws Exception if any error occurs during playback initialization or frame processing.
    */
-  boolean resume() throws Exception;
+  boolean resume();
+
+  /**
+   * Resumes playback of the media asynchronously using a default thread pool.
+   * <p>
+   * This method is a non-blocking, asynchronous version of the {@code resume()} method
+   * that utilizes the {@code ForkJoinPool.commonPool()} for execution. It allows
+   * the playback to resume in the background without blocking the main thread.
+   *
+   * @return a {@code CompletableFuture} representing the asynchronous operation,
+   * which completes with {@code true} if the playback resumes successfully,
+   * or {@code false} otherwise.
+   */
+  default CompletableFuture<Boolean> resumeAsync() {
+    return this.resumeAsync(ForkJoinPool.commonPool());
+  }
+
+  /**
+   * Asynchronously resumes playback of media using a provided {@link ExecutorService}.
+   * The resume operation is executed in a separate thread specified by the given executor.
+   *
+   * @param executor the {@link ExecutorService} to be used for executing the asynchronous operation
+   * @return a {@link CompletableFuture} that completes with {@code true} if playback was successfully resumed,
+   * or {@code false} if it failed
+   */
+  default CompletableFuture<Boolean> resumeAsync(final ExecutorService executor) {
+    return CompletableFuture.supplyAsync(this::resume, executor);
+  }
 }

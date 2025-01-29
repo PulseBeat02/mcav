@@ -70,7 +70,7 @@ public class VNCPlayerImpl implements VNCPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final VNCSource source) throws Exception {
+  public boolean start(final VideoPipelineStep videoPipeline, final VNCSource source) {
     synchronized (this.lock) {
       if (this.connected) {
         return true;

@@ -113,8 +113,12 @@ public final class ReleasePackageManager {
       final JsonElement parsed = JsonParser.parseString(responseBody);
       final JsonObject releaseJson = parsed.getAsJsonObject();
       return releaseJson.getAsJsonArray("assets");
-    } catch (final IOException | InterruptedException e) {
-      throw new RuntimeException(e);
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e.getMessage());
+    } catch (final InterruptedException e) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      throw new UncheckedIOException(e.getMessage());
     }
   }
 }

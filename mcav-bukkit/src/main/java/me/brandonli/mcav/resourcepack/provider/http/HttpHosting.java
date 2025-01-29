@@ -19,6 +19,12 @@ package me.brandonli.mcav.resourcepack.provider.http;
 
 import me.brandonli.mcav.resourcepack.provider.PackHosting;
 
+/**
+ * Represents an HTTP-based hosting solution for resource packs.
+ * This interface extends the {@code PackHosting} interface and provides additional methods
+ * specific to HTTP hosting, such as retrieving the hostname and port, as well as constructing
+ * the raw URL of the hosted resource pack.
+ */
 public interface HttpHosting extends PackHosting {
   String HOST_URL = "http://%s:%s";
 

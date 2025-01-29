@@ -105,7 +105,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final VideoPipelineStep videoPipeline,
     final Source video,
     final Source audio
-  ) throws Exception {
+  ) {
     if (this.playbackCompletionFuture.isDone()) {
       this.playbackCompletionFuture = new CompletableFuture<>();
     }
@@ -132,8 +132,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined)
-    throws Exception {
+  public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
     if (this.playbackCompletionFuture.isDone()) {
       this.playbackCompletionFuture = new CompletableFuture<>();
     }
@@ -182,7 +181,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean pause() throws Exception {
+  public boolean pause() {
     final ControlsApi controls = this.player.controls();
     controls.pause();
     return true;
@@ -192,7 +191,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean resume() throws Exception {
+  public boolean resume() {
     final ControlsApi controls = this.player.controls();
     controls.start();
     return true;
@@ -202,7 +201,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean seek(final long time) throws Exception {
+  public boolean seek(final long time) {
     final ControlsApi controls = this.player.controls();
     controls.setTime(time);
     return false;
@@ -212,7 +211,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean release() throws Exception {
+  public boolean release() {
     this.pause();
     if (!this.playbackCompletionFuture.isDone()) {
       this.playbackCompletionFuture.complete(null);

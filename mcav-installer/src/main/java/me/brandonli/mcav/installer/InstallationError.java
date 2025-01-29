@@ -20,15 +20,19 @@ package me.brandonli.mcav.installer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception specific to HTTP repository resolution errors.
- * This exception is typically thrown when an error occurs while attempting
- * to resolve a repository over HTTP.
+ * Represents an error that occurs during the installation process of the application.
+ * This error is a subclass of {@link AssertionError} and is used to indicate critical issues
+ * that prevent the installation from proceeding successfully.
+ * <p>
+ * Instances of this error are typically thrown when an unrecoverable condition occurs,
+ * such as missing dependencies, invalid configurations, or unavailable resources essential
+ * to the installation process.
  */
-public class HttpRepositoryResolverError extends AssertionError {
+public class InstallationError extends AssertionError {
 
   private static final long serialVersionUID = 6370074734200515542L;
 
-  HttpRepositoryResolverError(final @Nullable String message) {
+  InstallationError(final @Nullable String message) {
     super(message);
   }
 }

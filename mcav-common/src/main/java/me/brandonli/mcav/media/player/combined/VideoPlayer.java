@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.media.player.combined;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.combined.cv.FFmpegPlayer;
 import me.brandonli.mcav.media.player.combined.cv.OpenCVPlayer;
 import me.brandonli.mcav.media.player.combined.cv.VideoInputPlayer;
@@ -38,9 +41,46 @@ public interface VideoPlayer {
    * @param videoPipeline the video processing pipeline step to handle video data during playback
    * @param combined      the source providing the combined media data for playback
    * @return {@code true} if the playback starts successfully, {@code false} otherwise
-   * @throws Exception if an error occurs during the initialization or playback process
    */
-  boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) throws Exception;
+  boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined);
+
+  /**
+   * Starts the video playback process asynchronously using the specified audio and video pipeline steps,
+   * a combined source, and an executor service for managing asynchronous execution.
+   *
+   * @param audioPipeline the audio processing pipeline step responsible for handling audio data
+   * @param videoPipeline the video processing pipeline step responsible for handling video data
+   * @param combined      the source that provides combined audio and video media data
+   * @param service       the executor service used to execute the asynchronous playback operation
+   * @return a {@link CompletableFuture} that completes with {@code true} if the playback starts successfully
+   * or {@code false} if the start operation fails
+   */
+  default CompletableFuture<Boolean> startAsync(
+    final AudioPipelineStep audioPipeline,
+    final VideoPipelineStep videoPipeline,
+    final Source combined,
+    final ExecutorService service
+  ) {
+    return CompletableFuture.supplyAsync(() -> start(audioPipeline, videoPipeline, combined), service);
+  }
+
+  /**
+   * Asynchronously starts the video playback process using the specified audio and video
+   * pipeline steps along with a combined source for media playback.
+   *
+   * @param audioPipeline the audio processing pipeline step to handle audio data during playback
+   * @param videoPipeline the video processing pipeline step to handle video data during playback
+   * @param combined      the source providing the combined media data for playback
+   * @return a {@link CompletableFuture} that completes with {@code true} if the playback
+   * starts successfully, or {@code false} otherwise
+   */
+  default CompletableFuture<Boolean> startAsync(
+    final AudioPipelineStep audioPipeline,
+    final VideoPipelineStep videoPipeline,
+    final Source combined
+  ) {
+    return startAsync(audioPipeline, videoPipeline, combined, ForkJoinPool.commonPool());
+  }
 
   /**
    * Creates an instance of a VLC-based VideoPlayerMultiplexer using the provided arguments.

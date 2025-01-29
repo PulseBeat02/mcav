@@ -19,6 +19,12 @@ package me.brandonli.mcav;
 
 import org.bukkit.plugin.Plugin;
 
+/**
+ * The {@code MCAVBukkit} class is a utility class designed to manage
+ * and provide access to a shared {@link Plugin} instance within a Minecraft Bukkit
+ * environment. It cannot be instantiated and provides static methods for
+ * manipulation and retrieval of a single plugin instance.
+ */
 public final class MCAVBukkit {
 
   private static Plugin PLUGIN;
@@ -27,10 +33,20 @@ public final class MCAVBukkit {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Injects a Plugin instance into the class for future use.
+   *
+   * @param plugin the Plugin instance to be injected
+   */
   public static void inject(final Plugin plugin) {
     PLUGIN = plugin;
   }
 
+  /**
+   * Retrieves the plugin instance associated with the application.
+   *
+   * @return the current Plugin instance registered with the application.
+   */
   public static Plugin getPlugin() {
     return PLUGIN;
   }

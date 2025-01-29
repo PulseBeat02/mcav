@@ -35,7 +35,7 @@ public final class ChatUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  public static net.minecraft.network.chat.Component toComponent(final String raw) {
+  private static net.minecraft.network.chat.Component toComponent(final String raw) {
     return CraftChatMessage.fromStringOrNull(raw);
   }
 

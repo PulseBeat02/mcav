@@ -35,6 +35,14 @@ public class MCPacksException extends AssertionError {
 
   private static final long serialVersionUID = -6775463807604247034L;
 
+  /**
+   * Constructs an {@code MCPacksException} with the specified detail message.
+   * This constructor allows the creation of an exception instance that can carry
+   * additional context or description about the error, specific to MC Packs functionality.
+   *
+   * @param message the detail message explaining the reason for the exception,
+   *                or {@code null} if no message is provided
+   */
   public MCPacksException(final @Nullable String message) {
     super(message);
   }

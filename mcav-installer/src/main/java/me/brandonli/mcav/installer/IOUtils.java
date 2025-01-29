@@ -43,7 +43,7 @@ public final class IOUtils {
       final byte[] hashBytes = digest.digest(fileBytes);
       return tohexString(hashBytes);
     } catch (final NoSuchAlgorithmException e) {
-      throw new RuntimeException("SHA-256 algorithm not available", e);
+      throw new InstallationError("SHA-256 algorithm not available");
     }
   }
 

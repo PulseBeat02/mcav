@@ -58,7 +58,7 @@ public class ImagePlayerImpl implements ImagePlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final FrameSource source) throws Exception {
+  public boolean start(final VideoPipelineStep videoPipeline, final FrameSource source) {
     synchronized (this.lock) {
       if (this.running.get()) {
         return false;
@@ -92,7 +92,7 @@ public class ImagePlayerImpl implements ImagePlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean release() throws Exception {
+  public boolean release() {
     synchronized (this.lock) {
       this.running.set(false);
       if (this.future != null) {
