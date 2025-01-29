@@ -1,5 +1,5 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/pulsebeat02/mcav/badge)](https://www.codefactor.io/repository/github/pulsebeat02/mcav)
-[![GitHub Actions](https://github.com/PulseBeat02/mcav/actions/workflows/tagged-release.yml/badge.svg)](https://github.com/PulseBeat02/mcav/actions)
+[![TeamCity Full Build Status](https://img.shields.io/teamcity/build/e/mcav?server=https%3A%2F%2Fci.brandonli.me)](https://ci.brandonli.me/project/mcav)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=PulseBeat02_mcav&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=PulseBeat02_mcav)
 
 ![Banner](https://www.bisecthosting.com/images/CF/MCAV/MP_MCAV_Header.webp)
