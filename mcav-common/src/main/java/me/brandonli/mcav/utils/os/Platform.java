@@ -73,11 +73,23 @@ public final class Platform {
     if (!(obj instanceof Platform)) {
       return false;
     }
-    if (hashCode() != obj.hashCode()) {
+    if (this.hashCode() != obj.hashCode()) {
       return false;
     }
     final Platform other = (Platform) obj;
     return this.os == other.os && this.arch == other.arch && this.bits == other.bits;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int hashCode() {
+    int result = 17;
+    result = 31 * result + (this.os != null ? this.os.hashCode() : 0);
+    result = 31 * result + (this.arch != null ? this.arch.hashCode() : 0);
+    result = 31 * result + (this.bits != null ? this.bits.hashCode() : 0);
+    return result;
   }
 
   /**

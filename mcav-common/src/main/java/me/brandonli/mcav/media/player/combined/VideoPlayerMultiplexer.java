@@ -17,21 +17,23 @@
  */
 package me.brandonli.mcav.media.player.combined;
 
+import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 
 /**
- * The {@code VideoPlayerMultiplexer} interface extends the functionalities of
- * {@link VideoPlayer} and {@link ControllablePlayer}, providing a unified interface
- * for handling video playback with support for controlling playback operations.
- * <p>
- * This interface enables advanced playback features such as managing separate
- * audio and video pipelines, starting playback with distinct audio and video sources,
- * and performing seek, pause, and resume operations. It is designed for use in scenarios
- * requiring integration with complex multimedia workflows.
+ * The {@code VideoPlayerMultiplexer} interface extends the functionality of {@code VideoPlayer},
+ * {@code ControllablePlayer}, {@code SeekablePlayer}, and {@code ReleasablePlayer} interfaces to
+ * support advanced video playback and control mechanisms. It integrates functionalities for
+ * multiplexing audio and video streams, ensuring synchronized playback and providing control
+ * over playback operations such as pausing, resuming, seeking, and releasing resources.
+ *
+ * This interface provides an essential method to start playback using audio and video pipeline
+ * steps along with corresponding audio and video sources, allowing precise and configurable setup
+ * of media processing and playback.
  */
-public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer {
+public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer, SeekablePlayer, ReleasablePlayer {
   /**
    * Starts the video player multiplexer with the provided audio and video processing pipelines,
    * as well as the corresponding audio and video sources.

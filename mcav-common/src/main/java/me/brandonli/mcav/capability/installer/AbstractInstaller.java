@@ -161,7 +161,6 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   private void downloadFile() throws IOException {
-    System.out.println("Downloading " + this.url + "...");
     final URL url = new URL(this.url);
     final File output = this.path.toFile();
 

@@ -5,4 +5,5 @@ dependencies {
     api("com.google.code.gson:gson:2.13.1")
     api("org.seleniumhq.selenium:selenium-java:4.31.0")
     api("io.github.bonigarcia:webdrivermanager:6.1.0")
+    api("com.shinyhut:vernacular:1.14")
 }

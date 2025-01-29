@@ -92,3 +92,25 @@ this into `ImagePlayer` directly.
 
 This will play the GIF indefinitely until you stop the player. You're also welcome to play the GIF in the `FFmpegPlayer`,
 as it's able to play GIFs as well.
+
+## VNC Players
+MCAV also provides a `VNCPlayer`, which is a video player that connects to a VNC server and displays the screen. This is
+useful for remote desktop applications or for monitoring remote systems. To use the `VNCPlayer`, you must construct
+a `VNCSource`, and pass it to the player.
+
+```java
+  final VideoPipelineStep pipeline = ...;
+  final VNCSource source = VNCSource.vnc()
+    .host("localhost")
+    .port(5900)
+    .password("passwd")
+    .videoMetadata(videoMetadata)
+    .name("VNC Connection")
+    .build();
+  final VNCPlayer player = VNCPlayer.vm();
+  player.start(pipeline, source);
+  // ... do some play back
+  player.release();
+```
+
+That way, you're able to connect to virtual machines or any VNC server and interact with it as if it were a local desktop.

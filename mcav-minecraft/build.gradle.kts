@@ -5,6 +5,6 @@ dependencies {
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
     compileOnlyApi("io.netty:netty-all:4.1.97.Final")
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
-    compileOnlyApi("com.google.code.gson:gson:2.13.0")
+    compileOnlyApi("com.google.code.gson:gson:2.13.1")
     compileOnlyApi("net.java.dev.jna:jna:5.17.0")
 }

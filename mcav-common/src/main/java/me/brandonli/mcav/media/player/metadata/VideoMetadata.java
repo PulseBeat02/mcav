@@ -87,6 +87,18 @@ public interface VideoMetadata {
   }
 
   /**
+   * Creates a new instance of {@code VideoMetadata} with the specified video properties.
+   *
+   * @param videoWidth     the width of the video in pixels
+   * @param videoHeight    the height of the video in pixels
+   * @param videoFrameRate the frame rate of the video in frames per second (fps)
+   * @return a new {@code VideoMetadata} instance containing the specified video properties
+   */
+  static VideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
+    return new VideoMetadataImpl(videoWidth, videoHeight, DEFAULT_BITRATE, videoFrameRate);
+  }
+
+  /**
    * Creates a new instance of {@code VideoMetadata} with the specified width and height.
    * This method sets the bitrate to a default value and the frame rate to a no-operation value.
    *

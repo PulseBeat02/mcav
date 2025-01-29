@@ -33,20 +33,7 @@ import me.brandonli.mcav.media.player.ReleasablePlayer;
  * - {@code resume()}: Resumes playback from the paused position.
  * Each method may throw an exception if the operation fails or is unsupported.
  */
-public interface ControllablePlayer extends ReleasablePlayer {
-  /**
-   * Seeks the media to the specified timestamp in milliseconds. This method is used
-   * to reposition the playback to a specific point in time within the media.
-   *
-   * @param time the position in milliseconds to seek to. This value must be a non-negative
-   *             long and within the valid duration of the media.
-   * @return true if the seek operation was successful; false otherwise.
-   * @throws Exception if an error occurs during the seek operation, such as when
-   *                   the media is not in a seekable state or the specified time
-   *                   is invalid.
-   */
-  boolean seek(final long time) throws Exception;
-
+public interface ControllablePlayer {
   /**
    * Pauses media playback if it is currently playing.
    *
