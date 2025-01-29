@@ -22,6 +22,8 @@ import com.google.common.primitives.Ints;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.VideoInputFrameGrabber;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * The VideoInputPlayer class is a concrete implementation of the AbstractVideoPlayerCV
  * that provides functionality to handle video input using the VideoInputFrameGrabber.
@@ -37,6 +39,7 @@ public class VideoInputPlayer extends AbstractVideoPlayerCV {
   public FrameGrabber getFrameGrabber(final String uri) {
     final Integer device = Ints.tryParse(uri);
     Preconditions.checkNotNull(device);
+    requireNonNull(device); // checker
     return new VideoInputFrameGrabber(device);
   }
 }
