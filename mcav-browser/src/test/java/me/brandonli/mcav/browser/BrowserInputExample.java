@@ -37,7 +37,7 @@ public final class BrowserInputExample {
 
   public static void main(final String[] args) throws Exception {
     final MCAVApi api = MCAV.api();
-    api.install();
+    api.install(BrowserModule.class);
 
     final JFrame video = new JFrame("Video Player");
     video.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -54,7 +54,7 @@ public final class BrowserInputExample {
     video.add(videoLabel, BorderLayout.CENTER);
     video.setVisible(true);
 
-    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
+    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.papermc.io"), 100, 1920, 1080, 1);
 
     BufferedImage bufferedImage;
     ImageIcon icon;

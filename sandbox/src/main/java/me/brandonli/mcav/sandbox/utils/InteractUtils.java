@@ -29,6 +29,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class InteractUtils {
 
@@ -36,7 +37,7 @@ public final class InteractUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  public static int[] getBoardCoordinates(final Player player) {
+  public static int@Nullable[] getBoardCoordinates(final Player player) {
     final Entity firstEntity = player.getTargetEntity(100);
     if (firstEntity == null) {
       throw new IllegalArgumentException("No target entity found within range");
@@ -44,7 +45,7 @@ public final class InteractUtils {
     return getBoardCoordinates(player, firstEntity);
   }
 
-  public static int[] getBoardCoordinates(final Player player, final Entity entity) {
+  public static int@Nullable[] getBoardCoordinates(final Player player, final Entity entity) {
     if (!(entity instanceof final ItemFrame frame)) {
       throw new IllegalArgumentException("Target entity is not an ItemFrame");
     }
@@ -54,6 +55,10 @@ public final class InteractUtils {
     final double z_res = xzCoordinates[1] * 128;
 
     final int[] relativeMapIndex = getRelativeMapIndex(player, frame);
+    if (relativeMapIndex == null) {
+      return null;
+    }
+
     final int mapGridX = relativeMapIndex[0];
     final int mapGridY = relativeMapIndex[1];
     final int absoluteX = mapGridX * 128 + (int) x_res;
@@ -62,8 +67,11 @@ public final class InteractUtils {
     return new int[] { absoluteX, absoluteY };
   }
 
-  private static int[] getRelativeMapIndex(final Player player, final ItemFrame frame) {
-    final ItemFrame[] result = getCorners(player);
+  private static int@Nullable[] getRelativeMapIndex(final Player player, final ItemFrame frame) {
+    final ItemFrame@Nullable[] result = getCorners(player);
+    if (result == null) {
+      return null;
+    }
     final ItemFrame firstCorner = result[0];
     final Location firstCornerLoc = firstCorner.getLocation();
     final Location hitFrameLoc = frame.getLocation();
@@ -146,7 +154,7 @@ public final class InteractUtils {
     return new double[] { x_map_scale, z_map_scale };
   }
 
-  private static ItemFrame[] getCorners(final Player player) {
+  private static ItemFrame@Nullable[] getCorners(final Player player) {
     final Block targetBlock = player.getTargetBlock(null, 100);
     final BlockFace hitFace = player.getTargetBlockFace(100);
     final World world = player.getWorld();
@@ -162,7 +170,7 @@ public final class InteractUtils {
       }
       final Location blockLocation = currentBlock.getLocation();
       final Location added = blockLocation.add(0.5, 0.5, 0.5);
-      final Collection<Entity> nearbyEntities = world.getNearbyEntities(added, 1, 1, 1);
+      final Collection<Entity> nearbyEntities = world.getNearbyEntities(added, 2, 2, 2);
       for (final Entity entity : nearbyEntities) {
         if (!(entity instanceof final ItemFrame frame) || frame.getFacing() != hitFace) {
           continue;
@@ -191,7 +199,7 @@ public final class InteractUtils {
     }
 
     if (firstCorner == null || lastCorner == null) {
-      throw new IllegalArgumentException("Could not find both corners of the map screen");
+      return null;
     }
 
     return new ItemFrame[] { firstCorner, lastCorner };

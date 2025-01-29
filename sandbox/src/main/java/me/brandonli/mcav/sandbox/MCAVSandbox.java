@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -69,7 +70,7 @@ public final class MCAVSandbox extends JavaPlugin {
     final long startTime = System.currentTimeMillis();
 
     this.mcav = MCAV.api();
-    this.mcav.install(BukkitModule.class);
+    this.mcav.install(BukkitModule.class, BrowserModule.class);
 
     final BukkitModule module = this.mcav.getModule(BukkitModule.class);
     module.inject(this);

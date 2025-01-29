@@ -19,8 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Base64;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,15 +61,13 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   );
 
   private final ExecutorService captureExecutor;
+  private final Set<String> handles;
   private final ExecutorService actionExecutor;
   private final ExecutorService tabExecutor;
   private final ChromeDriver driver;
   private final AtomicBoolean running;
   private final DevTools tools;
   private final Lock lock;
-
-  @Nullable
-  private volatile String currentWindowHandle;
 
   @Nullable
   private volatile Long frameWidth;
@@ -88,6 +85,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final ChromeOptions options = new ChromeOptions().addArguments(args);
     this.driver = new ChromeDriver(service, options);
+    this.handles = Collections.synchronizedSet(new HashSet<>());
     this.running = new AtomicBoolean(false);
     this.captureExecutor = Executors.newSingleThreadExecutor();
     this.tabExecutor = Executors.newSingleThreadExecutor();
@@ -123,7 +121,9 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Optional<Integer> maxHeight = Optional.of(height);
     final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
     this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
-    this.currentWindowHandle = this.driver.getWindowHandle();
+
+    final String handle = this.driver.getWindowHandle();
+    this.handles.add(handle);
     this.tabExecutor.submit(this::startTabMonitoring);
   }
 
@@ -147,10 +147,14 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private void startTabMonitoring() {
     while (this.running.get()) {
-      final String activeHandle = this.driver.getWindowHandle();
-      if (!activeHandle.equals(this.currentWindowHandle)) {
-        this.currentWindowHandle = activeHandle;
-        this.resetDevToolsSession();
+      final Set<String> currentHandles = this.driver.getWindowHandles();
+      for (final String handle : currentHandles) {
+        if (this.handles.contains(handle)) {
+          continue;
+        }
+        this.handles.add(handle);
+        this.resetDevToolsSession(handle);
+        break;
       }
       this.waitForTabReset();
     }
@@ -165,10 +169,13 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     }
   }
 
-  private void resetDevToolsSession() {
-    if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
+  private void resetDevToolsSession(final String newHandle) {
+    if (!this.running.get() || this.source == null) {
       return;
     }
+
+    final WebDriver.TargetLocator targetLocator = this.driver.switchTo();
+    targetLocator.window(newHandle);
 
     final BrowserSource source = requireNonNull(this.source);
     final int width = source.getScreencastWidth();
@@ -182,11 +189,11 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
     final Event<ScreencastFrame> screencastFrameEvent = Page.screencastFrame();
     final Command<Void> startScreencast = Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame);
-    this.tools.disconnectSession();
+    this.tools.clearListeners();
+    this.tools.close();
     this.tools.createSession();
     this.tools.addListener(screencastFrameEvent, this::handleFrameSend);
     this.tools.send(startScreencast);
-    this.lock.unlock();
   }
 
   private void handleFrameSend(final ScreencastFrame frame) {
@@ -308,6 +315,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   public boolean release() {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.tools.close();
+      this.handles.clear();
       this.running.set(false);
       ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
       ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);

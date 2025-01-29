@@ -93,14 +93,6 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final Location blockLocation = block.getLocation();
     final World world = blockLocation.getWorld();
     final Collection<Entity> entities = world.getNearbyEntities(blockLocation, 0.5, 0.5, 0.5);
-    final Collection<ItemFrame> frames = new HashSet<>();
-    for (final Entity entity : entities) {
-      if (!(entity instanceof final ItemFrame frame)) {
-        continue;
-      }
-      frames.add(frame);
-    }
-
     final Optional<ItemFrame> entity = entities
       .stream()
       .filter(e -> e instanceof ItemFrame)
@@ -115,9 +107,13 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
       return;
     }
-    event.setCancelled(true);
 
     final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer, frame);
+    if (coordinates == null) {
+      return;
+    }
+    event.setCancelled(true);
+
     final int x = coordinates[0];
     final int y = coordinates[1];
     this.handleLeftClick(player, x, y);
@@ -144,9 +140,13 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
       return;
     }
-    event.setCancelled(true);
 
     final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer);
+    if (coordinates == null) {
+      return;
+    }
+    event.setCancelled(true);
+
     final int x = coordinates[0];
     final int y = coordinates[1];
     this.handleLeftClick(player, x, y);
@@ -168,10 +168,14 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
       return;
     }
-    event.setCancelled(true);
 
     final Player mcPlayer = event.getPlayer();
     final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer);
+    if (coordinates == null) {
+      return;
+    }
+    event.setCancelled(true);
+
     final int x = coordinates[0];
     final int y = coordinates[1];
     this.handleRightClick(player, x, y);
