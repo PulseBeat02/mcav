@@ -49,9 +49,8 @@ public interface StaticImage extends Image {
    *
    * @param bytes the byte array representing the image data
    * @return a StaticImage object created from the provided byte array
-   * @throws IOException if an error occurs while processing the byte array
    */
-  static StaticImage bytes(final byte[] bytes) throws IOException {
+  static StaticImage bytes(final byte[] bytes) {
     return new MatBackedImage(bytes);
   }
 

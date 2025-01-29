@@ -70,6 +70,7 @@ subprojects {
             java {
                 importOrder()
                 removeUnusedImports()
+                formatAnnotations()
                 prettier(mapOf("prettier" to "3.3.3", "prettier-plugin-java" to "2.6.4"))
                     .config(
                         mapOf(

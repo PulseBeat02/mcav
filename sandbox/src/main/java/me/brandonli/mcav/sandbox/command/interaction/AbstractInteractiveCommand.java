@@ -18,10 +18,7 @@
 package me.brandonli.mcav.sandbox.command.interaction;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.*;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
@@ -96,24 +93,34 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final Location blockLocation = block.getLocation();
     final World world = blockLocation.getWorld();
     final Collection<Entity> entities = world.getNearbyEntities(blockLocation, 0.5, 0.5, 0.5);
+    final Collection<ItemFrame> frames = new HashSet<>();
     for (final Entity entity : entities) {
       if (!(entity instanceof final ItemFrame frame)) {
         continue;
       }
+      frames.add(frame);
+    }
 
-      final PersistentDataContainer data = frame.getPersistentDataContainer();
-      if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
-        continue;
-      }
-      event.setCancelled(true);
-
-      final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer, frame);
-      final int x = coordinates[0];
-      final int y = coordinates[1];
-      this.handleLeftClick(player, x, y);
-
+    final Optional<ItemFrame> entity = entities
+      .stream()
+      .filter(e -> e instanceof ItemFrame)
+      .map(e -> (ItemFrame) e)
+      .min(Comparator.comparingDouble(frame -> frame.getLocation().distanceSquared(blockLocation)));
+    if (entity.isEmpty()) {
       return;
     }
+
+    final ItemFrame frame = entity.get();
+    final PersistentDataContainer data = frame.getPersistentDataContainer();
+    if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+      return;
+    }
+    event.setCancelled(true);
+
+    final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer, frame);
+    final int x = coordinates[0];
+    final int y = coordinates[1];
+    this.handleLeftClick(player, x, y);
   }
 
   @EventHandler

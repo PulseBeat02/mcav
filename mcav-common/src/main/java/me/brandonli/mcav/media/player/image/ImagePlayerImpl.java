@@ -18,15 +18,18 @@
 package me.brandonli.mcav.media.player.image;
 
 import java.nio.IntBuffer;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FrameSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.LockUtils;
 
 /**
  * The ImagePlayerImpl class implements the ImagePlayer interface and provides the functionality
@@ -40,14 +43,13 @@ public class ImagePlayerImpl implements ImagePlayer {
 
   private final AtomicBoolean running;
   private final ExecutorService executor;
-  private final Object lock;
+  private final Lock lock;
 
-  private volatile CompletableFuture<Void> future;
   private volatile FrameSource source;
   private volatile VideoPipelineStep videoPipelineStep;
 
   ImagePlayerImpl() {
-    this.lock = new Object();
+    this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.executor = Executors.newSingleThreadExecutor();
   }
@@ -57,16 +59,18 @@ public class ImagePlayerImpl implements ImagePlayer {
    */
   @Override
   public boolean start(final VideoPipelineStep videoPipeline, final FrameSource source) {
-    synchronized (this.lock) {
+    return LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get()) {
         return false;
       }
+
       this.videoPipelineStep = videoPipeline;
       this.source = source;
       this.running.set(true);
-      this.future = CompletableFuture.runAsync(this::runExecutorTask, this.executor);
+      this.executor.submit(this::runExecutorTask);
+
       return true;
-    }
+    });
   }
 
   private void runExecutorTask() {
@@ -75,6 +79,10 @@ public class ImagePlayerImpl implements ImagePlayer {
     final VideoMetadata metadata = VideoMetadata.of(width, height);
     while (this.running.get()) {
       final IntBuffer frame = this.source.getFrameSupplier().get();
+      if (frame == null || frame.remaining() == 0) {
+        this.waitForFrame();
+        continue;
+      }
       final int[] data = frame.array();
       final StaticImage image = StaticImage.buffer(data, width, height);
       VideoPipelineStep next = this.videoPipelineStep;
@@ -86,18 +94,25 @@ public class ImagePlayerImpl implements ImagePlayer {
     }
   }
 
+  private void waitForFrame() {
+    try {
+      Thread.sleep(50);
+    } catch (final InterruptedException e) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
+
   /**
    * {@inheritDoc}
    */
   @Override
   public boolean release() {
-    synchronized (this.lock) {
+    return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
-      if (this.future != null) {
-        this.future.cancel(true);
-      }
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
       return true;
-    }
+    });
   }
 }

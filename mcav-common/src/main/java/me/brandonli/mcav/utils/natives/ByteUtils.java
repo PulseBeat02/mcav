@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.utils.natives;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.nio.*;
+import me.brandonli.mcav.media.player.PlayerException;
 
 /**
  * Utility class for byte buffer operations involving endianness.
@@ -38,6 +38,43 @@ public final class ByteUtils {
 
   public static boolean isBigEndian() {
     return !LITTLE_ENDIAN;
+  }
+
+  public static ByteBuffer convertAudioSamples(final Buffer buffer) {
+    switch (buffer) {
+      case final FloatBuffer floatBuffer -> {
+        return convertFloatSamples(floatBuffer);
+      }
+      case final ShortBuffer shortBuffer -> {
+        return convertShortSamples(shortBuffer);
+      }
+      case final ByteBuffer byteBuffer -> {
+        return byteBuffer;
+      }
+      case null, default -> throw new PlayerException("Unsupported buffer type!");
+    }
+  }
+
+  private static ByteBuffer convertShortSamples(final ShortBuffer shortBuffer) {
+    final int capacity = shortBuffer.capacity();
+    final ByteBuffer byteBuffer = ByteBuffer.allocate(capacity * 2);
+    for (int i = 0; i < capacity; i++) {
+      final short sample = shortBuffer.get(i);
+      byteBuffer.putShort(sample);
+    }
+    byteBuffer.flip();
+    return byteBuffer;
+  }
+
+  private static ByteBuffer convertFloatSamples(final FloatBuffer floatBuffer) {
+    final int capacity = floatBuffer.capacity();
+    final ByteBuffer byteBuffer = ByteBuffer.allocate(capacity * 4);
+    for (int i = 0; i < capacity; i++) {
+      final float sample = floatBuffer.get(i);
+      byteBuffer.putFloat(sample);
+    }
+    byteBuffer.flip();
+    return byteBuffer;
   }
 
   /**

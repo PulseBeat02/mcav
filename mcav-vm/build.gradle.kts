@@ -6,6 +6,10 @@ dependencies {
     // provided
     compileOnlyApi(project(":mcav-common"))
     compileOnlyApi(project(":mcav-vnc"))
+
+    // test dependencies
+    testImplementation(project(":mcav-common"))
+    testImplementation(project(":mcav-vnc"))
 }
 
 tasks {

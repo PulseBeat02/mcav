@@ -1,7 +1,4 @@
 High Priority Tasks:
-
-  - Write Code Fixes
-    - Look into Optimizing ChromeDriverPlayer
-    - Refactor all Player Classes
-
+  - Fix Plugin Interaction
+  - Add Logging API
   - Write JavaDocs (wtf)

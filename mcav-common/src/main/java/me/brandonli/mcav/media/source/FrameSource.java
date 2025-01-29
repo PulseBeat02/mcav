@@ -24,6 +24,9 @@ public interface FrameSource extends DynamicSource {
   default Supplier<IntBuffer> getFrameSupplier() {
     return () -> {
       final int[] frameSamples = this.supplyFrameSamples().getFrameSamples();
+      if (frameSamples == null || frameSamples.length == 0) {
+        return IntBuffer.allocate(0);
+      }
       return IntBuffer.wrap(frameSamples);
     };
   }

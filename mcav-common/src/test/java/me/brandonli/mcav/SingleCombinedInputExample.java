@@ -64,7 +64,7 @@ public final class SingleCombinedInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.start(audioPipelineStep, videoPipelineStep, source);
 
     Runtime.getRuntime()

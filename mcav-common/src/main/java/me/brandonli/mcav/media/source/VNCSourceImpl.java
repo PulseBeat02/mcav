@@ -30,18 +30,33 @@ public class VNCSourceImpl implements VNCSource {
 
   private final String host;
   private final int port;
+  private final String username;
   private final String password;
   private final int width;
   private final int height;
   private final int targetFrameRate;
 
-  VNCSourceImpl(final String host, final int port, final String password, final int width, final int height, final int targetFrameRate) {
+  VNCSourceImpl(
+    final String host,
+    final int port,
+    final String username,
+    final String password,
+    final int width,
+    final int height,
+    final int targetFrameRate
+  ) {
     this.host = host;
     this.port = port;
+    this.username = username;
     this.password = password;
     this.width = width;
     this.height = height;
     this.targetFrameRate = targetFrameRate;
+  }
+
+  @Override
+  public String getUsername() {
+    return this.username;
   }
 
   /**
@@ -120,6 +135,8 @@ public class VNCSourceImpl implements VNCSource {
 
     Builder targetFrameRate(int targetFrameRate);
 
+    Builder username(String username);
+
     /**
      * Builds a new VNCSource instance with the configured properties.
      *
@@ -135,6 +152,7 @@ public class VNCSourceImpl implements VNCSource {
 
     private String host;
     private int port;
+    private String username;
     private String password;
     private int width;
     private int height;
@@ -177,13 +195,19 @@ public class VNCSourceImpl implements VNCSource {
     }
 
     @Override
+    public Builder username(final String username) {
+      this.username = username;
+      return this;
+    }
+
+    @Override
     public VNCSource build() {
       Preconditions.checkNotNull(this.host);
       Preconditions.checkArgument(this.port > 0 && this.port <= 65535, "Port must be between 1 and 65535");
       Preconditions.checkArgument(this.width >= 0, "Width must be non-negative");
       Preconditions.checkArgument(this.height >= 0, "Height must be non-negative");
       Preconditions.checkArgument(this.targetFrameRate > 0, "Target frame rate must be positive");
-      return new VNCSourceImpl(this.host, this.port, this.password, this.width, this.height, this.targetFrameRate);
+      return new VNCSourceImpl(this.host, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);
     }
   }
 

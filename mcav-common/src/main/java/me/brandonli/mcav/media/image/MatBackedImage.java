@@ -81,7 +81,7 @@ public class MatBackedImage implements StaticImage {
     this.cleanable = MAT_CLEANER.register(this.cleanerKey, new MatResources(this.mat));
   }
 
-  MatBackedImage(final UriSource source) throws IOException {
+  MatBackedImage(final UriSource source) {
     this(FileSource.path(IOUtils.downloadImage(source)));
   }
 

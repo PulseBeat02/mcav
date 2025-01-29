@@ -22,18 +22,24 @@ import static java.util.Objects.requireNonNull;
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
+import me.brandonli.mcav.utils.CollectionUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -49,21 +55,33 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class VNCPlayerImpl implements VNCPlayer {
 
+  private static final Consumer<VernacularClient>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
+    client -> client.click(1),
+    client -> client.click(2),
+    client -> {
+      client.click(1);
+      client.click(1);
+    },
+    client -> client.updateMouseButton(1, true),
+    client -> client.updateMouseButton(1, false)
+  );
+
   private final ExecutorService frameProcessorExecutor;
+  private final AtomicReference<@Nullable BufferedImage> current;
   private final AtomicBoolean running;
-  private final Object lock = new Object();
+  private final Lock lock;
 
-  private @Nullable CompletableFuture<?> processingFuture;
-  private @Nullable VernacularClient vncClient;
+  @Nullable
+  private volatile VernacularClient vncClient;
 
-  private volatile BufferedImage current;
-  private volatile VideoPipelineStep videoPipeline;
+  @Nullable
   private volatile VNCSource source;
 
   VNCPlayerImpl() {
-    final int availableProcessors = Runtime.getRuntime().availableProcessors();
-    this.frameProcessorExecutor = Executors.newFixedThreadPool(availableProcessors);
+    this.frameProcessorExecutor = Executors.newSingleThreadExecutor();
+    this.current = new AtomicReference<>(null);
     this.running = new AtomicBoolean(false);
+    this.lock = new ReentrantLock();
   }
 
   /**
@@ -71,69 +89,77 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public boolean start(final VideoPipelineStep videoPipeline, final VNCSource source) {
-    synchronized (this.lock) {
+    return LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get()) {
         return true;
       }
-      this.videoPipeline = videoPipeline;
+
+      final VernacularConfig config = this.createConfig(source, videoPipeline);
+      final String host = source.getHost();
+      final int port = source.getPort();
       this.source = source;
-
-      final VernacularConfig config = this.createConfig(source);
-      this.vncClient = new VernacularClient(config);
-      this.vncClient.start(source.getHost(), source.getPort());
-
       this.running.set(true);
 
-      this.processingFuture = CompletableFuture.runAsync(this::processFrames, this.frameProcessorExecutor);
+      final VernacularClient client = new VernacularClient(config);
+      client.start(host, port);
+      this.vncClient = client;
 
       return true;
-    }
+    });
   }
 
-  private VernacularConfig createConfig(final VNCSource source) {
+  private VernacularConfig createConfig(final VNCSource source, final VideoPipelineStep videoPipeline) {
+    final int fps = source.getTargetFrameRate();
     final VernacularConfig config = new VernacularConfig();
     config.setColorDepth(ColorDepth.BPP_16_TRUE);
     config.setShared(true);
+    config.setTargetFramesPerSecond(fps);
+
+    final int width = source.getScreenWidth();
+    final int height = source.getScreenHeight();
+    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, fps);
+    config.setScreenUpdateListener(image -> this.processImageAsync(image, videoMetadata, videoPipeline));
+
+    final String username = source.getUsername();
+    if (username != null && !username.isEmpty()) {
+      config.setUsernameSupplier(() -> username);
+    }
 
     final String passwd = source.getPassword();
     if (passwd != null && !passwd.isEmpty()) {
       config.setPasswordSupplier(() -> passwd);
     }
 
-    final int fps = source.getTargetFrameRate();
-    config.setTargetFramesPerSecond(fps);
-    config.setScreenUpdateListener(image -> {
-      if (this.running.get()) {
-        if (image == null) {
-          return;
-        }
-        this.current = (BufferedImage) image;
-      }
-    });
     return config;
   }
 
-  private void processFrames() {
-    final int width = this.source.getScreenWidth();
-    final int height = this.source.getScreenHeight();
-    final int fps = this.source.getTargetFrameRate();
-    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, (float) fps);
-    while (this.running.get()) {
-      try {
-        if (this.current == null) {
-          continue;
-        }
-        final StaticImage image = StaticImage.image(this.current);
-        image.resize(width, height);
-        VideoPipelineStep current = this.videoPipeline;
-        while (current != null) {
-          current.process(image, videoMetadata);
-          current = current.next();
-        }
-        image.release();
-      } catch (final IOException e) {
-        throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
+  private void processImageAsync(final Image image, final VideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
+    this.frameProcessorExecutor.submit(() -> this.processImage(image, videoMetadata, pipelineStep));
+  }
+
+  private void processImage(final Image image, final VideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
+    if (!this.running.get()) {
+      return;
+    }
+
+    if (!(image instanceof final BufferedImage bufferedImage)) {
+      return;
+    }
+    this.current.set(bufferedImage);
+
+    final int width = videoMetadata.getVideoWidth();
+    final int height = videoMetadata.getVideoHeight();
+    try {
+      final StaticImage staticImage = StaticImage.image(bufferedImage);
+      staticImage.resize(width, height);
+      VideoPipelineStep current = pipelineStep;
+      while (current != null) {
+        current.process(staticImage, videoMetadata);
+        current = current.next();
       }
+      staticImage.release();
+    } catch (final IOException e) {
+      throw new PlayerException(e.getMessage(), e);
     }
   }
 
@@ -142,13 +168,13 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public boolean pause() {
-    synchronized (this.lock) {
+    return LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get()) {
         this.running.set(false);
         return true;
       }
       return false;
-    }
+    });
   }
 
   /**
@@ -156,16 +182,13 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public boolean resume() {
-    synchronized (this.lock) {
-      if (!this.running.get()) {
+    return LockUtils.executeWithLock(this.lock, () -> {
+      if (this.running.get()) {
         this.running.set(true);
-        if (this.processingFuture == null || this.processingFuture.isDone()) {
-          this.processingFuture = CompletableFuture.runAsync(this::processFrames, this.frameProcessorExecutor);
-        }
         return true;
       }
       return false;
-    }
+    });
   }
 
   /**
@@ -173,19 +196,17 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public boolean release() {
-    synchronized (this.lock) {
+    return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
-      if (this.processingFuture != null) {
-        this.processingFuture.cancel(true);
-        this.processingFuture = null;
-      }
       if (this.vncClient != null) {
-        this.vncClient.stop();
+        final VernacularClient client = requireNonNull(this.vncClient);
+        client.stop();
         this.vncClient = null;
       }
       ExecutorUtils.shutdownExecutorGracefully(this.frameProcessorExecutor);
+
       return true;
-    }
+    });
   }
 
   /**
@@ -193,21 +214,28 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public void moveMouse(final int x, final int y) {
-    final VernacularClient client = this.vncClient;
-    if (client != null) {
-      final int[] translated = this.translateCoordinates(x, y);
-      client.moveMouse(translated[0], translated[1]);
-    }
+    LockUtils.executeWithLock(this.lock, () -> {
+      final BufferedImage currentImage = this.current.get();
+      final VNCSource source = this.source;
+      if (currentImage == null || source == null || !this.running.get()) {
+        return;
+      }
+
+      final VernacularClient client = this.vncClient;
+      if (client != null) {
+        final int[] translated = this.translateCoordinates(x, y);
+        client.moveMouse(translated[0], translated[1]);
+      }
+    });
   }
 
   private int[] translateCoordinates(final int x, final int y) {
-    if (this.current == null) {
-      throw new PlayerException("VNC source not started!");
-    }
-    final int sourceWidth = this.source.getScreenWidth();
-    final int sourceHeight = this.source.getScreenHeight();
-    final int targetWidth = this.current.getWidth();
-    final int targetHeight = this.current.getHeight();
+    final BufferedImage currentImage = requireNonNull(this.current.get());
+    final VNCSource source = requireNonNull(this.source);
+    final int sourceWidth = source.getScreenWidth();
+    final int sourceHeight = source.getScreenHeight();
+    final int targetWidth = currentImage.getWidth();
+    final int targetHeight = currentImage.getHeight();
     final double widthRatio = (double) targetWidth / sourceWidth;
     final double heightRatio = (double) targetHeight / sourceHeight;
     final int newX = (int) (x * widthRatio);
@@ -222,34 +250,26 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public void sendKeyEvent(final String text) {
-    if (this.vncClient != null) {
-      this.vncClient.type(text);
-    }
+    LockUtils.executeWithLock(this.lock, () -> {
+      if (this.running.get() && this.vncClient != null) {
+        final VernacularClient client = requireNonNull(this.vncClient);
+        client.type(text);
+      }
+    });
   }
 
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
-    if (this.vncClient != null) {
-      final VernacularClient client = requireNonNull(this.vncClient);
-      this.moveMouse(x, y);
-      switch (type) {
-        case LEFT:
-          client.click(1);
-          break;
-        case RIGHT:
-          client.click(2);
-          break;
-        case DOUBLE:
-          client.click(1);
-          client.click(1);
-          break;
-        case HOLD:
-          client.updateMouseButton(1, true);
-          break;
-        case RELEASE:
-          client.updateMouseButton(1, false);
-          break;
+    LockUtils.executeWithLock(this.lock, () -> {
+      if (!this.running.get() || this.vncClient == null) {
+        return;
       }
-    }
+
+      final VernacularClient client = requireNonNull(this.vncClient);
+      final int value = type.getId();
+      final Consumer<VernacularClient> action = MOUSE_ACTION_CONSUMERS[value];
+      this.moveMouse(x, y);
+      action.accept(client);
+    });
   }
 }

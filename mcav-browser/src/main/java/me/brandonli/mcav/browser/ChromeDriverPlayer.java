@@ -17,26 +17,33 @@
  */
 package me.brandonli.mcav.browser;
 
-import java.io.IOException;
+import static java.util.Objects.requireNonNull;
+
 import java.util.Base64;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
+import me.brandonli.mcav.utils.CollectionUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.Event;
 import org.openqa.selenium.devtools.v136.page.Page;
 import org.openqa.selenium.devtools.v136.page.model.ScreencastFrame;
 import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
@@ -46,32 +53,47 @@ import org.openqa.selenium.interactions.Actions;
 public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
-
-  private final ChromeDriver driver;
-  private final AtomicBoolean running;
+  private static final Function<Actions, Actions>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
+    Actions::click,
+    Actions::contextClick,
+    Actions::doubleClick,
+    Actions::clickAndHold,
+    Actions::release
+  );
 
   private final ExecutorService captureExecutor;
   private final ExecutorService actionExecutor;
   private final ExecutorService tabExecutor;
-
-  private CompletableFuture<Void> captureTask;
-  private CompletableFuture<Void> tabTask;
+  private final ChromeDriver driver;
+  private final AtomicBoolean running;
   private final DevTools tools;
+  private final Lock lock;
 
+  @Nullable
   private volatile String currentWindowHandle;
-  private volatile long frameWidth;
-  private volatile long frameHeight;
+
+  @Nullable
+  private volatile Long frameWidth;
+
+  @Nullable
+  private volatile Long frameHeight;
+
+  @Nullable
   private volatile VideoPipelineStep videoPipeline;
+
+  @Nullable
   private volatile BrowserSource source;
 
   public ChromeDriverPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
-    this.driver = new ChromeDriver(service, new ChromeOptions().addArguments(args));
+    final ChromeOptions options = new ChromeOptions().addArguments(args);
+    this.driver = new ChromeDriver(service, options);
     this.running = new AtomicBoolean(false);
     this.captureExecutor = Executors.newSingleThreadExecutor();
     this.tabExecutor = Executors.newSingleThreadExecutor();
     this.actionExecutor = Executors.newVirtualThreadPerTaskExecutor();
     this.tools = this.driver.getDevTools();
+    this.lock = new ReentrantLock();
   }
 
   /**
@@ -79,23 +101,64 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
-    this.source = combined;
-    this.videoPipeline = videoPipeline;
-    this.running.set(true);
-    this.captureTask = CompletableFuture.runAsync(this::startScreenCapture, this.captureExecutor);
-    return true;
+    return LockUtils.executeWithLock(this.lock, () -> {
+      this.source = combined;
+      this.videoPipeline = videoPipeline;
+      this.running.set(true);
+      this.maximizeWindow(combined);
+      this.addScreencastListener(combined);
+      this.startScreencast(combined);
+      return true;
+    });
+  }
+
+  private void startScreencast(final BrowserSource source) {
+    final int width = source.getScreencastWidth();
+    final int height = source.getScreencastHeight();
+    final int qualityRaw = source.getScreencastQuality();
+    final int nthRaw = source.getScreencastNthFrame();
+    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
+    final Optional<Integer> quality = Optional.of(qualityRaw);
+    final Optional<Integer> maxWidth = Optional.of(width);
+    final Optional<Integer> maxHeight = Optional.of(height);
+    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
+    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
+    this.currentWindowHandle = this.driver.getWindowHandle();
+    this.tabExecutor.submit(this::startTabMonitoring);
+  }
+
+  private void addScreencastListener(final BrowserSource source) {
+    final String resource = source.getResource();
+    final Event<ScreencastFrame> screencastFrameEvent = Page.screencastFrame();
+    this.driver.get(resource);
+    this.tools.createSession();
+    this.tools.addListener(screencastFrameEvent, this::handleFrame);
+  }
+
+  private void maximizeWindow(final BrowserSource source) {
+    final int width = source.getScreencastWidth();
+    final int height = source.getScreencastHeight();
+    final Dimension size = new Dimension(width, height);
+    final WebDriver.Options options = this.driver.manage();
+    final WebDriver.Window window = options.window();
+    window.setSize(size);
+    window.maximize();
   }
 
   private void startTabMonitoring() {
-    try {
-      while (this.running.get()) {
-        final String activeHandle = this.driver.getWindowHandle();
-        if (!activeHandle.equals(this.currentWindowHandle)) {
-          this.currentWindowHandle = activeHandle;
-          this.resetDevToolsSession();
-        }
-        Thread.sleep(500);
+    while (this.running.get()) {
+      final String activeHandle = this.driver.getWindowHandle();
+      if (!activeHandle.equals(this.currentWindowHandle)) {
+        this.currentWindowHandle = activeHandle;
+        this.resetDevToolsSession();
       }
+      this.waitForTabReset();
+    }
+  }
+
+  private void waitForTabReset() {
+    try {
+      Thread.sleep(50);
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
@@ -103,93 +166,83 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   }
 
   private void resetDevToolsSession() {
-    final int width = this.source.getScreencastWidth();
-    final int height = this.source.getScreencastHeight();
-    final int qualityRaw = this.source.getScreencastQuality();
-    final int nthRaw = this.source.getScreencastNthFrame();
-    this.captureTask.complete(null);
+    if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
+      return;
+    }
+
+    final BrowserSource source = requireNonNull(this.source);
+    final int width = source.getScreencastWidth();
+    final int height = source.getScreencastHeight();
+    final int qualityRaw = source.getScreencastQuality();
+    final int nthRaw = source.getScreencastNthFrame();
+    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
+    final Optional<Integer> quality = Optional.of(qualityRaw);
+    final Optional<Integer> maxWidth = Optional.of(width);
+    final Optional<Integer> maxHeight = Optional.of(height);
+    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
+    final Event<ScreencastFrame> screencastFrameEvent = Page.screencastFrame();
+    final Command<Void> startScreencast = Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame);
     this.tools.disconnectSession();
     this.tools.createSession();
-    this.tools.addListener(Page.screencastFrame(), this::handleFrame);
-
-    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality = Optional.of(qualityRaw);
-    final Optional<Integer> maxWidth = Optional.of(width);
-    final Optional<Integer> maxHeight = Optional.of(height);
-    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
-    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
+    this.tools.addListener(screencastFrameEvent, this::handleFrameSend);
+    this.tools.send(startScreencast);
+    this.lock.unlock();
   }
 
-  private void startScreenCapture() {
-    final int width = this.source.getScreencastWidth();
-    final int height = this.source.getScreencastHeight();
-    final Dimension size = new Dimension(width, height);
-    final WebDriver.Options options = this.driver.manage();
-    final WebDriver.Window window = options.window();
-    window.setSize(size);
-    window.maximize();
-
-    final String resource = this.source.getResource();
-    this.driver.get(resource);
-    this.tools.createSession();
-    this.tools.addListener(Page.screencastFrame(), this::handleFrame);
-
-    final int qualityRaw = this.source.getScreencastQuality();
-    final int nthRaw = this.source.getScreencastNthFrame();
-    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality = Optional.of(qualityRaw);
-    final Optional<Integer> maxWidth = Optional.of(width);
-    final Optional<Integer> maxHeight = Optional.of(height);
-    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
-    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
-
-    this.currentWindowHandle = this.driver.getWindowHandle();
-    this.tabTask = CompletableFuture.runAsync(this::startTabMonitoring, this.tabExecutor);
+  private void handleFrameSend(final ScreencastFrame frame) {
+    this.captureExecutor.submit(() -> this.handleFrame(frame));
   }
 
   private void handleFrame(final ScreencastFrame frame) {
-    final int width = this.source.getScreencastWidth();
-    final int height = this.source.getScreencastHeight();
-    try {
-      if (this.running.get()) {
-        final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
-        this.frameWidth = (long) frameMetadata.getDeviceWidth();
-        this.frameHeight = (long) frameMetadata.getDeviceHeight();
-        final byte[] buffer = BASE64_DECODER.decode(frame.getData());
-        final VideoMetadata metadata = VideoMetadata.of(width, height);
-        if (buffer != null) {
-          final StaticImage staticImage = StaticImage.bytes(buffer);
-          staticImage.resize(width, height);
-          VideoPipelineStep current = this.videoPipeline;
-          while (current != null) {
-            current.process(staticImage, metadata);
-            current = current.next();
-          }
-          staticImage.release();
-        }
-        if (this.tools != null && this.running.get()) {
-          try {
-            this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
-          } catch (final Exception ignored) {}
-        }
-      }
-    } catch (final IOException e) {
-      throw new PlayerException(e.getMessage(), e);
+    if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
+      return;
     }
+
+    final BrowserSource source = requireNonNull(this.source);
+    final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
+    final int width = source.getScreencastWidth();
+    final int height = source.getScreencastHeight();
+    this.frameWidth = (long) frameMetadata.getDeviceWidth();
+    this.frameHeight = (long) frameMetadata.getDeviceHeight();
+
+    final String data = frame.getData();
+    final byte[] buffer = BASE64_DECODER.decode(data);
+    if (buffer == null) {
+      return;
+    }
+
+    final VideoMetadata metadata = VideoMetadata.of(width, height);
+    final StaticImage staticImage = StaticImage.bytes(buffer);
+    staticImage.resize(width, height);
+
+    VideoPipelineStep current = this.videoPipeline;
+    while (current != null) {
+      current.process(staticImage, metadata);
+      current = current.next();
+    }
+
+    staticImage.release();
+
+    final int id = frame.getSessionId();
+    final Command<Void> event = Page.screencastFrameAck(id);
+    this.tools.send(event);
+    this.lock.unlock();
   }
 
   @Override
   public void moveMouse(final int x, final int y) {
-    if (!this.running.get()) {
-      return;
-    }
-    final int[] translated = this.translateCoordinates(x, y);
-    final int newX = translated[0];
-    final int newY = translated[1];
-    final Actions actions = new Actions(this.driver);
-    final Actions move = actions.moveToLocation(newX, newY);
-    final Action action = move.build();
-    CompletableFuture.runAsync(action::perform, this.actionExecutor);
+    LockUtils.executeWithLock(this.lock, () -> {
+      if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
+        return;
+      }
+      final int[] translated = this.translateCoordinates(x, y);
+      final int newX = translated[0];
+      final int newY = translated[1];
+      final Actions actions = new Actions(this.driver);
+      final Actions move = actions.moveToLocation(newX, newY);
+      final Action action = move.build();
+      this.actionExecutor.submit(action::perform);
+    });
   }
 
   /**
@@ -197,24 +250,31 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
-    if (!this.running.get()) {
-      return;
-    }
-    final int[] translated = this.translateCoordinates(x, y);
-    final int newX = translated[0];
-    final int newY = translated[1];
-    final Actions actions = new Actions(this.driver);
-    final Actions move = actions.moveToLocation(newX, newY);
-    final Actions modified = this.getAction(type, move);
-    final Action action = modified.build();
-    CompletableFuture.runAsync(action::perform, this.actionExecutor);
+    LockUtils.executeWithLock(this.lock, () -> {
+      if (!this.running.get() || !this.lock.tryLock()) {
+        return;
+      }
+      final int[] translated = this.translateCoordinates(x, y);
+      final int newX = translated[0];
+      final int newY = translated[1];
+      final Actions actions = new Actions(this.driver);
+      final Actions move = actions.moveToLocation(newX, newY);
+      final int index = type.getId();
+      final Actions modified = MOUSE_ACTION_CONSUMERS[index].apply(move);
+      final Action action = modified.build();
+      this.actionExecutor.submit(action::perform);
+      this.lock.unlock();
+    });
   }
 
   private int[] translateCoordinates(final int x, final int y) {
-    final int sourceWidth = this.source.getScreencastWidth();
-    final int sourceHeight = this.source.getScreencastHeight();
-    final int targetWidth = (int) this.frameWidth;
-    final int targetHeight = (int) this.frameHeight;
+    final BrowserSource source = requireNonNull(this.source);
+    final long width = requireNonNull(this.frameWidth);
+    final long height = requireNonNull(this.frameHeight);
+    final int sourceWidth = source.getScreencastWidth();
+    final int sourceHeight = source.getScreencastHeight();
+    final int targetWidth = (int) width;
+    final int targetHeight = (int) height;
     final double widthRatio = (double) targetWidth / sourceWidth;
     final double heightRatio = (double) targetHeight / sourceHeight;
     final int newX = (int) (x * widthRatio);
@@ -229,23 +289,16 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public void sendKeyEvent(final String text) {
-    if (!this.running.get()) {
-      return;
-    }
-    final Actions actions = new Actions(this.driver);
-    final Actions move = actions.sendKeys(text);
-    final Action action = move.build();
-    CompletableFuture.runAsync(action::perform, this.actionExecutor);
-  }
-
-  private Actions getAction(final MouseClick type, final Actions move) {
-    return switch (type) {
-      case LEFT -> move.click();
-      case RIGHT -> move.contextClick();
-      case DOUBLE -> move.doubleClick();
-      case HOLD -> move.clickAndHold();
-      case RELEASE -> move.release();
-    };
+    LockUtils.executeWithLock(this.lock, () -> {
+      if (!this.running.get() || !this.lock.tryLock()) {
+        return;
+      }
+      final Actions actions = new Actions(this.driver);
+      final Actions move = actions.sendKeys(text);
+      final Action action = move.build();
+      this.actionExecutor.submit(action::perform);
+      this.lock.unlock();
+    });
   }
 
   /**
@@ -253,25 +306,13 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public boolean release() {
-    if (!this.running.get()) {
-      return false;
-    }
-
-    this.tools.close();
-    this.running.set(false);
-
-    if (!this.captureTask.isDone()) {
-      this.captureTask.complete(null);
-    }
-
-    if (!this.tabTask.isDone()) {
-      this.tabTask.complete(null);
-    }
-
-    ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
-    ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);
-    ExecutorUtils.shutdownExecutorGracefully(this.tabExecutor);
-
-    return true;
+    return LockUtils.executeWithLock(this.lock, () -> {
+      this.tools.close();
+      this.running.set(false);
+      ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
+      ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);
+      ExecutorUtils.shutdownExecutorGracefully(this.tabExecutor);
+      return true;
+    });
   }
 }

@@ -40,21 +40,7 @@ public final class NativeUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  public static boolean checkIfExecutableInPath(final String executableName) {
-    try {
-      final Runtime runtime = Runtime.getRuntime();
-      final String[] command = { executableName };
-      final Process process = runtime.exec(command);
-      final int exitCode = process.waitFor();
-      return exitCode == 0;
-    } catch (final IOException e) {
-      return false;
-    } catch (final InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      return false;
-    }
-  }
+  private static final String ENVIRONMENT_VARIABLES_TEXT = requireNonNull(System.getenv("PATH"));
 
   /**
    * Loads a native library from the JAR resources.

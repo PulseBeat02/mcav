@@ -26,7 +26,7 @@ package me.brandonli.mcav.media.player.metadata;
  * The instances of this interface are typically immutable, offering read-only access
  * to the video metadata.
  */
-public interface VideoMetadata {
+public interface VideoMetadata extends Metadata {
   /**
    * A constant value indicating that an operation or parameter is not applicable or is undefined
    * in the current context.

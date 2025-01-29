@@ -18,6 +18,8 @@
 package me.brandonli.mcav.vm;
 
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.*;
@@ -26,11 +28,13 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
 @SuppressWarnings("all")
 public class VMInputExample {
 
-  private static final String DEFAULT_ISO_PATH = "C:\\linuxmint-22.1-cinnamon-64bit.iso";
+  private static final String DEFAULT_ISO_PATH =
+    "C:\\Users\\brand\\IdeaProjects\\mcav\\sandbox\\run\\plugins\\MCAV\\iso\\linuxmint-22.1-cinnamon-64bit.iso";
   private static final int VNC_PORT = 5900;
   private static final int WINDOW_WIDTH = 1024;
   private static final int WINDOW_HEIGHT = 768;
@@ -39,9 +43,30 @@ public class VMInputExample {
   private MCAVApi mcavApi;
   private final AtomicReference<BufferedImage> currentImage = new AtomicReference<>();
 
-  private static class VMPanel extends JPanel {
+  private class VMPanel extends JPanel {
 
     private BufferedImage image;
+
+    public VMPanel() {
+      this.addMouseListener(
+          new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+              System.out.println("Mouse clicked at: " + e.getPoint());
+              vmPlayer.sendMouseEvent(MouseClick.LEFT, e.getX(), e.getY());
+            }
+          }
+        );
+
+      this.addMouseMotionListener(
+          new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+              System.out.println("Mouse moved to: " + e.getPoint());
+            }
+          }
+        );
+    }
 
     @Override
     protected void paintComponent(final Graphics g) {

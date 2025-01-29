@@ -29,6 +29,8 @@ public interface VNCSource extends DynamicSource {
     return "vnc://" + this.getHost() + ":" + this.getPort() + (this.getPassword() != null ? "@" + this.getPassword() : "");
   }
 
+  String getUsername();
+
   /**
    * Gets the VNC server hostname or IP address.
    *
