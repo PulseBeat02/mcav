@@ -54,9 +54,12 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
           green = (green += buf1[bufferIndex++]) > 255 ? 255 : Math.max(green, 0);
           blue = (blue += buf1[bufferIndex++]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
-          final int delta_r = red - ((closest >> 16) & 0xFF);
-          final int delta_g = green - ((closest >> 8) & 0xFF);
-          final int delta_b = blue - (closest & 0xFF);
+          final int r = (closest >> 16) & 0xFF;
+          final int g = (closest >> 8) & 0xFF;
+          final int b = closest & 0xFF;
+          final int delta_r = red - r;
+          final int delta_g = green - g;
+          final int delta_b = blue - b;
           if (hasNextX) {
             buf1[bufferIndex] = (delta_r * 7) / 48;
             buf1[bufferIndex + 1] = (delta_g * 7) / 48;
@@ -110,9 +113,12 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
           green = (green += buf1[bufferIndex--]) > 255 ? 255 : Math.max(green, 0);
           red = (red += buf1[bufferIndex--]) > 255 ? 255 : Math.max(red, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
-          final int delta_r = red - ((closest >> 16) & 0xFF);
-          final int delta_g = green - ((closest >> 8) & 0xFF);
-          final int delta_b = blue - (closest & 0xFF);
+          final int r = (closest >> 16) & 0xFF;
+          final int g = (closest >> 8) & 0xFF;
+          final int b = closest & 0xFF;
+          final int delta_r = red - r;
+          final int delta_g = green - g;
+          final int delta_b = blue - b;
           if (hasNextX) {
             buf1[bufferIndex] = (delta_b * 7) / 48;
             buf1[bufferIndex - 1] = (delta_g * 7) / 48;
@@ -224,7 +230,6 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
               }
             }
           }
-
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
         }
       } else {

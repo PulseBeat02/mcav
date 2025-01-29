@@ -66,31 +66,33 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
           final int delta_r = (red - r) >> 3;
           final int delta_g = (green - g) >> 3;
           final int delta_b = (blue - b) >> 3;
-          if (hasNextX) {
+          if (hasNextX && bufferIndex + 5 < buf1.length) {
             buf1[bufferIndex + 3] += delta_r;
             buf1[bufferIndex + 4] += delta_g;
             buf1[bufferIndex + 5] += delta_b;
-            if (x < width - 2) {
+            if (x < width - 2 && bufferIndex + 8 < buf1.length) {
               buf1[bufferIndex + 6] += delta_r;
               buf1[bufferIndex + 7] += delta_g;
               buf1[bufferIndex + 8] += delta_b;
             }
           }
           if (hasNextY) {
-            if (x > 0) {
+            if (x > 0 && bufferIndex - 1 >= 0) {
               buf2[bufferIndex - 3] += delta_r;
               buf2[bufferIndex - 2] += delta_g;
               buf2[bufferIndex - 1] += delta_b;
             }
-            buf2[bufferIndex] += delta_r;
-            buf2[bufferIndex + 1] += delta_g;
-            buf2[bufferIndex + 2] += delta_b;
-            if (hasNextX) {
+            if (bufferIndex + 2 < buf2.length) {
+              buf2[bufferIndex] += delta_r;
+              buf2[bufferIndex + 1] += delta_g;
+              buf2[bufferIndex + 2] += delta_b;
+            }
+            if (hasNextX && bufferIndex + 5 < buf2.length) {
               buf2[bufferIndex + 3] += delta_r;
               buf2[bufferIndex + 4] += delta_g;
               buf2[bufferIndex + 5] += delta_b;
             }
-            if (y < height - 2) {
+            if (y < height - 2 && bufferIndex + 2 < buf3.length) {
               buf3[bufferIndex] += delta_r;
               buf3[bufferIndex + 1] += delta_g;
               buf3[bufferIndex + 2] += delta_b;
@@ -117,31 +119,33 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
           final int delta_r = (red - r) >> 3;
           final int delta_g = (green - g) >> 3;
           final int delta_b = (blue - b) >> 3;
-          if (hasNextX) {
+          if (hasNextX && bufferIndex - 1 >= 0) {
             buf1[bufferIndex - 3] += delta_r;
             buf1[bufferIndex - 2] += delta_g;
             buf1[bufferIndex - 1] += delta_b;
-            if (x > 1) {
+            if (x > 1 && bufferIndex - 4 >= 0) {
               buf1[bufferIndex - 6] += delta_r;
               buf1[bufferIndex - 5] += delta_g;
               buf1[bufferIndex - 4] += delta_b;
             }
           }
           if (hasNextY) {
-            if (x < widthMinus) {
+            if (x < widthMinus && bufferIndex + 5 < buf2.length) {
               buf2[bufferIndex + 3] += delta_r;
               buf2[bufferIndex + 4] += delta_g;
               buf2[bufferIndex + 5] += delta_b;
             }
-            buf2[bufferIndex] += delta_r;
-            buf2[bufferIndex + 1] += delta_g;
-            buf2[bufferIndex + 2] += delta_b;
-            if (hasNextX) {
+            if (bufferIndex + 2 < buf2.length) {
+              buf2[bufferIndex] += delta_r;
+              buf2[bufferIndex + 1] += delta_g;
+              buf2[bufferIndex + 2] += delta_b;
+            }
+            if (hasNextX && bufferIndex - 1 >= 0) {
               buf2[bufferIndex - 3] += delta_r;
               buf2[bufferIndex - 2] += delta_g;
               buf2[bufferIndex - 1] += delta_b;
             }
-            if (y < height - 2) {
+            if (y < height - 2 && bufferIndex + 2 < buf3.length) {
               buf3[bufferIndex] += delta_r;
               buf3[bufferIndex + 1] += delta_g;
               buf3[bufferIndex + 2] += delta_b;

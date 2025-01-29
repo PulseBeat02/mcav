@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.media.result;
+package me.brandonli.mcav.bukkit.media.image;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -23,7 +23,6 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -32,25 +31,35 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
-public class BlockResult implements FunctionalVideoFilter {
+public class BlockImage implements DisplayableImage {
 
   private final BlockConfiguration blockConfiguration;
   private final FilterLiteDither dither;
 
   private Location[] locationCache;
 
-  public BlockResult(final BlockConfiguration configuration) {
+  BlockImage(final BlockConfiguration configuration) {
     this.blockConfiguration = configuration;
     this.dither = BlockPaletteLookup.getDitheringImpl();
   }
 
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void displayImage(final StaticImage image) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
-    data.resize(blockWidth, blockHeight);
+    final Location origin = this.blockConfiguration.getPosition();
+    this.locationCache = new Location[blockWidth * blockHeight];
+    for (int i = 0; i < this.locationCache.length; i++) {
+      final int x = i % blockWidth;
+      final int y = i / blockWidth;
+      final int adjustedX = x - (blockWidth / 2);
+      final int adjustedY = blockHeight - 1 - y;
+      final Location clone = origin.clone();
+      this.locationCache[i] = clone.add(adjustedX, adjustedY, 0);
+    }
+    image.resize(blockWidth, blockHeight);
 
-    final int[] resizedData = data.getAllPixels();
+    final int[] resizedData = image.getAllPixels();
     final int length = resizedData.length;
     this.dither.dither(resizedData, blockWidth);
 
@@ -75,22 +84,6 @@ public class BlockResult implements FunctionalVideoFilter {
         continue;
       }
       player.sendBlockChanges(blockStates);
-    }
-  }
-
-  @Override
-  public void start() {
-    final int blockWidth = this.blockConfiguration.getBlockWidth();
-    final int blockHeight = this.blockConfiguration.getBlockHeight();
-    final Location origin = this.blockConfiguration.getPosition();
-    this.locationCache = new Location[blockWidth * blockHeight];
-    for (int i = 0; i < this.locationCache.length; i++) {
-      final int x = i % blockWidth;
-      final int y = i / blockWidth;
-      final int adjustedX = x - (blockWidth / 2);
-      final int adjustedY = blockHeight - 1 - y;
-      final Location clone = origin.clone();
-      this.locationCache[i] = clone.add(adjustedX, adjustedY, 0);
     }
   }
 
