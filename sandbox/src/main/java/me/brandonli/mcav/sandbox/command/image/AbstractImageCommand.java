@@ -31,6 +31,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
@@ -69,7 +70,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ExecutorService service = this.manager.getService();
     final Runnable command = () -> this.synchronizeImage(image, player, resolution, configProvider);
     CompletableFuture.runAsync(command, service)
-      .thenRun(() -> player.sendMessage(Message.LOAD_IMAGE.build()))
+      .thenRun(TaskUtils.handleAsyncTask(this.plugin, () -> player.sendMessage(Message.LOAD_IMAGE.build())))
       .exceptionally(this::handleException);
   }
 

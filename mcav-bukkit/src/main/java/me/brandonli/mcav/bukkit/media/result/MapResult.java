@@ -22,7 +22,10 @@ import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import net.minecraft.world.level.saveddata.maps.MapId;
@@ -50,7 +53,13 @@ public class MapResult implements DitherResultStep {
    * {@inheritDoc}
    */
   @Override
-  public void process(final byte[] rgb, final int vidWidth, final int vidHeight) {
+  public void process(final ImageBuffer samples, final DitherAlgorithm algorithm) {
+    final int vidWidth = this.mapConfiguration.getMapWidthResolution();
+    final int vidHeight = this.mapConfiguration.getMapHeightResolution();
+    final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
+    filter.applyFilter(samples);
+
+    final byte[] rgb = algorithm.ditherIntoBytes(samples);
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
     final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
     final int map = this.mapConfiguration.getMap();

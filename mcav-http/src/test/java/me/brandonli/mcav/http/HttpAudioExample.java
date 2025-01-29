@@ -39,7 +39,7 @@ public final class HttpAudioExample {
     final MCAVApi api = MCAV.api();
     api.install();
 
-    final HttpResult result = HttpResult.port(3000);
+    final HttpResult result = HttpResult.port(3001);
     final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
     final YTDLPParser parser = YTDLPParser.simple();
     final URLParseDump dump = parser.parse(source);

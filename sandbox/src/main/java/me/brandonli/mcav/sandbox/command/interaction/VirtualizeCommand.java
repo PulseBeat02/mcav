@@ -32,6 +32,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -170,7 +171,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       player
         .startAsync(settings, architecture, config, this.service)
         .exceptionally(throwable -> handleException(sender, throwable))
-        .thenRun(() -> sender.sendMessage(Message.VM_CREATE.build()));
+        .thenRun(TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(Message.VM_CREATE.build())));
       this.player = player;
     } catch (final Exception e) {
       throw new AssertionError(e);

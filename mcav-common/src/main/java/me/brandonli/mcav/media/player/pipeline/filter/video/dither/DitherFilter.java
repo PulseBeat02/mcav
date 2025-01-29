@@ -52,9 +52,6 @@ public final class DitherFilter implements VideoFilter {
    */
   @Override
   public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    final byte[] bytes = this.algorithm.ditherIntoBytes(samples);
-    final int width = samples.getWidth();
-    final int height = samples.getHeight();
-    this.callback.process(bytes, width, height);
+    this.callback.process(samples, this.algorithm);
   }
 }

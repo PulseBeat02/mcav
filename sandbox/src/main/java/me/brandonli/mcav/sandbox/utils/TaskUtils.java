@@ -15,21 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
+package me.brandonli.mcav.sandbox.utils;
 
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
+import org.bukkit.Bukkit;
+import org.bukkit.scheduler.BukkitScheduler;
 
-/**
- * Represents a functional interface used to handle the result of a dithering operation.
- */
-@FunctionalInterface
-public interface DitherResultStep {
-  /**
-   * Processes the dithered video output and its associated metadata.
-   *
-   * @param samples  the {@link ImageBuffer} containing the original image samples
-   * @param algorithm the {@link DitherAlgorithm} used for dithering
-   */
-  void process(final ImageBuffer samples, final DitherAlgorithm algorithm);
+public final class TaskUtils {
+
+  private TaskUtils() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  public static Runnable handleAsyncTask(final MCAVSandbox plugin, final Runnable task) {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    return () -> scheduler.runTask(plugin, task);
+  }
 }

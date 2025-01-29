@@ -23,6 +23,7 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
@@ -31,10 +32,12 @@ import org.incendo.cloud.annotations.Permission;
 
 public final class VideoControlCommand implements AnnotationCommandFeature {
 
+  private MCAVSandbox sandbox;
   private VideoPlayerManager manager;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.sandbox = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
 
@@ -55,7 +58,9 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final CommandSender player) {
     final ExecutorService service = this.manager.getService();
     player.sendMessage(Message.RELEASE_PLAYER_START.build());
-    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> player.sendMessage(Message.RELEASE_PLAYER.build()));
+    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(
+      TaskUtils.handleAsyncTask(this.sandbox, () -> player.sendMessage(Message.RELEASE_PLAYER.build()))
+    );
   }
 
   @Command("mcav video pause")

@@ -45,6 +45,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
@@ -59,11 +60,13 @@ import org.slf4j.LoggerFactory;
 
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
+  protected MCAVSandbox plugin;
   protected AudioProvider provider;
   protected VideoPlayerManager manager;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
     this.provider = plugin.getAudioProvider();
   }
@@ -92,7 +95,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
-      .thenRun(() -> player.sendMessage(Message.START_VIDEO.build()))
+      .thenRun(TaskUtils.handleAsyncTask(plugin, () -> player.sendMessage(Message.START_VIDEO.build())))
       .exceptionally(this::handleException);
   }
 

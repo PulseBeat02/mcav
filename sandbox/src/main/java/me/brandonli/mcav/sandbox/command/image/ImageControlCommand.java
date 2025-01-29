@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
@@ -30,10 +31,12 @@ import org.incendo.cloud.annotations.Permission;
 
 public final class ImageControlCommand implements AnnotationCommandFeature {
 
+  private MCAVSandbox sandbox;
   private ImageManager manager;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.sandbox = plugin;
     this.manager = plugin.getImageManager();
   }
 
@@ -43,6 +46,8 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final CommandSender player) {
     final ExecutorService service = this.manager.getService();
     player.sendMessage(Message.RELEASE_IMAGE_START.build());
-    CompletableFuture.runAsync(this.manager::releaseImage, service).thenRun(() -> player.sendMessage(Message.RELEASE_IMAGE.build()));
+    CompletableFuture.runAsync(this.manager::releaseImage, service).thenRun(
+      TaskUtils.handleAsyncTask(this.sandbox, () -> player.sendMessage(Message.RELEASE_IMAGE.build()))
+    );
   }
 }
