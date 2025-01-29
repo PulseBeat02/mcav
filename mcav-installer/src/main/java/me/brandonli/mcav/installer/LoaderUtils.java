@@ -18,6 +18,8 @@
 package me.brandonli.mcav.installer;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -46,15 +48,50 @@ public final class LoaderUtils {
   }
 
   private static boolean addJarPath(final Path jarPath, final ClassLoader loader) throws MalformedURLException {
-    if (loader instanceof URLClassLoader) {
-      final URLClassLoader urlClassLoader = (URLClassLoader) loader;
-      final URLClassLoaderInjector injector = URLClassLoaderInjector.create(urlClassLoader);
-      final URI uri = jarPath.toUri();
-      final URL url = uri.toURL();
-      injector.addURL(url);
+    if (isUrlClassLoader(loader)) {
+      loadIntoUrlClassLoader(jarPath, (URLClassLoader) loader);
+      return true;
+    } else if (isKnotClassLoader(loader)) {
+      loadIntoUrlClassLoader(jarPath, getUrlClassLoaderFromKnotClassLoader(loader));
       return true;
     } else {
-      throw new JarInjectorException("Unsupported ClassLoader! Must be URLClassLoader");
+      throw new JarInjectorException("Unsupported ClassLoader type!");
+    }
+  }
+
+  private static URLClassLoader getUrlClassLoaderFromKnotClassLoader(final ClassLoader loader) {
+    try {
+      final Class<?> clazz = loader.getClass();
+      final String name = clazz.getName();
+      final String innerClass = String.format("%s$DynamicURLClassLoader", name);
+      final Class<?> dynamicLoaderClass = Class.forName(innerClass);
+      final MethodHandles.Lookup defaultLookup = MethodHandles.lookup();
+      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(clazz, defaultLookup);
+      final VarHandle urlLoaderHandle = lookup.findVarHandle(clazz, "urlLoader", dynamicLoaderClass);
+      return (URLClassLoader) urlLoaderHandle.get(loader);
+    } catch (final IllegalAccessException | ClassNotFoundException | NoSuchFieldException e) {
+      throw new JarInjectorException(e.getMessage());
+    }
+  }
+
+  private static void loadIntoUrlClassLoader(final Path jarPath, final URLClassLoader loader) throws MalformedURLException {
+    final URLClassLoaderInjector injector = URLClassLoaderInjector.create(loader);
+    final URI uri = jarPath.toUri();
+    final URL url = uri.toURL();
+    injector.addURL(url);
+  }
+
+  private static boolean isUrlClassLoader(final ClassLoader loader) {
+    return loader instanceof URLClassLoader;
+  }
+
+  private static boolean isKnotClassLoader(final ClassLoader loader) {
+    try {
+      final Class<?> clazz = Class.forName("net.fabricmc.loader.impl.launch.knot.KnotClassLoader");
+      final Class<?> loaderClazz = loader.getClass();
+      return loaderClazz.isAssignableFrom(clazz);
+    } catch (final ClassNotFoundException e) {
+      return false;
     }
   }
 
