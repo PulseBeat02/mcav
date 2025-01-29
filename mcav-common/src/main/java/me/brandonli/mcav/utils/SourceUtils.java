@@ -84,6 +84,31 @@ public final class SourceUtils {
   }
 
   /**
+   * Determines if a given URL represents a direct video file based on its format.
+   * This method checks if the URL contains a valid path with a file extension.
+   *
+   * @param url the URL string to check. It should be a valid URI string.
+   * @return true if the URL corresponds to a direct video file, false otherwise
+   */
+  public static boolean isDirectVideoFile(final String url) {
+    if (url == null || url.isEmpty()) {
+      return false;
+    }
+    try {
+      final URI uri = URI.create(url);
+      final String path = uri.getPath();
+      if (path == null || path.isEmpty()) {
+        return false;
+      }
+      final int lastSlashIndex = path.lastIndexOf('/');
+      final int lastDotIndex = path.lastIndexOf('.');
+      return lastDotIndex > lastSlashIndex && lastDotIndex < path.length() - 1;
+    } catch (final Exception e) {
+      return false;
+    }
+  }
+
+  /**
    * Determines if a given raw string represents a valid file path on the system.
    *
    * @param raw the string to be validated as a path

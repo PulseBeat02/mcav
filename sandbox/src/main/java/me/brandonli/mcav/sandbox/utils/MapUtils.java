@@ -43,7 +43,6 @@ SOFTWARE.
 
 */
 
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
 import static java.util.Objects.requireNonNull;
 
 import java.util.List;
@@ -96,8 +95,8 @@ public final class MapUtils {
   }
 
   public static void buildMapScreen(final Player player, final Material mat, final int width, final int height, final int startingMap) {
-    checkNotNull(player, "Player cannot be null!");
-    checkNotNull(mat, "Material cannot be null!");
+    requireNonNull(player, "Player cannot be null!");
+    requireNonNull(mat, "Material cannot be null!");
     final World world = player.getWorld();
     final BlockFace face = player.getFacing();
     final BlockFace opposite = face.getOppositeFace();

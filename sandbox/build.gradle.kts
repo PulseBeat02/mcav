@@ -7,11 +7,15 @@ plugins {
 }
 
 dependencies {
+
+    // provided api
     compileOnly("org.spigotmc:spigot-api:1.21.5-R0.1-SNAPSHOT")
-    implementation("com.alessiodp.libby:libby-bukkit:2.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT") {
-        isChanging = true
-    }
+
+    // mcav
+    implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT") { isChanging = true }
+    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT") { isChanging = true }
+
+    // plugin dependencies
     compileOnly("org.incendo:cloud-core:2.0.0")
     compileOnly("org.incendo:cloud-annotations:2.0.0")
     compileOnly("org.incendo:cloud-paper:2.0.0-beta.10")
@@ -48,32 +52,6 @@ tasks.withType<AbstractRun>().configureEach {
 
 tasks {
 
-    register("writeDependenciesToFiles") {
-        doLast {
-            val dependenciesList = configurations.compileOnly.get().dependencies
-                .filter { dep ->
-                    !(dep.group == "org.spigotmc" && dep.name == "spigot-api") &&
-                            !(dep.group == "com.alessiodp.libby" && dep.name == "libby-bukkit")
-                }
-                .map { "${it.group}:${it.name}:${it.version}" }
-                .sorted()
-                .joinToString("\n")
-            file("dependencies.txt").writeText(dependenciesList)
-            val allRepos = mutableListOf<String>()
-            project.repositories.forEach { repo ->
-                if (repo is MavenArtifactRepository) {
-                    allRepos.add("${repo.url}")
-                }
-            }
-            rootProject.repositories.forEach { repo ->
-                if (repo is MavenArtifactRepository) {
-                    allRepos.add("${repo.url}")
-                }
-            }
-            file("repositories.txt").writeText(allRepos.sorted().joinToString("\n"))
-        }
-    }
-
     withType<JavaCompile>().configureEach {
         val set = setOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked")
         options.compilerArgs.addAll(set)
@@ -91,19 +69,30 @@ tasks {
         apiVersion = "1.21"
         prefix = "MCAV"
         main = "me.brandonli.mcav.sandbox.MCAV"
+        libraries = listOf(
+            "org.incendo:cloud-core:2.0.0",
+            "org.incendo:cloud-annotations:2.0.0",
+            "org.incendo:cloud-paper:2.0.0-beta.10",
+            "org.incendo:cloud-minecraft-extras:2.0.0-beta.10",
+            "me.lucko:commodore:2.2",
+            "org.bstats:bstats-bukkit:3.1.0",
+            "dev.triumphteam:triumph-gui:3.1.12",
+            "net.kyori:adventure-api:4.21.0",
+            "net.kyori:adventure-platform-bukkit:4.3.4",
+            "net.kyori:adventure-text-minimessage:4.20.0",
+            "net.kyori:adventure-text-serializer-legacy:4.20.0",
+            "net.kyori:adventure-text-serializer-plain:4.20.0",
+            "io.github.classgraph:classgraph:4.8.179"
+        )
     }
 
     processResources {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
         filteringCharset = "UTF-8"
-        dependsOn("writeDependenciesToFiles")
-        from(file("dependencies.txt"))
-        from(file("repositories.txt"))
     }
 
     shadowJar {
         archiveBaseName.set("mcav-sandbox")
-        relocate("com.alessiodp.libby", "me.brandonli.mcav.sandbox.lib.libby")
     }
 
     assemble {

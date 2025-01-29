@@ -15,15 +15,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.sandbox.locale;
+package me.brandonli.mcav.installer;
 
-import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
+import java.net.URL;
+import java.net.URLClassLoader;
 
-public interface Message extends LocaleTools {
-  NullComponent<Sender> MRL_ERROR = direct("mcav.command.mrl.error");
-  NullComponent<Sender> DITHERING_ERROR = direct("mcav.command.dither.error");
-  NullComponent<Sender> URL_ERROR = direct("mcav.command.url.error");
-  NullComponent<Sender> DIMENSION_ERROR = direct("mcav.command.dimension.error");
-  UniComponent<Sender, String> SEND_DUMP = direct("mcav.command.dump.result", null);
-  NullComponent<Sender> LOAD_DUMP = direct("mcav.command.dump.load");
+abstract class URLClassLoaderInjector {
+
+  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
+    if (ReflectiveInjector.isSupported()) {
+      return new ReflectiveInjector(classLoader);
+    } else if (UnsafeInjector.isSupported()) {
+      return new UnsafeInjector(classLoader);
+    }
+    throw new UnsupportedOperationException("No supported injector found");
+  }
+
+  private final URLClassLoader classLoader;
+
+  URLClassLoaderInjector(final URLClassLoader classLoader) {
+    this.classLoader = classLoader;
+  }
+
+  public abstract void addURL(URL url);
+
+  URLClassLoader getClassLoader() {
+    return classLoader;
+  }
 }

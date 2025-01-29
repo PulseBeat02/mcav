@@ -4,7 +4,6 @@ plugins {
     id("com.github.node-gradle.node") version "7.1.0"
     id("com.diffplug.spotless") version "7.0.0.BETA4"
     id("org.checkerframework") version "0.6.53"
-    id("maven-publish")
 }
 
 group = "me.brandonli"
@@ -22,28 +21,6 @@ subprojects {
     apply(plugin = "org.checkerframework")
     apply(plugin = "com.github.node-gradle.node")
     apply(plugin = "com.diffplug.spotless")
-    apply(plugin = "maven-publish")
-
-    publishing {
-        repositories {
-            maven {
-                name = "brandonli"
-                url = uri("https://repo.brandonli.me/snapshots")
-                credentials(PasswordCredentials::class)
-                authentication {
-                    create<BasicAuthentication>("basic")
-                }
-            }
-        }
-        publications {
-            create<MavenPublication>("maven") {
-                groupId = "me.brandonli"
-                artifactId = project.name
-                version = "${rootProject.version}"
-                from(components["java"])
-            }
-        }
-    }
 
     java {
         sourceCompatibility = JavaVersion.VERSION_11

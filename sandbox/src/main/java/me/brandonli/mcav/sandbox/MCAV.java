@@ -17,12 +17,16 @@
  */
 package me.brandonli.mcav.sandbox;
 
+import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
-import me.brandonli.mcav.sandbox.dependency.DependencyManager;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.utils.ClassGraphUtils;
+import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAV extends JavaPlugin {
@@ -32,8 +36,9 @@ public final class MCAV extends JavaPlugin {
   Things to implement into plugin
   - Example showing VNC player
   - Example showing video player (map, entities, chat, scoreboard)
-    - Must be able to use resource pack to sever audio, otherwise stream
-  - Discord Audio Support
+
+  - Add resource pack audio support
+  - Add Discord Audio Support
   - Add resource pack hosting + Netty injection
 
    */
@@ -63,14 +68,17 @@ public final class MCAV extends JavaPlugin {
     }
   }
 
+  private void loadDependencies() {
+    final ClassLoader loader = this.getClassLoader();
+    final Path folder = IOUtils.getPluginDataFolderPath();
+    final MCAVInstaller installer = MCAVInstaller.urlClassLoaderInjector(folder, loader);
+    final Logger temporary = Logger.getLogger("MCAV Installer");
+    installer.loadMCAVDependencies(line -> temporary.log(Level.INFO, line));
+  }
+
   private void loadMCAV() {
     this.mcav = me.brandonli.mcav.MCAV.api();
     this.mcav.install();
-  }
-
-  private void loadDependencies() {
-    final DependencyManager manager = new DependencyManager(this);
-    manager.loadDependencies();
   }
 
   private void shutdownAudience() {

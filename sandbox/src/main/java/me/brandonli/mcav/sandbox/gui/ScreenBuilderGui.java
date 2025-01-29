@@ -17,6 +17,12 @@
  */
 package me.brandonli.mcav.sandbox.gui;
 
+import static java.util.Objects.requireNonNull;
+import static net.kyori.adventure.text.Component.join;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
+
 import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.components.GuiContainer;
 import dev.triumphteam.gui.components.InteractionModifier;
@@ -24,6 +30,8 @@ import dev.triumphteam.gui.components.InventoryProvider;
 import dev.triumphteam.gui.components.util.Legacy;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
+import java.io.IOException;
+import java.util.Map;
 import me.brandonli.mcav.sandbox.utils.JsonUtils;
 import me.brandonli.mcav.sandbox.utils.MapUtils;
 import me.brandonli.mcav.sandbox.utils.SkullUtils;
@@ -36,15 +44,6 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static java.util.Objects.requireNonNull;
-import static net.kyori.adventure.text.Component.join;
-import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.JoinConfiguration.noSeparators;
-import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public final class ScreenBuilderGui extends Gui {
 
@@ -106,7 +105,7 @@ public final class ScreenBuilderGui extends Gui {
 
   private void handleBuildScreen(final InventoryClickEvent event) {
     this.viewer.closeInventory();
-    MapUtils.buildMapScreen(this.viewer, this.material, this.width.getNumber(), this.height.getNumber(), 0);
+    MapUtils.buildMapScreen(this.viewer, this.material, this.width.getNumber(), this.height.getNumber(), this.id.getNumber());
     final Location location = requireNonNull(this.viewer.getLocation());
     this.viewer.playSound(location, Sound.ENTITY_PLAYER_LEVELUP, 10, 1);
   }

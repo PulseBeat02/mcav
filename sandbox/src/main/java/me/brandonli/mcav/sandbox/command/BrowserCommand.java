@@ -17,7 +17,12 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import static java.util.Objects.requireNonNull;
+
 import com.mojang.brigadier.context.CommandContext;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
@@ -43,12 +48,6 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-
 public final class BrowserCommand implements AnnotationCommandFeature {
 
   private BukkitAudiences audiences;
@@ -64,12 +63,12 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   @Permission("mcav.browser")
   @CommandDescription("mcav.command.browser.info")
   public void playBrowser(
-          final Player player,
-          @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
-          @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-          @Argument(suggestions = "id") @Range(min = "0", max = "4294967295") final int mapId,
-          final DitheringArgument ditheringAlgorithm,
-          @Quoted final String url
+    final Player player,
+    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+    @Argument(suggestions = "id") @Range(min = "0", max = "4294967294") final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    @Quoted final String url
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
