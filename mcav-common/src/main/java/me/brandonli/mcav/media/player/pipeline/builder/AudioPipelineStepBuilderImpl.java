@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.builder;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
@@ -26,7 +26,7 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
  * A concrete implementation of {@link AbstractPipelineStepBuilder} for constructing audio processing pipelines.
  */
 public final class AudioPipelineStepBuilderImpl
-  extends AbstractPipelineStepBuilder<ByteBuffer, AudioMetadata, AudioFilter, AudioPipelineStep> {
+  extends AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep> {
 
   AudioPipelineStepBuilderImpl() {}
 

@@ -25,7 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.*;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -126,13 +127,15 @@ public class VMInputExample {
       })
       .build();
 
-    final VideoMetadata videoMetadata = VideoMetadata.of(WINDOW_WIDTH, WINDOW_HEIGHT);
+    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     this.vmPlayer = VMPlayer.vm();
 
     final VMConfiguration config = VMConfiguration.builder().cdrom(isoPath).memory(2048);
     final VMSettings settings = VMSettings.of(600, 800, 120);
-    this.vmPlayer.start(pipeline, settings, VMPlayer.Architecture.X86_64, config);
+    final VideoAttachableCallback callback = this.vmPlayer.getVideoAttachableCallback();
+    callback.attach(pipeline);
+    this.vmPlayer.start(settings, VMPlayer.Architecture.X86_64, config);
   }
 
   private void cleanup() {

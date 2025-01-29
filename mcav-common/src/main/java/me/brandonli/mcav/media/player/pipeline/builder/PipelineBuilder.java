@@ -19,8 +19,8 @@ package me.brandonli.mcav.media.player.pipeline.builder;
 
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
@@ -36,7 +36,7 @@ public interface PipelineBuilder {
    * @return an instance of {@link AbstractPipelineStepBuilder} configured for audio processing, allowing
    * chaining of {@link AudioFilter}s to build a custom {@link AudioPipelineStep}.
    */
-  static AbstractPipelineStepBuilder<ByteBuffer, AudioMetadata, AudioFilter, AudioPipelineStep> audio() {
+  static AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep> audio() {
     return new AudioPipelineStepBuilderImpl();
   }
 
@@ -46,7 +46,7 @@ public interface PipelineBuilder {
    * @return a new instance of a video pipeline step builder for configuring and creating
    * a video processing pipeline.
    */
-  static AbstractPipelineStepBuilder<ImageBuffer, VideoMetadata, VideoFilter, VideoPipelineStep> video() {
+  static AbstractPipelineStepBuilder<ImageBuffer, OriginalVideoMetadata, VideoFilter, VideoPipelineStep> video() {
     return new VideoPipelineStepBuilderImpl();
   }
 }

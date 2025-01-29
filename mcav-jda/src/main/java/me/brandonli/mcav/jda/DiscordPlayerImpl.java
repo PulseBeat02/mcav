@@ -18,7 +18,7 @@
 package me.brandonli.mcav.jda;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 
 /**
@@ -64,7 +64,7 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final AudioMetadata metadata) {
+  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     final ByteBuffer clamped = ByteUtils.clampNormalBufferToBigEndian(samples);
     if (this.buffer.remaining() >= clamped.remaining()) {
       this.buffer.put(clamped);

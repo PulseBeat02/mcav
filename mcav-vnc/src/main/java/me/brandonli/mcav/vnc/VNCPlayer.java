@@ -21,8 +21,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
@@ -32,37 +32,30 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
   /**
    * Starts the playback process with the specified video pipeline and VNC source.
    *
-   * @param videoPipeline the video pipeline to be used, consisting of processing steps
    * @param combined the VNC source representing the input data, including host
    * @return {@code true} if the playback starts successfully, or {@code false} if it fails to start.
    */
-  boolean start(final VideoPipelineStep videoPipeline, final VNCSource combined);
+  boolean start(final VNCSource combined);
 
   /**
    * Asynchronously initiates the playback process with the specified video pipeline with a ForkJoinPool.
    *
-   * @param videoPipeline the video pipeline to be used, consisting of processing steps
    * @param combined the VNC source representing the input data
    * @return a CompletableFuture that completes with {@code true} if the playback starts
    */
-  default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final VNCSource combined) {
-    return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
+  default CompletableFuture<Boolean> startAsync(final VNCSource combined) {
+    return this.startAsync(combined, ForkJoinPool.commonPool());
   }
 
   /**
    * Asynchronously initiates the playback process with the specified video pipeline
    *
-   * @param videoPipeline the video pipeline to be used, consisting of processing steps
    * @param combined the VNC source representing the input data
    * @param service the ExecutorService to run the task on, allowing for custom thread management
    * @return a CompletableFuture that completes with {@code true} if the playback starts
    */
-  default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep videoPipeline,
-    final VNCSource combined,
-    final ExecutorService service
-  ) {
-    return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
+  default CompletableFuture<Boolean> startAsync(final VNCSource combined, final ExecutorService service) {
+    return CompletableFuture.supplyAsync(() -> this.start(combined), service);
   }
 
   /**
@@ -88,6 +81,13 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
    * @param y the y-coordinate where the mouse event occurs
    */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
+
+  /**
+   * Gets the video-attachable callback associated with this player.
+   *
+   * @return The video-attachable callback.
+   */
+  VideoAttachableCallback getVideoAttachableCallback();
 
   /**
    * Returns an instance of the {@link VNCPlayer} interface.

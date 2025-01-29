@@ -18,13 +18,13 @@
 package me.brandonli.mcav.media.player.pipeline.step;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 
 /**
  * Represents a processing step in a video processing pipeline.
  */
-public interface VideoPipelineStep extends PipelineStep<ImageBuffer, VideoMetadata, VideoPipelineStep> {
+public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVideoMetadata, VideoPipelineStep> {
   /**
    * Creates a new instance of {@code VideoPipelineStep} with the specified
    * next step and video filter.

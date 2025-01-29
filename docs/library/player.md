@@ -16,6 +16,10 @@ from different audio and video inputs at once. For example, the `VLCPlayer` is a
 from a separated audio and video input at the same time. It automatically synchronizes the audio and video streams to
 ensure that they are in sync.
 
+All video players will automatically have a wrapper callback (called `VideoAttachableCallback` for video and
+`AudioAttachableCallback` for audio) that allows you to attach a `VideoPipelineStep` or `AudioPipelineStep` to the player
+for callbacks. They wrap the respective pipeline callbacks.
+
 ```{note}
 As an implementation note. All image and audio samples follow a standard format throughout the pipeline and should
 always maintain this same type at all times. The image frames are always encoded in **BGR24** format with 8-bits of
@@ -29,8 +33,15 @@ padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endi
   final FileSource videoSource = ...;
   final FileSource audioSource = ...;
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+  
   // audioPipelineStep and videoPipelineStep from above
-  multiplexer.start(audioPipelineStep, videoPipelineStep, videoSource, audioSource);
+  final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
+  videoCallback.attach(videoPipelineStep);
+
+  final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+  audioCallback.attach(audioPipelineStep);
+  
+  multiplexer.start(videoSource, audioSource);
   // ... do something with the player
   multiplexer.release();
 ```
@@ -48,8 +59,15 @@ so.
   final VideoPipelineStep videoPipelineStep = ...;
   final FileSource source = ...;
   final VideoPlayerMultiplexer player = VideoPlayer.vlc();
+  
   // audioPipelineStep and videoPipelineStep from above
-  player.start(audioPipelineStep, videoPipelineStep, source);
+  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+  videoCallback.attach(videoPipelineStep);
+
+  final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+  audioCallback.attach(audioPipelineStep);
+  
+  player.start(source);
   // ... do something with the player
   player.release();
 ```
@@ -71,7 +89,11 @@ JFreeChart chart and displaying it.
   final VideoPipelineStep videoPipelineStep = ...;
   final FrameSource frameSource = FrameSource.image(...); // provide your frames in a supplier
   final ImagePlayer player = ImagePlayer.player();
-  player.start(videoPipelineStep, frameSource);
+
+  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+  videoCallback.attach(videoPipelineStep);
+  
+  player.start(frameSource);
   // ... do something with the player
   player.release();
 ```
@@ -84,6 +106,10 @@ this into `ImagePlayer` directly.
   final DynamicImageBuffer gif = DynamicImageBuffer.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
   final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
   final ImagePlayer player = ImagePlayer.player();
+  
+  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+  videoCallback.attach(videoPipelineStep);
+  
   player.start(videoPipelineStep, frameSource);
   // ... do something with the player
   player.release();

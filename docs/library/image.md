@@ -15,8 +15,8 @@ your program will have a memory leak and might cause unexpected behavior.
 ```java
   final BufferedImage buffered = ...;
   final ImageBuffer image = ImageBuffer.image(buffered);
-  image.flipHorizontally();
-  image.resize(100,100);
+  final ResizeFilter resize = ResizeFilter.resize(200, 200);
+  image.applyFilter(resize);
   // and more operations
   image.close();
 ```

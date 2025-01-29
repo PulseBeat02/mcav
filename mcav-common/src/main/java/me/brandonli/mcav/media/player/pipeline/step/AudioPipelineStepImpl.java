@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.step;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -48,7 +48,7 @@ public final class AudioPipelineStepImpl implements AudioPipelineStep {
    * {@inheritDoc}
    */
   @Override
-  public synchronized void process(final ByteBuffer buffer, final AudioMetadata metadata) {
+  public synchronized void process(final ByteBuffer buffer, final OriginalAudioMetadata metadata) {
     this.filter.applyFilter(buffer, metadata);
   }
 }

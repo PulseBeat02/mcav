@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.metadata;
 /**
  * Represents metadata specific to audio files or streams.
  */
-public interface AudioMetadata extends Metadata {
+public interface OriginalAudioMetadata extends OriginalMetadata {
   /**
    * Retrieves the audio bitrate of the audio file or stream in raw bits per second.
    *
@@ -60,7 +60,7 @@ public interface AudioMetadata extends Metadata {
    * @param audioChannels   the number of audio channels
    * @return a new {@code AudioMetadata} instance containing the specified audio properties
    */
-  static AudioMetadata of(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
-    return new AudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels);
+  static OriginalAudioMetadata of(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
+    return new OriginalAudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels);
   }
 }

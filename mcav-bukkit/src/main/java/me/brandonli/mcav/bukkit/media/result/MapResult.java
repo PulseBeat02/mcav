@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
@@ -51,15 +50,13 @@ public class MapResult implements DitherResultStep {
    * {@inheritDoc}
    */
   @Override
-  public void process(final byte[] rgb, final VideoMetadata metadata) {
+  public void process(final byte[] rgb, final int vidWidth, final int vidHeight) {
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
     final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
     final int map = this.mapConfiguration.getMap();
     final Collection<UUID> viewers = this.mapConfiguration.getViewers();
     final int pixW = mapBlockWidth << 7;
     final int pixH = mapBlockHeight << 7;
-    final int vidWidth = metadata.getVideoWidth();
-    final int vidHeight = metadata.getVideoHeight();
     final int xOff = (pixW - vidWidth) >> 1;
     final int yOff = (pixH - vidHeight) >> 1;
     final int negXOff = xOff + vidWidth;

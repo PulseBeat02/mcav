@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.image;
 
+import static java.util.Objects.requireNonNull;
+
 import java.nio.IntBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,41 +27,43 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FrameSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.LockUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A default implementation of the {@link ImagePlayer} interface.
  */
 public class ImagePlayerImpl implements ImagePlayer {
 
+  private final VideoAttachableCallback callback;
   private final AtomicBoolean running;
   private final ExecutorService executor;
   private final Lock lock;
 
-  private volatile FrameSource source;
-  private volatile VideoPipelineStep videoPipelineStep;
+  @Nullable private volatile FrameSource source;
 
   ImagePlayerImpl() {
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.executor = Executors.newSingleThreadExecutor();
+    this.callback = VideoAttachableCallback.create();
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final FrameSource source) {
+  public boolean start(final FrameSource source) {
     return LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get()) {
         return false;
       }
 
-      this.videoPipelineStep = videoPipeline;
       this.source = source;
       this.running.set(true);
       this.executor.submit(this::runExecutorTask);
@@ -68,19 +72,25 @@ public class ImagePlayerImpl implements ImagePlayer {
     });
   }
 
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.callback;
+  }
+
   private void runExecutorTask() {
-    final int width = this.source.getFrameWidth();
-    final int height = this.source.getFrameHeight();
-    final VideoMetadata metadata = VideoMetadata.of(width, height);
+    final FrameSource source = requireNonNull(this.source);
+    final int width = source.getFrameWidth();
+    final int height = source.getFrameHeight();
+    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
     while (this.running.get()) {
-      final IntBuffer frame = this.source.getFrameSupplier().get();
+      final IntBuffer frame = source.getFrameSupplier().get();
       if (frame == null || frame.remaining() == 0) {
         this.waitForFrame();
         continue;
       }
       final int[] data = frame.array();
       final ImageBuffer image = ImageBuffer.buffer(data, width, height);
-      VideoPipelineStep next = this.videoPipelineStep;
+      VideoPipelineStep next = this.callback.getPipeline();
       while (next != null) {
         next.process(image, metadata);
         next = next.next();

@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.source.Source;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
@@ -40,7 +40,7 @@ public final class MetadataUtils {
    * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
    * @throws AssertionError if an error occurs while processing the video resource
    */
-  public static VideoMetadata parseVideoMetadata(final Source source) {
+  public static OriginalVideoMetadata parseVideoMetadata(final Source source) {
     final String resource = source.getResource();
     try {
       final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
@@ -55,7 +55,7 @@ public final class MetadataUtils {
       final float frameRate = (float) grabber.getFrameRate();
 
       grabber.close();
-      return VideoMetadata.of(width, height, bitrate, frameRate);
+      return OriginalVideoMetadata.of(width, height, bitrate, frameRate);
     } catch (final FrameGrabber.Exception e) {
       throw new InputMetadataException(e.getMessage(), e);
     }
@@ -69,7 +69,7 @@ public final class MetadataUtils {
    * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
    * @throws AssertionError if an error occurs while processing the video resource
    */
-  public static AudioMetadata parseAudioMetadata(final Source source) {
+  public static OriginalAudioMetadata parseAudioMetadata(final Source source) {
     final String resource = source.getResource();
     try {
       final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
@@ -83,7 +83,7 @@ public final class MetadataUtils {
       final int sampleRate = grabber.getSampleRate();
       final int channels = grabber.getAudioChannels();
       grabber.close();
-      return AudioMetadata.of(codec, bitrate, sampleRate, channels);
+      return OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels);
     } catch (final FrameGrabber.Exception e) {
       throw new InputMetadataException(e.getMessage(), e);
     }

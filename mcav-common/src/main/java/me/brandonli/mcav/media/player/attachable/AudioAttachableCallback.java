@@ -15,19 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video;
+package me.brandonli.mcav.media.player.attachable;
 
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.Filter;
+import java.nio.ByteBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
- * Represents a functional interface for applying transformations or filters
- * to video data.
+ * Represents a callback interface for audio that can be attached to a player.
  */
-@FunctionalInterface
-public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> {
-  default void applyFilter(final ImageBuffer samples) {
-    this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
+public interface AudioAttachableCallback
+  extends AttachableCallback<AudioPipelineStep, ByteBuffer, OriginalAudioMetadata, AudioPipelineStep> {
+  /**
+   * Creates a new instance of {@link AudioAttachableCallback}.
+   *
+   * @return a new {@link AudioAttachableCallback} instance.
+   */
+  static AudioAttachableCallback create() {
+    return new AudioAttachableCallbackImpl();
   }
 }

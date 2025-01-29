@@ -23,8 +23,12 @@ a `VNCSource`, and pass it to the player.
     .screenHeight(1080)
     .targetFrameRate(30)
     .build();
+  
   final VNCPlayer player = VNCPlayer.vm();
-  player.start(pipeline, source);
+  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+  videoCallback.attach(pipeline);
+  
+  player.start(source);
   // ... do some play back
   player.release();
 ```

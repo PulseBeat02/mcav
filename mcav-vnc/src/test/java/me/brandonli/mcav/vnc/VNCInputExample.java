@@ -22,6 +22,7 @@ import java.awt.image.BufferedImage;
 import javax.swing.*;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
@@ -62,6 +63,12 @@ public class VNCInputExample {
     final VideoPipelineStep pipeline = PipelineBuilder.video().then((image, step) -> vncPanel.setImage(image.toBufferedImage())).build();
     final VNCSource source = VNCSource.vnc().host("localhost").port(5900).screenWidth(800).screenHeight(600).targetFrameRate(30).build();
     final VNCPlayer player = VNCPlayer.vm();
+
+    final VideoAttachableCallback callback = player.getVideoAttachableCallback();
+    callback.attach(pipeline);
+
+    player.start(source);
+
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(
       new Thread(() -> {
@@ -69,7 +76,5 @@ public class VNCInputExample {
         api.release();
       })
     );
-
-    player.start(pipeline, source);
   }
 }

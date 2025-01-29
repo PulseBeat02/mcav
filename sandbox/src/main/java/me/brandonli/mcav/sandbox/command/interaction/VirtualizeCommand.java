@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -159,13 +160,18 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VMConfiguration config = this.parseVMOptions(flags);
     final VMSettings settings = VMSettings.of(resolutionWidth, resolutionHeight, targetFps);
-
     sender.sendMessage(Message.VM_LOADING.build());
+
     try {
-      this.player = VMPlayer.vm();
-      this.player.startAsync(pipeline, settings, architecture, config, this.service)
+      final VMPlayer player = VMPlayer.vm();
+      final VideoAttachableCallback callback = player.getVideoAttachableCallback();
+      callback.attach(pipeline);
+
+      player
+        .startAsync(settings, architecture, config, this.service)
         .exceptionally(throwable -> handleException(sender, throwable))
         .thenRun(() -> sender.sendMessage(Message.VM_CREATE.build()));
+      this.player = player;
     } catch (final Exception e) {
       throw new AssertionError(e);
     }

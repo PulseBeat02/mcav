@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.step;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -47,7 +47,7 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
    * {@inheritDoc}
    */
   @Override
-  public synchronized void process(final ImageBuffer buffer, final VideoMetadata metadata) {
+  public synchronized void process(final ImageBuffer buffer, final OriginalVideoMetadata metadata) {
     this.filter.applyFilter(buffer, metadata);
   }
 }

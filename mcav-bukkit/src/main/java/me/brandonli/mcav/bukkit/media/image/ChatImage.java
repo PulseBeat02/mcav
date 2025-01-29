@@ -23,7 +23,6 @@ import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -50,7 +49,7 @@ public class ChatImage implements DisplayableImage {
     final String character = this.configuration.getCharacter();
     final Collection<UUID> viewers = this.configuration.getViewers();
     final ResizeFilter resize = new ResizeFilter(chatWidth, chatHeight);
-    resize.applyFilter(data, VideoMetadata.EMPTY);
+    resize.applyFilter(data);
     final int[] resizedData = data.getPixels();
     final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);

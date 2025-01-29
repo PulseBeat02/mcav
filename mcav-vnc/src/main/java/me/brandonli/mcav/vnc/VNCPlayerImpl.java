@@ -42,7 +42,8 @@ import java.util.function.Consumer;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -91,6 +92,7 @@ public class VNCPlayerImpl implements VNCPlayer {
     }
   }
 
+  private final VideoAttachableCallback videoCallback;
   private final ExecutorService frameProcessorExecutor;
   private final AtomicReference<@Nullable BufferedImage> current;
   private final AtomicBoolean running;
@@ -101,6 +103,7 @@ public class VNCPlayerImpl implements VNCPlayer {
   @Nullable private volatile VNCSource source;
 
   VNCPlayerImpl() {
+    this.videoCallback = VideoAttachableCallback.create();
     this.frameProcessorExecutor = Executors.newSingleThreadExecutor();
     this.current = new AtomicReference<>(null);
     this.running = new AtomicBoolean(false);
@@ -111,13 +114,13 @@ public class VNCPlayerImpl implements VNCPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final VNCSource source) {
+  public boolean start(final VNCSource source) {
     return LockUtils.executeWithLock(this.lock, () -> {
       if (this.running.get()) {
         return true;
       }
 
-      final VernacularConfig config = this.createConfig(source, videoPipeline);
+      final VernacularConfig config = this.createConfig(source);
       final String host = source.getHost();
       final int port = source.getPort();
       this.source = source;
@@ -131,7 +134,7 @@ public class VNCPlayerImpl implements VNCPlayer {
     });
   }
 
-  private VernacularConfig createConfig(final VNCSource source, final VideoPipelineStep videoPipeline) {
+  private VernacularConfig createConfig(final VNCSource source) {
     final int fps = source.getTargetFrameRate();
     final VernacularConfig config = new VernacularConfig();
     config.setColorDepth(ColorDepth.BPP_16_TRUE);
@@ -140,7 +143,8 @@ public class VNCPlayerImpl implements VNCPlayer {
 
     final int width = source.getScreenWidth();
     final int height = source.getScreenHeight();
-    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, fps);
+    final VideoPipelineStep videoPipeline = this.videoCallback.getPipeline();
+    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, fps);
     config.setScreenUpdateListener(image -> this.processImageAsync(image, videoMetadata, videoPipeline));
 
     final String username = source.getUsername();
@@ -156,11 +160,11 @@ public class VNCPlayerImpl implements VNCPlayer {
     return config;
   }
 
-  private void processImageAsync(final Image image, final VideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
+  private void processImageAsync(final Image image, final OriginalVideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
     this.frameProcessorExecutor.submit(() -> this.processImage(image, videoMetadata, pipelineStep));
   }
 
-  private void processImage(final Image image, final VideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
+  private void processImage(final Image image, final OriginalVideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
     if (!this.running.get()) {
       return;
     }
@@ -301,5 +305,10 @@ public class VNCPlayerImpl implements VNCPlayer {
       this.moveMouse(x, y);
       action.accept(client);
     });
+  }
+
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoCallback;
   }
 }

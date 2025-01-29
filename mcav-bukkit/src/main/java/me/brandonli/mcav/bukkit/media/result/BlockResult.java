@@ -23,7 +23,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
@@ -60,7 +60,7 @@ public class BlockResult implements FunctionalVideoFilter {
    */
   @Override
   @SuppressWarnings("UnstableApiUsage")
-  public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
     final ResizeFilter resize = new ResizeFilter(blockWidth, blockHeight);

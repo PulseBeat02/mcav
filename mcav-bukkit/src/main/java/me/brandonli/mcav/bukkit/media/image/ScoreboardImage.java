@@ -25,7 +25,6 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -117,7 +116,7 @@ public class ScoreboardImage implements DisplayableImage {
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
     final ResizeFilter resize = new ResizeFilter(width, lines);
-    resize.applyFilter(data, VideoMetadata.EMPTY);
+    resize.applyFilter(data);
     final int[] resizedData = data.getPixels();
     for (int i = 0; i < lines; i++) {
       final Team team = this.teamLines[i];

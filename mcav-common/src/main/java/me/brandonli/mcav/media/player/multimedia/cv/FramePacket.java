@@ -18,21 +18,21 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.Metadata;
+import me.brandonli.mcav.media.player.metadata.OriginalMetadata;
 
 class FramePacket {
 
-  private final Metadata metadata;
+  private final OriginalMetadata metadata;
   private final ByteBuffer data;
   private final long timestamp;
 
-  FramePacket(final Metadata metadata, final ByteBuffer data, final long timestamp) {
+  FramePacket(final OriginalMetadata metadata, final ByteBuffer data, final long timestamp) {
     this.metadata = metadata;
     this.data = data;
     this.timestamp = timestamp;
   }
 
-  Metadata getMetadata() {
+  OriginalMetadata getMetadata() {
     return this.metadata;
   }
 
@@ -46,7 +46,7 @@ class FramePacket {
 
   static class AudioFramePacket extends FramePacket {
 
-    AudioFramePacket(final ByteBuffer data, final Metadata metadata, final long timestamp) {
+    AudioFramePacket(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp) {
       super(metadata, data, timestamp);
     }
   }
@@ -56,7 +56,7 @@ class FramePacket {
     private final int width;
     private final int height;
 
-    VideoFramePacket(final ByteBuffer data, final Metadata metadata, final int width, final int height, final long timestamp) {
+    VideoFramePacket(final ByteBuffer data, final OriginalMetadata metadata, final int width, final int height, final long timestamp) {
       super(metadata, data, timestamp);
       this.width = width;
       this.height = height;
@@ -71,11 +71,17 @@ class FramePacket {
     }
   }
 
-  static AudioFramePacket audio(final ByteBuffer data, final Metadata metadata, final long timestamp) {
+  static AudioFramePacket audio(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp) {
     return new AudioFramePacket(data, metadata, timestamp);
   }
 
-  static VideoFramePacket video(final ByteBuffer data, final Metadata metadata, final int width, final int height, final long timestamp) {
+  static VideoFramePacket video(
+    final ByteBuffer data,
+    final OriginalMetadata metadata,
+    final int width,
+    final int height,
+    final long timestamp
+  ) {
     return new VideoFramePacket(data, metadata, width, height, timestamp);
   }
 }

@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.eclipse.jetty.websocket.api.Session;
@@ -92,7 +92,7 @@ public class HttpResultImpl implements HttpResult {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final AudioMetadata metadata) {
+  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     if (samples == null || metadata == null) {
       return;
     }

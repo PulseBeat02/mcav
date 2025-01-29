@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
@@ -37,38 +37,31 @@ public interface BrowserPlayer extends ReleasablePlayer {
   /**
    * Starts the browser player with the specified video pipeline step and combined browser source.
    *
-   * @param videoPipeline the video pipeline step to be used for processing video frames.
    * @param combined the combined browser source that provides the video content to be played.
    * @return true if the player started successfully, false otherwise.
    */
-  boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined);
+  boolean start(final BrowserSource combined);
 
   /**
    * Asynchronously starts the browser player with the specified video pipeline step and combined browser source.
    *
-   * @param videoPipeline the video pipeline step to be used for processing video frames.
    * @param combined the combined browser source that provides the video content to be played.
    * @param service the executor service to run the asynchronous task on.
    * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
    */
-  default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep videoPipeline,
-    final BrowserSource combined,
-    final ExecutorService service
-  ) {
-    return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
+  default CompletableFuture<Boolean> startAsync(final BrowserSource combined, final ExecutorService service) {
+    return CompletableFuture.supplyAsync(() -> this.start(combined), service);
   }
 
   /**
    * Asynchronously starts the browser player with the specified video pipeline step and combined browser source
    * using the common ForkJoinPool.
    *
-   * @param videoPipeline the video pipeline step to be used for processing video frames.
    * @param combined the combined browser source that provides the video content to be played.
    * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
    */
-  default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
-    return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
+  default CompletableFuture<Boolean> startAsync(final BrowserSource combined) {
+    return this.startAsync(combined, ForkJoinPool.commonPool());
   }
 
   /**
@@ -94,6 +87,13 @@ public interface BrowserPlayer extends ReleasablePlayer {
    * @param text the text to be sent as a key event. This can include special characters or sequences.
    */
   void sendKeyEvent(final String text);
+
+  /**
+   * Gets the video-attachable callback associated with this player.
+   *
+   * @return The video-attachable callback.
+   */
+  VideoAttachableCallback getVideoAttachableCallback();
 
   /**
    * Creates a new instance of a Selenium browser using the default Chrome arguments.

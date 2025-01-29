@@ -21,7 +21,10 @@ page to connect to.
   final VideoPipelineStep videoPipelineStep = ...;
   final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
   final BrowserPlayer player = BrowserPlayer.defaultSelenium(); // starts Selenium WebDriver with default arguments
-  player.start(videoPipelineStep, browserSource);
+  final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
+  callback.attach(videoPipelineStep);
+
+  player.start(browserSource);
   // ... do something with the player
   player.release();
 ```

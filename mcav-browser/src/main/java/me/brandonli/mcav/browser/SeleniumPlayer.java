@@ -27,7 +27,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -63,6 +64,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
     Actions::release
   );
 
+  private final VideoAttachableCallback videoAttachableCallback;
   private final ExecutorService captureExecutor;
   private final Set<String> handles;
   private final ExecutorService actionExecutor;
@@ -76,13 +78,12 @@ public final class SeleniumPlayer implements BrowserPlayer {
 
   @Nullable private volatile Long frameHeight;
 
-  @Nullable private volatile VideoPipelineStep videoPipeline;
-
   @Nullable private volatile BrowserSource source;
 
   SeleniumPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final ChromeOptions options = new ChromeOptions().addArguments(args);
+    this.videoAttachableCallback = VideoAttachableCallback.create();
     this.driver = new ChromeDriver(service, options);
     this.handles = Collections.synchronizedSet(new HashSet<>());
     this.running = new AtomicBoolean(false);
@@ -97,10 +98,9 @@ public final class SeleniumPlayer implements BrowserPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
+  public boolean start(final BrowserSource combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.source = combined;
-      this.videoPipeline = videoPipeline;
       this.running.set(true);
       this.maximizeWindow(combined);
       this.addScreencastListener(combined);
@@ -217,12 +217,12 @@ public final class SeleniumPlayer implements BrowserPlayer {
       return;
     }
 
-    final VideoMetadata metadata = VideoMetadata.of(width, height);
+    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
     final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
     final ResizeFilter resizeFilter = new ResizeFilter(width, height);
     resizeFilter.applyFilter(staticImage, metadata);
 
-    VideoPipelineStep current = this.videoPipeline;
+    VideoPipelineStep current = this.videoAttachableCallback.getPipeline();
     while (current != null) {
       current.process(staticImage, metadata);
       current = current.next();
@@ -273,7 +273,6 @@ public final class SeleniumPlayer implements BrowserPlayer {
       final Actions modified = MOUSE_ACTION_CONSUMERS[index].apply(move);
       final Action action = modified.build();
       this.actionExecutor.submit(action::perform);
-      this.lock.unlock();
     });
   }
 
@@ -307,8 +306,12 @@ public final class SeleniumPlayer implements BrowserPlayer {
       final Actions move = actions.sendKeys(text);
       final Action action = move.build();
       this.actionExecutor.submit(action::perform);
-      this.lock.unlock();
     });
+  }
+
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoAttachableCallback;
   }
 
   /**

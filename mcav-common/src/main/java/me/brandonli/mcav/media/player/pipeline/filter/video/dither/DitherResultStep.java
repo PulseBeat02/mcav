@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-
 /**
  * Represents a functional interface used to handle the result of a dithering operation.
  */
@@ -28,7 +26,8 @@ public interface DitherResultStep {
    * Processes the dithered video output and its associated metadata.
    *
    * @param dithered a byte array representing the dithered video data
-   * @param metadata the metadata object containing video properties such as width, height, bitrate, and frame rate
+   * @param width   the width of the dithered video in pixels
+   * @param height  the height of the dithered video in pixels
    */
-  void process(final byte[] dithered, final VideoMetadata metadata);
+  void process(final byte[] dithered, final int width, final int height);
 }

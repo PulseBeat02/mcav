@@ -15,9 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.metadata;
+package me.brandonli.mcav.media.player.attachable;
+
+import me.brandonli.mcav.media.player.pipeline.step.PipelineStep;
 
 /**
- * Represents a general-purpose metadata interface.
+ * Represents a callback interface for audio and video that can be attached to a player.
+ *
+ * @param <T> The type of pipeline the callback is associated with.
  */
-public interface Metadata {}
+public interface AttachableCallback<T extends PipelineStep<A, B, C>, A, B, C> {
+  void attach(final T pipeline);
+
+  void detach();
+
+  boolean isAttached();
+
+  T getPipeline();
+}

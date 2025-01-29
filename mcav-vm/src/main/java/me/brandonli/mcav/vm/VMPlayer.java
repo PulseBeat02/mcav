@@ -21,8 +21,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
@@ -41,18 +41,16 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
   /**
    * Starts the virtual machine with the specified settings and architecture.
    *
-   * @param step       the video pipeline step to start
    * @param settings   the VM settings to use
    * @param architecture the architecture of the VM
    * @param arguments  additional configuration arguments for the VM
    * @return true if the VM started successfully, false otherwise
    */
-  boolean start(final VideoPipelineStep step, final VMSettings settings, final Architecture architecture, final VMConfiguration arguments);
+  boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration arguments);
 
   /**
    * Starts the virtual machine asynchronously with the specified settings and architecture.
    *
-   * @param step       the video pipeline step to start
    * @param settings   the VM settings to use
    * @param architecture the architecture of the VM
    * @param arguments  additional configuration arguments for the VM
@@ -60,31 +58,28 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
    * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
    */
   default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep step,
     final VMSettings settings,
     final Architecture architecture,
     final VMConfiguration arguments,
     final ExecutorService service
   ) {
-    return CompletableFuture.supplyAsync(() -> this.start(step, settings, architecture, arguments), service);
+    return CompletableFuture.supplyAsync(() -> this.start(settings, architecture, arguments), service);
   }
 
   /**
    * Starts the virtual machine asynchronously with the specified settings and architecture.
    *
-   * @param step       the video pipeline step to start
    * @param settings   the VM settings to use
    * @param architecture the architecture of the VM
    * @param arguments  additional configuration arguments for the VM
    * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
    */
   default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep step,
     final VMSettings settings,
     final Architecture architecture,
     final VMConfiguration arguments
   ) {
-    return this.startAsync(step, settings, architecture, arguments, ForkJoinPool.commonPool());
+    return this.startAsync(settings, architecture, arguments, ForkJoinPool.commonPool());
   }
 
   /**
@@ -110,6 +105,13 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
    * @param y    the y-coordinate where the mouse event should occur
    */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
+
+  /**
+   * Gets the video-attachable callback associated with this player.
+   *
+   * @return The video-attachable callback.
+   */
+  VideoAttachableCallback getVideoAttachableCallback();
 
   /**
    * Represents supported architectures for virtualization and emulation.

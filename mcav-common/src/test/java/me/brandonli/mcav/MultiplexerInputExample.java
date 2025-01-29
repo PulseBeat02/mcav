@@ -26,6 +26,8 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -71,8 +73,15 @@ public final class MultiplexerInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+
+    final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+
+    multiplexer.start(videoFormat, audioFormat);
 
     Runtime.getRuntime()
       .addShutdownHook(

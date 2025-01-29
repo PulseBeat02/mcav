@@ -18,13 +18,13 @@
 package me.brandonli.mcav.media.player.pipeline.step;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
 /**
  * Represents a processing step in an audio pipeline.
  */
-public interface AudioPipelineStep extends PipelineStep<ByteBuffer, AudioMetadata, AudioPipelineStep> {
+public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudioMetadata, AudioPipelineStep> {
   /**
    * Creates a new {@code AudioPipelineStep} with the specified next step and audio filter.
    *

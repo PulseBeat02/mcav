@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Java2DFrameUtils;
@@ -40,7 +40,7 @@ abstract class MatVideoFilter implements VideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer samples, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     final Consumer<Mat> matOperation = this::modifyMat;
     final Mat mat = this.getMat(samples);
     matOperation.accept(mat);

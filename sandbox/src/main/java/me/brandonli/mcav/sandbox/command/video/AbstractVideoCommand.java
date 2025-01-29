@@ -31,6 +31,8 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
@@ -203,10 +205,16 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final VideoPlayerMultiplexer player = playerType.createPlayer();
     this.manager.setPlayer(player);
     requireNonNull(video);
+
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
     if (audio == null) {
-      player.start(audioPipelineStep, videoPipelineStep, video);
+      player.start(video);
     } else {
-      player.start(audioPipelineStep, videoPipelineStep, video, audio);
+      player.start(video, audio);
     }
   }
 

@@ -27,6 +27,7 @@ import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -149,9 +150,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);
+
     try {
-      this.player = BrowserPlayer.playwright();
-      this.player.start(pipeline, source);
+      final BrowserPlayer player = BrowserPlayer.playwright();
+      final VideoAttachableCallback callback = player.getVideoAttachableCallback();
+      callback.attach(pipeline);
+
+      player.start(source);
+      this.player = player;
     } catch (final Exception e) {
       throw new AssertionError(e);
     }

@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.audio;
 import java.nio.ByteBuffer;
 import javax.sound.sampled.*;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -41,7 +41,7 @@ public class DirectAudioOutput implements AudioFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final AudioMetadata metadata) {
+  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     try {
       final AudioFormat format = new AudioFormat(48000, 16, 2, true, false);
 

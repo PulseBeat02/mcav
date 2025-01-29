@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.metadata;
 /**
  * Represents metadata for video-specific properties.
  */
-public interface VideoMetadata extends Metadata {
+public interface OriginalVideoMetadata extends OriginalMetadata {
   /**
    * A constant value indicating that an operation or parameter is not applicable or is undefined
    * in the current context.
@@ -30,17 +30,7 @@ public interface VideoMetadata extends Metadata {
   /**
    * An empty instance of {@code VideoMetadata} with all properties set to {@link #NO_OP}.
    */
-  VideoMetadata EMPTY = new VideoMetadataImpl(NO_OP, NO_OP, NO_OP, NO_OP);
-
-  /**
-   * The default bitrate for video files or streams, measured in kilobits per second (kbps).
-   */
-  int DEFAULT_BITRATE = 4000;
-
-  /**
-   * The default frame rate used for video playback or metadata processing.
-   */
-  int DEFAULT_FRAME_RATE = 30;
+  OriginalVideoMetadata EMPTY = new OriginalVideoMetadataImpl(NO_OP, NO_OP, NO_OP, NO_OP);
 
   /**
    * Retrieves the width of the video in pixels.
@@ -79,8 +69,8 @@ public interface VideoMetadata extends Metadata {
    * @param videoFrameRate the frame rate of the video in frames per second (fps)
    * @return a new {@code VideoMetadata} instance containing the specified video properties
    */
-  static VideoMetadata of(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
-    return new VideoMetadataImpl(videoWidth, videoHeight, videoBitrate, videoFrameRate);
+  static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
+    return new OriginalVideoMetadataImpl(videoWidth, videoHeight, videoBitrate, videoFrameRate);
   }
 
   /**
@@ -91,8 +81,8 @@ public interface VideoMetadata extends Metadata {
    * @param videoFrameRate the frame rate of the video in frames per second (fps)
    * @return a new {@code VideoMetadata} instance containing the specified video properties
    */
-  static VideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
-    return new VideoMetadataImpl(videoWidth, videoHeight, DEFAULT_BITRATE, videoFrameRate);
+  static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
+    return new OriginalVideoMetadataImpl(videoWidth, videoHeight, NO_OP, videoFrameRate);
   }
 
   /**
@@ -104,7 +94,7 @@ public interface VideoMetadata extends Metadata {
    * @return a new {@code VideoMetadata} instance containing the specified width and height,
    * along with default values for bitrate and frame rate
    */
-  static VideoMetadata of(final int width, final int height) {
-    return new VideoMetadataImpl(width, height, NO_OP, NO_OP);
+  static OriginalVideoMetadata of(final int width, final int height) {
+    return new OriginalVideoMetadataImpl(width, height, NO_OP, NO_OP);
   }
 }

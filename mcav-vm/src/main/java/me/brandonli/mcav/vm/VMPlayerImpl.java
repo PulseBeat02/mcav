@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -33,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class VMPlayerImpl implements VMPlayer {
 
+  private final VideoAttachableCallback videoAttachableCallback;
   private final Lock lock;
 
   @Nullable private volatile VNCPlayer vncPlayer;
@@ -40,6 +42,7 @@ public class VMPlayerImpl implements VMPlayer {
   @Nullable private volatile VMProcess process;
 
   VMPlayerImpl() {
+    this.videoAttachableCallback = VideoAttachableCallback.create();
     this.lock = new ReentrantLock();
     this.vncPlayer = VNCPlayer.vm();
   }
@@ -48,19 +51,17 @@ public class VMPlayerImpl implements VMPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(
-    final VideoPipelineStep step,
-    final VMSettings settings,
-    final Architecture architecture,
-    final VMConfiguration arguments
-  ) {
+  public boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration arguments) {
     return LockUtils.executeWithLock(this.lock, () -> {
       final VMProcess process = new VMProcess(settings, architecture, arguments);
       process.start();
       this.process = process;
       final VNCSource source = this.getVncSource(settings);
       final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
-      return vncPlayer.start(step, source);
+      final VideoPipelineStep step = this.videoAttachableCallback.getPipeline();
+      final VideoAttachableCallback callback = vncPlayer.getVideoAttachableCallback();
+      callback.attach(step);
+      return vncPlayer.start(source);
     });
   }
 
@@ -96,6 +97,11 @@ public class VMPlayerImpl implements VMPlayer {
         player.sendMouseEvent(type, x, y);
       }
     });
+  }
+
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoAttachableCallback;
   }
 
   /**

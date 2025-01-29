@@ -23,6 +23,8 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -66,7 +68,13 @@ public class FFmpegSandbox {
       .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+    final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+
+    multiplexer.start(source);
 
     CompletableFuture.runAsync(() -> {
       sleep();

@@ -26,7 +26,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -128,7 +128,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    */
   @Override
   @SuppressWarnings("deprecation")
-  public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
     final int lines = this.configuration.getLines();

@@ -23,7 +23,6 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
@@ -68,7 +67,7 @@ public class BlockImage implements DisplayableImage {
     }
 
     final ResizeFilter resizeFilter = new ResizeFilter(blockWidth, blockHeight);
-    resizeFilter.applyFilter(image, VideoMetadata.EMPTY);
+    resizeFilter.applyFilter(image);
 
     final int[] resizedData = image.getPixels();
     final int length = resizedData.length;

@@ -21,6 +21,10 @@ must also create a `VMSettings` to specify other non-QEMU related options.
   final VideoPipelineStep pipeline = ...;
   final VMConfiguration config = VMConfiguration.builder().cdrom(isoPath).memory(2048);
   final VMSettings settings = VMSettings.of(600, 800, 120);
+  final VMPlayer player = VMPlayer.vm();
+  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+  videoCallback.attach(pipeline);
+  
   this.vmPlayer.start(pipeline, settings, VMPlayer.Architecture.X86_64, config);
   // ... do some play back
   player.release();

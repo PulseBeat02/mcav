@@ -22,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 import java.nio.file.Path;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
@@ -57,7 +59,14 @@ public final class JDAAudioExample {
     audioManager.setSendingHandler(player);
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+
+    final AudioAttachableCallback audio = multiplexer.getAudioAttachableCallback();
+    audio.attach(audioPipelineStep);
+
+    final VideoAttachableCallback video = multiplexer.getVideoAttachableCallback();
+    video.attach(videoPipelineStep);
+
+    multiplexer.start(source);
 
     Runtime.getRuntime()
       .addShutdownHook(

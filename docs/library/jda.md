@@ -21,9 +21,11 @@ your pipeline.
 
   final DiscordPlayer player = DiscordPlayer.voice();
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(player);
-  final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
   audioManager.setSendingHandler(player);
 
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+  final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+  audioCallback.attach(audioPipelineStep);
+  
   multiplexer.start(...);
 ```

@@ -24,8 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -59,6 +61,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final String[] LIBVLC_INIT_ARGS = { "--reset-plugins-cache" };
 
+  private final VideoAttachableCallback videoAttachableCallback;
+  private final AudioAttachableCallback audioAttachableCallback;
   private final MediaPlayerFactory factory;
   private final EmbeddedMediaPlayer player;
   private final AtomicBoolean running;
@@ -79,6 +83,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * @param args the command-line arguments to pass to the VLC player
    */
   public VLCPlayer(final String[] args) {
+    this.videoAttachableCallback = VideoAttachableCallback.create();
+    this.audioAttachableCallback = AudioAttachableCallback.create();
     this.factory = new MediaPlayerFactory(LIBVLC_INIT_ARGS);
     this.player = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
     this.lock = new ReentrantLock();
@@ -90,14 +96,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source video,
-    final Source audio
-  ) {
+  public boolean start(final Source video, final Source audio) {
     return LockUtils.executeWithLock(this.lock, () -> {
-      this.prepareMedia(audioPipeline, videoPipeline, video, audio);
+      this.prepareMedia(video, audio);
       final MediaApi mediaApi = this.player.media();
       final String audioResource = audio.getResource();
       final URI audioUri = URI.create(audioResource);
@@ -109,15 +110,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     });
   }
 
-  private void prepareMedia(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source video,
-    final Source audio
-  ) {
+  private void prepareMedia(final Source video, final Source audio) {
     final MediaApi mediaApi = this.player.media();
     final String videoResource = video.getResource();
-    this.addCallbacks(audioPipeline, videoPipeline, video, audio);
+    this.addCallbacks(video, audio);
     if (this.args != null && this.args.length > 0) {
       mediaApi.play(videoResource, this.args);
     } else {
@@ -129,26 +125,33 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
+  public boolean start(final Source combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
-      this.prepareMedia(audioPipeline, videoPipeline, combined, combined);
+      this.prepareMedia(combined, combined);
       this.running.set(true);
       return true;
     });
   }
 
-  private void addCallbacks(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source video,
-    final Source audio
-  ) {
-    final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
-    final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoAttachableCallback;
+  }
+
+  @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    return this.audioAttachableCallback;
+  }
+
+  private void addCallbacks(final Source video, final Source audio) {
+    final OriginalAudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
+    final OriginalVideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final AudioApi audioApi = this.player.audio();
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi videoSurfaceApi = this.factory.videoSurfaces();
 
+    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.getPipeline();
+    final AudioPipelineStep audioPipeline = this.audioAttachableCallback.getPipeline();
     final BufferCallback bufferCallback = new BufferCallback(videoMetadata);
     final VideoCallback videoCallback = new VideoCallback(videoPipeline, videoMetadata);
     final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata);
@@ -224,7 +227,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     private final RV32BufferFormat format;
 
-    BufferCallback(final VideoMetadata metadata) {
+    BufferCallback(final OriginalVideoMetadata metadata) {
       this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
     }
 
@@ -239,9 +242,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private static final int BLOCK_SIZE = 4;
 
     private final AudioPipelineStep step;
-    private final AudioMetadata metadata;
+    private final OriginalAudioMetadata metadata;
 
-    AudioCallback(final AudioPipelineStep step, final AudioMetadata metadata) {
+    AudioCallback(final AudioPipelineStep step, final OriginalAudioMetadata metadata) {
       this.step = step;
       this.metadata = metadata;
     }
@@ -269,9 +272,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final class VideoCallback extends RenderCallbackAdapter {
 
     private final VideoPipelineStep step;
-    private final VideoMetadata metadata;
+    private final OriginalVideoMetadata metadata;
 
-    VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
+    VideoCallback(final VideoPipelineStep step, final OriginalVideoMetadata metadata) {
       final int width = metadata.getVideoWidth();
       final int height = metadata.getVideoHeight();
       final int[] buffer = new int[width * height];

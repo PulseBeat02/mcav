@@ -18,11 +18,11 @@
 package me.brandonli.mcav.media.player.pipeline.filter.audio;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.Filter;
 
 /**
  * Represents a functional interface for applying audio-specific filters within an audio processing pipeline.
  */
 @FunctionalInterface
-public interface AudioFilter extends Filter<ByteBuffer, AudioMetadata> {}
+public interface AudioFilter extends Filter<ByteBuffer, OriginalAudioMetadata> {}

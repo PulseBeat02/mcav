@@ -18,16 +18,16 @@
 package me.brandonli.mcav.media.player.metadata;
 
 /**
- * Implementation of the {@link VideoMetadata} interface.
+ * Implementation of the {@link OriginalVideoMetadata} interface.
  */
-public final class VideoMetadataImpl implements VideoMetadata {
+public final class OriginalVideoMetadataImpl implements OriginalVideoMetadata {
 
   private final int videoWidth;
   private final int videoHeight;
   private final int videoBitrate;
   private final float videoFrameRate;
 
-  VideoMetadataImpl(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
+  OriginalVideoMetadataImpl(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
     this.videoWidth = videoWidth;
     this.videoHeight = videoHeight;
     this.videoBitrate = videoBitrate;

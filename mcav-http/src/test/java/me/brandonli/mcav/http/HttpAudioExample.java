@@ -25,6 +25,8 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
@@ -50,7 +52,14 @@ public final class HttpAudioExample {
     result.start();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
+
+    final VideoAttachableCallback video = multiplexer.getVideoAttachableCallback();
+    video.attach(videoPipelineStep);
+
+    final AudioAttachableCallback audio = multiplexer.getAudioAttachableCallback();
+    audio.attach(audioPipelineStep);
+
+    multiplexer.start(videoFormat, audioFormat);
 
     Runtime.getRuntime()
       .addShutdownHook(

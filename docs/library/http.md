@@ -12,9 +12,11 @@ with your pipeline.
   final HttpResult result = HttpResult.port(...);
   final Source source = ...;
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(result);
-  final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
   result.start();
 
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+  final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+  audioCallback.attach(audioPipelineStep);
+  
   multiplexer.start(audioPipelineStep, videoPipelineStep, source);
 ```

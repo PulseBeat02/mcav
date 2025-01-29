@@ -20,14 +20,14 @@ package me.brandonli.mcav.media.player.metadata;
 /**
  * A concrete implementation of the {@code AudioMetadata} interface.
  */
-public final class AudioMetadataImpl implements AudioMetadata {
+public final class OriginalAudioMetadataImpl implements OriginalAudioMetadata {
 
   private final String codec;
   private final int audioBitrate;
   private final int audioSampleRate;
   private final int audioChannels;
 
-  AudioMetadataImpl(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
+  OriginalAudioMetadataImpl(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
     this.codec = codec;
     this.audioBitrate = audioBitrate;
     this.audioSampleRate = audioSampleRate;

@@ -34,8 +34,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FFmpegDirectSource;
@@ -52,9 +54,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
-  private static final int BUFFER_CAPACITY = 128;
+  private static final int BUFFER_CAPACITY = 512;
 
   private final AtomicBoolean running;
+  private final VideoAttachableCallback videoAttachableCallback;
+  private final AudioAttachableCallback audioAttachableCallback;
   private final ExecutorService audioFrameRetrieverExecutor;
   private final ExecutorService videoFrameRetrieverExecutor;
   private final ExecutorService audioFrameProcessorExecutor;
@@ -63,8 +67,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   private final BlockingQueue<FramePacket.AudioFramePacket> audioFrameBuffer;
   private final Lock lock;
 
-  private volatile @Nullable AudioPipelineStep audioPipeline;
-  private volatile @Nullable VideoPipelineStep videoPipeline;
   private volatile @Nullable FrameGrabber audio;
   private volatile @Nullable FrameGrabber video;
   private volatile @Nullable Source audioSource;
@@ -76,6 +78,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
    */
   public AbstractVideoPlayerCV() {
     this.running = new AtomicBoolean(false);
+    this.videoAttachableCallback = VideoAttachableCallback.create();
+    this.audioAttachableCallback = AudioAttachableCallback.create();
     this.audioFrameProcessorExecutor = Executors.newSingleThreadExecutor();
     this.videoFrameProcessorExecutor = Executors.newSingleThreadExecutor();
     this.audioFrameRetrieverExecutor = Executors.newSingleThreadExecutor();
@@ -90,38 +94,36 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source video,
-    final Source audio
-  ) {
+  public boolean start(final Source video, final Source audio) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.shutdownGrabbers();
-      this.startGrabbers(audioPipeline, videoPipeline, video, audio);
+      this.startGrabbers(video, audio);
       this.startRetrievers();
       return true;
     });
   }
 
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoAttachableCallback;
+  }
+
+  @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    return this.audioAttachableCallback;
+  }
+
   private void startRetrievers() {
     this.running.set(true);
+    this.videoFrameProcessorExecutor.submit(this::retrieveFramesMultiplexerVideo);
     this.audioFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerAudio);
     this.audioFrameProcessorExecutor.submit(this::processAudioFrames);
-    this.videoFrameProcessorExecutor.submit(this::retrieveFramesMultiplexerVideo);
     this.videoFrameRetrieverExecutor.submit(this::processVideoFrames);
   }
 
-  private void startGrabbers(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source video,
-    final Source audio
-  ) {
+  private void startGrabbers(final Source video, final Source audio) {
     final String videoResource = video.getResource();
     final String audioResource = audio.getResource();
-    this.audioPipeline = audioPipeline;
-    this.videoPipeline = videoPipeline;
     this.audioSource = audio;
     this.videoSource = video;
     this.audio = this.getFrameGrabber(audioResource);
@@ -146,7 +148,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     final int bitrate = audio.getAudioBitrate();
     final int sampleRate = audio.getSampleRate();
     final int channels = audio.getAudioChannels();
-    final AudioMetadata audioMetadata = AudioMetadata.of(codec, bitrate, sampleRate, channels);
+    final OriginalAudioMetadata audioMetadata = OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels);
     try {
       Frame audioFrame;
       while ((audioFrame = audio.grabFrame()) != null && this.running.get()) {
@@ -175,7 +177,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     final int height = video.getImageHeight();
     final int bitrate = video.getVideoBitrate();
     final float frameRate = (float) video.getFrameRate();
-    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, bitrate, frameRate);
+    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, bitrate, frameRate);
     try {
       Frame videoFrame;
       while ((videoFrame = video.grabFrame()) != null && this.running.get()) {
@@ -213,8 +215,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     final int channels = video.getAudioChannels();
     final int videoBitrate = video.getVideoBitrate();
     final float frameRate = (float) video.getFrameRate();
-    final AudioMetadata audioMetadata = AudioMetadata.of(codec, bitrate, sampleRate, channels);
-    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, videoBitrate, frameRate);
+    final OriginalAudioMetadata audioMetadata = OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels);
+    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, videoBitrate, frameRate);
     try {
       Frame frame;
       while ((frame = video.grabFrame()) != null && this.running.get()) {
@@ -240,7 +242,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           }
           final ByteBuffer outBuffer = ByteUtils.convertAudioSamples(arr[0]);
           final FramePacket.AudioFramePacket packet = FramePacket.audio(outBuffer, audioMetadata, frame.timestamp);
-          this.audioFrameBuffer.put(packet);
+          this.audioFrameBuffer.put(packet); // if can't process fast enough, rip
         }
       }
     } catch (final FrameGrabber.Exception | InterruptedException e) {
@@ -280,8 +282,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           continue;
         }
         final ByteBuffer buffer = frame.getData();
-        AudioPipelineStep next = this.audioPipeline;
-        final AudioMetadata audioMetadata = (AudioMetadata) frame.getMetadata();
+        AudioPipelineStep next = this.audioAttachableCallback.getPipeline();
+        final OriginalAudioMetadata audioMetadata = (OriginalAudioMetadata) frame.getMetadata();
         final int sampleRate = audioMetadata.getAudioSampleRate();
         final ByteBuffer samples = ByteUtils.resampleBufferCubic(buffer, sampleRate, 48000);
         while (next != null) {
@@ -328,9 +330,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         final int width = frame.getWidth();
         final int height = frame.getHeight();
         final ImageBuffer staticImage = ImageBuffer.bytes(arr, width, height);
-        VideoPipelineStep next = this.videoPipeline;
+        VideoPipelineStep next = this.videoAttachableCallback.getPipeline();
         while (next != null) {
-          next.process(staticImage, (VideoMetadata) frame.getMetadata());
+          next.process(staticImage, (OriginalVideoMetadata) frame.getMetadata());
           next = next.next();
         }
         staticImage.release();
@@ -346,10 +348,10 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
+  public boolean start(final Source combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.shutdownGrabbers();
-      this.startGrabbers(audioPipeline, videoPipeline, combined);
+      this.startGrabbers(combined);
       this.startRetrieversSingle();
       return true;
     });
@@ -362,12 +364,10 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.videoFrameProcessorExecutor.submit(this::processVideoFrames);
   }
 
-  private void startGrabbers(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
+  private void startGrabbers(final Source combined) {
     final String videoResource = combined.getResource();
     this.video = this.getFrameGrabber(videoResource);
     this.audio = null;
-    this.audioPipeline = audioPipeline;
-    this.videoPipeline = videoPipeline;
     this.audioSource = combined;
     this.videoSource = combined;
     final FrameGrabber finalGrabber = requireNonNull(this.video);

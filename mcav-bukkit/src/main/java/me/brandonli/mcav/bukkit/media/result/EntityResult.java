@@ -25,7 +25,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;
@@ -63,7 +63,7 @@ public class EntityResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final String character = this.entityConfiguration.getCharacter();
     final int entityWidth = this.entityConfiguration.getEntityWidth();
     final int entityHeight = this.entityConfiguration.getEntityHeight();

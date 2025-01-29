@@ -25,7 +25,6 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;
@@ -91,7 +90,7 @@ public class EntityImage implements DisplayableImage {
     final int entityWidth = this.entityConfiguration.getEntityWidth();
     final int entityHeight = this.entityConfiguration.getEntityHeight();
     final ResizeFilter resize = new ResizeFilter(entityWidth, entityHeight);
-    resize.applyFilter(data, VideoMetadata.EMPTY);
+    resize.applyFilter(data);
 
     final int[] resizedData = data.getPixels();
     final Component prefix = ChatUtils.createChatComponent(resizedData, character, entityWidth, entityHeight);

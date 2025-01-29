@@ -20,9 +20,10 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.net.URI;
-import java.nio.file.Path;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -30,13 +31,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
-
-  private static VideoPlayerMultiplexer multiplexer;
 
   public static void main(final String[] args) throws Exception {
     final MCAVApi api = MCAV.api();
@@ -69,8 +67,15 @@ public final class SingleCombinedInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    multiplexer = VideoPlayer.vlc();
-    multiplexer.start(audioPipelineStep, videoPipelineStep, FileSource.path(Path.of("C://rickroll.mp4")));
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+
+    final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+
+    final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    multiplexer.start(source);
 
     Runtime.getRuntime()
       .addShutdownHook(

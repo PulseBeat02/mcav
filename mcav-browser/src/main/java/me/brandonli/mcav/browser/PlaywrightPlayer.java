@@ -36,7 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.*;
@@ -69,6 +70,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     }
   }
 
+  private final VideoAttachableCallback videoAttachableCallback;
   private final BrowserType.LaunchOptions launchOptions;
   private final ExecutorService captureExecutor;
   private final ExecutorService actionExecutor;
@@ -89,6 +91,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
 
   PlaywrightPlayer(final String... args) {
     final List<String> launchArgs = Arrays.asList(args);
+    this.videoAttachableCallback = VideoAttachableCallback.create();
     this.pageIds = Collections.synchronizedSet(new HashSet<>());
     this.running = new AtomicBoolean(false);
     this.captureExecutor = Executors.newSingleThreadExecutor();
@@ -102,11 +105,11 @@ public final class PlaywrightPlayer implements BrowserPlayer {
    * {@inheritDoc}
    */
   @Override
-  public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
+  public boolean start(final BrowserSource combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.createBrowser(combined);
       this.addPage(combined);
-      this.startCapture(combined, videoPipeline);
+      this.startCapture(combined);
       return true;
     });
   }
@@ -162,11 +165,12 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     this.source = combined;
   }
 
-  private void startCapture(final BrowserSource source, final VideoPipelineStep videoPipeline) {
+  private void startCapture(final BrowserSource source) {
     final int width = source.getScreencastWidth();
     final int height = source.getScreencastHeight();
     final int quality = source.getScreencastQuality();
     final int frameInterval = (1000 / 30) * source.getScreencastNthFrame();
+    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.getPipeline();
     final Page.ScreenshotOptions screenshotOptions = new Page.ScreenshotOptions()
       .setType(ScreenshotType.JPEG)
       .setQuality(quality)
@@ -187,7 +191,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     while (this.running.get() && this.page != null) {
       final Page page = requireNonNull(this.page);
       final byte[] buffer = page.screenshot(screenshotOptions);
-      final VideoMetadata metadata = VideoMetadata.of(width, height);
+      final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
       final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
       resizeFilter.applyFilter(staticImage, metadata);
       VideoPipelineStep current = videoPipeline;
@@ -286,6 +290,11 @@ public final class PlaywrightPlayer implements BrowserPlayer {
           keyboard.type(text);
         });
     });
+  }
+
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoAttachableCallback;
   }
 
   /**

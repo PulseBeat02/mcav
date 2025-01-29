@@ -26,6 +26,7 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -63,7 +64,10 @@ public final class BrowserInputExample {
       .build();
 
     final BrowserPlayer browser = BrowserPlayer.selenium();
-    browser.start(videoPipelineStep, browserSource);
+    final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
+    callback.attach(videoPipelineStep);
+
+    browser.start(browserSource);
     videoLabel.addMouseListener(
       new MouseAdapter() {
         @Override

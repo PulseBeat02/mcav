@@ -15,19 +15,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video;
+package me.brandonli.mcav.media.player.attachable;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.Filter;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
 /**
- * Represents a functional interface for applying transformations or filters
- * to video data.
+ * Represents a callback interface for video that can be attached to a player.
  */
-@FunctionalInterface
-public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> {
-  default void applyFilter(final ImageBuffer samples) {
-    this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
+public interface VideoAttachableCallback
+  extends AttachableCallback<VideoPipelineStep, ImageBuffer, OriginalVideoMetadata, VideoPipelineStep> {
+  /**
+   * Creates a new instance of {@link VideoAttachableCallback}.
+   * @return a new instance of {@link VideoAttachableCallback}
+   */
+  static VideoAttachableCallback create() {
+    return new VideoAttachableCallbackImpl();
   }
 }
