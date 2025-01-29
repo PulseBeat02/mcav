@@ -502,7 +502,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           this.resynchronize(ptsUs, nowNs);
           this.consecutiveDrops = 0;
         }
-        System.out.println("Dropping frame due to excessive desynchronization: " + delayNs + "ns");
         return true; // Drop frame
       }
 

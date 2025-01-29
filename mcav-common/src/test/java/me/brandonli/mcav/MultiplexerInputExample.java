@@ -75,7 +75,7 @@ public final class MultiplexerInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
     multiplexer.setExceptionHandler((context, throwable) -> {
       System.err.println("Error occurred while processing media: " + context);
       throwable.printStackTrace();
