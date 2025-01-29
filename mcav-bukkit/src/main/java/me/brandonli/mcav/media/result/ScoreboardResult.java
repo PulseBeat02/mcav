@@ -26,9 +26,7 @@ import me.brandonli.mcav.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
-import me.brandonli.mcav.utils.PacketUtils;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.world.scores.PlayerTeam;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -115,17 +113,13 @@ public class ScoreboardResult implements FunctionalVideoFilter {
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
     final int lines = this.configuration.getLines();
-    final Collection<UUID> viewers = this.configuration.getViewers();
     data.resize(width, lines);
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < lines; i++) {
       final Team team = this.teamLines[i];
       final PlayerTeam playerTeam = (PlayerTeam) team;
-      final Component prefix = ChatUtils.createLine(resizedData, character, width, i);
+      final Component prefix = ChatUtils.createLine(resizedData, character, width, lines - i - 1);
       playerTeam.setPlayerPrefix(prefix);
-
-      final ClientboundSetPlayerTeamPacket packet = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(playerTeam, false);
-      PacketUtils.sendPackets(viewers, packet);
     }
   }
 }

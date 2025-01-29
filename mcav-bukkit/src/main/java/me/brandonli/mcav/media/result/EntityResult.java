@@ -108,6 +108,7 @@ public class EntityResult implements FunctionalVideoFilter {
     final Plugin plugin = MCAVBukkit.getPlugin();
     for (int i = 0; i < entityHeight; i++) {
       final Location position = clone.add(0, 0.2, 0);
+      @SuppressWarnings("deprecation")
       final TextDisplay entity = world.spawn(position, TextDisplay.class, display -> {
         display.setInvulnerable(true);
         display.setCustomNameVisible(true);

@@ -35,10 +35,6 @@ public final class ChatUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static net.minecraft.network.chat.Component toComponent(final String raw) {
-    return CraftChatMessage.fromStringOrNull(raw);
-  }
-
   /**
    * Creates a single line of color-coded text in string format based on pixel values from an array.
    *
@@ -67,7 +63,7 @@ public final class ChatUtils {
       }
     }
     final String line = builder.toString();
-    return toComponent(line);
+    return CraftChatMessage.fromStringOrNull(line);
   }
 
   /**
@@ -80,7 +76,7 @@ public final class ChatUtils {
    * @return a String with color codes representing the visual data
    */
   public static Component createChatComponent(final int[] data, final String character, final int width, final int height) {
-    final StringBuilder builder = new StringBuilder(width * height * (8 + character.length()) + height);
+    final StringBuilder builder = new StringBuilder(width * height * (14 + character.length()) + height);
     int before = -1;
     for (int y = 0; y < height; ++y) {
       if (y > 0) {
@@ -89,8 +85,12 @@ public final class ChatUtils {
       for (int x = 0; x < width; ++x) {
         final int rgb = data[width * y + x];
         if (before != rgb) {
-          builder.append("§#");
-          appendHexColor(builder, rgb & 0xFFFFFF);
+          builder.append("§x");
+          final int hexColor = rgb & 0xFFFFFF;
+          for (int i = 0; i < 6; i++) {
+            builder.append('§');
+            builder.append(CHARACTER_DICTIONARY[(hexColor >> (20 - 4 * i)) & 0xF]);
+          }
           builder.append(character);
           before = rgb;
         } else {
@@ -99,15 +99,6 @@ public final class ChatUtils {
       }
     }
     final String line = builder.toString();
-    return toComponent(line);
-  }
-
-  private static void appendHexColor(final StringBuilder builder, final int rgb) {
-    builder.append(CHARACTER_DICTIONARY[(rgb >> 20) & 0xF]);
-    builder.append(CHARACTER_DICTIONARY[(rgb >> 16) & 0xF]);
-    builder.append(CHARACTER_DICTIONARY[(rgb >> 12) & 0xF]);
-    builder.append(CHARACTER_DICTIONARY[(rgb >> 8) & 0xF]);
-    builder.append(CHARACTER_DICTIONARY[(rgb >> 4) & 0xF]);
-    builder.append(CHARACTER_DICTIONARY[rgb & 0xF]);
+    return CraftChatMessage.fromStringOrNull(line, true);
   }
 }

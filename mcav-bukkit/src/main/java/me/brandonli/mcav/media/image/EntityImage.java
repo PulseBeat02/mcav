@@ -19,21 +19,22 @@ package me.brandonli.mcav.media.image;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.SplittableRandom;
+import java.util.UUID;
 import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.media.config.EntityConfiguration;
 import me.brandonli.mcav.utils.ChatUtils;
-import me.brandonli.mcav.utils.PacketUtils;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftEntity;
-import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -67,18 +68,25 @@ public class EntityImage implements DisplayableImage {
   public void displayImage(final StaticImage data) {
     this.release();
     final int entityHeight = this.entityConfiguration.getEntityHeight();
-    final org.bukkit.Location pos = this.entityConfiguration.getPosition();
-    final org.bukkit.Location clone = pos.add(0, 0, 0);
+    final Location pos = this.entityConfiguration.getPosition();
+    final Location clone = pos.clone();
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
     final World world = requireNonNull(clone.getWorld());
     final Plugin plugin = MCAVBukkit.getPlugin();
     for (int i = 0; i < entityHeight; i++) {
-      final org.bukkit.Location position = clone.add(0, 0.1, 0);
-      final ArmorStand entity = world.spawn(position, ArmorStand.class, stand -> {
-        stand.setInvisible(true);
-        stand.setInvulnerable(true);
-        stand.setCustomNameVisible(true);
-        stand.setVisibleByDefault(false);
+      final Location position = clone.add(0, 0.2, 0);
+      @SuppressWarnings("deprecation")
+      final TextDisplay entity = world.spawn(position, TextDisplay.class, display -> {
+        display.setInvulnerable(true);
+        display.setCustomNameVisible(true);
+        display.setSeeThrough(false);
+        display.setAlignment(TextDisplay.TextAlignment.CENTER);
+        display.setBillboard(Display.Billboard.CENTER);
+        display.setVisibleByDefault(false);
+        display.setBackgroundColor(Color.BLACK);
+        display.setDefaultBackground(true);
+        display.setShadowed(false);
+        display.setText("");
       });
       for (final UUID viewer : viewers) {
         final Player player = Bukkit.getPlayer(viewer);
@@ -97,23 +105,8 @@ public class EntityImage implements DisplayableImage {
       final Entity entity = this.entities[i];
       final CraftEntity glow = (CraftEntity) entity;
       final net.minecraft.world.entity.Entity nmsEntity = glow.getHandle();
-      final SynchedEntityData entityData = nmsEntity.getEntityData();
-
-      // send via raw components because serializing components to legacy for Bukkit support is slow
-      List<SynchedEntityData.DataValue<?>> packed = entityData.getNonDefaultValues();
-      if (packed == null) {
-        packed = new ArrayList<>();
-      } else {
-        packed.removeIf(dataValue -> dataValue.id() == 5);
-      }
-
-      final Component prefix = ChatUtils.createLine(resizedData, character, entityWidth, i);
-      final SynchedEntityData.DataValue<?> value = new SynchedEntityData.DataValue<>(5, EntityDataSerializers.COMPONENT, prefix);
-      packed.add(value);
-
-      final int id = entity.getEntityId();
-      final ClientboundSetEntityDataPacket packet = new ClientboundSetEntityDataPacket(id, packed);
-      PacketUtils.sendPackets(viewers, packet);
+      final Component prefix = ChatUtils.createLine(resizedData, character, entityWidth, entityHeight - i - 1);
+      nmsEntity.setCustomName(prefix);
     }
   }
 

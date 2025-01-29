@@ -79,7 +79,7 @@ public final class VideoEntityCommand implements AnnotationCommandFeature {
   public void playEntityVideo(
     final Player player,
     final PlayerArgument playerType,
-    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
+    @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
     @Greedy final String mrl
   ) {

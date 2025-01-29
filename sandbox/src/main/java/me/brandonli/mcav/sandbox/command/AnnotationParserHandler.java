@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.video.VideoChatCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
@@ -41,7 +42,8 @@ public final class AnnotationParserHandler {
     new ScreenCommand(),
     new VideoMapCommand(),
     new VideoControlCommand(),
-    new VideoEntityCommand()
+    new VideoEntityCommand(),
+    new VideoChatCommand()
   );
 
   private final CommandManager<CommandSender> manager;
