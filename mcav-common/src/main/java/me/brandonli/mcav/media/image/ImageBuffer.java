@@ -24,11 +24,7 @@ import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.examinable.Examinable;
 
 /**
- * The StaticImage interface provides a suite of methods for handling and manipulating static images.
- * It includes capabilities for loading images from various sources, applying transformations,
- * performing image processing operations, and interacting with images at a pixel level.
- * This powerful interface is designed to work with image data in different formats and integrate
- * seamlessly with OpenCV's Mat data structure.
+ * Represents a static image that can be manipulated and examined.
  */
 public interface ImageBuffer extends Image, Examinable {
   /**

@@ -17,12 +17,34 @@
  */
 package me.brandonli.mcav.utils.examinable;
 
+/**
+ * An interface representing a property that can be examined.
+ * @param <T> the type of the property
+ */
 public interface ExaminableProperty<T> {
+  /**
+   * Creates a new instance of {@link ExaminableProperty} with the specified name and type.
+   *
+   * @param name the name of the property
+   * @param type the class type of the property
+   * @param <T>  the type of the property
+   * @return a new instance of {@link ExaminableProperty}
+   */
   static <T> ExaminableProperty<T> property(final String name, final Class<T> type) {
     return new ExaminablePropertyImpl<>(name, type);
   }
 
+  /**
+   * Gets the name of the property.
+   *
+   * @return the name of the property
+   */
   String getName();
 
+  /**
+   * Gets the value of the property.
+   *
+   * @return the value of the property
+   */
   Class<T> getType();
 }

@@ -29,7 +29,6 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 @SuppressWarnings("all")

@@ -20,12 +20,22 @@ package me.brandonli.mcav.utils;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
 
+/**
+ * Utility class for executing tasks with a lock.
+ */
 public final class LockUtils {
 
   private LockUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Executes a task with the provided lock.
+   *
+   * @param lockable the lock to use
+   * @param task     the task to execute
+   * @return true if the task was executed successfully
+   */
   public static boolean executeWithLock(final Lock lockable, final Runnable task) {
     lockable.lock();
     try {
@@ -36,6 +46,14 @@ public final class LockUtils {
     }
   }
 
+  /**
+   * Executes a task with the provided lock and returns a result.
+   *
+   * @param lockable the lock to use
+   * @param task     the task to execute
+   * @param <T>      the type of the result
+   * @return the result of the task execution
+   */
   public static <T> T executeWithLock(final Lock lockable, final Supplier<T> task) {
     lockable.lock();
     try {

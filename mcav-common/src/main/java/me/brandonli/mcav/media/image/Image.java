@@ -19,7 +19,5 @@ package me.brandonli.mcav.media.image;
 
 /**
  * Represents an image entity that provides methods to access and manipulate image data.
- * This interface serves as a blueprint for image processing functionality
- * and can be implemented by classes dealing with image-related operations.
  */
 public interface Image extends AutoCloseable {}

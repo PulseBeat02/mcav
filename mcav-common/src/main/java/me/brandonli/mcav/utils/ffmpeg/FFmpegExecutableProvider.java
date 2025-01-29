@@ -23,13 +23,6 @@ import org.bytedeco.javacpp.Loader;
 
 /**
  * Provides the path to the FFmpeg executable required for executing FFmpeg-related commands.
- * <p>
- * This class is responsible for locating and managing the FFmpeg executable through
- * its {@link #getFFmpegPath()} method. It leverages the `Loader` utility to resolve
- * the executable required for media processing tasks.
- * <p>
- * The FFmpegExecutableProvider ensures that the FFmpeg executable path is initialized
- * once and used throughout the application lifecycle.
  */
 public final class FFmpegExecutableProvider {
 
@@ -42,10 +35,6 @@ public final class FFmpegExecutableProvider {
 
   /**
    * Returns the path to the FFmpeg executable.
-   * <p>
-   * This method retrieves the pre-initialized path of the FFmpeg executable,
-   * which is required to execute FFmpeg commands. The path is resolved using
-   * the `Loader` utility during the application initialization process.
    *
    * @return the path to the FFmpeg executable as a {@code Path} object
    */

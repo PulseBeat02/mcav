@@ -22,7 +22,6 @@ import me.brandonli.mcav.media.player.PlayerException;
 
 /**
  * Utility class for byte buffer operations involving endianness.
- * Provides methods to ensure byte buffers are in a specific endianness format.
  */
 public final class ByteUtils {
 
@@ -32,14 +31,33 @@ public final class ByteUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Checks if the system's native byte order is little-endian.
+   *
+   * @return true if the native byte order is little-endian, false otherwise
+   */
   public static boolean isLittleEndian() {
     return LITTLE_ENDIAN;
   }
 
+  /**
+   * Checks if the system's native byte order is big-endian.
+   *
+   * @return true if the native byte order is big-endian, false otherwise
+   */
   public static boolean isBigEndian() {
     return !LITTLE_ENDIAN;
   }
 
+  /**
+   * Converts audio samples from a Buffer (FloatBuffer, ShortBuffer, or ByteBuffer) to a ByteBuffer.
+   * If the buffer is already a ByteBuffer, it is returned as is.
+   * If the buffer is a FloatBuffer or ShortBuffer, it converts the samples to a ByteBuffer.
+   *
+   * @param buffer the Buffer containing audio samples
+   * @return a ByteBuffer containing the converted audio samples
+   * @throws PlayerException if the buffer type is unsupported
+   */
   public static ByteBuffer convertAudioSamples(final Buffer buffer) {
     switch (buffer) {
       case final FloatBuffer floatBuffer -> {
@@ -158,9 +176,7 @@ public final class ByteUtils {
   }
 
   /**
-   * Resamples the provided audio buffer from its original sample rate to a target sample rate.
-   * If the difference between the source and target sample rates is negligible, the original buffer is returned.
-   * Otherwise, the audio data is linearly interpolated to match the target sample rate.
+   * Resamples the provided audio buffer from its original sample rate to a target sample rate using cubic interpolation.
    *
    * @param samples          the ByteBuffer containing the audio samples to be resampled
    * @param sampleRate       the sample rate of the original audio data in hertz (Hz)

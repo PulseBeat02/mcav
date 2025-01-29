@@ -17,8 +17,9 @@
  */
 package me.brandonli.mcav.vm; // Licensed to the Software Freedom Conservancy (SFC) under one
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
+import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.OSUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,9 +28,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import me.brandonli.mcav.utils.os.OS;
-import me.brandonli.mcav.utils.os.OSUtils;
-import org.checkerframework.checker.nullness.qual.Nullable;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 /**
  * A utility class to find executables, stolen directly from Selenium.
@@ -39,6 +40,10 @@ public class ExecutableFinder {
   private static final List<String> ENDINGS = OSUtils.getOS() == OS.WINDOWS
     ? Arrays.asList("", ".cmd", ".exe", ".com", ".bat")
     : singletonList("");
+
+  public ExecutableFinder() {
+    // no-op
+  }
 
   /**
    * Find the executable by scanning the file system and the PATH. In the case of Windows this

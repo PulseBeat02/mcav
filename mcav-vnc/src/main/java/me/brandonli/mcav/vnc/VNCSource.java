@@ -15,20 +15,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.vnc;
+
+import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * Represents a VNC (Virtual Network Computing) source with properties such as
- * host, port, password, video metadata, and connection name.
- * This interface provides methods to access the necessary details
- * for establishing and identifying a VNC connection.
+ * Represents a VNC (Virtual Network Computing) source.
  */
 public interface VNCSource extends DynamicSource {
+  /**
+   * {@inheritDoc}
+   */
   @Override
   default String getResource() {
     return "vnc://" + this.getHost() + ":" + this.getPort() + (this.getPassword() != null ? "@" + this.getPassword() : "");
   }
 
+  /**
+   * Gets the username for the VNC connection.
+   *
+   * @return the username for the VNC connection
+   */
   String getUsername();
 
   /**
@@ -52,12 +59,30 @@ public interface VNCSource extends DynamicSource {
    */
   String getPassword();
 
+  /**
+   * Gets the width of the VNC screen.
+   *
+   * @return the screen width
+   */
   int getScreenWidth();
 
+  /**
+   * Gets the height of the VNC screen.
+   *
+   * @return the screen height
+   */
   int getScreenHeight();
 
+  /**
+   * Gets the target frame rate for the VNC connection.
+   *
+   * @return the target frame rate
+   */
   int getTargetFrameRate();
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   default String getName() {
     return "vnc";

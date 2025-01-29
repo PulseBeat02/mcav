@@ -21,13 +21,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents the platform details of the current runtime environment.
- * <p>
- * The Platform class encapsulates information about the operating system,
- * CPU architecture, and bitness (32-bit or 64-bit) of the system. It provides
- * methods to retrieve these details and utility to get the current platform
- * configuration.
- * <p>
- * This class is immutable and thread-safe.
  */
 public final class Platform {
 
@@ -93,13 +86,6 @@ public final class Platform {
 
   /**
    * Retrieves the operating system associated with this platform.
-   * <p>
-   * This method returns the operating system of the current platform
-   * encapsulated within this object. The operating system is represented
-   * as an instance of the {@code OS} enumeration, which includes constants
-   * such as {@code WINDOWS}, {@code MAC}, {@code LINUX}, and {@code FREEBSD}.
-   *
-   * @return the operating system of the current platform
    */
   public OS getOS() {
     return this.os;
@@ -107,11 +93,6 @@ public final class Platform {
 
   /**
    * Retrieves the CPU architecture of the current platform.
-   * <p>
-   * The architecture denotes the type of CPU architecture (e.g., x86 or ARM)
-   * that the system is based on.
-   *
-   * @return the CPU architecture represented as an {@code Arch} enum value
    */
   public Arch getArch() {
     return this.arch;
@@ -119,12 +100,6 @@ public final class Platform {
 
   /**
    * Retrieves the bitness of the system's CPU architecture.
-   * <p>
-   * The bitness indicates whether the system operates in a 32-bit or 64-bit mode.
-   * This method returns the bitness value associated with the current platform.
-   *
-   * @return the {@code Bits} enumeration representing the system's bitness,
-   * either {@code BITS_32} for 32-bit or {@code BITS_64} for 64-bit.
    */
   public Bits getBits() {
     return this.bits;
@@ -132,10 +107,6 @@ public final class Platform {
 
   /**
    * Retrieves the current platform configuration of the runtime environment.
-   * <p>
-   * The current platform is determined based on the operating system, CPU architecture,
-   * and bitness (32-bit or 64-bit) of the system. This method returns a singleton instance
-   * representing the detected platform.
    *
    * @return the current platform instance representing the runtime environment's OS, architecture, and bitness
    */

@@ -24,11 +24,7 @@ import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * Utility class providing methods for parsing and retrieving metadata from multimedia sources.
- * This class is designed for working with video and audio files by using FFmpegFrameGrabber
- * to extract relevant metadata properties.
- * <p>
- * This is a final class and cannot be instantiated.
+ * Utility class providing methods for parsing and retrieving metadata from media sources.
  */
 public final class MetadataUtils {
 
@@ -37,13 +33,12 @@ public final class MetadataUtils {
   }
 
   /**
-   * Parses video metadata from the given {@code Source} object. The method extracts
-   * essential information such as video width, height, bitrate, and frame rate from the
-   * resource represented by the {@code Source}.
+   * Extracts video metadata from the provided source by analyzing the associated resource.
+   * Metadata includes information such as width, height, bitrate, and frame rate.
    *
-   * @param source the {@code Source} object representing the video resource to be parsed
-   * @return a {@code VideoMetadata} instance containing the extracted metadata
-   * @throws AssertionError if a {@code FrameGrabber.Exception} occurs during the process
+   * @param source the source representing the video resource to be parsed
+   * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
+   * @throws AssertionError if an error occurs while processing the video resource
    */
   public static VideoMetadata parseVideoMetadata(final Source source) {
     final String resource = source.getResource();
@@ -67,12 +62,12 @@ public final class MetadataUtils {
   }
 
   /**
-   * Extracts audio metadata from the provided source by analyzing the associated resource.
-   * Metadata includes information such as audio bitrate, sample rate, and number of channels.
+   * Extracts video metadata from the provided source by analyzing the associated resource.
+   * Metadata includes information such as width, height, bitrate, and frame rate.
    *
-   * @param source the source representing the audio resource to be parsed
-   * @return an {@code AudioMetadata} instance containing the parsed audio metadata, including bitrate, sample rate, and channels
-   * @throws AssertionError if an error occurs while processing the audio resource
+   * @param source the source representing the video resource to be parsed
+   * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
+   * @throws AssertionError if an error occurs while processing the video resource
    */
   public static AudioMetadata parseAudioMetadata(final Source source) {
     final String resource = source.getResource();

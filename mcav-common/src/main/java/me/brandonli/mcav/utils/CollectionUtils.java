@@ -17,12 +17,22 @@
  */
 package me.brandonli.mcav.utils;
 
+/**
+ * A utility class for common collection operations.
+ */
 public final class CollectionUtils {
 
   private CollectionUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Creates an array containing the specified items.
+   *
+   * @param items the items to include in the array
+   * @param <T>   the type of the items
+   * @return an array containing the specified items
+   */
   @SafeVarargs
   public static <T> T[] array(final T... items) {
     return items;

@@ -17,12 +17,21 @@
  */
 package me.brandonli.mcav.utils.interaction;
 
+/**
+ * Utility class for handling key codes and their replacements in strings.
+ */
 public final class KeyUtils {
 
   private KeyUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Replaces key names in the input string with their corresponding key codes.
+   *
+   * @param input the input string containing key names
+   * @return the modified string with key names replaced by key codes
+   */
   public static String replaceKeysWithKeyCodes(final String input) {
     String output = input;
     for (final KeyCode key : KeyCode.values()) {

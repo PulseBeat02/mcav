@@ -18,10 +18,7 @@
 package me.brandonli.mcav.utils.ffmpeg;
 
 /**
- * Utility class providing templates for creating FFmpeg commands.
- * This class provides static methods to perform common tasks such as
- * extracting audio, compressing video, extracting video clips, creating
- * thumbnails, and remuxing videos.
+ * Utility class providing FFmpeg command templates.
  */
 public final class FFmpegTemplates {
 
@@ -31,7 +28,6 @@ public final class FFmpegTemplates {
 
   /**
    * Extracts the audio from a video file using the specified audio codec and saves it to the output file.
-   * This method generates an FFmpeg command to perform the audio extraction.
    *
    * @param input  the path to the input video file from which audio should be extracted
    * @param codec  the audio codec to be used for the extracted audio (e.g., "aac", "mp3")
@@ -74,8 +70,6 @@ public final class FFmpegTemplates {
 
   /**
    * Creates an FFmpeg command to extract a specific clip from a video file.
-   * The command specifies the start time, duration, and output location, while
-   * maintaining the original audio and video codecs.
    *
    * @param input     The path to the input video file.
    * @param output    The path where the extracted clip will be saved.
@@ -116,10 +110,6 @@ public final class FFmpegTemplates {
   /**
    * Creates an FFmpeg command for remuxing a video file (repackaging the input
    * without re-encoding or altering the video and audio streams).
-   * <p>
-   * The resulting command uses the "copy" codec for both video and audio streams,
-   * preserving the original quality and avoiding re-encoding overhead. This command
-   * also enables output file overwriting if it already exists.
    *
    * @param input  the path to the input video file to be remuxed
    * @param output the path to the output video file after remuxing

@@ -33,10 +33,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utility class providing helper methods for working with resource sources.
- * This class contains functionality for determining the type of a resource,
- * validating its format, and inspecting dynamic stream characteristics.
- * <p>
- * This class is not instantiable as it is designed to only provide static utility methods.
  */
 public final class SourceUtils {
 
@@ -44,30 +40,17 @@ public final class SourceUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * A static list of pairs used for determining the appropriate {@link Source}
-   * implementation based on a validation function. Each pair consists of:
-   * 1. A {@link Function} that validates whether a given string matches a specific
-   * criteria (e.g., whether it is a file path or URI).
-   * 2. A {@link Class} representing the {@link Source} implementation associated
-   * with the validated criteria.
-   * <p>
-   * The list currently supports:
-   * - Validation for file paths, mapping to {@link FileSource}.
-   * - Validation for URIs, also mapping to {@link FileSource}.
-   * <p>
-   * This structure facilitates identifying the type of input (e.g., path or URI)
-   * and resolving the corresponding {@link Source} class dynamically in utilities like
-   * {@link SourceUtils#getSource(String)}.
-   * <p>
-   * This field is immutable and initialized statically, ensuring thread-safe
-   * usage across multiple operations.
-   */
   private static final List<Pair<Function<String, Boolean>, Class<? extends Source>>> SOURCE_CONSTRUCTORS = List.of(
     Pair.pair(SourceUtils::isPath, FileSource.class),
     Pair.pair(SourceUtils::isUri, FileSource.class)
   );
 
+  /**
+   * Checks if the provided source is a GIF image.
+   *
+   * @param source the source to check
+   * @return true if the source is a GIF image, false otherwise
+   */
   public static boolean isImageGif(final Source source) {
     if (source instanceof final FileSource fileSource) {
       final Path path = fileSource.getPath();
@@ -139,14 +122,9 @@ public final class SourceUtils {
   }
 
   /**
-   * Identifies and retrieves the class type of a resource based on predefined rules.
-   * Iterates through a list of functions and their associated resource types
-   * to determine the appropriate class for the given resource.
-   *
-   * @param resource the input resource, typically represented as a string,
-   *                 such as a file path or URI. Must not be null.
-   * @return the class type of the resource if a matching rule is found;
-   * {@code null} if no matching rule is applicable.
+   * Returns the source class for a given resource string.
+   * @param resource the resource string to check
+   * @return the class of the source if it matches any known source type, or null if no match is found
    */
   public static @Nullable Class<?> getSource(final String resource) {
     for (final Pair<Function<String, Boolean>, Class<? extends Source>> pair : SOURCE_CONSTRUCTORS) {
@@ -161,14 +139,10 @@ public final class SourceUtils {
   }
 
   /**
-   * Determines if the given URL corresponds to a dynamic (live) stream.
-   * <p>
-   * This method leverages the YTDLPParser to analyze the URL and checks the
-   * "is_live" property from the parsed {@link URLParseDump} object.
-   * If an I/O error occurs during parsing, it returns {@code false}.
+   * Checks if the provided URL is a dynamic stream (live stream).
    *
-   * @param url the URL to analyze. It must be a valid string representation of a URI.
-   * @return {@code true} if the URL corresponds to a live stream, {@code false} otherwise.
+   * @param url the URL to check
+   * @return true if the URL is a dynamic stream, false otherwise
    */
   public static boolean isDynamicStream(final String url) {
     try {

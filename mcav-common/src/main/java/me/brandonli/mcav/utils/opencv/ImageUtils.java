@@ -24,10 +24,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A utility class for performing image-related operations such as resizing.
- * <p>
- * This class is designed to handle operations on images represented as integer arrays.
- * Each pixel in the integer array is assumed to be a 32-bit ARGB color value.
+ * A utility class for performing image-related operations.
  */
 public class ImageUtils {
 
@@ -35,6 +32,14 @@ public class ImageUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Converts a double array to an OpenCV Scalar object.
+   * The first four elements of the array are used to set the values of the Scalar.
+   * If the array has fewer than four elements, the missing values are set to 0.
+   *
+   * @param scalar the double array to convert
+   * @return a Scalar object representing the values in the array
+   */
   public static Scalar toScalar(final double[] scalar) {
     final double v0 = scalar.length > 0 ? scalar[0] : 0;
     final double v1 = scalar.length > 1 ? scalar[1] : 0;

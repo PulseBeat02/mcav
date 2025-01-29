@@ -29,18 +29,12 @@ import me.brandonli.mcav.utils.IOUtils;
 
 /**
  * Utility class for loading native libraries from JAR resources.
- * The libraries are extracted to temporary locations on the filesystem
- * and subsequently loaded into the JVM.
- * <p>
- * This is a non-instantiable utility class.
  */
 public final class NativeUtils {
 
   private NativeUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
-
-  private static final String ENVIRONMENT_VARIABLES_TEXT = requireNonNull(System.getenv("PATH"));
 
   /**
    * Loads a native library from the JAR resources.

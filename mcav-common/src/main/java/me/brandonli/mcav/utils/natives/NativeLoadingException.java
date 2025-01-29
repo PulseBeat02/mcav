@@ -22,11 +22,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Exception thrown to indicate errors during the loading of native libraries.
- * This class extends {@link AssertionError}, typically to signal fatal conditions
- * related to native resource handling that should not occur under normal circumstances.
- * <p>
- * Instances of this exception are generally used to report critical issues such as
- * failure to load mandatory native dependencies necessary for the application's functionality.
  */
 public class NativeLoadingException extends AssertionError {
 
@@ -37,7 +32,7 @@ public class NativeLoadingException extends AssertionError {
     super(msg);
   }
 
-  public NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
+  NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
     super(msg, cause);
   }
 }

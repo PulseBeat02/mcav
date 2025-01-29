@@ -15,10 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.browser;
 
 import java.net.URI;
+import me.brandonli.mcav.media.source.UriSourceImpl;
 
+/**
+ * Implementation of the {@link BrowserSource} interface.
+ */
 public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
 
   private final int quality;
@@ -26,7 +30,7 @@ public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
   private final int height;
   private final int nthFrame;
 
-  public BrowserSourceImpl(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
+  BrowserSourceImpl(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
     super(uri);
     this.quality = quality;
     this.width = width;
@@ -34,21 +38,33 @@ public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
     this.nthFrame = nthFrame;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreencastQuality() {
     return this.quality;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreencastWidth() {
     return this.width;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreencastHeight() {
     return this.height;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreencastNthFrame() {
     return this.nthFrame;

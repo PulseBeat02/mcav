@@ -15,16 +15,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.vnc;
 
 import com.google.common.base.Preconditions;
 
 /**
- * Implementation of the {@link VNCSource} interface, representing a VNC (Virtual Network Computing)
- * source with specific host, port, password, video metadata, and a connection name.
- * <p>
- * This class encapsulates all the required properties for a VNC connection and provides
- * basic accessor methods to retrieve these properties.
+ * Implementation of the {@link VNCSource} interface
  */
 public class VNCSourceImpl implements VNCSource {
 
@@ -54,6 +50,9 @@ public class VNCSourceImpl implements VNCSource {
     this.targetFrameRate = targetFrameRate;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getUsername() {
     return this.username;
@@ -83,11 +82,17 @@ public class VNCSourceImpl implements VNCSource {
     return this.password;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreenWidth() {
     return this.width;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getScreenHeight() {
     return this.height;
@@ -129,12 +134,36 @@ public class VNCSourceImpl implements VNCSource {
      */
     Builder password(String password);
 
+    /**
+     * Sets the screen width for the VNC connection.
+     *
+     * @param width the screen width in pixels
+     * @return this builder
+     */
     Builder screenWidth(int width);
 
+    /**
+     * Sets the screen height for the VNC connection.
+     *
+     * @param height the screen height in pixels
+     * @return this builder
+     */
     Builder screenHeight(int height);
 
+    /**
+     * Sets the target frame rate for the VNC connection. Will not always be honored.
+     *
+     * @param targetFrameRate the desired frame rate in frames per second
+     * @return this builder
+     */
     Builder targetFrameRate(int targetFrameRate);
 
+    /**
+     * Sets the username for VNC authentication.
+     *
+     * @param username the username for VNC authentication
+     * @return this builder
+     */
     Builder username(String username);
 
     /**
@@ -158,48 +187,76 @@ public class VNCSourceImpl implements VNCSource {
     private int height;
     private int targetFrameRate;
 
+    BuilderImpl() {
+      // no-op
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder host(final String host) {
       this.host = host;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder port(final int port) {
       this.port = port;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder password(final String password) {
       this.password = password;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder screenWidth(final int width) {
       this.width = width;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder screenHeight(final int height) {
       this.height = height;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder targetFrameRate(final int targetFrameRate) {
       this.targetFrameRate = targetFrameRate;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Builder username(final String username) {
       this.username = username;
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public VNCSource build() {
       Preconditions.checkNotNull(this.host);

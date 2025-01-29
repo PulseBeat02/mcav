@@ -21,12 +21,7 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Exception class representing an error related to input metadata.
- * This exception is thrown when there is an assertion failure or
- * invalid input metadata encountered in the application.
- * <p>
- * Extends {@link AssertionError} to indicate a serious
- * problem that a reasonable application should not attempt to catch.
+ * Exception class for input metadata errors.
  */
 public class InputMetadataException extends AssertionError {
 

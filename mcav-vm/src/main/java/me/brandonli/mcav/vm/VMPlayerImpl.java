@@ -22,10 +22,10 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vnc.VNCPlayer;
+import me.brandonli.mcav.vnc.VNCSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

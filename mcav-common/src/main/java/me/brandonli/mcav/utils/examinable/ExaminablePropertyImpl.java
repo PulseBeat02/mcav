@@ -19,6 +19,11 @@ package me.brandonli.mcav.utils.examinable;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * An implementation of {@link ExaminableProperty} that represents a property with a name and type.
+ *
+ * @param <T> the type of the property
+ */
 public class ExaminablePropertyImpl<T> implements ExaminableProperty<T> {
 
   private final String name;
@@ -29,6 +34,9 @@ public class ExaminablePropertyImpl<T> implements ExaminableProperty<T> {
     this.type = type;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean equals(final @Nullable Object obj) {
     if (obj instanceof final ExaminablePropertyImpl<?> other) {
@@ -37,11 +45,17 @@ public class ExaminablePropertyImpl<T> implements ExaminableProperty<T> {
     return false;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getName() {
     return this.name;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Class<T> getType() {
     return this.type;

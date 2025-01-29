@@ -21,12 +21,23 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
+/**
+ * Utility class for reflection operations.
+ */
 public final class ReflectionUtils {
 
   private ReflectionUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Creates a new instance of the specified class using its default constructor.
+   *
+   * @param clazz the class to instantiate
+   * @param <T>   the type of the class
+   * @return a new instance of the specified class
+   * @throws RuntimeException if instantiation fails
+   */
   @SuppressWarnings("unchecked")
   public static <T> T newInstance(final Class<T> clazz) {
     try {

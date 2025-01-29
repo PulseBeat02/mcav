@@ -22,8 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A utility class for managing {@link ExecutorService} shutdown operations in a controlled and safe manner.
- * This class is designed to prevent instances from being created and solely provides static utility methods.
+ * A utility class for managing {@link ExecutorService} operations.
  */
 public final class ExecutorUtils {
 
@@ -33,8 +32,6 @@ public final class ExecutorUtils {
 
   /**
    * Attempts to shut down the given {@link ExecutorService} gracefully by waiting for ongoing tasks to complete.
-   * If tasks cannot complete within the specified timeout, it performs a forced shutdown to terminate remaining tasks.
-   * An {@link AssertionError} is thrown if the graceful or forced shutdown fails due to unresolved tasks or interruptions.
    *
    * @param service the {@link ExecutorService} instance to be shut down
    * @return {@code true} if the shutdown was completed successfully with no unresolved tasks; {@code false} otherwise

@@ -19,11 +19,19 @@ package me.brandonli.mcav.utils.examinable;
 
 import java.io.Serial;
 
+/**
+ * Exception thrown when an error occurs during the examination of an object.
+ */
 public class ExaminableException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = 2932131150288680009L;
 
+  /**
+   * Constructs a new ExaminableException with the specified detail message.
+   *
+   * @param message the detail message
+   */
   public ExaminableException(final String message) {
     super(message);
   }

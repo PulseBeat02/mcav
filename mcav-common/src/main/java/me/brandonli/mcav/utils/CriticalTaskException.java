@@ -21,12 +21,7 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception that is thrown for critical task failures.
- * This exception indicates an assertion-like condition where a critical
- * error occurs during the execution of a task. It extends {@link AssertionError}.
- * <p>
- * Typically used to signal situations where the failure of a task is
- * considered unrecoverable or critical, requiring immediate attention.
+ * Represents an exception thrown for critical task failures.
  */
 public class CriticalTaskException extends AssertionError {
 

@@ -26,13 +26,6 @@ import java.util.Locale;
 
 /**
  * Utility class for operating system and architecture detection.
- * <p>
- * The OSUtils class provides static methods to identify the operating system,
- * bitness, and CPU architecture of the current runtime environment. It serves
- * as a utility for determining platform-specific properties that may affect
- * the behavior or compatibility of an application.
- * <p>
- * This class is final and cannot be instantiated.
  */
 public final class OSUtils {
 
@@ -89,12 +82,6 @@ public final class OSUtils {
 
   /**
    * Retrieves the current operating system of the runtime environment.
-   * <p>
-   * This method determines the operating system based on the system properties
-   * and returns the corresponding enumeration constant from the {@code OS} enumeration.
-   *
-   * @return the operating system as an {@code OS} enum value, which can be one of
-   * {@code OS.WINDOWS}, {@code OS.MAC}, {@code OS.LINUX}, or {@code OS.FREEBSD}.
    */
   public static OS getOS() {
     return CURRENT;
@@ -102,10 +89,6 @@ public final class OSUtils {
 
   /**
    * Retrieves the bitness of the system's CPU architecture.
-   * <p>
-   * The method returns the bitness of the current system's processor as determined
-   * during the class initialization. The bitness can be either {@code BITS_32} for
-   * a 32-bit system or {@code BITS_64} for a 64-bit system.
    *
    * @return the bitness of the CPU architecture, represented as a {@code Bits} enum value
    */
@@ -114,11 +97,7 @@ public final class OSUtils {
   }
 
   /**
-   * Retrieves the predefined CPU architecture of the current runtime environment.
-   * <p>
-   * This method determines the architecture (e.g., ARM or X86) based on the runtime
-   * environment and system properties. The result is predetermined during the initialization
-   * of the application and reflects the CPU architecture detected at that time.
+   * Retrieves the CPU architecture of the system.
    *
    * @return the CPU architecture of the current system as an {@link Arch} instance
    */

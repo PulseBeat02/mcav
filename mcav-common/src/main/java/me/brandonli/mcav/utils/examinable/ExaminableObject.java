@@ -25,36 +25,58 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * An implementation of {@link Examinable} that allows properties to be set and retrieved.
+ * This class is thread-safe and uses a concurrent map to store properties.
+ */
 public class ExaminableObject implements Examinable {
 
   private final Map<ExaminableProperty<?>, Object> properties;
 
+  /**
+   * Constructs a new {@code ExaminableObject} with an empty set of properties.
+   */
   public ExaminableObject() {
     this.properties = new ConcurrentHashMap<>();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public <T> void set(final ExaminableProperty<T> property, final T value) {
     requireNonNull(value);
     this.properties.put(property, value);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public <T> boolean has(final ExaminableProperty<T> property) {
     return this.properties.containsKey(property);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public List<? extends ExaminableProperty<?>> getExaminableProperties() {
     return new ArrayList<>(this.properties.keySet());
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   @SuppressWarnings("unchecked")
   public @Nullable <T> T get(final ExaminableProperty<T> property) {
     return (T) this.properties.get(property);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public <T> T getOrThrow(final ExaminableProperty<T> property) {
     final T value = this.get(property);

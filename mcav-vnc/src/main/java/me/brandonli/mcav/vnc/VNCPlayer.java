@@ -23,7 +23,6 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
