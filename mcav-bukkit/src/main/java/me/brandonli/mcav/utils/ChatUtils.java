@@ -49,13 +49,17 @@ public final class ChatUtils {
    * @return a String representing the constructed line with color-coded text
    */
   public static Component createLine(final int[] data, final String character, final int width, final int y) {
-    final StringBuilder builder = new StringBuilder(width * (8 + character.length()));
+    final StringBuilder builder = new StringBuilder(width * (14 + character.length()));
     int before = -1;
     for (int x = 0; x < width; ++x) {
       final int rgb = data[width * y + x];
       if (before != rgb) {
-        builder.append("§#");
-        appendHexColor(builder, rgb & 0xFFFFFF);
+        builder.append("§x");
+        final int hexColor = rgb & 0xFFFFFF;
+        for (int i = 0; i < 6; i++) {
+          builder.append('§');
+          builder.append(CHARACTER_DICTIONARY[(hexColor >> (20 - 4 * i)) & 0xF]);
+        }
         builder.append(character);
         before = rgb;
       } else {

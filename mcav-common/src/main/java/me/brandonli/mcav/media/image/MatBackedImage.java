@@ -147,8 +147,8 @@ public class MatBackedImage implements StaticImage {
   public void resize(final int newWidth, final int newHeight) {
     final Mat resizedMat = new Mat();
     Imgproc.resize(this.mat, resizedMat, new Size(newWidth, newHeight));
-    this.mat.release();
-    this.mat.assignTo(resizedMat);
+    resizedMat.copyTo(this.mat);
+    resizedMat.release();
   }
 
   /**

@@ -33,65 +33,62 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
-import me.brandonli.mcav.media.config.MapConfiguration;
+import me.brandonli.mcav.media.config.EntityConfiguration;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.result.MapResult;
+import me.brandonli.mcav.media.result.EntityResult;
+import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.media.source.*;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
-import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
-import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 
-public final class VideoMapCommand implements AnnotationCommandFeature {
+public final class VideoEntityCommand implements AnnotationCommandFeature {
 
+  private MCAVSandbox plugin;
   private VideoPlayerManager manager;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
 
-  @Command("mcav video map <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
-  @Permission("mcav.command.video.map")
-  @CommandDescription("mcav.command.video.map.info")
-  public void playMapVideo(
+  @Command("mcav video entity <playerType> <videoResolution> <character> <mrl>")
+  @Permission("mcav.command.video.entity")
+  @CommandDescription("mcav.command.video.entity.info")
+  public void playEntityVideo(
     final Player player,
     final PlayerArgument playerType,
     @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
-    final DitheringArgument ditheringAlgorithm,
+    @Argument(suggestions = "chat-characters") @Quoted final String character,
     @Greedy final String mrl
   ) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final AtomicBoolean initializing = this.manager.getStatus();
     final Audience audience = audiences.sender(player);
     final Pair<Integer, Integer> resolution;
-    final Pair<Integer, Integer> dimensions;
     try {
       resolution = ArgumentUtils.parseDimensions(videoResolution);
-      dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
       audience.sendMessage(Message.DIMENSION_ERROR.build());
       return;
@@ -106,11 +103,9 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
 
     audience.sendMessage(Message.VIDEO_LOADING.build());
 
+    final Location location = requireNonNull(player.getLocation());
     final ExecutorService service = this.manager.getService();
-    CompletableFuture.runAsync(
-      () -> this.synchronizeMapPlayer(playerType, mapId, ditheringAlgorithm, mrl, audience, dimensions, resolution),
-      service
-    )
+    CompletableFuture.runAsync(() -> this.synchronizeEntityPlayer(playerType, location, mrl, audience, character, resolution), service)
       .exceptionally(this.handleException())
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> audience.sendMessage(Message.VIDEO_STARTED.build()));
@@ -124,13 +119,12 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
     };
   }
 
-  private synchronized void synchronizeMapPlayer(
+  private synchronized void synchronizeEntityPlayer(
     final PlayerArgument playerType,
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
+    final Location location,
     final String mrl,
     final Audience audience,
-    final Pair<Integer, Integer> dimensions,
+    final String character,
     final Pair<Integer, Integer> resolution
   ) {
     @Nullable
@@ -140,18 +134,17 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
       return;
     }
     this.manager.releaseVideoPlayer();
-    this.startMapPlayer(playerType, mapId, ditheringAlgorithm, dimensions, resolution, sources);
+    this.startEntityPlayer(playerType, location, character, resolution, sources);
   }
 
-  private void startMapPlayer(
+  private void startEntityPlayer(
     final PlayerArgument playerType,
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
-    final Pair<Integer, Integer> dimensions,
+    final Location location,
+    final String character,
     final Pair<Integer, Integer> resolution,
     final @Nullable Source[] sources
   ) {
-    final VideoPipelineStep videoPipelineStep = this.createMapVideoFilter(mapId, ditheringAlgorithm, dimensions, resolution);
+    final VideoPipelineStep videoPipelineStep = this.createEntityVideoFilter(location, character, resolution);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final Source video = sources[0];
     final Source audio = sources[1];
@@ -166,33 +159,32 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
     }
   }
 
-  private VideoPipelineStep createMapVideoFilter(
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
-    final Pair<Integer, Integer> dimensions,
+  private VideoPipelineStep createEntityVideoFilter(
+    final Location location,
+    final String character,
     final Pair<Integer, Integer> resolution
   ) {
     final Collection<UUID> players = this.getAllViewers();
-    final MapConfiguration configuration = this.constructMapConfiguration(mapId, dimensions, resolution, players);
-    final MapResult result = new MapResult(configuration);
-    final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
-    final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-    return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(ditherFilter).build();
+    final EntityConfiguration configuration = this.constructEntityConfiguration(resolution, character, location, players);
+    final FunctionalVideoFilter result = new EntityResult(configuration);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(this.plugin, result::start);
+    this.manager.setFilter(result);
+    return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(result).build();
   }
 
-  private MapConfiguration constructMapConfiguration(
-    final int mapId,
-    final Pair<@NonNull Integer, @NonNull Integer> dimensions,
+  private EntityConfiguration constructEntityConfiguration(
     final Pair<@NonNull Integer, @NonNull Integer> resolution,
+    final String character,
+    final Location location,
     final Collection<UUID> players
   ) {
-    return MapConfiguration.builder()
-      .map(mapId)
-      .mapBlockWidth(dimensions.getFirst())
-      .mapBlockHeight(dimensions.getSecond())
-      .mapWidthResolution(resolution.getFirst())
-      .mapHeightResolution(resolution.getSecond())
+    return EntityConfiguration.builder()
       .viewers(players)
+      .entityWidth(resolution.getFirst())
+      .entityHeight(resolution.getSecond())
+      .character(character)
+      .position(location)
       .build();
   }
 

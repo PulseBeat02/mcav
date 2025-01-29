@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -31,6 +32,8 @@ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.world.scores.PlayerTeam;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
@@ -68,6 +71,12 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    */
   @Override
   public void start() {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final Plugin plugin = MCAVBukkit.getPlugin();
+    scheduler.runTask(plugin, this::start0);
+  }
+
+  private void start0() {
     final int lines = this.configuration.getLines();
     final Collection<UUID> viewers = this.configuration.getViewers();
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());

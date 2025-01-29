@@ -45,20 +45,8 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final Player player) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final Audience audience = audiences.sender(player);
-    this.releaseVideoPlayer();
+    this.manager.releaseVideoPlayer();
     audience.sendMessage(Message.VIDEO_RELEASED.build());
-  }
-
-  private void releaseVideoPlayer() {
-    final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
-    if (videoPlayer != null) {
-      try {
-        videoPlayer.release();
-      } catch (final Exception e) {
-        throw new AssertionError(e);
-      }
-      this.manager.setPlayer(null);
-    }
   }
 
   @Command("mcav video pause")
@@ -69,11 +57,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     final Audience audience = audiences.sender(player);
     final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
     if (videoPlayer != null) {
-      try {
-        videoPlayer.pause();
-      } catch (final Exception e) {
-        throw new AssertionError(e);
-      }
+      videoPlayer.pause();
     }
     audience.sendMessage(Message.VIDEO_PAUSED.build());
   }

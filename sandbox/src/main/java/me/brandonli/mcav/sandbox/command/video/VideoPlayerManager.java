@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -29,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class VideoPlayerManager {
 
   private @Nullable VideoPlayerMultiplexer player;
+  private @Nullable FunctionalVideoFilter filter;
 
   private final AtomicBoolean status;
   private final ExecutorService service;
@@ -43,6 +45,21 @@ public final class VideoPlayerManager {
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.audiences = provider.retrieve();
+  }
+
+  public void releaseVideoPlayer() {
+    if (this.player != null) {
+      try {
+        this.player.release();
+        if (this.filter != null) {
+          this.filter.release();
+          this.filter = null;
+        }
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+      this.player = null;
+    }
   }
 
   public BukkitAudiences getAudiences() {
@@ -63,5 +80,13 @@ public final class VideoPlayerManager {
 
   public @Nullable VideoPlayerMultiplexer getPlayer() {
     return this.player;
+  }
+
+  public void setFilter(final @Nullable FunctionalVideoFilter filter) {
+    this.filter = filter;
+  }
+
+  public @Nullable FunctionalVideoFilter getFilter() {
+    return this.filter;
   }
 }

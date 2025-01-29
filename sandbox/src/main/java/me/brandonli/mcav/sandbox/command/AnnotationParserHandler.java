@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.command;
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -39,7 +40,8 @@ public final class AnnotationParserHandler {
     new HelpCommand(),
     new ScreenCommand(),
     new VideoMapCommand(),
-    new VideoControlCommand()
+    new VideoControlCommand(),
+    new VideoEntityCommand()
   );
 
   private final CommandManager<CommandSender> manager;
