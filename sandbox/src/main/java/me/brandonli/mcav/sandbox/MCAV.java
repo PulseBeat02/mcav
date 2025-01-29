@@ -32,7 +32,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitScheduler;
 
 public final class MCAV extends JavaPlugin {
 
@@ -58,16 +57,7 @@ public final class MCAV extends JavaPlugin {
   public void onLoad() {
     this.logger = this.getLogger();
     this.loadDependencies();
-  }
-
-  private void scheduleLoadTask() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTaskLater(this, this::loadMCAV, 1L);
-  }
-
-  @Override
-  public void onEnable() {
-    this.scheduleLoadTask();
+    this.loadMCAV();
   }
 
   private void unloadMCAV() {
@@ -76,35 +66,40 @@ public final class MCAV extends JavaPlugin {
     }
   }
 
-  // fix console hang
-  @SuppressWarnings("all")
+  @Override
+  public void onEnable() {
+    this.loadAudience();
+    this.loadPluginData();
+    this.loadCommands();
+    this.initLookupTables();
+  }
+
+  private void loadMCAV() {
+    this.logger.info("Loading MCAV Library");
+    final long startTime = System.currentTimeMillis();
+    this.mcav = me.brandonli.mcav.MCAV.api();
+    this.mcav.install();
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
+  }
+
   private void loadDependencies() {
     try {
+      this.logger.info("Loading MCAV Dependencies");
+      final long startTime = System.currentTimeMillis();
       final ClassLoader loader = this.getClassLoader();
       final Path folder = IOUtils.getPluginDataFolderPath();
-      final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
       final Logger loggerFactory = Logger.getLogger("MCAV Installer");
       final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
       installer.loadMCAVDependencies(line -> loggerFactory.log(Level.INFO, line));
+      final long endTime = System.currentTimeMillis();
+      this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
     } catch (final IOException e) {
       final Server server = Bukkit.getServer();
       final PluginManager pluginManager = server.getPluginManager();
       pluginManager.disablePlugin(this);
       throw new AssertionError(e);
     }
-  }
-
-  @SuppressWarnings("all")
-  private void loadMCAV() {
-    System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
-    this.logger.info("Loading MCAV!");
-    this.mcav = me.brandonli.mcav.MCAV.api();
-    this.mcav.install();
-    this.loadAudience();
-    this.loadPluginData();
-    this.loadCommands();
-    this.initLookupTables();
-    this.logger.info("MCAV loaded!");
   }
 
   private void shutdownAudience() {
@@ -114,12 +109,20 @@ public final class MCAV extends JavaPlugin {
   }
 
   private void loadAudience() {
+    this.logger.info("Loading Audience Provider");
+    final long startTime = System.currentTimeMillis();
     this.audienceProvider = new AudienceProvider(this);
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("Audience Provider loaded in " + (endTime - startTime) + "ms");
   }
 
   private void loadPluginData() {
+    this.logger.info("Loading Plugin Data");
+    final long startTime = System.currentTimeMillis();
     this.configurationMapper = new PluginDataConfigurationMapper(this);
     this.configurationMapper.deserialize();
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("Plugin Data loaded in " + (endTime - startTime) + "ms");
   }
 
   @Override
@@ -131,8 +134,12 @@ public final class MCAV extends JavaPlugin {
   }
 
   private void loadCommands() {
+    this.logger.info("Loading Commands");
+    final long startTime = System.currentTimeMillis();
     final AnnotationParserHandler annotationParserHandler = new AnnotationParserHandler(this);
     annotationParserHandler.registerCommands();
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("Commands loaded in " + (endTime - startTime) + "ms");
   }
 
   private void shutdownLookupTables() {
@@ -140,7 +147,11 @@ public final class MCAV extends JavaPlugin {
   }
 
   private void initLookupTables() {
+    this.logger.info("Initializing Lookup Tables");
+    final long startTime = System.currentTimeMillis();
     TriumphGui.init(this);
+    final long endTime = System.currentTimeMillis();
+    this.logger.info("Lookup Tables initialized in " + (endTime - startTime) + "ms");
   }
 
   private void savePluginData() {

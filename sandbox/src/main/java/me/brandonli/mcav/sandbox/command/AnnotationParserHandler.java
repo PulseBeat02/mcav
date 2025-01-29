@@ -79,10 +79,9 @@ public final class AnnotationParserHandler {
   }
 
   public void registerCommands() {
-    COMMAND_FEATURES.parallelStream()
-      .forEach(feature -> {
-        feature.registerFeature(this.plugin, this.parser);
-        this.parser.parse(feature);
-      });
+    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
+      feature.registerFeature(this.plugin, this.parser);
+      this.parser.parse(feature);
+    }
   }
 }
