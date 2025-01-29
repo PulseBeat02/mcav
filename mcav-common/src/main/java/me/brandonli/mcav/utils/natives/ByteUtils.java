@@ -26,20 +26,6 @@ import me.brandonli.mcav.media.player.PlayerException;
 public final class ByteUtils {
 
   private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
-  private static final int LUT_SIZE = 1024;
-  private static final float[][] CUBIC_LUT = buildCubicLUT();
-
-  private static float[][] buildCubicLUT() {
-    final float[][] lut = new float[ByteUtils.LUT_SIZE][4];
-    for (int i = 0; i < ByteUtils.LUT_SIZE; i++) {
-      final float t = i / (float) (ByteUtils.LUT_SIZE - 1);
-      lut[i][0] = -0.5f * t * t * t + t * t - 0.5f * t;
-      lut[i][1] = 1.5f * t * t * t - 2.5f * t * t + 1.0f;
-      lut[i][2] = -1.5f * t * t * t + 2.0f * t * t + 0.5f * t;
-      lut[i][3] = 0.5f * t * t * t - 0.5f * t * t;
-    }
-    return lut;
-  }
 
   private ByteUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -64,49 +50,50 @@ public final class ByteUtils {
   }
 
   /**
-   * Converts audio samples from a Buffer (FloatBuffer, ShortBuffer, or ByteBuffer) to a ByteBuffer.
-   * If the buffer is already a ByteBuffer, it is returned as is.
-   * If the buffer is a FloatBuffer or ShortBuffer, it converts the samples to a ByteBuffer.
+   * Converts audio samples from any Buffer type to a ByteBuffer in little-endian format
+   * in a single pass operation.
    *
-   * @param buffer the Buffer containing audio samples
-   * @return a ByteBuffer containing the converted audio samples
+   * @param buffer the Buffer containing audio samples (FloatBuffer, ShortBuffer, or ByteBuffer)
+   * @return a ByteBuffer containing the converted audio samples in little-endian format
    * @throws PlayerException if the buffer type is unsupported
    */
-  public static ByteBuffer convertAudioSamples(final Buffer buffer) {
+  public static ByteBuffer convertAudioSamplesToLittleEndian(final Buffer buffer) {
+    final ByteBuffer result;
     switch (buffer) {
       case final FloatBuffer floatBuffer -> {
-        return convertFloatSamples(floatBuffer);
+        final int capacity = floatBuffer.capacity();
+        result = ByteBuffer.allocate(capacity * 4).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < capacity; i++) {
+          result.putFloat(floatBuffer.get(i));
+        }
       }
       case final ShortBuffer shortBuffer -> {
-        return convertShortSamples(shortBuffer);
+        final int capacity = shortBuffer.capacity();
+        result = ByteBuffer.allocate(capacity * 2).order(ByteOrder.LITTLE_ENDIAN);
+        for (int i = 0; i < capacity; i++) {
+          result.putShort(shortBuffer.get(i));
+        }
       }
       case final ByteBuffer byteBuffer -> {
-        return byteBuffer;
+        if (byteBuffer.order() == ByteOrder.LITTLE_ENDIAN) {
+          return byteBuffer;
+        }
+        final ByteBuffer duplicate = byteBuffer.duplicate();
+        duplicate.rewind();
+        result = ByteBuffer.allocate(duplicate.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+        while (duplicate.remaining() >= 2) {
+          final short value = duplicate.getShort();
+          final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
+          result.putShort(swapped);
+        }
+        if (duplicate.remaining() > 0) {
+          result.put(duplicate.get());
+        }
       }
       case null, default -> throw new PlayerException("Unsupported buffer type!");
     }
-  }
-
-  private static ByteBuffer convertShortSamples(final ShortBuffer shortBuffer) {
-    final int capacity = shortBuffer.capacity();
-    final ByteBuffer byteBuffer = ByteBuffer.allocate(capacity * 2);
-    for (int i = 0; i < capacity; i++) {
-      final short sample = shortBuffer.get(i);
-      byteBuffer.putShort(sample);
-    }
-    byteBuffer.flip();
-    return byteBuffer;
-  }
-
-  private static ByteBuffer convertFloatSamples(final FloatBuffer floatBuffer) {
-    final int capacity = floatBuffer.capacity();
-    final ByteBuffer byteBuffer = ByteBuffer.allocate(capacity * 4);
-    for (int i = 0; i < capacity; i++) {
-      final float sample = floatBuffer.get(i);
-      byteBuffer.putFloat(sample);
-    }
-    byteBuffer.flip();
-    return byteBuffer;
+    result.flip();
+    return result;
   }
 
   /**
@@ -133,34 +120,6 @@ public final class ByteUtils {
   }
 
   /**
-   * Ensures the provided ByteBuffer is in little-endian format for HTTP reads. If the system's native
-   * byte order is big-endian, the method converts the actual bytes to match little-endian order.
-   * This is useful for network or I/O operations requiring little-endian formatting.
-   *
-   * @param nativeBuffer the ByteBuffer to be converted to little-endian format for HTTP reads
-   * @return a ByteBuffer containing data in little-endian format or the original buffer if no
-   * conversion was required
-   */
-  public static ByteBuffer clampNormalBufferToLittleEndianHttpReads(final ByteBuffer nativeBuffer) {
-    if (nativeBuffer.order() == ByteOrder.BIG_ENDIAN) {
-      final ByteBuffer duplicate = nativeBuffer.duplicate();
-      final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
-      result.order(ByteOrder.BIG_ENDIAN);
-      while (duplicate.remaining() >= 2) {
-        final short value = duplicate.getShort();
-        final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
-        result.putShort(swapped);
-      }
-      if (duplicate.remaining() > 0) {
-        result.put(duplicate.get());
-      }
-      result.flip();
-      return result;
-    }
-    return nativeBuffer.order(ByteOrder.BIG_ENDIAN);
-  }
-
-  /**
    * Ensures the provided ByteBuffer is in little-endian format. If the system's native byte order
    * is big-endian, the method converts the actual bytes to little-endian order.
    *
@@ -184,80 +143,5 @@ public final class ByteUtils {
       return result;
     }
     return nativeBuffer.order(ByteOrder.LITTLE_ENDIAN);
-  }
-
-  /**
-   * Converts the provided ByteBuffer to little-endian format by swapping the byte order of each element.
-   *
-   * @param buffer the ByteBuffer to be converted to little-endian format
-   * @return a ByteBuffer containing data in little-endian format
-   */
-  public static ByteBuffer convertToLittleEndian(final ByteBuffer buffer) {
-    final ByteBuffer duplicate = buffer.duplicate();
-    duplicate.rewind();
-    final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
-    while (duplicate.remaining() >= 2) {
-      final short value = duplicate.getShort();
-      final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
-      result.putShort(swapped);
-    }
-    if (duplicate.remaining() > 0) {
-      result.put(duplicate.get());
-    }
-    result.flip();
-    return result;
-  }
-
-  /**
-   * Resamples audio samples from a ByteBuffer using cubic interpolation.
-   * @param samples the ByteBuffer containing audio samples
-   * @param sampleRate the original sample rate of the audio
-   * @param targetRate the target sample rate to resample to
-   * @param frameSize the size of each frame in bytes (e.g., 2 for 16-bit audio)
-   * @return a ByteBuffer containing the resampled audio samples
-   */
-  public static ByteBuffer resampleFast(final ByteBuffer samples, final float sampleRate, final float targetRate, final int frameSize) {
-    final ByteOrder order = samples.order();
-    if (Math.abs(sampleRate - targetRate) <= 1f) {
-      final ByteBuffer dup = samples.duplicate();
-      final int valid = dup.remaining() - (dup.remaining() % frameSize);
-      final ByteBuffer slice = dup.slice();
-      slice.limit(valid);
-      return slice.order(order);
-    }
-
-    final float ratio = targetRate / sampleRate;
-    final int inLen = samples.remaining() / 2;
-    final short[] in = new short[inLen];
-    samples.order(order);
-    for (int i = 0; i < inLen; i++) {
-      in[i] = samples.getShort();
-    }
-
-    final int outLen = (int) Math.ceil(inLen * ratio);
-    final short[] out = new short[outLen];
-    for (int i = 0; i < outLen; i++) {
-      final float src = i / ratio;
-      final int idx = (int) src;
-      final float fract = src - idx;
-      final int lutIdx = (int) (fract * (LUT_SIZE - 1));
-      final float[] w = CUBIC_LUT[lutIdx];
-      final short y0 = (idx > 0) ? in[idx - 1] : in[0];
-      final short y1 = in[idx];
-      final short y2 = (idx < inLen - 1) ? in[idx + 1] : y1;
-      final short y3 = (idx < inLen - 2) ? in[idx + 2] : y2;
-      final float v = w[0] * y0 + w[1] * y1 + w[2] * y2 + w[3] * y3;
-      final int iv = Math.round(v);
-      out[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, iv));
-    }
-
-    final int validBytes = (outLen * 2) - ((outLen * 2) % frameSize);
-    final ByteBuffer res = ByteBuffer.allocate(validBytes).order(order);
-    for (int i = 0; i < validBytes / 2; i++) {
-      res.putShort(out[i]);
-    }
-    res.flip();
-
-    return res;
   }
 }

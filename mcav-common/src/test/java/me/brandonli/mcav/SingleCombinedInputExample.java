@@ -23,7 +23,6 @@ import java.net.URI;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
-import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -80,9 +79,9 @@ public final class SingleCombinedInputExample {
     final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
     videoCallback.attach(videoPipelineStep);
 
-    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(900, 500);
-    dimensionCallback.attach(dimension);
+    //    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
+    //    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(900, 500);
+    //    dimensionCallback.attach(dimension);
 
     Thread.getAllStackTraces()
       .keySet()

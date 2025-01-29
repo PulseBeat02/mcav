@@ -454,11 +454,10 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         this.firstFramePtsUs = ptsUs;
         this.playStartNs = System.nanoTime();
       }
-      final ByteBuffer data = ByteUtils.convertAudioSamples(frame.samples[0]);
-      final ByteBuffer buf = ByteUtils.convertToLittleEndian(data);
+      final ByteBuffer data = ByteUtils.convertAudioSamplesToLittleEndian(frame.samples[0]);
       AudioPipelineStep step = this.audioCallback.retrieve();
       while (step != null) {
-        step.process(buf, meta);
+        step.process(data, meta);
         step = step.next();
       }
     } catch (final Exception e) {
@@ -604,5 +603,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     return this.dimensionCallback;
   }
 
+  @Override
   public abstract FrameGrabber getFrameGrabber(final String resource);
 }
