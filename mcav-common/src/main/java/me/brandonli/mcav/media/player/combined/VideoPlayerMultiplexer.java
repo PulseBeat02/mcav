@@ -18,8 +18,8 @@
 package me.brandonli.mcav.media.player.combined;
 
 import me.brandonli.mcav.media.player.ReleasablePlayer;
-import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 
 /**
@@ -28,7 +28,7 @@ import me.brandonli.mcav.media.source.Source;
  * support advanced video playback and control mechanisms. It integrates functionalities for
  * multiplexing audio and video streams, ensuring synchronized playback and providing control
  * over playback operations such as pausing, resuming, seeking, and releasing resources.
- *
+ * <p>
  * This interface provides an essential method to start playback using audio and video pipeline
  * steps along with corresponding audio and video sources, allowing precise and configurable setup
  * of media processing and playback.

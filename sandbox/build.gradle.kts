@@ -66,7 +66,7 @@ tasks {
         description = "MCAV Sandbox Plugin"
         authors = listOf("PulseBeat_02")
         apiVersion = "1.21"
-        prefix = "MCAV"
+        prefix = "MCAV Sandbox"
         main = "me.brandonli.mcav.sandbox.MCAV"
         libraries = listOf(
             "org.incendo:cloud-core:2.0.0",

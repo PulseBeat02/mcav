@@ -20,9 +20,9 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.swing.*;
-import me.brandonli.mcav.media.player.combined.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
 

@@ -20,9 +20,9 @@ package me.brandonli.mcav.media.player.combined;
 import me.brandonli.mcav.media.player.combined.cv.FFmpegPlayer;
 import me.brandonli.mcav.media.player.combined.cv.OpenCVPlayer;
 import me.brandonli.mcav.media.player.combined.cv.VideoInputPlayer;
-import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.combined.vlc.VLCPlayer;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 
 /**

@@ -19,7 +19,7 @@ package me.brandonli.mcav.media.player.vnc;
 
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.combined.ControllablePlayer;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
 
 /**

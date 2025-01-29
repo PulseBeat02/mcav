@@ -26,10 +26,10 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.browser.MouseClick;
-import me.brandonli.mcav.media.player.combined.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 
 @SuppressWarnings("all")

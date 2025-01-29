@@ -28,10 +28,10 @@ import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.player.combined.VideoPlayer;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
-import me.brandonli.mcav.media.player.combined.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
-import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
 
 @SuppressWarnings("all")

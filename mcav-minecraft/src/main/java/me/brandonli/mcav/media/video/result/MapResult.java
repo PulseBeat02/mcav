@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-import me.brandonli.mcav.media.video.DitherResultStep;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.utils.PacketUtils;
 
 /**
@@ -73,7 +73,7 @@ public class MapResult implements DitherResultStep {
    * viewers, map ID, block dimensions, and resolution.
    *
    * @return a new instance of {@link MapResultBuilder}, which extends {@link Builder}
-   *         and provides methods for configuring and building a {@link MapResult} object
+   * and provides methods for configuring and building a {@link MapResult} object
    */
   public static Builder<?> builder() {
     return new MapResultBuilder();

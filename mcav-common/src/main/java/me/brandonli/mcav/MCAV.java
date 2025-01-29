@@ -28,6 +28,7 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.opencv_java;
@@ -95,17 +96,39 @@ public final class MCAV implements MCAVApi {
   }
 
   private void installMisc() {
+    this.loadModules();
+    this.loadMapCache();
+    ImageIO.setUseCache(false);
+  }
+
+  private void loadMapCache() {
+    LOGGER.info("Loading map cache...");
+    final long start = System.currentTimeMillis();
+    Palette.init();
+    final long end = System.currentTimeMillis();
+    LOGGER.info("Map cache loaded in {} ms", end - start);
+  }
+
+  private void loadModules() {
+    final long start = System.currentTimeMillis();
+    LOGGER.info("Loading JavaCV modules...");
     Loader.load(opencv_java.class);
     Loader.load(ffmpeg.class);
-    ImageIO.setUseCache(false);
+    final long end = System.currentTimeMillis();
+    LOGGER.info("JavaCV modules loaded in {} ms", end - start);
   }
 
   private void installQemu() {
     try {
+      LOGGER.info("Installing QEMU...");
+      final long start = System.currentTimeMillis();
       if (!this.hasCapability(Capability.QEMU)) {
+        LOGGER.info("QEMU is not enabled, skipping installation.");
         return;
       }
       QemuInstaller.create().download(true);
+      final long end = System.currentTimeMillis();
+      LOGGER.info("QEMU installation took {} ms", end - start);
     } catch (final IOException e) {
       throw new MCAVLoadingException(e.getMessage());
     }
@@ -113,10 +136,15 @@ public final class MCAV implements MCAVApi {
 
   private void installVLC() {
     try {
+      LOGGER.info("Installing VLC...");
+      final long start = System.currentTimeMillis();
       if (!this.hasCapability(Capability.VLC)) {
+        LOGGER.info("VLC is not enabled, skipping installation.");
         return;
       }
       VLCInstallationKit.create().start();
+      final long end = System.currentTimeMillis();
+      LOGGER.info("VLC installation took {} ms", end - start);
     } catch (final IOException e) {
       throw new MCAVLoadingException(e.getMessage());
     }
@@ -124,16 +152,25 @@ public final class MCAV implements MCAVApi {
 
   private void installYTDLP() {
     try {
+      LOGGER.info("Installing yt-dlp");
+      final long start = System.currentTimeMillis();
       if (!this.hasCapability(Capability.YTDLP)) {
+        LOGGER.info("yt-dlp is not enabled, skipping installation.");
         return;
       }
       YTDLPInstaller.create().download(true);
+      final long end = System.currentTimeMillis();
+      LOGGER.info("yt-dlp installation took {} ms", end - start);
     } catch (final IOException e) {
       throw new MCAVLoadingException(e.getMessage());
     }
   }
 
   private void installWebDriver() {
+    LOGGER.info("Installing ChromeDriver...");
+    final long start = System.currentTimeMillis();
     ChromeDriverServiceProvider.init();
+    final long end = System.currentTimeMillis();
+    LOGGER.info("ChromeDriver installation took {} ms", end - start);
   }
 }

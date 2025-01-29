@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.video.result;
 
-import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 
 /**
  * Represents a functional video filter that extends {@link VideoFilter} and provides

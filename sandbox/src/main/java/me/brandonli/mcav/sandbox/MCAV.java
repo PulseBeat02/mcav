@@ -87,8 +87,9 @@ public final class MCAV extends JavaPlugin {
     try {
       final ClassLoader loader = this.getClassLoader();
       final Path folder = IOUtils.getPluginDataFolderPath();
+      final Logger loggerFactory = Logger.getLogger("MCAV Installer");
       final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
-      installer.loadMCAVDependencies(line -> this.logger.log(Level.INFO, line));
+      installer.loadMCAVDependencies(line -> loggerFactory.log(Level.INFO, line));
     } catch (final IOException e) {
       final Server server = Bukkit.getServer();
       final PluginManager pluginManager = server.getPluginManager();
