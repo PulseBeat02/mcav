@@ -10,6 +10,7 @@ as extracting audio from a video, or converting a video to a different format.
 
 ```java
   final FFmpegCommand command = FFmpegTemplates.extractAudio("video.mp4", "vorbis", "audio.ogg");
+// mess with the command if needed
   command.
 
 execute();
