@@ -17,23 +17,24 @@
  */
 package me.brandonli.mcav.media.player.browser;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.util.concurrent.*;
+import java.io.IOException;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.source.BrowserSource;
-import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.openqa.selenium.Dimension;
-import org.openqa.selenium.OutputType;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.v136.page.Page;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
@@ -53,15 +54,16 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   private final ExecutorService captureExecutor;
   private final ExecutorService processingExecutor;
   private final Object lock;
+  private final DevTools tools;
 
+  private volatile byte[] frameBuffer;
   private volatile CompletableFuture<Void> captureTask;
   private volatile CompletableFuture<Void> processingTask;
 
   private volatile VideoPipelineStep videoPipeline;
   private volatile BrowserSource source;
-  private final BlockingQueue<byte[]> frameBuffer;
 
-  private static final int BUFFER_CAPACITY = 128;
+  private static final int BUFFER_CAPACITY = 16;
 
   /**
    * Initializes an instance of {@code ChromeDriverPlayer} with the specified arguments.
@@ -86,7 +88,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
       t.setDaemon(true);
       return t;
     });
-    this.frameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
+    this.tools = this.driver.getDevTools();
   }
 
   /**
@@ -108,67 +110,44 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final VideoMetadata metadata = this.source.getMetadata();
     final int width = metadata.getVideoWidth();
     final int height = metadata.getVideoHeight();
-    final double frameRate = metadata.getVideoFrameRate();
-    final long frameIntervalMs = (long) (1000.0 / frameRate);
     final Dimension size = new Dimension(width, height);
     this.driver.manage().window().setSize(size);
+
     final String resource = this.source.getResource();
     this.driver.get(resource);
-    long nextFrameTime = System.currentTimeMillis();
-    try {
-      while (this.running.get() && !Thread.currentThread().isInterrupted()) {
-        final long currentTime = System.currentTimeMillis();
-        if (currentTime >= nextFrameTime) {
-          final byte[] frameBytes = this.driver.getScreenshotAs(OutputType.BYTES);
-          final boolean added = this.frameBuffer.offer(frameBytes);
-          if (!added) {
-            this.frameBuffer.poll();
-            this.frameBuffer.offer(frameBytes);
-          }
-          nextFrameTime += frameIntervalMs;
-          if (nextFrameTime < currentTime) {
-            nextFrameTime = currentTime;
-          }
-        } else {
-          Thread.sleep(Math.max(1, nextFrameTime - currentTime));
+
+    this.tools.createSession();
+
+    final Base64.Decoder decoder = Base64.getDecoder();
+    this.tools.addListener(Page.screencastFrame(), frame -> {
+        if (this.running.get()) {
+          this.frameBuffer = decoder.decode(frame.getData());
+          this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
         }
-      }
-    } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new AssertionError(e);
-    }
+      });
+
+    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
+    final Optional<Integer> quality = Optional.of(80);
+    final Optional<Integer> maxWidth = Optional.of(width);
+    final Optional<Integer> maxHeight = Optional.of(height);
+    final Optional<Integer> everyNthFrame = Optional.of(1);
+    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
   }
 
   private void processFrames() {
     try {
-      final int bufferingThreshold = BUFFER_CAPACITY / 2;
-      if (this.running.get()) {
-        while (this.frameBuffer.size() < bufferingThreshold && this.running.get()) {
-          Thread.sleep(50);
-        }
-      }
-      final File bufferedImageFile = File.createTempFile("screenshot_", ".jpg");
-      bufferedImageFile.deleteOnExit();
+      final VideoMetadata metadata = this.source.getMetadata();
       while (this.running.get() && !Thread.currentThread().isInterrupted()) {
-        try {
-          final byte[] frameData = this.frameBuffer.poll(500, TimeUnit.MILLISECONDS);
-          if (frameData != null) {
-            final BufferedImage image = ImageIO.read(new ByteArrayInputStream(frameData));
-            ImageIO.write(image, "jpg", bufferedImageFile);
-            final VideoMetadata metadata = this.source.getMetadata();
-            final StaticImage staticImage = StaticImage.path(FileSource.path(bufferedImageFile.toPath()));
-            VideoPipelineStep current = this.videoPipeline;
-            while (current != null) {
-              current.process(staticImage, metadata);
-              current = current.next();
-            }
+        if (this.frameBuffer != null) {
+          final StaticImage staticImage = StaticImage.bytes(this.frameBuffer);
+          VideoPipelineStep current = this.videoPipeline;
+          while (current != null) {
+            current.process(staticImage, metadata);
+            current = current.next();
           }
-        } catch (final InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
         }
       }
-    } catch (final Exception e) {
+    } catch (final IOException e) {
       throw new AssertionError(e);
     }
   }
@@ -178,6 +157,9 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public void sendMouseEvent(final int x, final int y, final MouseClick type) {
+    if (!this.running.get()) {
+      return;
+    }
     final Actions actions = new Actions(this.driver);
     final Actions move = actions.moveToLocation(x, y);
     final Actions modified = this.getAction(type, move);
@@ -213,6 +195,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
       }
 
       this.running.set(false);
+      this.tools.send(Page.stopScreencast());
 
       if (this.captureTask != null) {
         this.captureTask.cancel(true);
@@ -221,7 +204,6 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         this.processingTask.cancel(true);
       }
 
-      this.frameBuffer.clear();
       this.driver.quit();
 
       ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);

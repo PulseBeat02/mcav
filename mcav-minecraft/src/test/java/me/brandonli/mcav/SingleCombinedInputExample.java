@@ -19,7 +19,7 @@ package me.brandonli.mcav;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.nio.file.Path;
+import java.net.URI;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.combined.VideoPlayer;
@@ -28,7 +28,7 @@ import me.brandonli.mcav.media.player.combined.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.FileSource;
+import me.brandonli.mcav.media.source.UriSource;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
@@ -54,14 +54,16 @@ public final class SingleCombinedInputExample {
 
     BufferedImage bufferedImage;
     ImageIcon icon;
-    final FileSource source = FileSource.path(Path.of("video.mp4"));
+    final UriSource source = UriSource.uri(
+      URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4")
+    );
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(VideoFilter.FRAME_RATE)
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.start(audioPipelineStep, videoPipelineStep, source);
 
     Runtime.getRuntime()

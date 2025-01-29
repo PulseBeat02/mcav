@@ -45,6 +45,30 @@ public interface StaticImage extends Image {
   }
 
   /**
+   * Converts the given byte array into a StaticImage object.
+   *
+   * @param bytes the byte array representing the image data
+   * @return a StaticImage object created from the provided byte array
+   * @throws IOException if an error occurs while processing the byte array
+   */
+  static StaticImage bytes(final byte[] bytes) throws IOException {
+    return new MatBackedImage(bytes);
+  }
+
+  /**
+   * Creates a new StaticImage instance using the given byte data, width, and height.
+   *
+   * @param data   the byte array representing the image data
+   * @param width  the width of the image
+   * @param height the height of the image
+   * @param type   the type of the image (e.g., grayscale, RGB, etc.)
+   * @return a new StaticImage instance containing the provided data, width, and height
+   */
+  static StaticImage bytes(final byte[] data, final int width, final int height, final int type) {
+    return new MatBackedImage(data, width, height, type);
+  }
+
+  /**
    * Creates a StaticImage instance from a URI.
    *
    * @param source the URI source representing the image
@@ -76,7 +100,7 @@ public interface StaticImage extends Image {
    * @param image the BufferedImage representing the image
    * @return a StaticImage instance
    */
-  static StaticImage image(final BufferedImage image) {
+  static StaticImage image(final BufferedImage image) throws IOException {
     return new MatBackedImage(image);
   }
 

@@ -109,7 +109,14 @@ public class VNCPlayerImpl implements VNCPlayer {
       synchronized (this.lock) {
         if (this.running.get()) {
           try {
-            this.frameBuffer.offer((BufferedImage) image, 100, TimeUnit.MILLISECONDS);
+            final BufferedImage buffered = (BufferedImage) image;
+            final boolean added = this.frameBuffer.offer(buffered, 100, TimeUnit.MILLISECONDS);
+            if (!added) {
+              this.frameBuffer.poll();
+              if (!this.frameBuffer.offer(buffered)) {
+                return;
+              }
+            }
           } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
           }

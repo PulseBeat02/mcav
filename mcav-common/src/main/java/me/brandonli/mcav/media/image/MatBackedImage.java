@@ -20,10 +20,7 @@ package me.brandonli.mcav.media.image;
 import static org.opencv.imgcodecs.Imgcodecs.imread;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,8 +28,6 @@ import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
-import org.bytedeco.javacv.Java2DFrameUtils;
-import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.opencv.core.*;
 import org.opencv.dnn.Dnn;
 import org.opencv.dnn.Net;
@@ -55,11 +50,16 @@ public class MatBackedImage implements StaticImage {
     this.mat.put(0, 0, bytes);
   }
 
+  MatBackedImage(final byte[] bytes, final int width, final int height, final int type) {
+    this.mat = new Mat(height, width, type);
+    this.mat.put(0, 0, bytes);
+  }
+
   MatBackedImage(final UriSource source) throws IOException {
     this(FileSource.path(IOUtils.downloadImage(source)));
   }
 
-  MatBackedImage(final FileSource source) throws IOException {
+  MatBackedImage(final FileSource source) {
     final String path = source.getResource();
     this.mat = imread(path);
   }
@@ -79,10 +79,15 @@ public class MatBackedImage implements StaticImage {
     this.mat = originalMat;
   }
 
-  MatBackedImage(final BufferedImage image) {
-    try (final OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat()) {
-      this.mat = converter.convertToOrgOpenCvCoreMat(Java2DFrameUtils.toFrame(image));
-    }
+  MatBackedImage(final BufferedImage image) throws IOException {
+    final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    ImageIO.write(image, "jpg", byteArrayOutputStream);
+    byteArrayOutputStream.flush();
+    this.mat = Imgcodecs.imdecode(new MatOfByte(byteArrayOutputStream.toByteArray()), Imgcodecs.IMREAD_UNCHANGED);
+  }
+
+  MatBackedImage(final byte[] bytes) throws IOException {
+    this.mat = Imgcodecs.imdecode(new MatOfByte(bytes), Imgcodecs.IMREAD_UNCHANGED);
   }
 
   MatBackedImage(final Mat mat) {

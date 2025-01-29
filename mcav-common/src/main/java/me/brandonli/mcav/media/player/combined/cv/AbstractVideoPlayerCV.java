@@ -81,27 +81,13 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private static class MediaFrame {
 
-    enum Type {
-      AUDIO,
-      VIDEO,
-    }
-
-    private final Type type;
     private final ByteBuffer data;
     private final Object metadata;
     private final int width;
     private final int height;
     private final long timestamp;
 
-    private MediaFrame(
-      final Type type,
-      final ByteBuffer data,
-      final Object metadata,
-      final int width,
-      final int height,
-      final long timestamp
-    ) {
-      this.type = type;
+    private MediaFrame(final ByteBuffer data, final Object metadata, final int width, final int height, final long timestamp) {
       this.data = data;
       this.metadata = metadata;
       this.width = width;
@@ -110,11 +96,11 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
 
     static MediaFrame audio(final ByteBuffer data, final AudioMetadata metadata, final long timestamp) {
-      return new MediaFrame(Type.AUDIO, data, metadata, 0, 0, timestamp);
+      return new MediaFrame(data, metadata, 0, 0, timestamp);
     }
 
     static MediaFrame video(final ByteBuffer data, final VideoMetadata metadata, final int width, final int height, final long timestamp) {
-      return new MediaFrame(Type.VIDEO, data, metadata, width, height, timestamp);
+      return new MediaFrame(data, metadata, width, height, timestamp);
     }
   }
 

@@ -28,7 +28,7 @@ RUN nasm -f win64 x86_64_odd.asm -o x86_64_odd_win64.obj && \
 RUN i686-w64-mingw32-gcc -shared -I/tmp/win_jni -I/tmp/win_jni/win32 filterlite.c -o filterlite-win32.dll
 RUN /opt/llvm-mingw-20230320-ucrt-ubuntu-18.04-x86_64/bin/aarch64-w64-mingw32-clang -shared -I/tmp/win_jni -I/tmp/win_jni/win32 filterlite.c -o filterlite-win-arm64.dll
 RUN /opt/llvm-mingw-20230320-ucrt-ubuntu-18.04-x86_64/bin/armv7-w64-mingw32-clang -shared -I/tmp/win_jni -I/tmp/win_jni/win32 filterlite.c -o filterlite-win-arm32.dll
-FROM ghcr.io/shepherdjerred/macos-cross-compiler:latest as macos-build
+FROM ghcr.io/shepherdjerred/macos-cross-compiler:15.0 as macos-build
 WORKDIR /src
 COPY filterlite.c x86_64_odd.asm filterlite_asm.h /src/
 RUN mkdir -p /tmp/mac_jni

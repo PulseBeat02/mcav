@@ -47,9 +47,13 @@ public class MCAVInstaller {
   private static final String ARTIFACT_ID = "mcav-minecraft-all";
   private static final String VERSION = "1.0.0-SNAPSHOT";
   private static final String METADATA_FILE = "mcav-metadata.properties";
+
   private static final int CONNECTION_TIMEOUT = 20000;
   private static final int READ_TIMEOUT = 60000;
   private static final int BUFFER_SIZE = 65536;
+
+  private static final int MAX_ENTRIES = 10000;
+  private static final int MAX_BYTES = 64 * 1024 * 1024; // 64 MB
 
   private final Path folder;
   private final URLClassLoaderInjector urlClassLoaderAccess;
@@ -335,21 +339,35 @@ public class MCAVInstaller {
   }
 
   private void loadJar(final Path path) {
-    try (final JarFile jarFile = new JarFile(path.toFile())) {
-      final URL jarUrl = path.toUri().toURL();
-      this.urlClassLoaderAccess.addURL(jarUrl);
-      final Enumeration<JarEntry> entries = jarFile.entries();
-      final String servicesPrefix = "META-INF/services/";
-      while (entries.hasMoreElements()) {
-        final JarEntry entry = entries.nextElement();
-        final String name = entry.getName();
-        if (name.startsWith(servicesPrefix) && !entry.isDirectory()) {
-          final String serviceName = name.substring(servicesPrefix.length());
-          try {
-            final ClassLoader loader = this.urlClassLoaderAccess.getClassLoader();
-            final Class<?> serviceClass = Class.forName(serviceName, false, loader);
-            ServiceLoader.load(serviceClass, loader);
-          } catch (final ClassNotFoundException e) {}
+    try {
+      int entryCount = 0;
+      try (final JarFile jarFile = new JarFile(path.toFile(), true)) {
+        final URL jarUrl = path.toUri().toURL();
+        this.urlClassLoaderAccess.addURL(jarUrl);
+        final Enumeration<JarEntry> entries = jarFile.entries();
+        final String servicesPrefix = "META-INF/services/";
+        while (entries.hasMoreElements()) {
+          if (++entryCount > MAX_ENTRIES) {
+            throw new AssertionError("Too many entries in JAR file");
+          }
+          final JarEntry entry = entries.nextElement();
+          if (entry.getName().contains("..")) {
+            throw new AssertionError("Invalid entry name: " + entry.getName());
+          }
+          if (entry.getSize() > MAX_BYTES) {
+            throw new AssertionError("Entry too large: " + entry.getName());
+          }
+          final String name = entry.getName();
+          if (name.startsWith(servicesPrefix) && !entry.isDirectory()) {
+            final String serviceName = name.substring(servicesPrefix.length());
+            try {
+              final ClassLoader loader = this.urlClassLoaderAccess.getClassLoader();
+              final Class<?> serviceClass = Class.forName(serviceName, false, loader);
+              ServiceLoader.load(serviceClass, loader);
+            } catch (final ClassNotFoundException ignored) {
+              // ignore classes that cannot be loaded
+            }
+          }
         }
       }
     } catch (final IOException e) {
