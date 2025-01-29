@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.installer.Artifact;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -76,6 +77,7 @@ public final class MCAV extends JavaPlugin {
     final long startTime = System.currentTimeMillis();
     this.mcav = me.brandonli.mcav.MCAV.api();
     this.mcav.install();
+    MCAVBukkit.inject(this);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
   }
@@ -88,7 +90,7 @@ public final class MCAV extends JavaPlugin {
     final Path libs = folder.resolve("libs");
     final Logger loggerFactory = Logger.getLogger("MCAV Installer");
     final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
-    installer.loadMCAVDependencies(Artifact.MINECRAFT, line -> loggerFactory.log(Level.INFO, line));
+    installer.loadMCAVDependencies(Artifact.BUKKIT, line -> loggerFactory.log(Level.INFO, line));
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }

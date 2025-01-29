@@ -89,10 +89,10 @@ to be a part of the video pipeline for the last step.
 
 ```java
   final DitherAlgorith dither = ...;
-final MapConfiguration configuration = ...;
-final MapResult result = new MapResult(configuration);
-final VideoFilter videoFilter = DitherFilter.dither(algorithm, result);
-// add to pipeline builder
+  final MapConfiguration configuration = ...;
+  final MapResult result = new MapResult(configuration);
+  final VideoFilter videoFilter = DitherFilter.dither(algorithm, result);
+  // add to pipeline builder
 ```
 
 You can add this to the pipeline builder, and now the player will automatically send frames through the pipeline. Once

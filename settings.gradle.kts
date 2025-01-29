@@ -7,8 +7,8 @@ rootProject.name = "mcav"
 include("mcav-common")
 project(":mcav-common").name = "mcav-common"
 
-include("mcav-minecraft")
-project(":mcav-minecraft").name = "mcav-minecraft"
+include("mcav-bukkit")
+project(":mcav-bukkit").name = "mcav-bukkit"
 
 include("mcav-installer")
 project(":mcav-installer").name = "mcav-installer"

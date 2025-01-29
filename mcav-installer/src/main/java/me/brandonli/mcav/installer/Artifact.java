@@ -26,10 +26,10 @@ public enum Artifact {
    */
   COMMON("mcav-common"),
   /**
-   * Represents an artifact specifically associated with the artifact ID "mcav-minecraft".
+   * Represents an artifact specifically associated with the artifact ID "mcav-bukkit".
    * Includes mcav-common as a dependency.
    */
-  MINECRAFT("mcav-minecraft");
+  BUKKIT("mcav-bukkit");
 
   private final String artifactId;
 

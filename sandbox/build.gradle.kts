@@ -14,7 +14,7 @@ dependencies {
 
     // mcav
     implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
 
     // plugin dependencies
     compileOnly("org.incendo:cloud-core:2.0.0")

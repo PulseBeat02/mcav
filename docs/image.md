@@ -14,17 +14,11 @@ your program will have a memory leak and might cause unexpected behavior.
 
 ```java
   final BufferedImage buffered = ...;
-final StaticImage image = StaticImage.image(buffered);
-  image.
-
-flipHorizontally();
-  image.
-
-resize(100,100);
-// and more operations
-  image.
-
-close();
+  final StaticImage image = StaticImage.image(buffered);
+  image.flipHorizontally();
+  image.resize(100,100);
+  // and more operations
+  image.close();
 ```
 
 ## Loading Gifs
@@ -34,8 +28,10 @@ provides methods to manipulate the GIF frames or getting the frame rate.
 
 ```java
   final UriSource source = UriSource.uri(URI.create("https://example.com/image.gif"));
-  final DynamicImage image = DynamicImage.uri(source);
-  final float fps = image.getFrameRate();
-  // and more operations
-  image.close();
+final DynamicImage image = DynamicImage.uri(source);
+final float fps = image.getFrameRate();
+// and more operations
+  image.
+
+close();
 ```

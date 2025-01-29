@@ -14,21 +14,15 @@ dispose of any displays and clean up everything.
 
 ```java
   final Collection<UUID> viewers = null;
-final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
-        .character(Characters.BLACK_SQUARE)
-        .lines(16).width(16)
-        .viewers(viewers)
-        .build();
-final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-final StaticImage image = null;
-  display.
-
-displayImage(image);
-// do some playback
-  display.
-
-release();
-  image.
-
-release();
+  final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
+    .character(Characters.BLACK_SQUARE)
+    .lines(16).width(16)
+    .viewers(viewers)
+    .build();
+  final DisplayableImage display = DisplayableImage.scoreboard(configuration);
+  final StaticImage image = null;
+  display.displayImage(image);
+  // do some playback
+  display.release();
+  image.release();
 ```

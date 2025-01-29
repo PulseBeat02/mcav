@@ -29,7 +29,7 @@ public final class InstallationExample {
   public static void main(final String[] args) {
     final Path downloaded = Path.of("dependencies");
     final Consumer<String> logger = System.out::println;
-    final Artifact download = Artifact.MINECRAFT;
+    final Artifact download = Artifact.BUKKIT;
     final Class<InstallationExample> clazz = InstallationExample.class;
     final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
     final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);

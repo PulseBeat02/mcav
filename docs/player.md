@@ -132,21 +132,17 @@ a `VNCSource`, and pass it to the player.
 
 ```java
   final VideoPipelineStep pipeline = ...;
-final VNCSource source = VNCSource.vnc()
-        .host("localhost")
-        .port(5900)
-        .password("passwd")
-        .videoMetadata(videoMetadata)
-        .name("VNC Connection")
-        .build();
-final VNCPlayer player = VNCPlayer.vm();
-  player.
-
-start(pipeline, source);
-// ... do some play back
-  player.
-
-release();
+  final VNCSource source = VNCSource.vnc()
+    .host("localhost")
+    .port(5900)
+    .password("passwd")
+    .videoMetadata(videoMetadata)
+    .name("VNC Connection")
+    .build();
+  final VNCPlayer player = VNCPlayer.vm();
+  player.start(pipeline, source);
+  // ... do some play back
+  player.release();
 ```
 
 That way, you're able to connect to virtual machines or any VNC server and interact with it as if it were a local
