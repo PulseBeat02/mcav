@@ -127,38 +127,29 @@ public final class ByteUtils {
     if (Math.abs(sampleRate - targetSampleRate) <= 1) {
       return duplicate;
     }
-
     try {
       final float ratio = targetSampleRate / sampleRate;
       final short[] inputSamples = new short[duplicate.remaining() / 2];
       for (int i = 0; i < inputSamples.length; i++) {
         inputSamples[i] = duplicate.getShort();
       }
-
       final int outputLength = (int) Math.ceil(inputSamples.length * ratio);
       final short[] outputSamples = new short[outputLength];
-
       for (int i = 0; i < outputLength; i++) {
         final float srcPos = i / ratio;
         final int index = (int) srcPos;
         final float fract = srcPos - index;
-
-        // Get sample points for cubic interpolation
         final short y0 = (index > 0) ? inputSamples[index - 1] : inputSamples[0];
         final short y1 = inputSamples[index];
         final short y2 = (index < inputSamples.length - 1) ? inputSamples[index + 1] : y1;
         final short y3 = (index < inputSamples.length - 2) ? inputSamples[index + 2] : y2;
-
-        // Cubic interpolation formula
-        final float a0 = y3 - y2 - y0 + y1;
+        final float a0 = y3 - y2 - y0 + (float) y1;
         final float a1 = y0 - y1 - a0;
-        final float a2 = y2 - y0;
+        final float a2 = y2 - (float) y0;
         final float a3 = y1;
-
         final float value = a0 * fract * fract * fract + a1 * fract * fract + a2 * fract + a3;
         outputSamples[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, Math.round(value)));
       }
-
       final ByteBuffer resampledBuffer = ByteBuffer.allocate(outputSamples.length * 2);
       resampledBuffer.order(duplicate.order());
       for (final short sample : outputSamples) {
