@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,9 +74,13 @@ public final class MCAV extends JavaPlugin {
   private void loadDependencies() {
     final ClassLoader loader = this.getClassLoader();
     final Path folder = IOUtils.getPluginDataFolderPath();
-    final MCAVInstaller installer = MCAVInstaller.urlClassLoaderInjector(folder, loader);
+    final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
     final Logger temporary = Logger.getLogger("MCAV Installer");
-    installer.loadMCAVDependencies(line -> temporary.log(Level.INFO, line));
+    try {
+      installer.loadMCAVDependencies(line -> temporary.log(Level.INFO, line));
+    } catch (final IOException e) {
+      throw new AssertionError(e);
+    }
   }
 
   private void loadMCAV() {

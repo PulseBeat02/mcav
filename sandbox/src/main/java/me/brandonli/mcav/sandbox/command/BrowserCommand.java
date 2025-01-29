@@ -37,7 +37,6 @@ import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
-import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -85,9 +84,6 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     URI uri = null;
     try {
       uri = new URI(url);
-      if (!IOUtils.checkValidUrl(uri)) {
-        failed = true;
-      }
     } catch (final URISyntaxException e) {
       failed = true;
     }

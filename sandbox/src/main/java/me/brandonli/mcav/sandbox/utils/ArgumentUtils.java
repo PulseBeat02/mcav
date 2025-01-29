@@ -35,6 +35,6 @@ public final class ArgumentUtils {
     if (x <= 0 || y <= 0) {
       throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
     }
-    return new Pair<>(x, y);
+    return Pair.pair(x, y);
   }
 }
