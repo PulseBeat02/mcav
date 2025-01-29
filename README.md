@@ -31,9 +31,11 @@ to playback videos like the following.
 
 https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
 
-The `common` module is the core of MCAV, and contains all the common multimedia functionality. The `minecraft` module is
-the Minecraft-specific module, compatible with Bukkit, Velocity, BungeeCord, Sponge, and Fabric platforms. The
-`minecraft` module provides useful features like dithering, and outputs like maps, entities, scoreboards, and chat.
+The `common` module is the core of MCAV, and contains all the common multimedia functionality. The `bukkit` module is
+the Minecraft-specific module, providing useful features like dithering, and outputs like maps, entities, scoreboards,
+and chat. There is also an `installer` module that provides a simple way to install the required libraries for MCAV, a
+`jda` module that integrates with the [Java Discord API](https://github.com/discord-jda/JDA), and a `http` module that
+integrates with [Javalin](https://github.com/javalin/javalin) to provide a simple way to stream videos over HTTP.
 
 ---
 
