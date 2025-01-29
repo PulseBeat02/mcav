@@ -28,6 +28,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import java.io.*;
 import java.lang.reflect.Type;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,12 +44,32 @@ import me.brandonli.mcav.media.source.UriSource;
  */
 public final class IOUtils {
 
-  private static final String IP_URL = "https://ipv4.icanhazip.com/";
   private static final long MAX_FILE_SIZE = 100 * 1024 * 1024L;
   private static final long MAX_TOTAL_SIZE = 500 * 1024 * 1024L;
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Gets the next available free VNC port on the local machine.
+   * This method tries to bind to ports starting from 5900 (standard VNC port)
+   * and returns the first available port in the VNC port range.
+   *
+   * @return the port number of the next available free VNC port
+   * @throws UncheckedIOException if no free port is available in the VNC port range
+   */
+  public static int getNextFreeVNCPort() {
+    int port = 5900;
+    final int maxPort = 65535;
+    while (port <= maxPort) {
+      try (final ServerSocket socket = new ServerSocket(port)) {
+        return port;
+      } catch (final IOException e) {
+        port++;
+      }
+    }
+    throw new UncheckedIOException("No free VNC ports available in range 5900-65535", new IOException("Failed to find free port"));
   }
 
   /**

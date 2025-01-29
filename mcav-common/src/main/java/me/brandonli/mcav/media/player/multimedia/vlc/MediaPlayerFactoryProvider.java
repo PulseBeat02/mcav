@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.combined.vlc;
+package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import java.lang.ref.Cleaner;
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;

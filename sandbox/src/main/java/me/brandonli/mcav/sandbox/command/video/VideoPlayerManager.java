@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.capability.Capability;
-import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.utils.ExecutorUtils;

@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
-import me.brandonli.mcav.media.player.combined.VideoPlayer;
-import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 
 public enum PlayerArgument {
   VLC(VideoPlayer::vlc),

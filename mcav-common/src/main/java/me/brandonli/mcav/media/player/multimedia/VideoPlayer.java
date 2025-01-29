@@ -15,15 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.combined;
+package me.brandonli.mcav.media.player.multimedia;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
-import me.brandonli.mcav.media.player.combined.cv.FFmpegPlayer;
-import me.brandonli.mcav.media.player.combined.cv.OpenCVPlayer;
-import me.brandonli.mcav.media.player.combined.cv.VideoInputPlayer;
-import me.brandonli.mcav.media.player.combined.vlc.VLCPlayer;
+import me.brandonli.mcav.media.player.multimedia.cv.FFmpegPlayer;
+import me.brandonli.mcav.media.player.multimedia.cv.OpenCVPlayer;
+import me.brandonli.mcav.media.player.multimedia.cv.VideoInputPlayer;
+import me.brandonli.mcav.media.player.multimedia.vlc.VLCPlayer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
@@ -61,7 +61,7 @@ public interface VideoPlayer {
     final Source combined,
     final ExecutorService service
   ) {
-    return CompletableFuture.supplyAsync(() -> start(audioPipeline, videoPipeline, combined), service);
+    return CompletableFuture.supplyAsync(() -> this.start(audioPipeline, videoPipeline, combined), service);
   }
 
   /**
@@ -79,7 +79,7 @@ public interface VideoPlayer {
     final VideoPipelineStep videoPipeline,
     final Source combined
   ) {
-    return startAsync(audioPipeline, videoPipeline, combined, ForkJoinPool.commonPool());
+    return this.startAsync(audioPipeline, videoPipeline, combined, ForkJoinPool.commonPool());
   }
 
   /**

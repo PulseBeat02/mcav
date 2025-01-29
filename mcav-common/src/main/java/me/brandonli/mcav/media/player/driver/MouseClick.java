@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.browser;
+package me.brandonli.mcav.media.player.driver;
 
 /**
  * Enum representing different types of mouse click events.

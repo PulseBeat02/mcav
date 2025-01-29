@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.browser;
+package me.brandonli.mcav.media.player.driver;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -82,7 +82,7 @@ public interface BrowserPlayer extends ReleasablePlayer {
     final BrowserSource combined,
     final ExecutorService service
   ) {
-    return CompletableFuture.supplyAsync(() -> start(videoPipeline, combined), service);
+    return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, combined), service);
   }
 
   /**
@@ -96,7 +96,7 @@ public interface BrowserPlayer extends ReleasablePlayer {
    * or false otherwise
    */
   default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
-    return startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
+    return this.startAsync(videoPipeline, combined, ForkJoinPool.commonPool());
   }
 
   /**

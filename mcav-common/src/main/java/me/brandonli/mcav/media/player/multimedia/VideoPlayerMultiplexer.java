@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.combined;
+package me.brandonli.mcav.media.player.multimedia;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;

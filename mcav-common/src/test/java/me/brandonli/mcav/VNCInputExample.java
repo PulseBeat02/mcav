@@ -46,7 +46,7 @@ public class VNCInputExample {
     }
   }
 
-  public static void main(final String[] args) throws Exception {
+  public static void main(final String[] args) {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -63,13 +63,7 @@ public class VNCInputExample {
     final VideoPipelineStep pipeline = PipelineBuilder.video().then((image, step) -> vncPanel.setImage(image.toBufferedImage())).build();
 
     final VideoMetadata videoMetadata = VideoMetadata.of(800, 600, 30);
-    final VNCSource source = VNCSource.vnc()
-      .host("localhost")
-      .port(5900)
-      .password("passwd")
-      .videoMetadata(videoMetadata)
-      .name("VNC Connection")
-      .build();
+    final VNCSource source = VNCSource.vnc().host("localhost").port(5900).videoMetadata(videoMetadata).name("VNC Connection").build();
 
     final VNCPlayer player = VNCPlayer.vm();
     final Runtime runtime = Runtime.getRuntime();

@@ -22,7 +22,9 @@ import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -43,26 +45,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class VNCPlayerImpl implements VNCPlayer {
 
-  private final ExecutorService frameRetrieverExecutor;
   private final ExecutorService frameProcessorExecutor;
-  private final BlockingQueue<BufferedImage> frameBuffer;
-
+  private final AtomicBoolean running;
   private final Object lock = new Object();
-  private final int bufferCapacity = 100;
-  private final AtomicBoolean running = new AtomicBoolean(false);
 
   private boolean connected;
+  private volatile BufferedImage current;
   private @Nullable CompletableFuture<?> processingFuture;
   private @Nullable VernacularClient vncClient;
 
   private VideoPipelineStep videoPipeline;
   private VideoMetadata videoMetadata;
-  private long sleepTime;
 
   VNCPlayerImpl() {
-    this.frameRetrieverExecutor = Executors.newSingleThreadExecutor();
     this.frameProcessorExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    this.frameBuffer = new LinkedBlockingQueue<>(this.bufferCapacity);
+    this.running = new AtomicBoolean(false);
     this.connected = false;
   }
 
@@ -77,7 +74,6 @@ public class VNCPlayerImpl implements VNCPlayer {
       }
       this.videoPipeline = videoPipeline;
       this.videoMetadata = source.getVideoMetadata();
-      this.sleepTime = (long) (1000.0 / this.videoMetadata.getVideoFrameRate());
 
       final VernacularConfig config = this.createConfig(source);
       this.vncClient = new VernacularClient(config);
@@ -102,67 +98,35 @@ public class VNCPlayerImpl implements VNCPlayer {
       config.setPasswordSupplier(() -> passwd);
     }
 
-    config.setTargetFramesPerSecond((int) this.videoMetadata.getVideoFrameRate());
+    final int frames = Math.max(120, (int) this.videoMetadata.getVideoFrameRate());
+    config.setTargetFramesPerSecond(frames);
     config.setScreenUpdateListener(image -> {
-      synchronized (this.lock) {
-        if (this.running.get()) {
-          try {
-            final BufferedImage buffered = (BufferedImage) image;
-            final boolean added = this.frameBuffer.offer(buffered, 100, TimeUnit.MILLISECONDS);
-            if (!added) {
-              this.frameBuffer.poll();
-              if (!this.frameBuffer.offer(buffered)) {
-                return;
-              }
-            }
-          } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
+      if (this.running.get()) {
+        if (image == null) {
+          return;
         }
+        this.current = (BufferedImage) image;
       }
     });
     return config;
   }
 
   private void processFrames() {
-    try {
-      final int bufferingThreshold = this.bufferCapacity / 2;
-      if (this.running.get()) {
-        while (this.frameBuffer.size() < bufferingThreshold && this.running.get()) {
-          Thread.sleep(50);
-        }
-      }
-      long lastProcessTime = System.currentTimeMillis();
-      final long frameInterval = this.sleepTime;
-      while (this.running.get() || !this.frameBuffer.isEmpty()) {
-        final BufferedImage frame = this.frameBuffer.poll(frameInterval, TimeUnit.MILLISECONDS);
-        if (frame == null) {
+    while (this.running.get()) {
+      try {
+        if (this.current == null) {
           continue;
         }
-        final long currentTime = System.currentTimeMillis();
-        final long processingDelay = currentTime - lastProcessTime;
-        final boolean shouldSkip = processingDelay > frameInterval * 2;
-        if (shouldSkip && this.frameBuffer.size() > 5) {
-          lastProcessTime = currentTime;
-          continue;
+        final StaticImage image = StaticImage.image(this.current);
+        VideoPipelineStep current = this.videoPipeline;
+        while (current != null) {
+          current.process(image, this.videoMetadata);
+          current = current.next();
         }
-        try {
-          final StaticImage image = StaticImage.image(frame);
-          VideoPipelineStep current = this.videoPipeline;
-          while (current != null) {
-            current.process(image, this.videoMetadata);
-            current = current.next();
-          }
-          image.release();
-        } catch (final IOException e) {
-          throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
-        }
-
-        lastProcessTime = currentTime;
+        image.release();
+      } catch (final IOException e) {
+        throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
       }
-    } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
-      this.running.set(false);
     }
   }
 
@@ -188,11 +152,9 @@ public class VNCPlayerImpl implements VNCPlayer {
     synchronized (this.lock) {
       if (this.connected && !this.running.get()) {
         this.running.set(true);
-
         if (this.processingFuture == null || this.processingFuture.isDone()) {
           this.processingFuture = CompletableFuture.runAsync(this::processFrames, this.frameProcessorExecutor);
         }
-
         return true;
       }
       return false;
@@ -219,10 +181,8 @@ public class VNCPlayerImpl implements VNCPlayer {
         }
 
         this.connected = false;
-        this.frameBuffer.clear();
       }
 
-      ExecutorUtils.shutdownExecutorGracefully(this.frameRetrieverExecutor);
       ExecutorUtils.shutdownExecutorGracefully(this.frameProcessorExecutor);
 
       return true;

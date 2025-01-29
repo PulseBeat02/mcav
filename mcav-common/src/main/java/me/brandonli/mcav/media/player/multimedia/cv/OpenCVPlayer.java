@@ -15,31 +15,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.combined.cv;
+package me.brandonli.mcav.media.player.multimedia.cv;
 
-import static java.util.Objects.requireNonNull;
-
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.VideoInputFrameGrabber;
+import org.bytedeco.javacv.OpenCVFrameGrabber;
 
 /**
- * The VideoInputPlayer class is a concrete implementation of the AbstractVideoPlayerCV
- * that provides functionality to handle video input using the VideoInputFrameGrabber.
- * This class is responsible for fetching frames from a video device based on the
- * device URI provided and preparing it for further processing.
+ * The OpenCVPlayer class is a concrete implementation of the AbstractVideoPlayerCV
+ * for video playback using OpenCV as the backend. It uses the OpenCVFrameGrabber
+ * for frame grabbing and processing.
+ * <p>
+ * OpenCVPlayer provides an implementation of the {@linkplain AbstractVideoPlayerCV#getFrameGrabber(String)}
+ * method to return an OpenCV-specific frame grabber instance for the given media URI.
+ * <p>
+ * This class integrates with the AbstractVideoPlayerCV framework for handling
+ * video playback, audio-video synchronization, and processing pipelines.
  */
-public class VideoInputPlayer extends AbstractVideoPlayerCV {
+public final class OpenCVPlayer extends AbstractVideoPlayerCV {
 
   /**
    * {@inheritDoc}
    */
   @Override
   public FrameGrabber getFrameGrabber(final String uri) {
-    final Integer device = Ints.tryParse(uri);
-    Preconditions.checkNotNull(device);
-    requireNonNull(device); // checker
-    return new VideoInputFrameGrabber(device);
+    return new OpenCVFrameGrabber(uri);
   }
 }
