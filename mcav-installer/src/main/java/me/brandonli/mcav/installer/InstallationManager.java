@@ -117,8 +117,9 @@ public final class InstallationManager implements AutoCloseable {
   public Collection<Path> downloadDependencies(final me.brandonli.mcav.installer.Artifact artifact) {
     try {
       final String artifactId = artifact.getArtifactId();
+      final Path folderPath = this.downloadPath.resolve(artifactId);
       final Collection<Artifact> artifacts = this.findTransitiveDependencies(artifactId);
-      final CompletableFuture<Void> future = this.saveArtifactsAsync(artifacts);
+      final CompletableFuture<Void> future = this.saveArtifactsAsync(artifacts, folderPath);
       future.get();
     } catch (final DependencyResolutionException | IOException | ExecutionException e) {
       throw new InstallationError(e.getMessage(), e);
@@ -231,17 +232,17 @@ public final class InstallationManager implements AutoCloseable {
     }
   }
 
-  private CompletableFuture<Void> saveArtifactsAsync(final Collection<Artifact> artifacts) throws IOException {
+  private CompletableFuture<Void> saveArtifactsAsync(final Collection<Artifact> artifacts, final Path folderPath) throws IOException {
     final int size = artifacts.size();
     final String msg = String.format("Preparing to download %s artifacts", size);
     LOGGER.info(msg);
-    Files.createDirectories(this.downloadPath);
+    Files.createDirectories(folderPath);
     final List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
     for (final Artifact artifact : artifacts) {
       final String id = artifact.getArtifactId();
       final String completion = String.format("Downloaded artifact %s", id);
       final CompletableFuture<Void> future = CompletableFuture.runAsync(
-        () -> this.tryArtifactDownload(artifact),
+        () -> this.tryArtifactDownload(artifact, folderPath),
         this.downloadExecutor
       ).thenRun(() -> LOGGER.info(completion));
       downloadFutures.add(future);
@@ -249,10 +250,10 @@ public final class InstallationManager implements AutoCloseable {
     return CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).thenRun(this::saveArtifactHashes);
   }
 
-  private void tryArtifactDownload(final Artifact artifact) {
+  private void tryArtifactDownload(final Artifact artifact, final Path folderPath) {
     final Path sourcePath = artifact.getPath();
     final String name = IOUtils.getFileName(sourcePath);
-    final Path targetPath = this.downloadPath.resolve(name);
+    final Path targetPath = folderPath.resolve(name);
     final String groupId = artifact.getGroupId();
     final String artifactId = artifact.getArtifactId();
     final String version = artifact.getVersion();

@@ -37,6 +37,8 @@ and chat. There is also an `installer` module that provides a simple way to inst
 `jda` module that integrates with the [Java Discord API](https://github.com/discord-jda/JDA), and a `http` module that
 integrates with [Javalin](https://github.com/javalin/javalin) to provide a simple way to stream videos over HTTP.
 
+The `sandbox` module only supports Paper and forks of it! However, any other aspect of the library can be used in any
+Java context.
 ---
 
 ### Licensing

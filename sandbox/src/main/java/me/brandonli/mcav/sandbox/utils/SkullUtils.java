@@ -45,6 +45,7 @@ SOFTWARE.
 
 import static java.util.Objects.requireNonNull;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -55,7 +56,6 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.profile.PlayerProfile;
 import org.bukkit.profile.PlayerTextures;
 
 public final class SkullUtils {
@@ -67,14 +67,14 @@ public final class SkullUtils {
   public static ItemStack getSkull(final String base64) {
     final URL url = getUrlFromBase64(base64);
     final UUID random = UUID.randomUUID();
-    final PlayerProfile profile = Bukkit.createPlayerProfile(random);
+    final PlayerProfile profile = Bukkit.createProfile(random);
     final PlayerTextures textures = profile.getTextures();
     textures.setSkin(url);
     profile.setTextures(textures);
     final ItemStack head = new ItemStack(Material.PLAYER_HEAD);
     final ItemMeta meta = requireNonNull(head.getItemMeta());
     final SkullMeta skullMeta = (SkullMeta) meta;
-    skullMeta.setOwnerProfile(profile);
+    skullMeta.setPlayerProfile(profile);
     head.setItemMeta(skullMeta);
     return head;
   }

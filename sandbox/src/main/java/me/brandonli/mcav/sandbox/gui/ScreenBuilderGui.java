@@ -27,7 +27,6 @@ import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.components.GuiContainer;
 import dev.triumphteam.gui.components.InteractionModifier;
 import dev.triumphteam.gui.components.InventoryProvider;
-import dev.triumphteam.gui.components.util.Legacy;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import java.io.IOException;
@@ -56,7 +55,7 @@ public final class ScreenBuilderGui extends Gui {
       final Map<String, String> map = JsonUtils.toMapFromResource("heads.json");
       INCREASE_BASE64 = requireNonNull(map.get("INCREASE_ARROW"));
       DECREASE_BASE64 = requireNonNull(map.get("DECREASE_ARROW"));
-      INVENTORY_PROVIDER = (title, owner, rows) -> Bukkit.createInventory(owner, rows, Legacy.SERIALIZER.serialize(title));
+      INVENTORY_PROVIDER = (title, owner, rows) -> Bukkit.createInventory(owner, rows, title);
     } catch (final IOException e) {
       throw new AssertionError(e);
     }

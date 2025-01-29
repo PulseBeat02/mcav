@@ -1,39 +1,34 @@
-import xyz.jpenilla.resourcefactory.bukkit.BukkitPluginYaml
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
     id("com.gradleup.shadow") version "8.3.6"
     id("xyz.jpenilla.run-paper") version "2.3.1"
-    id("xyz.jpenilla.resource-factory-bukkit-convention") version "1.3.0"
+    id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.0"
+    id("xyz.jpenilla.gremlin-gradle") version "0.0.8"
 }
 
 dependencies {
+    compileOnly("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
+    implementation("xyz.jpenilla:gremlin-runtime:0.0.8")
 
-    // provided api
-    compileOnly("org.spigotmc:spigot-api:1.21.5-R0.1-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
+    runtimeDownload("org.incendo:cloud-core:2.0.0")
+    runtimeDownload("org.incendo:cloud-annotations:2.0.0")
+    runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.10")
+    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.10")
+    runtimeDownload("me.lucko:commodore:2.2")
+    runtimeDownload("org.bstats:bstats-bukkit:3.1.0")
+    runtimeDownload("dev.triumphteam:triumph-gui:3.1.12")
+    runtimeDownload("net.dv8tion:JDA:5.5.1")
+    runtimeDownload("io.javalin:javalin:6.6.0")
+}
 
-    // mcav
-    implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
-    implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
-    implementation("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
-    implementation("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
-
-    // plugin dependencies
-    compileOnly("org.incendo:cloud-core:2.0.0")
-    compileOnly("org.incendo:cloud-annotations:2.0.0")
-    compileOnly("org.incendo:cloud-paper:2.0.0-beta.10")
-    compileOnly("org.incendo:cloud-minecraft-extras:2.0.0-beta.10")
-    compileOnly("me.lucko:commodore:2.2")
-    compileOnly("org.bstats:bstats-bukkit:3.1.0")
-    compileOnly("dev.triumphteam:triumph-gui:3.1.12")
-    compileOnly("net.kyori:adventure-api:4.21.0")
-    compileOnly("net.kyori:adventure-platform-bukkit:4.4.0")
-    compileOnly("net.kyori:adventure-text-minimessage:4.21.0")
-    compileOnly("net.kyori:adventure-text-serializer-legacy:4.21.0")
-    compileOnly("net.kyori:adventure-text-serializer-plain:4.21.0")
-    compileOnly("net.dv8tion:JDA:5.5.1")
-    compileOnly("io.javalin:javalin:6.6.0")
+configurations.compileOnly {
+    extendsFrom(configurations.runtimeDownload.get())
 }
 
 version = "1.0.0-v1.21.5"
@@ -59,40 +54,26 @@ tasks.withType<AbstractRun>().configureEach {
     )
 }
 
+paperPluginYaml {
+    name = "MCAV"
+    version = "${project.version}"
+    description = "MCAV Sandbox Plugin"
+    authors = listOf("PulseBeat_02")
+    apiVersion = "1.21"
+    prefix = "MCAV Sandbox"
+    loader = "me.brandonli.mcav.sandbox.MCAVLoader"
+    main = "me.brandonli.mcav.sandbox.MCAVSandbox"
+}
+
 tasks {
 
     withType<JavaCompile>().configureEach {
-        val set = setOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked")
+        val set = setOf("-parameters")
         options.compilerArgs.addAll(set)
         options.encoding = "UTF-8"
         options.release.set(targetJavaVersion)
         options.isFork = true
         options.forkOptions.memoryMaximumSize = "4g"
-    }
-
-    bukkitPluginYaml {
-        name = "MCAV"
-        load = BukkitPluginYaml.PluginLoadOrder.STARTUP
-        version = "${project.version}"
-        description = "MCAV Sandbox Plugin"
-        authors = listOf("PulseBeat_02")
-        apiVersion = "1.21"
-        prefix = "MCAV Sandbox"
-        main = "me.brandonli.mcav.sandbox.MCAVSandbox"
-        libraries = listOf(
-            "org.incendo:cloud-core:2.0.0",
-            "org.incendo:cloud-annotations:2.0.0",
-            "org.incendo:cloud-paper:2.0.0-beta.10",
-            "org.incendo:cloud-minecraft-extras:2.0.0-beta.10",
-            "me.lucko:commodore:2.2",
-            "org.bstats:bstats-bukkit:3.1.0",
-            "dev.triumphteam:triumph-gui:3.1.12",
-            "net.kyori:adventure-api:4.21.0",
-            "net.kyori:adventure-platform-bukkit:4.4.0",
-            "net.kyori:adventure-text-minimessage:4.21.0",
-            "net.kyori:adventure-text-serializer-legacy:4.21.0",
-            "net.kyori:adventure-text-serializer-plain:4.21.0"
-        )
     }
 
     processResources {
@@ -113,4 +94,3 @@ tasks {
         minecraftVersion("1.21.5")
     }
 }
-

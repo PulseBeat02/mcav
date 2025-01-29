@@ -44,6 +44,8 @@ SOFTWARE.
 */
 
 import static java.util.Objects.requireNonNull;
+import static net.kyori.adventure.text.Component.text;
+import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 import java.util.List;
 import org.bukkit.Bukkit;
@@ -68,7 +70,8 @@ public final class MapUtils {
   public static ItemStack getMapFromID(final int id) {
     final ItemStack map = createMapItemStack(id);
     final ItemMeta itemMeta = requireNonNull(map.getItemMeta());
-    itemMeta.setLore(List.of("Map ID [%s]".formatted(id)));
+    final String name = "Map ID [%s]".formatted(id);
+    itemMeta.lore(List.of(text(name, RED)));
     map.setItemMeta(itemMeta);
     return map;
   }

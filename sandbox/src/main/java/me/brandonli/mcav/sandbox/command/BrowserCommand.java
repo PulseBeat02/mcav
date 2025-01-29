@@ -33,13 +33,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
-import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -50,20 +47,15 @@ import org.incendo.cloud.annotations.*;
 
 public final class BrowserCommand implements AnnotationCommandFeature {
 
-  private BukkitAudiences audiences;
   private @Nullable BrowserPlayer browser;
 
   @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    final AudienceProvider provider = plugin.getAudience();
-    this.audiences = provider.retrieve();
-  }
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {}
 
   @Command("mcav browser release")
   @Permission("mcav.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
   public void playBrowser(final CommandSender player) {
-    final Audience audience = this.audiences.sender(player);
     if (this.browser != null) {
       try {
         this.browser.release();
@@ -72,7 +64,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
         throw new AssertionError(e);
       }
     }
-    audience.sendMessage(Message.RELEASE_BROWSER.build());
+    player.sendMessage(Message.RELEASE_BROWSER.build());
   }
 
   @Command("mcav browser create <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
@@ -86,14 +78,13 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String url
   ) {
-    final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {
       resolution = ArgumentUtils.parseDimensions(browserResolution);
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
-      audience.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
+      player.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
       return;
     }
 
@@ -105,7 +96,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       failed = true;
     }
     if (failed) {
-      audience.sendMessage(Message.UNSUPPORTED_URL.build());
+      player.sendMessage(Message.UNSUPPORTED_URL.build());
       return;
     }
     requireNonNull(uri);
@@ -144,6 +135,6 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       throw new AssertionError(e);
     }
 
-    audience.sendMessage(Message.START_BROWSER.build());
+    player.sendMessage(Message.START_BROWSER.build());
   }
 }

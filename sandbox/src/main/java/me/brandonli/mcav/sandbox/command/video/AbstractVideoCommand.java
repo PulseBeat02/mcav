@@ -46,7 +46,6 @@ import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -74,26 +73,23 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final String videoResolution,
     final String mrl
   ) {
-    final BukkitAudiences audiences = this.manager.getAudiences();
-    final Audience audience = audiences.sender(player);
-    if (!this.sanitizeArguments(audience, playerType, audioType, videoResolution)) {
+    if (!this.sanitizeArguments(player, playerType, audioType, videoResolution)) {
       return;
     }
-    audience.sendMessage(Message.LOAD_VIDEO.build());
+    player.sendMessage(Message.LOAD_VIDEO.build());
 
     final Pair<Integer, Integer> resolution = requireNonNull(this.sanitizeResolution(videoResolution));
     final AtomicBoolean initializing = this.manager.getStatus();
     final ExecutorService service = this.manager.getService();
-    final Runnable command = () -> this.synchronizePlayer(playerType, audioType, mrl, audience, resolution, configProvider);
+    final Runnable command = () -> this.synchronizePlayer(playerType, audioType, mrl, player, resolution, configProvider);
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
-      .thenRun(() -> audience.sendMessage(Message.START_VIDEO.build()));
+      .thenRun(() -> player.sendMessage(Message.START_VIDEO.build()));
   }
 
   private void sendArgumentUrl(final AudioArgument audioType, final MultiplePlayerSelector selector) {
     final Collection<Player> players = selector.values();
-    final BukkitAudiences audiences = this.manager.getAudiences();
     final Component msg =
       switch (audioType) {
         case DISCORD_BOT -> {
@@ -112,8 +108,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
 
     for (final Player player : players) {
-      final Audience audience = audiences.player(player);
-      audience.sendMessage(msg);
+      player.sendMessage(msg);
     }
   }
 

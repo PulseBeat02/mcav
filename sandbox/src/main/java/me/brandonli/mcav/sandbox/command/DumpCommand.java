@@ -19,11 +19,8 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.DumpUtils;
-import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
@@ -33,23 +30,17 @@ import org.incendo.cloud.annotations.Permission;
 
 public final class DumpCommand implements AnnotationCommandFeature {
 
-  private BukkitAudiences audiences;
-
   @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    final AudienceProvider handler = plugin.getAudience();
-    this.audiences = handler.retrieve();
-  }
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {}
 
   @Permission("mcav.command.dump")
   @Command(value = "mcav dump", requiredSender = CommandSender.class)
   @CommandDescription("mcav.command.dump.info")
   public void startDebugGame(final CommandSender sender) {
-    final Audience audience = this.audiences.sender(sender);
-    audience.sendMessage(Message.CREATE_DUMP.build());
+    sender.sendMessage(Message.CREATE_DUMP.build());
     CompletableFuture.supplyAsync(DumpUtils::createAndUploadDump).thenAccept(url -> {
       final Component component = Message.SEND_DUMP.build(url);
-      audience.sendMessage(component);
+      sender.sendMessage(component);
     });
   }
 }

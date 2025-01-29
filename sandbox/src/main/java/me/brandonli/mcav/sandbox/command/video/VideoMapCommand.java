@@ -65,7 +65,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     try {
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
-      this.manager.getAudiences().sender(player).sendMessage(Message.UNSUPPORTED_DIMENSION.build());
+      player.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
       return;
     }
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);

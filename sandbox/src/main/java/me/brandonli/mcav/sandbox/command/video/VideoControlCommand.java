@@ -23,8 +23,6 @@ import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
-import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
@@ -44,37 +42,30 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.resume")
   @CommandDescription("mcav.command.video.resume.info")
   public void resumeVideo(final CommandSender player) {
-    final BukkitAudiences audiences = this.manager.getAudiences();
-    final Audience audience = audiences.sender(player);
     final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
     if (videoPlayer != null) {
       videoPlayer.resume();
     }
-    audience.sendMessage(Message.RESUME_PLAYER.build());
+    player.sendMessage(Message.RESUME_PLAYER.build());
   }
 
   @Command("mcav video release")
   @Permission("mcav.command.video.release")
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender player) {
-    final BukkitAudiences audiences = this.manager.getAudiences();
-    final Audience audience = audiences.sender(player);
     final ExecutorService service = this.manager.getService();
-    audience.sendMessage(Message.RELEASE_PLAYER_START.build());
-    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> audience.sendMessage(Message.RELEASE_PLAYER.build())
-    );
+    player.sendMessage(Message.RELEASE_PLAYER_START.build());
+    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> player.sendMessage(Message.RELEASE_PLAYER.build()));
   }
 
   @Command("mcav video pause")
   @Permission("mcav.command.video.pause")
   @CommandDescription("mcav.command.video.pause.info")
   public void pauseVideo(final CommandSender player) {
-    final BukkitAudiences audiences = this.manager.getAudiences();
-    final Audience audience = audiences.sender(player);
     final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
     if (videoPlayer != null) {
       videoPlayer.pause();
     }
-    audience.sendMessage(Message.PAUSE_PLAYER.build());
+    player.sendMessage(Message.PAUSE_PLAYER.build());
   }
 }

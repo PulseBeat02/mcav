@@ -18,24 +18,18 @@
 package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
-import java.nio.file.Path;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.MCAVBukkit;
-import me.brandonli.mcav.installer.Artifact;
-import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
-import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAVSandbox extends JavaPlugin {
 
-  private AudienceProvider audienceProvider;
   private Logger logger;
 
   private MCAVApi mcav;
@@ -46,7 +40,6 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onLoad() {
     this.logger = this.getLogger();
-    this.loadDependencies();
     this.loadMCAV();
   }
 
@@ -58,7 +51,6 @@ public final class MCAVSandbox extends JavaPlugin {
 
   @Override
   public void onEnable() {
-    this.loadAudience();
     this.loadPluginData();
     this.loadManager();
     this.loadCommands();
@@ -81,32 +73,6 @@ public final class MCAVSandbox extends JavaPlugin {
     this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
   }
 
-  private void loadDependencies() {
-    this.logger.info("Loading MCAV Dependencies");
-    final long startTime = System.currentTimeMillis();
-    final ClassLoader loader = this.getClassLoader();
-    final Path folder = IOUtils.getPluginDataFolderPath();
-    final Path libs = folder.resolve("libs");
-    final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
-    installer.loadMCAVDependencies(Artifact.COMMON);
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
-  }
-
-  private void shutdownAudience() {
-    if (this.audienceProvider != null) {
-      this.audienceProvider.shutdown();
-    }
-  }
-
-  private void loadAudience() {
-    this.logger.info("Loading Audience Provider");
-    final long startTime = System.currentTimeMillis();
-    this.audienceProvider = new AudienceProvider(this);
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("Audience Provider loaded in " + (endTime - startTime) + "ms");
-  }
-
   private void loadPluginData() {
     this.logger.info("Loading Plugin Data");
     final long startTime = System.currentTimeMillis();
@@ -121,7 +87,6 @@ public final class MCAVSandbox extends JavaPlugin {
     this.shutdownLookupTables();
     this.saveData();
     this.unloadMCAV();
-    this.shutdownAudience();
   }
 
   private void saveData() {
@@ -162,10 +127,6 @@ public final class MCAVSandbox extends JavaPlugin {
 
   public PluginDataConfigurationMapper getConfiguration() {
     return this.configurationMapper;
-  }
-
-  public AudienceProvider getAudience() {
-    return this.audienceProvider;
   }
 
   public VideoPlayerManager getVideoPlayerManager() {

@@ -22,10 +22,8 @@ import static org.incendo.cloud.minecraft.extras.MinecraftHelp.*;
 import java.util.HashMap;
 import java.util.Map;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.locale.LocaleTools;
 import me.brandonli.mcav.sandbox.locale.TranslationManager;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotation.specifier.Greedy;
@@ -33,18 +31,16 @@ import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Permission;
+import org.incendo.cloud.minecraft.extras.AudienceProvider;
 import org.incendo.cloud.minecraft.extras.MinecraftHelp;
 
 public final class HelpCommand implements AnnotationCommandFeature {
 
   private CommandManager<CommandSender> manager;
   private MinecraftHelp<CommandSender> minecraftHelp;
-  private BukkitAudiences bukkitAudiences;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    final AudienceProvider handler = plugin.getAudience();
-    this.bukkitAudiences = handler.retrieve();
     this.manager = parser.manager();
     this.setupHelp();
   }
@@ -69,7 +65,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
   private void setupHelp() {
     this.minecraftHelp = MinecraftHelp.<CommandSender>builder()
       .commandManager(this.manager)
-      .audienceProvider(this.bukkitAudiences::sender)
+      .audienceProvider(AudienceProvider.nativeAudience())
       .commandPrefix("/mcav help")
       .messages(this.constructHelpMap())
       .build();

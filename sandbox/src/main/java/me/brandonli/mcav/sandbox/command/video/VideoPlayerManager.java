@@ -26,9 +26,7 @@ import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
-import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.utils.ExecutorUtils;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class VideoPlayerManager {
@@ -39,14 +37,11 @@ public final class VideoPlayerManager {
   private final MCAVApi api;
   private final AtomicBoolean status;
   private final ExecutorService service;
-  private final BukkitAudiences audiences;
   private final AudioProvider provider;
 
   public VideoPlayerManager(final MCAVSandbox plugin) {
-    final AudienceProvider provider = plugin.getAudience();
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
-    this.audiences = provider.retrieve();
     this.provider = plugin.getAudioProvider();
     this.api = plugin.getMCAV();
   }
@@ -73,10 +68,6 @@ public final class VideoPlayerManager {
       }
       this.player = null;
     }
-  }
-
-  public BukkitAudiences getAudiences() {
-    return this.audiences;
   }
 
   public ExecutorService getService() {
