@@ -19,7 +19,7 @@ package me.brandonli.mcav.json.ytdlp;
 
 import java.io.IOException;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
  * Interface for parsing YTDLP (YouTube-DL Parser) data.

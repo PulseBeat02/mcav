@@ -48,7 +48,7 @@ which will tab-complete the permission for you.
 
 ```{note}
 If you set the video player to be `FFMPEG`, you can also specify directly a format and input to use. For example, you can
-stream OBS output by setting the `mrl` argument to be `dshow:video=OBS Virtual Camera` on Windows.
+stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual Camera` on Windows.
 ```
 
 | **Command**     | `/mcav video release`                                     |

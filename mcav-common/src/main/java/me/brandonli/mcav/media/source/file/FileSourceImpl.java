@@ -15,23 +15,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit;
+package me.brandonli.mcav.media.source.file;
 
-import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Path;
-import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
-import me.brandonli.mcav.bukkit.utils.resourcepack.SoundExtractorUtils;
-import me.brandonli.mcav.media.source.uri.UriSource;
 
-public final class PackBuilderExample {
+/**
+ * Implementation of {@link FileSource} that provides the file path.
+ */
+public final class FileSourceImpl implements FileSource {
 
-  public static void main(final String[] args) throws IOException {
-    final UriSource audio = UriSource.uri(URI.create("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"));
-    final Path ogg = SoundExtractorUtils.extractOggAudio(audio); // temporary path
-    final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.sound("mcav:example", ogg);
-    final Path dest = Path.of("pack.zip");
-    pack.zip(dest);
+  final Path path;
+
+  FileSourceImpl(final Path path) {
+    this.path = path;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Path getPath() {
+    return this.path;
   }
 }

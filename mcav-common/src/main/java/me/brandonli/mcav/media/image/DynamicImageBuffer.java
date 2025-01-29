@@ -19,8 +19,8 @@ package me.brandonli.mcav.media.image;
 
 import java.io.IOException;
 import java.util.List;
-import me.brandonli.mcav.media.source.FileSource;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.file.FileSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
  * Represents a dynamic image, which is a sequence of static images (frames) that can be displayed

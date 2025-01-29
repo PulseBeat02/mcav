@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.frame;
 
 import com.google.common.base.Preconditions;
 import java.util.List;

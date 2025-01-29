@@ -25,7 +25,7 @@ import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegCommand;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegTemplates;
 import me.brandonli.mcav.utils.runtime.CommandTask;

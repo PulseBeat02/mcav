@@ -15,7 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.ffmpeg;
+
+import me.brandonli.mcav.media.source.StaticSource;
 
 /**
  * Represents a direct FFmpeg source with a format and resource locator.
@@ -40,7 +42,7 @@ public interface FFmpegDirectSource extends StaticSource {
    */
   @Override
   default String getName() {
-    return "mrl";
+    return "ffmpeg";
   }
 
   /**

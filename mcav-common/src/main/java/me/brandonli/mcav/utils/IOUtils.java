@@ -39,7 +39,7 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import me.brandonli.mcav.capability.installer.Download;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
  * Utility class providing various input/output operations and utilities, primarily focusing

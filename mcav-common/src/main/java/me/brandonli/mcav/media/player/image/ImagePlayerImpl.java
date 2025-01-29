@@ -31,7 +31,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.FrameSource;
+import me.brandonli.mcav.media.source.frame.FrameSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.LockUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;

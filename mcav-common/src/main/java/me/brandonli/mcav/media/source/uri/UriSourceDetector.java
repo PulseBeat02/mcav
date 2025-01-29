@@ -15,42 +15,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.uri;
+
+import java.net.URI;
+import me.brandonli.mcav.media.source.SourceDetector;
+import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * Represents a source that has a device ID.
+ * A source detector that identifies if a given raw input is a URI source.
+ * It implements the {@link SourceDetector} interface for {@link UriSource}.
  */
-public interface DeviceSource extends DynamicSource {
-  /**
-   * Retrieves the device id (integer) associated with this source.
-   *
-   * @return the device ID as an integer.
-   */
-  int getDeviceId();
+public class UriSourceDetector implements SourceDetector<UriSource> {
 
   /**
-   * {@inheritDoc}
+   * Constructs a new {@link UriSourceDetector}.
    */
-  @Override
-  default String getResource() {
-    return String.valueOf(this.getDeviceId());
+  public UriSourceDetector() {
+    // no-op
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  default String getName() {
-    return "device";
+  public boolean isDetectedSource(final String raw) {
+    return SourceUtils.isUri(raw);
+  }
+
+  @Override
+  public UriSource createSource(final String raw) {
+    final URI uri = URI.create(raw);
+    return UriSource.uri(uri);
   }
 
   /**
-   * Creates a new {@link DeviceSource} instance with the specified device ID.
-   *
-   * @param deviceId the device ID to associate with the source.
-   * @return a new instance of {@link DeviceSource}.
+   * {@inheritDoc}
    */
-  static DeviceSource device(final int deviceId) {
-    return new DeviceSourceImpl(deviceId);
+  @Override
+  public int getPriority() {
+    return SourceDetector.NORMAL_PRIORITY;
   }
 }

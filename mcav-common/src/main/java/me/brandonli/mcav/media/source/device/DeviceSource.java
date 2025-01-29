@@ -15,25 +15,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.device;
+
+import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * An implementation of the {@link DeviceSource} interface that represents a source
- * associated with a specific device ID.
+ * Represents a source that has a device ID.
  */
-public final class DeviceSourceImpl implements DeviceSource {
+public interface DeviceSource extends DynamicSource {
+  /**
+   * Retrieves the device id (integer) associated with this source.
+   *
+   * @return the device ID as an integer.
+   */
+  int getDeviceId();
 
-  private final int deviceId;
-
-  DeviceSourceImpl(final int deviceId) {
-    this.deviceId = deviceId;
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  default String getResource() {
+    return String.valueOf(this.getDeviceId());
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public int getDeviceId() {
-    return this.deviceId;
+  default String getName() {
+    return "device";
+  }
+
+  /**
+   * Creates a new {@link DeviceSource} instance with the specified device ID.
+   *
+   * @param deviceId the device ID to associate with the source.
+   * @return a new instance of {@link DeviceSource}.
+   */
+  static DeviceSource device(final int deviceId) {
+    return new DeviceSourceImpl(deviceId);
   }
 }

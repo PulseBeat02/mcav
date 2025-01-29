@@ -15,26 +15,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.file;
 
-import java.net.URI;
+import java.nio.file.Path;
+import me.brandonli.mcav.media.source.SourceDetector;
+import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * An implementation of the {@link UriSource} interface.
+ * A source detector for file sources.
  */
-public class UriSourceImpl implements UriSource {
+public class FileSourceDetector implements SourceDetector<FileSource> {
 
-  private final URI uri;
-
-  UriSourceImpl(final URI uri) {
-    this.uri = uri;
+  /**
+   * Constructs a new {@link FileSourceDetector}.
+   */
+  public FileSourceDetector() {
+    // no-op
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public URI getUri() {
-    return this.uri;
+  public boolean isDetectedSource(final String raw) {
+    return SourceUtils.isPath(raw);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public FileSource createSource(final String raw) {
+    final Path path = Path.of(raw);
+    return FileSource.path(path);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int getPriority() {
+    return SourceDetector.HIGH_PRIORITY;
   }
 }

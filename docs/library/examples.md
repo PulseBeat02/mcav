@@ -15,7 +15,7 @@ import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;

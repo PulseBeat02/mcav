@@ -32,7 +32,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {

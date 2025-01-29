@@ -23,7 +23,7 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
-import me.brandonli.mcav.media.source.FrameSource;
+import me.brandonli.mcav.media.source.frame.FrameSource;
 
 /**
  * An interface for image players that can play images from a source.

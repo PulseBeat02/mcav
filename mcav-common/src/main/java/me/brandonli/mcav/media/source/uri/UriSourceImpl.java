@@ -15,26 +15,34 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.uri;
 
-import java.nio.file.Path;
+import java.net.URI;
+import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * Implementation of {@link FileSource} that provides the file path.
+ * An implementation of the {@link UriSource} interface.
  */
-public final class FileSourceImpl implements FileSource {
+public class UriSourceImpl implements UriSource {
 
-  final Path path;
+  private final URI uri;
+  private final boolean direct;
 
-  FileSourceImpl(final Path path) {
-    this.path = path;
+  UriSourceImpl(final URI uri) {
+    this.uri = uri;
+    this.direct = SourceUtils.isDirectVideo(uri.toString());
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public Path getPath() {
-    return this.path;
+  public URI getUri() {
+    return this.uri;
+  }
+
+  @Override
+  public boolean isDirect() {
+    return this.direct;
   }
 }

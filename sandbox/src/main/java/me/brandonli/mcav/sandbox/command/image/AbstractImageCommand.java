@@ -18,15 +18,15 @@
 package me.brandonli.mcav.sandbox.command.image;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.SourceDetectionHelper;
+import me.brandonli.mcav.media.source.file.FileSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -94,7 +94,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution,
     final ImageConfigurationProvider configProvider
   ) {
-    @Nullable final Source source = this.retrievePair(image);
+    @Nullable final Source source = this.retrieveSource(image);
     if (source == null) {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;
@@ -110,32 +110,39 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   private void processImage(final Pair<Integer, Integer> resolution, final Source source, final ImageConfigurationProvider configProvider)
     throws IOException {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final DisplayableImage displayableImage = this.createImage(resolution, configProvider);
-    this.manager.setImage(displayableImage);
-    final ImageBuffer image =
-      switch (source) {
-        case final FileSource fileSource -> ImageBuffer.path(fileSource);
-        case final UriSource uriSource -> ImageBuffer.uri(uriSource);
-        default -> throw new IllegalArgumentException("Unsupported source type");
-      };
-    this.manager.setCurrentImage(image);
-    scheduler.runTask(this.plugin, () -> displayableImage.displayImage(image));
+    scheduler.runTaskLater(
+      this.plugin,
+      () -> {
+        final DisplayableImage displayableImage = this.createImage(resolution, configProvider);
+        this.manager.setImage(displayableImage);
+        final ImageBuffer image =
+          switch (source) {
+            case final FileSource fileSource -> ImageBuffer.path(fileSource);
+            case final UriSource uriSource -> ImageBuffer.uri(uriSource);
+            default -> throw new IllegalArgumentException("Unsupported source type");
+          };
+        this.manager.setCurrentImage(image);
+        scheduler.runTask(this.plugin, () -> displayableImage.displayImage(image));
+      },
+      5L
+    );
   }
 
   public abstract DisplayableImage createImage(Pair<Integer, Integer> resolution, ImageConfigurationProvider configProvider);
 
-  private @Nullable Source retrievePair(final String mrl) {
-    if (SourceUtils.isPath(mrl)) {
-      return FileSource.path(Path.of(mrl));
-    } else if (SourceUtils.isUri(mrl)) {
-      final Source source = UriSource.uri(URI.create(mrl));
-      if (SourceUtils.isImageGif(source)) {
-        return null;
-      }
-      return source;
-    } else {
+  private @Nullable Source retrieveSource(final String mrl) {
+    final SourceDetectionHelper helper = new SourceDetectionHelper();
+    final Optional<Source> optional = helper.detectSource(mrl);
+    if (optional.isEmpty()) {
       return null;
     }
+
+    final Source source = optional.get();
+    if (source instanceof UriSource && SourceUtils.isImageGif(source)) {
+      return null;
+    }
+
+    return source;
   }
 
   public interface ImageConfigurationProvider {

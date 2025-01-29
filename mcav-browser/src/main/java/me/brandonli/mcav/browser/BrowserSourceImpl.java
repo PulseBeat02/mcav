@@ -70,8 +70,19 @@ public class BrowserSourceImpl implements BrowserSource {
     return this.nthFrame;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public URI getUri() {
     return this.uri;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean isDirect() {
+    return false;
   }
 }

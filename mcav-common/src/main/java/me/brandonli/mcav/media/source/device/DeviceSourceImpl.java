@@ -15,17 +15,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.device;
 
 /**
- * A functional interface that provides a method to supply pixel data for a frame.
+ * An implementation of the {@link DeviceSource} interface that represents a source
+ * associated with a specific device ID.
  */
-@FunctionalInterface
-public interface SampleSupplier {
+public final class DeviceSourceImpl implements DeviceSource {
+
+  private final int deviceId;
+
+  DeviceSourceImpl(final int deviceId) {
+    this.deviceId = deviceId;
+  }
+
   /**
-   * Supplies an array of integers representing the pixel data of a frame.
-   *
-   * @return an array of integers representing the pixel data of a frame
+   * {@inheritDoc}
    */
-  int[] getFrameSamples();
+  @Override
+  public int getDeviceId() {
+    return this.deviceId;
+  }
 }

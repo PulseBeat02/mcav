@@ -19,11 +19,10 @@ package me.brandonli.mcav.sandbox.command.video;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.primitives.Ints;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +38,12 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.*;
+import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.media.source.SourceDetectionHelper;
+import me.brandonli.mcav.media.source.device.DeviceSource;
+import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSource;
+import me.brandonli.mcav.media.source.file.FileSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
@@ -49,7 +53,6 @@ import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
@@ -211,102 +214,106 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final RetrievalResult source,
     final VideoConfigurationProvider configProvider
   ) {
-    final URLParseDump dump = source.dump;
-    final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
-    final AudioFilter filter = this.provider.constructFilter(audioType, dump);
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
-    final Source video = source.video;
-    final Source audio = source.audio;
-    final VideoPlayerMultiplexer player = playerType.createPlayer();
-    this.manager.setPlayer(player);
-    requireNonNull(video);
-
-    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(videoPipelineStep);
-
-    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(audioPipelineStep);
-
-    final int width = resolution.getFirst();
-    final int height = resolution.getSecond();
-    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-    final Dimension dimension = new Dimension(width, height);
-    dimensionCallback.attach(dimension);
-
-    if (audio == null) {
-      player.start(video);
-    } else {
-      player.start(video, audio);
-    }
-
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTask(this.plugin, () -> {
-      final Hologram existing = this.manager.getHologram();
-      if (existing != null) {
-        existing.kill();
-        this.manager.setHologram(null);
-      }
+    scheduler.runTaskLater(
+      this.plugin,
+      () -> {
+        final URLParseDump dump = source.dump;
+        final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
+        final AudioFilter filter = this.provider.constructFilter(audioType, dump);
+        final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
+        final Source video = source.video;
+        final Source audio = source.audio;
+        final VideoPlayerMultiplexer player = playerType.createPlayer();
+        this.manager.setPlayer(player);
+        requireNonNull(video);
 
-      final Location location = this.manager.getHologramLocation();
-      if (location == null) {
-        return;
-      }
+        final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+        videoCallback.attach(videoPipelineStep);
 
-      if (dump == null) {
-        return;
-      }
+        final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+        audioCallback.attach(audioPipelineStep);
 
-      final Hologram hologram = Hologram.basic();
-      hologram.handleRequest(location, dump);
-      hologram.start();
-      this.manager.setHologram(hologram);
-    });
+        final int width = resolution.getFirst();
+        final int height = resolution.getSecond();
+        final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+        final Dimension dimension = new Dimension(width, height);
+        dimensionCallback.attach(dimension);
+
+        if (audio == null) {
+          player.start(video);
+        } else {
+          player.start(video, audio);
+        }
+
+        final Hologram existing = this.manager.getHologram();
+        if (existing != null) {
+          existing.kill();
+          this.manager.setHologram(null);
+        }
+
+        final Location location = this.manager.getHologramLocation();
+        if (location == null) {
+          return;
+        }
+
+        if (dump == null) {
+          return;
+        }
+
+        final Hologram hologram = Hologram.basic();
+        hologram.handleRequest(location, dump);
+        hologram.start();
+        this.manager.setHologram(hologram);
+      },
+      5L
+    );
   }
 
   public abstract VideoPipelineStep createVideoFilter(Pair<Integer, Integer> resolution, VideoConfigurationProvider configProvider);
 
   private RetrievalResult retrievePair(final PlayerArgument argument, final String mrl, final String[] arguments) {
-    final Source video;
-    Source audio = null;
-    URLParseDump dump = null;
-    final Integer deviceId = Ints.tryParse(mrl);
-    if (SourceUtils.isPath(mrl)) {
-      final Path path = Path.of(mrl);
-      video = FileSource.path(path);
-      dump = new URLParseDump();
-      dump.title = IOUtils.getName(path);
-      dump.description = "Video from File";
-    } else if (deviceId != null) {
-      video = DeviceSource.device(deviceId);
-      dump = new URLParseDump();
-      dump.title = "Device Input %s".formatted(deviceId);
-      dump.description = "Video from Device";
-    } else if (SourceUtils.isUri(mrl)) {
-      final UriSource uri = UriSource.uri(URI.create(mrl));
-      if (!SourceUtils.isDirectVideoFile(mrl)) {
-        dump = this.getUrlParseDump(uri, arguments);
-        final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
-        video = selector.getVideoSource(dump).toUriSource();
-        audio = selector.getAudioSource(dump).toUriSource();
-      } else {
-        dump = new URLParseDump();
-        dump.title = IOUtils.getFileNameFromUrl(mrl);
-        dump.description = "Video from URL";
-        video = uri;
-      }
-    } else if (argument == PlayerArgument.FFMPEG) {
-      final String[] split = mrl.split(":");
-      final String format = split[0];
-      final String rawMrl = split[1];
-      video = FFmpegDirectSource.mrl(rawMrl, format);
-      dump = new URLParseDump();
-      dump.title = rawMrl;
-      dump.description = "Custom format with format %s".formatted(format);
-    } else {
-      dump = new URLParseDump();
-      video = null;
+    final SourceDetectionHelper helper = new SourceDetectionHelper();
+    final Optional<Source> optional = helper.detectSource(mrl);
+    URLParseDump dump = new URLParseDump();
+    if (optional.isEmpty()) {
+      return new RetrievalResult(null, null, dump);
     }
-    return new RetrievalResult(video, audio, dump);
+
+    Source source = optional.get();
+    Source audio = null;
+    switch (source) {
+      case final FFmpegDirectSource ffmpegSource -> {
+        dump.title = ffmpegSource.getMrl();
+        dump.description = "FFmpeg Format %s".formatted(ffmpegSource.getFormat());
+      }
+      case final UriSource uri -> {
+        if (uri.isDirect()) {
+          dump.title = IOUtils.getFileNameFromUrl(mrl);
+          dump.description = "Video from URL";
+        } else {
+          final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
+          dump = this.getUrlParseDump(uri, arguments);
+          source = selector.getVideoSource(dump).toUriSource();
+          audio = selector.getAudioSource(dump).toUriSource();
+        }
+      }
+      case final DeviceSource device -> {
+        final int id = device.getDeviceId();
+        dump.title = "Device Input %s".formatted(id);
+        dump.description = "Video from Device";
+      }
+      case final FileSource file -> {
+        final Path path = file.getPath();
+        dump.title = IOUtils.getName(path);
+        dump.description = "Video from File";
+      }
+      default -> {
+        return new RetrievalResult(null, null, dump);
+      }
+    }
+
+    return new RetrievalResult(source, audio, dump);
   }
 
   private record RetrievalResult(@Nullable Source video, @Nullable Source audio, URLParseDump dump) {}

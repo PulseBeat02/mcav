@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.uri;
 
 import com.google.common.base.Preconditions;
 import java.net.URI;
+import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
  * Represents a type of {@link DynamicSource} that is associated with a specific URI.
@@ -51,6 +52,12 @@ public interface UriSource extends DynamicSource {
   default String getResource() {
     return this.getUri().toString();
   }
+
+  /**
+   * Indicates whether this source is a direct source to a file.
+   * @return {@code false} by default, indicating that this source is not a direct file source.
+   */
+  boolean isDirect();
 
   /**
    * Creates a new {@link UriSource} instance for the specified URI.

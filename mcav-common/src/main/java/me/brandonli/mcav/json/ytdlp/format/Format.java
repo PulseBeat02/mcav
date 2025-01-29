@@ -19,7 +19,7 @@ package me.brandonli.mcav.json.ytdlp.format;
 
 import java.net.URI;
 import java.util.ArrayList;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 /** Format **/
 public class Format {

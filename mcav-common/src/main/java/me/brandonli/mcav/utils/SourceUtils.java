@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.function.Function;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.file.FileSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -88,7 +88,7 @@ public final class SourceUtils {
    * @param url the URL string to check. It should be a valid URI string.
    * @return true if the URL corresponds to a direct video file, false otherwise
    */
-  public static boolean isDirectVideoFile(final String url) {
+  public static boolean isDirectVideo(final String url) {
     if (url == null || url.isEmpty()) {
       return false;
     }

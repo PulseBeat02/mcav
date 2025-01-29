@@ -18,7 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import java.net.URI;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
  * Represents a source for browser-based media playback.

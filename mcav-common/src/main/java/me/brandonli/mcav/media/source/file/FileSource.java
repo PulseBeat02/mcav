@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.file;
 
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
+import me.brandonli.mcav.media.source.StaticSource;
 
 /**
  * Represents a source that is backed by a file on the filesystem.

@@ -15,34 +15,45 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.device;
+
+import com.google.common.primitives.Ints;
+import me.brandonli.mcav.media.source.SourceDetector;
 
 /**
- * Implementation of {@link FFmpegDirectSource} that provides the MRL and format.
+ * Detects device sources. Must be a single integer value for the device identifier.
  */
-public class FFmpegDirectSourceImpl implements FFmpegDirectSource {
+public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
 
-  private final String mrl;
-  private final String format;
-
-  FFmpegDirectSourceImpl(final String mrl, final String format) {
-    this.mrl = mrl;
-    this.format = format;
+  /**
+   * Constructs a new {@link DeviceSourceDetector}.
+   */
+  public DeviceSourceDetector() {
+    // no-op
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public String getFormat() {
-    return this.format;
+  public boolean isDetectedSource(final String raw) {
+    return Ints.tryParse(raw) != null;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public String getMrl() {
-    return this.mrl;
+  public DeviceSource createSource(final String raw) {
+    final int deviceId = Integer.parseInt(raw);
+    return DeviceSource.device(deviceId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int getPriority() {
+    return SourceDetector.HIGH_PRIORITY;
   }
 }

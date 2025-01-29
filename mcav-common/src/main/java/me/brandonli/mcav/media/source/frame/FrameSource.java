@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.source.frame;
 
 import java.nio.IntBuffer;
 import java.util.function.Supplier;
+import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
  * Represents a source that provides raw frames, typically used for video playback.

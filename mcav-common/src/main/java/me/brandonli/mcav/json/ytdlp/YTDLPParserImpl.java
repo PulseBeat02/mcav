@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**

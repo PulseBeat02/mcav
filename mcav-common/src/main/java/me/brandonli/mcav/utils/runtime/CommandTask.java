@@ -103,7 +103,6 @@ public class CommandTask {
       try (final BufferedReader reader = this.getStdBufferedReader(process)) {
         String str;
         while ((str = reader.readLine()) != null) {
-          System.out.println(str);
           outputBuilder.append(str).append(System.lineSeparator());
         }
       } catch (final IOException e) {
@@ -117,7 +116,6 @@ public class CommandTask {
       try (final BufferedReader reader = this.getStdErrBufferedReader(process)) {
         String str;
         while ((str = reader.readLine()) != null) {
-          System.err.println(str);
           outputBuilder.append(str).append(System.lineSeparator());
         }
       } catch (final IOException e) {
