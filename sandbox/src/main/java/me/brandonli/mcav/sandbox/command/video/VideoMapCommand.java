@@ -42,10 +42,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.result.MapResult;
-import me.brandonli.mcav.media.source.DeviceSource;
-import me.brandonli.mcav.media.source.FileSource;
-import me.brandonli.mcav.media.source.Source;
-import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.media.source.*;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -137,7 +134,7 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution
   ) {
     @Nullable
-    final Source[] sources = this.retrievePair(mrl);
+    final Source[] sources = this.retrievePair(mrl, playerType);
     if (sources == null) {
       audience.sendMessage(Message.MRL_ERROR.build());
       return;
@@ -220,7 +217,7 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
     }
   }
 
-  private @Nullable Source@Nullable[] retrievePair(final String mrl) {
+  private @Nullable Source@Nullable[] retrievePair(final String mrl, final PlayerArgument argument) {
     final Source video;
     Source audio = null;
     final Integer deviceId = Ints.tryParse(mrl);
@@ -238,8 +235,13 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
       } else {
         video = uri;
       }
+    } else if (argument == PlayerArgument.FFMPEG) {
+      final String[] split = mrl.split(":");
+      final String format = split[0];
+      final String rawMrl = split[1];
+      video = FFmpegDirectSource.mrl(rawMrl, format);
     } else {
-      return null;
+      video = null;
     }
     return new Source[] { video, audio };
   }

@@ -34,6 +34,7 @@ import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.source.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.bytedeco.javacv.Frame;
@@ -304,6 +305,13 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
       finalGrabber.setPixelFormat(AV_PIX_FMT_BGR24);
       finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
+
+      if (combined instanceof FFmpegDirectSource) {
+        final FFmpegDirectSource directSource = (FFmpegDirectSource) combined;
+        final String format = directSource.getFormat();
+        finalGrabber.setFormat(format);
+      }
+
       finalGrabber.start();
 
       this.running.set(true);
