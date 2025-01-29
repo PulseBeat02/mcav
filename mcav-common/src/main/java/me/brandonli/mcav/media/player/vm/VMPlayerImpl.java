@@ -17,12 +17,6 @@
  */
 package me.brandonli.mcav.media.player.vm;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.IOException;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -30,6 +24,13 @@ import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.io.IOException;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Provides an implementation of the {@link VMPlayer} interface to manage
@@ -60,11 +61,11 @@ public class VMPlayerImpl implements VMPlayer {
    */
   @Override
   public boolean start(
-    final VideoPipelineStep step,
-    final int port,
-    final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
+          final VideoPipelineStep step,
+          final int port,
+          final Architecture architecture,
+          final VMConfiguration arguments,
+          final VideoMetadata metadata
   ) {
     this.architecture = architecture;
     this.qemuArgs = arguments;
@@ -86,29 +87,34 @@ public class VMPlayerImpl implements VMPlayer {
       final String[] arguments = command.toArray(new String[0]);
       final ProcessBuilder processBuilder = new ProcessBuilder(arguments);
       this.qemuProcess = processBuilder.start();
-      waitForConnection();
+      this.waitForConnection();
     } catch (final IOException e) {
       throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
   private void waitForConnection() {
-    long timeout = System.currentTimeMillis() + 30000;
+    final long timeout = System.currentTimeMillis() + 30000;
     boolean connected = false;
     while (System.currentTimeMillis() < timeout && !connected) {
       try {
-        Socket socket = new Socket("localhost", this.vncPort);
+        final Socket socket = new Socket("localhost", this.vncPort);
         socket.close();
         connected = true;
+        this.sleep();
       } catch (final IOException e) {
-        try {
-          Thread.sleep(500);
-        } catch (final InterruptedException ex) {
-          Thread thread = Thread.currentThread();
-          thread.interrupt();
-          throw new PlayerException(ex.getMessage(), ex);
-        }
+        this.sleep();
       }
+    }
+  }
+
+  private void sleep() {
+    try {
+      Thread.sleep(500);
+    } catch (final InterruptedException ex) {
+      final Thread thread = Thread.currentThread();
+      thread.interrupt();
+      throw new PlayerException(ex.getMessage(), ex);
     }
   }
 
