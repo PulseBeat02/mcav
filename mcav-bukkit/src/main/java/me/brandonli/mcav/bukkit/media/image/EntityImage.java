@@ -24,7 +24,9 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -55,7 +57,7 @@ public class EntityImage implements DisplayableImage {
    */
   @Override
   @SuppressWarnings("deprecation")
-  public void displayImage(final StaticImage data) {
+  public void displayImage(final ImageBuffer data) {
     this.release();
 
     final Location pos = this.entityConfiguration.getPosition();
@@ -88,9 +90,10 @@ public class EntityImage implements DisplayableImage {
     final String character = this.entityConfiguration.getCharacter();
     final int entityWidth = this.entityConfiguration.getEntityWidth();
     final int entityHeight = this.entityConfiguration.getEntityHeight();
-    data.resize(entityWidth, entityHeight);
+    final ResizeFilter resize = new ResizeFilter(entityWidth, entityHeight);
+    resize.applyFilter(data, VideoMetadata.EMPTY);
 
-    final int[] resizedData = data.getAllPixels();
+    final int[] resizedData = data.getPixels();
     final Component prefix = ChatUtils.createChatComponent(resizedData, character, entityWidth, entityHeight);
     final CraftTextDisplay craftEntity = (CraftTextDisplay) this.entity;
     final net.minecraft.world.entity.Display.TextDisplay frame = craftEntity.getHandle();

@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.source;
 
-import me.brandonli.mcav.media.image.DynamicImage;
+import me.brandonli.mcav.media.image.DynamicImageBuffer;
 
 /**
  * The {@code RepeatingFrameSource} interface extends {@link FrameSource} and represents a source
@@ -37,24 +37,24 @@ public interface RepeatingFrameSource extends FrameSource {
 
   /**
    * Creates a new {@link RepeatingFrameSource} instance, which repeats the frames
-   * of a given {@link DynamicImage} for the specified number of times.
+   * of a given {@link DynamicImageBuffer} for the specified number of times.
    *
    * @param source the dynamic image whose frames will be repeated
    * @param repeatCount the number of times each frame is repeated; must be positive, or -1 for infinite repetition
    * @return a new instance of {@link RepeatingFrameSource} configured with the provided source and repeat count
    */
-  static RepeatingFrameSource repeating(final DynamicImage source, final int repeatCount) {
+  static RepeatingFrameSource repeating(final DynamicImageBuffer source, final int repeatCount) {
     return new RepeatingFrameSourceImpl(source, repeatCount);
   }
 
   /**
    * Creates a new {@link RepeatingFrameSource} instance, which repeats the frames
-   * of a given {@link DynamicImage} indefinitely.
+   * of a given {@link DynamicImageBuffer} indefinitely.
    *
    * @param source the dynamic image whose frames will be repeated
    * @return a new instance of {@link RepeatingFrameSource} configured with the provided source for infinite repetition
    */
-  static RepeatingFrameSource repeating(final DynamicImage source) {
+  static RepeatingFrameSource repeating(final DynamicImageBuffer source) {
     return new RepeatingFrameSourceImpl(source, Integer.MAX_VALUE);
   }
 }

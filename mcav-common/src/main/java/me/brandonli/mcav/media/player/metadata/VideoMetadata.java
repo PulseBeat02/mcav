@@ -35,6 +35,8 @@ public interface VideoMetadata extends Metadata {
    * no specific value or action is required.
    */
   int NO_OP = -1;
+
+  VideoMetadata EMPTY = new VideoMetadataImpl(NO_OP, NO_OP, NO_OP, NO_OP);
   /**
    * The default bitrate for video files or streams, measured in kilobits per second (kbps).
    * This value is used as a fallback when a specific bitrate is not explicitly provided.

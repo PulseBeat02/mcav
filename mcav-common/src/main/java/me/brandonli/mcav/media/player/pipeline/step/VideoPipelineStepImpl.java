@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -25,7 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Represents a concrete implementation of the {@link VideoPipelineStep} interface.
  * This class is a step in a video processing pipeline that applies a specific {@link VideoFilter}
- * to the given {@link StaticImage} and optionally delegates further processing to the next step.
+ * to the given {@link ImageBuffer} and optionally delegates further processing to the next step.
  * <p>
  * Instances of this class are immutable and support chaining in video processing pipelines.
  */
@@ -51,7 +51,7 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
    * {@inheritDoc}
    */
   @Override
-  public synchronized void process(final StaticImage buffer, final VideoMetadata metadata) {
+  public synchronized void process(final ImageBuffer buffer, final VideoMetadata metadata) {
     this.filter.applyFilter(buffer, metadata);
   }
 }

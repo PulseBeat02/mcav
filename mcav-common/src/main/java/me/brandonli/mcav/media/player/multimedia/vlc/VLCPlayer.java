@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -289,7 +289,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final int[] buffer = new int[width * height];
       intBuffer.get(buffer, 0, width * height);
 
-      final StaticImage image = StaticImage.buffer(buffer, width, height);
+      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
       VideoPipelineStep current = this.step;
       while (current != null) {
         current.process(image, updated);

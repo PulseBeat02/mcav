@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -84,7 +84,7 @@ public class ImagePlayerImpl implements ImagePlayer {
         continue;
       }
       final int[] data = frame.array();
-      final StaticImage image = StaticImage.buffer(data, width, height);
+      final ImageBuffer image = ImageBuffer.buffer(data, width, height);
       VideoPipelineStep next = this.videoPipelineStep;
       while (next != null) {
         next.process(image, metadata);

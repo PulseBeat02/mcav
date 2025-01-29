@@ -29,7 +29,7 @@ import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
@@ -67,7 +67,7 @@ public final class MultiplexerInputExample {
     ImageIcon icon;
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of((samples, metadata) -> {});
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(VideoFilter.FRAME_RATE)
+      .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 

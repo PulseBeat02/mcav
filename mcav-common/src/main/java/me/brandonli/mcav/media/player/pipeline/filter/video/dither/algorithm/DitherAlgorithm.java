@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.*;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
@@ -43,7 +43,7 @@ public interface DitherAlgorithm {
    * @return a byte array containing the palette index for each pixel in the dithered image.
    * The size of this array corresponds to the total number of pixels in the image.
    */
-  byte[] ditherIntoBytes(final StaticImage buffer);
+  byte[] ditherIntoBytes(final ImageBuffer buffer);
 
   /**
    * Applies a dithering algorithm to the given pixel buffer. The dithering

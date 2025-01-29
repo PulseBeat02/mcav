@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -73,7 +73,7 @@ public final class DitherFilter implements VideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage samples, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer samples, final VideoMetadata metadata) {
     final byte[] bytes = this.algorithm.ditherIntoBytes(samples);
     this.callback.process(bytes, metadata);
   }

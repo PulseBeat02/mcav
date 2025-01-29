@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 
@@ -31,7 +31,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
  * Video pipeline steps can be chained together with each step
  * potentially delegating to a subsequent step.
  */
-public interface VideoPipelineStep extends PipelineStep<StaticImage, VideoMetadata, VideoPipelineStep> {
+public interface VideoPipelineStep extends PipelineStep<ImageBuffer, VideoMetadata, VideoPipelineStep> {
   /**
    * Creates a new instance of {@code VideoPipelineStep} with the specified
    * next step and video filter.

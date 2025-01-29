@@ -25,7 +25,7 @@ import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
@@ -60,7 +60,7 @@ public final class SingleCombinedInputExample {
 
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(VideoFilter.FRAME_RATE)
+      .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 

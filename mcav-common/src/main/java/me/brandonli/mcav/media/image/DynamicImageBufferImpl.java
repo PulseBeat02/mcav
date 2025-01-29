@@ -19,7 +19,6 @@ package me.brandonli.mcav.media.image;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.List;
 import me.brandonli.mcav.media.source.FileSource;
@@ -32,55 +31,26 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /**
- * Implementation of {@link DynamicImage} that uses FFmpeg to read GIF frames.
+ * Implementation of {@link DynamicImageBuffer} that uses FFmpeg to read GIF frames.
  * <p>
  * This class is not thread-safe.
  */
-public class DynamicImageImpl implements DynamicImage {
+public class DynamicImageBufferImpl implements DynamicImageBuffer {
 
-  // safety net for cleaning up Mat resources
-  private static final Cleaner MAT_CLEANER = Cleaner.create();
-
-  private static class DynamicImageResources implements Runnable {
-
-    private final List<StaticImage> frames;
-
-    DynamicImageResources(final List<StaticImage> frames) {
-      this.frames = frames;
-    }
-
-    @Override
-    public void run() {
-      if (this.frames != null) {
-        for (final StaticImage frame : this.frames) {
-          try {
-            frame.close();
-          } catch (final Exception ignored) {}
-        }
-      }
-    }
-  }
-
-  private final Cleaner.Cleanable cleanable;
-
-  @SuppressWarnings("all")
-  private final Object cleanerKey = new Object(); // checker
-
-  private final List<StaticImage> frames;
+  private final List<ImageBuffer> frames;
   private float frameRate;
   private int frameCount;
 
-  DynamicImageImpl(final FileSource source) throws IOException {
+  DynamicImageBufferImpl(final FileSource source) throws IOException {
     this.frames = new ArrayList<>();
     this.getGifFrames(this.frames, source);
-    this.cleanable = MAT_CLEANER.register(this.cleanerKey, new DynamicImageResources(this.frames));
   }
 
-  DynamicImageImpl(final UriSource source) throws IOException {
+  DynamicImageBufferImpl(final UriSource source) throws IOException {
     this(FileSource.path(IOUtils.downloadImage(source)));
   }
 
-  private void getGifFrames(@UnderInitialization DynamicImageImpl this, final List<StaticImage> frames, final FileSource source)
+  private void getGifFrames(@UnderInitialization DynamicImageBufferImpl this, final List<ImageBuffer> frames, final FileSource source)
     throws IOException {
     final String filePath = source.getResource();
     final FrameGrabber grabber = new FFmpegFrameGrabber(filePath);
@@ -90,7 +60,7 @@ public class DynamicImageImpl implements DynamicImage {
     Frame current;
     while ((current = grabber.grabFrame()) != null) {
       final BufferedImage image = converter.convert(current);
-      frames.add(StaticImage.image(image));
+      frames.add(ImageBuffer.image(image));
     }
     this.frameCount = frames.size();
     converter.close();
@@ -101,7 +71,7 @@ public class DynamicImageImpl implements DynamicImage {
    * {@inheritDoc}
    */
   @Override
-  public List<StaticImage> getFrames() {
+  public List<ImageBuffer> getFrames() {
     return this.frames;
   }
 
@@ -117,7 +87,7 @@ public class DynamicImageImpl implements DynamicImage {
    * {@inheritDoc}
    */
   @Override
-  public StaticImage getFrame(final int index) {
+  public ImageBuffer getFrame(final int index) {
     return this.frames.get(index);
   }
 
@@ -138,6 +108,7 @@ public class DynamicImageImpl implements DynamicImage {
    */
   @Override
   public void close() {
-    this.cleanable.clean();
+    this.frames.forEach(ImageBuffer::release);
+    this.frames.clear();
   }
 }

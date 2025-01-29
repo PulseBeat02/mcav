@@ -15,28 +15,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video;
+package me.brandonli.mcav.utils.examinable;
 
-import static org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+public class ExaminablePropertyImpl<T> implements ExaminableProperty<T> {
 
-public final class FrameRateFilter implements VideoFilter {
+  private final String name;
+  private final Class<T> type;
 
-  private long lastFrameTime = 0;
-
-  FrameRateFilter() {
-    // init
+  ExaminablePropertyImpl(final String name, final Class<T> type) {
+    this.name = name;
+    this.type = type;
   }
 
   @Override
-  public void applyFilter(final StaticImage samples, final VideoMetadata metadata) {
-    final long current = System.currentTimeMillis();
-    final long elapsed = current - this.lastFrameTime;
-    final int frameRate = Math.toIntExact(1000 / elapsed);
-    this.lastFrameTime = current;
-    final String text = "Frame Rate: " + frameRate + " FPS";
-    samples.drawText(text, 10, 20, FONT_HERSHEY_SIMPLEX, 0.25, new double[] { 0, 0, 0 }, 1);
+  public boolean equals(final @Nullable Object obj) {
+    if (obj instanceof final ExaminablePropertyImpl<?> other) {
+      return this.name.equals(other.name) && this.type.equals(other.type);
+    }
+    return false;
+  }
+
+  @Override
+  public String getName() {
+    return this.name;
+  }
+
+  @Override
+  public Class<T> getType() {
+    return this.type;
   }
 }

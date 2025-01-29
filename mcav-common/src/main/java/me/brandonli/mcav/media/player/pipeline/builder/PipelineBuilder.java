@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.builder;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
@@ -52,7 +52,7 @@ public interface PipelineBuilder {
    * @return a new instance of a video pipeline step builder for configuring and creating
    * a video processing pipeline.
    */
-  static AbstractPipelineStepBuilder<StaticImage, VideoMetadata, VideoFilter, VideoPipelineStep> video() {
+  static AbstractPipelineStepBuilder<ImageBuffer, VideoMetadata, VideoFilter, VideoPipelineStep> video() {
     return new VideoPipelineStepBuilderImpl();
   }
 }

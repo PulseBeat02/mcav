@@ -20,7 +20,7 @@ package me.brandonli.mcav.bukkit.media.image;
 import java.util.*;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
@@ -49,7 +49,7 @@ public class MapImage implements DisplayableImage {
    * {@inheritDoc}
    */
   @Override
-  public void displayImage(final StaticImage image) {
+  public void displayImage(final ImageBuffer image) {
     this.release();
     final byte[] rgb = this.algorithm.ditherIntoBytes(image);
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();

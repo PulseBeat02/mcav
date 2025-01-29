@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest;
 
 import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
@@ -62,7 +62,7 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
   }
 
   /**
-   * Converts the pixel data of the specified {@link StaticImage} into a byte array
+   * Converts the pixel data of the specified {@link ImageBuffer} into a byte array
    * representation using a nearest-color dithering algorithm.
    * <p>
    * Each pixel of the image is mapped to the closest matching color in the palette,
@@ -71,15 +71,15 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
    * This method processes the image data row by row, calculating the best matching
    * color for each pixel based on its RGB components and the provided palette.
    *
-   * @param image the {@link StaticImage} instance containing the pixel data to be processed
+   * @param image the {@link ImageBuffer} instance containing the pixel data to be processed
    * @return a byte array representing the dithered image, where each byte corresponds
    * to the closest matching color in the palette
    */
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image) {
+  public byte[] ditherIntoBytes(final ImageBuffer image) {
     final Palette palette = this.getPalette();
     final int width = image.getWidth();
-    final int[] buffer = image.getAllPixels();
+    final int[] buffer = image.getPixels();
     final int length = buffer.length;
     final int height = length / width;
     final ByteBuffer data = ByteBuffer.allocate(length);

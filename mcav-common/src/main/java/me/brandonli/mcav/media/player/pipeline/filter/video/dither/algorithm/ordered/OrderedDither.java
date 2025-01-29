@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.or
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Set;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
@@ -85,8 +85,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    * to a dithered pixel in the image.
    */
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image) {
-    final int[] buffer = image.getAllPixels();
+  public byte[] ditherIntoBytes(final ImageBuffer image) {
+    final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int length = buffer.length;
     final int height = length / width;

@@ -29,6 +29,8 @@ parts:
       - file: library/ffmpeg.md
       - file: library/extension.md
       - file: library/examples.md
+      - file: library/compile.md
+      - file: library/contribute.md
   - caption: Bukkit Integration 🧱
     chapters:
       - file: bukkit/bukkit.md

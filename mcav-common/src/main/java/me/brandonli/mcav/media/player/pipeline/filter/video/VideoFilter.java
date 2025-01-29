@@ -17,13 +17,13 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.Filter;
 
 /**
  * Represents a functional interface for applying transformations or filters
- * to video data, defined by {@link StaticImage} as the video frame data and
+ * to video data, defined by {@link ImageBuffer} as the video frame data and
  * {@link VideoMetadata} as associated metadata.
  * <p>
  * This interface extends {@code Filter<StaticImage, VideoMetadata>} and
@@ -45,51 +45,4 @@ import me.brandonli.mcav.media.player.pipeline.filter.Filter;
  * transformation logic.
  */
 @FunctionalInterface
-public interface VideoFilter extends Filter<StaticImage, VideoMetadata> {
-  /**
-   * A predefined video filter that inverts the colors of a video frame.
-   * <p>
-   * This filter processes the given video frame data, represented by {@link StaticImage},
-   * and applies an inversion of colors for each pixel. The resulting frame will appear
-   * as a photographic negative of the original.
-   * <p>
-   * The color inversion is achieved using the {@link StaticImage#invertColors()} method.
-   * <p>
-   * Implementation adheres to the {@link VideoFilter} interface, ensuring compatibility
-   * with video processing pipelines that utilize this interface for applying filters.
-   */
-  VideoFilter INVERT = (samples, metadata) -> samples.invertColors();
-
-  /**
-   * A predefined {@link VideoFilter} implementation that applies a transformation
-   * to convert a video frame to grayscale.
-   * <p>
-   * This filter leverages the {@code toGrayscale} method of the provided
-   * {@link StaticImage}. Implementers or users may adapt or refine the filter
-   * to ensure it performs accurate grayscale conversions if intended.
-   * <p>
-   * GRAYSCALE is part of the standard filter constants available in {@link VideoFilter}
-   * and can be applied directly to enhance or modify video frame data in
-   * processing pipelines.
-   */
-  VideoFilter GRAYSCALE = (samples, metadata) -> samples.toGrayscale();
-
-  /**
-   * A predefined {@link VideoFilter} implementation that overlays the frame rate
-   * value onto the video frames in real-time.
-   * <p>
-   * This filter calculates the frame rate based on the time elapsed
-   * between consecutive frames and displays the frame rate as text on
-   * the video frames. The text is rendered in a specific position
-   * with customizable font size and color.
-   * <p>
-   * FRAME_RATE is part of the standard filter constants provided by {@link VideoFilter},
-   * and it can be utilized in processing pipelines where monitoring or displaying
-   * the current frame rate is necessary.
-   * <p>
-   * The frame rate is computed using the system's current time and the time
-   * elapsed since the last frame was processed. This helps measure playback
-   * performance and diagnose issues in video rendering pipelines.
-   */
-  VideoFilter FRAME_RATE = new FrameRateFilter();
-}
+public interface VideoFilter extends Filter<ImageBuffer, VideoMetadata> {}

@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.builder;
 
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -34,7 +34,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
  * instance of {@code VideoPipelineStep} is returned upon invocation of the {@code build} method.
  */
 public final class VideoPipelineStepBuilderImpl
-  extends AbstractPipelineStepBuilder<StaticImage, VideoMetadata, VideoFilter, VideoPipelineStep> {
+  extends AbstractPipelineStepBuilder<ImageBuffer, VideoMetadata, VideoFilter, VideoPipelineStep> {
 
   VideoPipelineStepBuilderImpl() {}
 

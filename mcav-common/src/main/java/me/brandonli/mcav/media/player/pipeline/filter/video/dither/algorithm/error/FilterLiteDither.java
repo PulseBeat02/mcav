@@ -19,7 +19,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.er
 
 import java.nio.ByteBuffer;
 import java.util.Map;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
 import me.brandonli.mcav.utils.natives.NativeUtils;
@@ -179,7 +179,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
   public native byte[] ditherNatively(int[] buffer, int width, int[] colors, byte[] mapColors);
 
   @Override
-  public byte[] ditherIntoBytes(final StaticImage image) {
+  public byte[] ditherIntoBytes(final ImageBuffer image) {
     //    if (NATIVE_SUPPORTED) {
     //      final int[] colors = palette.getFullColorMap();
     //      final byte[] mapColors = palette.getColorMap();
@@ -187,7 +187,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     //      return this.ditherNatively(buffer, width, colors, mapColors);
     //    }
     final Palette palette = this.getPalette();
-    final int[] buffer = image.getAllPixels();
+    final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int height = image.getHeight();
     final int widthMinus = width - 1;

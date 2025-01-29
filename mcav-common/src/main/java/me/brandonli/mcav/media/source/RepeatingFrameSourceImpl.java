@@ -20,18 +20,18 @@ package me.brandonli.mcav.media.source;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import me.brandonli.mcav.media.image.DynamicImage;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.DynamicImageBuffer;
+import me.brandonli.mcav.media.image.ImageBuffer;
 
 /**
  * Implementation of the {@link RepeatingFrameSource} interface that repeats video frames
- * a specified number of times. This class acts as a wrapper for a given {@link DynamicImage},
+ * a specified number of times. This class acts as a wrapper for a given {@link DynamicImageBuffer},
  * transforming it into a repeated frame source.
  */
 public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
 
   private final int repeats;
-  private final List<StaticImage> images;
+  private final List<ImageBuffer> images;
   private final int width;
   private final int height;
 
@@ -39,10 +39,10 @@ public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
   private final AtomicInteger imageIndex;
   private final long sleepTimeMs;
 
-  RepeatingFrameSourceImpl(final DynamicImage source, final int repeats) {
+  RepeatingFrameSourceImpl(final DynamicImageBuffer source, final int repeats) {
     this.images = source.getFrames();
     Preconditions.checkArgument(!this.images.isEmpty());
-    final StaticImage firstImage = this.images.getFirst();
+    final ImageBuffer firstImage = this.images.getFirst();
     this.repeats = repeats;
     this.width = firstImage.getWidth();
     this.height = firstImage.getHeight();
@@ -82,8 +82,8 @@ public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
         return () -> new int[this.width * this.height];
       }
     }
-    final StaticImage image = this.images.get(index);
-    final int[] frameSamples = image.getAllPixels();
+    final ImageBuffer image = this.images.get(index);
+    final int[] frameSamples = image.getPixels();
     return () -> frameSamples;
   }
 

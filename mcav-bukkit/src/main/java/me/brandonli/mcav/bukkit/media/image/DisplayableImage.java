@@ -18,11 +18,11 @@
 package me.brandonli.mcav.bukkit.media.image;
 
 import me.brandonli.mcav.bukkit.media.config.*;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * Represents a DisplayableImage provider that can be used to display {@link StaticImage} images on command.
+ * Represents a DisplayableImage provider that can be used to display {@link ImageBuffer} images on command.
  */
 public interface DisplayableImage {
   /**
@@ -30,7 +30,7 @@ public interface DisplayableImage {
    *
    * @param image the image to display
    */
-  void displayImage(final StaticImage image);
+  void displayImage(final ImageBuffer image);
 
   /**
    * Releases any resources associated with this displayable image.

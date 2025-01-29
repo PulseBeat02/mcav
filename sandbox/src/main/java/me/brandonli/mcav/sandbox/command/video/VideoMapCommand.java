@@ -22,6 +22,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -81,7 +82,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final MapResult result = new MapResult(mapConfig);
     final DitherAlgorithm algorithm = config.ditheringAlgorithm().getAlgorithm();
     final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-    return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(ditherFilter).build();
+    return PipelineBuilder.video().then(new FPSFilter()).then(ditherFilter).build();
   }
 
   private MapConfigurationData constructMapConfiguration(

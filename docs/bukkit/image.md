@@ -20,7 +20,7 @@ dispose of any displays and clean up everything.
     .viewers(viewers)
     .build();
   final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-  final StaticImage image = null;
+  final ImageBuffer image = null;
   display.displayImage(image);
   // do some playback
   display.release();

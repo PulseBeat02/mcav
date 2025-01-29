@@ -32,7 +32,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -335,7 +335,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         final byte[] arr = buffer.array();
         final int width = frame.getWidth();
         final int height = frame.getHeight();
-        final StaticImage staticImage = StaticImage.bytes(arr, width, height);
+        final ImageBuffer staticImage = ImageBuffer.bytes(arr, width, height);
         VideoPipelineStep next = this.videoPipeline;
         while (next != null) {
           next.process(staticImage, (VideoMetadata) frame.getMetadata());

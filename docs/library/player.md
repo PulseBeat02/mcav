@@ -36,8 +36,8 @@ padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endi
 ```
 
 ```{warning}
-The StaticImage provided in a VideoPipelineStep is always released after the frame is processed. If you would like to
-store the frame, you must copy the frame to a new StaticImage object.
+The ImageBuffer provided in a VideoPipelineStep is always released after the frame is processed. If you would like to
+store the frame, you must copy the frame to a new ImageBuffer object.
 ```
 
 All multiplexer players support single input video and audio sources. For example, you're able to play a video file like
@@ -76,12 +76,12 @@ JFreeChart chart and displaying it.
   player.release();
 ```
 
-If you want to play a GIF image, you can use the `RepeatingFrameSource` which accepts any `DynamicImage`. You can pass
+If you want to play a GIF image, you can use the `RepeatingFrameSource` which accepts any `DynamicImageBuffer`. You can pass
 this into `ImagePlayer` directly.
 
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
-  final DynamicImage gif = DynamicImage.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
+  final DynamicImageBuffer gif = DynamicImageBuffer.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
   final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
   final ImagePlayer player = ImagePlayer.player();
   player.start(videoPipelineStep, frameSource);

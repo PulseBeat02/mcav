@@ -26,8 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -219,8 +220,9 @@ public final class SeleniumPlayer implements BrowserPlayer {
     }
 
     final VideoMetadata metadata = VideoMetadata.of(width, height);
-    final StaticImage staticImage = StaticImage.bytes(buffer);
-    staticImage.resize(width, height);
+    final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
+    final ResizeFilter resizeFilter = new ResizeFilter(width, height);
+    resizeFilter.applyFilter(staticImage, metadata);
 
     VideoPipelineStep current = this.videoPipeline;
     while (current != null) {

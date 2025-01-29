@@ -22,7 +22,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.bukkit.media.result.Characters;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 
 @SuppressWarnings("all")
 public class JavaDocFormattingExample {
@@ -36,7 +36,7 @@ public class JavaDocFormattingExample {
       .viewers(viewers)
       .build();
     final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-    final StaticImage image = null;
+    final ImageBuffer image = null;
     display.displayImage(image);
     // do some play back
     display.release();

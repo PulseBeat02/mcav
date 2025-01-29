@@ -23,7 +23,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.UriSource;
@@ -112,10 +112,10 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final DisplayableImage displayableImage = this.createImage(resolution, configProvider);
     this.manager.setImage(displayableImage);
-    final StaticImage image =
+    final ImageBuffer image =
       switch (source) {
-        case final FileSource fileSource -> StaticImage.path(fileSource);
-        case final UriSource uriSource -> StaticImage.uri(uriSource);
+        case final FileSource fileSource -> ImageBuffer.path(fileSource);
+        case final UriSource uriSource -> ImageBuffer.uri(uriSource);
         default -> throw new IllegalArgumentException("Unsupported source type");
       };
     this.manager.setCurrentImage(image);

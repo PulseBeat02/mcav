@@ -32,9 +32,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -150,8 +151,9 @@ public class VNCPlayerImpl implements VNCPlayer {
     final int width = videoMetadata.getVideoWidth();
     final int height = videoMetadata.getVideoHeight();
     try {
-      final StaticImage staticImage = StaticImage.image(bufferedImage);
-      staticImage.resize(width, height);
+      final ImageBuffer staticImage = ImageBuffer.image(bufferedImage);
+      final ResizeFilter resizeFilter = new ResizeFilter(width, height);
+      resizeFilter.applyFilter(staticImage, videoMetadata);
       VideoPipelineStep current = pipelineStep;
       while (current != null) {
         current.process(staticImage, videoMetadata);

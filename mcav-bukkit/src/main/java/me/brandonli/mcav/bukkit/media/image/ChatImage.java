@@ -22,7 +22,9 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
@@ -41,15 +43,16 @@ public class ChatImage implements DisplayableImage {
    * {@inheritDoc}
    */
   @Override
-  public void displayImage(final StaticImage data) {
+  public void displayImage(final ImageBuffer data) {
     this.release();
-    final int chatWdith = this.configuration.getChatWdith();
+    final int chatWidth = this.configuration.getChatWdith();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
     final Collection<UUID> viewers = this.configuration.getViewers();
-    data.resize(chatWdith, chatHeight);
-    final int[] resizedData = data.getAllPixels();
-    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWdith, chatHeight);
+    final ResizeFilter resize = new ResizeFilter(chatWidth, chatHeight);
+    resize.applyFilter(data, VideoMetadata.EMPTY);
+    final int[] resizedData = data.getPixels();
+    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);
   }

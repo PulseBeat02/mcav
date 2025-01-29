@@ -22,8 +22,9 @@ import java.util.HashSet;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -58,12 +59,13 @@ public class BlockResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
-    data.resize(blockWidth, blockHeight);
+    final ResizeFilter resize = new ResizeFilter(blockWidth, blockHeight);
+    resize.applyFilter(data, metadata);
 
-    final int[] resizedData = data.getAllPixels();
+    final int[] resizedData = data.getPixels();
     final int length = resizedData.length;
     this.dither.dither(resizedData, blockWidth);
 

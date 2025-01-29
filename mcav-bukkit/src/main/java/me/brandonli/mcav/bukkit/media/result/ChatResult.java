@@ -22,8 +22,9 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
@@ -49,13 +50,14 @@ public class ChatResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
+  public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
     final int chatWdith = this.configuration.getChatWdith();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
     final Collection<UUID> viewers = this.configuration.getViewers();
-    data.resize(chatWdith, chatHeight);
-    final int[] resizedData = data.getAllPixels();
+    final ResizeFilter resize = new ResizeFilter(chatWdith, chatHeight);
+    resize.applyFilter(data, metadata);
+    final int[] resizedData = data.getPixels();
     final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWdith, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);

@@ -34,9 +34,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -188,12 +189,13 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final int height,
     final int frameInterval
   ) {
+    final ResizeFilter resizeFilter = new ResizeFilter(width, height);
     while (this.running.get() && this.page != null) {
       final Page page = requireNonNull(this.page);
       final byte[] buffer = page.screenshot(screenshotOptions);
       final VideoMetadata metadata = VideoMetadata.of(width, height);
-      final StaticImage staticImage = StaticImage.bytes(buffer);
-      staticImage.resize(width, height);
+      final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
+      resizeFilter.applyFilter(staticImage, metadata);
       VideoPipelineStep current = videoPipeline;
       while (current != null) {
         current.process(staticImage, metadata);

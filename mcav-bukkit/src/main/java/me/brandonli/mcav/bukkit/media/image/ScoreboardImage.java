@@ -24,7 +24,9 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -77,7 +79,7 @@ public class ScoreboardImage implements DisplayableImage {
    * {@inheritDoc}
    */
   @Override
-  public void displayImage(final StaticImage data) {
+  public void displayImage(final ImageBuffer data) {
     this.release();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final Plugin plugin = BukkitModule.getPlugin();
@@ -85,7 +87,7 @@ public class ScoreboardImage implements DisplayableImage {
   }
 
   @SuppressWarnings("deprecation")
-  private void display0(final StaticImage data) {
+  private void display0(final ImageBuffer data) {
     final int lines = this.configuration.getLines();
     final Collection<UUID> viewers = this.configuration.getViewers();
     final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
@@ -114,8 +116,9 @@ public class ScoreboardImage implements DisplayableImage {
     }
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
-    data.resize(width, lines);
-    final int[] resizedData = data.getAllPixels();
+    final ResizeFilter resize = new ResizeFilter(width, lines);
+    resize.applyFilter(data, VideoMetadata.EMPTY);
+    final int[] resizedData = data.getPixels();
     for (int i = 0; i < lines; i++) {
       final Team team = this.teamLines[i];
       final String suffix = ChatUtils.createRawLine(resizedData, character, width, i);

@@ -27,7 +27,7 @@ import javax.swing.border.LineBorder;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -59,7 +59,7 @@ public final class BrowserInputExample {
     BufferedImage bufferedImage;
     ImageIcon icon;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(VideoFilter.FRAME_RATE)
+      .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 

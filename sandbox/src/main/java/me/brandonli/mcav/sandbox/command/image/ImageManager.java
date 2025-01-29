@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.Image;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.image.ImagePlayer;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,7 +74,7 @@ public final class ImageManager {
     return this.service;
   }
 
-  public void setCurrentImage(final @Nullable StaticImage currentImage) {
+  public void setCurrentImage(final @Nullable ImageBuffer currentImage) {
     this.currentImage = currentImage;
   }
 }

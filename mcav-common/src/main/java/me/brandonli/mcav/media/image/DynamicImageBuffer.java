@@ -29,13 +29,13 @@ import me.brandonli.mcav.media.source.UriSource;
  * This interface provides methods to retrieve the frames, frame rate, and the total number of frames
  * in the dynamic image.
  */
-public interface DynamicImage extends Image {
+public interface DynamicImageBuffer extends Image {
   /**
    * Retrieves the frames of the dynamic image.
    *
    * @return a list of static images representing the frames
    */
-  List<StaticImage> getFrames();
+  List<ImageBuffer> getFrames();
 
   /**
    * Retrieves the frame rate of the dynamic image.
@@ -50,7 +50,7 @@ public interface DynamicImage extends Image {
    * @param index the index of the frame to retrieve
    * @return the static image at the specified index
    */
-  StaticImage getFrame(int index);
+  ImageBuffer getFrame(int index);
 
   /**
    * Retrieves the total number of frames in the dynamic image.
@@ -60,24 +60,24 @@ public interface DynamicImage extends Image {
   int getFrameCount();
 
   /**
-   * Creates a new instance of {@link DynamicImage} from a {@link FileSource}.
+   * Creates a new instance of {@link DynamicImageBuffer} from a {@link FileSource}.
    *
    * @param source the file source to create the dynamic image from
-   * @return a new instance of {@link DynamicImage}
+   * @return a new instance of {@link DynamicImageBuffer}
    * @throws IOException if an I/O error occurs
    */
-  static DynamicImage path(final FileSource source) throws IOException {
-    return new DynamicImageImpl(source);
+  static DynamicImageBuffer path(final FileSource source) throws IOException {
+    return new DynamicImageBufferImpl(source);
   }
 
   /**
-   * Creates a new instance of {@link DynamicImage} from a {@link UriSource}.
+   * Creates a new instance of {@link DynamicImageBuffer} from a {@link UriSource}.
    *
    * @param source the URI source to create the dynamic image from
-   * @return a new instance of {@link DynamicImage}
+   * @return a new instance of {@link DynamicImageBuffer}
    * @throws IOException if an I/O error occurs
    */
-  static DynamicImage uri(final UriSource source) throws IOException {
-    return new DynamicImageImpl(source);
+  static DynamicImageBuffer uri(final UriSource source) throws IOException {
+    return new DynamicImageBufferImpl(source);
   }
 }

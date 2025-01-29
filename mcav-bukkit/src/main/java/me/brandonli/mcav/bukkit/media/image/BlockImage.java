@@ -22,7 +22,9 @@ import java.util.HashSet;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
-import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -50,7 +52,7 @@ public class BlockImage implements DisplayableImage {
    * {@inheritDoc}
    */
   @Override
-  public void displayImage(final StaticImage image) {
+  public void displayImage(final ImageBuffer image) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
     final Location origin = this.blockConfiguration.getPosition();
@@ -63,9 +65,11 @@ public class BlockImage implements DisplayableImage {
       final Location clone = origin.clone();
       this.locationCache[i] = clone.add(adjustedX, adjustedY, 0);
     }
-    image.resize(blockWidth, blockHeight);
 
-    final int[] resizedData = image.getAllPixels();
+    final ResizeFilter resizeFilter = new ResizeFilter(blockWidth, blockHeight);
+    resizeFilter.applyFilter(image, VideoMetadata.EMPTY);
+
+    final int[] resizedData = image.getPixels();
     final int length = resizedData.length;
     this.dither.dither(resizedData, blockWidth);
 
