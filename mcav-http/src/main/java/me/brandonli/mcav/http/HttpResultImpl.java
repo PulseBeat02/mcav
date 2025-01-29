@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
 import org.eclipse.jetty.websocket.api.Session;
@@ -61,6 +62,7 @@ public class HttpResultImpl implements HttpResult {
   private final int port;
   private final String html;
 
+  private URLParseDump current;
   private Javalin app;
 
   HttpResultImpl(final String domain, final int port) {
@@ -73,6 +75,7 @@ public class HttpResultImpl implements HttpResult {
     this.domain = domain;
     this.port = port;
     this.html = html.replace("%%PORT%%", portValue);
+    this.current = new URLParseDump();
   }
 
   /**
@@ -87,6 +90,7 @@ public class HttpResultImpl implements HttpResult {
         ws.onClose(this.wsClients::remove);
         ws.onError(this.wsClients::remove);
       });
+    this.app.get("/media", ctx -> ctx.json(this.current));
   }
 
   /**
@@ -132,6 +136,14 @@ public class HttpResultImpl implements HttpResult {
   @Override
   public String getFullUrl() {
     return String.format("http://%s:%s", this.domain, this.port);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setCurrentMedia(final URLParseDump dump) {
+    this.current = dump;
   }
 
   /**

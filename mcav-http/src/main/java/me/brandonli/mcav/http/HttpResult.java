@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.http;
 
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
 /**
@@ -49,6 +50,13 @@ public interface HttpResult extends AudioFilter {
    * @return the full URL to the web page
    */
   String getFullUrl();
+
+  /**
+   * Sets the current media information for serving.
+   *
+   * @param dump the URL parse dump containing information about the media
+   */
+  void setCurrentMedia(final URLParseDump dump);
 
   /**
    * Creates a new {@link HttpResult} instance with the default domain "localhost" and the specified port.

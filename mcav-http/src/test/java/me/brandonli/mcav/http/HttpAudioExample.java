@@ -50,8 +50,9 @@ public final class HttpAudioExample {
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(result);
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
     result.start();
+    result.setCurrentMedia(dump);
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
     multiplexer.setExceptionHandler((context, throwable) -> {
       System.err.println("Error occurred while processing media: " + context);
       throwable.printStackTrace();

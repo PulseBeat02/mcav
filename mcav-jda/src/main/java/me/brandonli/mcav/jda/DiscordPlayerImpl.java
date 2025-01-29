@@ -18,8 +18,13 @@
 package me.brandonli.mcav.jda;
 
 import java.nio.ByteBuffer;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.natives.ByteUtils;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.managers.Presence;
 
 /**
  * The concrete implementation of {@link DiscordPlayer}, which provides audio playback functionality for Discord
@@ -30,9 +35,11 @@ public class DiscordPlayerImpl implements DiscordPlayer {
   private static final int TWENTY_MS_SIZE = (48000 * 2 * 2 * 20) / 1000;
 
   private final ByteBuffer buffer;
+  private final JDA jda;
 
-  DiscordPlayerImpl() {
+  DiscordPlayerImpl(final JDA jda) {
     this.buffer = ByteBuffer.allocate(1024 * 1024);
+    this.jda = jda;
   }
 
   /**
@@ -72,5 +79,15 @@ public class DiscordPlayerImpl implements DiscordPlayer {
       this.buffer.clear();
       this.buffer.put(clamped);
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setCurrentMedia(final URLParseDump dump) {
+    final Presence presence = this.jda.getPresence();
+    presence.setStatus(OnlineStatus.ONLINE);
+    presence.setActivity(Activity.playing(dump.title));
   }
 }

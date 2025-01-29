@@ -81,7 +81,7 @@ public final class SingleCombinedInputExample {
     videoCallback.attach(videoPipelineStep);
 
     final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1920, 1080);
+    final me.brandonli.mcav.utils.immutable.Dimension dimension = new me.brandonli.mcav.utils.immutable.Dimension(1920, 1080);
     dimensionCallback.attach(dimension);
 
     Thread.getAllStackTraces()

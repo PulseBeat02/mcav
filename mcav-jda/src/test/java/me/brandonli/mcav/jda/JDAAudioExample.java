@@ -53,7 +53,7 @@ public final class JDAAudioExample {
     audioManager.openAudioConnection(voiceChannel);
 
     final Source source = FileSource.path(Path.of("C:\\rickroll.mp4"));
-    final DiscordPlayer player = DiscordPlayer.voice();
+    final DiscordPlayer player = DiscordPlayer.voice(jda);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(player);
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
     audioManager.setSendingHandler(player);

@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import me.brandonli.mcav.http.HttpResult;
 import me.brandonli.mcav.jda.DiscordPlayer;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
@@ -57,7 +58,7 @@ public final class AudioProvider {
       final Guild guild = requireNonNull(jda.getGuildById(guildId));
       this.channel = requireNonNull(guild.getVoiceChannelById(channelId));
       this.audioManager = guild.getAudioManager();
-      this.discord = DiscordPlayer.voice();
+      this.discord = DiscordPlayer.voice(jda);
       this.jda = jda;
     }
     if (this.config.isHttpEnabled()) {
@@ -100,19 +101,21 @@ public final class AudioProvider {
     }
   }
 
-  public AudioFilter constructFilter(final AudioArgument argument) {
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump) {
     return switch (argument) {
       case NONE -> NO_OP;
-      case DISCORD_BOT -> this.constructDiscordFilter();
-      case HTTP_SERVER -> this.constructHttpFilter();
+      case DISCORD_BOT -> this.constructDiscordFilter(dump);
+      case HTTP_SERVER -> this.constructHttpFilter(dump);
     };
   }
 
-  private AudioFilter constructHttpFilter() {
-    return requireNonNull(this.result);
+  private AudioFilter constructHttpFilter(final URLParseDump dump) {
+    final HttpResult http = requireNonNull(this.result);
+    http.setCurrentMedia(dump);
+    return http;
   }
 
-  private AudioFilter constructDiscordFilter() {
+  private AudioFilter constructDiscordFilter(final URLParseDump dump) {
     final VoiceChannel channel = this.channel;
     final DiscordPlayer discord = this.discord;
     final AudioManager audioManager = this.audioManager;
@@ -121,6 +124,7 @@ public final class AudioProvider {
     requireNonNull(discord);
     audioManager.openAudioConnection(channel);
     audioManager.setSendingHandler(discord);
+    discord.setCurrentMedia(dump);
     return discord;
   }
 

@@ -88,7 +88,7 @@ public final class MultiplexerInputExample {
     audioCallback.attach(audioPipelineStep);
 
     final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1800, 1000);
+    final me.brandonli.mcav.utils.immutable.Dimension dimension = new me.brandonli.mcav.utils.immutable.Dimension(1800, 1000);
     dimensionCallback.attach(dimension);
 
     multiplexer.start(videoFormat, audioFormat);

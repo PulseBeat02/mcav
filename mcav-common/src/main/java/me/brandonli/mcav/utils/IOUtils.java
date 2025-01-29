@@ -33,6 +33,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
@@ -51,6 +52,22 @@ public final class IOUtils {
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Extracts the file name from a given URL.
+   * The method parses the URL, retrieves its path, and extracts the file name from it.
+   *
+   * @param url the URL from which to extract the file name. Must not be null.
+   * @return the file name as a {@link String}. If the URL does not contain a valid file name,
+   *         it returns an empty string.
+   * @throws NullPointerException if the provided URL is null.
+   */
+  public static String getFileNameFromUrl(final String url) {
+    final URI uri = URI.create(url);
+    final String uriPath = uri.getPath();
+    final Path path = Paths.get(uriPath);
+    return getName(path);
   }
 
   /**

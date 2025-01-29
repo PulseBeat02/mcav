@@ -82,7 +82,7 @@ public class BlockResult implements FunctionalVideoFilter {
     final Collection<BlockState> blockStates = new HashSet<>();
     for (int i = 0; i < materials.length; i++) {
       final LocationData locationData = this.locationCache[i];
-      final Location location = locationData.location();
+      final Location location = locationData.getLocation();
       final BlockData blockData = materials[i].createBlockData();
       final BlockState blockState = blockData.createBlockState();
       final BlockState copy = blockState.copy(location);
@@ -128,7 +128,9 @@ public class BlockResult implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
-    final Collection<BlockState> blockStates = Arrays.stream(this.locationCache).map(LocationData::blockState).collect(Collectors.toList());
+    final Collection<BlockState> blockStates = Arrays.stream(this.locationCache)
+      .map(LocationData::getBlockState)
+      .collect(Collectors.toList());
     final Collection<UUID> viewers = this.blockConfiguration.getViewers();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);

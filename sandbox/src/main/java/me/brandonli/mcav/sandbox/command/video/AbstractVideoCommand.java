@@ -48,7 +48,9 @@ import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.SourceUtils;
+import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -209,8 +211,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final RetrievalResult source,
     final VideoConfigurationProvider configProvider
   ) {
+    final URLParseDump dump = source.dump;
     final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
-    final AudioFilter filter = this.provider.constructFilter(audioType);
+    final AudioFilter filter = this.provider.constructFilter(audioType, dump);
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
     final Source video = source.video;
     final Source audio = source.audio;
@@ -227,7 +230,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(width, height);
+    final Dimension dimension = new Dimension(width, height);
     dimensionCallback.attach(dimension);
 
     if (audio == null) {
@@ -249,7 +252,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         return;
       }
 
-      final URLParseDump dump = source.dump;
       if (dump == null) {
         return;
       }
@@ -269,9 +271,16 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     URLParseDump dump = null;
     final Integer deviceId = Ints.tryParse(mrl);
     if (SourceUtils.isPath(mrl)) {
-      video = FileSource.path(Path.of(mrl));
+      final Path path = Path.of(mrl);
+      video = FileSource.path(path);
+      dump = new URLParseDump();
+      dump.title = IOUtils.getName(path);
+      dump.description = "Video from File";
     } else if (deviceId != null) {
       video = DeviceSource.device(deviceId);
+      dump = new URLParseDump();
+      dump.title = "Device Input %s".formatted(deviceId);
+      dump.description = "Video from Device";
     } else if (SourceUtils.isUri(mrl)) {
       final UriSource uri = UriSource.uri(URI.create(mrl));
       if (!SourceUtils.isDirectVideoFile(mrl)) {
@@ -280,6 +289,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
       } else {
+        dump = new URLParseDump();
+        dump.title = IOUtils.getFileNameFromUrl(mrl);
+        dump.description = "Video from URL";
         video = uri;
       }
     } else if (argument == PlayerArgument.FFMPEG) {
@@ -287,13 +299,17 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String format = split[0];
       final String rawMrl = split[1];
       video = FFmpegDirectSource.mrl(rawMrl, format);
+      dump = new URLParseDump();
+      dump.title = rawMrl;
+      dump.description = "Custom format with format %s".formatted(format);
     } else {
+      dump = new URLParseDump();
       video = null;
     }
     return new RetrievalResult(video, audio, dump);
   }
 
-  private record RetrievalResult(@Nullable Source video, @Nullable Source audio, @Nullable URLParseDump dump) {}
+  private record RetrievalResult(@Nullable Source video, @Nullable Source audio, URLParseDump dump) {}
 
   private URLParseDump getUrlParseDump(final UriSource uri, final String[] arguments) {
     final YTDLPParser parser = YTDLPParser.simple();

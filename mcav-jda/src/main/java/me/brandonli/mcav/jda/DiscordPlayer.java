@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.jda;
 
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.audio.AudioReceiveHandler;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 
@@ -49,9 +51,17 @@ public interface DiscordPlayer extends AudioFilter, AudioSendHandler, AudioRecei
   /**
    * Creates a new instance of {@link DiscordPlayer}.
    *
+   * @param jda the JDA instance to use for audio playback
    * @return a new instance of {@link DiscordPlayer}
    */
-  static DiscordPlayer voice() {
-    return new DiscordPlayerImpl();
+  static DiscordPlayer voice(final JDA jda) {
+    return new DiscordPlayerImpl(jda);
   }
+
+  /**
+   * Sets the current media information for serving.
+   *
+   * @param dump the URL parse dump containing information about the media
+   */
+  void setCurrentMedia(final URLParseDump dump);
 }

@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.attachable;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.atomic.AtomicReference;
+import me.brandonli.mcav.utils.immutable.Dimension;
 
 /**
  * Implementation of {@link DimensionAttachableCallback}.

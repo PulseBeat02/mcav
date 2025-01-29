@@ -46,6 +46,7 @@ import me.brandonli.mcav.media.source.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.LockUtils;
+import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
@@ -365,9 +366,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     grabber.setAudioChannels(2);
 
     if (this.dimensionCallback.isAttached()) {
-      final DimensionAttachableCallback.Dimension dim = this.dimensionCallback.retrieve();
-      grabber.setImageWidth(dim.width());
-      grabber.setImageHeight(dim.height());
+      final Dimension dim = this.dimensionCallback.retrieve();
+      grabber.setImageWidth(dim.getWidth());
+      grabber.setImageHeight(dim.getHeight());
     }
 
     if (source instanceof final FFmpegDirectSource direct) {

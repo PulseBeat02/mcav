@@ -17,10 +17,12 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
+import me.brandonli.mcav.utils.immutable.Dimension;
+
 /**
  * Represents a callback for attaching a custom dimension to a media player.
  */
-public interface DimensionAttachableCallback extends AttachableCallback<DimensionAttachableCallback.Dimension> {
+public interface DimensionAttachableCallback extends AttachableCallback<Dimension> {
   /**
    * Creates a new instance of {@link DimensionAttachableCallback}.
    *
@@ -28,18 +30,5 @@ public interface DimensionAttachableCallback extends AttachableCallback<Dimensio
    */
   static DimensionAttachableCallback create() {
     return new DimensionAttachableCallbackImpl();
-  }
-
-  /**
-   * A record representing the width and height dimensions.
-   *
-   * @param width  the width dimension
-   * @param height the height dimension
-   */
-  record Dimension(int width, int height) {
-    /**
-     * A constant representing no dimension.
-     */
-    public static final Dimension NONE = new Dimension(0, 0);
   }
 }

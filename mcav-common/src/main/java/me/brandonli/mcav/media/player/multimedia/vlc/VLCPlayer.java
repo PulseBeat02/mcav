@@ -39,6 +39,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
+import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -259,9 +260,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private final RV32BufferFormat format;
 
     BufferCallback(final OriginalVideoMetadata metadata) {
-      final DimensionAttachableCallback.Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
+      final Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
       if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
-        this.format = new RV32BufferFormat(dimension.width(), dimension.height());
+        this.format = new RV32BufferFormat(dimension.getWidth(), dimension.getHeight());
         return;
       }
       this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
@@ -322,10 +323,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private final int height;
 
     VideoCallback(final VideoPipelineStep step, final OriginalVideoMetadata metadata) {
-      final DimensionAttachableCallback.Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
+      final Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
       if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
-        this.width = dimension.width();
-        this.height = dimension.height();
+        this.width = dimension.getWidth();
+        this.height = dimension.getHeight();
       } else {
         this.width = metadata.getVideoWidth();
         this.height = metadata.getVideoHeight();

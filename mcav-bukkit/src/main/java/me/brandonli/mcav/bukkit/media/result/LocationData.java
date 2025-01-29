@@ -22,9 +22,38 @@ import org.bukkit.block.BlockState;
 
 /**
  * Represents a data structure that holds a {@link Location} and its corresponding {@link BlockState}.
- * This is used to store location-related data in the Bukkit environment.
- *
- * @param location The Bukkit {@link Location} object representing the position in the world.
- * @param blockState The Bukkit {@link BlockState} object representing the state of the block at the given location.
  */
-public record LocationData(Location location, BlockState blockState) {}
+public final class LocationData {
+
+  private final Location location;
+  private final BlockState blockState;
+
+  /**
+   * Creates a new LocationData instance.
+   *
+   * @param location The Bukkit {@link Location} object representing the position in the world.
+   * @param blockState The Bukkit {@link BlockState} object representing the state of the block at the given location.
+   */
+  public LocationData(final Location location, final BlockState blockState) {
+    this.location = location;
+    this.blockState = blockState;
+  }
+
+  /**
+   * Gets the location.
+   *
+   * @return The Bukkit {@link Location} object.
+   */
+  public Location getLocation() {
+    return this.location;
+  }
+
+  /**
+   * Gets the block state.
+   *
+   * @return The Bukkit {@link BlockState} object.
+   */
+  public BlockState getBlockState() {
+    return this.blockState;
+  }
+}

@@ -24,7 +24,10 @@ import java.util.ArrayList;
  */
 public class URLParseDump {
 
-  URLParseDump() {
+  /**
+   * Default constructor for URLParseDump.
+   */
+  public URLParseDump() {
     // no-op
   }
 
