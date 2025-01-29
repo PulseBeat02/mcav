@@ -29,6 +29,7 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            position: relative;
         }
 
         .player-container {
@@ -100,18 +101,40 @@
         .media-details {
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .media-title-wrapper {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 8px;
+            width: 100%;
+            height: 28px;
         }
 
         .media-title {
             font-size: 20px;
             font-weight: 600;
-            margin: 0 0 8px;
+            margin: 0;
             color: var(--text-color);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+            line-height: 28px;
+        }
+
+        .media-title.scrolling {
+            animation: scrollText 30s linear infinite;
+        }
+
+        .media-title.scrolling:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes scrollText {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(-200px); }
+            100% { transform: translateX(0); }
         }
 
         .media-uploader {
@@ -120,12 +143,31 @@
             margin: 0 0 12px;
         }
 
+        .media-metadata {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .metadata-icon {
+            opacity: 0.7;
+        }
+
         .media-description {
             font-size: 13px;
             color: var(--text-secondary);
             line-height: 1.5;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -251,6 +293,40 @@
             border-radius: 50%;
             border-top-color: var(--primary-color);
             animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        .footer-links {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .footer-link {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .footer-link:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .footer-link svg {
+            width: 18px;
+            height: 18px;
         }
 
         @keyframes spin {
@@ -277,6 +353,15 @@
                 height: 100px;
                 min-width: 100px;
             }
+
+            .media-metadata {
+                justify-content: center;
+            }
+
+            .footer-links {
+                bottom: 10px;
+                right: 10px;
+            }
         }
     </style>
 </head>
@@ -291,8 +376,28 @@
             <span class="placeholder-icon">&#9834;</span>
         </div>
         <div class="media-details">
-            <h2 class="media-title" id="media-title">Waiting for stream...</h2>
+            <div class="media-title-wrapper">
+                <h2 class="media-title" id="media-title">Waiting for stream...</h2>
+            </div>
             <p class="media-uploader" id="media-uploader">Unknown Artist</p>
+            <div class="media-metadata" id="media-metadata">
+                <div class="metadata-item">
+                    <span class="metadata-icon">&#128337;</span>
+                    <span id="media-duration">--:--</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">&#128065;</span>
+                    <span id="media-views">0 views</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">&#128077;</span>
+                    <span id="media-likes">0 likes</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-icon">&#128197;</span>
+                    <span id="media-date">Unknown date</span>
+                </div>
+            </div>
             <p class="media-description" id="media-description">Connect to start streaming</p>
         </div>
     </div>
@@ -316,6 +421,20 @@
         <div id="status">Disconnected</div>
     </div>
 </div>
+
+<div class="footer-links">
+    <a href="https://github.com" target="_blank" class="footer-link" title="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+    </a>
+    <a href="#" class="footer-link" title="Documentation">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+        </svg>
+    </a>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"
         integrity="sha512-xi/RZRIF/S0hJ+yJJYuZ5yk6/8pCiRlEXZzoguSMl+vk2i3m6UjUO/WcZ11blRL/O+rnj94JRGwt/CHbc9+6EA=="
         crossorigin="anonymous"></script>
@@ -338,17 +457,58 @@
     const mediaInfo = document.getElementById('media-info');
     const mediaThumbnail = document.getElementById('media-thumbnail');
     const mediaTitle = document.getElementById('media-title');
+    const mediaTitleWrapper = document.querySelector('.media-title-wrapper');
     const mediaUploader = document.getElementById('media-uploader');
     const mediaDescription = document.getElementById('media-description');
+    const mediaDuration = document.getElementById('media-duration');
+    const mediaViews = document.getElementById('media-views');
+    const mediaLikes = document.getElementById('media-likes');
+    const mediaDate = document.getElementById('media-date');
 
     function resizeCanvas() {
         const rect = visualizerCanvas.parentElement.getBoundingClientRect();
         visualizerCanvas.width = rect.width;
         visualizerCanvas.height = rect.height;
+
+        if (mediaTitle.textContent && mediaTitle.textContent !== 'Waiting for stream...') {
+            checkTitleScrolling();
+        }
     }
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
+
+    function formatDuration(seconds) {
+        if (!seconds || seconds === 0) return '--:--';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function formatNumber(num) {
+        if (!num || num === 0) return '0';
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        }
+        if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'K';
+        }
+        return num.toString();
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'Unknown date';
+        try {
+            const date = new Date(dateString.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) {
+            return 'Unknown date';
+        }
+    }
 
     class PCMProcessor {
         constructor(options) {
@@ -592,15 +752,54 @@
         }
     }
 
+    function checkTitleScrolling() {
+
+        mediaTitle.style.display = 'inline-block';
+
+        const titleWidth = mediaTitle.scrollWidth;
+        const wrapperWidth = mediaTitleWrapper.clientWidth;
+
+        if (titleWidth > wrapperWidth && wrapperWidth > 0) {
+            const scrollDistance = titleWidth - wrapperWidth + 10;
+
+            let styleSheet = document.getElementById('title-scroll-animation');
+            if (!styleSheet) {
+                styleSheet = document.createElement('style');
+                styleSheet.id = 'title-scroll-animation';
+                document.head.appendChild(styleSheet);
+            }
+
+            styleSheet.innerHTML = `
+                @keyframes scrollText {
+                    0%, 15% { transform: translateX(0); }
+                    45%, 55% { transform: translateX(-${scrollDistance}px); }
+                    85%, 100% { transform: translateX(0); }
+                }
+            `;
+
+            mediaTitle.classList.add('scrolling');
+        } else {
+            mediaTitle.classList.remove('scrolling');
+        }
+    }
+
     function updateMediaInfo(data) {
         const title = data?.title || 'Unknown Title';
-        const uploader = data?.uploader || 'Unknown Artist';
+        const uploader = data?.uploader || data?.channel || data?.uploader_id || 'Unknown Artist';
         const description = data?.description || 'No description available';
         const thumbnail = data?.thumbnail;
+        const duration = data?.duration || 0;
+        const viewCount = data?.view_count || 0;
+        const likeCount = data?.like_count || 0;
+        const uploadDate = data?.upload_date || null;
 
         mediaTitle.textContent = title;
         mediaUploader.textContent = uploader;
         mediaDescription.textContent = description;
+        mediaDuration.textContent = formatDuration(duration);
+        mediaViews.textContent = formatNumber(viewCount) + ' views';
+        mediaLikes.textContent = formatNumber(likeCount) + ' likes';
+        mediaDate.textContent = formatDate(uploadDate);
 
         if (thumbnail) {
             const img = document.createElement('img');
@@ -618,6 +817,10 @@
         }
 
         mediaInfo.classList.add('loaded');
+
+        setTimeout(() => {
+            checkTitleScrolling();
+        }, 600);
     }
 
     function startMetadataRefresh() {
@@ -625,7 +828,9 @@
             clearInterval(metadataInterval);
         }
         fetchMediaInfo();
-        metadataInterval = setInterval(fetchMediaInfo, 5000);
+        metadataInterval = setInterval(() => {
+            fetchMediaInfo();
+        }, 5000);
     }
 
     function stopMetadataRefresh() {
@@ -678,7 +883,7 @@
 
         setTimeout(() => {
             try {
-                statusEl.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+                statusEl.innerHTML = '<span class="loading-spinner"></span>Connecting...';
 
                 pcmProcessor = new PCMProcessor({
                     encoding: '16bitInt',

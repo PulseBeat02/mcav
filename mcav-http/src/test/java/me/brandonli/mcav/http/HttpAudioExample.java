@@ -40,7 +40,7 @@ public final class HttpAudioExample {
     api.install();
 
     final HttpResult result = HttpResult.port(3000);
-    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8"));
+    final UriSource source = UriSource.uri(URI.create("https://youtu.be/bm0nLJuRNbw?si=lDVNuQ2wIXGMEdMI"));
     final YTDLPParser parser = YTDLPParser.simple();
     final URLParseDump dump = parser.parse(source);
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
