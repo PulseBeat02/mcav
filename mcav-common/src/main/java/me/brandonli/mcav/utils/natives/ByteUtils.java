@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.utils;
+package me.brandonli.mcav.utils.natives;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

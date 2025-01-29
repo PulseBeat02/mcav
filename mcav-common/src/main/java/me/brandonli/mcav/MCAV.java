@@ -29,9 +29,12 @@ import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.media.player.driver.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.multimedia.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.OSUtils;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
+import org.bytedeco.opencv.global.*;
 import org.bytedeco.opencv.opencv_java;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,14 +126,32 @@ public final class MCAV implements MCAVApi {
   private void loadModules() {
     final long start = System.currentTimeMillis();
     LOGGER.info("Loading JavaCV modules...");
-    final LibraryInjector injector = new LibraryInjector();
-    injector.load();
     FFmpegLogCallback.set();
     Loader.load(Loader.class);
-    Loader.load(opencv_java.class);
+    this.loadOpenCVModules();
     Loader.load(ffmpeg.class);
     final long end = System.currentTimeMillis();
     LOGGER.info("JavaCV modules loaded in {} ms", end - start);
+  }
+
+  private void loadOpenCVModules() {
+    final OS os = OSUtils.getOS();
+    if (os == OS.LINUX) {
+      // avoid loading headless libraries
+      System.setProperty("org.bytedeco.javacpp.loadlibraries", "false");
+      Loader.load(opencv_core.class);
+      Loader.load(opencv_imgproc.class);
+      Loader.load(opencv_imgcodecs.class);
+      Loader.load(opencv_videoio.class);
+      Loader.load(opencv_video.class);
+      Loader.load(opencv_calib3d.class);
+      Loader.load(opencv_features2d.class);
+      Loader.load(opencv_objdetect.class);
+      Loader.load(opencv_photo.class);
+      Loader.load(opencv_dnn.class);
+    } else {
+      Loader.load(opencv_java.class);
+    }
   }
 
   private void installQemu() {

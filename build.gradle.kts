@@ -22,10 +22,13 @@ subprojects {
     apply(plugin = "com.github.node-gradle.node")
     apply(plugin = "com.diffplug.spotless")
 
+    val targetJavaVersion = 21
     java {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-        toolchain.languageVersion.set(JavaLanguageVersion.of(11))
+        val javaVersion = JavaVersion.toVersion(targetJavaVersion)
+        val language = JavaLanguageVersion.of(targetJavaVersion)
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
+        toolchain.languageVersion.set(language)
     }
 
     tasks {
@@ -43,6 +46,7 @@ subprojects {
 
         withType<JavaCompile>().configureEach {
             val set = setOf("-parameters")
+            options.release.set(targetJavaVersion)
             options.compilerArgs.addAll(set)
             options.encoding = "UTF-8"
             options.isFork = true

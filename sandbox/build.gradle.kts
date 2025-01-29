@@ -33,19 +33,10 @@ configurations.compileOnly {
 
 version = "1.0.0-v1.21.5"
 
-val targetJavaVersion = 21
-java {
-    val javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    val language = JavaLanguageVersion.of(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    toolchain.languageVersion.set(language)
-}
-
 tasks.withType<AbstractRun>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
         vendor = JvmVendorSpec.JETBRAINS
-        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+        languageVersion = JavaLanguageVersion.of(21)
     })
     jvmArgs(
         "-Xmx3072m",
@@ -66,20 +57,6 @@ paperPluginYaml {
 }
 
 tasks {
-
-    withType<JavaCompile>().configureEach {
-        val set = setOf("-parameters")
-        options.compilerArgs.addAll(set)
-        options.encoding = "UTF-8"
-        options.release.set(targetJavaVersion)
-        options.isFork = true
-        options.forkOptions.memoryMaximumSize = "2g"
-    }
-
-    processResources {
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
-        filteringCharset = "UTF-8"
-    }
 
     shadowJar {
         archiveBaseName.set("mcav-sandbox")

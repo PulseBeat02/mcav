@@ -23,20 +23,7 @@ dependencies {
     testImplementation(project(":mcav-common"))
 }
 
-val targetJavaVersion = 21
-java {
-    val javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    val language = JavaLanguageVersion.of(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    toolchain.languageVersion.set(language)
-}
-
 tasks {
-
-    withType<JavaCompile>().configureEach {
-        options.release.set(targetJavaVersion)
-    }
 
     java {
         withSourcesJar()

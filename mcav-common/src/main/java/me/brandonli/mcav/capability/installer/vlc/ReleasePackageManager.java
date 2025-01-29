@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.capability.installer.vlc.github;
+package me.brandonli.mcav.capability.installer.vlc;
 
 import static java.util.Objects.requireNonNull;
 
@@ -67,25 +67,22 @@ public final class ReleasePackageManager {
   }
 
   private static Download[] getDownloads() {
-    final ReleasePackage releasePackage = download(true);
-    final ReleasePackage other = download(false);
+    final String releasePackage = download(true);
+    final String other = download(false);
     if (releasePackage == null || other == null) {
       return new Download[0];
     }
-    final Download linux64 = new Download(
-      Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64),
-      releasePackage.getUrl(),
-      releasePackage.getHash()
-    );
-    final Download linux32 = new Download(Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_32), other.getUrl(), other.getHash());
+    final Download linux64 = new Download(Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64), releasePackage, null);
+    final Download linux32 = new Download(Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_32), other, null);
     return new Download[] { linux64, linux32 };
   }
 
-  private static @Nullable ReleasePackage download(final boolean continuous) {
+  private static @Nullable String download(final boolean continuous) {
     final JsonArray assets = getJsonAssets(continuous);
     if (assets == null) {
       return null;
     }
+
     String downloadUrl = "";
     final int size = assets.size();
     for (int i = 0; i < size; i++) {
@@ -103,14 +100,12 @@ public final class ReleasePackageManager {
       return null;
     }
 
-    final String hash = IOUtils.getSHA256Hash(downloadUrl);
-    return new ReleasePackage(downloadUrl, hash);
+    return downloadUrl;
   }
 
   private static JsonArray getJsonAssets(final boolean continuous) {
-    try {
+    try (final HttpClient client = HttpClient.newHttpClient()) {
       final String apiUrl = continuous ? RELEASE_X86_64_URL : RELEASE_X86_32_URL;
-      final HttpClient client = HttpClient.newHttpClient();
       final URI uri = URI.create(apiUrl);
       final HttpRequest request = HttpRequest.newBuilder().uri(uri).GET().build();
       final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();

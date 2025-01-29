@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.utils;
+package me.brandonli.mcav.utils.natives;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import me.brandonli.mcav.utils.IOUtils;
 
 /**
  * Utility class for loading native libraries from JAR resources.

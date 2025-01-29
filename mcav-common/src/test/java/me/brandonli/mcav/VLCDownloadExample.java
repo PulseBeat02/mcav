@@ -18,7 +18,7 @@
 package me.brandonli.mcav;
 
 import me.brandonli.mcav.capability.installer.Download;
-import me.brandonli.mcav.capability.installer.vlc.github.ReleasePackageManager;
+import me.brandonli.mcav.capability.installer.vlc.ReleasePackageManager;
 import me.brandonli.mcav.utils.os.Platform;
 
 public final class VLCDownloadExample {

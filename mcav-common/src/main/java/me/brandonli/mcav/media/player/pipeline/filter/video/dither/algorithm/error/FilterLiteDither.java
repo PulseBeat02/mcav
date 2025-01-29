@@ -22,7 +22,7 @@ import java.util.Map;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
-import me.brandonli.mcav.utils.NativeUtils;
+import me.brandonli.mcav.utils.natives.NativeUtils;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;

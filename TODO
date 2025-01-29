@@ -1,7 +1,5 @@
 Development Milestones
   - Build QEMU Statically for All Platforms
-  - Fix Linux Library Issues
-
   - Add Interaction Support for Virtual Machine
   - Add Interaction Support for Browser
   - Add Images and GIF Support into Plugin

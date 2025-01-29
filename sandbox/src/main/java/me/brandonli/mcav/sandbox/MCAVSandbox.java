@@ -96,7 +96,9 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private void unloadListeners() {
-    this.listener.shutdown();
+    if (this.listener != null) {
+      this.listener.shutdown();
+    }
   }
 
   private void loadListeners() {

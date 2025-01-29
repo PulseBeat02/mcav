@@ -1,7 +1,11 @@
-## Minecraft Platform Module
+## Bukkit Platform Module
 
-The Minecraft platform module is an external module that provides Minecraft-specific playback for
+The Bukkit platform module is an external module that provides Minecraft-specific playback for
 players. There are several useful utilities to output video to maps, entities, scoreboards, and chat in this module.
+
+```{note}
+The Bukkit module only supports the latest version of Minecraft.
+```
 
 If you would like access to the Bukkit platform module, add the following dependency to the project instead of the
 `mcav-common` dependency:

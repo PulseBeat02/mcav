@@ -27,8 +27,8 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.utils.ByteUtils;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.natives.ByteUtils;
 
 public class HttpResultImpl implements HttpResult {
 

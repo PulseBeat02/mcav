@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.utils;
+package me.brandonli.mcav.utils.natives;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -35,7 +35,7 @@ public class NativeLoadingException extends AssertionError {
     super(msg);
   }
 
-  NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
+  public NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
     super(msg, cause);
   }
 }

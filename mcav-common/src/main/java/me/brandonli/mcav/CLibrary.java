@@ -15,23 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.capability.installer.vlc.github;
+package me.brandonli.mcav;
 
-public final class ReleasePackage {
+import com.sun.jna.Library;
+import com.sun.jna.Native;
 
-  private final String url;
-  private final String hash;
+public interface CLibrary extends Library {
+  CLibrary INSTANCE = Native.load("c", CLibrary.class);
 
-  ReleasePackage(final String url, final String hash) {
-    this.url = url;
-    this.hash = hash;
-  }
-
-  public String getUrl() {
-    return this.url;
-  }
-
-  public String getHash() {
-    return this.hash;
-  }
+  int setenv(String name, String value, int overwrite);
 }

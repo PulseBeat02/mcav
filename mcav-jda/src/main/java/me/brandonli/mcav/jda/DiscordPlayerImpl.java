@@ -19,7 +19,7 @@ package me.brandonli.mcav.jda;
 
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
-import me.brandonli.mcav.utils.ByteUtils;
+import me.brandonli.mcav.utils.natives.ByteUtils;
 
 /**
  * A class that implements the {@code DiscordFilter} interface, responsible for processing and filtering

@@ -18,7 +18,7 @@ parts:
       - file: image.md
       - file: ffmpeg.md
       - file: examples.md
-  - caption: MCAV Minecraft Module 🧱
+  - caption: MCAV Bukkit Module 🧱
     chapters:
       - file: minecraft.md
       - file: resourcepack.md

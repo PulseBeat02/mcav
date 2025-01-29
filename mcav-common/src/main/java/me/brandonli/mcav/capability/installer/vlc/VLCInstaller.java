@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.Download;
-import me.brandonli.mcav.capability.installer.vlc.github.ReleasePackageManager;
 import me.brandonli.mcav.capability.installer.vlc.installation.InstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.LinuxInstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.OSXInstallationStrategy;
