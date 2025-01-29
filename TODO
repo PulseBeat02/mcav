@@ -1,6 +1,10 @@
 Things to implement into plugin
   - Images and GIFs into Plugin
+
   - Add Resource Pack Audio Support
   - Add Discord Audio Support
   - Add HTTP Website / Website Injector Audio Support
+  - Fix Screen Building GUI (first-click not registering)
+  - Fix Dump Command
+
   - Update video showcase in the README

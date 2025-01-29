@@ -17,181 +17,79 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import static java.util.Objects.requireNonNull;
-
-import com.google.common.primitives.Ints;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
-import me.brandonli.mcav.json.ytdlp.YTDLPParser;
-import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
-import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
-import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.*;
-import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
-import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
-import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.platform.bukkit.BukkitAudiences;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
-import org.incendo.cloud.annotations.*;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Permission;
+import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
-public final class VideoMapCommand implements AnnotationCommandFeature {
-
-  private VideoPlayerManager manager;
-
-  @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    this.manager = plugin.getVideoPlayerManager();
-  }
+public final class VideoMapCommand extends AbstractVideoCommand {
 
   @Command("mcav video map <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
   public void playMapVideo(
     final CommandSender player,
+    final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
+    final AudioArgument audioType,
     @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Greedy final String mrl
   ) {
-    final BukkitAudiences audiences = this.manager.getAudiences();
-    final AtomicBoolean initializing = this.manager.getStatus();
-    final Audience audience = audiences.sender(player);
-    final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {
-      resolution = ArgumentUtils.parseDimensions(videoResolution);
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
-      audience.sendMessage(Message.DIMENSION_ERROR.build());
+      this.manager.getAudiences().sender(player).sendMessage(Message.UNSUPPORTED_DIMENSION.build());
       return;
     }
-
-    if (playerType == PlayerArgument.VLC && !this.manager.isVLCSupported()) {
-      audience.sendMessage(Message.VIDEO_PLAYER_UNSUPPORTED.build());
-      return;
-    }
-
-    if (initializing.get()) {
-      audience.sendMessage(Message.VIDEO_LOADING_ERROR.build());
-      return;
-    }
-
-    initializing.set(true);
-
-    audience.sendMessage(Message.VIDEO_LOADING.build());
-
-    final ExecutorService service = this.manager.getService();
-    CompletableFuture.runAsync(
-      () -> this.synchronizeMapPlayer(playerType, mapId, ditheringAlgorithm, mrl, audience, dimensions, resolution),
-      service
-    )
-      .exceptionally(this.handleException())
-      .thenRun(() -> initializing.set(false))
-      .thenRun(() -> audience.sendMessage(Message.VIDEO_STARTED.build()));
+    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
+    final VideoConfigurationProvider configProvider = resolution ->
+      this.constructMapConfiguration(mapId, dimensions, resolution, players, ditheringAlgorithm);
+    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl);
   }
 
-  private @NonNull Function<Throwable, Void> handleException() {
-    final AtomicBoolean initializing = this.manager.getStatus();
-    return e -> {
-      initializing.set(false);
-      throw new AssertionError(e);
-    };
-  }
-
-  private synchronized void synchronizeMapPlayer(
-    final PlayerArgument playerType,
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
-    final String mrl,
-    final Audience audience,
-    final Pair<Integer, Integer> dimensions,
-    final Pair<Integer, Integer> resolution
-  ) {
-    @Nullable
-    final Source[] sources = this.retrievePair(mrl, playerType);
-    if (sources == null) {
-      audience.sendMessage(Message.MRL_ERROR.build());
-      return;
-    }
-    this.manager.releaseVideoPlayer();
-    this.startMapPlayer(playerType, mapId, ditheringAlgorithm, dimensions, resolution, sources);
-  }
-
-  private void startMapPlayer(
-    final PlayerArgument playerType,
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
-    final Pair<Integer, Integer> dimensions,
-    final Pair<Integer, Integer> resolution,
-    final @Nullable Source[] sources
-  ) {
-    final VideoPipelineStep videoPipelineStep = this.createMapVideoFilter(mapId, ditheringAlgorithm, dimensions, resolution);
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
-    final Source video = sources[0];
-    final Source audio = sources[1];
-    final VideoPlayerMultiplexer player = playerType.createPlayer();
-    this.manager.setPlayer(player);
-    requireNonNull(video);
-    if (audio == null) {
-      player.start(audioPipelineStep, videoPipelineStep, video);
-    } else {
-      requireNonNull(audio);
-      player.start(audioPipelineStep, videoPipelineStep, video, audio);
-    }
-  }
-
-  private VideoPipelineStep createMapVideoFilter(
-    final int mapId,
-    final DitheringArgument ditheringAlgorithm,
-    final Pair<Integer, Integer> dimensions,
-    final Pair<Integer, Integer> resolution
-  ) {
-    final Collection<UUID> players = this.getAllViewers();
-    final MapConfiguration configuration = this.constructMapConfiguration(mapId, dimensions, resolution, players);
-    final MapResult result = new MapResult(configuration);
-    final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
+  @Override
+  public VideoPipelineStep createVideoFilter(final Pair<Integer, Integer> resolution, final VideoConfigurationProvider configProvider) {
+    final MapConfigurationData config = (MapConfigurationData) configProvider.buildConfiguration(resolution);
+    final MapConfiguration mapConfig = config.mapConfiguration();
+    final MapResult result = new MapResult(mapConfig);
+    final DitherAlgorithm algorithm = config.ditheringAlgorithm().getAlgorithm();
     final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
     return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(ditherFilter).build();
   }
 
-  private MapConfiguration constructMapConfiguration(
+  private MapConfigurationData constructMapConfiguration(
     final int mapId,
     final Pair<@NonNull Integer, @NonNull Integer> dimensions,
     final Pair<@NonNull Integer, @NonNull Integer> resolution,
-    final Collection<UUID> players
+    final Collection<UUID> players,
+    final DitheringArgument ditheringAlgorithm
   ) {
-    return MapConfiguration.builder()
+    final MapConfiguration config = MapConfiguration.builder()
       .map(mapId)
       .mapBlockWidth(dimensions.getFirst())
       .mapBlockHeight(dimensions.getSecond())
@@ -199,48 +97,8 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
       .mapHeightResolution(resolution.getSecond())
       .viewers(players)
       .build();
+    return new MapConfigurationData(config, ditheringAlgorithm);
   }
 
-  private Collection<UUID> getAllViewers() {
-    final Collection<? extends Player> online = Bukkit.getOnlinePlayers();
-    return online.stream().map(Player::getUniqueId).toList();
-  }
-
-  private @Nullable Source@Nullable[] retrievePair(final String mrl, final PlayerArgument argument) {
-    final Source video;
-    Source audio = null;
-    final Integer deviceId = Ints.tryParse(mrl);
-    if (SourceUtils.isPath(mrl)) {
-      video = FileSource.path(Path.of(mrl));
-    } else if (deviceId != null) {
-      video = DeviceSource.device(deviceId);
-    } else if (SourceUtils.isUri(mrl)) {
-      final UriSource uri = UriSource.uri(URI.create(mrl));
-      if (!SourceUtils.isDirectVideoFile(mrl)) {
-        final URLParseDump dump = this.getUrlParseDump(uri);
-        final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
-        video = selector.getVideoSource(dump).toUriSource();
-        audio = selector.getAudioSource(dump).toUriSource();
-      } else {
-        video = uri;
-      }
-    } else if (argument == PlayerArgument.FFMPEG) {
-      final String[] split = mrl.split(":");
-      final String format = split[0];
-      final String rawMrl = split[1];
-      video = FFmpegDirectSource.mrl(rawMrl, format);
-    } else {
-      video = null;
-    }
-    return new Source[] { video, audio };
-  }
-
-  private URLParseDump getUrlParseDump(final UriSource uri) {
-    final YTDLPParser parser = YTDLPParser.simple();
-    try {
-      return parser.parse(uri);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
-  }
+  private record MapConfigurationData(MapConfiguration mapConfiguration, DitheringArgument ditheringAlgorithm) {}
 }

@@ -20,18 +20,22 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
-  NullComponent<Sender> VIDEO_PLAYER_UNSUPPORTED = direct("mcav.command.player.unsupported");
-  NullComponent<Sender> VIDEO_RELEASED_START = direct("mcav.command.video.release.start");
-  NullComponent<Sender> VIDEO_LOADING_ERROR = direct("mcav.command.video.load.error");
-  NullComponent<Sender> VIDEO_RELEASED = direct("mcav.command.video.release");
-  NullComponent<Sender> VIDEO_PAUSED = direct("mcav.command.video.pause");
-  NullComponent<Sender> VIDEO_STARTED = direct("mcav.command.video.start");
-  NullComponent<Sender> VIDEO_LOADING = direct("mcav.command.video.info");
-  NullComponent<Sender> BROWSER_RELEASED = direct("mcav.command.browser.release");
-  NullComponent<Sender> BROWSER_STARTED = direct("mcav.command.browser.start");
-  NullComponent<Sender> MRL_ERROR = direct("mcav.command.mrl.error");
-  NullComponent<Sender> URL_ERROR = direct("mcav.command.url.error");
-  NullComponent<Sender> DIMENSION_ERROR = direct("mcav.command.dimension.error");
+  UniComponent<Sender, String> AUDIO_HTTP = direct("mcav.command.audio.http", null);
+  UniComponent<Sender, String> AUDIO_DISCORD = direct("mcav.command.audio.discord", null);
+  NullComponent<Sender> RESUME_PLAYER = direct("mcav.command.video.resume");
+  NullComponent<Sender> UNSUPPORTED_AUDIO = direct("mcav.command.audio.unsupported");
+  NullComponent<Sender> UNSUPPORTED_PLAYER = direct("mcav.command.player.unsupported");
+  NullComponent<Sender> RELEASE_PLAYER_START = direct("mcav.command.video.release.start");
+  NullComponent<Sender> PLAYER_ERROR = direct("mcav.command.video.load.error");
+  NullComponent<Sender> RELEASE_PLAYER = direct("mcav.command.video.release");
+  NullComponent<Sender> PAUSE_PLAYER = direct("mcav.command.video.pause");
+  NullComponent<Sender> START_VIDEO = direct("mcav.command.video.start");
+  NullComponent<Sender> LOAD_VIDEO = direct("mcav.command.video.info");
+  NullComponent<Sender> RELEASE_BROWSER = direct("mcav.command.browser.release");
+  NullComponent<Sender> START_BROWSER = direct("mcav.command.browser.start");
+  NullComponent<Sender> UNSUPPORTED_MRL = direct("mcav.command.mrl.error");
+  NullComponent<Sender> UNSUPPORTED_URL = direct("mcav.command.url.error");
+  NullComponent<Sender> UNSUPPORTED_DIMENSION = direct("mcav.command.dimension.error");
   UniComponent<Sender, String> SEND_DUMP = direct("mcav.command.dump.result", null);
-  NullComponent<Sender> LOAD_DUMP = direct("mcav.command.dump.load");
+  NullComponent<Sender> CREATE_DUMP = direct("mcav.command.dump.load");
 }

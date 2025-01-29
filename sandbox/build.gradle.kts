@@ -15,6 +15,8 @@ dependencies {
     // mcav
     implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
     implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
     compileOnly("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
 
     // plugin dependencies
@@ -30,6 +32,8 @@ dependencies {
     compileOnly("net.kyori:adventure-text-minimessage:4.21.0")
     compileOnly("net.kyori:adventure-text-serializer-legacy:4.21.0")
     compileOnly("net.kyori:adventure-text-serializer-plain:4.21.0")
+    compileOnly("net.dv8tion:JDA:5.5.1")
+    compileOnly("io.javalin:javalin:6.6.0")
 }
 
 version = "1.0.0-v1.21.5"

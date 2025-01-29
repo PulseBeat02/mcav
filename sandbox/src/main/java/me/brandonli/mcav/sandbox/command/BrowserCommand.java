@@ -72,7 +72,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
         throw new AssertionError(e);
       }
     }
-    audience.sendMessage(Message.BROWSER_RELEASED.build());
+    audience.sendMessage(Message.RELEASE_BROWSER.build());
   }
 
   @Command("mcav browser create <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
@@ -93,7 +93,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       resolution = ArgumentUtils.parseDimensions(browserResolution);
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
-      audience.sendMessage(Message.DIMENSION_ERROR.build());
+      audience.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
       return;
     }
 
@@ -105,7 +105,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       failed = true;
     }
     if (failed) {
-      audience.sendMessage(Message.URL_ERROR.build());
+      audience.sendMessage(Message.UNSUPPORTED_URL.build());
       return;
     }
     requireNonNull(uri);
@@ -144,6 +144,6 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       throw new AssertionError(e);
     }
 
-    audience.sendMessage(Message.BROWSER_STARTED.build());
+    audience.sendMessage(Message.START_BROWSER.build());
   }
 }

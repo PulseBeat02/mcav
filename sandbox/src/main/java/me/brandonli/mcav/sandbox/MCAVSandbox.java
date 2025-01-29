@@ -25,6 +25,7 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.MCAVBukkit;
 import me.brandonli.mcav.installer.Artifact;
 import me.brandonli.mcav.installer.MCAVInstaller;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
@@ -38,6 +39,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private Logger logger;
 
   private MCAVApi mcav;
+  private AudioProvider audioProvider;
   private VideoPlayerManager videoPlayerManager;
   private PluginDataConfigurationMapper configurationMapper;
 
@@ -65,6 +67,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadManager() {
     this.videoPlayerManager = new VideoPlayerManager(this);
+    this.audioProvider = new AudioProvider(this);
   }
 
   private void loadMCAV() {
@@ -85,6 +88,8 @@ public final class MCAVSandbox extends JavaPlugin {
     final Path libs = folder.resolve("libs");
     final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
     installer.loadMCAVDependencies(Artifact.COMMON);
+    installer.loadMCAVDependencies(Artifact.HTTP);
+    installer.loadMCAVDependencies(Artifact.JDA);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }
@@ -114,10 +119,19 @@ public final class MCAVSandbox extends JavaPlugin {
 
   @Override
   public void onDisable() {
-    this.savePluginData();
     this.shutdownLookupTables();
+    this.saveData();
     this.unloadMCAV();
     this.shutdownAudience();
+  }
+
+  private void saveData() {
+    if (this.configurationMapper != null) {
+      this.configurationMapper.shutdown();
+    }
+    if (this.audioProvider != null) {
+      this.audioProvider.shutdown();
+    }
   }
 
   private void loadCommands() {
@@ -143,12 +157,6 @@ public final class MCAVSandbox extends JavaPlugin {
     this.logger.info("Lookup Tables initialized in " + (endTime - startTime) + "ms");
   }
 
-  private void savePluginData() {
-    if (this.configurationMapper != null) {
-      this.configurationMapper.serialize();
-    }
-  }
-
   public MCAVApi getMCAV() {
     return this.mcav;
   }
@@ -163,5 +171,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
   public VideoPlayerManager getVideoPlayerManager() {
     return this.videoPlayerManager;
+  }
+
+  public AudioProvider getAudioProvider() {
+    return this.audioProvider;
   }
 }

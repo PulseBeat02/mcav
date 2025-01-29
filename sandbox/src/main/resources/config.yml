@@ -1,31 +1,51 @@
 # MCAV Configuration File
 
+# ======================================================================
+# MCAV LOCALIZATION
+# ======================================================================
+
 # Sets the language for the plugin
-# Valid options are:
+# Valid options are: EN_US
 # Default is EN_US
 language: EN_US
 
-# Sets the method to host the pack that is used by the plugin
-# Valid options are LOCALLY_HOSTED_DAEMON and MC_PACK_HOSTING
-# Default is MC_PACK_HOSTING
+# ======================================================================
+# DISCORD BOT CONFIGURATION
+# ======================================================================
 
-# LOCALLY_HOSTED_DAEMON will start a local daemon that will host the pack using the below options.
-# This option requires port-forwarding to work properly.
+# This is the Discord bot that plays audio in the background in a voice channel using the following
+# credentials.
+discord-bot:
 
-# MC_PACK_HOSTING will upload the pack on https://mc-packs.net/ and cache the pack link
-# This option doesn't require port-forwarding, but may be limited by web requests. There has
-# been issues with this option in the past, so it is not recommended.
-pack-provider: MC_PACK_HOSTING
+  # Whether or not the bot is enabled
+  enabled: false
 
-# If using LOCALLY_HOSTED_DAEMON, the below options will be used
-server:
+  # The token of the discord bot
+  # Default is null
+  token: null
 
-  # The host name of the daemon (for example: google.com)
+  # The server id of the guild (server) to play audio in
+  # Default is null
+  guild-id: null
+
+  # The channel id of the voice channel to send audio to
+  # Default is null
+  channel-id: null
+
+# ======================================================================
+# HTTP WEBSITE CONFIGURATION
+# ======================================================================
+
+# This is the HTTP server that plays audio into onto a website using the following options.
+http-server:
+
+  # Whether or not the HTTP server is enabled
+  enabled: false
+
+  # The host name of the daemon (for example, google.com)
   # Default is localhost
   host-name: localhost
 
-  # The port of the daemon (for example, 7270)
-  # Default is 7270
-  port: 7270
-
-  # With this configuration, the final pack link will be: http://localhost:7270/
+  # The port of the daemon (for example, 3000)
+  # Default is 3000
+  port: 3000

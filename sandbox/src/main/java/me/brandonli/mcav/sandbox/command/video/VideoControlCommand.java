@@ -41,14 +41,27 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   }
 
   @Command("mcav video release")
+  @Permission("mcav.command.video.resume")
+  @CommandDescription("mcav.command.video.resume.info")
+  public void resumeVideo(final CommandSender player) {
+    final BukkitAudiences audiences = this.manager.getAudiences();
+    final Audience audience = audiences.sender(player);
+    final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();
+    if (videoPlayer != null) {
+      videoPlayer.resume();
+    }
+    audience.sendMessage(Message.RESUME_PLAYER.build());
+  }
+
+  @Command("mcav video release")
   @Permission("mcav.command.video.release")
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender player) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final Audience audience = audiences.sender(player);
     final ExecutorService service = this.manager.getService();
-    audience.sendMessage(Message.VIDEO_RELEASED_START.build());
-    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> audience.sendMessage(Message.VIDEO_RELEASED.build())
+    audience.sendMessage(Message.RELEASE_PLAYER_START.build());
+    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> audience.sendMessage(Message.RELEASE_PLAYER.build())
     );
   }
 
@@ -62,6 +75,6 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     if (videoPlayer != null) {
       videoPlayer.pause();
     }
-    audience.sendMessage(Message.VIDEO_PAUSED.build());
+    audience.sendMessage(Message.PAUSE_PLAYER.build());
   }
 }

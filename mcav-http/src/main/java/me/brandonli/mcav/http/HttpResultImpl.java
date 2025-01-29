@@ -108,6 +108,14 @@ public class HttpResultImpl implements HttpResult {
    * {@inheritDoc}
    */
   @Override
+  public String getFullUrl() {
+    return String.format("http://localhost:%s", this.port);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void stop() {
     if (this.app != null) {
       this.app.stop();

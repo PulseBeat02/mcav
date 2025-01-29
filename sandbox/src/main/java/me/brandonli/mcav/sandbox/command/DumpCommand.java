@@ -46,7 +46,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.dump.info")
   public void startDebugGame(final CommandSender sender) {
     final Audience audience = this.audiences.sender(sender);
-    audience.sendMessage(Message.LOAD_DUMP.build());
+    audience.sendMessage(Message.CREATE_DUMP.build());
     CompletableFuture.supplyAsync(DumpUtils::createAndUploadDump).thenAccept(url -> {
       final Component component = Message.SEND_DUMP.build(url);
       audience.sendMessage(component);

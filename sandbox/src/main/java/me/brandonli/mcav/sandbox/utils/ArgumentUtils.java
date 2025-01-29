@@ -17,7 +17,11 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
+import java.util.Collection;
+import java.util.UUID;
 import me.brandonli.mcav.utils.immutable.Pair;
+import org.bukkit.entity.Entity;
+import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class ArgumentUtils {
 
@@ -36,5 +40,9 @@ public final class ArgumentUtils {
       throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
     }
     return Pair.pair(x, y);
+  }
+
+  public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
+    return playerSelector.values().stream().map(Entity::getUniqueId).toList();
   }
 }

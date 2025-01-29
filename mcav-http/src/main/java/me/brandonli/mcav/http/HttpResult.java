@@ -50,6 +50,14 @@ public interface HttpResult extends AudioFilter {
   void stop();
 
   /**
+   * Retrieves the full URL of the HTTP service, including the protocol, host, and port.
+   * This method provides the complete address at which the HTTP server is accessible.
+   *
+   * @return the full URL as a String, representing the location of the HTTP service.
+   */
+  String getFullUrl();
+
+  /**
    * Creates a new {@link HttpResult} instance that starts an HTTP server at the specified port
    * and provides endpoints for handling audio processing operations.
    *

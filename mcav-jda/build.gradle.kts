@@ -12,7 +12,6 @@ dependencies {
     // testing
     testImplementation("net.dv8tion:JDA:5.5.1")
     testImplementation(project(":mcav-common"))
-    testImplementation("org.openjfx:javafx:11")
 }
 
 tasks {

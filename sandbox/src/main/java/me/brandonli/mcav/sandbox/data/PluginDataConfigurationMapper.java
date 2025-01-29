@@ -19,7 +19,6 @@ package me.brandonli.mcav.sandbox.data;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
@@ -32,25 +31,35 @@ import org.bukkit.configuration.file.FileConfiguration;
 public final class PluginDataConfigurationMapper {
 
   private static final String PLUGIN_LANGUAGE = "language";
-  private static final String PACK_PROVIDER_FIELD = "pack-provider";
-  private static final String SERVER_PORT_FIELD = "server.port";
-  private static final String SERVER_HOST_FIELD = "server.host-name";
+
+  private static final String DISCORD_BOT_TOKEN_FIELD = "discord-bot.token";
+  private static final String DISCORD_BOT_CHANNEL_FIELD = "discord-bot.channel-id";
+  private static final String DISCORD_BOT_GUILD_ID_FIELD = "discord-bot.guild-id";
+  private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
+
+  private static final String HTTP_HOST_FIELD = "http-server.host-name";
+  private static final String HTTP_PORT_FIELD = "http-server.port";
+  private static final String HTTP_ENABLED = "http-server.enabled";
 
   private final ExecutorService service;
   private final MCAVSandbox plugin;
   private final Lock readLock;
-  private final Lock writeLock;
 
   private Locale locale;
-  private ProviderMethod providerMethod;
-  private String hostName;
-  private int port;
+
+  private boolean discordBotEnabled;
+  private String discordBotToken;
+  private String discordBotChannelId;
+  private String discordBotGuildId;
+
+  private boolean httpEnabled;
+  private String httpHostName;
+  private int httpPort;
 
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
     final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     this.plugin = plugin;
     this.readLock = lock.readLock();
-    this.writeLock = lock.writeLock();
     this.service = Executors.newVirtualThreadPerTaskExecutor();
     this.plugin.saveDefaultConfig();
   }
@@ -68,55 +77,77 @@ public final class PluginDataConfigurationMapper {
     final FileConfiguration config = this.plugin.getConfig();
     this.plugin.saveConfig();
     this.locale = this.getLocale(config);
-    this.hostName = this.getHostName(config);
-    this.port = this.getPortServerPort(config);
-    this.providerMethod = this.getProviderMethod(config);
+    this.discordBotToken = this.getDiscordBotToken(config);
+    this.discordBotChannelId = this.getDiscordBotChannelId(config);
+    this.discordBotGuildId = this.getDiscordBotGuildId(config);
+    this.httpHostName = this.getHttpHostName(config);
+    this.httpPort = this.getHttpPort(config);
+    this.discordBotEnabled = this.isDiscordBotEnabled(config);
+    this.httpEnabled = this.isHttpEnabled(config);
     this.readLock.unlock();
+  }
+
+  private boolean isDiscordBotEnabled(final FileConfiguration config) {
+    return config.getBoolean(DISCORD_BOT_ENABLED, false);
+  }
+
+  private boolean isHttpEnabled(final FileConfiguration config) {
+    return config.getBoolean(HTTP_ENABLED, false);
+  }
+
+  private int getHttpPort(final FileConfiguration config) {
+    return config.getInt(HTTP_PORT_FIELD);
+  }
+
+  private String getHttpHostName(final FileConfiguration config) {
+    return requireNonNull(config.getString(HTTP_HOST_FIELD, "localhost"));
+  }
+
+  private String getDiscordBotGuildId(final FileConfiguration config) {
+    return requireNonNull(config.getString(DISCORD_BOT_GUILD_ID_FIELD), "");
+  }
+
+  private String getDiscordBotChannelId(final FileConfiguration config) {
+    return requireNonNull(config.getString(DISCORD_BOT_CHANNEL_FIELD), "");
+  }
+
+  private String getDiscordBotToken(final FileConfiguration config) {
+    return requireNonNull(config.getString(DISCORD_BOT_TOKEN_FIELD), "");
   }
 
   private Locale getLocale(final FileConfiguration config) {
     return Locale.fromString(requireNonNull(config.getString(PLUGIN_LANGUAGE, "EN_US")));
   }
 
-  private int getPortServerPort(final FileConfiguration config) {
-    return config.getInt(SERVER_PORT_FIELD);
-  }
-
-  private String getHostName(final FileConfiguration config) {
-    return requireNonNull(config.getString(SERVER_HOST_FIELD, "localhost"));
-  }
-
-  private ProviderMethod getProviderMethod(final FileConfiguration config) {
-    return ProviderMethod.fromString(requireNonNull(config.getString(PACK_PROVIDER_FIELD, "MC_PACK_HOSTING")));
-  }
-
   public synchronized Locale getLocale() {
     return this.locale;
   }
 
-  public synchronized String getHostName() {
-    return this.hostName;
+  public synchronized String getDiscordBotToken() {
+    return this.discordBotToken;
   }
 
-  public synchronized void serialize() {
-    CompletableFuture.runAsync(this::internalSerialize, this.service);
+  public synchronized String getDiscordBotChannelId() {
+    return this.discordBotChannelId;
   }
 
-  private synchronized void internalSerialize() {
-    this.writeLock.lock();
-    final FileConfiguration config = this.plugin.getConfig();
-    config.set(SERVER_HOST_FIELD, this.hostName);
-    config.set(SERVER_PORT_FIELD, this.port);
-    config.set(PACK_PROVIDER_FIELD, this.providerMethod.name());
-    this.plugin.saveConfig();
-    this.writeLock.unlock();
+  public synchronized String getDiscordBotGuildId() {
+    return this.discordBotGuildId;
   }
 
-  public synchronized int getPort() {
-    return this.port;
+  public synchronized String getHttpHostName() {
+    return this.httpHostName;
   }
 
-  public synchronized ProviderMethod getProviderMethod() {
-    return this.providerMethod;
+  public synchronized int getHttpPort() {
+    return this.httpPort;
+  }
+
+  public synchronized boolean isDiscordBotEnabled() {
+    return this.discordBotEnabled;
+  }
+
+  public synchronized boolean isHttpEnabled() {
+    return this.httpEnabled;
   }
 }

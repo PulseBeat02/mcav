@@ -45,14 +45,13 @@ public final class TranslationManager {
   private static final Locale DEFAULT_LOCALE = Locale.getDefault();
   private static final Key ADVENTURE_KEY = key(Keys.NAMESPACE, "main");
 
-  private final String propertiesPath;
   private final ResourceBundle bundle;
   private final PluginTranslator translator;
 
   public TranslationManager() {
     final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
-    this.propertiesPath = this.getPropertiesPath(plugin);
-    this.bundle = this.getBundle(this.propertiesPath);
+    final String propertiesPath = this.getPropertiesPath(plugin);
+    this.bundle = this.getBundle(propertiesPath);
     this.translator = new PluginTranslator(ADVENTURE_KEY, this.bundle);
   }
 
