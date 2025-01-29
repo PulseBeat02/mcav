@@ -19,17 +19,20 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalMetadata;
+import org.bytedeco.javacv.Frame;
 
 class FramePacket {
 
   private final OriginalMetadata metadata;
   private final ByteBuffer data;
   private final long timestamp;
+  private final Frame frame;
 
-  FramePacket(final OriginalMetadata metadata, final ByteBuffer data, final long timestamp) {
+  FramePacket(final OriginalMetadata metadata, final ByteBuffer data, final long timestamp, final Frame frame) {
     this.metadata = metadata;
     this.data = data;
     this.timestamp = timestamp;
+    this.frame = frame;
   }
 
   OriginalMetadata getMetadata() {
@@ -44,10 +47,14 @@ class FramePacket {
     return this.timestamp;
   }
 
+  Frame getFrame() {
+    return this.frame;
+  }
+
   static class AudioFramePacket extends FramePacket {
 
-    AudioFramePacket(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp) {
-      super(metadata, data, timestamp);
+    AudioFramePacket(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp, final Frame frame) {
+      super(metadata, data, timestamp, frame);
     }
   }
 
@@ -56,8 +63,15 @@ class FramePacket {
     private final int width;
     private final int height;
 
-    VideoFramePacket(final ByteBuffer data, final OriginalMetadata metadata, final int width, final int height, final long timestamp) {
-      super(metadata, data, timestamp);
+    VideoFramePacket(
+      final ByteBuffer data,
+      final OriginalMetadata metadata,
+      final int width,
+      final int height,
+      final long timestamp,
+      final Frame frame
+    ) {
+      super(metadata, data, timestamp, frame);
       this.width = width;
       this.height = height;
     }
@@ -71,8 +85,8 @@ class FramePacket {
     }
   }
 
-  static AudioFramePacket audio(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp) {
-    return new AudioFramePacket(data, metadata, timestamp);
+  static AudioFramePacket audio(final ByteBuffer data, final OriginalMetadata metadata, final long timestamp, final Frame frame) {
+    return new AudioFramePacket(data, metadata, timestamp, frame);
   }
 
   static VideoFramePacket video(
@@ -80,8 +94,9 @@ class FramePacket {
     final OriginalMetadata metadata,
     final int width,
     final int height,
-    final long timestamp
+    final long timestamp,
+    final Frame frame
   ) {
-    return new VideoFramePacket(data, metadata, width, height, timestamp);
+    return new VideoFramePacket(data, metadata, width, height, timestamp, frame);
   }
 }

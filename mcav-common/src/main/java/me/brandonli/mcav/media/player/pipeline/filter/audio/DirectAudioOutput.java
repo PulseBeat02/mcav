@@ -42,6 +42,13 @@ public class DirectAudioOutput implements AudioFilter {
   }
 
   /**
+   * Initializes the audio output system.
+   */
+  public static void init() {
+    // init
+  }
+
+  /**
    * Constructs a new {@link DirectAudioOutput} instance.
    */
   public DirectAudioOutput() {
@@ -55,10 +62,6 @@ public class DirectAudioOutput implements AudioFilter {
   public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     final byte[] data = new byte[samples.remaining()];
     samples.get(data);
-    try {
-      LINE_OUTPUT.write(data, 0, data.length);
-    } catch (final Exception e) {
-      e.printStackTrace();
-    }
+    LINE_OUTPUT.write(data, 0, data.length);
   }
 }

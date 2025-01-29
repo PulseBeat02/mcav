@@ -22,17 +22,14 @@ import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S16LE;
 import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
 import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
 
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.util.EnumSet;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.sound.sampled.*;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -51,478 +48,510 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A full JavaCV-based video player that supports both audio and video playback.
- */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
-  private static final int BUFFER_CAPACITY = 512;
+  private static final long MAX_DESYNC_NS = 10_000_000L;
 
+  private final DimensionAttachableCallback dimensionCallback;
+  private final VideoAttachableCallback videoCallback;
+  private final AudioAttachableCallback audioCallback;
+
+  @Nullable private volatile ExecutorService playerThread;
+
+  @Nullable private volatile ThreadPoolExecutor audioProcessor;
+
+  @Nullable private volatile ThreadPoolExecutor videoProcessor;
+
+  @Nullable private volatile FrameGrabber grabber;
+
+  @Nullable private volatile Source currentSource;
+
+  @Nullable private volatile Long seekPosition;
+
+  @Nullable private volatile SourceDataLine audioLine;
+
+  private final AtomicLong audioFrames;
+  private final AtomicLong videoFrames;
   private final AtomicBoolean running;
-  private final DimensionAttachableCallback dimensionAttachableCallback;
-  private final VideoAttachableCallback videoAttachableCallback;
-  private final AudioAttachableCallback audioAttachableCallback;
-  private final ExecutorService audioFrameRetrieverExecutor;
-  private final ExecutorService videoFrameRetrieverExecutor;
-  private final ExecutorService audioFrameProcessorExecutor;
-  private final ExecutorService videoFrameProcessorExecutor;
-  private final BlockingQueue<FramePacket.VideoFramePacket> videoFrameBuffer;
-  private final BlockingQueue<FramePacket.AudioFramePacket> audioFrameBuffer;
   private final Lock lock;
 
-  private volatile @Nullable FrameGrabber audio;
-  private volatile @Nullable FrameGrabber video;
-  private volatile @Nullable Source audioSource;
-  private volatile @Nullable Source videoSource;
-  private volatile @Nullable Long timestamp;
-
-  /**
-   * Constructs a new AbstractVideoPlayerCV instance.
-   */
   public AbstractVideoPlayerCV() {
+    this.dimensionCallback = DimensionAttachableCallback.create();
+    this.videoCallback = VideoAttachableCallback.create();
+    this.audioCallback = AudioAttachableCallback.create();
     this.running = new AtomicBoolean(false);
-    this.videoAttachableCallback = VideoAttachableCallback.create();
-    this.audioAttachableCallback = AudioAttachableCallback.create();
-    this.dimensionAttachableCallback = DimensionAttachableCallback.create();
-    this.audioFrameProcessorExecutor = Executors.newSingleThreadExecutor();
-    this.videoFrameProcessorExecutor = Executors.newSingleThreadExecutor();
-    this.audioFrameRetrieverExecutor = Executors.newSingleThreadExecutor();
-    this.videoFrameRetrieverExecutor = Executors.newSingleThreadExecutor();
-    this.videoFrameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
-    this.audioFrameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
-    this.timestamp = 0L;
+    this.audioFrames = new AtomicLong(0);
+    this.videoFrames = new AtomicLong(0);
     this.lock = new ReentrantLock();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean start(final Source video, final Source audio) {
     return LockUtils.executeWithLock(this.lock, () -> {
-      this.shutdownGrabbers();
-      this.startGrabbers(video, audio);
-      this.startRetrievers();
+      try {
+        this.stop();
+        this.grabber = this.createGrabber(video);
+        this.currentSource = video;
+        this.startPlaybackWithSeparateAudio(audio);
+        return true;
+      } catch (final Exception e) {
+        this.stop();
+        throw new PlayerException(e.getMessage(), e);
+      }
+    });
+  }
+
+  private void startPlaybackWithSeparateAudio(final Source audioSource) throws LineUnavailableException {
+    this.running.set(true);
+    this.audioFrames.set(0);
+    this.videoFrames.set(0);
+
+    final AudioFormat fmt = this.getAudioFormat();
+    final DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
+    final int bufferBytes = (int) (fmt.getFrameSize() * fmt.getFrameRate() * 0.2);
+    final SourceDataLine audioLine = (SourceDataLine) AudioSystem.getLine(info);
+    audioLine.open(fmt, bufferBytes);
+    audioLine.start();
+    this.audioLine = audioLine;
+
+    this.audioProcessor = new ThreadPoolExecutor(
+      1,
+      1,
+      0,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<>(),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
+    this.videoProcessor = new ThreadPoolExecutor(
+      1,
+      1,
+      0,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<>(),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
+
+    final ExecutorService service = Executors.newSingleThreadExecutor();
+    service.submit(() -> this.playbackWithSeparateAudio(audioSource));
+    this.playerThread = service;
+  }
+
+  private void playbackWithSeparateAudio(final Source audioSource) {
+    final FrameGrabber videoGrabber = requireNonNull(this.grabber);
+    final ExecutorService audioExec = requireNonNull(this.audioProcessor);
+    final ExecutorService videoExec = requireNonNull(this.videoProcessor);
+    FrameGrabber audioGrabber = null;
+    boolean separateAudioSource = !audioSource.getResource().equals(videoGrabber.getFormat());
+    if (separateAudioSource) {
+      try {
+        audioGrabber = this.createAudioGrabber(audioSource);
+      } catch (final Exception e) {
+        separateAudioSource = false;
+      }
+    }
+
+    final float detectedFps = (float) videoGrabber.getFrameRate();
+    final float targetFps = detectedFps > 0 ? detectedFps : 30f;
+    final OriginalVideoMetadata videoMeta = OriginalVideoMetadata.of(
+      videoGrabber.getImageWidth(),
+      videoGrabber.getImageHeight(),
+      videoGrabber.getVideoBitrate(),
+      targetFps
+    );
+
+    final OriginalAudioMetadata audioMeta = OriginalAudioMetadata.of(
+      videoGrabber.getAudioCodecName(),
+      videoGrabber.getAudioBitrate(),
+      videoGrabber.getSampleRate(),
+      videoGrabber.getAudioChannels(),
+      videoGrabber.getSampleFormat()
+    );
+
+    try {
+      if (separateAudioSource) {
+        requireNonNull(audioGrabber);
+        this.playbackSeparateSources(videoGrabber, audioGrabber, videoMeta, audioMeta, audioExec, videoExec);
+      } else {
+        this.playbackCombinedSource(videoGrabber, videoMeta, audioMeta, audioExec, videoExec);
+      }
+    } catch (final FrameGrabber.Exception e) {
+      throw new PlayerException(e.getMessage(), e);
+    } finally {
+      if (audioGrabber != null) {
+        try {
+          audioGrabber.stop();
+          audioGrabber.close();
+        } catch (final FrameGrabber.Exception ignored) {}
+      }
+    }
+  }
+
+  private void playbackSeparateSources(
+    final FrameGrabber videoGrabber,
+    final FrameGrabber audioGrabber,
+    final OriginalVideoMetadata videoMeta,
+    final OriginalAudioMetadata audioMeta,
+    final ExecutorService audioExec,
+    final ExecutorService videoExec
+  ) throws FrameGrabber.Exception {
+    final ExecutorService audioSourceThread = Executors.newSingleThreadExecutor();
+    audioSourceThread.submit(() -> {
+      try {
+        Frame audioFrame;
+        while ((audioFrame = audioGrabber.grab()) != null && this.running.get()) {
+          if (audioFrame.samples != null) {
+            final Frame copy = audioFrame.clone();
+            audioExec.submit(() -> this.processAudioFrame(copy, audioMeta));
+          }
+        }
+      } catch (final FrameGrabber.Exception e) {
+        throw new PlayerException(e.getMessage(), e);
+      }
+    });
+
+    Frame videoFrame;
+    while ((videoFrame = videoGrabber.grab()) != null && this.running.get()) {
+      if (videoFrame.image != null) {
+        final Frame copy = videoFrame.clone();
+        videoExec.submit(() -> this.processVideoFrame(copy, videoMeta));
+      }
+    }
+
+    audioSourceThread.shutdownNow();
+    try {
+      audioSourceThread.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private void playbackCombinedSource(
+    final FrameGrabber grabber,
+    final OriginalVideoMetadata videoMeta,
+    final OriginalAudioMetadata audioMeta,
+    final ExecutorService audioExec,
+    final ExecutorService videoExec
+  ) throws FrameGrabber.Exception {
+    Frame frame;
+    while ((frame = grabber.grab()) != null && this.running.get()) {
+      if (frame.samples != null) {
+        final Frame copy = frame.clone();
+        audioExec.submit(() -> this.processAudioFrame(copy, audioMeta));
+      }
+      if (frame.image != null) {
+        final Frame copy = frame.clone();
+        videoExec.submit(() -> this.processVideoFrame(copy, videoMeta));
+      }
+    }
+  }
+
+  private FrameGrabber createAudioGrabber(final Source audioSource) throws FrameGrabber.Exception {
+    final String resource = audioSource.getResource();
+    final FrameGrabber grabber = this.getFrameGrabber(resource);
+    grabber.setOption("tune", "zerolatency");
+    grabber.setOption("preset", "ultrafast");
+    grabber.setOption("threads", "auto");
+    grabber.setOption("fflags", "nobuffer+fastseek+flush_packets");
+    grabber.setOption("flags", "low_delay");
+    grabber.setOption("audio_buffer_size", "16384");
+    grabber.setOption("thread_queue_size", "16384");
+
+    grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
+    grabber.setSampleFormat(AV_SAMPLE_FMT_S16);
+    grabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
+    grabber.setSampleRate(48000);
+    grabber.setAudioChannels(2);
+
+    if (audioSource instanceof final FFmpegDirectSource direct) {
+      final String format = direct.getFormat();
+      grabber.setFormat(format);
+    }
+
+    if (this.seekPosition != null) {
+      final long position = requireNonNull(this.seekPosition);
+      grabber.setTimestamp(position);
+    }
+
+    grabber.start();
+
+    return grabber;
+  }
+
+  @Override
+  public boolean start(final Source combined) {
+    return LockUtils.executeWithLock(this.lock, () -> {
+      try {
+        this.stop();
+        this.grabber = this.createGrabber(combined);
+        this.currentSource = combined;
+        this.startPlayback();
+        return true;
+      } catch (final Exception e) {
+        this.stop();
+        throw new PlayerException(e.getMessage(), e);
+      }
+    });
+  }
+
+  private FrameGrabber createGrabber(final Source source) throws FrameGrabber.Exception {
+    final String raw = source.getResource();
+    final FrameGrabber grabber = this.getFrameGrabber(raw);
+    grabber.setOption("tune", "zerolatency");
+    grabber.setOption("preset", "ultrafast");
+    grabber.setOption("threads", "auto");
+    grabber.setOption("thread_type", "slice+frame");
+    grabber.setOption("fflags", "nobuffer+fastseek+flush_packets");
+    grabber.setOption("flags", "low_delay");
+    grabber.setOption("probesize", "32");
+    grabber.setOption("analyzeduration", "0");
+    grabber.setOption("audio_buffer_size", "16384");
+    grabber.setOption("reorder_queue_size", "0");
+    grabber.setOption("thread_queue_size", "16384");
+    grabber.setOption("avoid_negative_ts", "disabled");
+    grabber.setOption("rtbufsize", "2048k");
+    grabber.setOption("buffer_size", "2048k");
+    grabber.setOption("hwaccel", "auto");
+    grabber.setPixelFormat(AV_PIX_FMT_BGR24);
+    grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
+    grabber.setSampleFormat(AV_SAMPLE_FMT_S16);
+    grabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
+    grabber.setSampleRate(48000);
+    grabber.setAudioChannels(2);
+
+    if (this.dimensionCallback.isAttached()) {
+      final DimensionAttachableCallback.Dimension dim = this.dimensionCallback.retrieve();
+      grabber.setImageWidth(dim.width());
+      grabber.setImageHeight(dim.height());
+    }
+
+    if (source instanceof final FFmpegDirectSource direct) {
+      final String format = direct.getFormat();
+      grabber.setFormat(format);
+    }
+
+    if (this.seekPosition != null) {
+      final long position = requireNonNull(this.seekPosition);
+      grabber.setTimestamp(position);
+    }
+
+    grabber.start();
+
+    return grabber;
+  }
+
+  private void startPlayback() throws LineUnavailableException {
+    this.running.set(true);
+
+    this.audioFrames.set(0);
+    this.videoFrames.set(0);
+
+    final AudioFormat fmt = this.getAudioFormat();
+    final DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
+    final int bufferBytes = (int) (fmt.getFrameSize() * fmt.getFrameRate() * 0.2);
+    final SourceDataLine audioLine = (SourceDataLine) AudioSystem.getLine(info);
+    audioLine.open(fmt, bufferBytes);
+    audioLine.start();
+
+    this.audioLine = audioLine;
+
+    this.audioProcessor = new ThreadPoolExecutor(
+      1,
+      1,
+      0,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<>(),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
+
+    this.videoProcessor = new ThreadPoolExecutor(
+      1,
+      1,
+      0,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<>(),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
+
+    final ExecutorService service = Executors.newSingleThreadExecutor();
+    service.submit(this::playback);
+    this.playerThread = service;
+  }
+
+  private AudioFormat getAudioFormat() {
+    final FrameGrabber grabber = requireNonNull(this.grabber);
+    final int sampleRate = grabber.getSampleRate();
+    final int channels = grabber.getAudioChannels();
+    return new AudioFormat(sampleRate, 16, channels, true, false);
+  }
+
+  private void playback() {
+    final FrameGrabber grabber = requireNonNull(this.grabber);
+    final ExecutorService audioExec = requireNonNull(this.audioProcessor);
+    final ExecutorService videoExec = requireNonNull(this.videoProcessor);
+    final float detectedFps = (float) grabber.getFrameRate();
+    final float targetFps = detectedFps > 0 ? detectedFps : 30f;
+    final OriginalVideoMetadata videoMeta = OriginalVideoMetadata.of(
+      grabber.getImageWidth(),
+      grabber.getImageHeight(),
+      grabber.getVideoBitrate(),
+      targetFps
+    );
+    final OriginalAudioMetadata audioMeta = OriginalAudioMetadata.of(
+      grabber.getAudioCodecName(),
+      grabber.getAudioBitrate(),
+      grabber.getSampleRate(),
+      grabber.getAudioChannels(),
+      grabber.getSampleFormat()
+    );
+    try {
+      Frame frame;
+      while ((frame = grabber.grab()) != null && this.running.get()) {
+        if (frame.samples != null) {
+          final Frame copy = frame.clone();
+          audioExec.submit(() -> this.processAudioFrame(copy, audioMeta));
+        }
+        if (frame.image != null) {
+          final Frame copy = frame.clone();
+          videoExec.submit(() -> this.processVideoFrame(copy, videoMeta));
+        }
+      }
+    } catch (final FrameGrabber.Exception e) {
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
+
+  private void processAudioFrame(final Frame frame, final OriginalAudioMetadata meta) {
+    try (frame) {
+      final ByteBuffer data = ByteUtils.convertAudioSamples(frame.samples[0]);
+      final ByteBuffer buf = ByteUtils.convertToLittleEndian(data);
+      final byte[] pcm = new byte[buf.remaining()];
+      buf.get(pcm);
+
+      final SourceDataLine audioLine = requireNonNull(this.audioLine);
+      audioLine.write(pcm, 0, pcm.length);
+      AudioPipelineStep step = this.audioCallback.retrieve();
+
+      final ByteBuffer wrap = ByteBuffer.wrap(pcm);
+      while (step != null) {
+        step.process(wrap, meta);
+        step = step.next();
+      }
+    } catch (final Exception ignored) {}
+  }
+
+  private void processVideoFrame(final Frame frame, final OriginalVideoMetadata meta) {
+    try (frame) {
+      final long timestamp = frame.timestamp;
+      final int width = frame.imageWidth;
+      final int height = frame.imageHeight;
+      final SourceDataLine audioLine = requireNonNull(this.audioLine);
+      final long audioUs = audioLine.getMicrosecondPosition();
+      final long delayUs = timestamp - audioUs;
+
+      if (delayUs > 0) {
+        final long nanos = TimeUnit.MICROSECONDS.toNanos(delayUs);
+        if (nanos > MAX_DESYNC_NS) {
+          LockSupport.parkNanos(nanos - MAX_DESYNC_NS);
+        }
+        final long deadline = System.nanoTime() + Math.min(nanos, MAX_DESYNC_NS);
+        while (System.nanoTime() < deadline) {
+          Thread.onSpinWait();
+        }
+      }
+      final ByteBuffer data = (ByteBuffer) frame.image[0];
+      final ImageBuffer img = ImageBuffer.bytes(data, width, height);
+      VideoPipelineStep step = this.videoCallback.retrieve();
+      while (step != null) {
+        step.process(img, meta);
+        step = step.next();
+      }
+      img.release();
+    } catch (final Exception ignored) {}
+  }
+
+  @Override
+  public boolean pause() {
+    return LockUtils.executeWithLock(this.lock, () -> {
+      this.stop();
       return true;
     });
+  }
+
+  @Override
+  public boolean resume() {
+    return LockUtils.executeWithLock(this.lock, () -> this.currentSource != null && this.start(this.currentSource));
+  }
+
+  @Override
+  public boolean seek(final long time) {
+    this.seekPosition = time;
+    return this.resume();
+  }
+
+  @Override
+  public boolean release() {
+    return LockUtils.executeWithLock(this.lock, () -> {
+      this.stop();
+      return true;
+    });
+  }
+
+  private void stop() {
+    this.running.set(false);
+
+    if (this.playerThread != null) {
+      final ExecutorService playerThread = requireNonNull(this.playerThread);
+      ExecutorUtils.shutdownExecutorGracefully(playerThread);
+      this.playerThread = null;
+    }
+
+    if (this.audioProcessor != null) {
+      final ThreadPoolExecutor audioProcessor = requireNonNull(this.audioProcessor);
+      audioProcessor.shutdownNow();
+      this.audioProcessor = null;
+    }
+
+    if (this.videoProcessor != null) {
+      final ThreadPoolExecutor videoProcessor = requireNonNull(this.videoProcessor);
+      videoProcessor.shutdownNow();
+      this.videoProcessor = null;
+    }
+
+    if (this.grabber != null) {
+      final FrameGrabber grabber = requireNonNull(this.grabber);
+      try {
+        grabber.stop();
+        grabber.close();
+      } catch (final FrameGrabber.Exception e) {
+        throw new PlayerException(e.getMessage(), e);
+      }
+      this.grabber = null;
+    }
+
+    if (this.audioLine != null) {
+      final SourceDataLine audioLine = requireNonNull(this.audioLine);
+      audioLine.drain();
+      audioLine.stop();
+      audioLine.close();
+      this.audioLine = null;
+    }
   }
 
   @Override
   public VideoAttachableCallback getVideoAttachableCallback() {
-    return this.videoAttachableCallback;
+    return this.videoCallback;
   }
 
   @Override
   public AudioAttachableCallback getAudioAttachableCallback() {
-    return this.audioAttachableCallback;
+    return this.audioCallback;
   }
 
   @Override
   public DimensionAttachableCallback getDimensionAttachableCallback() {
-    return this.dimensionAttachableCallback;
+    return this.dimensionCallback;
   }
 
-  private void startRetrievers() {
-    this.running.set(true);
-    this.videoFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerVideo);
-    this.audioFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerAudio);
-    this.audioFrameProcessorExecutor.submit(this::processAudioFrames);
-    this.videoFrameProcessorExecutor.submit(this::processVideoFrames);
-  }
-
-  private void startGrabbers(final Source video, final Source audio) {
-    final String videoResource = video.getResource();
-    final String audioResource = audio.getResource();
-    this.audioSource = audio;
-    this.videoSource = video;
-    this.audio = this.getFrameGrabber(audioResource);
-    this.video = this.getFrameGrabber(videoResource);
-
-    final FrameGrabber finalAudio = requireNonNull(this.audio);
-    final FrameGrabber finalVideo = requireNonNull(this.video);
-    finalAudio.setSampleMode(FrameGrabber.SampleMode.SHORT);
-    finalAudio.setSampleFormat(AV_SAMPLE_FMT_S16);
-    finalAudio.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
-    finalAudio.setOption("tune", "zerolatency");
-
-    finalVideo.setPixelFormat(AV_PIX_FMT_BGR24);
-    finalVideo.setOption("tune", "zerolatency");
-
-    if (this.dimensionAttachableCallback.isAttached()) {
-      final DimensionAttachableCallback.Dimension dimension = this.dimensionAttachableCallback.retrieve();
-      finalVideo.setImageWidth(dimension.width());
-      finalVideo.setImageHeight(dimension.height());
-    }
-
-    try {
-      finalAudio.start();
-      finalVideo.start();
-    } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  private void retrieveFramesMultiplexerAudio() {
-    final FrameGrabber audio = requireNonNull(this.audio);
-    final String codec = audio.getAudioCodecName();
-    final int bitrate = audio.getAudioBitrate();
-    final int sampleRate = audio.getSampleRate();
-    final int channels = audio.getAudioChannels();
-    final int sampleFormat = audio.getSampleFormat();
-    final OriginalAudioMetadata audioMetadata = OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels, sampleFormat);
-    try {
-      Frame audioFrame;
-      while ((audioFrame = audio.grabFrame()) != null && this.running.get()) {
-        final EnumSet<Frame.Type> audioTypes = audioFrame.getTypes();
-        if (!audioTypes.contains(Frame.Type.AUDIO)) {
-          continue;
-        }
-        final Buffer[] arr = audioFrame.samples;
-        if (arr == null) {
-          continue;
-        }
-        final ByteBuffer outBuffer = ByteUtils.convertAudioSamples(arr[0]);
-        final FramePacket.AudioFramePacket packet = FramePacket.audio(outBuffer, audioMetadata, audioFrame.timestamp);
-        this.audioFrameBuffer.put(packet);
-      }
-    } catch (final FrameGrabber.Exception | InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  private void retrieveFramesMultiplexerVideo() {
-    final FrameGrabber video = requireNonNull(this.video);
-    final int width = video.getImageWidth();
-    final int height = video.getImageHeight();
-    final int bitrate = video.getVideoBitrate();
-    final float frameRate = (float) video.getFrameRate();
-    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, bitrate, frameRate);
-    try {
-      Frame videoFrame;
-      while ((videoFrame = video.grabFrame()) != null && this.running.get()) {
-        final EnumSet<Frame.Type> videoTypes = videoFrame.getTypes();
-        if (!videoTypes.contains(Frame.Type.VIDEO)) {
-          continue;
-        }
-        final Buffer[] arr = videoFrame.image;
-        if (arr == null) {
-          continue;
-        }
-        final ByteBuffer imageBuffer = (ByteBuffer) arr[0];
-        imageBuffer.rewind();
-        final byte[] bytes = new byte[imageBuffer.limit()];
-        imageBuffer.get(bytes);
-        final ByteBuffer copyBuffer = ByteBuffer.wrap(bytes);
-        copyBuffer.position(0);
-        final FramePacket.VideoFramePacket packet = FramePacket.video(copyBuffer, videoMetadata, width, height, videoFrame.timestamp);
-        this.videoFrameBuffer.put(packet);
-      }
-    } catch (final FrameGrabber.Exception | InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  private void retrieveFrames() {
-    final FrameGrabber video = requireNonNull(this.video);
-    final int width = video.getImageWidth();
-    final int height = video.getImageHeight();
-    final String codec = video.getVideoCodecName();
-    final int bitrate = video.getVideoBitrate();
-    final int sampleRate = video.getSampleRate();
-    final int channels = video.getAudioChannels();
-    final int videoBitrate = video.getVideoBitrate();
-    final float frameRate = (float) video.getFrameRate();
-    final int sampleFormat = video.getSampleFormat();
-    final OriginalAudioMetadata audioMetadata = OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels, sampleFormat);
-    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, videoBitrate, frameRate);
-    try {
-      Frame frame;
-      while ((frame = video.grabFrame()) != null && this.running.get()) {
-        final EnumSet<Frame.Type> types = frame.getTypes();
-        if (types.contains(Frame.Type.VIDEO)) {
-          final Buffer[] arr = frame.image;
-          if (arr == null) {
-            continue;
-          }
-          final ByteBuffer imageBuffer = (ByteBuffer) arr[0];
-          imageBuffer.rewind();
-          final byte[] bytes = new byte[imageBuffer.limit()];
-          imageBuffer.get(bytes);
-          final ByteBuffer copyBuffer = ByteBuffer.wrap(bytes);
-          copyBuffer.position(0);
-          final FramePacket.VideoFramePacket packet = FramePacket.video(copyBuffer, videoMetadata, width, height, frame.timestamp);
-          this.videoFrameBuffer.put(packet);
-        }
-        if (types.contains(Frame.Type.AUDIO)) {
-          final Buffer[] arr = frame.samples;
-          if (arr == null) {
-            continue;
-          }
-          final ByteBuffer outBuffer = ByteUtils.convertAudioSamples(arr[0]);
-          final FramePacket.AudioFramePacket packet = FramePacket.audio(outBuffer, audioMetadata, frame.timestamp);
-          this.audioFrameBuffer.put(packet); // if can't process fast enough, rip
-        }
-      }
-    } catch (final FrameGrabber.Exception | InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  private void processAudioFrames() {
-    try {
-      long startTime = System.nanoTime();
-      long firstFrameTimestamp = -1;
-      while (this.running.get()) {
-        final FramePacket frame = this.audioFrameBuffer.take();
-        if (firstFrameTimestamp == -1) {
-          firstFrameTimestamp = frame.getTimestamp();
-          startTime = System.nanoTime();
-        }
-        final long now = System.nanoTime();
-        final long elapsedUs = (now - startTime) / 1_000;
-        final long mediaUs = frame.getTimestamp() - firstFrameTimestamp;
-        if (mediaUs > elapsedUs) {
-          final long lagNs = (mediaUs - elapsedUs) * 1_000;
-          LockSupport.parkNanos(lagNs);
-        }
-        final boolean shouldSkip = mediaUs < elapsedUs - 500_000;
-        if (shouldSkip && this.audioFrameBuffer.size() > 2) {
-          continue;
-        }
-        final ByteBuffer buffer = frame.getData();
-        AudioPipelineStep next = this.audioAttachableCallback.retrieve();
-        final OriginalAudioMetadata audioMetadata = (OriginalAudioMetadata) frame.getMetadata();
-        final int sampleRate = audioMetadata.getAudioSampleRate();
-        final ByteBuffer samples = ByteUtils.resampleFast(buffer, sampleRate, 48000, 4);
-        final ByteBuffer converted = ByteUtils.convertToLittleEndian(samples);
-        while (next != null) {
-          next.process(converted, audioMetadata);
-          next = next.next();
-        }
-      }
-    } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-  }
-
-  private void processVideoFrames() {
-    try {
-      long startTime = System.nanoTime();
-      long firstFrameTimestamp = -1;
-      while (this.running.get()) {
-        final FramePacket.VideoFramePacket frame = this.videoFrameBuffer.take();
-        if (firstFrameTimestamp == -1) {
-          firstFrameTimestamp = frame.getTimestamp();
-          startTime = System.nanoTime();
-        }
-        final long now = System.nanoTime();
-        final long elapsedUs = (now - startTime) / 1_000;
-        final long mediaUs = frame.getTimestamp() - firstFrameTimestamp;
-        if (mediaUs > elapsedUs) {
-          final long lagNs = (mediaUs - elapsedUs) * 1_000;
-          LockSupport.parkNanos(lagNs);
-        }
-        final boolean shouldSkip = mediaUs < elapsedUs - 500_000;
-        if (shouldSkip && this.audioFrameBuffer.size() > 2) {
-          continue;
-        }
-        final ByteBuffer buffer = frame.getData();
-        final byte[] arr = buffer.array();
-        final int width = frame.getWidth();
-        final int height = frame.getHeight();
-        final ImageBuffer staticImage = ImageBuffer.bytes(arr, width, height);
-        VideoPipelineStep next = this.videoAttachableCallback.retrieve();
-        while (next != null) {
-          next.process(staticImage, (OriginalVideoMetadata) frame.getMetadata());
-          next = next.next();
-        }
-        staticImage.release();
-      }
-    } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-  }
-
-  // audio sample specialization
-  // PCM S16LE
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public boolean start(final Source combined) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.shutdownGrabbers();
-      this.startGrabbers(combined);
-      this.startRetrieversSingle();
-      return true;
-    });
-  }
-
-  private void startRetrieversSingle() {
-    this.running.set(true);
-    this.videoFrameRetrieverExecutor.submit(this::retrieveFrames);
-    this.audioFrameProcessorExecutor.submit(this::processAudioFrames);
-    this.videoFrameProcessorExecutor.submit(this::processVideoFrames);
-  }
-
-  private void startGrabbers(final Source combined) {
-    final String videoResource = combined.getResource();
-    this.video = this.getFrameGrabber(videoResource);
-    this.audio = null;
-    this.audioSource = combined;
-    this.videoSource = combined;
-
-    final FrameGrabber finalGrabber = requireNonNull(this.video);
-    finalGrabber.setPixelFormat(AV_PIX_FMT_BGR24);
-    finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
-    finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
-    finalGrabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
-    finalGrabber.setOption("tune", "zerolatency");
-    finalGrabber.setOption("preset", "ultrafast");
-
-    if (this.dimensionAttachableCallback.isAttached()) {
-      final DimensionAttachableCallback.Dimension dimension = this.dimensionAttachableCallback.retrieve();
-      finalGrabber.setImageWidth(dimension.width());
-      finalGrabber.setImageHeight(dimension.height());
-    }
-
-    if (combined instanceof final FFmpegDirectSource directSource) {
-      final String format = directSource.getFormat();
-      finalGrabber.setFormat(format);
-    }
-
-    try {
-      finalGrabber.start();
-    } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean pause() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.shutdownGrabbers();
-      return true;
-    });
-  }
-
-  private void shutdownGrabbers() {
-    this.running.set(false);
-    if (this.video != null) {
-      final FrameGrabber videoGrabber = requireNonNull(this.video);
-      this.timestamp = videoGrabber.getTimestamp();
-    }
-    try {
-      this.shutdownGrabber(this.audio);
-      this.shutdownGrabber(this.video);
-    } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-    this.audio = null;
-    this.video = null;
-    this.audioFrameBuffer.clear();
-    this.videoFrameBuffer.clear();
-  }
-
-  private void shutdownGrabber(final @Nullable FrameGrabber grabber) throws FrameGrabber.Exception {
-    if (grabber != null) {
-      grabber.stop();
-      grabber.close();
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean resume() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      if (this.videoSource == null || this.timestamp == null) {
-        return false;
-      }
-      this.shutdownGrabbers();
-      this.startResumeGrabbers();
-      return true;
-    });
-  }
-
-  private void startResumeGrabbers() {
-    final Source videoSource = requireNonNull(this.videoSource);
-    final long timestamp = requireNonNull(this.timestamp);
-    final String videoResource = videoSource.getResource();
-    this.audioFrameBuffer.clear();
-    this.videoFrameBuffer.clear();
-
-    this.video = this.getFrameGrabber(videoResource);
-    final boolean multiplexer = this.audioSource != this.videoSource;
-    if (multiplexer) {
-      final Source audioSource = requireNonNull(this.audioSource);
-      final String audioResource = audioSource.getResource();
-      this.audio = this.getFrameGrabber(audioResource);
-    }
-
-    this.running.set(true);
-    final FrameGrabber video = requireNonNull(this.video);
-    try {
-      if (multiplexer) {
-        final FrameGrabber audio = requireNonNull(this.audio);
-        audio.start();
-        video.start();
-        audio.setTimestamp(timestamp);
-        video.setTimestamp(timestamp);
-        this.videoFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerVideo);
-        this.audioFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerAudio);
-      } else {
-        video.start();
-        video.setTimestamp(timestamp);
-        this.videoFrameRetrieverExecutor.submit(this::retrieveFrames);
-      }
-      this.audioFrameProcessorExecutor.submit(this::processAudioFrames);
-      this.videoFrameProcessorExecutor.submit(this::processVideoFrames);
-    } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean seek(final long time) {
-    this.timestamp = time;
-    return this.resume();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean release() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(false);
-      ExecutorUtils.shutdownExecutorGracefully(this.audioFrameProcessorExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.videoFrameProcessorExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.audioFrameRetrieverExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.videoFrameRetrieverExecutor);
-      return true;
-    });
-  }
-
-  /**
-   * Returns the FrameGrabber for the specified resource.
-   *
-   * @param resource the resource to get the FrameGrabber for
-   * @return the FrameGrabber for the specified resource
-   */
-  @Override
-  public abstract FrameGrabber getFrameGrabber(String resource);
+  public abstract FrameGrabber getFrameGrabber(final String resource);
 }

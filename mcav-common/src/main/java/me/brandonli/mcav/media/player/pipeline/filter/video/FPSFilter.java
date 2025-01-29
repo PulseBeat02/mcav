@@ -46,8 +46,13 @@ public class FPSFilter extends MatVideoFilter {
   void modifyMat(final Mat mat) {
     final long current = System.currentTimeMillis();
     final long elapsed = current - this.lastFrameTime;
+    if (elapsed <= 0) {
+      return;
+    }
+
     final int frameRate = Math.toIntExact(1000 / elapsed);
     this.lastFrameTime = current;
+
     final String text = "Frame Rate: " + frameRate + " FPS";
     opencv_imgproc.putText(mat, text, POSITION, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.25, BLACK);
   }

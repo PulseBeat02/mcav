@@ -8,7 +8,7 @@ plugins {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:gremlin-runtime:0.0.8")
 
     runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
@@ -72,6 +72,6 @@ tasks {
 
     runServer {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
-        minecraftVersion("1.21.6")
+        minecraftVersion("1.21.7")
     }
 }
