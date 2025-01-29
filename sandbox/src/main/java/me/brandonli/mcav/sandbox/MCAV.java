@@ -18,6 +18,10 @@
 package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -29,14 +33,6 @@ import org.bukkit.Server;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public final class MCAV extends JavaPlugin {
 
@@ -66,7 +62,7 @@ public final class MCAV extends JavaPlugin {
 
   private void scheduleLoadTask() {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTaskLaterAsynchronously(this, this::loadMCAV, 1L);
+    scheduler.runTaskLater(this, this::loadMCAV, 1L);
   }
 
   @Override
@@ -80,10 +76,13 @@ public final class MCAV extends JavaPlugin {
     }
   }
 
+  // fix console hang
+  @SuppressWarnings("all")
   private void loadDependencies() {
     try {
       final ClassLoader loader = this.getClassLoader();
       final Path folder = IOUtils.getPluginDataFolderPath();
+      final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
       final Logger loggerFactory = Logger.getLogger("MCAV Installer");
       final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
       installer.loadMCAVDependencies(line -> loggerFactory.log(Level.INFO, line));
@@ -95,17 +94,17 @@ public final class MCAV extends JavaPlugin {
     }
   }
 
+  @SuppressWarnings("all")
   private void loadMCAV() {
-    try (final ExecutorService service = Executors.newSingleThreadExecutor()) {
-      this.logger.info("Loading MCAV!");
-      this.mcav = me.brandonli.mcav.MCAV.api();
-      final CompletableFuture<Void> future = this.mcav.installAsync(service);
-      future.thenRun(() -> this.logger.info("MCAV loaded successfully!"))
-              .thenRun(this::loadAudience)
-              .thenRun(this::loadPluginData)
-              .thenRun(this::loadCommands)
-              .thenRun(this::initLookupTables);
-    }
+    System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
+    this.logger.info("Loading MCAV!");
+    this.mcav = me.brandonli.mcav.MCAV.api();
+    this.mcav.install();
+    this.loadAudience();
+    this.loadPluginData();
+    this.loadCommands();
+    this.initLookupTables();
+    this.logger.info("MCAV loaded!");
   }
 
   private void shutdownAudience() {

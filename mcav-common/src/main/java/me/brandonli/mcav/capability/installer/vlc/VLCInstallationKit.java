@@ -24,6 +24,9 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
+import me.brandonli.mcav.capability.installer.vlc.discovery.LinuxNativeDiscoveryStrategy;
+import me.brandonli.mcav.capability.installer.vlc.discovery.OsxNativeDiscoveryStrategy;
+import me.brandonli.mcav.capability.installer.vlc.discovery.WindowsNativeDiscoveryStrategy;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 /**
@@ -72,8 +75,17 @@ public final class VLCInstallationKit {
       properties.store(stream, "VLC native directory configuration");
     }
 
-    final NativeDiscovery discovery = new NativeDiscovery();
-    if (!discovery.discover()) {
+    // needed for ServiceLoader issues
+    final LinuxNativeDiscoveryStrategy linuxNativeDiscoveryStrategy = new LinuxNativeDiscoveryStrategy();
+    final OsxNativeDiscoveryStrategy osxNativeDiscoveryStrategy = new OsxNativeDiscoveryStrategy();
+    final WindowsNativeDiscoveryStrategy windowsNativeDiscoveryStrategy = new WindowsNativeDiscoveryStrategy();
+    final NativeDiscovery discovery = new NativeDiscovery(
+      linuxNativeDiscoveryStrategy,
+      osxNativeDiscoveryStrategy,
+      windowsNativeDiscoveryStrategy
+    );
+    final NativeDiscovery defaultDiscovery = new NativeDiscovery();
+    if (!discovery.discover() && !defaultDiscovery.discover()) {
       throw new UnsupportedOperatingSystemException("Failed to discover VLC native libraries.");
     }
 

@@ -21,8 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.BooleanSupplier;
 import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
-import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegExecutableProvider;
 
 /**
@@ -34,8 +34,8 @@ public interface Capability {
    */
   Capability VLC = createCapabilityImpl(() -> {
     try {
-      MediaPlayerFactoryProvider.getPlayerFactory();
-      return true;
+      final VLCInstaller installer = VLCInstaller.create();
+      return installer.isSupported();
     } catch (final Throwable e) {
       return false;
     }
@@ -57,8 +57,8 @@ public interface Capability {
    * Represents the YTDLP capability.
    */
   Capability YTDLP = createCapabilityImpl(() -> {
-    final YTDLPInstaller installer = YTDLPInstaller.create();
     try {
+      final YTDLPInstaller installer = YTDLPInstaller.create();
       return installer.isSupported();
     } catch (final Throwable e) {
       return false;
@@ -66,8 +66,8 @@ public interface Capability {
   });
 
   Capability QEMU = createCapabilityImpl(() -> {
-    final QemuInstaller installer = QemuInstaller.create();
     try {
+      final QemuInstaller installer = QemuInstaller.create();
       return installer.isSupported();
     } catch (final Throwable e) {
       return false;

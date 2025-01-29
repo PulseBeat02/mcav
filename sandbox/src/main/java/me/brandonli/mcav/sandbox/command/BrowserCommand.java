@@ -17,7 +17,14 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import static java.util.Objects.requireNonNull;
+
 import com.mojang.brigadier.context.CommandContext;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -43,14 +50,6 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Collection;
-import java.util.UUID;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-
 public final class BrowserCommand implements AnnotationCommandFeature {
 
   private BukkitAudiences audiences;
@@ -66,12 +65,12 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   @Permission("mcav.browser")
   @CommandDescription("mcav.command.browser.info")
   public void playBrowser(
-          final Player player,
-          @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
-          @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-          @Argument(suggestions = "id") @Range(min = "0") final int mapId,
-          final DitheringArgument ditheringAlgorithm,
-          @Quoted final String url
+    final Player player,
+    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+    @Argument(suggestions = "id") @Range(min = "0") final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    @Quoted final String url
   ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
@@ -112,11 +111,11 @@ public final class BrowserCommand implements AnnotationCommandFeature {
 
     final Collection<UUID> players = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
     final DitherResultStep result = MapResult.builder()
-            .map(mapId)
-            .mapBlockHeight(blockHeight)
-            .mapBlockWidth(blockWidth)
-            .viewers(players)
-            .build();
+      .map(mapId)
+      .mapBlockHeight(blockHeight)
+      .mapBlockWidth(blockWidth)
+      .viewers(players)
+      .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);

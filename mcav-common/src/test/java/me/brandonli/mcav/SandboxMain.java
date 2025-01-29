@@ -17,11 +17,14 @@
  */
 package me.brandonli.mcav;
 
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.opencv.opencv_java;
+
 public final class SandboxMain {
 
   public static void main(final String[] args) {
-    System.out.println(System.getProperty("java.library.path"));
-    System.out.println(System.getenv());
+    System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
+    Loader.load(opencv_java.class);
     System.load(
       "C:\\Users\\brand\\.javacpp\\cache\\mcav-minecraft-all-1.0.0-20250504.225657-5-all.jar\\org\\bytedeco\\openblas\\windows-x86_64\\libopenblas_nolapack.dll"
     );
