@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav.media.image;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Collection;
+import java.util.SplittableRandom;
+import java.util.UUID;
 import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.media.config.EntityConfiguration;
 import me.brandonli.mcav.utils.ChatUtils;
@@ -31,12 +36,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
-
-import java.util.Collection;
-import java.util.SplittableRandom;
-import java.util.UUID;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * The EntityImage class represents an implementation of the DisplayableImage interface that

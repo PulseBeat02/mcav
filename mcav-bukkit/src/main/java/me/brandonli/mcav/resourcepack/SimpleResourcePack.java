@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.resourcepack;
 
+import static net.kyori.adventure.key.Key.key;
+
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import net.kyori.adventure.key.Key;
@@ -72,7 +74,7 @@ public final class SimpleResourcePack {
   public void sound(final String raw, final Path path) {
     Preconditions.checkNotNull(raw);
     Preconditions.checkNotNull(path);
-    final Key key = Key.key(raw);
+    final Key key = key(raw);
     final Sound sound = Sound.sound(key, Writable.path(path));
     final SoundEntry soundEntry = SoundEntry.soundEntry().type(SoundEntry.Type.FILE).key(key).build();
     final SoundEvent soundEvent = SoundEvent.soundEvent().key(key).sounds(soundEntry).replace(false).build();

@@ -24,6 +24,7 @@ import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegCommand;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegTemplates;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
  * Utility class for extracting audio from a given source.
@@ -50,8 +51,16 @@ public final class SoundExtractorUtils {
     final String name = uuid + ".ogg";
     final Path file = outputDir.resolve(name);
     final String output = file.toString();
-    final FFmpegCommand command = FFmpegTemplates.extractAudio(input, "ogg", output);
-    command.execute();
+    final FFmpegCommand command = FFmpegTemplates.extractAudio(input, "vorbis", output);
+    final CommandTask task = command.execute();
+    //    final Process process = task.getProcess();
+    //    try {
+    //      process.waitFor();
+    //    } catch (final InterruptedException e) {
+    //      final Thread currentThread = Thread.currentThread();
+    //      currentThread.interrupt();
+    //      throw new AssertionError(e);
+    //    }
     return file;
   }
 }
