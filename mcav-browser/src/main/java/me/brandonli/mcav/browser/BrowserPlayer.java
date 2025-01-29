@@ -60,8 +60,8 @@ public interface BrowserPlayer extends ReleasablePlayer {
    *
    * @return a {@code BrowserPlayer} instance configured with default Chrome arguments.
    */
-  static BrowserPlayer defaultChrome() {
-    return new ChromeDriverPlayer(DEFAULT_CHROME_ARGUMENTS);
+  static BrowserPlayer defaultSelenium() {
+    return new SeleniumPlayer(DEFAULT_CHROME_ARGUMENTS);
   }
 
   /**
@@ -69,10 +69,14 @@ public interface BrowserPlayer extends ReleasablePlayer {
    *
    * @param args the arguments to be passed to the Chrome browser instance. These arguments
    *             can be used to customize browser behavior, such as enabling or disabling features.
-   *             If no arguments are provided, default Chrome arguments can be used via {@link BrowserPlayer#defaultChrome()}.
+   *             If no arguments are provided, default Chrome arguments can be used via {@link BrowserPlayer#defaultSelenium()}.
    * @return a {@link BrowserPlayer} instance configured with the specified Chrome arguments.
    */
-  static BrowserPlayer chrome(final String... args) {
-    return new ChromeDriverPlayer(args);
+  static BrowserPlayer selenium(final String... args) {
+    return new SeleniumPlayer(args);
+  }
+
+  static BrowserPlayer playwright(final String... args) {
+    return new PlaywrightPlayer(args);
   }
 }

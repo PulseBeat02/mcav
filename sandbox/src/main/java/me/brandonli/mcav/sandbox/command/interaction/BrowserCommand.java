@@ -150,7 +150,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);
     try {
-      this.player = BrowserPlayer.defaultChrome();
+      this.player = BrowserPlayer.playwright();
       this.player.start(pipeline, source);
     } catch (final Exception e) {
       throw new AssertionError(e);

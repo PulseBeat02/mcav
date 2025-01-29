@@ -66,7 +66,7 @@ public final class ChromeDriverServiceProvider {
    * This method is intended to be called before any operation requiring the
    * ChromeDriverService, to ensure that the service is properly initialized.
    */
-  public static void init() {
+  static void init() {
     // init
   }
 
@@ -77,7 +77,7 @@ public final class ChromeDriverServiceProvider {
    *
    * @return the singleton instance of {@link ChromeDriverService}.
    */
-  public static ChromeDriverService getService() {
+  static ChromeDriverService getService() {
     return SERVICE;
   }
 

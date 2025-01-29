@@ -49,7 +49,7 @@ import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
-public final class ChromeDriverPlayer implements BrowserPlayer {
+public final class SeleniumPlayer implements BrowserPlayer {
 
   private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
   private static final Function<Actions, Actions>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
@@ -81,7 +81,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   @Nullable
   private volatile BrowserSource source;
 
-  public ChromeDriverPlayer(final String... args) {
+  public SeleniumPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final ChromeOptions options = new ChromeOptions().addArguments(args);
     this.driver = new ChromeDriver(service, options);

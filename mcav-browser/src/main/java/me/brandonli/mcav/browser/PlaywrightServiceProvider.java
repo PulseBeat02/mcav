@@ -17,28 +17,27 @@
  */
 package me.brandonli.mcav.browser;
 
-import me.brandonli.mcav.MCAVModule;
+import com.microsoft.playwright.Playwright;
 
-public final class BrowserModule implements MCAVModule {
+public final class PlaywrightServiceProvider {
 
-  public BrowserModule() {
-    // no-op
+  private static final Playwright PLAYWRIGHT = Playwright.create();
+
+  private PlaywrightServiceProvider() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  @Override
-  public void start() {
-    ChromeDriverServiceProvider.init();
-    PlaywrightServiceProvider.init();
+  static void init() {
+    // init
   }
 
-  @Override
-  public void stop() {
-    PlaywrightServiceProvider.shutdown();
-    ChromeDriverServiceProvider.shutdown();
+  static Playwright getService() {
+    return PLAYWRIGHT;
   }
 
-  @Override
-  public String getModuleName() {
-    return "browser";
+  static void shutdown() {
+    if (PLAYWRIGHT != null) {
+      PLAYWRIGHT.close();
+    }
   }
 }

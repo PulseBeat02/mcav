@@ -63,7 +63,7 @@ public final class BrowserInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final BrowserPlayer browser = BrowserPlayer.defaultChrome();
+    final BrowserPlayer browser = BrowserPlayer.playwright();
     browser.start(videoPipelineStep, browserSource);
     videoLabel.addMouseListener(
       new MouseAdapter() {

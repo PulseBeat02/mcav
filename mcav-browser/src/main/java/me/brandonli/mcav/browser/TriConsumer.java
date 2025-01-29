@@ -17,28 +17,19 @@
  */
 package me.brandonli.mcav.browser;
 
-import me.brandonli.mcav.MCAVModule;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public final class BrowserModule implements MCAVModule {
+@FunctionalInterface
+public interface TriConsumer<T, U, V> {
+  void accept(T t, U u, V v);
 
-  public BrowserModule() {
-    // no-op
-  }
-
-  @Override
-  public void start() {
-    ChromeDriverServiceProvider.init();
-    PlaywrightServiceProvider.init();
-  }
-
-  @Override
-  public void stop() {
-    PlaywrightServiceProvider.shutdown();
-    ChromeDriverServiceProvider.shutdown();
-  }
-
-  @Override
-  public String getModuleName() {
-    return "browser";
+  default TriConsumer<T, U, V> andThen(@Nullable TriConsumer<? super T, ? super U, ? super V> after) {
+    if (after == null) {
+      return this;
+    }
+    return (t, u, v) -> {
+      accept(t, u, v);
+      after.accept(t, u, v);
+    };
   }
 }
