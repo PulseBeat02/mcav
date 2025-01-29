@@ -35,4 +35,8 @@ public class PlayerException extends AssertionError {
   public PlayerException(final @Nullable String message) {
     super(message);
   }
+
+  public PlayerException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

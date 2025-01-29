@@ -34,4 +34,8 @@ public class HttpException extends AssertionError {
   HttpException(final @Nullable String message) {
     super(message);
   }
+
+  HttpException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

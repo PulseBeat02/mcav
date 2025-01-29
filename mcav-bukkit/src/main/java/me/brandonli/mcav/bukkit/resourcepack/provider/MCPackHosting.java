@@ -107,11 +107,11 @@ public class MCPackHosting implements WebsiteHosting {
       final String url = String.format(PACK_URL, DOWNLOAD_WEBSITE_URL, hash);
       return new PackInfo(url, 0);
     } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage());
+      throw new MCPacksException(e.getMessage(), e);
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new MCPacksException(e.getMessage());
+      throw new MCPacksException(e.getMessage(), e);
     }
   }
 
@@ -146,7 +146,7 @@ public class MCPackHosting implements WebsiteHosting {
       gson.toJson(updated, writer);
       return updated.url;
     } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage());
+      throw new MCPacksException(e.getMessage(), e);
     } finally {
       write.unlock();
     }
@@ -165,7 +165,7 @@ public class MCPackHosting implements WebsiteHosting {
       final PackInfo info = gson.fromJson(reader, PackInfo.class);
       return info == null ? null : (info.loads > 10 ? null : info);
     } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage());
+      throw new MCPacksException(e.getMessage(), e);
     } finally {
       read.unlock();
     }

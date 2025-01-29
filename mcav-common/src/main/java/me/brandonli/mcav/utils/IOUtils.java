@@ -69,7 +69,7 @@ public final class IOUtils {
         return true;
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
     return false;
   }
@@ -90,7 +90,7 @@ public final class IOUtils {
         return true;
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
     return false;
   }
@@ -115,7 +115,7 @@ public final class IOUtils {
         return bytesToHex(hash);
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
@@ -137,7 +137,7 @@ public final class IOUtils {
         return bytesToHex(hash);
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
@@ -160,7 +160,7 @@ public final class IOUtils {
         return bytesToHex(hash);
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
@@ -222,7 +222,7 @@ public final class IOUtils {
     try (final InputStream in = new URL(url).openStream()) {
       Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
     return destination;
   }
@@ -241,7 +241,7 @@ public final class IOUtils {
       try {
         Files.createDirectories(cacheDir);
       } catch (final IOException e) {
-        throw new UncheckedIOException(e.getMessage());
+        throw new UncheckedIOException(e.getMessage(), e);
       }
     }
     return cacheDir;
@@ -261,7 +261,7 @@ public final class IOUtils {
       final Type downloadArrayType = new TypeToken<Download[]>() {}.getType();
       return gson.fromJson(reader, downloadArrayType);
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
@@ -338,7 +338,7 @@ public final class IOUtils {
         zis.closeEntry();
       }
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 }

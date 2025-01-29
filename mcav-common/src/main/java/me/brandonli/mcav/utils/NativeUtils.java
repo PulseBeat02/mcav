@@ -69,7 +69,7 @@ public final class NativeUtils {
       final String absolutePath = absolute.toString();
       System.load(absolutePath);
     } catch (final IOException e) {
-      throw new NativeLoadingException(e.getMessage());
+      throw new NativeLoadingException(e.getMessage(), e);
     }
   }
 

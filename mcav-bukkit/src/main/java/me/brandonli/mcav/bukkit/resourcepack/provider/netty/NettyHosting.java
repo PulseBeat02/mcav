@@ -54,7 +54,7 @@ public final class NettyHosting implements InjectorHosting {
     } catch (final AssertionError e) {
       final ByteBuddyBukkitInjector injector = new ByteBuddyBukkitInjector(this.zip);
       injector.injectAgentIntoServer();
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 

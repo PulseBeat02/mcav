@@ -42,7 +42,7 @@ subprojects {
         }
 
         withType<JavaCompile>().configureEach {
-            val set = setOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked")
+            val set = setOf("-parameters")
             options.compilerArgs.addAll(set)
             options.encoding = "UTF-8"
             options.isFork = true

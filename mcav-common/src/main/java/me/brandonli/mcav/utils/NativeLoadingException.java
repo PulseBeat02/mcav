@@ -34,4 +34,8 @@ public class NativeLoadingException extends AssertionError {
   NativeLoadingException(final @Nullable String msg) {
     super(msg);
   }
+
+  NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
+    super(msg, cause);
+  }
 }

@@ -136,7 +136,7 @@ public class MatBackedImage implements StaticImage {
       final byte[] ba = mob.toArray();
       return ImageIO.read(new ByteArrayInputStream(ba));
     } catch (final IOException e) {
-      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
+      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
     }
   }
 

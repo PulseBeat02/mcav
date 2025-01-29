@@ -55,7 +55,7 @@ public final class ExecutorUtils {
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt(); // yeah... we're fucked
-      throw new CriticalTaskException(e.getMessage());
+      throw new CriticalTaskException(e.getMessage(), e);
     }
     return false;
   }

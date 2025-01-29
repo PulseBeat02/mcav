@@ -68,7 +68,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
       final Object field = fetchField(clazz, ucp, "path");
       return (Collection<URL>) field;
     } catch (final Throwable e) {
-      throw new JarInjectorException(e.getMessage());
+      throw new JarInjectorException(e.getMessage(), e);
     }
   }
 
@@ -80,7 +80,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
       final Object field = fetchField(clazz, ucp, "unopenedUrls");
       return (Collection<URL>) field;
     } catch (final Throwable e) {
-      throw new JarInjectorException(e.getMessage());
+      throw new JarInjectorException(e.getMessage(), e);
     }
   }
 

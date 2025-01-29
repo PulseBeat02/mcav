@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -33,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class MCPacksException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
@@ -45,5 +47,19 @@ public class MCPacksException extends AssertionError {
    */
   public MCPacksException(final @Nullable String message) {
     super(message);
+  }
+
+  /**
+   * Constructs an {@code MCPacksException} with the specified detail message
+   * and cause. This constructor allows the creation of an exception instance
+   * that can carry additional context or description about the error, specific
+   * to MC Packs functionality, along with the underlying cause of the exception.
+   *
+   * @param message the detail message explaining the reason for the exception,
+   *                or {@code null} if no message is provided
+   * @param cause   the cause of the exception, or {@code null} if no cause is provided
+   */
+  public MCPacksException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
   }
 }

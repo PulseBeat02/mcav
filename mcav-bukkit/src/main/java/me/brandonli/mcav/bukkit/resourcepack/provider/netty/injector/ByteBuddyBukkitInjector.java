@@ -67,7 +67,7 @@ public final class ByteBuddyBukkitInjector {
     try {
       return Class.forName("net.minecraft.network.NetworkManager");
     } catch (final ClassNotFoundException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 
@@ -92,7 +92,7 @@ public final class ByteBuddyBukkitInjector {
       this.injectClassesIntoClassLoader();
       this.injectIntoConnectionMethod();
     } catch (final ClassNotFoundException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 

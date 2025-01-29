@@ -231,7 +231,7 @@ public abstract class AbstractInstaller implements Installer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
+      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
     }
   }
 

@@ -75,12 +75,8 @@ public class VNCInputExample {
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(
       new Thread(() -> {
-        try {
-          player.release();
-          api.release();
-        } catch (final Exception e) {
-          throw new AssertionError(e);
-        }
+        player.release();
+        api.release();
       })
     );
 

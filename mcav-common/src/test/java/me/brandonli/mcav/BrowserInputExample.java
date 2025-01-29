@@ -81,11 +81,7 @@ public final class BrowserInputExample {
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
-          try {
-            browser.release();
-          } catch (final Exception e) {
-            throw new RuntimeException(e);
-          }
+          browser.release();
           api.release();
         })
       );

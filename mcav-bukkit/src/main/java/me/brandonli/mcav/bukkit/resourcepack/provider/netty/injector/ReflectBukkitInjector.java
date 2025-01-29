@@ -39,7 +39,7 @@ public final class ReflectBukkitInjector {
     try {
       CONNECTIONS = getConnections();
     } catch (final Throwable e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 
@@ -60,7 +60,7 @@ public final class ReflectBukkitInjector {
       try {
         return privateLookup.findVarHandle(target, "f", List.class);
       } catch (final NoSuchFieldException | IllegalAccessException ex) {
-        throw new InjectorException(e.getMessage());
+        throw new InjectorException(e.getMessage(), e);
       }
     }
   }

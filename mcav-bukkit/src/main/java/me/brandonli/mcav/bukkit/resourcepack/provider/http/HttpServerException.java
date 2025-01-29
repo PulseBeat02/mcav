@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider.http;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -27,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class HttpServerException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
@@ -36,5 +38,15 @@ public class HttpServerException extends AssertionError {
    */
   public HttpServerException(final @Nullable String message) {
     super(message);
+  }
+
+  /**
+   * Constructs a new {@code HttpServerException} with the specified detail message and cause.
+   *
+   * @param message the detail message explaining the exception. This can be {@code null}.
+   * @param cause   the cause of the exception. This can be {@code null}.
+   */
+  public HttpServerException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
   }
 }

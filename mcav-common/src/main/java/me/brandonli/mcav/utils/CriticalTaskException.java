@@ -34,4 +34,8 @@ public class CriticalTaskException extends AssertionError {
   CriticalTaskException(final @Nullable String message) {
     super(message);
   }
+
+  CriticalTaskException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

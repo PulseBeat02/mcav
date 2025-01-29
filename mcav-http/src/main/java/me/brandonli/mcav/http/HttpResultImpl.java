@@ -42,7 +42,7 @@ public class HttpResultImpl implements HttpResult {
     ) {
       return reader.lines().collect(Collectors.joining("\n"));
     } catch (final IOException e) {
-      throw new HttpException(e.getMessage());
+      throw new HttpException(e.getMessage(), e);
     }
   }
 

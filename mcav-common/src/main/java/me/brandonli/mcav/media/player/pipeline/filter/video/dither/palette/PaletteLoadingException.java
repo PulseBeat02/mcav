@@ -42,4 +42,8 @@ public class PaletteLoadingException extends AssertionError {
   PaletteLoadingException(final @Nullable String message) {
     super(message);
   }
+
+  PaletteLoadingException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

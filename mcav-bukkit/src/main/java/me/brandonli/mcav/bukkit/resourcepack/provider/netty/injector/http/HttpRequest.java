@@ -54,7 +54,7 @@ public final class HttpRequest {
     try (final ByteBufInputStream stream = new ByteBufInputStream(buf)) {
       return parse(stream);
     } catch (final IOException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 
@@ -65,7 +65,7 @@ public final class HttpRequest {
       final Map<String, String> headers = readHeaders(bufferedReader);
       return new HttpRequest(line, headers);
     } catch (final IOException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 
@@ -79,7 +79,7 @@ public final class HttpRequest {
         header = reader.readLine();
       }
     } catch (final IOException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
     return headers;
   }

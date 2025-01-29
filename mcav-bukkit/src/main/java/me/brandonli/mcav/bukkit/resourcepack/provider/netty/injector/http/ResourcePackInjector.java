@@ -40,7 +40,7 @@ public final class ResourcePackInjector extends HttpInjector {
       buf.writeBytes(bytes);
       return buf;
     } catch (final IOException e) {
-      throw new InjectorException(e.getMessage());
+      throw new InjectorException(e.getMessage(), e);
     }
   }
 

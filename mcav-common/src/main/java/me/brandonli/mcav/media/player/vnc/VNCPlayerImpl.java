@@ -155,7 +155,7 @@ public class VNCPlayerImpl implements VNCPlayer {
           }
           image.release();
         } catch (final IOException e) {
-          throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
+          throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage(), e);
         }
 
         lastProcessTime = currentTime;

@@ -99,7 +99,7 @@ public final class InstallationManager implements AutoCloseable {
     try (final Stream<Path> paths = Files.walk(this.downloadPath)) {
       return paths.filter(this::isJarFile).collect(Collectors.toUnmodifiableSet());
     } catch (final IOException e) {
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     }
   }
 
@@ -121,11 +121,11 @@ public final class InstallationManager implements AutoCloseable {
       final CompletableFuture<Void> future = this.saveArtifactsAsync(artifacts);
       future.get();
     } catch (final DependencyResolutionException | IOException | ExecutionException e) {
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     }
     return this.getAllJars();
   }
@@ -218,7 +218,7 @@ public final class InstallationManager implements AutoCloseable {
       props.load(in);
       return props;
     } catch (final IOException e) {
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     }
   }
 
@@ -227,7 +227,7 @@ public final class InstallationManager implements AutoCloseable {
     try (final OutputStream out = Files.newOutputStream(hashFile)) {
       this.artifactHashes.store(out, "Artifact SHA-256 Hashes");
     } catch (final IOException e) {
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     }
   }
 
@@ -270,7 +270,7 @@ public final class InstallationManager implements AutoCloseable {
         }
       }
     } catch (final IOException e) {
-      throw new InstallationError(e.getMessage());
+      throw new InstallationError(e.getMessage(), e);
     }
   }
 

@@ -69,7 +69,7 @@ public final class ScreenBuilderGui extends Gui {
   private Material material;
 
   public ScreenBuilderGui(final Player player) {
-    super(new GuiContainer.Chest(text(""), INVENTORY_PROVIDER, 5), InteractionModifier.VALUES);
+    super(new GuiContainer.Chest(text("Map Screen Builder"), INVENTORY_PROVIDER, 5), InteractionModifier.VALUES);
     this.material = Material.OAK_PLANKS;
     this.viewer = player;
     this.width = new MutableInt(5);
@@ -94,7 +94,9 @@ public final class ScreenBuilderGui extends Gui {
     this.setItem(4, 3, this.getGuiItem(this.getDecreaseArrow("Block Height"), this.height, false));
     this.setItem(2, 4, this.getGuiItem(this.getIncreaseArrow("Map ID"), this.id, true));
     this.setItem(4, 4, this.getGuiItem(this.getDecreaseArrow("Map ID"), this.id, false));
-    this.setItem(3, 6, this.getMaterialItem());
+    this.setItem(3, 2, this.getWidthItem());
+    this.setItem(3, 3, this.getHeightItem());
+    this.setItem(3, 4, this.getMapItem());
     this.setItem(3, 8, this.getBuildScreenItem());
     this.update();
   }
@@ -120,16 +122,11 @@ public final class ScreenBuilderGui extends Gui {
     } else {
       update.decrement();
     }
-    this.update();
-  }
-
-  @Override
-  public void update() {
-    super.update();
     this.setItem(3, 2, this.getWidthItem());
     this.setItem(3, 3, this.getHeightItem());
     this.setItem(3, 4, this.getMapItem());
     this.setItem(3, 6, this.getMaterialItem());
+    this.update();
   }
 
   public GuiItem getMapItem() {

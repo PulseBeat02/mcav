@@ -36,4 +36,8 @@ public class UncheckedIOException extends AssertionError {
   public UncheckedIOException(final @Nullable String message) {
     super(message);
   }
+
+  public UncheckedIOException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

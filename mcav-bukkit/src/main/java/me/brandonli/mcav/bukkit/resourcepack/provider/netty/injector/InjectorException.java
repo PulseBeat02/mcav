@@ -39,4 +39,16 @@ public class InjectorException extends AssertionError {
   public InjectorException(final @Nullable String message) {
     super(message);
   }
+
+  /**
+   * Constructs a new InjectorException with the specified detail message and cause.
+   *
+   * @param message the detail message that provides additional information about
+   *                the exception.
+   * @param cause   the cause of the exception, which can be used to retrieve
+   *                additional context about the error.
+   */
+  public InjectorException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

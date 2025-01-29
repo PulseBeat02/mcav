@@ -149,7 +149,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         finalAudio.start();
         finalVideo.start();
       } catch (final FrameGrabber.Exception e) {
-        throw new PlayerException(e.getMessage());
+        throw new PlayerException(e.getMessage(), e);
       }
 
       this.running.set(true);
@@ -201,7 +201,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
     } catch (final FrameGrabber.Exception | InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new PlayerException(e.getMessage());
+      throw new PlayerException(e.getMessage(), e);
     }
   }
 
@@ -364,7 +364,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       try {
         finalGrabber.start();
       } catch (final FrameGrabber.Exception e) {
-        throw new PlayerException(e.getMessage());
+        throw new PlayerException(e.getMessage(), e);
       }
 
       this.running.set(true);
@@ -429,7 +429,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       this.shutdownGrabber(this.audio);
       this.shutdownGrabber(this.video);
     } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage());
+      throw new PlayerException(e.getMessage(), e);
     }
     this.audio = null;
     this.video = null;
@@ -470,7 +470,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           this.retrievalFuture = CompletableFuture.runAsync(this::retrieveFrames, this.frameRetrieverExecutor);
         }
       } catch (final FrameGrabber.Exception e) {
-        throw new PlayerException(e.getMessage());
+        throw new PlayerException(e.getMessage(), e);
       }
 
       this.audioProcessingFuture = CompletableFuture.runAsync(this::processAudioFrames, this.frameProcessorExecutor);

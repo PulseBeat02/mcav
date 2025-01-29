@@ -73,17 +73,13 @@ public final class MultiplexerInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
 
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
-          try {
-            multiplexer.release();
-          } catch (final Exception e) {
-            throw new RuntimeException(e);
-          }
+          multiplexer.release();
           api.release();
         })
       );

@@ -52,7 +52,7 @@ public final class LoaderUtils {
       addJarPath(jarPath, loader);
       loadServiceProviders(jarPath, loader);
     } catch (final IOException e) {
-      throw new JarInjectorException(e.getMessage());
+      throw new JarInjectorException(e.getMessage(), e);
     }
     return true;
   }
@@ -80,7 +80,7 @@ public final class LoaderUtils {
       final VarHandle urlLoaderHandle = lookup.findVarHandle(clazz, "urlLoader", dynamicLoaderClass);
       return (URLClassLoader) urlLoaderHandle.get(loader);
     } catch (final IllegalAccessException | ClassNotFoundException | NoSuchFieldException e) {
-      throw new JarInjectorException(e.getMessage());
+      throw new JarInjectorException(e.getMessage(), e);
     }
   }
 

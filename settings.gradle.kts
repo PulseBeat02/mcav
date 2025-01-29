@@ -16,5 +16,7 @@ project(":mcav-installer").name = "mcav-installer"
 include("mcav-jda")
 project(":mcav-jda").name = "mcav-jda"
 
-include("sandbox")
 include("mcav-http")
+project(":mcav-http").name = "mcav-http"
+
+include("sandbox")

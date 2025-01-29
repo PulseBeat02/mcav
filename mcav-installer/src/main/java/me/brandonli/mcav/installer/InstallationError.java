@@ -35,4 +35,8 @@ public class InstallationError extends AssertionError {
   InstallationError(final @Nullable String message) {
     super(message);
   }
+
+  InstallationError(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

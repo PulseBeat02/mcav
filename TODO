@@ -1,8 +1,4 @@
 Things to implement into plugin
   - Images and GIFs into Plugin
-
-  - Fix FFmpeg HTTP Output
-  - Fix VLC Multiplexer Audio
-  - Fix Screen Building GUI (first-click not registering)
-
+  - Handle Dependency Management
   - Update video showcase in the README

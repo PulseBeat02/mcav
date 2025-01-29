@@ -31,4 +31,8 @@ public class ProcessException extends AssertionError {
   ProcessException(final @Nullable String message) {
     super(message);
   }
+
+  ProcessException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

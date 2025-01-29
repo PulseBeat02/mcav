@@ -58,7 +58,7 @@ public final class MapPaletteLoader {
       }
       NMS_PALETTE = Stream.of(colors).map(createColor()).toArray(Color[]::new);
     } catch (final IOException e) {
-      throw new PaletteLoadingException(e.getMessage());
+      throw new PaletteLoadingException(e.getMessage(), e);
     }
   }
 

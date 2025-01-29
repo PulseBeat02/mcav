@@ -106,7 +106,7 @@ public class CommandTask {
           outputBuilder.append(str).append(System.lineSeparator());
         }
       } catch (final IOException e) {
-        throw new ProcessException(e.getMessage());
+        throw new ProcessException(e.getMessage(), e);
       }
     });
   }
@@ -119,7 +119,7 @@ public class CommandTask {
           outputBuilder.append(str).append(System.lineSeparator());
         }
       } catch (final IOException e) {
-        throw new ProcessException(e.getMessage());
+        throw new ProcessException(e.getMessage(), e);
       }
     });
   }

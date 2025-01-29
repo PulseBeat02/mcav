@@ -59,7 +59,7 @@ final class ReflectiveInjector extends URLClassLoaderInjector {
       final ClassLoader classLoader = super.getClassLoader();
       ADD_URL_METHOD.invoke(classLoader, url);
     } catch (final IllegalAccessException | InvocationTargetException e) {
-      throw new JarInjectorException(e.getMessage());
+      throw new JarInjectorException(e.getMessage(), e);
     }
   }
 }

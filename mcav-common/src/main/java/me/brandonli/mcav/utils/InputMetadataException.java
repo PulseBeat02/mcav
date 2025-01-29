@@ -34,4 +34,8 @@ public class InputMetadataException extends AssertionError {
   InputMetadataException(final @Nullable String message) {
     super(message);
   }
+
+  InputMetadataException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
+  }
 }

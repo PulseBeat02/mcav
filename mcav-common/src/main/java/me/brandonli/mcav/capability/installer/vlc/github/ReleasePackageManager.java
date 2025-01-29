@@ -62,7 +62,7 @@ public final class ReleasePackageManager {
       final Download[] add = getDownloads();
       return ObjectArrays.concat(downloads, add, Download.class);
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 
@@ -120,11 +120,11 @@ public final class ReleasePackageManager {
       final JsonObject releaseJson = parsed.getAsJsonObject();
       return releaseJson.getAsJsonArray("assets");
     } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new UncheckedIOException(e.getMessage());
+      throw new UncheckedIOException(e.getMessage(), e);
     }
   }
 }

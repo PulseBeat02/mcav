@@ -34,4 +34,8 @@ public class JarInjectorException extends UnsupportedOperationException {
   JarInjectorException(final @Nullable String msg) {
     super(msg);
   }
+
+  JarInjectorException(final @Nullable String msg, final @Nullable Throwable cause) {
+    super(msg, cause);
+  }
 }

@@ -86,11 +86,7 @@ public final class SingleCombinedInputExample {
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
-          try {
-            multiplexer.release();
-          } catch (final Exception e) {
-            throw new RuntimeException(e);
-          }
+          multiplexer.release();
           api.release();
         })
       );
