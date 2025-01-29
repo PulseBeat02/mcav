@@ -26,7 +26,6 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
@@ -44,7 +43,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Command("mcav video release")
   @Permission("mcav.command.video.release")
   @CommandDescription("mcav.command.video.release.info")
-  public void releaseVideo(final Player player) {
+  public void releaseVideo(final CommandSender player) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final Audience audience = audiences.sender(player);
     final ExecutorService service = this.manager.getService();
@@ -56,7 +55,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Command("mcav video pause")
   @Permission("mcav.command.video.pause")
   @CommandDescription("mcav.command.video.pause.info")
-  public void pauseVideo(final Player player) {
+  public void pauseVideo(final CommandSender player) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final Audience audience = audiences.sender(player);
     final VideoPlayerMultiplexer videoPlayer = this.manager.getPlayer();

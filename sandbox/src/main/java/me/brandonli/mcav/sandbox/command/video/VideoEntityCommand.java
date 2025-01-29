@@ -73,14 +73,15 @@ public final class VideoEntityCommand implements AnnotationCommandFeature {
     this.manager = plugin.getVideoPlayerManager();
   }
 
-  @Command("mcav video entity <playerType> <videoResolution> <character> <mrl>")
+  @Command("mcav video entity <playerType> <videoResolution> <character> <location> <mrl>")
   @Permission("mcav.command.video.entity")
   @CommandDescription("mcav.command.video.entity.info")
   public void playEntityVideo(
-    final Player player,
+    final CommandSender player,
     final PlayerArgument playerType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
+    final Location location,
     @Greedy final String mrl
   ) {
     final BukkitAudiences audiences = this.manager.getAudiences();
@@ -103,7 +104,6 @@ public final class VideoEntityCommand implements AnnotationCommandFeature {
 
     audience.sendMessage(Message.VIDEO_LOADING.build());
 
-    final Location location = requireNonNull(player.getLocation());
     final ExecutorService service = this.manager.getService();
     CompletableFuture.runAsync(() -> this.synchronizeEntityPlayer(playerType, location, mrl, audience, character, resolution), service)
       .exceptionally(this.handleException())

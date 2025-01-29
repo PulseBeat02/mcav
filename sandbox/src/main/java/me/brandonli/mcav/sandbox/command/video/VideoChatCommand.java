@@ -73,7 +73,7 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.chat")
   @CommandDescription("mcav.command.video.chat.info")
   public void playChatVideo(
-    final Player player,
+    final CommandSender player,
     final PlayerArgument playerType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,

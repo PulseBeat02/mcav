@@ -62,7 +62,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   @Command("mcav browser release")
   @Permission("mcav.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
-  public void playBrowser(final Player player) {
+  public void playBrowser(final CommandSender player) {
     final Audience audience = this.audiences.sender(player);
     if (this.browser != null) {
       try {
@@ -79,7 +79,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.browser.create")
   @CommandDescription("mcav.command.browser.create.info")
   public void playBrowser(
-    final Player player,
+    final CommandSender player,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,

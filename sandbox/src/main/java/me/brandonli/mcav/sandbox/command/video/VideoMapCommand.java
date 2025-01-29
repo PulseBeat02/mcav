@@ -76,7 +76,7 @@ public final class VideoMapCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
   public void playMapVideo(
-    final Player player,
+    final CommandSender player,
     final PlayerArgument playerType,
     @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
