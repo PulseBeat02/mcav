@@ -21,7 +21,7 @@
 
 ---
 
-MCAV (pronounced *EM CAV*) is an incredibly powerful multimedia library and Bukkit plugin for Java, serving as the successor of
+MCAV (pronounced *EM CAV*) is an incredibly powerful multimedia library and plugin for Java, serving as the successor of
 EzMediaCore2. MCAV utilizes several low-level libraries like [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/), and LibVLC
 (from [VLC media player](https://www.videolan.org/vlc/)) to provide a seamless playback experience for developers and
 users. MCAV also is capable of rendering browsers using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/java/), or
