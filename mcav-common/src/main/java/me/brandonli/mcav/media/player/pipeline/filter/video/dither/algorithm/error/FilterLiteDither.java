@@ -21,13 +21,16 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.utils.natives.NativeUtils;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.Platform;
 
+/**
+ * Implements the Filter Lite Dithering algorithm.
+ */
 public final class FilterLiteDither extends ErrorDiffusionDither {
 
   private static boolean NATIVE_SUPPORTED;
@@ -62,7 +65,12 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     }
   }
 
-  public FilterLiteDither(final Palette palette) {
+  /**
+   * Constructs a new Filter Lite Dither instance with the specified palette.
+   *
+   * @param palette the dither palette to use for dithering
+   */
+  public FilterLiteDither(final DitherPalette palette) {
     super(palette);
   }
 
@@ -74,7 +82,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
    */
   @Override
   public void dither(final int[] buffer, final int width) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
@@ -176,8 +184,20 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     }
   }
 
+  /**
+   * Performs Filter Lite Dithering using native code for performance optimization.
+   *
+   * @param buffer    the pixel buffer containing the image data
+   * @param width     the width of the image
+   * @param colors    the full color map used for dithering
+   * @param mapColors the color map used to map colors to bytes
+   * @return a byte array representing the dithered image data
+   */
   public native byte[] ditherNatively(int[] buffer, int width, int[] colors, byte[] mapColors);
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
     //    if (NATIVE_SUPPORTED) {
@@ -186,7 +206,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     //      final int[] buffer = image.getAllPixels();
     //      return this.ditherNatively(buffer, width, colors, mapColors);
     //    }
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int height = image.getHeight();

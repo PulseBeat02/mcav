@@ -33,6 +33,10 @@ public final class FFmpegExecutableProvider {
     FFMPEG_PATH = Path.of(path);
   }
 
+  private FFmpegExecutableProvider() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
   /**
    * Returns the path to the FFmpeg executable.
    *

@@ -20,17 +20,27 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.er
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
+/**
+ * Implements the Burkes dithering algorithm.
+ */
 public final class BurkesDither extends ErrorDiffusionDither {
 
-  public BurkesDither(final Palette palette) {
+  /**
+   * Creates a new instance of the Burkes dithering algorithm with the specified palette.
+   * @param palette the palette to use for dithering
+   */
+  public BurkesDither(final DitherPalette palette) {
     super(palette);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void dither(final int[] buffer, final int width) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
@@ -158,9 +168,12 @@ public final class BurkesDither extends ErrorDiffusionDither {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int width = image.getWidth();
     final int[] buffer = image.getPixels();
     final int height = buffer.length / width;

@@ -22,7 +22,7 @@ import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.loader.DependencyLoader;
 import me.brandonli.mcav.media.player.multimedia.vlc.MediaPlayerFactoryProvider;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.module.MCAVModule;
 import me.brandonli.mcav.module.ModuleLoader;
 import me.brandonli.mcav.utils.ReflectionUtils;
@@ -48,6 +48,8 @@ public final class MCAV implements MCAVApi {
 
   /**
    * Returns a new instance of the MCAV API.
+   *
+   * @return a new instance of {@link MCAVApi}
    */
   public static MCAVApi api() {
     return new MCAV();
@@ -106,7 +108,7 @@ public final class MCAV implements MCAVApi {
   private void loadMapCache() {
     LOGGER.info("Loading map cache...");
     final long start = System.currentTimeMillis();
-    Palette.init();
+    DitherPalette.init();
     final long end = System.currentTimeMillis();
     LOGGER.info("Map cache loaded in {} ms", end - start);
   }

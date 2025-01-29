@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.sandbox;
 
-import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
@@ -29,11 +28,12 @@ import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
 import me.brandonli.mcav.vm.VMModule;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAVSandbox extends JavaPlugin {
 
-  private Logger logger;
+  private ComponentLogger logger;
 
   private MCAVApi mcav;
   private boolean isQemuInstalled;
@@ -53,7 +53,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   @Override
   public void onEnable() {
-    this.logger = this.getLogger();
+    this.logger = this.getComponentLogger();
     this.loadMCAV();
     this.loadPluginData();
     this.loadManager();
@@ -81,11 +81,11 @@ public final class MCAVSandbox extends JavaPlugin {
     final VMModule vmModule = this.mcav.getModule(VMModule.class);
     this.isQemuInstalled = vmModule.isQemuInstalled();
     if (!this.isQemuInstalled) {
-      this.logger.warning("QEMU is not installed. VM playback will not be available.");
+      this.logger.warn("QEMU is not installed. VM playback will not be available.");
     }
 
     final long endTime = System.currentTimeMillis();
-    this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
+    this.logger.info("MCAV Library loaded in {}ms", endTime - startTime);
   }
 
   private void loadPluginData() {
@@ -94,7 +94,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.configurationMapper = new PluginDataConfigurationMapper(this);
     this.configurationMapper.deserialize();
     final long endTime = System.currentTimeMillis();
-    this.logger.info("Plugin Data loaded in " + (endTime - startTime) + "ms");
+    this.logger.info("Plugin Data loaded in {}ms", endTime - startTime);
   }
 
   @Override

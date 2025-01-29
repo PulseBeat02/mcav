@@ -27,8 +27,6 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * {@inheritDoc}
- * <p>
  * LinuxInstallationStrategy is a concrete implementation of the InstallationStrategy interface for Linux platforms.
  */
 public final class LinuxInstallationStrategy extends ManualInstallationStrategy {
@@ -43,8 +41,6 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   }
 
   /**
-   * {@inheritDoc}
-   * <p>
    * This method checks for the existence of VLC binaries in the expected directories. It first checks if the ".junest"
    * directory exists, and if not, it checks the "usr/lib/i386-linux-gnu" directory. Otherwise, it checks the "usr/lib"
    * directory.
@@ -67,8 +63,6 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   }
 
   /**
-   * {@inheritDoc}
-   * <p>
    * This method executes the installation process for VLC binaries on Linux platforms. It extracts the AppImage, copies
    * the necessary files, and loads the required libraries.
    */

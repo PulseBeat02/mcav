@@ -21,14 +21,17 @@ import java.io.Serial;
 
 /**
  * Exception thrown to indicate that the current operating system is not supported.
- * This exception typically signals that an operation or functionality cannot proceed
- * because the operating system being used is incompatible or unsupported by the application.
  */
 public class UnsupportedOperatingSystemException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = 885934601050385987L;
 
+  /**
+   * Constructs a new UnsupportedOperatingSystemException with the specified detail message.
+   *
+   * @param message the detail message explaining the reason for the exception
+   */
   public UnsupportedOperatingSystemException(final String message) {
     super(message);
   }

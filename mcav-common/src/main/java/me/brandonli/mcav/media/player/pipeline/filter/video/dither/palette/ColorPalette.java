@@ -19,26 +19,12 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
 import java.util.ArrayList;
 import java.util.List;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.load.LoadRed;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /**
- * The ColorPalette class is an implementation of the Palette interface used to
- * manage and process a set of colors, generating lookup tables for efficient
- * color mapping operations. This class is primarily designed for scenarios
- * involving color reduction or remapping in dithered or indexed color applications.
- * <p>
- * Each instance of ColorPalette is constructed from a predefined list of colors
- * which is used to initialize the internal palette, a color mapping table, and a full
- * color mapping table. These data structures support efficient retrieval of colors
- * and index mappings at runtime.
- * <p>
- * The construction process involves:
- * 1. Initializing the palette with the specified list of colors.
- * 2. Creating multitasked lookup tables for red, green, and blue channels using
- * parallel processing via ForkJoin framework.
+ * A default implementation of the {@link DitherPalette} interface,
  */
-public class ColorPalette implements Palette {
+public class ColorPalette implements DitherPalette {
 
   private final int[] palette;
   private final byte[] colorMap;

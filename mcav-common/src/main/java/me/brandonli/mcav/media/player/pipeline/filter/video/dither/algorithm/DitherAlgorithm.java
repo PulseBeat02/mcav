@@ -24,19 +24,14 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nea
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDitherImpl;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Interface representing a general dither algorithm. Implementations
- * of this interface provide various dithering techniques for images.
- * Dithering is a method used to approximate a color from a color palette
- * by merging pixels of available colors.
+ * Interface representing a general dither algorithm.
  */
 public interface DitherAlgorithm {
   /**
    * Converts the given static image buffer into a byte array by applying a dithering algorithm.
-   * Each byte in the resulting array represents a palette index corresponding to
-   * the colors mapped during the dithering process.
    *
    * @param buffer the static image to be dithered, represented as a {@code StaticImage} object.
    *               This is the source data upon which the dithering operation is performed.
@@ -46,9 +41,7 @@ public interface DitherAlgorithm {
   byte[] ditherIntoBytes(final ImageBuffer buffer);
 
   /**
-   * Applies a dithering algorithm to the given pixel buffer. The dithering
-   * process adjusts the pixel colors in the buffer to approximate colors
-   * from a predefined palette, creating the illusion of intermediate shades.
+   * Applies a dithering algorithm to the given pixel buffer.
    *
    * @param buffer an array of pixel data represented as integers. Each element
    *               corresponds to the color value of a pixel in the image.
@@ -58,14 +51,12 @@ public interface DitherAlgorithm {
   void dither(final int[] buffer, final int width);
 
   /**
-   * Retrieves the palette associated with the dither algorithm. The palette
-   * represents the set of colors used during the dithering process to approximate
-   * the colors of an image.
+   * Retrieves the palette associated with the dither algorithm.
    *
    * @return the {@code Palette} object used by the dither algorithm for color mapping
    * and processing.
    */
-  Palette getPalette();
+  DitherPalette getPalette();
 
   /**
    * Creates and returns a builder for constructing an instance of
@@ -79,8 +70,7 @@ public interface DitherAlgorithm {
   }
 
   /**
-   * Creates a builder for constructing instances of {@link RandomDitherImpl}, which
-   * applies random noise to image data for dithering purposes.
+   * Creates a builder for constructing instances of {@link RandomDitherImpl}.
    *
    * @return a builder for {@link RandomDitherImpl} instances, allowing customization
    * of the dithering algorithm's parameters such as the weight and palette.
@@ -102,8 +92,6 @@ public interface DitherAlgorithm {
 
   /**
    * Creates a builder for constructing instances of {@code NearestDither}.
-   * This builder allows customization of parameters such as the palette,
-   * used to configure and build the dithering algorithm.
    *
    * @return an instance of {@code NearestDitherBuilderImpl} for configuring and
    * building a {@code NearestDither} instance.

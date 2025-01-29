@@ -17,8 +17,15 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
+/** Fragment **/
 public class Fragment {
 
+  Fragment() {
+    // no-op
+  }
+
+  /** url **/
   public String url;
+  /** duration **/
   public double duration;
 }

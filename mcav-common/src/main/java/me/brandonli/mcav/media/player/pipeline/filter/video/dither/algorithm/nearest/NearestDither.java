@@ -22,12 +22,5 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 /**
  * The NearestDither interface represents a dithering algorithm that selects
  * the nearest color from a specified palette for each pixel in an image.
- * This approach avoids introducing additional noise or patterns to the image
- * and focuses on minimizing color distance as a primary criterion.
- * <p>
- * Implementing classes are responsible for utilizing the color palette and
- * efficiently determining the nearest color for image pixels. This interface
- * extends the {@link DitherAlgorithm}, inheriting the core methods for pixel
- * processing, color approximation, and palette management.
  */
 public interface NearestDither extends DitherAlgorithm {}

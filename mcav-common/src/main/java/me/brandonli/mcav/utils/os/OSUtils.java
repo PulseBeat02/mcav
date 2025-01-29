@@ -82,6 +82,8 @@ public final class OSUtils {
 
   /**
    * Retrieves the current operating system of the runtime environment.
+   *
+   * @return the current operating system as an {@link OS} enum value
    */
   public static OS getOS() {
     return CURRENT;

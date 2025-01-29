@@ -20,13 +20,22 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.or
 import com.google.common.base.Preconditions;
 
 /**
- * An interface representing a pixel mapping strategy. Implementations of this interface
- * define methods to provide a two-dimensional float matrix that transforms or maps pixel
- * data according to a specific algorithm.
+ * An interface representing a pixel mapping strategy.
  */
 public interface PixelMapper {
-  float MIN_STRENGTH = 0.0f;
+  /**
+   * Minimum strength
+   */
+  float MIN_STRENGTH = 0.5f;
+
+  /**
+   * Normal strength
+   */
   float NORMAL_STRENGTH = 1.0f;
+
+  /**
+   * Maximum strength
+   */
   float MAX_STRENGTH = 2.0f;
 
   /**

@@ -26,6 +26,13 @@ import org.bytedeco.opencv.opencv_core.Mat;
 public class GrayscaleFilter extends MatVideoFilter {
 
   /**
+   * Constructs a new GrayscaleFilter.
+   */
+  public GrayscaleFilter() {
+    // no-op
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

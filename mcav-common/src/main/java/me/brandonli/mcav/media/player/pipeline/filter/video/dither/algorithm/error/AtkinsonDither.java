@@ -21,17 +21,27 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
+/**
+ * Implements the Atkinson dithering algorithm
+ */
 public final class AtkinsonDither extends ErrorDiffusionDither {
 
-  public AtkinsonDither(final Palette palette) {
+  /**
+   * Constructs an AtkinsonDither instance with the specified palette.
+   * @param palette the DitherPalette to use for dithering
+   */
+  public AtkinsonDither(final DitherPalette palette) {
     super(palette);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void dither(final int[] buffer, final int width) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int[][] ditherBuffer = new int[3][width * 3];
@@ -157,9 +167,12 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int height = image.getHeight();

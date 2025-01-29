@@ -21,14 +21,6 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 
 /**
  * Represents a functional interface used to handle the result of a dithering operation.
- * This interface is specifically designed to process dithered video frame data and its associated metadata.
- * It serves as a callback mechanism, enabling custom post-processing or transfer of processed frames.
- * <p>
- * Implementing this interface allows integrations with video processing pipelines
- * to handle the output of dithering algorithms in a flexible and reusable manner.
- * <p>
- * The {@code process} method is expected to be implemented to define the behavior
- * for handling the dithered frame data along with its video metadata.
  */
 @FunctionalInterface
 public interface DitherResultStep {

@@ -28,8 +28,6 @@ import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * {@inheritDoc}
- * <p>
  * OSXInstallationStrategy is a concrete implementation of the InstallationStrategy interface for macOS platforms.
  */
 public final class OSXInstallationStrategy extends ManualInstallationStrategy {

@@ -23,18 +23,14 @@ import java.util.Set;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * The OrderedDither class implements the DitherAlgorithm interface and provides functionality
- * to perform ordered dithering on images. Ordered dithering adjusts the colors of an image
- * by applying a threshold matrix to distribute quantization errors in a structured manner.
- * This implementation uses a predefined palette and a pixel mapping matrix to process
- * the input image.
+ * Implementation of Bayer Dithering algorithm using a predefined color palette and a pixel mapping matrix.
  */
 public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither {
 
-  private final Palette palette;
+  private final DitherPalette palette;
   private final float[][] precalc;
   private final int avgLevel;
   private final int xdim;
@@ -42,21 +38,19 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
 
   /**
    * Constructs an OrderedDither instance with the specified color palette and pixel mapping matrix.
-   * The OrderedDither class performs ordered dithering on images by utilizing a predefined palette
-   * and a threshold matrix derived from the given PixelMapper.
    *
    * @param palette the color palette to be used for dithering. If null, a default palette is used.
    * @param mapper  the pixel mapper
    */
-  public OrderedDither(final Palette palette, final PixelMapper mapper) {
-    this.palette = palette == null ? Palette.DEFAULT_MAP_PALETTE : palette;
+  public OrderedDither(final DitherPalette palette, final PixelMapper mapper) {
+    this.palette = palette == null ? DitherPalette.DEFAULT_MAP_PALETTE : palette;
     this.precalc = mapper.getMatrix();
     this.ydim = this.precalc.length;
     this.xdim = this.precalc[0].length;
     this.avgLevel = this.calculateAverageLevel(this.palette);
   }
 
-  private int calculateAverageLevel(final Palette palette) {
+  private int calculateAverageLevel(final DitherPalette palette) {
     final int[] colors = palette.getPalette();
     final Set<Integer> redValues = new HashSet<>();
     final Set<Integer> greenValues = new HashSet<>();
@@ -73,16 +67,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   }
 
   /**
-   * Applies ordered dithering to a given image and converts it into a byte array.
-   * This method modifies the image pixels using a precomputed dither matrix and
-   * a predefined color palette, translating each pixel into a single byte representing
-   * the closest matching color from the palette.
-   *
-   * @param image the input image to be dithered, represented as a StaticImage object.
-   *              The image's pixels are retrieved and processed for dithering based
-   *              on the provided width and the precomputed dither matrix.
-   * @return a byte array where each byte represents a color index from the palette corresponding
-   * to a dithered pixel in the image.
+   * {@inheritDoc}
    */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
@@ -118,15 +103,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   }
 
   /**
-   * Applies ordered dithering to the given buffer. This method modifies the colors of the pixels
-   * in the specified buffer based on a precomputed dither matrix and the provided palette. It adjusts
-   * the red, green, and blue channels for each pixel and replaces them with the closest matching color
-   * from the palette.
-   *
-   * @param buffer the array of pixel data represented as integers in ARGB format. The buffer will be
-   *               modified in-place to reflect the dithered colors.
-   * @param width  the width of the image or buffer in pixels. This determines the number of pixels
-   *               per row and is used for properly applying the dither pattern across each row.
+   * {@inheritDoc}
    */
   @Override
   public void dither(final int[] buffer, final int width) {
@@ -151,7 +128,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    * {@inheritDoc}
    */
   @Override
-  public Palette getPalette() {
+  public DitherPalette getPalette() {
     return this.palette;
   }
 }

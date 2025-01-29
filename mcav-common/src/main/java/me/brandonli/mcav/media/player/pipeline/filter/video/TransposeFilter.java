@@ -26,6 +26,13 @@ import org.bytedeco.opencv.opencv_core.Mat;
 public class TransposeFilter extends MatVideoFilter {
 
   /**
+   * Constructs a new TransposeFilter.
+   */
+  public TransposeFilter() {
+    // no-op
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

@@ -18,28 +18,22 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.*;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * The ErrorDiffusionDitherBuilderImpl class is an implementation of the
- * {@link ErrorDiffusionDitherBuilder} interface. It serves as a builder for creating
- * specific implementations of the {@link ErrorDiffusionDither} class, which applies
- * error diffusion dithering algorithms to distribute quantization errors across
- * neighboring pixels in an image.
- * <p>
- * This implementation allows the configuration of a color palette, defined by
- * {@link Palette}, and a specific error diffusion algorithm through the
- * {@link Algorithm} enum.
- * <p>
- * By default, this builder uses the {@link Algorithm#FILTER_LITE} algorithm
- * unless another algorithm is explicitly set using the {@link #setAlgorithm} method.
- * When the {@link #build()} method is called, an appropriate instance of
- * {@link ErrorDiffusionDither} is created based on the selected algorithm.
+ * Implementation of the {@link ErrorDiffusionDitherBuilder} interface.
  */
 public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuilder<ErrorDiffusionDither, ErrorDiffusionDitherBuilderImpl> {
 
-  private Palette palette = Palette.DEFAULT_MAP_PALETTE;
+  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
   private Algorithm algorithm = Algorithm.FILTER_LITE;
+
+  /**
+   * Constructs a new ErrorDiffusionDitherBuilderImpl with default settings.
+   */
+  public ErrorDiffusionDitherBuilderImpl() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}
@@ -54,7 +48,6 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
       case JARVIS_JUDICE_NINKE -> new JarvisJudiceNinkeDither(this.palette);
       case STEVENSON_ARCE -> new StevensonArceDither(this.palette);
       case STUCKI -> new StuckiDither(this.palette);
-      default -> throw new InvalidErrorDiffusionAlgorithmException("Unknown algorithm!");
     };
   }
 
@@ -62,7 +55,7 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
    * {@inheritDoc}
    */
   @Override
-  public void setPalette(final Palette palette) {
+  public void setPalette(final DitherPalette palette) {
     this.palette = palette;
   }
 

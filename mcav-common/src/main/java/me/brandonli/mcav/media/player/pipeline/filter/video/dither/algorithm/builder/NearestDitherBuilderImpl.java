@@ -19,11 +19,21 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDitherImpl;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
+/**
+ * Implementation of the {@link NearestDitherBuilder} interface.
+ */
 public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDither, NearestDitherBuilderImpl> {
 
-  private Palette palette = Palette.DEFAULT_MAP_PALETTE;
+  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
+
+  /**
+   * Default constructor for {@link NearestDitherBuilderImpl}.
+   */
+  public NearestDitherBuilderImpl() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}
@@ -37,7 +47,7 @@ public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDit
    * {@inheritDoc}
    */
   @Override
-  public void setPalette(final Palette palette) {
+  public void setPalette(final DitherPalette palette) {
     this.palette = palette;
   }
 }

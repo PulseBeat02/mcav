@@ -29,6 +29,10 @@ public final class GsonProvider {
 
   private static final Gson GSON = new Gson();
 
+  private GsonProvider() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
   /**
    * Get a simple Gson instance.
    *

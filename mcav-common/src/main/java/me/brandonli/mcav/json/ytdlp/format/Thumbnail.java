@@ -17,12 +17,23 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
+/** Thumbnail **/
 public class Thumbnail {
 
+  Thumbnail() {
+    // no-op
+  }
+
+  /** url **/
   public String url;
+  /** preference **/
   public int preference;
+  /** id **/
   public String id;
+  /** height **/
   public int height;
+  /** width **/
   public int width;
+  /** resolution **/
   public String resolution;
 }

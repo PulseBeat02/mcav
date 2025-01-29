@@ -19,12 +19,15 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 
 import java.io.Serial;
 
+/**
+ * Exception thrown when an invalid error diffusion algorithm is specified.
+ */
 public class InvalidErrorDiffusionAlgorithmException extends IllegalArgumentException {
 
   @Serial
   private static final long serialVersionUID = -723275381362800866L;
 
-  public InvalidErrorDiffusionAlgorithmException(final String message) {
+  InvalidErrorDiffusionAlgorithmException(final String message) {
     super(message);
   }
 }

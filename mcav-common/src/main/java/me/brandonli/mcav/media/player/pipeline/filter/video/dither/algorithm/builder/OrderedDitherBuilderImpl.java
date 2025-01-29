@@ -20,22 +20,27 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.OrderedDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
  * Implementation of the {@link OrderedDitherBuilder} interface for constructing instances
- * of {@link OrderedDither}. This builder specializes in initializing and configuring
- * the parameters required to create an {@code OrderedDither} object, specifically the
- * color palette and the dither matrix.
+ * of {@link OrderedDither}.
  */
 public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDither, OrderedDitherBuilderImpl> {
 
-  private Palette palette = Palette.DEFAULT_MAP_PALETTE;
+  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
   private PixelMapper ditherMatrix = PixelMapper.ofPixelMapper(
     BayerDither.NORMAL_2X2,
     BayerDither.NORMAL_2X2_MAX,
     PixelMapper.NORMAL_STRENGTH
   );
+
+  /**
+   * Default constructor for {@link OrderedDitherBuilderImpl}.
+   */
+  public OrderedDitherBuilderImpl() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}
@@ -49,7 +54,7 @@ public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDithe
    * {@inheritDoc}
    */
   @Override
-  public void setPalette(final Palette palette) {
+  public void setPalette(final DitherPalette palette) {
     this.palette = palette;
   }
 

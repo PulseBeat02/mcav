@@ -23,7 +23,10 @@ import java.lang.invoke.MethodType;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ModuleLoader {
+/**
+ * Loads and manages MCAV modules.
+ */
+public final class ModuleLoader {
 
   private final Map<Class<?>, MCAVModule> modules;
 
@@ -31,6 +34,12 @@ public class ModuleLoader {
     this.modules = new HashMap<>();
   }
 
+  /**
+   * Internal implementation
+   * @param moduleClass the class of the module to retrieve
+   * @return the module instance of the specified class
+   * @param <T> the type of the module, which extends {@link MCAVModule}
+   */
   public <T extends MCAVModule> T getModule(final Class<T> moduleClass) {
     final MCAVModule module = this.modules.get(moduleClass);
     if (module == null) {
@@ -41,6 +50,10 @@ public class ModuleLoader {
     return moduleClass.cast(module);
   }
 
+  /**
+   * Internal implementation
+   * @param plugins the classes of the plugins to load
+   */
   public void loadPlugins(final Class<?>... plugins) {
     final MethodType type = MethodType.methodType(void.class);
     final MethodHandles.Lookup originalLookup = MethodHandles.lookup();
@@ -67,6 +80,9 @@ public class ModuleLoader {
     }
   }
 
+  /**
+   * Internal implementation
+   */
   public void shutdownPlugins() {
     this.modules.values().forEach(MCAVModule::stop);
   }

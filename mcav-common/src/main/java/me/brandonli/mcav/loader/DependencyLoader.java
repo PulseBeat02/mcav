@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * DependencyLoader is responsible for loading JavaCV modules and installing optional dependencies
  * like VLC and yt-dlp.
  */
-public class DependencyLoader {
+public final class DependencyLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DependencyLoader.class);
 
@@ -58,6 +58,9 @@ public class DependencyLoader {
 
   /**
    * Internal implementation
+   *
+   * @param capability the capability to check
+   * @return true if the capability is supported, false otherwise
    */
   public boolean hasCapability(final Capability capability) {
     return this.capabilities.contains(capability);

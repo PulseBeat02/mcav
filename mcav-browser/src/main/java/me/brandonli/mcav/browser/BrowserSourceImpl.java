@@ -18,20 +18,20 @@
 package me.brandonli.mcav.browser;
 
 import java.net.URI;
-import me.brandonli.mcav.media.source.UriSourceImpl;
 
 /**
  * Implementation of the {@link BrowserSource} interface.
  */
-public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
+public class BrowserSourceImpl implements BrowserSource {
 
+  private final URI uri;
   private final int quality;
   private final int width;
   private final int height;
   private final int nthFrame;
 
   BrowserSourceImpl(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
-    super(uri);
+    this.uri = uri;
     this.quality = quality;
     this.width = width;
     this.height = height;
@@ -68,5 +68,10 @@ public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
   @Override
   public int getScreencastNthFrame() {
     return this.nthFrame;
+  }
+
+  @Override
+  public URI getUri() {
+    return this.uri;
   }
 }

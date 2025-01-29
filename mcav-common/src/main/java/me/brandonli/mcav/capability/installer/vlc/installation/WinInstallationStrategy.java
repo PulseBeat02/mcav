@@ -27,9 +27,6 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.utils.IOUtils;
 
 /**
- * {@inheritDoc}
- *
- * <p>
  * WinInstallationStrategy is a concrete implementation of the InstallationStrategy interface for Windows platforms.
  */
 public final class WinInstallationStrategy extends ManualInstallationStrategy {

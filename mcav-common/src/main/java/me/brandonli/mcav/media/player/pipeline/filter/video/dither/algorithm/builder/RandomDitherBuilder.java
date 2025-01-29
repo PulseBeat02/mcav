@@ -20,10 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 
 /**
- * The RandomDitherBuilder interface defines a fluent API for constructing
- * instances of classes that implement the RandomDither algorithm. This builder interface
- * extends the DitherAlgorithmBuilder, providing additional functionality for setting
- * and configuring the degree of randomness (weight) in the dithering algorithm.
+ * Builder interface for creating instances of {@link RandomDither}.
  *
  * @param <T> the type parameter representing an implementation of RandomDither to be built.
  * @param <B> the type parameter representing the concrete builder implementation extending RandomDitherBuilder.
@@ -45,7 +42,6 @@ public interface RandomDitherBuilder<T extends RandomDither, B extends RandomDit
 
   /**
    * Sets the weight parameter used to configure the degree of randomness in the dithering algorithm.
-   * The weight value typically controls how strongly the random noise influences the output.
    *
    * @param weight the degree of randomness to be applied in the dithering process.
    *               Higher values generally result in a more pronounced randomization effect.

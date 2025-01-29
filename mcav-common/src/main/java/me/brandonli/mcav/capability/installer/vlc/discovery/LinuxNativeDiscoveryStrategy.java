@@ -48,6 +48,9 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
 
   private static final String[] PLUGIN_PATH_FORMATS = new String[] { "%s/plugins", "%s/vlc/plugins" };
 
+  /**
+   * Constructs a new LinuxNativeDiscoveryStrategy.
+   */
   public LinuxNativeDiscoveryStrategy() {
     super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS);
   }

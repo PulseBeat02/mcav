@@ -32,8 +32,14 @@ import me.brandonli.mcav.media.player.pipeline.step.PipelineStep;
  */
 public abstract class AbstractPipelineStepBuilder<T, M, F extends Filter<T, M>, S extends PipelineStep<T, M, S>> {
 
+  /**
+   * A list of filters that will be applied in the pipeline step.
+   */
   protected final List<F> filters;
 
+  /**
+   * Constructs a new instance of the {@link AbstractPipelineStepBuilder} with an empty list of filters.
+   */
   protected AbstractPipelineStepBuilder() {
     this.filters = new ArrayList<>();
   }

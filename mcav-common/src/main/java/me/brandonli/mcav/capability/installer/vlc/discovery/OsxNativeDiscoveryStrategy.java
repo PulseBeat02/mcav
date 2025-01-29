@@ -52,6 +52,9 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
    */
   private static final String[] PLUGIN_PATH_FORMATS = new String[] { "%s/../plugins" };
 
+  /**
+   * Constructs a new discovery strategy for the OSX operating system.
+   */
   public OsxNativeDiscoveryStrategy() {
     super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS);
   }

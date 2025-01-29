@@ -19,17 +19,26 @@ package me.brandonli.mcav.json.ytdlp.format;
 
 import com.google.gson.annotations.SerializedName;
 
+/** HttpHeaders **/
 public class HttpHeaders {
 
+  HttpHeaders() {
+    // no-op
+  }
+
+  /** userAgent **/
   @SerializedName("User-Agent")
   public String userAgent;
 
+  /** accept **/
   @SerializedName("Accept")
   public String accept;
 
+  /** acceptLanguage **/
   @SerializedName("Accept-Language")
   public String acceptLanguage;
 
+  /** secFetchMode **/
   @SerializedName("Sec-Fetch-Mode")
   public String secFetchMode;
 }

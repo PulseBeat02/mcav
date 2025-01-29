@@ -72,6 +72,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   @Nullable private volatile BufferFormatCallback bufferFormatCallback;
 
+  /**
+   * Constructs a new VLCPlayer instance with the specified command-line arguments.
+   *
+   * @param args the command-line arguments to pass to the VLC player
+   */
   public VLCPlayer(final String[] args) {
     final MediaPlayerFactory factory = MediaPlayerFactoryProvider.getPlayerFactory();
     final MediaPlayerApi mediaPlayerApi = factory.mediaPlayers();

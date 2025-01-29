@@ -21,11 +21,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ord
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
 
 /**
- * Defines a builder interface for the construction of {@code OrderedDither} objects,
- * providing functionality to configure and set a dither matrix for ordered dithering.
+ * Defines a builder interface for the construction of {@code OrderedDither}.
  *
- * @param <T> the type of {@code OrderedDither} object to be constructed
- * @param <B> the type of the builder extending this interface
+ * @param <T> the type of {@link BayerDither} that this builder will produce.
+ * @param <B> the type of the builder itself, allowing for method chaining.
  */
 public interface OrderedDitherBuilder<T extends BayerDither, B extends OrderedDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
   /**
@@ -43,9 +42,7 @@ public interface OrderedDitherBuilder<T extends BayerDither, B extends OrderedDi
   }
 
   /**
-   * Sets the dither matrix to be used for ordered dithering. The dither matrix is
-   * represented by a {@link PixelMapper}, which defines a two-dimensional float array
-   * used to map or transform pixel data for dithering purposes.
+   * Sets the dither matrix to be used for ordered dithering.
    *
    * @param matrix the {@link PixelMapper} representing the dither matrix.
    *               The provided matrix defines how pixel values are transformed

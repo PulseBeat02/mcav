@@ -48,6 +48,9 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
 
   private static final String[] PLUGIN_PATH_FORMATS = new String[] { "%s\\plugins", "%s\\vlc\\plugins" };
 
+  /**
+   * Creates a new discovery strategy that searches for VLC native libraries in the Windows operating system.
+   */
   public WindowsNativeDiscoveryStrategy() {
     super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS);
   }

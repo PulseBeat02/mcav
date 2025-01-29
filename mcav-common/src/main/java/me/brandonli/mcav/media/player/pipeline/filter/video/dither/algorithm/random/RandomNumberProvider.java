@@ -19,7 +19,6 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ra
 
 /**
  * Provides methods to generate random values of various types.
- * This interface defines methods for generating random integers, doubles, and booleans.
  */
 public interface RandomNumberProvider {
   /**

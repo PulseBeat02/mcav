@@ -20,12 +20,18 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.er
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
+/**
+ * Implements the Stucki dithering algorithm.
+ */
 public final class StuckiDither extends ErrorDiffusionDither {
 
-  // issues
-  public StuckiDither(final Palette palette) {
+  /**
+   * Creates a new instance of the StuckiDither algorithm with the specified palette.
+   * @param palette the dither palette to use
+   */
+  public StuckiDither(final DitherPalette palette) {
     super(palette);
   }
 
@@ -36,9 +42,12 @@ public final class StuckiDither extends ErrorDiffusionDither {
   // (delta_? * 2) / 42  →  (delta_? * 48) >> 10
   // delta_? / 42        →  (delta_? * 24) >> 10
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void dither(final int[] buffer, final int width) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
@@ -212,9 +221,12 @@ public final class StuckiDither extends ErrorDiffusionDither {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int height = image.getHeight();

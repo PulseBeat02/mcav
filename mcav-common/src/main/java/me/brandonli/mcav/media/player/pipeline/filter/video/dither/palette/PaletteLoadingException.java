@@ -22,19 +22,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Thrown to indicate that an error occurred during the loading or processing of a palette.
- * This exception extends {@link AssertionError}, as it is expected to occur only in cases
- * where a critical assertion about the correctness or state of the palette has failed.
- *
- * <p>
- * This exception is used to signal issues such as invalid palette configurations,
- * unsupported formats, or other errors related to the initialization or usage of a palette.
- *
- * <p>
- * The {@code PaletteLoadingException} is intended to be used internally within the framework
- * managing palette operations, providing a clear indication of palette-related issues that
- * require debugging or corrective actions.
- *
- * @see Palette
  */
 public class PaletteLoadingException extends AssertionError {
 

@@ -21,36 +21,41 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 
 /**
  * The BayerDither interface represents a dithering algorithm using Bayer matrix (ordered dithering).
- * It is a specialized implementation of the {@link DitherAlgorithm} interface to approximate
- * colors in an image by systematically arranging pixels using a threshold matrix.
- * <p>
- * Bayer dithering operates by comparing pixel intensities with values from a pre-defined
- * two-dimensional Bayer matrix. This process creates a perception of gradient and shading
- * when mapped to a limited color palette.
- * <p>
- * Implementations of this interface are expected to define how the Bayer matrix is applied
- * during the dithering process.
- * <p>
- * This algorithm is particularly well-suited for applications requiring uniform patterns
- * without artifacts of randomness, making it popular for image processing tasks in low-bit
- * displays or environments with constrained color palettes.
  */
 public interface BayerDither extends DitherAlgorithm {
-  /**
+  /*
    * See <a href="https://github.com/makeworld-the-better-one/dither/blob/master/ordered_ditherers.go">...</a> Added
    * some personal implementations of ordered dithering matrices.
    */
 
-  // Basic 2x2 matrix.
+  /**
+   * Basic 2x2 matrix.
+   * <p>
+   * NORMAL_2X2_MAX - The maximum value in the 2x2 matrix (4).
+   * NORMAL_2X2 - The 2x2 Bayer dithering matrix.
+   */
   int NORMAL_2X2_MAX = 4;
+  /** read up **/
   int[][] NORMAL_2X2 = new int[][] { { 1, 3 }, { 4, 2 } };
 
-  // Basic 4x4 matrix.
+  /**
+   * Basic 4x4 matrix.
+   * <p>
+   * NORMAL_4X4_MAX - The maximum value in the 4x4 matrix (16).
+   * NORMAL_4X4 - The 4x4 Bayer dithering matrix.
+   */
   int NORMAL_4X4_MAX = 16;
+  /** read up **/
   int[][] NORMAL_4X4 = new int[][] { { 1, 9, 3, 11 }, { 13, 5, 15, 7 }, { 4, 12, 2, 10 }, { 16, 8, 14, 6 } };
 
-  // Basic 8x8 matrix.
+  /**
+   * Basic 8x8 matrix.
+   * <p>
+   * NORMAL_8X8_MAX - The maximum value in the 8x8 matrix (64).
+   * NORMAL_8X8 - The 8x8 Bayer dithering matrix.
+   */
   int NORMAL_8X8_MAX = 64;
+  /** read up **/
   int[][] NORMAL_8X8 = new int[][] {
     { 1, 49, 13, 61, 4, 52, 16, 64 },
     { 33, 17, 45, 29, 36, 20, 48, 32 },
@@ -62,10 +67,14 @@ public interface BayerDither extends DitherAlgorithm {
     { 43, 27, 39, 23, 42, 26, 38, 22 },
   };
 
-  // ClusteredDotDiagonal8x8 comes from http://caca.zoy.org/study/part2.html
-  // They say it "mimics the halftoning techniques used by newspapers". It is called
-  // "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+  /**
+   * Clustered dot diagonal matrix that mimics halftoning techniques used by newspapers.
+   * <p>
+   * CLUSTERED_DOT_4X4_MAX - The maximum value in the matrix (16).
+   * CLUSTERED_DOT_4X4 - The 8x8 diagonal clustered dot dithering matrix with a 45-degree pattern.
+   */
   int CLUSTERED_DOT_4X4_MAX = 16;
+  /** read up **/
   int[][] CLUSTERED_DOT_4X4 = new int[][] {
     { 24, 10, 12, 26, 35, 47, 49, 37 },
     { 8, 0, 2, 14, 45, 59, 61, 51 },
@@ -77,10 +86,17 @@ public interface BayerDither extends DitherAlgorithm {
     { 32, 40, 54, 38, 31, 21, 19, 29 },
   };
 
-  // ClusteredDotDiagonal8x8 comes from http://caca.zoy.org/study/part2.html
-  // They say it "mimics the halftoning techniques used by newspapers". It is called
-  // "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+  /**
+   * Clustered dot diagonal 8x8 matrix from http://caca.zoy.org/study/part2.html.
+   * <p>
+   * This matrix mimics the halftoning techniques used by newspapers. It's called
+   * "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+   * <p>
+   * CLUSTERED_DOT_DIAGONAL_8X8_MAX - The maximum value in the 8x8 diagonal matrix (64).
+   * CLUSTERED_DOT_DIAGONAL_8X8 - The 8x8 diagonal clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_DIAGONAL_8X8_MAX = 64;
+  /** read up **/
   int[][] CLUSTERED_DOT_DIAGONAL_8X8 = new int[][] {
     { 24, 10, 12, 26, 35, 47, 49, 37 },
     { 8, 0, 2, 14, 45, 59, 61, 51 },
@@ -92,20 +108,40 @@ public interface BayerDither extends DitherAlgorithm {
     { 32, 40, 54, 38, 31, 21, 19, 29 },
   };
 
-  // Vertical5x3 comes from http://caca.zoy.org/study/part2.html
-  // They say it "creates artistic vertical line artifacts".
+  /**
+   * Vertical 5x3 matrix from http://caca.zoy.org/study/part2.html.
+   * <p>
+   * This matrix creates artistic vertical line artifacts.
+   * <p>
+   * VERTICAL_5X3_MAX - The maximum value in the 5x3 matrix (15).
+   * VERTICAL_5X3 - The 5x3 vertical line dithering matrix.
+   */
   int VERTICAL_5X3_MAX = 15;
+  /** read up **/
   int[][] VERTICAL_5X3 = new int[][] { { 9, 3, 0, 6, 12 }, { 10, 4, 1, 7, 13 }, { 11, 5, 2, 8, 14 } };
 
-  // Rotated version of VERTICAL_5X3
+  /**
+   * Horizontal 3x5 matrix, rotated version of VERTICAL_5X3.
+   * <p>
+   * HORIZONTAL_3X5_MAX - The maximum value in the 3x5 matrix (15).
+   * HORIZONTAL_3X5 - The 3x5 horizontal line dithering matrix.
+   */
   int HORIZONTAL_3X5_MAX = 15;
+  /** read up **/
   int[][] HORIZONTAL_3X5 = new int[][] { { 9, 10, 11 }, { 3, 4, 5 }, { 0, 1, 2 }, { 6, 7, 8 }, { 12, 13, 14 } };
 
-  // ClusteredDotDiagonal6x6 comes from Figure 5.4 of the book Digital Halftoning by
-  // Robert Ulichney. In the book it's called "M = 3". It can represent "19 levels
-  // of gray". Its dimensions are 6x6, but as a diagonal matrix it is 7x7. It is called
-  // "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+  /**
+   * Clustered dot diagonal 6x6 matrix from Figure 5.4 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * In the book it's called "M = 3". It can represent "19 levels of gray". Its dimensions are 6x6,
+   * but as a diagonal matrix it is 7x7. It is called "Diagonal" because the resulting dot pattern
+   * is at a 45-degree angle.
+   * <p>
+   * CLUSTERED_DOT_DIAGONAL_6X6_MAX - The maximum value in the 6x6 diagonal matrix (18).
+   * CLUSTERED_DOT_DIAGONAL_6X6 - The 6x6 diagonal clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_DIAGONAL_6X6_MAX = 18;
+  /** read up **/
   int[][] CLUSTERED_DOT_DIAGONAL_6X6 = new int[][] {
     { 8, 6, 7, 9, 11, 10 },
     { 5, 0, 1, 12, 17, 16 },
@@ -115,13 +151,21 @@ public interface BayerDither extends DitherAlgorithm {
     { 13, 14, 15, 4, 3, 2 },
   };
 
-  // ClusteredDotDiagonal8x8_2 comes from Figure 5.4 of the book Digital Halftoning by
-  // Robert Ulichney. In the book it's called "M = 4". It can represent "33 levels
-  // of gray". Its dimensions are 8x8, but as a diagonal matrix it is 9x9. It is called
-  // "Diagonal" because the resulting dot pattern is at a 45-degree angle.
-  // It is almost identical to ClusteredDotDiagonal8x8, but worse because it can
-  // represent fewer gray levels. There is not much point in using it.
+  /**
+   * Clustered dot diagonal 8x8 matrix from Figure 5.4 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * In the book it's called "M = 4". It can represent "33 levels of gray". Its dimensions are 8x8,
+   * but as a diagonal matrix it is 9x9. It is called "Diagonal" because the resulting dot pattern
+   * is at a 45-degree angle.
+   * <p>
+   * It is almost identical to ClusteredDotDiagonal8x8, but worse because it can represent fewer
+   * gray levels. There is not much point in using it.
+   * <p>
+   * CLUSTERED_DOT_DIAGONAL_8X8_2_MAX - The maximum value in the 8x8 diagonal matrix (32).
+   * CLUSTERED_DOT_DIAGONAL_8X8_2 - The alternative 8x8 diagonal clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_DIAGONAL_8X8_2_MAX = 32;
+  /** read up **/
   int[][] CLUSTERED_DOT_DIAGONAL_8X8_2 = new int[][] {
     { 13, 11, 12, 15, 18, 20, 19, 16 },
     { 4, 3, 2, 9, 27, 28, 29, 22 },
@@ -133,11 +177,18 @@ public interface BayerDither extends DitherAlgorithm {
     { 23, 25, 24, 17, 8, 6, 7, 14 },
   };
 
-  // ClusteredDotDiagonal16x16 comes from Figure 5.4 of the book Digital Halftoning by
-  // Robert Ulichney. In the book it's called "M = 8". It can represent "129 levels
-  // of gray". Its dimensions are 16x16, but as a diagonal matrix it is 17x17. It is
-  // called "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+  /**
+   * Clustered dot diagonal 16x16 matrix from Figure 5.4 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * In the book it's called "M = 8". It can represent "129 levels of gray". Its dimensions are 16x16,
+   * but as a diagonal matrix it is 17x17. It is called "Diagonal" because the resulting dot pattern
+   * is at a 45-degree angle.
+   * <p>
+   * CLUSTERED_DOT_DIAGONAL_16X16_MAX - The maximum value in the 16x16 diagonal matrix (128).
+   * CLUSTERED_DOT_DIAGONAL_16X16 - The 16x16 diagonal clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_DIAGONAL_16X16_MAX = 128;
+  /** read up **/
   int[][] CLUSTERED_DOT_DIAGONAL_16X16 = new int[][] {
     { 63, 58, 50, 40, 41, 51, 59, 60, 64, 69, 77, 87, 86, 76, 68, 67 },
     { 57, 33, 27, 18, 19, 28, 34, 52, 70, 94, 100, 109, 108, 99, 93, 75 },
@@ -157,9 +208,16 @@ public interface BayerDither extends DitherAlgorithm {
     { 65, 72, 80, 90, 91, 81, 73, 66, 62, 55, 47, 37, 36, 46, 54, 61 },
   };
 
-  // ClusteredDot6x6 comes from Figure 5.9 of the book Digital Halftoning by
-  // Robert Ulichney. It can represent "37 levels of gray". It is not diagonal.
+  /**
+   * Clustered dot 6x6 matrix from Figure 5.9 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * It can represent "37 levels of gray". It is not diagonal.
+   * <p>
+   * CLUSTERED_DOT_6X6_MAX - The maximum value in the 6x6 matrix (36).
+   * CLUSTERED_DOT_6X6 - The 6x6 clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_6X6_MAX = 36;
+  /** read up **/
   int[][] CLUSTERED_DOT_6X6 = new int[][] {
     { 34, 29, 17, 21, 30, 35 },
     { 28, 14, 9, 16, 20, 31 },
@@ -169,11 +227,17 @@ public interface BayerDither extends DitherAlgorithm {
     { 33, 26, 11, 22, 25, 32 },
   };
 
-  // ClusteredDotSpiral5x5 comes from Figure 5.13 of the book Digital Halftoning by
-  // Robert Ulichney. It can represent "26 levels of gray". Its dimensions are 5x5.
-  // Instead of alternating dark and light dots like the other clustered-dot
-  // matrices, the dark parts grow to fill the area.
+  /**
+   * Clustered dot spiral 5x5 matrix from Figure 5.13 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * It can represent "26 levels of gray". Its dimensions are 5x5. Instead of alternating dark and light dots
+   * like the other clustered-dot matrices, the dark parts grow to fill the area.
+   * <p>
+   * CLUSTERED_DOT_SPIRAL_5X5_MAX - The maximum value in the 5x5 spiral matrix (25).
+   * CLUSTERED_DOT_SPIRAL_5X5 - The 5x5 spiral clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_SPIRAL_5X5_MAX = 25;
+  /** read up **/
   int[][] CLUSTERED_DOT_SPIRAL_5X5 = new int[][] {
     { 20, 21, 22, 23, 24 },
     { 19, 6, 7, 8, 9 },
@@ -182,10 +246,16 @@ public interface BayerDither extends DitherAlgorithm {
     { 16, 15, 14, 13, 12 },
   };
 
-  // ClusteredDotHorizontalLine comes from Figure 5.13 of the book Digital Halftoning by
-  // Robert Ulichney. It can represent "37 levels of gray". Its dimensions are 6x6.
-  // It "clusters pixels about horizontal lines".
+  /**
+   * Clustered dot horizontal line matrix from Figure 5.13 of the book Digital Halftoning by Robert Ulichney.
+   * <p>
+   * It can represent "37 levels of gray". Its dimensions are 6x6. It "clusters pixels about horizontal lines".
+   * <p>
+   * CLUSTERED_DOT_HORIZONTAL_LINE_MAX - The maximum value in the 6x6 horizontal line matrix (36).
+   * CLUSTERED_DOT_HORIZONTAL_LINE - The 6x6 horizontal line clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_HORIZONTAL_LINE_MAX = 36;
+  /** read up **/
   int[][] CLUSTERED_DOT_HORIZONTAL_LINE = new int[][] {
     { 35, 33, 31, 30, 32, 34 },
     { 23, 21, 19, 18, 20, 22 },
@@ -195,8 +265,16 @@ public interface BayerDither extends DitherAlgorithm {
     { 29, 27, 25, 24, 26, 28 },
   };
 
-  // ClusteredDotVerticalLine is my rotated version of ClusteredDotHorizontalLine.
+  /**
+   * Clustered dot vertical line matrix, a rotated version of ClusteredDotHorizontalLine.
+   * <p>
+   * It can represent "37 levels of gray". Its dimensions are 6x6. It clusters pixels about vertical lines.
+   * <p>
+   * CLUSTERED_DOT_VERTICAL_LINE_MAX - The maximum value in the 6x6 vertical line matrix (36).
+   * CLUSTERED_DOT_VERTICAL_LINE - The 6x6 vertical line clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_VERTICAL_LINE_MAX = 36;
+  /** read up **/
   int[][] CLUSTERED_DOT_VERTICAL_LINE = new int[][] {
     { 35, 23, 11, 5, 17, 29 },
     { 33, 21, 9, 3, 15, 27 },
@@ -206,10 +284,16 @@ public interface BayerDither extends DitherAlgorithm {
     { 34, 22, 10, 4, 16, 28 },
   };
 
-  // ClusteredDot8x8 comes from Figure 1.5 of the book Modern Digital Halftoning,
-  // Second Edition, by Daniel L. Lau and Gonzalo R. Arce. It is like
-  // ClusteredDotDiagonal8x8, but is not diagonal. It can represent "65 gray-levels".
+  /**
+   * Clustered dot 8x8 matrix from Figure 1.5 of the book Modern Digital Halftoning, Second Edition, by Daniel L. Lau and Gonzalo R. Arce.
+   * <p>
+   * It is like ClusteredDotDiagonal8x8, but is not diagonal. It can represent "65 gray-levels".
+   * <p>
+   * CLUSTERED_DOT_8X8_MAX - The maximum value in the 8x8 matrix (64).
+   * CLUSTERED_DOT_8X8 - The 8x8 clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_8X8_MAX = 64;
+  /** read up **/
   int[][] CLUSTERED_DOT_8X8 = new int[][] {
     { 3, 9, 17, 27, 25, 15, 7, 1 },
     { 11, 29, 38, 46, 44, 36, 23, 5 },
@@ -221,10 +305,17 @@ public interface BayerDither extends DitherAlgorithm {
     { 2, 8, 16, 26, 24, 14, 6, 0 },
   };
 
-  // ClusteredDot6x6_2 comes from https://archive.is/71e9G. On the webpage it is
-  // called "central white point" while ClusteredDot6x6 is called "clustered dots".
-  // It is nearly identical to ClusteredDot6x6.
+  /**
+   * Clustered dot 6x6 matrix variant from https://archive.is/71e9G.
+   * <p>
+   * On the webpage it is called "central white point" while ClusteredDot6x6 is called "clustered dots".
+   * It is nearly identical to ClusteredDot6x6.
+   * <p>
+   * CLUSTERED_DOT_6X6_2_MAX - The maximum value in the 6x6 central white point matrix (36).
+   * CLUSTERED_DOT_6X6_2 - The 6x6 central white point clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_6X6_2_MAX = 36;
+  /** read up **/
   int[][] CLUSTERED_DOT_6X6_2 = new int[][] {
     { 34, 25, 21, 17, 29, 33 },
     { 30, 13, 9, 5, 12, 24 },
@@ -234,10 +325,17 @@ public interface BayerDither extends DitherAlgorithm {
     { 35, 31, 19, 23, 27, 32 },
   };
 
-  // ClusteredDot6x6_3 comes from https://archive.is/71e9G. On the webpage it is
-  // called "balanced centered point".
-  // It is nearly identical to ClusteredDot6x6.
+  /**
+   * Clustered dot 6x6 matrix variant from https://archive.is/71e9G.
+   * <p>
+   * On the webpage it is called "balanced centered point".
+   * It is nearly identical to ClusteredDot6x6.
+   * <p>
+   * CLUSTERED_DOT_6X6_3_MAX - The maximum value in the 6x6 balanced centered point matrix (36).
+   * CLUSTERED_DOT_6X6_3 - The 6x6 balanced centered point clustered dot dithering matrix.
+   */
   int CLUSTERED_DOT_6X6_3_MAX = 36;
+  /** read up **/
   int[][] CLUSTERED_DOT_6X6_3 = new int[][] {
     { 30, 22, 16, 21, 33, 35 },
     { 24, 11, 7, 9, 26, 28 },
@@ -247,12 +345,19 @@ public interface BayerDither extends DitherAlgorithm {
     { 32, 20, 17, 23, 31, 34 },
   };
 
-  // ClusteredDotDiagonal8x8_3 comes from https://archive.is/71e9G. On the webpage
-  // it is called "diagonal ordered matrix with balanced centered points".
-  // It is almost identical to ClusteredDotDiagonal8x8, but worse because it can
-  // represent fewer gray levels. There is not much point in using it.
-  // It is called "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+  /**
+   * Clustered dot diagonal 8x8 matrix variant from https://archive.is/71e9G.
+   * <p>
+   * On the webpage it is called "diagonal ordered matrix with balanced centered points".
+   * It is almost identical to ClusteredDotDiagonal8x8, but worse because it can
+   * represent fewer gray levels. There is not much point in using it.
+   * It is called "Diagonal" because the resulting dot pattern is at a 45-degree angle.
+   * <p>
+   * CLUSTERED_DOT_DIAGONAL_8X8_3_MAX - The maximum value in the 8x8 diagonal matrix (32).
+   * CLUSTERED_DOT_DIAGONAL_8X8_3 - The 8x8 diagonal clustered dot dithering matrix with balanced centered points.
+   */
   int CLUSTERED_DOT_DIAGONAL_8X8_3_MAX = 32;
+  /** read up **/
   int[][] CLUSTERED_DOT_DIAGONAL_8X8_3 = new int[][] {
     { 13, 9, 5, 12, 18, 22, 26, 19 },
     { 6, 1, 0, 8, 25, 30, 31, 23 },
@@ -264,7 +369,7 @@ public interface BayerDither extends DitherAlgorithm {
     { 17, 24, 20, 16, 14, 7, 11, 15 },
   };
 
-  static int[][] createBayerMatrix(final int xdim, final int ydim) {
+  private static int[][] createBayerMatrix(final int xdim, final int ydim) {
     final int M = log2(xdim);
     final int L = log2(ydim);
     final int[][] matrix = new int[xdim][ydim];

@@ -177,6 +177,7 @@ public enum KeyCode {
   /**
    * Returns the character representation of this key code.
    *
+   * @param index the index of the character to retrieve, typically 0 for single-character key codes.
    * @return the character representation of this key code, or '\0' if the index is not 0.
    */
   public char charAt(final int index) {

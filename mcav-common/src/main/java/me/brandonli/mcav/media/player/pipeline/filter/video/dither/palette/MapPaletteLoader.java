@@ -32,17 +32,12 @@ import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IOUtils;
 
 /**
- * The MapPalette class provides a palette that maps byte values to {@link Color} objects,
- * allowing for efficient retrieval of pre-defined colors. It loads its palette from a JSON
- * resource file located in the application resources.
- * <p>
- * This class is immutable and thread-safe.
+ * A utility class for loading a color palette from a JSON file.
  */
 public final class MapPaletteLoader {
 
   private static final String PALETTE_PATH = "palette.json";
-
-  public static final Color[] NMS_PALETTE;
+  private static final Color[] NMS_PALETTE;
 
   static {
     final Gson gson = GsonProvider.getSimple();
@@ -60,6 +55,10 @@ public final class MapPaletteLoader {
     } catch (final IOException e) {
       throw new PaletteLoadingException(e.getMessage(), e);
     }
+  }
+
+  private MapPaletteLoader() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   private static Function<int[], Color> createColor() {

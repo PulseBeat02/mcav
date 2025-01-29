@@ -27,6 +27,13 @@ public class ZeroFilter extends MatVideoFilter {
   private static final Mat ZERO_MAT = new Mat(1, 1, 0);
 
   /**
+   * Constructs a new ZeroFilter.
+   */
+  public ZeroFilter() {
+    // no-op
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

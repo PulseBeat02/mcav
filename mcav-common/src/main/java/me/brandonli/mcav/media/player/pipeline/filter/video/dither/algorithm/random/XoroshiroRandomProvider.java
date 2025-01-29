@@ -19,8 +19,6 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ra
 
 /**
  * A random number generator provider that wraps the Xoroshiro128PlusRandom implementation.
- * This class provides methods to generate random integers, doubles, and booleans
- * within specified ranges or distributions.
  */
 public class XoroshiroRandomProvider implements RandomNumberProvider {
 
@@ -28,13 +26,6 @@ public class XoroshiroRandomProvider implements RandomNumberProvider {
 
   /**
    * Constructs a new instance of {@code XoroshiroRandomProvider}.
-   * This implementation initializes an internal {@link Xoroshiro128PlusRandom}
-   * instance using its default seed generation mechanism.
-   * <p>
-   * The {@code Xoroshiro128PlusRandom} is a fast and efficient random number
-   * generator that is suitable for non-cryptographic uses. This constructor
-   * relies on a combination of a time-based seed and internal hash functions
-   * to ensure variability in the generated random sequence.
    */
   public XoroshiroRandomProvider() {
     this.random = new Xoroshiro128PlusRandom();

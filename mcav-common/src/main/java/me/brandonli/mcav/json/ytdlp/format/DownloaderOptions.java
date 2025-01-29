@@ -17,7 +17,13 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
+/** DownloaderOptions **/
 public class DownloaderOptions {
 
+  DownloaderOptions() {
+    // no-op
+  }
+
+  /** http_chunk_size **/
   public int http_chunk_size;
 }

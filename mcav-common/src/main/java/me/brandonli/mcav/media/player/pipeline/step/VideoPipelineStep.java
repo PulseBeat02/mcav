@@ -28,6 +28,11 @@ public interface VideoPipelineStep extends PipelineStep<ImageBuffer, VideoMetada
   /**
    * Creates a new instance of {@code VideoPipelineStep} with the specified
    * next step and video filter.
+   *
+   * @param next   the next step in the pipeline. Can be null if this is the last step.
+   * @param filter the video filter to be applied in this pipeline step.
+   *
+   * @return a new {@code VideoPipelineStep} instance that applies the given filter.
    */
   static VideoPipelineStep of(final VideoPipelineStep next, final VideoFilter filter) {
     return new VideoPipelineStepImpl(next, filter);

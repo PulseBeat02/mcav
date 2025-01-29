@@ -23,8 +23,6 @@ import java.nio.file.Path;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 
 /**
- * {@inheritDoc}
- * <p>
  * Abstract class for manual installation strategies.
  */
 public abstract class ManualInstallationStrategy implements InstallationStrategy {

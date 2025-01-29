@@ -26,7 +26,7 @@ public class UriSourceImpl implements UriSource {
 
   private final URI uri;
 
-  public UriSourceImpl(final URI uri) {
+  UriSourceImpl(final URI uri) {
     this.uri = uri;
   }
 

@@ -20,11 +20,18 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.er
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
+/**
+ * Implements the Stevenson-Arce dithering algorithm.
+ */
 public final class StevensonArceDither extends ErrorDiffusionDither {
 
-  public StevensonArceDither(final Palette palette) {
+  /**
+   * Creates a new instance of the Stevenson-Arce dithering algorithm with the specified palette.
+   * @param palette the dither palette to use
+   */
+  public StevensonArceDither(final DitherPalette palette) {
     super(palette);
   }
 
@@ -36,9 +43,12 @@ public final class StevensonArceDither extends ErrorDiffusionDither {
   // (delta_? * 16) / 200  →  (delta_? * 41) >> 9
   // (delta_? * 5) / 200  →  (delta_? * 51) >> 11
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void dither(final int[] buffer, final int width) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int height = buffer.length / width;
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
@@ -230,9 +240,12 @@ public final class StevensonArceDither extends ErrorDiffusionDither {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
-    final Palette palette = this.getPalette();
+    final DitherPalette palette = this.getPalette();
     final int[] buffer = image.getPixels();
     final int width = image.getWidth();
     final int height = image.getHeight();

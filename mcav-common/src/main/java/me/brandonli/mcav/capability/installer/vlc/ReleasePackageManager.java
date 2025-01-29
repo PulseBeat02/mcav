@@ -38,6 +38,9 @@ import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.Platform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * ReleasePackageManager is responsible for managing the release packages of VLC.
+ */
 public final class ReleasePackageManager {
 
   private static final String RELEASE_X86_64_URL =
@@ -45,6 +48,9 @@ public final class ReleasePackageManager {
   private static final String RELEASE_X86_32_URL =
     "https://api.github.com/repos/ivan-hc/32-bit-AppImage-packages-database/releases/tags/vlc";
 
+  /**
+   * Initializes the ReleasePackageManager.
+   */
   public static void init() {
     // init
   }
@@ -53,6 +59,12 @@ public final class ReleasePackageManager {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Reads VLC downloads from a JSON resource.
+   *
+   * @param resourcePath the path to the JSON resource
+   * @return an array of Download objects
+   */
   public static Download[] readVLCDownloadsFromJsonResource(final String resourcePath) {
     final String installerJson = String.format("installers/%s", resourcePath);
     try (final Reader reader = IOUtils.getResourceAsStreamReader(installerJson)) {

@@ -69,6 +69,14 @@ public interface ImageBuffer extends Image, Examinable {
     return new MatImageBuffer(path);
   }
 
+  /**
+   * Creates a StaticImage instance from an array of pixel data.
+   *
+   * @param data   the pixel data as an array of integers
+   * @param width  the width of the image
+   * @param height the height of the image
+   * @return a StaticImage instance containing the provided pixel data
+   */
   static ImageBuffer buffer(final int[] data, final int width, final int height) {
     return new MatImageBuffer(data, width, height);
   }
@@ -84,21 +92,69 @@ public interface ImageBuffer extends Image, Examinable {
     return new MatImageBuffer(image);
   }
 
+  /**
+   * Converts the current image buffer to a BufferedImage.
+   *
+   * @return a BufferedImage representation of the current image buffer
+   */
   BufferedImage toBufferedImage();
 
+  /**
+   * Sets the current image buffer to the provided BufferedImage.
+   *
+   * @param image the BufferedImage to set as the current image buffer
+   */
   void setAsBufferedImage(final BufferedImage image);
 
+  /**
+   * Sets the pixel at the specified coordinates to the given value.
+   *
+   * @param x     the x-coordinate of the pixel
+   * @param y     the y-coordinate of the pixel
+   * @param value the value to set for the pixel
+   */
   void setPixel(final int x, final int y, final double[] value);
 
+  /**
+   * Gets all pixels in the image buffer as an array of integers.
+   *
+   * @return an array of integers representing the pixel values in the image buffer
+   */
   int[] getPixels();
 
+  /**
+   * Gets the pixel value at the specified coordinates.
+   *
+   * @param x the x-coordinate of the pixel
+   * @param y the y-coordinate of the pixel
+   * @return an array representing the pixel value at the specified coordinates
+   */
   double[] getPixel(final int x, final int y);
 
+  /**
+   * Gets the width of the image buffer.
+   *
+   * @return the width of the image buffer
+   */
   int getWidth();
 
+  /**
+   * Gets the height of the image buffer.
+   *
+   * @return the height of the image buffer
+   */
   int getHeight();
 
+  /**
+   * Gets the number of pixels in the image buffer.
+   *
+   * @return the total number of pixels in the image buffer
+   */
   int getPixelCount();
 
+  /**
+   * Releases any resources held by this image buffer.
+   * This method should be called when the image buffer is no longer needed.
+   */
   void release();
 }

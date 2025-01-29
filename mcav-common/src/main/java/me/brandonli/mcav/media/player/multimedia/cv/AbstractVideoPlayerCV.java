@@ -71,6 +71,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   private volatile @Nullable Source videoSource;
   private volatile @Nullable Long timestamp;
 
+  /**
+   * Constructs a new AbstractVideoPlayerCV instance.
+   */
   public AbstractVideoPlayerCV() {
     this.running = new AtomicBoolean(false);
     this.audioFrameProcessorExecutor = Executors.newSingleThreadExecutor();
@@ -505,7 +508,10 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   }
 
   /**
-   * {@inheritDoc}
+   * Returns the FrameGrabber for the specified resource.
+   *
+   * @param resource the resource to get the FrameGrabber for
+   * @return the FrameGrabber for the specified resource
    */
   @Override
   public abstract FrameGrabber getFrameGrabber(String resource);

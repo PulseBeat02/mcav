@@ -17,10 +17,19 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
+/** Version **/
 public class Version {
 
+  Version() {
+    // no-op
+  }
+
+  /** version **/
   public String version;
+  /** current_git_head **/
   public Object current_git_head;
+  /** release_git_head **/
   public String release_git_head;
+  /** repository **/
   public String repository;
 }

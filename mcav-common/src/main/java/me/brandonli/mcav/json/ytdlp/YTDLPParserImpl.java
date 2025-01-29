@@ -31,8 +31,6 @@ import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * {@inheritDoc}
- * <p>
  * This class is a singleton that implements the YTDLPParser interface.
  * It uses a cache to store the results of URL parsing for 30 minutes.
  * The cache has a maximum size of 100 entries.

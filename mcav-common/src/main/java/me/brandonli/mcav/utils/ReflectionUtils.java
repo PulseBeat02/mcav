@@ -26,6 +26,8 @@ import java.lang.invoke.MethodType;
  */
 public final class ReflectionUtils {
 
+  private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
   private ReflectionUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -41,7 +43,7 @@ public final class ReflectionUtils {
   @SuppressWarnings("unchecked")
   public static <T> T newInstance(final Class<T> clazz) {
     try {
-      final MethodHandles.Lookup lookup = MethodHandles.lookup();
+      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(clazz, LOOKUP);
       final MethodType type = MethodType.methodType(void.class);
       final MethodHandle constructor = lookup.findConstructor(clazz, type);
       return (T) constructor.invoke();

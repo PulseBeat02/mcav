@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video.dither.load;
+package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
 import java.io.Serial;
 import java.util.ArrayList;
@@ -23,9 +23,10 @@ import java.util.List;
 import java.util.concurrent.RecursiveTask;
 
 /**
+ * Thanks
  * @author jetp250
  */
-public final class LoadRed extends RecursiveTask<byte[]> {
+final class LoadRed extends RecursiveTask<byte[]> {
 
   @Serial
   private static final long serialVersionUID = 7576804473009302589L;
@@ -33,11 +34,14 @@ public final class LoadRed extends RecursiveTask<byte[]> {
   private final int r;
   private final int[] palette;
 
-  public LoadRed(final int[] palette, final int r) {
+  LoadRed(final int[] palette, final int r) {
     this.r = r;
     this.palette = palette;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   protected byte[] compute() {
     final List<LoadGreen> greenSub = new ArrayList<>(128);

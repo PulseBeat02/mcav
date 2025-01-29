@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import org.bukkit.Material;
@@ -53,7 +53,7 @@ public final class BlockPaletteLookup {
 
   private static FilterLiteDither getDitheringImpl(final Map<String, int[]> blockPalette) {
     final int[] colors = blockPalette.values().stream().mapToInt(val -> (val[0] << 16) | (val[1] << 8) | val[2]).toArray();
-    final Palette palette = Palette.colors(colors);
+    final DitherPalette palette = DitherPalette.colors(colors);
     return new FilterLiteDither(palette);
   }
 

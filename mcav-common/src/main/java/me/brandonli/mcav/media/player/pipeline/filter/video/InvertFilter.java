@@ -26,6 +26,13 @@ import org.bytedeco.opencv.opencv_core.Mat;
 public class InvertFilter extends MatVideoFilter {
 
   /**
+   * Constructs a new InvertFilter instance.
+   */
+  public InvertFilter() {
+    // no-op
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override

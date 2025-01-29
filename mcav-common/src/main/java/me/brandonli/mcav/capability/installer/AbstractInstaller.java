@@ -43,6 +43,11 @@ public abstract class AbstractInstaller implements Installer {
   private static final Path FOLDER_PATH = IOUtils.getCachedFolder();
   private static final Path CONFIG_FILE = FOLDER_PATH.resolve("config.properties");
 
+  /**
+   * Returns the default folder path for executables.
+   *
+   * @return the default folder path
+   */
   public static Path getDefaultExecutableFolderPath() {
     return FOLDER_PATH;
   }
@@ -117,6 +122,12 @@ public abstract class AbstractInstaller implements Installer {
     return this.supported;
   }
 
+  /**
+   * Writes the path to the config file.
+   *
+   * @param path the path to write
+   * @throws IOException if an I/O error occurs
+   */
   public void writePathToConfig(final Path path) throws IOException {
     Files.createDirectories(FOLDER_PATH);
     final Properties props = new Properties();

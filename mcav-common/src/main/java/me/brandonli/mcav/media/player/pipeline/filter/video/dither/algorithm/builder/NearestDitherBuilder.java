@@ -20,15 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 
 /**
- * The SimpleDiffusionDitherBuilder interface defines a fluent API for constructing
- * instances of classes that implement the {@code NearestDither} algorithm with
- * support for the Simple Diffusion technique. This builder interface extends
- * {@code DitherAlgorithmBuilder}, inheriting methods for palette configuration and
- * dither algorithm construction.
- * <p>
- * Implementing classes are responsible for providing additional configuration
- * options specific to Simple Diffusion dithering while maintaining compliance
- * with the broader {@code DitherAlgorithmBuilder} contract.
+ * Builder for creating instances of {@code NearestDither} algorithms.
  *
  * @param <T> the type parameter representing an implementation of {@code NearestDither}
  *            to be built.

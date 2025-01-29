@@ -20,11 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
 
 /**
- * The ErrorDiffusionDitherBuilder interface defines a builder for constructing
- * error diffusion dithering algorithms, which distribute quantization errors
- * to neighboring pixels to create a visually smoother result. It extends
- * {@link DitherAlgorithmBuilder} to allow configuration of a palette
- * and an error diffusion algorithm.
+ * Defines a builder for constructing error diffusion dithering algorithms.
  *
  * @param <T> the concrete type of the {@link ErrorDiffusionDither} being built.
  * @param <B> the concrete type of the builder implementing this interface.
@@ -32,17 +28,28 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B extends ErrorDiffusionDitherBuilder<T, B>>
   extends DitherAlgorithmBuilder<T, B> {
   /**
-   * Enum representing various error diffusion algorithms that can be used in dithering.
-   * Each algorithm has its own unique method of distributing quantization errors to
-   * neighboring pixels, affecting the visual quality of the final image.
+   * Enum representing various error diffusion algorithms that can be used in error-diffusion dithering.
    */
   enum Algorithm {
+    /** Atkinson **/
     ATKINSON,
+
+    /** Burkes **/
     BURKES,
+
+    /** Filter Lite **/
     FILTER_LITE,
+
+    /** Floyd-Steinberg **/
     FLOYD_STEINBERG,
+
+    /** Jarvis-Judice-Ninke **/
     JARVIS_JUDICE_NINKE,
+
+    /** Stevenson-Arce **/
     STEVENSON_ARCE,
+
+    /** Stucki **/
     STUCKI,
   }
 
@@ -62,9 +69,7 @@ public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B e
 
   /**
    * Configures the builder with a specific error diffusion algorithm to be used
-   * in the dithering process. The algorithm determines how quantization errors
-   * are propagated to neighboring pixels, affecting the visual quality of the
-   * final image.
+   * in the dithering process.
    *
    * @param algorithm the error diffusion algorithm to use. Valid values are defined
    *                  in the {@link Algorithm} enum, such as ATKINSON, FLOYD_STEINBERG,

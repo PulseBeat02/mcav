@@ -86,6 +86,7 @@ public final class Platform {
 
   /**
    * Retrieves the operating system associated with this platform.
+   * @return the operating system of the current platform
    */
   public OS getOS() {
     return this.os;
@@ -93,6 +94,7 @@ public final class Platform {
 
   /**
    * Retrieves the CPU architecture of the current platform.
+   * @return the CPU architecture of the current platform
    */
   public Arch getArch() {
     return this.arch;
@@ -100,6 +102,7 @@ public final class Platform {
 
   /**
    * Retrieves the bitness of the system's CPU architecture.
+   * @return the bitness of the CPU architecture
    */
   public Bits getBits() {
     return this.bits;

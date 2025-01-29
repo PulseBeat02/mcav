@@ -21,7 +21,10 @@ package me.brandonli.mcav.capability;
  * Represents a capability of the library.
  */
 public enum Capability {
+  /** VLC **/
   VLC,
+  /** FFMPEG **/
   FFMPEG,
+  /** YT-DLP **/
   YT_DLP,
 }

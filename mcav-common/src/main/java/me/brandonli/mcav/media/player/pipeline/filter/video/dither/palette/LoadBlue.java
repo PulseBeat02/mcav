@@ -15,31 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video.dither.load;
+package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
 import java.io.Serial;
 import java.util.concurrent.RecursiveTask;
 
 /**
+ * Thanks
  * @author jetp250
- * <p>
- * LoadBlue is utilized as a RecursiveTask to compute the closest match for
- * the blue channel of a given RGB color against a defined color palette.
- * It is part of a hierarchical task structure for color matching, which is
- * invoked by its parent task class, LoadGreen.
- * <p>
- * This class performs a calculation to determine the palette index with
- * minimum color distance for a specific blue value, taking into consideration
- * the red and green values as context.
- * <p>
- * The distance calculation between colors is based on a weighted Euclidean
- * model that adjusts weights dynamically based on the color's red component
- * to account for perceptual differences in human color perception.
- * <p>
- * Instances of this class are designed to be used in parallel processing,
- * leveraging the Fork/Join framework to improve performance on large datasets.
  */
-public final class LoadBlue extends RecursiveTask<Byte> {
+final class LoadBlue extends RecursiveTask<Byte> {
 
   @Serial
   private static final long serialVersionUID = -4077843876709214664L;
@@ -54,6 +39,9 @@ public final class LoadBlue extends RecursiveTask<Byte> {
     this.palette = palette;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   protected Byte compute() {
     int val = 0;

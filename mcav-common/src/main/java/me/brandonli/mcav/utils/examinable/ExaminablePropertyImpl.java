@@ -49,6 +49,14 @@ public class ExaminablePropertyImpl<T> implements ExaminableProperty<T> {
    * {@inheritDoc}
    */
   @Override
+  public int hashCode() {
+    return this.name.hashCode() ^ this.type.hashCode();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public String getName() {
     return this.name;
   }

@@ -22,25 +22,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Xoroshiro128PlusRandom is a subclass of {@link Random}, implementing the
- * Xoroshiro128+ pseudo-random number generator algorithm. It is designed to offer
- * high performance while maintaining high quality randomness suitable for most
- * applications requiring random number generation.
- * <p>
- * This implementation uses two internal 64-bit state variables and employs fast
- * bitwise operations to generate random numbers. The Xoroshiro128+ generator is
- * non-cryptographic and not suitable for cryptographic use cases.
- * <p>
- * The state is initialized using a seed, which may be provided by the user or
- * generated automatically if no seed is supplied. The implementation also ensures
- * that the internal state does not contain all zeroes, which would break the generator.
- * <p>
- * Key features:
- * - Supports all methods of the {@link Random} class.
- * - Efficient generation of random integers, floats, doubles, and booleans.
- * - Thread-safe initialization of unique seeds using atomic operations.
- *
- * @see Random
+ * A random number generator based on the Xoroshiro128+ algorithm.
  */
 public final class Xoroshiro128PlusRandom extends Random {
 
@@ -50,17 +32,13 @@ public final class Xoroshiro128PlusRandom extends Random {
   @Serial
   private static final long serialVersionUID = 7871099129105026239L;
 
+  /**
+   * internal state variable
+   */
   private long s0, s1;
 
   /**
    * Default constructor for the {@link Xoroshiro128PlusRandom} class.
-   * This constructor initializes the internal state of the random number generator
-   * using a generated seed that combines the output of the {@code createSeed()} method
-   * with the current value of {@link System#nanoTime()}.
-   * <p>
-   * The {@code createSeed()} method provides a unique, non-repeating value, ensuring
-   * that the resulting seed is different for each instantiation of the generator,
-   * except in rare edge cases where timing collisions occur.
    */
   public Xoroshiro128PlusRandom() {
     this(createSeed() ^ System.nanoTime());
@@ -68,10 +46,7 @@ public final class Xoroshiro128PlusRandom extends Random {
 
   /**
    * Constructs a new instance of the Xoroshiro128PlusRandom random number generator,
-   * initializing its internal state using the specified seed. This implementation uses
-   * the MurmurHash3 algorithm to create two internal state variables (s0 and s1) based
-   * on the given seed. If the resulting state values are both zero, a fallback initialization
-   * process is used to avoid invalid all-zeroes state.
+   * initializing its internal state using the specified seed.
    *
    * @param seed the initial seed value used to initialize the internal state of the
    *             random number generator. The seed is passed through the MurmurHash3

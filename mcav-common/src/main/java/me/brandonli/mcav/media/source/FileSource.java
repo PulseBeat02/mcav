@@ -31,6 +31,11 @@ public interface FileSource extends StaticSource {
    */
   Path getPath();
 
+  /**
+   * Creates a new {@link Writable} instance for this file source.
+   *
+   * @return a new {@link Writable} instance associated with this file source.
+   */
   default Writable createWritable() {
     return new WritableImpl(this.getPath());
   }

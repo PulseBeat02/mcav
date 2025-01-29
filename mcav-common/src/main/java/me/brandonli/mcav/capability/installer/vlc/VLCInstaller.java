@@ -39,6 +39,9 @@ import me.brandonli.mcav.utils.os.OSUtils;
  */
 public final class VLCInstaller extends AbstractInstaller {
 
+  /**
+   * The version of VLC that this installer supports.
+   */
   public static final String VERSION = "3.0.21";
 
   private static final Download[] DOWNLOADS = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");

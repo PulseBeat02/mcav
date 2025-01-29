@@ -19,25 +19,22 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDitherImpl;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * The {@code RandomDitherBuilderImpl} class is an implementation of the {@code RandomDitherBuilder}
- * interface, designed to construct instances of the {@code RandomDither} dithering algorithm.
- * This builder enables the configuration of the dithering parameters, such as the color palette
- * and the randomness weight, before creating a {@code RandomDither} object.
- * <p>
- * This implementation follows the builder design pattern, providing methods to set the
- * required parameters and ensuring a fluent API for creating dither configurations.
- * <p>
- * The {@code RandomDitherBuilderImpl} class encapsulates two main parameters:
- * - {@code Palette palette}: Defines the color palette used in the dithering process.
- * - {@code int weight}: Represents the degree of randomness in the dithering algorithm.
+ * Implementation of the {@link RandomDitherBuilder} interface for constructing instances.
  */
 public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither, RandomDitherBuilderImpl> {
 
-  private Palette palette = Palette.DEFAULT_MAP_PALETTE;
+  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
   private int weight = RandomDither.NORMAL_WEIGHT;
+
+  /**
+   * Default constructor for {@link RandomDitherBuilderImpl}.
+   */
+  public RandomDitherBuilderImpl() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}
@@ -51,7 +48,7 @@ public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither
    * {@inheritDoc}
    */
   @Override
-  public void setPalette(final Palette palette) {
+  public void setPalette(final DitherPalette palette) {
     this.palette = palette;
   }
 

@@ -17,9 +17,17 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
+/** Heatmap **/
 public class Heatmap {
 
+  Heatmap() {
+    // no-op
+  }
+
+  /** start_time **/
   public double start_time;
+  /** end_time **/
   public double end_time;
+  /** value **/
   public double value;
 }
