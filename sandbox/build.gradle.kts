@@ -1,3 +1,4 @@
+import xyz.jpenilla.resourcefactory.bukkit.BukkitPluginYaml
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
@@ -46,7 +47,7 @@ tasks.withType<AbstractRun>().configureEach {
         vendor = JvmVendorSpec.JETBRAINS
         languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     })
-    jvmArgs("-Xmx2040m", "-XX:+AllowEnhancedClassRedefinition", "-XX:+AllowRedefinitionToAddDeleteMethods")
+    jvmArgs("-Xmx8192m", "-XX:+AllowEnhancedClassRedefinition", "-XX:+AllowRedefinitionToAddDeleteMethods")
 }
 
 tasks {
@@ -62,6 +63,7 @@ tasks {
 
     bukkitPluginYaml {
         name = "MCAV"
+        load = BukkitPluginYaml.PluginLoadOrder.STARTUP
         version = "${project.version}"
         description = "MCAV Sandbox Plugin"
         authors = listOf("PulseBeat_02")

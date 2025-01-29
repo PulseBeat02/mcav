@@ -133,7 +133,7 @@ public final class ScreenBuilderGui extends Gui {
   }
 
   public GuiItem getMapItem() {
-    return ItemBuilder.from(this.material)
+    return ItemBuilder.from(Material.GRAY_STAINED_GLASS_PANE)
       .name(join(noSeparators(), text("Map ID - ", GOLD), text(this.id.getNumber(), AQUA)))
       .asGuiItem(this::handleMaterial);
   }
