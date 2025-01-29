@@ -25,6 +25,7 @@ import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -58,7 +59,7 @@ public final class SingleCombinedInputExample {
       URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4")
     );
 
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
+    final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(new DirectAudioOutput()).build();
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))

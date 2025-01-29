@@ -224,7 +224,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final UriSource uri = UriSource.uri(URI.create(mrl));
       if (!SourceUtils.isDirectVideoFile(mrl)) {
         final URLParseDump dump = this.getUrlParseDump(uri, arguments);
-        final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
+        final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
       } else {

@@ -21,6 +21,7 @@ import com.sun.jna.Pointer;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -61,6 +62,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private final EmbeddedMediaPlayer player;
   private final VideoSurfaceAdapter adapter;
+  private final AtomicBoolean running;
   private final String[] args;
   private final Lock lock;
 
@@ -83,6 +85,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     this.player = mediaPlayerApi.newEmbeddedMediaPlayer();
     this.adapter = this.getAdapter();
     this.lock = new ReentrantLock();
+    this.running = new AtomicBoolean(false);
     this.args = args;
   }
 
@@ -104,6 +107,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final String result = audioUri.toString();
       final SlaveApi slaveApi = mediaApi.slaves();
       slaveApi.add(MediaSlaveType.AUDIO, MediaSlavePriority.HIGHEST, result);
+      this.running.set(true);
       return true;
     });
   }
@@ -131,6 +135,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.prepareMedia(audioPipeline, videoPipeline, combined, combined);
+      this.running.set(true);
       return true;
     });
   }
@@ -172,6 +177,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Override
   public boolean pause() {
     return LockUtils.executeWithLock(this.lock, () -> {
+      this.running.set(false);
       final ControlsApi controls = this.player.controls();
       controls.pause();
       return true;
@@ -186,6 +192,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return LockUtils.executeWithLock(this.lock, () -> {
       final ControlsApi controls = this.player.controls();
       controls.start();
+      this.running.set(true);
       return true;
     });
   }
@@ -196,8 +203,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Override
   public boolean seek(final long time) {
     return LockUtils.executeWithLock(this.lock, () -> {
+      this.running.set(false);
       final ControlsApi controls = this.player.controls();
       controls.setTime(time);
+      this.running.set(true);
       return true;
     });
   }
@@ -208,6 +217,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Override
   public boolean release() {
     return LockUtils.executeWithLock(this.lock, () -> {
+      this.running.set(false);
       this.player.release();
       return true;
     });
@@ -241,7 +251,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     public void allocatedBuffers(final ByteBuffer[] buffers) {}
   }
 
-  private static final class AudioCallback extends AudioCallbackAdapter {
+  private final class AudioCallback extends AudioCallbackAdapter {
 
     private static final int BLOCK_SIZE = 4;
 
@@ -258,6 +268,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
      */
     @Override
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
+      if (!VLCPlayer.this.running.get()) {
+        return;
+      }
       final int bufferSize = sampleCount * BLOCK_SIZE;
       final byte[] bytes = samples.getByteArray(0, bufferSize);
       final ByteBuffer buffer = ByteBuffer.wrap(bytes);
@@ -270,7 +283,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private static final class VideoCallback implements RenderCallback {
+  private final class VideoCallback implements RenderCallback {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
@@ -301,6 +314,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final int displayWidth,
       final int displayHeight
     ) {
+      if (!VLCPlayer.this.running.get()) {
+        return;
+      }
+
       final int width = bufferFormat.getWidth();
       final int height = bufferFormat.getHeight();
       final int bitrate = this.metadata.getVideoBitrate();
@@ -310,14 +327,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final IntBuffer intBuffer = first.asIntBuffer();
       intBuffer.get(this.buffer, 0, width * height);
 
-      final ImageBuffer image = ImageBuffer.buffer(this.buffer, width, height);
+      final ImageBuffer buffer = ImageBuffer.buffer(this.buffer, width, height);
       VideoPipelineStep current = this.step;
       while (current != null) {
-        current.process(image, updated);
+        current.process(buffer, updated);
         current = current.next();
       }
 
-      image.release();
+      buffer.release();
     }
 
     /**
