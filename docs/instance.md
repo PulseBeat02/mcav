@@ -12,9 +12,7 @@ plugin.
 ```java
   final MCAVApi api = MCAVApi.api();
   api.install(); // installs and loads the required binaries
-
   // ... use the library ...
-
   api.release(); // releases all native resources and shuts down the library
 ```
 

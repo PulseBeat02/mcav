@@ -25,19 +25,15 @@ padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endi
 ```
 
 ```java
-final AudioPipelineStep audioPipelineStep = ...;
-final VideoPipelineStep videoPipelineStep = ...;
-final FileSource videoSource = ...;
-final FileSource audioSource = ...;
-final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-// audioPipelineStep and videoPipelineStep from above
-multiplexer.
-
-start(audioPipelineStep, videoPipelineStep, videoSource, audioSource);
-// ... do something with the player
-multiplexer.
-
-release();
+  final AudioPipelineStep audioPipelineStep = ...;
+  final VideoPipelineStep videoPipelineStep = ...;
+  final FileSource videoSource = ...;
+  final FileSource audioSource = ...;
+  final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+  // audioPipelineStep and videoPipelineStep from above
+  multiplexer.start(audioPipelineStep, videoPipelineStep, videoSource, audioSource);
+  // ... do something with the player
+  multiplexer.release();
 ```
 
 ```{warning}
@@ -49,18 +45,14 @@ All multiplexer players support single input video and audio sources. For exampl
 so.
 
 ```java
-final AudioPipelineStep audioPipelineStep = ...;
-final VideoPipelineStep videoPipelineStep = ...;
-final FileSource source = ...;
-final VideoPlayerMultiplexer player = VideoPlayer.vlc();
-// audioPipelineStep and videoPipelineStep from above
-player.
-
-start(audioPipelineStep, videoPipelineStep, source);
-// ... do something with the player
-player.
-
-release();
+  final AudioPipelineStep audioPipelineStep = ...;
+  final VideoPipelineStep videoPipelineStep = ...;
+  final FileSource source = ...;
+  final VideoPlayerMultiplexer player = VideoPlayer.vlc();
+  // audioPipelineStep and videoPipelineStep from above
+  player.start(audioPipelineStep, videoPipelineStep, source);
+  // ... do something with the player
+  player.release();
 ```
 
 The `VLCPlayer`, `FFmpegPlayer`, `VideoInputPlayer`, and `OpenCVPlayer` are all multiplexer video players.
@@ -79,16 +71,12 @@ To use the `ChromeDriverPlayer`, you must have a `BrowserSource` that specifies 
 
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
-final VideoMetadata metadata = VideoMetadata.of(1920, 1080); // specify browser resolution
-final BrowserSource browserSource = BrowserSource.of(URI.create("https://example.com"), metadata);
-final BrowserPlayer player = BrowserPlayer.defaultChrome(); // starts Chrome WebDriver with default arguments
-  player.
-
-start(videoPipelineStep, browserSource);
-// ... do something with the player
-  player.
-
-release();
+  final VideoMetadata metadata = VideoMetadata.of(1920, 1080); // specify browser resolution
+  final BrowserSource browserSource = BrowserSource.of(URI.create("https://example.com"), metadata);
+  final BrowserPlayer player = BrowserPlayer.defaultChrome(); // starts Chrome WebDriver with default arguments
+  player.start(videoPipelineStep, browserSource);
+  // ... do something with the player
+  player.release();
 ```
 
 ## Image Players
@@ -99,15 +87,11 @@ JFreeChart chart and displaying it.
 
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
-final FrameSource frameSource = FrameSource.image(...); // provide your frames in a supplier
-final ImagePlayer player = ImagePlayer.player();
-  player.
-
-start(videoPipelineStep, frameSource);
-// ... do something with the player
-  player.
-
-release();
+  final FrameSource frameSource = FrameSource.image(...); // provide your frames in a supplier
+  final ImagePlayer player = ImagePlayer.player();
+  player.start(videoPipelineStep, frameSource);
+  // ... do something with the player
+  player.release();
 ```
 
 If you want to play a GIF image, you can use the `RepeatingFrameSource` which accepts any `DynamicImage`. You can pass
@@ -115,16 +99,12 @@ this into `ImagePlayer` directly.
 
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
-final DynamicImage gif = DynamicImage.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
-final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
-final ImagePlayer player = ImagePlayer.player();
-  player.
-
-start(videoPipelineStep, frameSource);
-// ... do something with the player
-  player.
-
-release();
+  final DynamicImage gif = DynamicImage.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
+  final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
+  final ImagePlayer player = ImagePlayer.player();
+  player.start(videoPipelineStep, frameSource);
+  // ... do something with the player
+  player.release();
 ```
 
 This will play the GIF indefinitely until you stop the player. You're also welcome to play the GIF in the
@@ -139,21 +119,17 @@ a `VNCSource`, and pass it to the player.
 
 ```java
   final VideoPipelineStep pipeline = ...;
-final VNCSource source = VNCSource.vnc()
-        .host("localhost")
-        .port(5900)
-        .password("passwd")
-        .videoMetadata(videoMetadata)
-        .name("VNC Connection")
-        .build();
-final VNCPlayer player = VNCPlayer.vm();
-  player.
-
-start(pipeline, source);
-// ... do some play back
-  player.
-
-release();
+  final VNCSource source = VNCSource.vnc()
+    .host("localhost")
+    .port(5900)
+    .password("passwd")
+    .videoMetadata(videoMetadata)
+    .name("VNC Connection")
+    .build();
+  final VNCPlayer player = VNCPlayer.vm();
+  player.start(pipeline, source);
+  // ... do some play back
+  player.release();
 ```
 
 That way, you're able to connect to virtual machines or any VNC server and interact with it as if it were a local

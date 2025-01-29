@@ -63,8 +63,8 @@ on. For example, for an error diffusion dither, you would use the following code
 
 ```java
   final ErrorDiffusionDither dither = DitherAlgorithm.errorDiffusion()
-        .withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)
-        .withPalette(new DefaultPalette()).build();
+    .withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)
+    .withPalette(new DefaultPalette()).build();
 ```
 
 ## Using Maps to Display Frames
@@ -75,13 +75,13 @@ block widths and heights, and map IDs. You should use the builder to create the 
 
 ```java
   final Collection<UUID> viewers = ...;
-final DitherAlgorithm algorithm = ...;
-final MapConfiguration configuration = MapConfiguration.builder()
-        .map(0)
-        .mapBlockWidth(5).mapBlockHeight(5)
-        .mapHeightResolution(640).mapWidthResolution(640)
-        .viewers(viewers)
-        .build();
+  final DitherAlgorithm algorithm = ...;
+  final MapConfiguration configuration = MapConfiguration.builder()
+    .map(0)
+    .mapBlockWidth(5).mapBlockHeight(5)
+    .mapHeightResolution(640).mapWidthResolution(640)
+    .viewers(viewers)
+    .build();
 ```
 
 Now that MCAV knows the map metadata and the dithering algorithm, you can use the `DitherFilter` to apply the dithering

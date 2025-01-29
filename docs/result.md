@@ -10,10 +10,10 @@ The following example constructs a `ChatResult` filter that sends the video fram
 ```java
   final Collection<UUID> viewers = ...;
   final ChatConfiguration configuration = ChatConfiguration.builder()
-        .character(Characters.BLACK_SQUARE)
-        .chatWidth(16).chatHeight(16)
-        .viewers(viewers)
-        .build();
+    .character(Characters.BLACK_SQUARE)
+    .chatWidth(16).chatHeight(16)
+    .viewers(viewers)
+    .build();
   final VideoFilter chatResult = new ChatResult(configuration);
 ```
 
@@ -35,5 +35,4 @@ For certain players that fall under the `FunctionalPlayer`, like the `EntityPlay
     // do some play back
     chatResult.release();
 ```
-
 ```

@@ -28,10 +28,8 @@ provides methods to manipulate the GIF frames or getting the frame rate.
 
 ```java
   final UriSource source = UriSource.uri(URI.create("https://example.com/image.gif"));
-final DynamicImage image = DynamicImage.uri(source);
-final float fps = image.getFrameRate();
-// and more operations
-  image.
-
-close();
+  final DynamicImage image = DynamicImage.uri(source);
+  final float fps = image.getFrameRate();
+  // and more operations
+  image.close();
 ```
