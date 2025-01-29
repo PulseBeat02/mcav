@@ -135,7 +135,9 @@ public final class ChatUtils {
       if (player == null) {
         continue;
       }
-      player.sendMessage(CLEAR_CHAT_MESSAGE);
+      for (int i = 0; i < 100; i++) {
+        player.sendMessage(CLEAR_CHAT_MESSAGE);
+      }
     }
   }
 }

@@ -134,6 +134,15 @@ public final class AudioProvider {
       audioManager.setSendingHandler(null);
       audioManager.closeAudioConnection();
     }
+
+    final URLParseDump dump = new URLParseDump();
+    if (this.discord != null) {
+      this.discord.setCurrentMedia(dump);
+    }
+
+    if (this.result != null) {
+      this.result.setCurrentMedia(dump);
+    }
   }
 
   public void shutdown() {

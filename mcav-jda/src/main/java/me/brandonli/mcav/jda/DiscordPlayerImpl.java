@@ -86,8 +86,9 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    */
   @Override
   public void setCurrentMedia(final URLParseDump dump) {
+    final String title = dump.title != null ? dump.title : "Unknown Title";
     final Presence presence = this.jda.getPresence();
     presence.setStatus(OnlineStatus.ONLINE);
-    presence.setActivity(Activity.playing(dump.title));
+    presence.setActivity(Activity.playing(title));
   }
 }

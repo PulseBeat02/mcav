@@ -530,6 +530,7 @@
             this.gainNode = this.audioCtx.createGain();
             this.gainNode.connect(this.audioCtx.destination);
             this.startTime = this.audioCtx.currentTime;
+            this.processingTimestamp = Date.now();
         }
 
         setupHowler() {
@@ -538,6 +539,12 @@
 
         feed(data) {
             if (this.isDestroyed) return;
+
+            const currentTime = Date.now();
+            if (currentTime - this.processingTimestamp > 3000) {
+                this.flush();
+            }
+            this.processingTimestamp = currentTime;
 
             const view = new DataView(data);
             const float32Array = new Float32Array(data.byteLength / 2);
@@ -734,6 +741,9 @@
 
             this.samples = new Float32Array();
             this.startTime = this.audioCtx.currentTime;
+
+            this.waveformData = new Float32Array(256);
+            this.smoothedData = new Float32Array(256);
         }
     }
 
