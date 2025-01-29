@@ -14,6 +14,7 @@
 
 - **Docs**: https://mcav.readthedocs.io/en/latest/intro.html
 - **GitHub**: https://github.com/PulseBeat02/mcav
+- **CI**: https://ci.brandonli.me/project/mcav
 - **Support**: https://discord.gg/cUMB6kCsh6
 - **Donate**: https://ko-fi.com/pulsebeat_02
 - **Testing Server**: `pulse.mcserver.us`

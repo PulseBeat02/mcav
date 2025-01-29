@@ -17,7 +17,7 @@ The MCAV plugin is compatible with **Paper** servers only. It will not work on *
 also use version **1.21.5** to run the plugin. It will not work on any other version of Minecraft.
 ```
 
-1) Grab the latest JAR from the GitHub Actions page [here](https://github.com/PulseBeat02/mcav/releases/tag/latest).
+1) Grab the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v1.21.5-all.jar).
 2) Place the JAR file into the `plugins` folder of your server.
 
 On first load, the plugin will take a while to load as it needs to download all the necessary dependencies. Give it
