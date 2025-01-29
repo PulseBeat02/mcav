@@ -432,52 +432,44 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         return false;
       }
       this.shutdownGrabbers();
-      this.applyTimeStamp();
       this.startResumeGrabbers();
       return true;
     });
   }
 
   private void startResumeGrabbers() {
-    this.running.set(true);
+    final Source videoSource = requireNonNull(this.videoSource);
+    final long timestamp = requireNonNull(this.timestamp);
+    final String videoResource = videoSource.getResource();
+    this.audioFrameBuffer.clear();
+    this.videoFrameBuffer.clear();
+
+    this.video = this.getFrameGrabber(videoResource);
     final boolean multiplexer = this.audioSource != this.videoSource;
+    if (multiplexer) {
+      final Source audioSource = requireNonNull(this.audioSource);
+      final String audioResource = audioSource.getResource();
+      this.audio = this.getFrameGrabber(audioResource);
+    }
+
+    this.running.set(true);
     final FrameGrabber video = requireNonNull(this.video);
     try {
       if (multiplexer) {
         final FrameGrabber audio = requireNonNull(this.audio);
         audio.start();
         video.start();
+        audio.setTimestamp(timestamp);
+        video.setTimestamp(timestamp);
         this.videoFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerVideo);
         this.audioFrameRetrieverExecutor.submit(this::retrieveFramesMultiplexerAudio);
       } else {
         video.start();
+        video.setTimestamp(timestamp);
         this.videoFrameRetrieverExecutor.submit(this::retrieveFrames);
       }
       this.audioFrameProcessorExecutor.submit(this::processAudioFrames);
       this.videoFrameProcessorExecutor.submit(this::processVideoFrames);
-    } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  private void applyTimeStamp() {
-    final Source videoSource = requireNonNull(this.videoSource);
-    final long timestamp = requireNonNull(this.timestamp);
-    final String videoResource = videoSource.getResource();
-    this.audioFrameBuffer.clear();
-    this.videoFrameBuffer.clear();
-    try {
-      final FrameGrabber video = this.getFrameGrabber(videoResource);
-      video.setTimestamp(timestamp);
-      this.video = video;
-      final boolean multiplexer = this.audioSource != this.videoSource;
-      if (multiplexer) {
-        final Source audioSource = requireNonNull(this.audioSource);
-        final String audioResource = audioSource.getResource();
-        final FrameGrabber audio = this.getFrameGrabber(audioResource);
-        audio.setTimestamp(timestamp);
-        this.audio = audio;
-      }
     } catch (final FrameGrabber.Exception e) {
       throw new PlayerException(e.getMessage(), e);
     }

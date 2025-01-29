@@ -1,6 +1,6 @@
 High Priority Tasks:
-  - Fix plugin logger being logged twice
-  - Fix FFmpeg player resume not working
+  - Fix JNA Callback GC Issues for VLC Player
+
   - Update demo video
     - Scoreboard, Chat, Entity, Block, Map
     - Audio Callbacks

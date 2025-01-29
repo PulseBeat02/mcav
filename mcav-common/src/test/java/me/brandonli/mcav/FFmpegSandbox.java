@@ -20,6 +20,7 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
@@ -31,12 +32,9 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
 
-@SuppressWarnings("all") // checker
-public final class SingleCombinedInputExample {
+public class FFmpegSandbox {
 
-  private static VideoPlayerMultiplexer multiplexer;
-
-  public static void main(final String[] args) throws Exception {
+  public static void main(final String[] args) {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -67,8 +65,15 @@ public final class SingleCombinedInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.start(audioPipelineStep, videoPipelineStep, source);
+
+    CompletableFuture.runAsync(() -> {
+      sleep();
+      multiplexer.pause();
+      sleep();
+      multiplexer.resume();
+    });
 
     Runtime.getRuntime()
       .addShutdownHook(
@@ -77,5 +82,13 @@ public final class SingleCombinedInputExample {
           api.release();
         })
       );
+  }
+
+  private static void sleep() {
+    try {
+      Thread.sleep(5000);
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 }

@@ -138,7 +138,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.annotationParserHandler = new AnnotationParserHandler(this);
     this.annotationParserHandler.registerCommands();
     final long endTime = System.currentTimeMillis();
-    this.logger.info("Commands loaded in " + (endTime - startTime) + "ms");
+    this.logger.info("Commands loaded in {}ms", endTime - startTime);
   }
 
   private void shutdownLookupTables() {

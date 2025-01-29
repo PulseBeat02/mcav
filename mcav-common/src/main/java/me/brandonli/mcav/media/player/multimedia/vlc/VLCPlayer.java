@@ -20,7 +20,6 @@ package me.brandonli.mcav.media.player.multimedia.vlc;
 import com.sun.jna.Pointer;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,7 +51,7 @@ import uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi;
 import uk.co.caprica.vlcj.player.embedded.videosurface.*;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback;
-import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
+import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
 
 /**
@@ -148,9 +147,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   ) {
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
-    this.bufferFormatCallback = new BufferCallback(videoMetadata);
-    this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.videoSurface = new CallbackVideoSurface(this.bufferFormatCallback, this.videoCallback, true, this.adapter);
+    final BufferFormatCallback callback = PhantomDebug.watch(new BufferCallback(videoMetadata));
+    this.bufferFormatCallback = callback;
+    this.videoCallback = PhantomDebug.watch(new VideoCallback(videoPipeline, videoMetadata));
+    this.videoSurface = PhantomDebug.watch(new CallbackVideoSurface(callback, this.videoCallback, true, this.adapter));
     surfaceApi.set(this.videoSurface);
 
     // audio sample specialization
@@ -159,7 +159,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     // 48 kHz
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
     final AudioApi audioApi = this.player.audio();
-    this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
+    this.audioCallback = PhantomDebug.watch(new AudioCallback(audioPipeline, audioMetadata));
     audioApi.callback("S16N", 48000, 2, this.audioCallback);
   }
 
@@ -225,17 +225,15 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final class BufferCallback implements BufferFormatCallback {
 
-    private final int width;
-    private final int height;
+    private final RV32BufferFormat format;
 
     BufferCallback(final VideoMetadata metadata) {
-      this.width = metadata.getVideoWidth();
-      this.height = metadata.getVideoHeight();
+      this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
     }
 
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
-      return new RV32BufferFormat(this.width, this.height);
+      return this.format;
     }
 
     /**
@@ -251,7 +249,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     public void allocatedBuffers(final ByteBuffer[] buffers) {}
   }
 
-  private final class AudioCallback extends AudioCallbackAdapter {
+  private static final class AudioCallback extends AudioCallbackAdapter {
 
     private static final int BLOCK_SIZE = 4;
 
@@ -268,9 +266,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
      */
     @Override
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
-      if (!VLCPlayer.this.running.get()) {
-        return;
-      }
       final int bufferSize = sampleCount * BLOCK_SIZE;
       final byte[] bytes = samples.getByteArray(0, bufferSize);
       final ByteBuffer buffer = ByteBuffer.wrap(bytes);
@@ -283,64 +278,31 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private final class VideoCallback implements RenderCallback {
+  private static final class VideoCallback extends RenderCallbackAdapter {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
-    private final int[] buffer;
 
     VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
       final int width = metadata.getVideoWidth();
       final int height = metadata.getVideoHeight();
+      final int[] buffer = new int[width * height];
       this.step = step;
       this.metadata = metadata;
-      this.buffer = new int[width * height];
+      this.setBuffer(buffer);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public void lock(final MediaPlayer mediaPlayer) {}
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void display(
-      final MediaPlayer mediaPlayer,
-      final ByteBuffer[] nativeBuffers,
-      final BufferFormat bufferFormat,
-      final int displayWidth,
-      final int displayHeight
-    ) {
-      if (!VLCPlayer.this.running.get()) {
-        return;
-      }
-
-      final int width = bufferFormat.getWidth();
-      final int height = bufferFormat.getHeight();
-      final int bitrate = this.metadata.getVideoBitrate();
-      final float frameRate = this.metadata.getVideoFrameRate();
-      final VideoMetadata updated = VideoMetadata.of(width, height, bitrate, frameRate);
-      final ByteBuffer first = nativeBuffers[0];
-      final IntBuffer intBuffer = first.asIntBuffer();
-      intBuffer.get(this.buffer, 0, width * height);
-
-      final ImageBuffer buffer = ImageBuffer.buffer(this.buffer, width, height);
+    protected void onDisplay(final MediaPlayer mediaPlayer, final int[] buffer) {
+      final int width = this.metadata.getVideoWidth();
+      final int height = this.metadata.getVideoHeight();
+      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
       VideoPipelineStep current = this.step;
       while (current != null) {
-        current.process(buffer, updated);
+        current.process(image, this.metadata);
         current = current.next();
       }
-
-      buffer.release();
+      image.release();
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void unlock(final MediaPlayer mediaPlayer) {}
   }
 }
