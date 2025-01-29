@@ -248,3 +248,6 @@ dmypy.json
 
 # Temporary editor files
 *.swp
+
+# Project Specific
+./mcav-http/mcav-website
