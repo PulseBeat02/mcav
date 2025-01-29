@@ -193,7 +193,6 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         return false;
       }
 
-      this.tools.clearListeners();
       this.tools.close();
       this.running.set(false);
 
