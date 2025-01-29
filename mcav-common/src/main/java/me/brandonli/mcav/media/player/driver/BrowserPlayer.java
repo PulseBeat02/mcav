@@ -109,6 +109,15 @@ public interface BrowserPlayer extends ReleasablePlayer {
   void sendMouseEvent(final int x, final int y, final MouseClick type);
 
   /**
+   * Sends a key event by simulating the entry of the specified text.
+   *
+   * @param text the text to be sent as a key event. This parameter represents
+   *             the string of characters or input sequence that the method simulates
+   *             being typed.
+   */
+  void sendKeyEvent(final String text);
+
+  /**
    * Creates a default instance of {@code ChromeDriverPlayer} with pre-defined arguments to
    * configure the Chrome browser in a headless environment.
    * The default arguments include configurations for performance, security, and resource optimization.

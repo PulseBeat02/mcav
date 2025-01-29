@@ -166,21 +166,28 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     action.perform();
   }
 
-  private Actions getAction(final MouseClick type, final Actions move) {
-    switch (type) {
-      case LEFT:
-        return move.click();
-      case RIGHT:
-        return move.contextClick();
-      case DOUBLE:
-        return move.doubleClick();
-      case HOLD:
-        return move.clickAndHold();
-      case RELEASE:
-        return move.release();
-      default:
-        throw new InvalidMouseClickArgument("Invalid mouse click type!");
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void sendKeyEvent(final String text) {
+    if (!this.running.get()) {
+      return;
     }
+    final Actions actions = new Actions(this.driver);
+    final Actions move = actions.sendKeys(text);
+    final Action action = move.build();
+    action.perform();
+  }
+
+  private Actions getAction(final MouseClick type, final Actions move) {
+    return switch (type) {
+      case LEFT -> move.click();
+      case RIGHT -> move.contextClick();
+      case DOUBLE -> move.doubleClick();
+      case HOLD -> move.clickAndHold();
+      case RELEASE -> move.release();
+    };
   }
 
   /**

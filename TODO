@@ -1,5 +1,7 @@
 Development Milestones
-  - Build QEMU Statically for All Platforms
-  - Add Interaction Support for Virtual Machine
-  - Add Interaction Support for Browser
+  - Fix Interaction Support for Virtual Machine / Browser
+  - Look at PixelStacker (https://github.com/Pangamma/PixelStacker)
   - Add Images and GIF Support into Plugin
+
+  - Build QEMU Statically for All Platforms
+  - Rewrite all JavaDocs

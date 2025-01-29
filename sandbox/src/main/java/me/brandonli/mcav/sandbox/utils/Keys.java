@@ -17,7 +17,12 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
+import org.bukkit.NamespacedKey;
+
 public class Keys {
 
   public static final String NAMESPACE = "mcav";
+  public static final NamespacedKey MAP_KEY = new NamespacedKey(NAMESPACE, "map");
+  public static final NamespacedKey FIRST_MAP_KEY = new NamespacedKey(NAMESPACE, "first_map");
+  public static final NamespacedKey LAST_MAP_KEY = new NamespacedKey(NAMESPACE, "second_map");
 }

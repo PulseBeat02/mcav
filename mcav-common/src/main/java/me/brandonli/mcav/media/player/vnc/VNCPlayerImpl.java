@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.VNCSource;
@@ -49,18 +50,16 @@ public class VNCPlayerImpl implements VNCPlayer {
   private final AtomicBoolean running;
   private final Object lock = new Object();
 
-  private boolean connected;
-  private volatile BufferedImage current;
   private @Nullable CompletableFuture<?> processingFuture;
   private @Nullable VernacularClient vncClient;
 
-  private VideoPipelineStep videoPipeline;
-  private VideoMetadata videoMetadata;
+  private volatile BufferedImage current;
+  private volatile VideoPipelineStep videoPipeline;
+  private volatile VideoMetadata videoMetadata;
 
   VNCPlayerImpl() {
     this.frameProcessorExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     this.running = new AtomicBoolean(false);
-    this.connected = false;
   }
 
   /**
@@ -69,7 +68,7 @@ public class VNCPlayerImpl implements VNCPlayer {
   @Override
   public boolean start(final VideoPipelineStep videoPipeline, final VNCSource source) {
     synchronized (this.lock) {
-      if (this.connected) {
+      if (this.running.get()) {
         return true;
       }
       this.videoPipeline = videoPipeline;
@@ -79,7 +78,6 @@ public class VNCPlayerImpl implements VNCPlayer {
       this.vncClient = new VernacularClient(config);
       this.vncClient.start(source.getHost(), source.getPort());
 
-      this.connected = true;
       this.running.set(true);
 
       this.processingFuture = CompletableFuture.runAsync(this::processFrames, this.frameProcessorExecutor);
@@ -139,7 +137,7 @@ public class VNCPlayerImpl implements VNCPlayer {
   @Override
   public boolean pause() {
     synchronized (this.lock) {
-      if (this.connected && this.running.get()) {
+      if (this.running.get()) {
         this.running.set(false);
         return true;
       }
@@ -153,7 +151,7 @@ public class VNCPlayerImpl implements VNCPlayer {
   @Override
   public boolean resume() {
     synchronized (this.lock) {
-      if (this.connected && !this.running.get()) {
+      if (!this.running.get()) {
         this.running.set(true);
         if (this.processingFuture == null || this.processingFuture.isDone()) {
           this.processingFuture = CompletableFuture.runAsync(this::processFrames, this.frameProcessorExecutor);
@@ -171,23 +169,15 @@ public class VNCPlayerImpl implements VNCPlayer {
   public boolean release() {
     synchronized (this.lock) {
       this.running.set(false);
-
-      if (this.connected) {
-        if (this.processingFuture != null) {
-          this.processingFuture.cancel(true);
-          this.processingFuture = null;
-        }
-
-        if (this.vncClient != null) {
-          this.vncClient.stop();
-          this.vncClient = null;
-        }
-
-        this.connected = false;
+      if (this.processingFuture != null) {
+        this.processingFuture.cancel(true);
+        this.processingFuture = null;
       }
-
+      if (this.vncClient != null) {
+        this.vncClient.stop();
+        this.vncClient = null;
+      }
       ExecutorUtils.shutdownExecutorGracefully(this.frameProcessorExecutor);
-
       return true;
     }
   }
@@ -197,9 +187,24 @@ public class VNCPlayerImpl implements VNCPlayer {
    */
   @Override
   public void moveMouse(final int x, final int y) {
-    if (this.vncClient != null) {
-      this.vncClient.moveMouse(x, y);
+    final VernacularClient client = this.vncClient;
+    if (client != null) {
+      final int[] translated = this.translateCoordinates(x, y);
+      client.moveMouse(translated[0], translated[1]);
     }
+  }
+
+  private int[] translateCoordinates(final int x, final int y) {
+    final int originWidth = this.videoMetadata.getVideoWidth();
+    final int originHeight = this.videoMetadata.getVideoHeight();
+    if (this.current == null) {
+      throw new PlayerException("VNC source not started!");
+    }
+    final int targetWidth = this.current.getWidth();
+    final int targetHeight = this.current.getHeight();
+    final int newX = (int) (((float) x / originWidth) * targetWidth);
+    final int newY = (int) (((float) y / originHeight) * targetHeight);
+    return new int[] { newX, newY };
   }
 
   /**

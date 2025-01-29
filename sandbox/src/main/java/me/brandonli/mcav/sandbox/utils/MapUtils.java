@@ -60,6 +60,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 public final class MapUtils {
 
@@ -111,6 +113,13 @@ public final class MapUtils {
         for (int w = 0; w < width; w++) {
           final Block current = getRelativeBlock(start, mat, w, h, face);
           final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+          final PersistentDataContainer data = frame.getPersistentDataContainer();
+          if (h == height - 1 && w == 0) {
+            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          } else if (h == 0 && w == width - 1) {
+            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          }
+          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
           map++;
         }
       }
@@ -119,6 +128,13 @@ public final class MapUtils {
         for (int w = width - 1; w >= 0; w--) {
           final Block current = getRelativeBlock(start, mat, w, h, face);
           final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+          final PersistentDataContainer data = frame.getPersistentDataContainer();
+          if (h == height - 1 && w == width - 1) {
+            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          } else if (h == 0 && w == 0) {
+            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          }
+          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
           map++;
         }
       }
@@ -127,6 +143,13 @@ public final class MapUtils {
         for (int w = width - 1; w >= 0; w--) {
           final Block current = getRelativeBlock(start, mat, w, h, face);
           final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+          final PersistentDataContainer data = frame.getPersistentDataContainer();
+          if (h == height - 1 && w == width - 1) {
+            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          } else if (h == 0 && w == 0) {
+            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          }
+          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
           map++;
         }
       }
@@ -135,6 +158,13 @@ public final class MapUtils {
         for (int w = 0; w < width; w++) {
           final Block current = getRelativeBlock(start, mat, w, h, face);
           final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+          final PersistentDataContainer data = frame.getPersistentDataContainer();
+          if (h == height - 1 && w == 0) {
+            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          } else if (h == 0 && w == width - 1) {
+            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+          }
+          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
           map++;
         }
       }
