@@ -1,7 +1,7 @@
 High Priority Tasks:
   - Fix Interaction Support for Virtual Machine and Browser Maps
-  - Compile QEMU Statically
   - Rewrite all JavaDocs / Code Clean Up
+  - Write Documentation for Plugin
 
 Medium Priority Tasks:
   - Create Showcase Video

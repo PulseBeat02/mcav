@@ -17,13 +17,9 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import org.bukkit.Location;
+import org.bukkit.Rotation;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -33,189 +29,146 @@ import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class InteractUtils {
-
-  private static final BlockFace[] BLOCK_FACES = new BlockFace[] {
-    BlockFace.NORTH,
-    BlockFace.EAST,
-    BlockFace.SOUTH,
-    BlockFace.WEST,
-    BlockFace.UP,
-    BlockFace.DOWN,
-  };
 
   private InteractUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static class Plane {
-
-    private final Vector normal;
-    private final Vector point;
-    private final double d; // Plane equation: ax + by + cz + d = 0
-
-    public Plane(final Vector normal, final Vector point) {
-      this.normal = normal.clone().normalize();
-      this.point = point.clone();
-      this.d = -normal.dot(point); // Calculate d coefficient in plane equation
+  public static int[] getBoardCoordinates(final Player player) {
+    final Entity firstEntity = player.getTargetEntity(100);
+    if (!(firstEntity instanceof final ItemFrame frame)) {
+      throw new IllegalArgumentException("Target entity is not an ItemFrame");
     }
 
-    public @Nullable Vector rayIntersection(final Vector rayOrigin, final Vector rayDirection) {
-      final double denom = this.normal.dot(rayDirection);
-      if (Math.abs(denom) < 1e-6) {
-        return null;
+    final double[] xzCoordinates = getAdjustedXZCoordinates(player, frame);
+    final double x_res = xzCoordinates[0] * 128;
+    final double z_res = xzCoordinates[1] * 128;
+
+    final int[] relativeMapIndex = getRelativeMapIndex(player, frame);
+    final int mapGridX = relativeMapIndex[0];
+    final int mapGridY = relativeMapIndex[1];
+    final int absoluteX = mapGridX * 128 + (int) x_res;
+    final int absoluteY = mapGridY * 128 + (int) z_res;
+
+    return new int[] { absoluteX, absoluteY };
+  }
+
+  private static int[] getRelativeMapIndex(final Player player, final ItemFrame frame) {
+    final ItemFrame[] result = getCorners(player);
+    final ItemFrame firstCorner = result[0];
+    final Location firstCornerLoc = firstCorner.getLocation();
+    final Location hitFrameLoc = frame.getLocation();
+    final BlockFace hitFace = player.getTargetBlockFace(100);
+    int mapGridX = 0;
+    int mapGridY = 0;
+    if (hitFace == BlockFace.NORTH || hitFace == BlockFace.SOUTH) {
+      mapGridX = Math.abs(hitFrameLoc.getBlockX() - firstCornerLoc.getBlockX());
+      mapGridY = Math.abs(hitFrameLoc.getBlockY() - firstCornerLoc.getBlockY());
+    } else if (hitFace == BlockFace.EAST || hitFace == BlockFace.WEST) {
+      mapGridX = Math.abs(hitFrameLoc.getBlockZ() - firstCornerLoc.getBlockZ());
+      mapGridY = Math.abs(hitFrameLoc.getBlockY() - firstCornerLoc.getBlockY());
+    } else if (hitFace == BlockFace.UP || hitFace == BlockFace.DOWN) {
+      mapGridX = Math.abs(hitFrameLoc.getBlockX() - firstCornerLoc.getBlockX());
+      mapGridY = Math.abs(hitFrameLoc.getBlockZ() - firstCornerLoc.getBlockZ());
+    }
+    return new int[] { mapGridX, mapGridY };
+  }
+
+  private static double[] getAdjustedXZCoordinates(final Player player, final ItemFrame frame) {
+    final double[] xzCoordinates = getXZCoordinates(player, frame);
+    double x_map_scale = xzCoordinates[0];
+    double z_map_scale = xzCoordinates[1];
+    final Rotation rotation = frame.getRotation();
+    if (rotation.equals(Rotation.FLIPPED_45) || rotation.equals(Rotation.CLOCKWISE_45)) {
+      final double copy_z = z_map_scale;
+      z_map_scale = 1 - x_map_scale;
+      x_map_scale = copy_z;
+    } else if (rotation.equals(Rotation.COUNTER_CLOCKWISE) || rotation.equals(Rotation.CLOCKWISE)) {
+      x_map_scale = 1 - x_map_scale;
+      z_map_scale = 1 - z_map_scale;
+    } else if (rotation.equals(Rotation.COUNTER_CLOCKWISE_45) || rotation.equals(Rotation.CLOCKWISE_135)) {
+      final double copy_x = x_map_scale;
+      x_map_scale = 1 - z_map_scale;
+      z_map_scale = copy_x;
+    }
+    return new double[] { x_map_scale, z_map_scale };
+  }
+
+  private static double[] getXZCoordinates(final Player player, final ItemFrame frame) {
+    final World world = player.getWorld();
+    final Location playerLoc = player.getEyeLocation();
+    final BlockFace face = frame.getAttachedFace();
+    double x_map_scale = 0.0, z_map_scale = 0.0;
+    if (face.equals(BlockFace.EAST) || face.equals(BlockFace.WEST)) {
+      Vector vector = playerLoc.getDirection().normalize();
+      final double x_diff = frame.getLocation().getX() - playerLoc.getX();
+      vector = vector.multiply(Math.abs(x_diff / vector.getX()));
+      final Location clicked_location = playerLoc.toVector().add(vector).toLocation(world);
+      z_map_scale = clicked_location.getY() - (int) clicked_location.getY();
+      if (z_map_scale < 0) {
+        z_map_scale++;
       }
-      final double t = -(this.normal.dot(rayOrigin) + this.d) / denom;
-      if (t < 0) {
-        return null;
+      z_map_scale = 1 - z_map_scale;
+      x_map_scale = clicked_location.getZ() - (int) clicked_location.getZ();
+      if (x_map_scale < 0) {
+        x_map_scale++;
       }
-      return rayOrigin.clone().add(rayDirection.clone().multiply(t));
+      if (face.equals(BlockFace.WEST)) {
+        x_map_scale = 1 - x_map_scale;
+      }
+    } else if (face.equals(BlockFace.NORTH) || face.equals(BlockFace.SOUTH)) {
+      Vector vector = playerLoc.getDirection().normalize();
+      final double z_diff = frame.getLocation().getZ() - playerLoc.getZ();
+      vector = vector.multiply(Math.abs(z_diff / vector.getZ()));
+      final Location clicked_location = playerLoc.toVector().add(vector).toLocation(world);
+      z_map_scale = clicked_location.getY() - (int) clicked_location.getY();
+      if (z_map_scale < 0) {
+        z_map_scale++;
+      }
+      z_map_scale = 1 - z_map_scale;
+      x_map_scale = clicked_location.getX() - (int) clicked_location.getX();
+      if (x_map_scale < 0) {
+        x_map_scale++;
+      }
+      if (face.equals(BlockFace.SOUTH)) {
+        x_map_scale = 1 - x_map_scale;
+      }
     }
+    return new double[] { x_map_scale, z_map_scale };
   }
 
-  private static class PlaneCoordinateSystem {
-
-    private final Vector origin;
-    private final Vector xAxis;
-    private final Vector yAxis;
-    private final double width;
-    private final double height;
-
-    public PlaneCoordinateSystem(final Vector origin, final Vector xAxis, final Vector yAxis, final double width, final double height) {
-      this.origin = origin.clone();
-      this.xAxis = xAxis.clone().normalize();
-      this.yAxis = yAxis.clone().normalize();
-      this.width = width;
-      this.height = height;
-    }
-
-    public int[] pointToCoordinates(final Vector point) {
-      final Vector relative = point.clone().subtract(this.origin);
-      final double xCoord = relative.dot(this.xAxis) / this.width;
-      final double yCoord = relative.dot(this.yAxis) / this.height;
-      final int mapX = (int) (xCoord * 128);
-      final int mapY = (int) ((1 - yCoord) * 128);
-      return new int[] { mapX, mapY };
-    }
-  }
-
-  public static int[] getBoardCoordinates(final Player clicker) {
-    final BoardInfo boardInfo = findBoard(clicker);
-    final Location eyeLoc = clicker.getEyeLocation();
-    final Vector rayOrigin = eyeLoc.toVector();
-    final Vector rayDirection = eyeLoc.getDirection().normalize();
-    final Vector intersection = boardInfo.plane.rayIntersection(rayOrigin, rayDirection);
-    if (intersection == null) {
-      throw new IllegalArgumentException("You're not looking at the board");
-    }
-
-    final Vector firstCornerPos = toVector(boardInfo.firstCorner.getLocation());
-    final Vector lastCornerPos = toVector(boardInfo.lastCorner.getLocation());
-    final Vector normal = getFaceNormal(boardInfo.firstCorner.getFacing());
-    final Vector relativePos = intersection.clone().subtract(firstCornerPos);
-    final int mapX;
-    final int mapY;
-    if (Math.abs(normal.getX()) > 0.9) {
-      final double percentZ = relativePos.getZ() / (lastCornerPos.getZ() - firstCornerPos.getZ());
-      final double percentY = relativePos.getY() / (lastCornerPos.getY() - firstCornerPos.getY());
-      mapX = (int) (percentZ * 128);
-      mapY = (int) ((1 - percentY) * 128);
-    } else if (Math.abs(normal.getY()) > 0.9) {
-      final double percentX = relativePos.getX() / (lastCornerPos.getX() - firstCornerPos.getX());
-      final double percentZ = relativePos.getZ() / (lastCornerPos.getZ() - firstCornerPos.getZ());
-      mapX = (int) (percentX * 128);
-      mapY = (int) ((1 - percentZ) * 128);
-    } else {
-      final double percentX = relativePos.getX() / (lastCornerPos.getX() - firstCornerPos.getX());
-      final double percentY = relativePos.getY() / (lastCornerPos.getY() - firstCornerPos.getY());
-      mapX = (int) (percentX * 128);
-      mapY = (int) ((1 - percentY) * 128);
-    }
-
-    return new int[] { mapX, mapY };
-  }
-
-  public static int[] getBoardCoordinates(final Player player, final Block brokenBlock) {
-    final BlockFace face = determineBlockFace(requireNonNull(player.getLocation()).getDirection());
-    return getBoardCoordinates(player, brokenBlock, face);
-  }
-
-  private static int[] getBoardCoordinates(final Player player, final Block brokenBlock, final BlockFace hitFace) {
-    final BoardInfo boardInfo = findBoardFromBlock(brokenBlock, hitFace);
-    final Location eyeLoc = player.getEyeLocation();
-    final Vector rayOrigin = eyeLoc.toVector();
-    final Vector rayDirection = eyeLoc.getDirection().normalize();
-    final Vector intersection = boardInfo.plane.rayIntersection(rayOrigin, rayDirection);
-    if (intersection == null) {
-      throw new IllegalArgumentException("You're not looking at the board");
-    }
-    return boardInfo.coordSystem.pointToCoordinates(intersection);
-  }
-
-  private static class BoardInfo {
-
-    final Plane plane;
-    final PlaneCoordinateSystem coordSystem;
-    final ItemFrame firstCorner;
-    final ItemFrame lastCorner;
-
-    BoardInfo(final Plane plane, final PlaneCoordinateSystem coordSystem, final ItemFrame firstCorner, final ItemFrame lastCorner) {
-      this.plane = plane;
-      this.coordSystem = coordSystem;
-      this.firstCorner = firstCorner;
-      this.lastCorner = lastCorner;
-    }
-  }
-
-  private static BoardInfo findBoard(final Player player) {
+  private static ItemFrame[] getCorners(final Player player) {
     final Block targetBlock = player.getTargetBlock(null, 100);
-    BlockFace hitFace;
-    try {
-      hitFace = player.getTargetBlockFace(100);
-    } catch (final Exception e) {
-      hitFace = determineBlockFace(requireNonNull(player.getLocation()).getDirection());
-    }
-    if (hitFace == null) {
-      throw new IllegalArgumentException("Could not determine which face you're looking at");
-    }
-    return findBoardFromBlock(targetBlock, hitFace);
-  }
-
-  private static BoardInfo findBoardFromBlock(final Block startBlock, final BlockFace hitFace) {
-    final World world = startBlock.getWorld();
-
-    Block searchBlock = startBlock;
-    if (hitFace != BlockFace.UP && hitFace != BlockFace.DOWN) {
-      searchBlock = startBlock.getRelative(hitFace);
-    }
-
+    final BlockFace hitFace = player.getTargetBlockFace(100);
+    final World world = player.getWorld();
     final Set<ItemFrame> boardFrames = new HashSet<>();
     final Set<Block> visited = new HashSet<>();
     final Queue<Block> queue = new LinkedList<>();
-    queue.add(searchBlock);
+    queue.add(targetBlock);
 
     while (!queue.isEmpty()) {
       final Block currentBlock = queue.poll();
       if (currentBlock == null || !visited.add(currentBlock)) {
         continue;
       }
-      for (final Entity entity : world.getNearbyEntities(currentBlock.getLocation().add(0.5, 0.5, 0.5), 0.5, 0.5, 0.5)) {
+      final Location blockLocation = currentBlock.getLocation();
+      final Location added = blockLocation.add(0.5, 0.5, 0.5);
+      final Collection<Entity> nearbyEntities = world.getNearbyEntities(blockLocation, 1, 1, 1);
+      for (final Entity entity : nearbyEntities) {
         if (!(entity instanceof final ItemFrame frame) || frame.getFacing() != hitFace) {
           continue;
         }
         final PersistentDataContainer data = frame.getPersistentDataContainer();
         if (data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+          final Location location = frame.getLocation();
+          final Block block = location.getBlock();
           boardFrames.add(frame);
-          for (final BlockFace face : BLOCK_FACES) {
-            final Block neighbor = currentBlock.getRelative(face);
-            if (visited.add(neighbor)) {
-              queue.add(neighbor);
-            }
-          }
+          queue.add(block);
         }
       }
+      visited.add(currentBlock);
     }
 
     ItemFrame firstCorner = null;
@@ -234,56 +187,6 @@ public final class InteractUtils {
       throw new IllegalArgumentException("Could not find both corners of the map screen");
     }
 
-    final Vector normal = getFaceNormal(hitFace);
-    final Vector topLeft = toVector(firstCorner.getLocation());
-    final Vector bottomRight = toVector(lastCorner.getLocation());
-
-    final Plane plane = new Plane(normal, topLeft);
-    final Vector xAxis;
-    final Vector yAxis;
-    final double width;
-    final double height;
-
-    if (Math.abs(normal.getX()) > 0.9) {
-      xAxis = new Vector(0, 0, 1);
-      yAxis = new Vector(0, -1, 0);
-      width = Math.abs(bottomRight.getZ() - topLeft.getZ());
-      height = Math.abs(bottomRight.getY() - topLeft.getY());
-    } else if (Math.abs(normal.getY()) > 0.9) {
-      xAxis = new Vector(1, 0, 0);
-      yAxis = new Vector(0, 0, 1);
-      width = Math.abs(bottomRight.getX() - topLeft.getX());
-      height = Math.abs(bottomRight.getZ() - topLeft.getZ());
-    } else {
-      xAxis = new Vector(1, 0, 0);
-      yAxis = new Vector(0, -1, 0);
-      width = Math.abs(bottomRight.getX() - topLeft.getX());
-      height = Math.abs(bottomRight.getY() - topLeft.getY());
-    }
-
-    final PlaneCoordinateSystem coordSystem = new PlaneCoordinateSystem(topLeft, xAxis, yAxis, width, height);
-
-    return new BoardInfo(plane, coordSystem, firstCorner, lastCorner);
-  }
-
-  private static Vector getFaceNormal(final BlockFace face) {
-    return new Vector(face.getModX(), face.getModY(), face.getModZ()).normalize();
-  }
-
-  private static Vector toVector(final Location location) {
-    return new Vector(location.getX(), location.getY(), location.getZ());
-  }
-
-  private static BlockFace determineBlockFace(final Vector direction) {
-    final double x = direction.getX();
-    final double y = direction.getY();
-    final double z = direction.getZ();
-    if (Math.abs(x) > Math.abs(y) && Math.abs(x) > Math.abs(z)) {
-      return x > 0 ? BlockFace.EAST : BlockFace.WEST;
-    } else if (Math.abs(y) > Math.abs(z)) {
-      return y > 0 ? BlockFace.UP : BlockFace.DOWN;
-    } else {
-      return z > 0 ? BlockFace.SOUTH : BlockFace.NORTH;
-    }
+    return new ItemFrame[] { firstCorner, lastCorner };
   }
 }

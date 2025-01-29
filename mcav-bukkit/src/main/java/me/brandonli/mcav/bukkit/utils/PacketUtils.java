@@ -17,17 +17,26 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import me.brandonli.mcav.bukkit.MCAVBukkit;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.Bukkit;
-import org.bukkit.Server;
-import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 /**
  * Utility class for sending packets to a collection of viewers in a Minecraft server context.
@@ -54,9 +63,6 @@ public final class PacketUtils {
    */
   public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
     for (final UUID viewer : viewers) {
-      if (!PLAYER_CONNECTIONS.containsKey(viewer)) {
-        addPlayerConnection(viewer);
-      }
       final ServerGamePacketListenerImpl conn = PLAYER_CONNECTIONS.get(viewer);
       if (conn == null) {
         continue;
@@ -67,15 +73,39 @@ public final class PacketUtils {
     }
   }
 
+  public static void init() {
+    final Plugin plugin = MCAVBukkit.getPlugin();
+    final PluginManager manager = Bukkit.getPluginManager();
+    final Listener listener = new EventInitializer();
+    manager.registerEvents(listener, plugin);
+  }
+
   private static void addPlayerConnection(final UUID uuid) {
-    final Server server = Bukkit.getServer();
-    final CraftServer craftServer = (CraftServer) server;
-    final CraftPlayer player = (CraftPlayer) craftServer.getPlayer(uuid);
-    if (player == null) {
-      return;
-    }
-    final ServerPlayer nmsPlayer = player.getHandle();
+    final Player player = requireNonNull(Bukkit.getPlayer(uuid));
+    final CraftPlayer craftPlayer = (CraftPlayer) player;
+    final ServerPlayer nmsPlayer = craftPlayer.getHandle();
     final ServerGamePacketListenerImpl conn = nmsPlayer.connection;
     PLAYER_CONNECTIONS.put(uuid, conn);
+  }
+
+  private static void removePlayerConnection(final UUID uuid) {
+    PLAYER_CONNECTIONS.remove(uuid);
+  }
+
+  private static class EventInitializer implements Listener {
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerJoin(final PlayerJoinEvent event) {
+      final Player player = event.getPlayer();
+      final UUID uuid = player.getUniqueId();
+      addPlayerConnection(uuid);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerQuit(final PlayerQuitEvent event) {
+      final Player player = event.getPlayer();
+      final UUID uuid = player.getUniqueId();
+      removePlayerConnection(uuid);
+    }
   }
 }

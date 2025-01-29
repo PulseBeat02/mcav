@@ -158,7 +158,7 @@ public final class MCAV implements MCAVApi {
   private void installQemu() {
     try {
       final QemuInstaller installer = QemuInstaller.create();
-      if (!installer.isSupported()) {
+      if (true || !installer.isSupported()) {
         this.capabilities.remove(Capability.QEMU);
         LOGGER.info("QEMU is not enabled, skipping installation.");
         return;

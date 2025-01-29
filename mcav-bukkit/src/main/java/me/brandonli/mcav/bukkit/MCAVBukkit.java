@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit;
 
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
+import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -40,8 +41,9 @@ public final class MCAVBukkit {
    * @param plugin the Plugin instance to be injected
    */
   public static void inject(final Plugin plugin) {
-    BlockPaletteLookup.init();
     PLUGIN = plugin;
+    BlockPaletteLookup.init();
+    PacketUtils.init();
   }
 
   /**

@@ -99,74 +99,123 @@ public final class MapUtils {
     return map;
   }
 
-  public static void buildMapScreen(final Player player, final Material mat, final int width, final int height, final int startingMap) {
-    requireNonNull(player, "Player cannot be null!");
-    requireNonNull(mat, "Material cannot be null!");
+  public static void buildMapScreen(final Player player, final Material mat, final int width, final int height, final int map) {
     final World world = player.getWorld();
     final BlockFace face = player.getFacing();
     final BlockFace opposite = face.getOppositeFace();
     final Location location = requireNonNull(player.getLocation());
     final Block start = location.getBlock().getRelative(face);
-    int map = startingMap;
     if (face == BlockFace.NORTH) {
-      for (int h = height - 1; h >= 0; h--) {
-        for (int w = 0; w < width; w++) {
-          final Block current = getRelativeBlock(start, mat, w, h, face);
-          final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
-          final PersistentDataContainer data = frame.getPersistentDataContainer();
-          if (h == height - 1 && w == 0) {
-            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          } else if (h == 0 && w == width - 1) {
-            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          }
-          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
-          map++;
-        }
-      }
+      handleNorth(mat, width, height, start, face, world, opposite, map);
     } else if (face == BlockFace.SOUTH) {
-      for (int h = height - 1; h >= 0; h--) {
-        for (int w = width - 1; w >= 0; w--) {
-          final Block current = getRelativeBlock(start, mat, w, h, face);
-          final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
-          final PersistentDataContainer data = frame.getPersistentDataContainer();
-          if (h == height - 1 && w == width - 1) {
-            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          } else if (h == 0 && w == 0) {
-            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          }
-          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
-          map++;
-        }
-      }
+      handleSouth(mat, width, height, start, face, world, opposite, map);
     } else if (face == BlockFace.EAST) {
-      for (int h = height - 1; h >= 0; h--) {
-        for (int w = width - 1; w >= 0; w--) {
-          final Block current = getRelativeBlock(start, mat, w, h, face);
-          final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
-          final PersistentDataContainer data = frame.getPersistentDataContainer();
-          if (h == height - 1 && w == width - 1) {
-            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          } else if (h == 0 && w == 0) {
-            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          }
-          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
-          map++;
-        }
-      }
+      handleEast(mat, width, height, start, face, world, opposite, map);
     } else if (face == BlockFace.WEST) {
-      for (int h = height - 1; h >= 0; h--) {
-        for (int w = 0; w < width; w++) {
-          final Block current = getRelativeBlock(start, mat, w, h, face);
-          final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
-          final PersistentDataContainer data = frame.getPersistentDataContainer();
-          if (h == height - 1 && w == 0) {
-            data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          } else if (h == 0 && w == width - 1) {
-            data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-          }
-          data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
-          map++;
+      handleWest(mat, width, height, start, face, world, opposite, map);
+    }
+  }
+
+  private static void handleNorth(
+    final Material mat,
+    final int width,
+    final int height,
+    final Block start,
+    final BlockFace face,
+    final World world,
+    final BlockFace opposite,
+    int map
+  ) {
+    for (int h = height - 1; h >= 0; h--) {
+      for (int w = 0; w < width; w++) {
+        final Block current = getRelativeBlock(start, mat, w, h, face);
+        final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+        final PersistentDataContainer data = frame.getPersistentDataContainer();
+        if (h == height - 1 && w == 0) {
+          data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        } else if (h == 0 && w == width - 1) {
+          data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
         }
+        data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
+        map++;
+      }
+    }
+  }
+
+  private static void handleSouth(
+    final Material mat,
+    final int width,
+    final int height,
+    final Block start,
+    final BlockFace face,
+    final World world,
+    final BlockFace opposite,
+    int map
+  ) {
+    for (int h = height - 1; h >= 0; h--) {
+      for (int w = width - 1; w >= 0; w--) {
+        final Block current = getRelativeBlock(start, mat, w, h, face);
+        final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+        final PersistentDataContainer data = frame.getPersistentDataContainer();
+        if (h == height - 1 && w == width - 1) {
+          data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        } else if (h == 0 && w == 0) {
+          data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        }
+        data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
+        map++;
+      }
+    }
+  }
+
+  private static void handleEast(
+    final Material mat,
+    final int width,
+    final int height,
+    final Block start,
+    final BlockFace face,
+    final World world,
+    final BlockFace opposite,
+    int map
+  ) {
+    for (int h = height - 1; h >= 0; h--) {
+      for (int w = width - 1; w >= 0; w--) {
+        final Block current = getRelativeBlock(start, mat, w, h, face);
+        final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+        final PersistentDataContainer data = frame.getPersistentDataContainer();
+        if (h == height - 1 && w == width - 1) {
+          data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        } else if (h == 0 && w == 0) {
+          data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        }
+        data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
+        map++;
+      }
+    }
+  }
+
+  private static void handleWest(
+    final Material mat,
+    final int width,
+    final int height,
+    final Block start,
+    final BlockFace face,
+    final World world,
+    final BlockFace opposite,
+    int map
+  ) {
+    for (int h = height - 1; h >= 0; h--) {
+      for (int w = 0; w < width; w++) {
+        final Block current = getRelativeBlock(start, mat, w, h, face);
+        final ItemFrame frame = getRelativeItemFrame(world, current, opposite, face, map);
+        final PersistentDataContainer data = frame.getPersistentDataContainer();
+        if (h == height - 1 && w == 0) {
+          data.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        } else if (h == 0 && w == width - 1) {
+          data.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
+        }
+        data.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
+        map++;
       }
     }
   }

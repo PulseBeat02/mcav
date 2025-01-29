@@ -42,12 +42,6 @@ public final class MCAVSandbox extends JavaPlugin {
   private AnnotationParserHandler annotationParserHandler;
   private PluginDataConfigurationMapper configurationMapper;
 
-  @Override
-  public void onLoad() {
-    this.logger = this.getLogger();
-    this.loadMCAV();
-  }
-
   private void unloadMCAV() {
     if (this.mcav != null) {
       this.mcav.release();
@@ -56,6 +50,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   @Override
   public void onEnable() {
+    this.logger = this.getLogger();
+    this.loadMCAV();
     this.loadPluginData();
     this.loadManager();
     this.loadCommands();

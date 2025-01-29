@@ -195,8 +195,8 @@ public class VMPlayerImpl implements VMPlayer {
 
     final Process qemuProcess = this.qemuProcess;
     if (qemuProcess != null) {
-      qemuProcess.destroy();
-      qemuProcess.descendants().forEach(ProcessHandle::destroy);
+      qemuProcess.destroyForcibly();
+      qemuProcess.descendants().forEach(ProcessHandle::destroyForcibly);
       try {
         qemuProcess.waitFor();
       } catch (final InterruptedException e) {
