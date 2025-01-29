@@ -9,7 +9,7 @@ create them is very simple—you just use the respective factory method within t
 
 ```java
   // creating a UriSource from a URI
-final UriSource source = UriSource.uri(URI.create("https://google.com"));
+  final UriSource source = UriSource.uri(URI.create("https://google.com"));
 ```
 
 Now, you're able to pass this source into any video player.

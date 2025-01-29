@@ -17,15 +17,11 @@ page to connect to.
 
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
-final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
-final BrowserPlayer player = BrowserPlayer.defaultChrome(); // starts Chrome WebDriver with default arguments
-  player.
-
-start(videoPipelineStep, browserSource);
-// ... do something with the player
-  player.
-
-release();
+  final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
+  final BrowserPlayer player = BrowserPlayer.defaultChrome(); // starts Chrome WebDriver with default arguments
+  player.start(videoPipelineStep, browserSource);
+  // ... do something with the player
+  player.release();
 ```
 
 To interact with the browser, you can use methods like the `sendMouseEvent` to send a mouse click or the `sendKeyEvent`

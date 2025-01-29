@@ -23,9 +23,8 @@ use the `NO_OP` pipeline constants, which is a pipeline that does nothing and si
 
 ```java
   final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-        .then(VideoFilter.GRAYSCALE) // converts frame to gray scale
-        .then(VideoFilter.INVERT) // inverts the colors of the frame
-        .build();
-
-final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP; // does nothing
+    .then(VideoFilter.GRAYSCALE) // converts frame to gray scale
+    .then(VideoFilter.INVERT) // inverts the colors of the frame
+    .build();
+  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP; // does nothing
 ```
