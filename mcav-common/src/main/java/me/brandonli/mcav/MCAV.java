@@ -19,6 +19,9 @@ package me.brandonli.mcav;
 
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
@@ -26,7 +29,6 @@ import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
-import me.brandonli.mcav.media.player.driver.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.multimedia.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
 import me.brandonli.mcav.utils.os.OS;
@@ -36,6 +38,8 @@ import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
 import org.bytedeco.opencv.global.*;
 import org.bytedeco.opencv.opencv_java;
+import org.pf4j.JarPluginManager;
+import org.pf4j.PluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,11 +57,13 @@ public final class MCAV implements MCAVApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
 
+  private final Map<Class<?>, MCAVModule> modules;
   private final EnumSet<Capability> capabilities;
   private final AtomicBoolean loaded;
 
   MCAV() {
     this.capabilities = EnumSet.allOf(Capability.class);
+    this.modules = new HashMap<>();
     this.loaded = new AtomicBoolean(false);
   }
 
@@ -92,9 +98,38 @@ public final class MCAV implements MCAVApi {
     this.installYTDLP();
     this.installVLC();
     this.installQemu();
-    this.installWebDriver();
     this.installMisc();
     this.updateLoadStatus();
+    this.loadPlugins();
+  }
+
+  @Override
+  public <T extends MCAVModule> T getModule(final Class<T> moduleClass) {
+    final MCAVModule module = this.modules.get(moduleClass);
+    if (module == null) {
+      final String name = moduleClass.getSimpleName();
+      final String msg = "Module %s does not exist or is not loaded!";
+      throw new UnknownModuleException(msg);
+    }
+    return moduleClass.cast(module);
+  }
+
+  private void loadPlugins() {
+    final PluginManager manager = new JarPluginManager();
+    final List<MCAVModule> loaded = manager.getExtensions(MCAVModule.class);
+    for (final MCAVModule module : loaded) {
+      final Class<?> moduleClass = module.getClass();
+      this.modules.put(moduleClass, module);
+    }
+  }
+
+  private void shutdownPlugins() {
+    final PluginManager manager = new JarPluginManager();
+    for (final MCAVModule module : this.modules.values()) {
+      module.stop();
+    }
+    manager.stopPlugins();
+    this.modules.clear();
   }
 
   private void updateLoadStatus() {
@@ -106,8 +141,8 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public void release() {
+    this.shutdownPlugins();
     MediaPlayerFactoryProvider.shutdown();
-    ChromeDriverServiceProvider.shutdown();
   }
 
   private void installMisc() {
@@ -222,13 +257,5 @@ public final class MCAV implements MCAVApi {
       }
       LOGGER.info("Failed to install yt-dlp, skipping installation.");
     }
-  }
-
-  private void installWebDriver() {
-    LOGGER.info("Installing ChromeDriver...");
-    final long start = System.currentTimeMillis();
-    ChromeDriverServiceProvider.init();
-    final long end = System.currentTimeMillis();
-    LOGGER.info("ChromeDriver installation took {} ms", end - start);
   }
 }

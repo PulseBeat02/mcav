@@ -83,4 +83,6 @@ public interface MCAVApi {
    * are no longer needed to prevent resource leaks.
    */
   void release();
+
+  <T extends MCAVModule> T getModule(Class<T> moduleClass);
 }

@@ -21,7 +21,3 @@ to play back videos like the following.
 </video>
 
 ---
-
-The `common` module is the core of MCAV, and contains all the common multimedia functionality. The `minecraft` module is
-the Minecraft-specific module, compatible with Bukkit, Velocity, BungeeCord, Sponge, and Fabric platforms. The
-`minecraft` module provides useful features like dithering, and outputs like maps, entities, scoreboards, and chat.

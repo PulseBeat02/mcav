@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.MCAVBukkit;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.StaticImage;
@@ -50,7 +50,7 @@ public class ScoreboardImage implements DisplayableImage {
   @Override
   public void release() {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = MCAVBukkit.getPlugin();
+    final Plugin plugin = BukkitModule.getPlugin();
     scheduler.runTask(plugin, this::release0);
   }
 
@@ -80,7 +80,7 @@ public class ScoreboardImage implements DisplayableImage {
   public void displayImage(final StaticImage data) {
     this.release();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = MCAVBukkit.getPlugin();
+    final Plugin plugin = BukkitModule.getPlugin();
     scheduler.runTask(plugin, () -> this.display0(data));
   }
 

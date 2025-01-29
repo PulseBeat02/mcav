@@ -1,6 +1,5 @@
 High Priority Tasks:
-  - Rewrite all JavaDocs (mcav-common)
-  - Write Code Fixes, make GUI localizable
-
-Medium Priority Tasks:
-  - Create Showcase Video
+  - Rewrite all JavaDocs
+  - Write Code Fixes
+    - Add Localization for ScreenBuilderGui
+    - Look into Optimizing ChromeDriverPlayer

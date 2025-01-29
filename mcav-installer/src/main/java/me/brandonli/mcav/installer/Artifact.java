@@ -34,7 +34,13 @@ public enum Artifact {
   /**
    * Represents the HTTP artifact, which provides HTTP audio streaming.
    */
-  HTTP("mcav-http");
+  HTTP("mcav-http"),
+
+  BROWSER("mcav-browser"),
+
+  VM("mcav-vm"),
+
+  VNC("mcav-vnc");
 
   private final String artifactId;
 

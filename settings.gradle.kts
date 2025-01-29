@@ -19,4 +19,13 @@ project(":mcav-jda").name = "mcav-jda"
 include("mcav-http")
 project(":mcav-http").name = "mcav-http"
 
+include("mcav-browser")
+project(":mcav-browser").name = "mcav-browser"
+
+include("mcav-vnc")
+project(":mcav-vnc").name = "mcav-vnc"
+
+include("mcav-vm")
+project(":mcav-vm").name = "mcav-vm"
+
 include("sandbox")

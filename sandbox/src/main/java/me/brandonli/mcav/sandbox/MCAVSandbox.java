@@ -21,7 +21,7 @@ import dev.triumphteam.gui.TriumphGui;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
-import me.brandonli.mcav.bukkit.MCAVBukkit;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
@@ -71,7 +71,8 @@ public final class MCAVSandbox extends JavaPlugin {
     final long startTime = System.currentTimeMillis();
     this.mcav = MCAV.api();
     this.mcav.install();
-    MCAVBukkit.inject(this);
+    final BukkitModule module = this.mcav.getModule(BukkitModule.class);
+    module.inject(this);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
   }

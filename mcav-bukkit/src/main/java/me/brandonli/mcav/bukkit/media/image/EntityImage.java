@@ -21,7 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.MCAVBukkit;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.StaticImage;
@@ -62,7 +62,7 @@ public class EntityImage implements DisplayableImage {
     final Location clone = pos.clone();
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
     final World world = requireNonNull(clone.getWorld());
-    final Plugin plugin = MCAVBukkit.getPlugin();
+    final Plugin plugin = BukkitModule.getPlugin();
     this.entity = world.spawn(clone, TextDisplay.class, display -> {
       display.setInvulnerable(true);
       display.setCustomNameVisible(false);
@@ -106,7 +106,7 @@ public class EntityImage implements DisplayableImage {
       return;
     }
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = MCAVBukkit.getPlugin();
+    final Plugin plugin = BukkitModule.getPlugin();
     scheduler.runTask(plugin, this::release0);
   }
 

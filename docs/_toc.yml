@@ -4,40 +4,34 @@
 format: jb-book
 root: intro
 parts:
-  - caption: Using the MCAV Sandbox Plugin 🏗️
+  - caption: Sandbox Plugin 🏗️
     chapters:
-      - file: plugin.md
-      - file: commands.md
-  - caption: Getting Started with MCAV 🚀
+      - file: plugin/plugin.md
+      - file: plugin/commands.md
+  - caption: Common Library + Core Modules 🚀
     chapters:
-      - file: started.md
-      - file: licensing.md
-  - caption: MCAV Common Module 🪄
+      - file: library/prerequisites.md
+      - file: library/licensing.md
+      - file: library/instance.md
+      - file: library/source.md
+      - file: library/pipeline.md
+      - file: library/player.md
+      - file: library/browser.md
+      - file: library/vnc.md
+      - file: library/vm.md
+      - file: library/jda.md
+      - file: library/http.md
+      - file: library/image.md
+      - file: library/yt-dlp.md
+      - file: library/installer.md
+      - file: library/ffmpeg.md
+      - file: library/examples.md
+  - caption: Bukkit Integration 🧱
     chapters:
-      - file: instance.md
-      - file: source.md
-      - file: pipeline.md
-      - file: player.md
-      - file: yt-dlp.md
-      - file: image.md
-      - file: ffmpeg.md
-      - file: examples.md
-  - caption: MCAV Bukkit Module 🧱
-    chapters:
-      - file: minecraft.md
-      - file: resourcepack.md
-      - file: map.md
-      - file: result.md
-      - file: display.md
-  - caption: MCAV Installer Module 🛠️
-    chapters:
-      - file: installer.md
-      - file: installer-use.md
-  - caption: MCAV JDA Module 🔊
-    chapters:
-      - file: jda.md
-      - file: jda-use.md
-  - caption: MCAV HTTP Module 🌐
-    chapters:
-      - file: http.md
-      - file: http-use.md
+      - file: bukkit/bukkit.md
+      - file: bukkit/map.md
+      - file: bukkit/other.md
+      - file: bukkit/image.md
+      - file: bukkit/resourcepack.md
+
+

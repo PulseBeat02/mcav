@@ -11,11 +11,14 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.5-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:gremlin-runtime:0.0.8")
 
-    runtimeDownload("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-vm:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-vnc:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-browser:1.0.0-SNAPSHOT")
+
     runtimeDownload("org.incendo:cloud-core:2.0.0")
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
     runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.10")

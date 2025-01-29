@@ -23,7 +23,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import me.brandonli.mcav.bukkit.MCAVBukkit;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -46,11 +46,11 @@ public final class PacketUtils {
   private static final Map<UUID, ServerGamePacketListenerImpl> PLAYER_CONNECTIONS = new ConcurrentHashMap<>();
 
   /**
-   * Utility method only meant to be used by {@link MCAVBukkit} to initialize the packet listener. Do not
+   * Utility method only meant to be used by {@link BukkitModule} to initialize the packet listener. Do not
    * use this method directly.
    */
   public static void init() {
-    final Plugin plugin = MCAVBukkit.getPlugin();
+    final Plugin plugin = BukkitModule.getPlugin();
     final PluginManager manager = Bukkit.getPluginManager();
     final Listener listener = new EventInitializer();
     manager.registerEvents(listener, plugin);
