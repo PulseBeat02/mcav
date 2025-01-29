@@ -58,9 +58,8 @@ public interface ImageBuffer extends Image, Examinable {
    *
    * @param source the URI source representing the image
    * @return a StaticImage instance
-   * @throws IOException if an error occurs while reading the URI
    */
-  static ImageBuffer uri(final UriSource source) throws IOException {
+  static ImageBuffer uri(final UriSource source) {
     return new MatImageBuffer(source);
   }
 
@@ -69,9 +68,8 @@ public interface ImageBuffer extends Image, Examinable {
    *
    * @param path the file path representing the image
    * @return a StaticImage instance
-   * @throws IOException if an error occurs while reading the file
    */
-  static ImageBuffer path(final FileSource path) throws IOException {
+  static ImageBuffer path(final FileSource path) {
     return new MatImageBuffer(path);
   }
 

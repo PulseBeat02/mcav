@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -31,6 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class UncheckedIOException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 4402912769150611890L;
 
   public UncheckedIOException(final @Nullable String message) {

@@ -46,24 +46,16 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
    */
   @Override
   public ErrorDiffusionDither build() {
-    switch (this.algorithm) {
-      case ATKINSON:
-        return new AtkinsonDither(this.palette);
-      case BURKES:
-        return new BurkesDither(this.palette);
-      case FILTER_LITE:
-        return new FilterLiteDither(this.palette);
-      case FLOYD_STEINBERG:
-        return new FloydDither(this.palette);
-      case JARVIS_JUDICE_NINKE:
-        return new JarvisJudiceNinkeDither(this.palette);
-      case STEVENSON_ARCE:
-        return new StevensonArceDither(this.palette);
-      case STUCKI:
-        return new StuckiDither(this.palette);
-      default:
-        throw new InvalidErrorDiffusionAlgorithmException("Unknown algorithm!");
-    }
+    return switch (this.algorithm) {
+      case ATKINSON -> new AtkinsonDither(this.palette);
+      case BURKES -> new BurkesDither(this.palette);
+      case FILTER_LITE -> new FilterLiteDither(this.palette);
+      case FLOYD_STEINBERG -> new FloydDither(this.palette);
+      case JARVIS_JUDICE_NINKE -> new JarvisJudiceNinkeDither(this.palette);
+      case STEVENSON_ARCE -> new StevensonArceDither(this.palette);
+      case STUCKI -> new StuckiDither(this.palette);
+      default -> throw new InvalidErrorDiffusionAlgorithmException("Unknown algorithm!");
+    };
   }
 
   /**

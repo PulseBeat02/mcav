@@ -47,7 +47,6 @@ public class MCPackHosting implements WebsiteHosting {
 
   private final Path zip;
   private String url;
-  private PackInfo info;
 
   /**
    * Creates a new instance of {@code MCPackHosting} using the specified path to the resource pack ZIP file.
@@ -73,8 +72,8 @@ public class MCPackHosting implements WebsiteHosting {
   public void start() {
     final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     final PackInfo info = this.checkFileUrl(lock);
-    this.info = Objects.requireNonNullElseGet(info, () -> this.createNewPackInfo(this.zip));
-    this.url = this.updateAndRetrievePackJSON(lock, this.info);
+    final PackInfo info1 = Objects.requireNonNullElseGet(info, () -> this.createNewPackInfo(this.zip));
+    this.url = this.updateAndRetrievePackJSON(lock, info1);
   }
 
   /**

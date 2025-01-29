@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import java.io.Serial;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
@@ -34,6 +35,7 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  */
 public class InvalidMouseClickArgument extends IllegalArgumentException {
 
+  @Serial
   private static final long serialVersionUID = -6679497293718318884L;
 
   public InvalidMouseClickArgument(final String message) {

@@ -39,7 +39,7 @@ import me.brandonli.mcav.utils.runtime.CommandTask;
  */
 public final class YTDLPParserImpl implements YTDLPParser {
 
-  static YTDLPParser INSTANCE = new YTDLPParserImpl();
+  static final YTDLPParser INSTANCE = new YTDLPParserImpl();
 
   private final Cache<String, URLParseDump> cache;
 

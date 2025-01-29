@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random;
 
+import java.io.Serial;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,6 +46,8 @@ public final class Xoroshiro128PlusRandom extends Random {
 
   private static final double DOUBLE_UNIT = 0x1.0p-53;
   private static final float FLOAT_UNIT = 0x1.0p-24f;
+
+  @Serial
   private static final long serialVersionUID = 7871099129105026239L;
 
   private long s0, s1;

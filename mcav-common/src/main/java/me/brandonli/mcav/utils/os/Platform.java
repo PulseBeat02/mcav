@@ -70,13 +70,12 @@ public final class Platform {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof Platform)) {
+    if (!(obj instanceof final Platform other)) {
       return false;
     }
     if (this.hashCode() != obj.hashCode()) {
       return false;
     }
-    final Platform other = (Platform) obj;
     return this.os == other.os && this.arch == other.arch && this.bits == other.bits;
   }
 

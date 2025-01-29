@@ -22,6 +22,7 @@ import static net.kyori.adventure.key.Key.key;
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import net.kyori.adventure.key.Key;
+import org.intellij.lang.annotations.Subst;
 import team.unnamed.creative.ResourcePack;
 import team.unnamed.creative.base.Writable;
 import team.unnamed.creative.serialize.minecraft.MinecraftResourcePackWriter;
@@ -56,7 +57,7 @@ public final class SimpleResourcePack {
    * @param raw  the raw key for the sound
    * @param path the path to the sound file
    */
-  public void sound(final String raw, final Path path) {
+  public void sound(@Subst("mcav:audio") final String raw, final Path path) {
     Preconditions.checkNotNull(raw);
     Preconditions.checkNotNull(path);
     final Key key = key(raw);

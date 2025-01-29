@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils.runtime;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -26,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ProcessException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -9183271875521286701L;
 
   ProcessException(final @Nullable String message) {

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class MCAVLoadingException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 5512824472714665790L;
 
   MCAVLoadingException(final @Nullable String message) {

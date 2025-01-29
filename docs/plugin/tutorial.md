@@ -45,7 +45,7 @@ Now that you have configured the plugin, you can start using it to play videos i
 
 ## Usage Instructions
 
-The sandbox plugin provides many features. Refer to the [Commands Guide](./plugin.md#commands) for a complete list of all
+The sandbox plugin provides many features. Refer to the [Commands Guide](./commands.md) for a complete list of all
 their commands and proper usage. The following guide below will help you get started with the most common commands.
 
 First, run the `/mcav screen` command with arguments to create a new map screen. For example, running
@@ -55,7 +55,7 @@ First, run the `/mcav screen` command with arguments to create a new map screen.
 1) If you would like to play a video on the screen you just created, run the `/mcav video map` command. Otherwise, you
 can use other commands like `/mcav video block`.
 2) Set the audio type to whatever audio you configured in Step 2 (HTTP or Discord).
-3) Specify the other arguments accordingly to its [command usage](./plugin.md#commands).
+3) Specify the other arguments accordingly to its [command usage](./commands).
 4) Set the `mrl` to either a local file path, or pretty much any valid URL to a website like YouTube, Vimeo, or Twitch.
 A list of all supported video sites can be found [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
@@ -80,7 +80,7 @@ case, the format is `dshow` and the input is `video=OBS Virtual Camera`.
 ### If you would like to create a virtual machine, here are the steps to take:
 1) Use the `/mcav vm create` command to create a new virtual machine on that screen. Virtual machines can only be 
 created on maps.
-2) Follow the command argument usage in the [Commands Guide](./plugin.md#commands) to specify the VM parameters. You are
+2) Follow the command argument usage in the [Commands Guide](./commands) to specify the VM parameters. You are
 on your own to provide the valid QEMU arguments for the VM to run. For some examples of valid VM arguments, here is one
 for providing an ISO image with 2 GB of RAM and 2 CPU cores:
 

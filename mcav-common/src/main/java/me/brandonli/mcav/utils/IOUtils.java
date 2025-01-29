@@ -29,6 +29,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.net.ServerSocket;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,7 +131,9 @@ public final class IOUtils {
   public static String getSHA256Hash(final String url) {
     try {
       final HashFunction function = Hashing.sha256();
-      try (final InputStream stream = new URL(url).openStream()) {
+      final URI uri = URI.create(url);
+      final URL urlObj = uri.toURL();
+      try (final InputStream stream = urlObj.openStream()) {
         final byte[] bytes = stream.readAllBytes();
         final HashCode code = function.hashBytes(bytes);
         final byte[] hash = code.asBytes();
@@ -237,8 +240,12 @@ public final class IOUtils {
     final String name = uuid.toString();
     final Path cache = getCachedFolder();
     final Path destination = cache.resolve(name);
-    try (final InputStream in = new URL(url).openStream()) {
-      Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+    final URI uri = URI.create(url);
+    try {
+      final URL urlObj = uri.toURL();
+      try (final InputStream in = urlObj.openStream()) {
+        Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+      }
     } catch (final IOException e) {
       throw new UncheckedIOException(e.getMessage(), e);
     }
@@ -262,8 +269,7 @@ public final class IOUtils {
         throw new UncheckedIOException(e.getMessage(), e);
       }
     }
-    final Path absolute = cacheDir.toAbsolutePath();
-    return absolute;
+    return cacheDir.toAbsolutePath();
   }
 
   /**

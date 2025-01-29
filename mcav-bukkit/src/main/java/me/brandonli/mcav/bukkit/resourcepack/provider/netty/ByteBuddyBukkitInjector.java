@@ -58,17 +58,13 @@ final class ByteBuddyBukkitInjector {
   }
 
   void injectAgentIntoServer() {
-    try {
-      ByteBuddyAgent.install();
-      this.setZipProperty();
-      this.injectClassesIntoClassLoader();
-      this.injectIntoConnectionMethod();
-    } catch (final ClassNotFoundException e) {
-      throw new InjectorException(e.getMessage(), e);
-    }
+    ByteBuddyAgent.install();
+    this.setZipProperty();
+    this.injectClassesIntoClassLoader();
+    this.injectIntoConnectionMethod();
   }
 
-  private void injectIntoConnectionMethod() throws ClassNotFoundException {
+  private void injectIntoConnectionMethod() {
     final ClassLoader classLoader = requireNonNull(this.clazz.getClassLoader());
     final ElementMatcher.Junction<NamedElement> matcher = ElementMatchers.named("configureSerialization");
     final Advice advice = Advice.to(ConnectionInterceptor.class);
@@ -76,7 +72,7 @@ final class ByteBuddyBukkitInjector {
     new ByteBuddy().rebase(this.clazz).method(matcher).intercept(advice).make().load(classLoader, classLoadingStrategy);
   }
 
-  private void injectClassesIntoClassLoader() throws ClassNotFoundException {
+  private void injectClassesIntoClassLoader() {
     final ClassLoader classLoader = requireNonNull(this.clazz.getClassLoader());
     new ClassInjector.UsingReflection(classLoader).inject(this.getInjections());
   }

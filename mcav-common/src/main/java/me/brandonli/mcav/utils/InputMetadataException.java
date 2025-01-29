@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class InputMetadataException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -2964304434518823943L;
 
   InputMetadataException(final @Nullable String message) {

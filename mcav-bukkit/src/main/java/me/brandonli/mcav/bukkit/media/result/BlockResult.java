@@ -59,6 +59,7 @@ public class BlockResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
+  @SuppressWarnings("UnstableApiUsage")
   public void applyFilter(final ImageBuffer data, final VideoMetadata metadata) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();

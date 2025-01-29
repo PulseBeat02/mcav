@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.load;
 
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RecursiveTask;
@@ -48,7 +49,9 @@ import java.util.concurrent.RecursiveTask;
  */
 public final class LoadGreen extends RecursiveTask<byte[]> {
 
+  @Serial
   private static final long serialVersionUID = -3744276292242087941L;
+
   private final int r;
   private final int g;
   private final int[] palette;

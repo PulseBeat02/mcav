@@ -28,7 +28,7 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  * two-dimensional array of float values. The conversion involves scaling and
  * normalizing threshold values. The resulting matrix can be used in applications
  * where ordered dithering is required.
- *
+ * <p>
  * <strong>Thread Safety:</strong> This class is thread-safe since it is immutable.
  */
 public final class OrderedPixelMapper implements PixelMapper {

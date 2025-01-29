@@ -36,7 +36,10 @@ package me.brandonli.mcav.capability.installer.vlc.discovery;
  * Copyright 2009-2025 Caprica Software Limited.
  */
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ServiceLoader;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.factory.discovery.provider.*;
 import uk.co.caprica.vlcj.factory.discovery.strategy.BaseNativeDiscoveryStrategy;
@@ -84,7 +87,7 @@ public abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDisco
 
   @Override
   public final List<String> discoveryDirectories() {
-    final List<String> directories = new ArrayList<String>();
+    final List<String> directories = new ArrayList<>();
     for (final DiscoveryDirectoryProvider provider : this.getSupportedProviders()) {
       directories.addAll(Arrays.asList(provider.directories()));
     }
@@ -92,7 +95,7 @@ public abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDisco
   }
 
   private List<DiscoveryDirectoryProvider> getSupportedProviders() {
-    final List<DiscoveryDirectoryProvider> result = new ArrayList<DiscoveryDirectoryProvider>();
+    final List<DiscoveryDirectoryProvider> result = new ArrayList<>();
     for (final DiscoveryDirectoryProvider service : this.directoryProviders) {
       if (service.supported()) {
         result.add(service);
@@ -102,7 +105,7 @@ public abstract class DirectoryProviderDiscoveryStrategy extends BaseNativeDisco
   }
 
   private List<DiscoveryDirectoryProvider> sort(final List<DiscoveryDirectoryProvider> providers) {
-    Collections.sort(providers, (p1, p2) -> p2.priority() - p1.priority());
+    providers.sort((p1, p2) -> p2.priority() - p1.priority());
     return providers;
   }
 }

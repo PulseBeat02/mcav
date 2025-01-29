@@ -263,7 +263,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       final int bufferingThreshold = BUFFER_CAPACITY / 2;
       if (this.running.get()) {
         while (this.audioFrameBuffer.size() < bufferingThreshold && this.running.get()) {
-          Thread.sleep(20);
+          Thread.sleep(50);
         }
       }
       long startTime = System.nanoTime();

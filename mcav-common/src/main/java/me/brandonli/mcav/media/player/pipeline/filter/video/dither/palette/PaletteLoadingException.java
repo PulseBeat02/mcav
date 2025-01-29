@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -37,6 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class PaletteLoadingException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 3449385531808176439L;
 
   PaletteLoadingException(final @Nullable String message) {

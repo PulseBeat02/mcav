@@ -62,7 +62,7 @@ final class InstallationManager implements AutoCloseable {
     "https://repo.codemc.io/repository/maven-releases/"
   )
     .map(InstallationManager::newDefaultRepository)
-    .collect(Collectors.toUnmodifiableList());
+    .toList();
 
   private static final String MCAV_COMMON_GROUP_ID = "me.brandonli";
   private static final String MCAV_VERSION = "1.0.0-SNAPSHOT";

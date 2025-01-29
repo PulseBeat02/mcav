@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils.natives;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class NativeLoadingException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -1718334825313639127L;
 
   NativeLoadingException(final @Nullable String msg) {

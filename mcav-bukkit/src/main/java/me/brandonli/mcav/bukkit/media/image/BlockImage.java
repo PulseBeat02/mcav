@@ -51,6 +51,7 @@ public class BlockImage implements DisplayableImage {
   /**
    * {@inheritDoc}
    */
+  @SuppressWarnings("UnstableApiUsage")
   @Override
   public void displayImage(final ImageBuffer image) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();

@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Injector that uses reflection to add URLs to a {@link URLClassLoader}.
- * This is used when the {@link URLClassLoader#addURL(URL)} method is not accessible.
+ * This is used when the addUrl method is not accessible.
  */
 final class ReflectiveInjector extends URLClassLoaderInjector {
 

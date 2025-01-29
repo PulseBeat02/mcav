@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -30,6 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class PlayerException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 5422221049222805060L;
 
   public PlayerException(final @Nullable String message) {

@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
-import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.vlc.discovery.LinuxNativeDiscoveryStrategy;
 import me.brandonli.mcav.capability.installer.vlc.discovery.OsxNativeDiscoveryStrategy;
 import me.brandonli.mcav.capability.installer.vlc.discovery.WindowsNativeDiscoveryStrategy;
@@ -37,14 +36,8 @@ public final class VLCInstallationKit {
   private static final Path CONFIG_DIRECTORY = Path.of(System.getProperty("user.home"), ".config", "vlcj");
   private static final Path CONFIG_FILE = CONFIG_DIRECTORY.resolve("vlcj.config");
 
-  private final Path other;
-
-  VLCInstallationKit(final Path other) {
-    this.other = other;
-  }
-
   VLCInstallationKit() {
-    this(AbstractInstaller.getDefaultExecutableFolderPath());
+    // hidden
   }
 
   /**
@@ -100,15 +93,5 @@ public final class VLCInstallationKit {
    */
   public static VLCInstallationKit create() {
     return new VLCInstallationKit();
-  }
-
-  /**
-   * Constructs a new VLCInstallationKit with the specified path.
-   *
-   * @param path the path to the VLC binary
-   * @return a new VLCInstallationKit
-   */
-  public static VLCInstallationKit create(final Path path) {
-    return new VLCInstallationKit(path);
   }
 }

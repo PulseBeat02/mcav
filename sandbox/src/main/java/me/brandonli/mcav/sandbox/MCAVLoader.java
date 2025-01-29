@@ -23,6 +23,7 @@ import io.papermc.paper.plugin.loader.PluginClasspathBuilder;
 import io.papermc.paper.plugin.loader.PluginLoader;
 import java.nio.file.Path;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.LoggerFactory;
 import xyz.jpenilla.gremlin.runtime.DependencyCache;
 import xyz.jpenilla.gremlin.runtime.DependencyResolver;
@@ -33,7 +34,8 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
 public final class MCAVLoader implements PluginLoader {
 
   @Override
-  public void classloader(final PluginClasspathBuilder classpathBuilder) {
+  @SuppressWarnings("UnstableApiUsage")
+  public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {
     final Path libs = Path.of("libraries/mcav");
     final Class<?> clazz = this.getClass();
     final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());

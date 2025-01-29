@@ -18,6 +18,7 @@
 package me.brandonli.mcav.capability.installer;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -140,7 +141,8 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   private void downloadFile() throws IOException {
-    final URL url = new URL(this.url);
+    final URI uri = URI.create(this.url);
+    final URL url = uri.toURL();
     final File output = this.path.toFile();
     if (this.supported) {
       IOUtils.createFileIfNotExists(this.path);

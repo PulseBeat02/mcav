@@ -37,7 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  */
 public interface BayerDither extends DitherAlgorithm {
   /**
-   * See https://github.com/makeworld-the-better-one/dither/blob/master/ordered_ditherers.go Added
+   * See <a href="https://github.com/makeworld-the-better-one/dither/blob/master/ordered_ditherers.go">...</a> Added
    * some personal implementations of ordered dithering matrices.
    */
 

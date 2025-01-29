@@ -71,7 +71,7 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
    * On later versions of OSX, it is necessary to force-load libvlccore before libvlc, otherwise libvlc will fail to
    * load.
    *
-   * @param path
+   * @param path the path
    */
   private void forceLoadLibVlcCore(final String path) {
     NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcCoreLibraryName(), path);

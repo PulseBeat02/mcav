@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
+import java.io.Serial;
+
 /**
  * Exception thrown to indicate that a ZIP entry integrity check has failed.
  * This exception extends {@code AssertionError}, signifying that the integrity
@@ -27,6 +29,7 @@ package me.brandonli.mcav.utils;
  */
 public class ZipEntryIntegrityException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -949105092892572153L;
 
   ZipEntryIntegrityException(final String message) {

@@ -23,7 +23,7 @@ import me.brandonli.mcav.media.image.DynamicImageBuffer;
  * The {@code RepeatingFrameSource} interface extends {@link FrameSource} and represents a source
  * of video frame data where each frame is repeated a specified number of times. This functionality
  * is particularly useful for creating video streams with repeated frames from a dynamic image source.
- *
+ * <p>
  * The interface provides methods to specify and retrieve the number of times the frames should
  * be repeated.
  */

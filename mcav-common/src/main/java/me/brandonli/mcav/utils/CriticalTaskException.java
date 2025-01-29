@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class CriticalTaskException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 2987450203603366888L;
 
   CriticalTaskException(final @Nullable String message) {

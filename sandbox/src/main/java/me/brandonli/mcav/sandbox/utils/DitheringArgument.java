@@ -40,7 +40,7 @@ public enum DitheringArgument {
   RANDOM_HEAVY_WEIGHT(() -> random(RandomDither.HEAVY_WEIGHT)),
 
   // Nearest color dithering algorithm
-  NEAREST_COLOR(() -> nearest()),
+  NEAREST_COLOR(DitheringArgument::nearest),
 
   // Bayer dithering algorithms
   BAYER_2X2_LIGHT(() -> bayer(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAX, PixelMapper.MIN_STRENGTH)),

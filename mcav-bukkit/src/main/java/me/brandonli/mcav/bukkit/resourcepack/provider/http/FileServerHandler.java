@@ -32,12 +32,14 @@ import me.brandonli.mcav.utils.IOUtils;
 final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private static final String RESPONSE_HEADERS_TEMPLATE =
-    "HTTP/1.1 200 OK\r\n" +
-    "Content-Type: application/octet-stream\r\n" +
-    "Content-Length: %s\r\n" +
-    "Content-Disposition: attachment; filename=\"%s\"\r\n" +
-    "Connection: keep-alive\r\n" +
-    "\r\n";
+    """
+    HTTP/1.1 200 OK\r
+    Content-Type: application/octet-stream\r
+    Content-Length: %s\r
+    Content-Disposition: attachment; filename="%s"\r
+    Connection: keep-alive\r
+    \r
+    """;
 
   private final Path filePath;
 

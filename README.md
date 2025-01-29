@@ -21,16 +21,17 @@
 
 ---
 
-MCAV (pronounced *EM CAV*) is an incredibly powerful multimedia library for Java, serving as the successor of
-EzMediaCore2. MCAV utilizes several low-level libraries
-like [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/), and LibVLC
+MCAV (pronounced *EM CAV*) is an incredibly powerful multimedia library and Bukkit plugin for Java, serving as the successor of
+EzMediaCore2. MCAV utilizes several low-level libraries like [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/), and LibVLC
 (from [VLC media player](https://www.videolan.org/vlc/)) to provide a seamless playback experience for developers and
-users. Designed for pure performance and compatability, MCAV isn't just a YouTube player, but a robust player for
-live-streams, local files, and even a web browser.
+users. MCAV also is capable of rendering browsers using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/java/), or
+even virtual machines using [QEMU](https://www.qemu.org/). All of this is supported within the library and plugin itself.
 
-MCAV is not a library just for Java developers, but also a great library to integrate Minecraft plugins with. While you
-can use MCAV in any Java project, there's also a Bukkit-specific module that provides useful features allowing you
-to play videos like the following.
+The plugin is an example demonstrating the power of the library. For media playback, it supports several thousands of
+websites that can be listed [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), some of which include
+YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local files, stream from IP cameras, screen-share 
+using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
+stream audio to or a Discord bot to play audio in voice channels.
 
 https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
 
