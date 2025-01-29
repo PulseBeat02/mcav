@@ -44,19 +44,23 @@ public class ColorPalette implements Palette {
   private final byte[] colorMap;
   private final int[] fullColorMap;
 
-  /**
-   * Constructs a ColorPalette instance initialized with the specified list of colors.
-   * This constructor prepares an internal palette, a color mapping table, and a full
-   * color mapping table to allow for efficient color lookup and mapping operations.
-   *
-   * @param colors a list of integers representing the colors to be included in the palette.
-   *               Each integer should represent an RGB color encoded as a single value.
-   */
-  public ColorPalette(final List<Integer> colors) {
+  ColorPalette(final List<Integer> colors) {
     this.palette = new int[colors.size()];
     this.colorMap = new byte[128 * 128 * 128];
     this.fullColorMap = new int[128 * 128 * 128];
     this.updateIndices(colors, this.palette);
+    this.createLookupTable(this.forkRed(this.palette), this.palette, this.colorMap, this.fullColorMap);
+  }
+
+  ColorPalette(final int... colors) {
+    final List<Integer> colorList = new ArrayList<>(colors.length);
+    for (final int color : colors) {
+      colorList.add(color);
+    }
+    this.palette = new int[colorList.size()];
+    this.colorMap = new byte[128 * 128 * 128];
+    this.fullColorMap = new int[128 * 128 * 128];
+    this.updateIndices(colorList, this.palette);
     this.createLookupTable(this.forkRed(this.palette), this.palette, this.colorMap, this.fullColorMap);
   }
 
@@ -71,8 +75,9 @@ public class ColorPalette implements Palette {
       final byte[] sub = tasks.get(i).join();
       final int ci = i << 14;
       for (int si = 0; si < 16384; si++) {
+        final int unsigned = Byte.toUnsignedInt(sub[si]);
         colorMap[ci + si] = sub[si];
-        fullColorMap[ci + si] = palette[Byte.toUnsignedInt(sub[si])];
+        fullColorMap[ci + si] = palette[unsigned];
       }
     }
   }

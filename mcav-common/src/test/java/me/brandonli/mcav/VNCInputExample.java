@@ -26,7 +26,7 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
 
-public class VirtualTest {
+public class VNCInputExample {
 
   private static class VNCPanel extends JPanel {
 

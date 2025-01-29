@@ -53,7 +53,7 @@ public final class OSUtils {
   }
 
   private OSUtils() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   private static OS getOperatingSystem0() {

@@ -21,11 +21,9 @@ import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -149,19 +147,14 @@ public class VNCPlayerImpl implements VNCPlayer {
           continue;
         }
         try {
-          final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          ImageIO.write(frame, "PNG", baos);
-          final int width = frame.getWidth();
-          final int height = frame.getHeight();
-          final byte[] frameData = baos.toByteArray();
-          final StaticImage image = StaticImage.bytes(frameData, width, height);
+          final StaticImage image = StaticImage.image(frame);
           VideoPipelineStep current = this.videoPipeline;
           while (current != null) {
             current.process(image, this.videoMetadata);
             current = current.next();
           }
         } catch (final IOException e) {
-          throw new AssertionError(e);
+          throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
         }
 
         lastProcessTime = currentTime;

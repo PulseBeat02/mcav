@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
@@ -157,7 +158,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
           } catch (final InterruptedException | ExecutionException e) {
             final Thread currentThread = Thread.currentThread();
             currentThread.interrupt();
-            throw new AssertionError(e);
+            throw new PlayerException(e.getMessage());
           }
         },
         "VLC-KeepAlive"

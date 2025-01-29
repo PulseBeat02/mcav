@@ -17,29 +17,19 @@
  */
 package me.brandonli.mcav.installer;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * A specific type of {@link UnsupportedOperationException} that is thrown to indicate
+ * an exceptional condition related to Jar injection operations.
+ * <p>
+ * This exception is used to notify callers about issues or errors that occur when
+ * attempting to perform operations involving Jar injection, providing a descriptive
+ * message through its constructor.
+ */
+public class JarInjectorException extends UnsupportedOperationException {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = 861375458420366052L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  JarInjectorException(final String msg) {
+    super(msg);
   }
 }

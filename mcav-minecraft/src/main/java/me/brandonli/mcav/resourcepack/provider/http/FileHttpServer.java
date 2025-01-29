@@ -102,7 +102,7 @@ public final class FileHttpServer {
         } catch (final InterruptedException e) {
           final Thread current = Thread.currentThread();
           current.interrupt();
-          throw new AssertionError(e);
+          throw new HttpServerException(e.getMessage());
         } finally {
           this.stop();
         }
@@ -114,7 +114,7 @@ public final class FileHttpServer {
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new AssertionError(e);
+      throw new HttpServerException(e.getMessage());
     }
   }
 
@@ -140,7 +140,7 @@ public final class FileHttpServer {
         latch.countDown();
       } else {
         final Throwable cause = future.cause();
-        throw new AssertionError(cause);
+        throw new HttpServerException(cause.getMessage());
       }
     };
   }

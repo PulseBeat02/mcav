@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.video.dither.palette;
 
+import java.util.List;
+
 /**
  * The Palette interface defines the structure for managing and retrieving a set of colors
  * used in video dithering or other applications requiring indexed color palettes. It provides
@@ -29,7 +31,7 @@ package me.brandonli.mcav.media.video.dither.palette;
 public interface Palette {
   /**
    * The DEFAULT variable represents the default implementation of the {@link Palette}
-   * interface, instantiated as a {@link DefaultPalette}.
+   * interface, instantiated as a {@link MapPalette}.
    * <p>
    * This default palette provides a pre-initialized, optimized set of RGB color values,
    * suitable for scenarios where a custom color palette is not specified. It is statically
@@ -39,9 +41,61 @@ public interface Palette {
    * where a predefined indexed color structure facilitates efficient color mapping.
    *
    * @see Palette
-   * @see DefaultPalette
+   * @see MapPalette
    */
-  Palette DEFAULT = new DefaultPalette();
+  Palette DEFAULT_MAP_PALETTE = new MapPalette();
+
+  /**
+   * Represents a predefined 8-bit color palette used for graphics or video rendering
+   * applications requiring a compact and efficient set of indexed colors.
+   * The EIGHT_BIT_PALETTE is an implementation of the {@link Palette} interface.
+   * <p>
+   * This palette includes the following color set:
+   * - Red
+   * - Cyan
+   * - Light Blue
+   * - White
+   * - Black
+   * - Brown
+   * - Green
+   * - Gray
+   * <p>
+   * Each color is represented as a 32-bit integer in RGB format, enabling efficient
+   * color mapping, retrieval, and rendering operations, particularly in constrained
+   * environments where a limited color palette is required.
+   * <p>
+   * The EIGHT_BIT_PALETTE is statically defined and can be accessed globally to ensure
+   * consistency across applications leveraging this specific palette configuration.
+   *
+   * @see Palette
+   */
+  Palette EIGHT_BIT_PALETTE = colors(-65536, -16721606, -13158436, -1, -16777216, -1710797, -10691627, -5092136);
+
+  /**
+   * Creates a new Palette instance using the provided array of colors.
+   * Each color is represented as an integer, typically encoding the RGB
+   * values into a single integer.
+   *
+   * @param colors an array of integers where each integer represents a
+   *               color, typically encoded as an RGB value.
+   * @return a Palette object initialized with the specified colors.
+   */
+  static Palette colors(final int... colors) {
+    return new ColorPalette(colors);
+  }
+
+  /**
+   * Creates a new {@code Palette} from a list of colors.
+   * Each color in the list is represented as an integer value,
+   * typically using an RGB encoding packed into a single integer.
+   *
+   * @param colors a list of integers where each integer represents an RGB color.
+   *               The list is used to define the set of colors included in the palette.
+   * @return a {@code Palette} instance containing the specified list of colors.
+   */
+  static Palette colors(final List<Integer> colors) {
+    return new ColorPalette(colors);
+  }
 
   /**
    * Retrieves the palette consisting of an array of colors. Each color is represented

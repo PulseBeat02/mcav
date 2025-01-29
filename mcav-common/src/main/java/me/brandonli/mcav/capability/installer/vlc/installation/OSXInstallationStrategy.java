@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**

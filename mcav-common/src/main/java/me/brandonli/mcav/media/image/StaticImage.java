@@ -99,6 +99,7 @@ public interface StaticImage extends Image {
    *
    * @param image the BufferedImage representing the image
    * @return a StaticImage instance
+   * @throws IOException if an error occurs while processing the BufferedImage
    */
   static StaticImage image(final BufferedImage image) throws IOException {
     return new MatBackedImage(image);

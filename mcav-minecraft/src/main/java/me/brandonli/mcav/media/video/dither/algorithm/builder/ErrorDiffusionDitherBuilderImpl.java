@@ -38,7 +38,7 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  */
 public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuilder<ErrorDiffusionDither, ErrorDiffusionDitherBuilderImpl> {
 
-  private Palette palette = Palette.DEFAULT;
+  private Palette palette = Palette.DEFAULT_MAP_PALETTE;
   private Algorithm algorithm = Algorithm.FILTER_LITE;
 
   /**
@@ -62,7 +62,7 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
       case STUCKI:
         return new StuckiDither(this.palette);
       default:
-        throw new IllegalArgumentException("Unknown algorithm: " + this.algorithm);
+        throw new InvalidErrorDiffusionAlgorithmException("Unknown algorithm!");
     }
   }
 

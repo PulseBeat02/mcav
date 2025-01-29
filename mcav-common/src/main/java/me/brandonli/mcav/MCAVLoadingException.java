@@ -15,31 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-abstract class URLClassLoaderInjector {
+/**
+ * Represents an exception that indicates a failure during the loading process in the MCAV library.
+ * <p>
+ * This exception is typically thrown to signal that a critical error has occurred
+ * while attempting to load or initialize a resource or dependency within the MCAV framework.
+ * It extends {@code AssertionError} to provide additional context related to failed assertions
+ * during the loading phase.
+ */
+public class MCAVLoadingException extends AssertionError {
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
+  private static final long serialVersionUID = 5512824472714665790L;
 
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  MCAVLoadingException(final @Nullable String message) {
+    super(message);
   }
 }

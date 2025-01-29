@@ -50,12 +50,12 @@ public final class ExecutorUtils {
           return true;
         }
         final String msg = createExecutorShutdownErrorMessage(tasks);
-        throw new AssertionError(msg);
+        throw new CriticalTaskException(msg);
       }
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt(); // yeah... we're fucked
-      throw new AssertionError(e);
+      throw new CriticalTaskException(e.getMessage());
     }
     return false;
   }

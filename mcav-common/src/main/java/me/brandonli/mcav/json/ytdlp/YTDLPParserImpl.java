@@ -58,6 +58,7 @@ public final class YTDLPParserImpl implements YTDLPParser {
     if (cachedResult != null) {
       return cachedResult;
     }
+
     final YTDLPInstaller installer = YTDLPInstaller.create();
     final Path path = installer.download(true);
     final String executable = path.toString();
@@ -67,6 +68,7 @@ public final class YTDLPParserImpl implements YTDLPParser {
     final String output = task.getOutput();
     final URLParseDump result = gson.fromJson(output, URLParseDump.class);
     this.cache.put(raw, result);
+
     return result;
   }
 }

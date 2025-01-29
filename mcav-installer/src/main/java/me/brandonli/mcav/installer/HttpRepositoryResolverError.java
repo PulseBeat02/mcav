@@ -17,29 +17,16 @@
  */
 package me.brandonli.mcav.installer;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * Represents an exception specific to HTTP repository resolution errors.
+ * This exception is typically thrown when an error occurs while attempting
+ * to resolve a repository over HTTP.
+ */
+public class HttpRepositoryResolverError extends AssertionError {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = 6370074734200515542L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  HttpRepositoryResolverError(final String message) {
+    super(message);
   }
 }

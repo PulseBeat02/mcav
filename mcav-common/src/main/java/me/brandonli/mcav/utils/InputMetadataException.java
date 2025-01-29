@@ -15,31 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.utils;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-abstract class URLClassLoaderInjector {
+/**
+ * Exception class representing an error related to input metadata.
+ * This exception is thrown when there is an assertion failure or
+ * invalid input metadata encountered in the application.
+ * <p>
+ * Extends {@link AssertionError} to indicate a serious
+ * problem that a reasonable application should not attempt to catch.
+ */
+public class InputMetadataException extends AssertionError {
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
+  private static final long serialVersionUID = -2964304434518823943L;
 
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  InputMetadataException(final @Nullable String message) {
+    super(message);
   }
 }

@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.capability.installer;
 
-import static java.util.Objects.requireNonNull;
-
 import java.io.*;
 import java.net.URL;
 import java.nio.channels.Channels;
@@ -75,11 +73,7 @@ public abstract class AbstractInstaller implements Installer {
       this.url = "";
       this.hash = null;
     }
-
     this.supported = !this.url.isEmpty();
-    if (this.supported) {
-      this.createFiles(this.path);
-    }
   }
 
   /**
@@ -95,21 +89,6 @@ public abstract class AbstractInstaller implements Installer {
   private Optional<Download> getDownload(@UnderInitialization AbstractInstaller this, final Download[] downloads) {
     final Platform current = Platform.getCurrentPlatform();
     return Arrays.stream(downloads).filter(download -> download.getPlatform().equals(current)).findFirst();
-  }
-
-  private void createFiles(@UnderInitialization AbstractInstaller this, final Path path) {
-    if (Files.notExists(path)) {
-      this.createParentDirectories(path);
-    }
-  }
-
-  private void createParentDirectories(@UnderInitialization AbstractInstaller this, final Path path) {
-    try {
-      final Path parent = requireNonNull(path.getParent());
-      Files.createDirectories(parent);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
   }
 
   /**
@@ -163,11 +142,14 @@ public abstract class AbstractInstaller implements Installer {
   private void downloadFile() throws IOException {
     final URL url = new URL(this.url);
     final File output = this.path.toFile();
+    if (this.supported) {
+      IOUtils.createFileIfNotExists(this.path);
+    }
 
     int tries = 0;
     while (tries <= 3) {
       if (tries == 3) {
-        throw new IOException("File hash verification failed!");
+        throw new me.brandonli.mcav.utils.UncheckedIOException("File hash verification failed!");
       }
       try (
         final InputStream inputStream = url.openStream();
@@ -188,7 +170,7 @@ public abstract class AbstractInstaller implements Installer {
       break;
     }
 
-    if (OSUtils.getOS() == OS.WINDOWS && this.isFolder()) {
+    if (OSUtils.getOS() == OS.WINDOWS && !this.isFolder()) {
       final String raw = this.path.toString();
       final String name = String.format("%s.exe", raw);
       final Path newPath = Path.of(name);
@@ -205,7 +187,7 @@ public abstract class AbstractInstaller implements Installer {
    * @return true if it is a folder, otherwise false
    */
   public boolean isFolder() {
-    return true;
+    return false;
   }
 
   private Optional<Path> checkExistingFile() throws IOException {
@@ -249,7 +231,7 @@ public abstract class AbstractInstaller implements Installer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      throw new AssertionError(e);
+      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
     }
   }
 

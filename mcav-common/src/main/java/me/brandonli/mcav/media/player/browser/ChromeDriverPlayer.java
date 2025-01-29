@@ -63,8 +63,6 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   private volatile VideoPipelineStep videoPipeline;
   private volatile BrowserSource source;
 
-  private static final int BUFFER_CAPACITY = 16;
-
   /**
    * Initializes an instance of {@code ChromeDriverPlayer} with the specified arguments.
    * This implementation sets up a ChromeDriver instance with given browser arguments
@@ -148,7 +146,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         }
       }
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
     }
   }
 
@@ -180,7 +178,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
       case RELEASE:
         return move.release();
       default:
-        throw new IllegalArgumentException();
+        throw new InvalidMouseClickArgument("Invalid mouse click type!");
     }
   }
 

@@ -64,8 +64,8 @@ public final class SourceUtils {
    * usage across multiple operations.
    */
   private static final List<Pair<Function<String, Boolean>, Class<? extends Source>>> SOURCE_CONSTRUCTORS = List.of(
-    new Pair<>(SourceUtils::isPath, FileSource.class),
-    new Pair<>(SourceUtils::isUri, FileSource.class)
+    Pair.pair(SourceUtils::isPath, FileSource.class),
+    Pair.pair(SourceUtils::isUri, FileSource.class)
   );
 
   /**

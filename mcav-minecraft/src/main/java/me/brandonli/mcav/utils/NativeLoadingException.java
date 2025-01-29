@@ -15,31 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.utils;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * Exception thrown to indicate errors during the loading of native libraries.
+ * This class extends {@link AssertionError}, typically to signal fatal conditions
+ * related to native resource handling that should not occur under normal circumstances.
+ * <p>
+ * Instances of this exception are generally used to report critical issues such as
+ * failure to load mandatory native dependencies necessary for the application's functionality.
+ */
+public class NativeLoadingException extends AssertionError {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = -1718334825313639127L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  NativeLoadingException(final String msg) {
+    super(msg);
   }
 }

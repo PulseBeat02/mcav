@@ -46,7 +46,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    * @param mapper  the pixel mapper
    */
   public OrderedDither(final Palette palette, final PixelMapper mapper) {
-    this.palette = palette == null ? Palette.DEFAULT : palette;
+    this.palette = palette == null ? Palette.DEFAULT_MAP_PALETTE : palette;
     this.precalc = mapper.getMatrix();
     this.ydim = this.precalc.length;
     this.xdim = this.precalc[0].length;

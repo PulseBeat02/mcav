@@ -29,6 +29,7 @@ import java.util.EnumSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.combined.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
@@ -186,7 +187,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
     } catch (final FrameGrabber.Exception | InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new AssertionError(e);
+      throw new PlayerException(e.getMessage());
     }
   }
 
@@ -333,7 +334,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     } else if (buffer instanceof ByteBuffer) {
       return (ByteBuffer) buffer;
     } else {
-      throw new IllegalArgumentException("Unsupported buffer type: " + buffer.getClass().getName());
+      throw new PlayerException("Unsupported buffer type!");
     }
   }
 

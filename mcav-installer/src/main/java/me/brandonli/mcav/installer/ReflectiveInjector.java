@@ -17,7 +17,10 @@
  */
 package me.brandonli.mcav.installer;
 
-import java.lang.reflect.InaccessibleObjectException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -29,11 +32,12 @@ final class ReflectiveInjector extends URLClassLoaderInjector {
 
   private static @Nullable Method getUrlMethod() {
     try {
-      final Class<URLClassLoader> clazz = URLClassLoader.class;
-      final Method addUrlMethod = clazz.getDeclaredMethod("addURL", URL.class);
-      addUrlMethod.setAccessible(true);
-      return addUrlMethod;
-    } catch (final NoSuchMethodException | SecurityException | InaccessibleObjectException e) {
+      final MethodHandles.Lookup normal = MethodHandles.lookup();
+      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(URLClassLoader.class, normal);
+      final MethodType methodType = MethodType.methodType(Void.TYPE, URL.class);
+      final MethodHandle methodHandle = lookup.findVirtual(URLClassLoader.class, "addURL", methodType);
+      return MethodHandles.reflectAs(Method.class, methodHandle);
+    } catch (final Throwable t) {
       return null;
     }
   }
@@ -48,13 +52,14 @@ final class ReflectiveInjector extends URLClassLoaderInjector {
 
   @Override
   public void addURL(final URL url) {
+    if (ADD_URL_METHOD == null) {
+      throw new JarInjectorException("Reflective injector not supported");
+    }
     try {
-      if (ADD_URL_METHOD == null) {
-        throw new UnsupportedOperationException("Not supported");
-      }
-      ADD_URL_METHOD.invoke(super.getClassLoader(), url);
-    } catch (final ReflectiveOperationException e) {
-      throw new AssertionError(e);
+      final ClassLoader classLoader = super.getClassLoader();
+      ADD_URL_METHOD.invoke(classLoader, url);
+    } catch (final IllegalAccessException | InvocationTargetException e) {
+      throw new JarInjectorException(e.getMessage());
     }
   }
 }

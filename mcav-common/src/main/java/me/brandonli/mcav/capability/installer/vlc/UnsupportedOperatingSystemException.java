@@ -15,31 +15,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.capability.installer.vlc;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * Exception thrown to indicate that the current operating system is not supported.
+ * This exception typically signals that an operation or functionality cannot proceed
+ * because the operating system being used is incompatible or unsupported by the application.
+ */
+public class UnsupportedOperatingSystemException extends AssertionError {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = 885934601050385987L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  public UnsupportedOperatingSystemException(final String message) {
+    super(message);
   }
 }

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils.immutable;
 
+import com.google.common.base.Preconditions;
+
 /**
  * A generic immutable tuple that holds two values of possibly different types.
  *
@@ -28,15 +30,24 @@ public final class Pair<A, B> {
   private final A first;
   private final B second;
 
-  /**
-   * Constructs a new Pair with the given first and second elements.
-   *
-   * @param first  the first element in the pair, may be of any type
-   * @param second the second element in the pair, may be of any type
-   */
-  public Pair(final A first, final B second) {
+  Pair(final A first, final B second) {
     this.first = first;
     this.second = second;
+  }
+
+  /**
+   * Creates a new {@code Pair} instance with the given first and second elements.
+   * Both elements must be non-null.
+   *
+   * @param first  the first element of the pair, of type {@code C}
+   * @param second the second element of the pair, of type {@code D}
+   * @return a new {@code Pair} instance containing the specified elements
+   * @throws NullPointerException if either {@code first} or {@code second} is null
+   */
+  public static <C, D> Pair<C, D> pair(final C first, final D second) {
+    Preconditions.checkNotNull(first);
+    Preconditions.checkNotNull(second);
+    return new Pair<>(first, second);
   }
 
   /**

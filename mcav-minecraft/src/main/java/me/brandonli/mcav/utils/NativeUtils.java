@@ -19,8 +19,20 @@ package me.brandonli.mcav.utils;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
+/**
+ * Utility class for loading native libraries from JAR resources.
+ * The libraries are extracted to temporary locations on the filesystem
+ * and subsequently loaded into the JVM.
+ * <p>
+ * This is a non-instantiable utility class.
+ */
 public final class NativeUtils {
 
   private NativeUtils() {
@@ -31,32 +43,39 @@ public final class NativeUtils {
    * Loads a native library from the JAR resources.
    * The library is extracted to a temporary file and then loaded.
    *
-   * @param resource The path to the library within the JAR resources
+   * @param resourcePath The path to the library within the JAR resources
    */
-  public static void loadLibrary(final String resource) {
+  public static void loadLibrary(final String resourcePath) {
     try {
-      final String filename = resource.contains("/") ? resource.substring(resource.lastIndexOf('/') + 1) : resource;
-      final String prefix = filename.substring(0, filename.lastIndexOf('.'));
-      final String suffix = filename.substring(filename.lastIndexOf('.'));
-      final File tempFile = File.createTempFile(prefix, suffix);
+      final String fileName = getNativeFileName(resourcePath);
+      final int lastDotIndex = fileName.lastIndexOf('.');
+      final String fileNamePrefix = fileName.substring(0, lastDotIndex);
+      final String fileNameSuffix = fileName.substring(lastDotIndex);
+      final Path tempFilePath = Files.createTempFile(fileNamePrefix, fileNameSuffix);
+      final File tempFile = tempFilePath.toFile();
       tempFile.deleteOnExit();
-      try (
-        final InputStream in = requireNonNull(NativeUtils.class.getClassLoader()).getResourceAsStream(resource);
-        final OutputStream out = new FileOutputStream(tempFile)
-      ) {
-        if (in == null) {
-          throw new IOException("Resource not found: " + resource);
-        }
-        final byte[] buffer = new byte[8192];
-        int bytesRead;
-        while ((bytesRead = in.read(buffer)) != -1) {
-          out.write(buffer, 0, bytesRead);
-        }
-        out.flush();
+
+      final ClassLoader classLoader = requireNonNull(NativeUtils.class.getClassLoader());
+      try (final InputStream resourceStream = requireNonNull(classLoader.getResourceAsStream(resourcePath))) {
+        Files.copy(resourceStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
       }
-      System.load(tempFile.getAbsolutePath());
+
+      final File absolute = tempFile.getAbsoluteFile();
+      final String absolutePath = absolute.toString();
+      System.load(absolutePath);
     } catch (final IOException e) {
-      throw new RuntimeException("Failed to load native library: " + resource, e);
+      throw new NativeLoadingException(e.getMessage());
     }
+  }
+
+  private static String getNativeFileName(final String resourcePath) {
+    final String fileName;
+    if (resourcePath.contains("/")) {
+      final int lastSlashIndex = resourcePath.lastIndexOf('/');
+      fileName = resourcePath.substring(lastSlashIndex + 1);
+    } else {
+      fileName = resourcePath;
+    }
+    return fileName;
   }
 }

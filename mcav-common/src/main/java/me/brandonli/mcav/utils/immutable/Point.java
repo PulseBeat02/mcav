@@ -17,14 +17,30 @@
  */
 package me.brandonli.mcav.utils.immutable;
 
+/**
+ * Represents a two-dimensional point with immutable coordinates.
+ * This class is used to define a precise location in a Cartesian coordinate system.
+ * Instances of this class are immutable and thread-safe.
+ */
 public final class Point {
 
   private final double x;
   private final double y;
 
-  public Point(final double x, final double y) {
+  Point(final double x, final double y) {
     this.x = x;
     this.y = y;
+  }
+
+  /**
+   * Creates a new {@code Point} instance with the specified x and y coordinates.
+   *
+   * @param x the x-coordinate of the point
+   * @param y the y-coordinate of the point
+   * @return a new {@code Point} instance with the given coordinates
+   */
+  public static Point point(final double x, final double y) {
+    return new Point(x, y);
   }
 
   public double getX() {

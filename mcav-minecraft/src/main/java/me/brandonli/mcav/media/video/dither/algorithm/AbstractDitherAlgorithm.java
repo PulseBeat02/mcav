@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.video.dither.algorithm;
 
-import me.brandonli.mcav.media.video.dither.palette.DefaultPalette;
+import me.brandonli.mcav.media.video.dither.palette.MapPalette;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 /**
@@ -63,7 +63,7 @@ public abstract class AbstractDitherAlgorithm implements DitherAlgorithm {
    * for implementing specific dithering algorithms.
    */
   public AbstractDitherAlgorithm() {
-    this(new DefaultPalette());
+    this(new MapPalette());
   }
 
   /**

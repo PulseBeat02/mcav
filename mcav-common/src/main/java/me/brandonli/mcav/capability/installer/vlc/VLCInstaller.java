@@ -15,13 +15,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.capability.installer.vlc.installation;
+package me.brandonli.mcav.capability.installer.vlc;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.Download;
+import me.brandonli.mcav.capability.installer.vlc.installation.InstallationStrategy;
+import me.brandonli.mcav.capability.installer.vlc.installation.LinuxInstallationStrategy;
+import me.brandonli.mcav.capability.installer.vlc.installation.OSXInstallationStrategy;
+import me.brandonli.mcav.capability.installer.vlc.installation.WinInstallationStrategy;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
@@ -100,7 +104,7 @@ public final class VLCInstaller extends AbstractInstaller {
     } else if (os == OS.LINUX) {
       return new LinuxInstallationStrategy(this);
     } else {
-      throw new AssertionError("Operating System not Supported!");
+      throw new UnsupportedOperatingSystemException("Operating System not Supported!");
     }
   }
 
@@ -109,6 +113,6 @@ public final class VLCInstaller extends AbstractInstaller {
    */
   @Override
   public boolean isFolder() {
-    return false;
+    return true;
   }
 }

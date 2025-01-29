@@ -24,7 +24,6 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
-import me.brandonli.mcav.capability.installer.vlc.installation.VLCInstaller;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 /**
@@ -75,7 +74,7 @@ public final class VLCInstallationKit {
 
     final NativeDiscovery discovery = new NativeDiscovery();
     if (!discovery.discover()) {
-      throw new AssertionError("Failed to discover VLC native libraries.");
+      throw new UnsupportedOperatingSystemException("Failed to discover VLC native libraries.");
     }
 
     return Optional.of(absolute);

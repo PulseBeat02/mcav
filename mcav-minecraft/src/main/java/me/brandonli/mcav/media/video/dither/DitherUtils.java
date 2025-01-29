@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.video.dither;
 
-import me.brandonli.mcav.media.video.dither.palette.MapPalette;
+import me.brandonli.mcav.media.video.dither.palette.MapPaletteLoader;
 import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 /**
@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
 public final class DitherUtils {
 
   private DitherUtils() {
-    throw new UnsupportedOperationException();
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
@@ -76,7 +76,7 @@ public final class DitherUtils {
    * @return the RGB value of the best matching color from the palette
    */
   public static int getBestColorNormal(final Palette palette, final int r, final int g, final int b) {
-    return MapPalette.getColor(getBestColor(palette, r, g, b)).getRGB();
+    return MapPaletteLoader.getColor(getBestColor(palette, r, g, b)).getRGB();
   }
 
   /**

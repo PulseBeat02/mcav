@@ -18,8 +18,9 @@
 package me.brandonli.mcav.media.player.image;
 
 import java.nio.IntBuffer;
-import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.combined.pipeline.step.VideoPipelineStep;
@@ -40,7 +41,6 @@ public class ImagePlayerImpl implements ImagePlayer {
   private final AtomicBoolean running;
   private final ExecutorService executor;
   private final ExecutorService processor;
-  private final List<CompletableFuture<?>> pendingTasks;
   private final Object lock;
 
   private volatile CompletableFuture<Void> future;
@@ -52,7 +52,6 @@ public class ImagePlayerImpl implements ImagePlayer {
     this.running = new AtomicBoolean(false);
     this.executor = Executors.newCachedThreadPool();
     this.processor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    this.pendingTasks = new CopyOnWriteArrayList<>();
   }
 
   /**
@@ -76,23 +75,16 @@ public class ImagePlayerImpl implements ImagePlayer {
     final VideoMetadata metadata = this.source.getVideoMetadata();
     final int width = metadata.getVideoWidth();
     final int height = metadata.getVideoHeight();
-    final CompletableFuture<?> task = CompletableFuture.runAsync(
-      () -> {
-        while (this.running.get()) {
-          final IntBuffer frame = this.source.getFrameSupplier().get();
-          final int[] data = frame.array();
-          final StaticImage image = StaticImage.buffer(data, width, height);
-          VideoPipelineStep next = this.videoPipelineStep;
-          while (next != null) {
-            next.process(image, metadata);
-            next = next.next();
-          }
-        }
-      },
-      this.processor
-    );
-    this.pendingTasks.add(task);
-    task.whenComplete((result, ex) -> this.pendingTasks.remove(task));
+    while (this.running.get()) {
+      final IntBuffer frame = this.source.getFrameSupplier().get();
+      final int[] data = frame.array();
+      final StaticImage image = StaticImage.buffer(data, width, height);
+      VideoPipelineStep next = this.videoPipelineStep;
+      while (next != null) {
+        next.process(image, metadata);
+        next = next.next();
+      }
+    }
   }
 
   /**
@@ -102,10 +94,8 @@ public class ImagePlayerImpl implements ImagePlayer {
   public boolean release() throws Exception {
     synchronized (this.lock) {
       this.running.set(false);
-      try {
-        CompletableFuture.allOf(this.pendingTasks.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
-      } catch (final TimeoutException e) {
-        throw new AssertionError(e);
+      if (this.future != null) {
+        this.future.cancel(true);
       }
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
       ExecutorUtils.shutdownExecutorGracefully(this.processor);

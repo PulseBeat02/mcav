@@ -17,65 +17,49 @@
  */
 package me.brandonli.mcav.media.video.dither.palette;
 
-import static java.util.Objects.requireNonNull;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import java.awt.*;
-import java.io.IOException;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.function.Function;
-import java.util.stream.Stream;
-import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.utils.IOUtils;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The MapPalette class provides a palette that maps byte values to {@link Color} objects,
- * allowing for efficient retrieval of pre-defined colors. It loads its palette from a JSON
- * resource file located in the application resources.
+ * DefaultPalette is a specialized implementation of the ColorPalette class, which provides
+ * a default color palette containing 100+ colors extracted using the MapPalette utility.
+ * This palette is pre-initialized during construction with an optimized list of RGB values.
  * <p>
- * This class is immutable and thread-safe.
+ * The colors in the palette are generated using the MapPalette.getColor method, which maps
+ * byte indices to their corresponding Color values. These colors are then converted to their
+ * RGB integer representation and stored in the palette.
+ * <p>
+ * The DefaultPalette is primarily used when no custom color palette is provided and serves
+ * as a reusable, predefined set of indexed colors that Minecraft maps support.
  */
-public final class MapPalette {
-
-  private static final String PALETTE_PATH = "/palette.json";
-
-  public static final Color[] NMS_PALETTE;
-
-  static {
-    final Gson gson = GsonProvider.getSimple();
-    try (final Reader reader = IOUtils.getResourceAsStream(PALETTE_PATH)) {
-      final TypeToken<int[][]> token = new TypeToken<>() {};
-      final Type type = token.getType();
-      final int[][] colors = requireNonNull(gson.fromJson(reader, type));
-      for (final int[] color : colors) {
-        if (color == null || color.length != 3) {
-          final String colorStr = Arrays.toString(color);
-          throw new IllegalArgumentException(String.format("Invalid color: %s", colorStr));
-        }
-      }
-      NMS_PALETTE = Stream.of(colors).map(createColor()).toArray(Color[]::new);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static Function<int[], Color> createColor() {
-    return color -> new Color(color[0], color[1], color[2]);
-  }
+public final class MapPalette extends ColorPalette {
 
   /**
-   * Retrieves the {@link Color} associated with the specified palette index.
-   *
-   * @param val the byte value representing the index in the color palette. This value
-   *            corresponds to a specific predefined color in the palette.
-   * @return the {@link Color} object mapped to the given byte index from the palette.
-   * If the index is out of range, an {@link ArrayIndexOutOfBoundsException} will
-   * be thrown.
+   * Constructs a DefaultPalette instance initialized with a predefined set of 256 colors.
+   * These colors are derived using the MapPalette utility, which maps byte indices to RGB
+   * color values. The resulting color list is passed to the parent class, ColorPalette,
+   * for further initialization of the palette and associated mapping structures.
+   * <p>
+   * The DefaultPalette is intended to provide a reusable, standardized color palette
+   * for scenarios where no custom palette is specified.
    */
-  public static Color getColor(final byte val) {
-    return NMS_PALETTE[val];
+  public MapPalette() {
+    super(getPaletteColors());
+  }
+
+  private static List<Integer> getPaletteColors() {
+    final List<Integer> colors = new ArrayList<>();
+    for (int i = 0; i < 256; ++i) {
+      try {
+        final byte index = (byte) i;
+        final Color color = MapPaletteLoader.getColor(index);
+        final int rgb = color.getRGB();
+        colors.add(rgb);
+      } catch (final IndexOutOfBoundsException e) {
+        break;
+      }
+    }
+    return colors;
   }
 }

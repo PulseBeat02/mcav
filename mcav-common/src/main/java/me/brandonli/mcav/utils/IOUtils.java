@@ -28,17 +28,12 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import java.io.*;
 import java.lang.reflect.Type;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.media.source.UriSource;
 
@@ -66,11 +61,13 @@ public final class IOUtils {
   public static boolean createFileIfNotExists(final Path path) {
     try {
       if (Files.notExists(path)) {
+        final Path parent = requireNonNull(path.getParent());
+        Files.createDirectories(parent);
         Files.createFile(path);
         return true;
       }
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new UncheckedIOException(e.getMessage());
     }
     return false;
   }
@@ -93,7 +90,7 @@ public final class IOUtils {
         return bytesToHex(hash);
       }
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new UncheckedIOException(e.getMessage());
     }
   }
 
@@ -116,7 +113,7 @@ public final class IOUtils {
         return bytesToHex(hash);
       }
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new UncheckedIOException(e.getMessage());
     }
   }
 
@@ -143,60 +140,6 @@ public final class IOUtils {
   }
 
   /**
-   * Retrieves the public IP address of the machine making the request.
-   * This method sends an HTTP request to a predefined URL to obtain
-   * the IP address, validates the response, and returns the IP address
-   * or "localhost" if the validation fails.
-   * <p>
-   * If an error occurs during the process, such as an I/O exception
-   * or interruption, the current thread is interrupted and an
-   * {@link AssertionError} is thrown.
-   *
-   * @return the public IP address as a {@code String}, or "localhost"
-   * if the response is deemed invalid
-   */
-  public static String getPublicIPAddress() {
-    try {
-      final URI uri = URI.create(IP_URL);
-      final HttpClient client = HttpClient.newHttpClient();
-      final HttpRequest request = HttpRequest.newBuilder().uri(uri).build();
-      final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
-      final HttpResponse<String> response = client.send(request, handler);
-      final String address = response.body();
-      final String encodedAddress = address.trim();
-      final URI check = URI.create(encodedAddress);
-      final boolean valid = checkValidUrl(check);
-      return valid ? address : "localhost";
-    } catch (final IOException | InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-      throw new AssertionError(e);
-    }
-  }
-
-  /**
-   * Checks if a given URI points to a valid, reachable URL.
-   * This method sends a HEAD request to the specified URI
-   * and verifies that the response code is HTTP OK (200).
-   *
-   * @param uri the URI to validate as a reachable URL
-   * @return {@code true} if the URI points to a valid and reachable URL, {@code false} otherwise
-   */
-  public static boolean checkValidUrl(final URI uri) {
-    try {
-      final URL url = uri.toURL();
-      final HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-      urlConnection.setRequestMethod("HEAD");
-      urlConnection.setConnectTimeout(5000);
-      urlConnection.setReadTimeout(5000);
-      final int code = urlConnection.getResponseCode();
-      return (code == HttpURLConnection.HTTP_OK);
-    } catch (final Exception e) {
-      return false;
-    }
-  }
-
-  /**
    * Retrieves the name of the file or directory referenced by the specified path.
    *
    * @param path the {@code Path} object representing the file or directory
@@ -217,9 +160,8 @@ public final class IOUtils {
    * @param source the URI source containing the resource URL from which the image will be downloaded.
    *               Must not be null and should produce a valid URI.
    * @return the {@link Path} to the downloaded image file in the cache folder.
-   * @throws IOException if an I/O error occurs during the download or file operations.
    */
-  public static Path downloadImage(final UriSource source) throws IOException {
+  public static Path downloadImage(final UriSource source) {
     final String url = source.getResource();
     String filename = url.substring(url.lastIndexOf('/') + 1);
     if (!filename.contains(".")) {
@@ -232,6 +174,8 @@ public final class IOUtils {
     }
     try (final InputStream in = new URL(url).openStream()) {
       Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e.getMessage());
     }
     return destination;
   }
@@ -250,7 +194,7 @@ public final class IOUtils {
       try {
         Files.createDirectories(cacheDir);
       } catch (final IOException e) {
-        throw new AssertionError(e);
+        throw new UncheckedIOException(e.getMessage());
       }
     }
     return cacheDir;
@@ -270,7 +214,7 @@ public final class IOUtils {
       final Type downloadArrayType = new TypeToken<Download[]>() {}.getType();
       return gson.fromJson(reader, downloadArrayType);
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new UncheckedIOException(e.getMessage());
     }
   }
 
@@ -292,10 +236,8 @@ public final class IOUtils {
    *
    * @param src  the path to the source ZIP file to be extracted
    * @param dest the destination directory where the contents of the ZIP file will be extracted
-   * @throws IOException    if an I/O error occurs during file extraction
-   * @throws AssertionError if there are security issues such as invalid entry paths, or if individual file or total size exceeds the allowed limit
    */
-  public static void unzip(final Path src, final Path dest) throws IOException {
+  public static void unzip(final Path src, final Path dest) {
     long totalSize = 0;
     try (final InputStream fis = Files.newInputStream(src); final ZipInputStream zis = new ZipInputStream(fis)) {
       ZipEntry entry;
@@ -305,7 +247,7 @@ public final class IOUtils {
         final Path resolvedPath = path.normalize();
         if (!resolvedPath.startsWith(dest)) {
           final String msg = String.format("Invalid Entry %s", name);
-          throw new AssertionError(msg);
+          throw new ZipEntryIntegrityException(msg);
         }
         if (entry.isDirectory()) {
           Files.createDirectories(resolvedPath);
@@ -323,11 +265,11 @@ public final class IOUtils {
               totalSize += bytesRead;
               if (fileSize > MAX_FILE_SIZE) {
                 final String msg = String.format("File exceeds maximum size: %s", name);
-                throw new AssertionError(msg);
+                throw new ZipEntryIntegrityException(msg);
               }
               if (totalSize > MAX_TOTAL_SIZE) {
                 final String msg = "Total extracted size exceeds limit";
-                throw new AssertionError(msg);
+                throw new ZipEntryIntegrityException(msg);
               }
               os.write(buffer, 0, bytesRead);
             }
@@ -335,51 +277,8 @@ public final class IOUtils {
         }
         zis.closeEntry();
       }
-    }
-  }
-
-  /**
-   * Creates a ZIP archive from the files and directories contained in the specified source path.
-   * The ZIP file will be written to the specified destination path.
-   *
-   * @param src  the source path which contains files and directories to be included in the ZIP archive
-   * @param dest the destination path where the ZIP archive will be created
-   * @throws IOException if an I/O error occurs during the zipping process
-   */
-  public static void zip(final Path src, final Path dest) throws IOException {
-    try (final OutputStream fis = Files.newOutputStream(src); final ZipOutputStream zip = new ZipOutputStream(fis)) {
-      {
-        Files.walkFileTree(
-          src,
-          new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) throws IOException {
-              final Path rel = src.relativize(dir);
-              final String relName = rel.toString();
-              if (!relName.isEmpty()) {
-                final String replaced = relName.replace("\\", "/");
-                final String entryName = replaced + "/";
-                final ZipEntry entry = new ZipEntry(entryName);
-                zip.putNextEntry(entry);
-                zip.closeEntry();
-              }
-              return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
-              final Path rel = src.relativize(file);
-              final String relName = rel.toString();
-              final String replaced = relName.replace("\\", "/");
-              final ZipEntry entry = new ZipEntry(replaced);
-              zip.putNextEntry(entry);
-              Files.copy(file, zip);
-              zip.closeEntry();
-              return FileVisitResult.CONTINUE;
-            }
-          }
-        );
-      }
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e.getMessage());
     }
   }
 }

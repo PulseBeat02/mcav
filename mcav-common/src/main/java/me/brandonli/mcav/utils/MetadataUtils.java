@@ -58,7 +58,7 @@ public final class MetadataUtils {
       grabber.close();
       return VideoMetadata.of(width, height, bitrate, frameRate);
     } catch (final FrameGrabber.Exception e) {
-      throw new AssertionError(e);
+      throw new InputMetadataException(e.getMessage());
     }
   }
 
@@ -82,7 +82,7 @@ public final class MetadataUtils {
       grabber.close();
       return AudioMetadata.of(bitrate, sampleRate, channels);
     } catch (final FrameGrabber.Exception e) {
-      throw new AssertionError(e);
+      throw new InputMetadataException(e.getMessage());
     }
   }
 }

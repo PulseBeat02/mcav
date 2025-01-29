@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.installer;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -36,9 +38,10 @@ final class UnsafeInjector extends URLClassLoaderInjector {
   @SuppressWarnings("nullness")
   private static @Nullable Unsafe getUnsafe() {
     try {
-      final Field theUnsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-      theUnsafeField.setAccessible(true);
-      return (Unsafe) theUnsafeField.get(null);
+      final MethodHandles.Lookup normal = MethodHandles.lookup();
+      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(Unsafe.class, normal);
+      final VarHandle theUnsafeHandle = lookup.findStaticVarHandle(Unsafe.class, "theUnsafe", Unsafe.class);
+      return (Unsafe) theUnsafeHandle.get();
     } catch (final Throwable t) {
       return null;
     }
@@ -62,9 +65,10 @@ final class UnsafeInjector extends URLClassLoaderInjector {
     try {
       final Object ucp = fetchField(URLClassLoader.class, classLoader, "ucp");
       final Class<?> clazz = ucp.getClass();
-      return (Collection<URL>) fetchField(clazz, ucp, "path");
+      final Object field = fetchField(clazz, ucp, "path");
+      return (Collection<URL>) field;
     } catch (final Throwable e) {
-      return null;
+      throw new JarInjectorException(e.getMessage());
     }
   }
 
@@ -73,15 +77,16 @@ final class UnsafeInjector extends URLClassLoaderInjector {
     try {
       final Object ucp = fetchField(URLClassLoader.class, classLoader, "ucp");
       final Class<?> clazz = ucp.getClass();
-      return (Collection<URL>) fetchField(clazz, ucp, "unopenedUrls");
+      final Object field = fetchField(clazz, ucp, "unopenedUrls");
+      return (Collection<URL>) field;
     } catch (final Throwable e) {
-      return null;
+      throw new JarInjectorException(e.getMessage());
     }
   }
 
   private static Object fetchField(final Class<?> clazz, final Object object, final String name) throws NoSuchFieldException {
     if (UNSAFE == null) {
-      throw new IllegalStateException("Not supported");
+      throw new JarInjectorException("Unsafe injector is not supported!");
     }
     final Field field = clazz.getDeclaredField(name);
     final long offset = UNSAFE.objectFieldOffset(field);
@@ -91,7 +96,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
   @Override
   public void addURL(final URL url) {
     if (this.unopenedURLs == null || this.pathURLs == null) {
-      throw new UnsupportedOperationException("Not supported");
+      throw new JarInjectorException("Unsafe injector is not supported!");
     }
     this.unopenedURLs.add(url);
     this.pathURLs.add(url);

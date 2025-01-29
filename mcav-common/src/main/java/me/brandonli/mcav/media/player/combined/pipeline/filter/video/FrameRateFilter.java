@@ -37,6 +37,6 @@ public final class FrameRateFilter implements VideoFilter {
     final int frameRate = Math.toIntExact(1000 / elapsed);
     this.lastFrameTime = current;
     final String text = "Frame Rate: " + frameRate + " FPS";
-    samples.drawText(text, 10, 20, FONT_HERSHEY_SIMPLEX, 0.25, new double[] { 0, 128, 0 }, 2);
+    samples.drawText(text, 10, 20, FONT_HERSHEY_SIMPLEX, 0.25, new double[] { 0, 0, 0 }, 1);
   }
 }

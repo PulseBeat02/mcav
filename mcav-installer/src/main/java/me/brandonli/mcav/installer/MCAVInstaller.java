@@ -20,358 +20,67 @@ package me.brandonli.mcav.installer;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Enumeration;
-import java.util.Properties;
-import java.util.ServiceLoader;
 import java.util.function.Consumer;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
 
+/**
+ * This class provides functionality to manage and load dependencies dynamically
+ * into an application at runtime. It allows downloading and loading of dependencies
+ * from a specified location and provides methods for initialization with configurable
+ * parameters.
+ */
 public class MCAVInstaller {
 
-  private static final String REPO_BASE_URL = "https://repo.brandonli.me/snapshots";
-  private static final String GROUP_ID = "me.brandonli";
-  private static final String ARTIFACT_ID = "mcav-minecraft-all";
-  private static final String VERSION = "1.0.0-SNAPSHOT";
-  private static final String METADATA_FILE = "mcav-metadata.properties";
-
-  private static final int CONNECTION_TIMEOUT = 20000;
-  private static final int READ_TIMEOUT = 60000;
-  private static final int BUFFER_SIZE = 65536;
-
-  private static final int MAX_ENTRIES = 10000;
-  private static final int MAX_BYTES = 64 * 1024 * 1024; // 64 MB
-
   private final Path folder;
-  private final URLClassLoaderInjector urlClassLoaderAccess;
+  private final ClassLoader classLoader;
 
   MCAVInstaller(final Path folder, final ClassLoader classLoader) {
     this.folder = folder;
-    this.urlClassLoaderAccess = URLClassLoaderInjector.create((URLClassLoader) classLoader);
+    this.classLoader = classLoader;
   }
 
-  public static MCAVInstaller urlClassLoaderInjector(final Path folder, final ClassLoader classLoader) {
+  /**
+   * Creates an instance of MCAVInstaller with the specified folder and class loader.
+   *
+   * @param folder      the folder path where dependencies or resources will be managed
+   * @param classLoader the class loader used to load dependencies at runtime
+   * @return an instance of MCAVInstaller initialized with the provided parameters
+   */
+  public static MCAVInstaller injector(final Path folder, final ClassLoader classLoader) {
+    requireNonNull(folder);
+    requireNonNull(classLoader);
     return new MCAVInstaller(folder, classLoader);
   }
 
-  public void loadMCAVDependencies(final Consumer<String> progressLogger) {
-    try {
-      progressLogger.accept("Fetching maven metadata...");
-      final String metadataUrl = this.buildMetadataUrl();
-      final Document metadataDoc = this.fetchMetadataDocument(metadataUrl);
-      final String timestamp = this.getXmlNodeContent(metadataDoc, "timestamp");
-      final String buildNumber = this.getXmlNodeContent(metadataDoc, "buildNumber");
-      final String jarName = this.buildJarName(timestamp, buildNumber);
-      final String jarUrl = this.buildJarUrl(jarName);
-      final Path jarPath = this.prepareJarPath(jarName);
-      if (this.isJarInstalled(jarPath, timestamp, buildNumber)) {
-        progressLogger.accept("Using existing jar: " + jarName);
-      } else {
-        progressLogger.accept("Downloading " + jarName + " from repository...");
-        this.downloadFile(jarUrl, jarPath, progressLogger);
-        progressLogger.accept("Successfully downloaded " + jarName);
-        final String fileHash = this.calculateFileHash(jarPath);
-        this.storeMetadata(jarPath, timestamp, buildNumber, fileHash);
-        progressLogger.accept("Verified JAR integrity (SHA-256: " + fileHash.substring(0, 10) + "...)");
-      }
-      this.loadJar(jarPath);
-    } catch (final Exception e) {
-      throw new AssertionError(e);
-    }
+  /**
+   * Creates a new {@link MCAVInstaller} instance by extracting the class loader
+   * from the provided object's class and using it along with the specified folder path.
+   *
+   * @param folder the folder path where dependencies should be managed or loaded.
+   * @param object the object whose class loader will be utilized for loading resources.
+   * @return a new instance of {@link MCAVInstaller} initialized with the specified folder and object's class loader.
+   */
+  public static MCAVInstaller injector(final Path folder, final Object object) {
+    final Class<?> clazz = object.getClass();
+    final ClassLoader classLoader = clazz.getClassLoader();
+    return injector(folder, classLoader);
   }
 
-  private boolean isJarInstalled(final Path jarPath, final String timestamp, final String buildNumber) throws IOException {
-    if (!Files.exists(jarPath)) {
-      return false;
-    }
-    final Path metadataPath = this.getMetadataPath();
-    if (!Files.exists(metadataPath)) {
-      return false;
-    }
-    final Properties metadata = new Properties();
-    try (final InputStream in = Files.newInputStream(metadataPath)) {
-      metadata.load(in);
-    }
-    final Path name = requireNonNull(jarPath.getFileName());
-    final String jarFileName = name.toString();
-    final String storedTimestamp = metadata.getProperty(jarFileName + ".timestamp");
-    final String storedBuildNumber = metadata.getProperty(jarFileName + ".buildNumber");
-    final String storedHash = metadata.getProperty(jarFileName + ".hash");
-    if (storedTimestamp == null || storedBuildNumber == null || storedHash == null) {
-      return false;
-    }
-    if (!storedTimestamp.equals(timestamp) || !storedBuildNumber.equals(buildNumber)) {
-      return false;
-    }
-    final String currentHash = this.calculateFileHash(jarPath);
-    return currentHash.equals(storedHash);
-  }
-
-  private String calculateFileHash(final Path file) throws IOException {
-    try {
-      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      final byte[] buffer = new byte[BUFFER_SIZE];
-      int bytesRead;
-      try (final InputStream fis = Files.newInputStream(file)) {
-        while ((bytesRead = fis.read(buffer)) != -1) {
-          digest.update(buffer, 0, bytesRead);
-        }
-      }
-      final byte[] hashBytes = digest.digest();
-      final StringBuilder hexString = new StringBuilder();
-      for (final byte hashByte : hashBytes) {
-        final String hex = Integer.toHexString(0xff & hashByte);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-    } catch (final NoSuchAlgorithmException e) {
-      throw new IOException("Failed to calculate file hash", e);
-    }
-  }
-
-  private void storeMetadata(final Path jarPath, final String timestamp, final String buildNumber, final String hash) throws IOException {
-    final Path metadataPath = this.getMetadataPath();
-    final Properties metadata = new Properties();
-    if (Files.exists(metadataPath)) {
-      try (final InputStream in = Files.newInputStream(metadataPath)) {
-        metadata.load(in);
-      }
-    }
-    final Path name = requireNonNull(jarPath.getFileName());
-    final String jarFileName = name.toString();
-    metadata.setProperty(jarFileName + ".timestamp", timestamp);
-    metadata.setProperty(jarFileName + ".buildNumber", buildNumber);
-    metadata.setProperty(jarFileName + ".hash", hash);
-    metadata.setProperty(jarFileName + ".installedAt", String.valueOf(System.currentTimeMillis()));
-    try (final OutputStream out = Files.newOutputStream(metadataPath)) {
-      metadata.store(out, "MCAV Installer Metadata");
-    }
-  }
-
-  private Path getMetadataPath() throws IOException {
-    final Path dependencyDir = this.folder.resolve("dependencies");
-    Files.createDirectories(dependencyDir);
-    return dependencyDir.resolve(METADATA_FILE);
-  }
-
-  private String buildMetadataUrl() {
-    final String groupPath = GROUP_ID.replace(".", "/");
-    return String.format("%s/%s/%s/%s/maven-metadata.xml", REPO_BASE_URL, groupPath, ARTIFACT_ID, VERSION);
-  }
-
-  private Document fetchMetadataDocument(final String url) throws Exception {
-    final HttpURLConnection connection = this.createConnection(url);
-    connection.setRequestMethod("GET");
-    try (final InputStream inputStream = connection.getInputStream()) {
-      final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-      final DocumentBuilder builder = factory.newDocumentBuilder();
-      final Document document = builder.parse(inputStream);
-      document.getDocumentElement().normalize();
-      return document;
-    } finally {
-      connection.disconnect();
-    }
-  }
-
-  private String getXmlNodeContent(final Document document, final String tagName) {
-    final NodeList nodes = requireNonNull(document.getElementsByTagName(tagName));
-    if (nodes.getLength() > 0) {
-      return requireNonNull(requireNonNull(nodes.item(0)).getTextContent());
-    }
-    throw new IllegalArgumentException("Tag " + tagName + " not found in metadata");
-  }
-
-  private String buildJarName(final String timestamp, final String buildNumber) {
-    final String versionWithTimestamp = VERSION.replace("SNAPSHOT", timestamp + "-" + buildNumber);
-    return ARTIFACT_ID + "-" + versionWithTimestamp + "-all.jar";
-  }
-
-  private String buildJarUrl(final String jarName) {
-    final String groupPath = GROUP_ID.replace(".", "/");
-    return REPO_BASE_URL + "/" + groupPath + "/" + ARTIFACT_ID + "/" + VERSION + "/" + jarName;
-  }
-
-  private Path prepareJarPath(final String jarName) throws IOException {
-    final Path dependencyDir = this.folder.resolve("dependencies");
-    Files.createDirectories(dependencyDir);
-    return dependencyDir.resolve(jarName);
-  }
-
-  private void downloadFile(final String fileUrl, final Path destination, final Consumer<String> progressLogger) throws IOException {
-    try {
-      final long fileSize = this.getFileSize(fileUrl);
-      if (fileSize <= 0) {
-        progressLogger.accept("Content length unknown, downloading...");
-      } else {
-        progressLogger.accept("File size: " + this.formatSize(fileSize));
-      }
-      final Path parent = requireNonNull(destination.getParent());
-      Files.createDirectories(parent);
-      final HttpURLConnection connection = this.createConnection(fileUrl);
-      connection.setRequestMethod("GET");
-      final long startTime = System.currentTimeMillis();
-      try (final InputStream in = connection.getInputStream()) {
-        if (fileSize > 0) {
-          this.downloadWithProgress(in, destination, fileSize, startTime, progressLogger);
-        } else {
-          this.downloadWithoutProgress(in, destination, startTime, progressLogger);
-        }
-      } finally {
-        connection.disconnect();
-      }
-    } catch (final Exception e) {
-      throw new IOException("Download failed: " + e.getMessage(), e);
-    }
-  }
-
-  private long getFileSize(final String fileUrl) throws IOException {
-    final HttpURLConnection connection = this.createConnection(fileUrl);
-    connection.setRequestMethod("HEAD");
-    try {
-      return connection.getContentLengthLong();
-    } finally {
-      connection.disconnect();
-    }
-  }
-
-  private HttpURLConnection createConnection(final String url) throws IOException {
-    final HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-    connection.setConnectTimeout(CONNECTION_TIMEOUT);
-    connection.setReadTimeout(READ_TIMEOUT);
-    connection.setInstanceFollowRedirects(true);
-    return connection;
-  }
-
-  private void downloadWithProgress(
-    final InputStream in,
-    final Path destination,
-    final long fileSize,
-    final long startTime,
-    final Consumer<String> progressLogger
-  ) throws IOException {
-    final byte[] buffer = new byte[BUFFER_SIZE];
-    long totalBytesRead = 0;
-    long lastUpdateTime = System.currentTimeMillis();
-    int lastPercent = 0;
-    try (final OutputStream out = Files.newOutputStream(destination)) {
-      int bytesRead;
-      while ((bytesRead = in.read(buffer)) != -1) {
-        out.write(buffer, 0, bytesRead);
-        totalBytesRead += bytesRead;
-        final int currentPercent = (int) ((totalBytesRead * 100) / fileSize);
-        final long currentTime = System.currentTimeMillis();
-        if (currentPercent - lastPercent >= 5 || currentTime - lastUpdateTime >= 5_000) {
-          final double speed = this.calculateSpeed(totalBytesRead, currentTime, startTime);
-          final String progressMessage = this.formatProgressMessage(currentPercent, totalBytesRead, fileSize, speed);
-          progressLogger.accept(progressMessage);
-          lastUpdateTime = currentTime;
-          lastPercent = currentPercent;
-        }
-      }
-    }
-    final long timeElapsed = System.currentTimeMillis() - startTime;
-    final double averageSpeed = this.calculateSpeed(totalBytesRead, System.currentTimeMillis(), startTime);
-    final String completionMessage = this.formatCompletionMessage(timeElapsed, averageSpeed);
-    progressLogger.accept(completionMessage);
-  }
-
-  private boolean shouldUpdateProgress(
-    final long totalBytesRead,
-    final long lastProgressUpdate,
-    final long fileSize,
-    final long currentTime,
-    final long startTime
-  ) {
-    return (int) ((totalBytesRead * 100) / fileSize) > (int) ((lastProgressUpdate * 100) / fileSize) || (currentTime - startTime > 500);
-  }
-
-  private void downloadWithoutProgress(
-    final InputStream in,
-    final Path destination,
-    final long startTime,
-    final Consumer<String> progressLogger
-  ) throws IOException {
-    Files.copy(in, destination);
-    final long timeElapsed = System.currentTimeMillis() - startTime;
-    final String message = String.format("Download complete in %.1f seconds", timeElapsed / 1000.0);
-    progressLogger.accept(message);
-  }
-
-  private double calculateSpeed(final long bytesRead, final long currentTime, final long startTime) {
-    final long elapsedMillis = currentTime - startTime;
-    if (elapsedMillis == 0) {
-      return 0;
-    }
-    return ((double) bytesRead / 1024 / 1024) / (elapsedMillis / 1000.0);
-  }
-
-  private String formatProgressMessage(final int percent, final long bytesRead, final long fileSize, final double speed) {
-    return String.format("Downloaded %d%% (%s/%s) - %.2f MB/s", percent, this.formatSize(bytesRead), this.formatSize(fileSize), speed);
-  }
-
-  private String formatCompletionMessage(final long timeElapsed, final double speed) {
-    return String.format("Download complete in %.1f seconds (%.2f MB/s)", timeElapsed / 1000.0, speed);
-  }
-
-  private String formatSize(final long bytes) {
-    if (bytes < 1024) {
-      return bytes + " B";
-    }
-    final int exp = (int) (Math.log(bytes) / Math.log(1024));
-    final String pre = "KMGTPE".charAt(exp - 1) + "";
-    return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
-  }
-
-  private void loadJar(final Path path) {
-    try {
-      int entryCount = 0;
-      try (final JarFile jarFile = new JarFile(path.toFile(), true)) {
-        final URL jarUrl = path.toUri().toURL();
-        this.urlClassLoaderAccess.addURL(jarUrl);
-        final Enumeration<JarEntry> entries = jarFile.entries();
-        final String servicesPrefix = "META-INF/services/";
-        while (entries.hasMoreElements()) {
-          if (++entryCount > MAX_ENTRIES) {
-            throw new AssertionError("Too many entries in JAR file");
-          }
-          final JarEntry entry = entries.nextElement();
-          if (entry.getName().contains("..")) {
-            throw new AssertionError("Invalid entry name: " + entry.getName());
-          }
-          if (entry.getSize() > MAX_BYTES) {
-            throw new AssertionError("Entry too large: " + entry.getName());
-          }
-          final String name = entry.getName();
-          if (name.startsWith(servicesPrefix) && !entry.isDirectory()) {
-            final String serviceName = name.substring(servicesPrefix.length());
-            try {
-              final ClassLoader loader = this.urlClassLoaderAccess.getClassLoader();
-              final Class<?> serviceClass = Class.forName(serviceName, false, loader);
-              ServiceLoader.load(serviceClass, loader);
-            } catch (final ClassNotFoundException ignored) {
-              // ignore classes that cannot be loaded
-            }
-          }
-        }
-      }
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
+  /**
+   * Downloads and loads the required dependencies for the application. The method
+   * provides feedback through the specified progress logger as the dependencies
+   * are downloaded and loaded into the system.
+   *
+   * @param progressLogger a Consumer function to handle log messages indicating
+   *                       the progress of the operation
+   * @return the Path object representing the location of the downloaded dependencies
+   * @throws IOException if an error occurs during the download or loading of dependencies
+   */
+  public Path loadMCAVDependencies(final Consumer<String> progressLogger) throws IOException {
+    final Path jar = HttpUtils.downloadDependencies(progressLogger, this.folder);
+    progressLogger.accept(String.format("Loading dependencies from %s", jar));
+    LoaderUtils.loadJarPath(jar, this.classLoader);
+    progressLogger.accept("Successfully loaded dependencies!");
+    return jar;
   }
 }

@@ -105,7 +105,7 @@ public class MatBackedImage implements StaticImage {
       final byte[] ba = mob.toArray();
       return ImageIO.read(new ByteArrayInputStream(ba));
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new me.brandonli.mcav.utils.UncheckedIOException(e.getMessage());
     }
   }
 
@@ -323,8 +323,6 @@ public class MatBackedImage implements StaticImage {
   public void applyHistogramEqualization() {
     if (this.mat.channels() == 1) {
       Imgproc.equalizeHist(this.mat, this.mat);
-    } else {
-      throw new UnsupportedOperationException("Histogram equalization requires a grayscale image.");
     }
   }
 
@@ -560,9 +558,6 @@ public class MatBackedImage implements StaticImage {
    */
   @Override
   public void setRawData(final byte[] data) {
-    if (data.length != this.mat.total() * this.mat.elemSize()) {
-      throw new IllegalArgumentException("Data size does not match matrix size.");
-    }
     this.mat.put(0, 0, data);
   }
 
@@ -595,9 +590,6 @@ public class MatBackedImage implements StaticImage {
    */
   @Override
   public void setToIdentity() {
-    if (this.mat.rows() != this.mat.cols()) {
-      throw new UnsupportedOperationException("Matrix must be square to set to identity.");
-    }
     Core.setIdentity(this.mat);
   }
 
@@ -802,8 +794,6 @@ public class MatBackedImage implements StaticImage {
   public void blendWith(final MatBackedImage other, final double alpha) {
     if (this.mat.size().equals(other.mat.size())) {
       Core.addWeighted(this.mat, alpha, other.mat, 1.0 - alpha, 0.0, this.mat);
-    } else {
-      throw new IllegalArgumentException("Images must have the same size to blend.");
     }
   }
 
@@ -880,7 +870,7 @@ public class MatBackedImage implements StaticImage {
         classNames.add(line);
       }
     } catch (final IOException e) {
-      throw new AssertionError("Error reading classes file", e);
+      throw new me.brandonli.mcav.utils.UncheckedIOException("Error reading classes file");
     }
     final Net net = Dnn.readNetFromDarknet(configPath, modelPath);
     final Mat blob = Dnn.blobFromImage(this.mat, 1 / 255.0, new Size(416, 416), new Scalar(0, 0, 0), true, false);

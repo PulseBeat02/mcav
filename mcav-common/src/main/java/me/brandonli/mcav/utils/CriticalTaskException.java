@@ -15,31 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.utils;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-abstract class URLClassLoaderInjector {
+/**
+ * Represents an exception that is thrown for critical task failures.
+ * This exception indicates an assertion-like condition where a critical
+ * error occurs during the execution of a task. It extends {@link AssertionError}.
+ * <p>
+ * Typically used to signal situations where the failure of a task is
+ * considered unrecoverable or critical, requiring immediate attention.
+ */
+public class CriticalTaskException extends AssertionError {
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
+  private static final long serialVersionUID = 2987450203603366888L;
 
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  CriticalTaskException(final @Nullable String message) {
+    super(message);
   }
 }

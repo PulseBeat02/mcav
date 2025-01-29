@@ -108,6 +108,6 @@ public final class FileServerHandler extends ChannelInboundHandlerAdapter {
    */
   @Override
   public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
-    throw new AssertionError(cause);
+    throw new HttpServerException(cause.getMessage());
   }
 }

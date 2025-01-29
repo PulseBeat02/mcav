@@ -32,6 +32,7 @@ import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.opencv_java;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,12 +86,12 @@ public final class MCAV implements MCAVApi {
     final CompletableFuture<Void> qemuTask = CompletableFuture.runAsync(this::installQemu, service);
     final CompletableFuture<Void> webDriverTask = CompletableFuture.runAsync(this::installWebDriver, service);
     final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::installMisc, service);
-    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, webDriverTask, miscTask)
-      .exceptionally(e -> {
-        LOGGER.error("Failed to install required capabilities", e);
-        throw new AssertionError("Failed to install required capabilities", e);
-      })
-      .join();
+    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, webDriverTask, miscTask).exceptionally(this::handleException).join();
+  }
+
+  private @Nullable Void handleException(final Throwable e) {
+    LOGGER.error("Failed to install required capabilities", e);
+    return null;
   }
 
   /**
@@ -113,7 +114,7 @@ public final class MCAV implements MCAVApi {
       }
       QemuInstaller.create().download(true);
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new MCAVLoadingException(e.getMessage());
     }
   }
 
@@ -124,7 +125,7 @@ public final class MCAV implements MCAVApi {
       }
       VLCInstallationKit.create().start();
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new MCAVLoadingException(e.getMessage());
     }
   }
 
@@ -135,7 +136,7 @@ public final class MCAV implements MCAVApi {
       }
       YTDLPInstaller.create().download(true);
     } catch (final IOException e) {
-      throw new AssertionError(e);
+      throw new MCAVLoadingException(e.getMessage());
     }
   }
 

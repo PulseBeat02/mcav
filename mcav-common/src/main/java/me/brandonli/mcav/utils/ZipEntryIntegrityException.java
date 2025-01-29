@@ -15,31 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.utils;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * Exception thrown to indicate that a ZIP entry integrity check has failed.
+ * This exception extends {@code AssertionError}, signifying that the integrity
+ * of a ZIP file entry could not be verified as expected.
+ * <p>
+ * It is used to signal critical errors encountered when dealing with ZIP file
+ * entry operations, particularly when integrity constraints are violated.
+ */
+public class ZipEntryIntegrityException extends AssertionError {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = -949105092892572153L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  ZipEntryIntegrityException(final String message) {
+    super(message);
   }
 }

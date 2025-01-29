@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.combined.vlc;
 
+import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
@@ -54,7 +55,7 @@ public final class MediaPlayerFactoryProvider {
    */
   public static MediaPlayerFactory getPlayerFactory() {
     if (PLAYER_FACTORY == null) {
-      throw new UnsupportedOperationException("VLC is not supported on your system!");
+      throw new UnsupportedOperatingSystemException("VLC is not supported on your system!");
     }
     return PLAYER_FACTORY;
   }

@@ -17,29 +17,22 @@
  */
 package me.brandonli.mcav.installer;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+/**
+ * This exception is thrown to indicate a violation of integrity for a JAR entry.
+ * It is used to signal that an expected condition related to the security
+ * or integrity of a JAR entry has failed.
+ * <p>
+ * The exception extends {@link SecurityException}, inheriting its behavior while
+ * providing a specific context for JAR entry validation issues.
+ * <p>
+ * Constructors provide mechanisms to supply detailed exception messages when the
+ * issue is encountered.
+ */
+public class JarEntryIntegrityException extends SecurityException {
 
-abstract class URLClassLoaderInjector {
+  private static final long serialVersionUID = -5481191042398056901L;
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
-
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  JarEntryIntegrityException(final String message) {
+    super(message);
   }
 }

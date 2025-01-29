@@ -15,31 +15,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.media.player;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-abstract class URLClassLoaderInjector {
+/**
+ * PlayerException is a custom exception that extends {@link AssertionError}.
+ * It is used to indicate exceptional conditions specifically related to
+ * player functionality or operations in the media playback library.
+ * <p>
+ * This exception can be thrown when an error occurs in the implementation or
+ * usage of player-related components and serves as a mechanism for error
+ * reporting within the context of the application.
+ */
+public class PlayerException extends AssertionError {
 
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
+  private static final long serialVersionUID = 5422221049222805060L;
 
-  private final URLClassLoader classLoader;
-
-  URLClassLoaderInjector(final URLClassLoader classLoader) {
-    this.classLoader = classLoader;
-  }
-
-  public abstract void addURL(final URL url);
-
-  URLClassLoader getClassLoader() {
-    return this.classLoader;
+  public PlayerException(final @Nullable String message) {
+    super(message);
   }
 }

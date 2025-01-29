@@ -19,10 +19,11 @@ package me.brandonli.mcav.capability.installer.vlc.installation;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.utils.IOUtils;
 
 /**
