@@ -6,7 +6,7 @@ Once you have your `MCAVApi` instance, you **MUST** call the `install` function 
 binaries automatically. This will download the required binaries and set up the library for use.
 
 Once you're done using the library, you **MUST** call the `release` method to release all native resources and shutdown
-the library. You should only store one instance of the `MCAVApi` class throughout the life-sycle of your application or
+the library. You should only store one instance of the `MCAVApi` class throughout the life-cycle of your application or
 plugin.
 
 ```java
@@ -20,7 +20,7 @@ plugin.
 
 ## Capabilities
 MCAV utilizes several low-level libraries to provide a wide range of multimedia capabilities. Sometimes, some of these
-capabilities may not be available on your platform, or may require additional configuration. MCAV will try its best to
+capabilities may not be available on your platform or may require additional configuration. MCAV will try its best to
 install all features it can, but some features may not be available on your platform. As far as MCAV is concerned, 
 usually FFmpeg, OpenCV, and yt-dlp are supported on all platforms, but VLC may not be available always. 
 

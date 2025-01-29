@@ -76,3 +76,19 @@ JFreeChart chart and displaying it.
   // ... do something with the player
   player.release();
 ```
+
+If you want to play a GIF image, you can use the `RepeatingFrameSource` which accepts any `DynamicImage`. You can pass
+this into `ImagePlayer` directly.
+
+```java
+  final VideoPipelineStep videoPipelineStep = ...;
+  final DynamicImage gif = DynamicImage.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
+  final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
+  final ImagePlayer player = ImagePlayer.player();
+  player.start(videoPipelineStep, frameSource);
+  // ... do something with the player
+  player.release();
+```
+
+This will play the GIF indefinitely until you stop the player. You're also welcome to play the GIF in the `FFmpegPlayer`,
+as it's able to play GIFs as well.

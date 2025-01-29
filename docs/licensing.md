@@ -14,8 +14,6 @@ incorporated into the project. The following table lists the libraries used in M
 | [rkalla/imgscalr](https://github.com/rkalla/imgscalr)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
 
-As a result of this, the MCAV library is licensed under the GPLv3 license shown [here](LICENSE).
-The [Apache 2](https://opensource.org/license/apache-2-0) License is compatible with the
-[GPLv3](https://opensource.org/license/lgpl-3-0) license, but not the [GPLv2](https://opensource.org/license/lgpl-2-0)
-license. You should license your project under the [GPLv3](https://opensource.org/license/lgpl-3-0) license or any other
-license that is compatible with the [GPLv3](https://opensource.org/license/lgpl-3-0) license.
+As a result of this, the MCAV library is licensed under the [GPLv3](LICENSE) license. The Apache 2 License is compatible
+with the GPLv3 license, but not the GPVl2 license. You should license your project under the GPLv3 license or any other
+license that is compatible with the GPLv3 license, like the [MIT (Expat)](https://opensource.org/license/mit) license.

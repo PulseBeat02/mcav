@@ -1,8 +1,8 @@
 ## Using yt-dlp
-Most modern players like VLC media player or FFmpeg aren't able to play Twitch streams or YouTube streams directly. You
-would need an external tool called yt-dlp to download the stream and then play it with your player of choice. To solve
-this issue, MCAV provides a yt-dlp API to extract internal URLs from streams and then play them with your player of
-choice.
+Most modern players like [VLC media player](https://www.videolan.org/vlc/) or [FFmpeg](https://ffmpeg.org/) aren't able 
+to play Twitch streams or YouTube streams directly. You would need an external tool called [yt-dlp](https://github.com/yt-dlp/yt-dlp) 
+to download the internal stream and then play it with your player of choice. To solve this issue, MCAV provides a 
+yt-dlp API to extract internal URLs from streams and then play them with your player of choice.
 
 ## Using the Parser
 The `YTDLPParser` is a parser that uses yt-dlp to extract the internal URL of a stream. It can be used to parse `URISoure`
