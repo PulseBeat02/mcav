@@ -131,7 +131,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final URI audioUri = URI.create(audioResource);
     final String result = audioUri.toString();
     final SlaveApi slaveApi = mediaApi.slaves();
-    slaveApi.add(MediaSlaveType.AUDIO, MediaSlavePriority.HIGHEST, result);
+    slaveApi.add(MediaSlaveType.AUDIO, MediaSlavePriority.LOWEST, result);
 
     return true;
   }
