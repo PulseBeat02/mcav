@@ -89,7 +89,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (!this.sanitizeArguments(player, playerType, audioType, videoResolution)) {
       return;
     }
-    player.sendMessage(Message.LOAD_VIDEO.build());
+
+    final Collection<Player> players = selector.values();
+    for (final Player watcher : players) {
+      watcher.sendMessage(Message.LOAD_VIDEO.build());
+    }
 
     final Pair<Integer, Integer> resolution = requireNonNull(this.sanitizeResolution(videoResolution));
     final AtomicBoolean initializing = this.manager.getStatus();

@@ -61,22 +61,26 @@
         .visualizer-bars {
             display: flex;
             align-items: flex-end;
+            justify-content: center;
             height: 100%;
             width: 100%;
-            padding: 0 10px;
+            gap: 2px;
         }
 
         .bar {
             background: var(--primary-color);
             width: 4px;
             height: 5px;
-            margin: 0 2px;
             border-radius: 2px 2px 0 0;
             transition: height 0.1s ease;
+            flex-shrink: 0;
         }
 
         .visualizer-placeholder {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: rgba(255, 255, 255, 0.5);
             font-size: 14px;
         }
@@ -241,11 +245,11 @@
 
             this.gainNode = this.audioCtx.createGain();
             this.gainNode.connect(this.audioCtx.destination);
+            this.startTime = this.audioCtx.currentTime;
         }
 
         setupHowler() {
             Howler.ctx = this.audioCtx;
-            this.startTime = this.audioCtx.currentTime;
         }
 
         feed(data) {
@@ -356,7 +360,7 @@
 
             this.activeSources.forEach(source => {
                 try {
-                    source.stop();
+                    source.stop(this.audioCtx.currentTime);
                     source.disconnect();
                 } catch (e) {
                 }
@@ -364,10 +368,15 @@
             this.activeSources.clear();
 
             if (this.gainNode) {
-                this.gainNode.disconnect();
+                try {
+                    this.gainNode.disconnect();
+                } catch (e) {
+                }
+                this.gainNode = null;
             }
 
             this.samples = new Float32Array();
+            this.startTime = 0;
 
             if (animationId) {
                 cancelAnimationFrame(animationId);
@@ -376,18 +385,35 @@
 
             visualizerPlaceholder.style.display = 'block';
             bars.forEach(bar => bar.style.height = '4px');
-
             this.lastData = new Float32Array(barCount);
+        }
+
+        flush() {
+            this.activeSources.forEach(source => {
+                try {
+                    source.stop(this.audioCtx.currentTime);
+                } catch (e) {
+                }
+            });
+            this.activeSources.clear();
+
+            this.samples = new Float32Array();
+            this.startTime = this.audioCtx.currentTime;
         }
     }
 
     startBtn.onclick = function () {
+        if (pcmProcessor) {
+            pcmProcessor.destroy();
+            pcmProcessor = null;
+        }
 
         if (audioContext) {
             try {
                 audioContext.close();
             } catch (e) {
             }
+            audioContext = null;
         }
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -413,53 +439,55 @@
             pcmProcessor = null;
         }
 
-        try {
-            statusEl.textContent = 'Connecting...';
+        setTimeout(() => {
+            try {
+                statusEl.textContent = 'Connecting...';
 
-            pcmProcessor = new PCMProcessor({
-                encoding: '16bitInt',
-                channels: 2,
-                sampleRate: 48000,
-                flushingTime: 2000,
-                audioCtx: audioContext
-            });
+                pcmProcessor = new PCMProcessor({
+                    encoding: '16bitInt',
+                    channels: 2,
+                    sampleRate: 48000,
+                    flushingTime: 2000,
+                    audioCtx: audioContext
+                });
 
-            pcmProcessor.gainNode.gain.value = volumeSlider.value / 100;
+                pcmProcessor.gainNode.gain.value = volumeSlider.value / 100;
 
-            ws = new WebSocket('ws://' + location.hostname + ':%%PORT%%');
-            ws.binaryType = 'arraybuffer';
+                ws = new WebSocket('ws://' + location.hostname + ':%%PORT%%');
+                ws.binaryType = 'arraybuffer';
 
-            ws.onopen = function () {
-                statusEl.textContent = 'Connected';
-                statusEl.className = 'status-connected';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-            };
+                ws.onopen = function () {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'status-connected';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                };
 
-            ws.onmessage = function (e) {
-                if (e.data.byteLength > 0 && pcmProcessor && !pcmProcessor.isDestroyed) {
-                    statusEl.textContent = 'Streaming audio';
-                    pcmProcessor.feed(e.data);
-                }
-            };
+                ws.onmessage = function (e) {
+                    if (e.data.byteLength > 0 && pcmProcessor && !pcmProcessor.isDestroyed) {
+                        statusEl.textContent = 'Streaming audio';
+                        pcmProcessor.feed(e.data);
+                    }
+                };
 
-            ws.onerror = function (e) {
-                statusEl.textContent = 'Connection error';
+                ws.onerror = function (e) {
+                    statusEl.textContent = 'Connection error';
+                    statusEl.className = '';
+                    console.error('WebSocket error:', e);
+                    stopStream();
+                };
+
+                ws.onclose = function () {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = '';
+                    stopStream();
+                };
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                statusEl.textContent = 'Error: ' + error.message;
                 statusEl.className = '';
-                console.error('WebSocket error:', e);
-                stopStream();
-            };
-
-            ws.onclose = function () {
-                statusEl.textContent = 'Disconnected';
-                statusEl.className = '';
-                stopStream();
-            };
-        } catch (error) {
-            console.error('Error starting stream:', error);
-            statusEl.textContent = 'Error: ' + error.message;
-            statusEl.className = '';
-        }
+            }
+        }, 100);
     }
 
     stopBtn.onclick = stopStream;
@@ -469,10 +497,12 @@
             ws.close();
             ws = null;
         }
+
         if (pcmProcessor) {
             pcmProcessor.destroy();
             pcmProcessor = null;
         }
+
         startBtn.disabled = false;
         stopBtn.disabled = true;
         statusEl.textContent = 'Disconnected';

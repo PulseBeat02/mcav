@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
@@ -33,8 +34,9 @@ public final class BrowserModule implements MCAVModule {
    */
   @Override
   public void start() {
-    ChromeDriverServiceProvider.init();
-    PlaywrightServiceProvider.init();
+    final CompletableFuture<Void> first = CompletableFuture.runAsync(ChromeDriverServiceProvider::init);
+    final CompletableFuture<Void> second = CompletableFuture.runAsync(PlaywrightServiceProvider::init);
+    CompletableFuture.allOf(first, second).join();
   }
 
   /**

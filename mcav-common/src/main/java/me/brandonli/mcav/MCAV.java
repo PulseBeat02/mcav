@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
@@ -72,11 +73,13 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public void install(final Class<?>... plugins) {
-    this.dependencyLoader.installYTDLP();
-    this.dependencyLoader.installVLC();
-    this.installMisc();
-    this.moduleLoader.loadPlugins(plugins);
-    this.updateLoadStatus();
+    final CompletableFuture<Void> first = CompletableFuture.runAsync(this.dependencyLoader::installVLC);
+    final CompletableFuture<Void> second = CompletableFuture.runAsync(() -> {
+      this.dependencyLoader.installYTDLP();
+      this.installMisc();
+    });
+    final CompletableFuture<Void> third = CompletableFuture.runAsync(() -> this.moduleLoader.loadPlugins(plugins));
+    CompletableFuture.allOf(first, second, third).thenRun(this::updateLoadStatus).join();
   }
 
   private void updateLoadStatus() {

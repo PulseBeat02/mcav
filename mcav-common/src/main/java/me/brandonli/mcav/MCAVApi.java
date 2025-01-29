@@ -17,9 +17,6 @@
  */
 package me.brandonli.mcav;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.module.MCAVModule;
 
@@ -42,28 +39,6 @@ public interface MCAVApi {
    * @param plugins an array of plugin classes to be installed
    */
   void install(final Class<?>... plugins);
-
-  /**
-   * Asynchronously installs all dependencies and resources required for the library's functionality.
-   *
-   * @param plugins an array of plugin classes to be installed
-   * @return a CompletableFuture that completes when the installation is finished
-   */
-  default CompletableFuture<Void> installAsync(final Class<?>... plugins) {
-    return this.installAsync(ForkJoinPool.commonPool(), plugins);
-  }
-
-  /**
-   * Asynchronously installs all dependencies and resources required for the library's functionality
-   * using a specified ExecutorService.
-   *
-   * @param service the ExecutorService to run the installation on
-   * @param plugins an array of plugin classes to be installed
-   * @return a CompletableFuture that completes when the installation is finished
-   */
-  default CompletableFuture<Void> installAsync(final ExecutorService service, final Class<?>... plugins) {
-    return CompletableFuture.runAsync(() -> this.install(plugins), service);
-  }
 
   /**
    * Releases resources and performs cleanup operations as required by the library.
