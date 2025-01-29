@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.http;
 
-import io.javalin.Javalin;
-import io.javalin.websocket.WsContext;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +30,21 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
-import org.eclipse.jetty.websocket.api.Session;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
 /**
  * The concrete implementation of the {@link HttpResult} interface, providing a default HTML template
@@ -57,13 +69,13 @@ public class HttpResultImpl implements HttpResult {
     }
   }
 
-  private final CopyOnWriteArrayList<WsContext> wsClients;
+  private final CopyOnWriteArrayList<WebSocketSession> wsClients;
   private final String domain;
   private final int port;
   private final String html;
 
   private URLParseDump current;
-  private Javalin app;
+  private ConfigurableApplicationContext context;
 
   HttpResultImpl(final String domain, final int port) {
     this(domain, port, HTML_TEMPLATE);
@@ -83,14 +95,24 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void start() {
-    this.app = Javalin.create().start(this.port);
-    this.app.get("/", ctx -> ctx.html(this.html));
-    this.app.ws("/", ws -> {
-        ws.onConnect(this.wsClients::add);
-        ws.onClose(this.wsClients::remove);
-        ws.onError(this.wsClients::remove);
-      });
-    this.app.get("/media", ctx -> ctx.json(this.current));
+    System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
+    final SpringApplicationBuilder builder = new SpringApplicationBuilder()
+      .sources(HttpServerApplication.class)
+      .web(WebApplicationType.SERVLET)
+      .properties(
+        "server.port=" + this.port,
+        "spring.application.name=mcav-http-" + this.port,
+        "spring.jmx.enabled=false",
+        "spring.main.banner-mode=off"
+      )
+      .logStartupInfo(true);
+    try {
+      this.context = builder.run();
+      final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
+      config.setHttpResultInstance(this);
+    } finally {
+      System.clearProperty("org.springframework.boot.logging.LoggingSystem");
+    }
   }
 
   /**
@@ -114,16 +136,15 @@ public class HttpResultImpl implements HttpResult {
     copy.flip();
     clamped.position(position);
 
-    final Iterator<WsContext> iterator = this.wsClients.iterator();
+    final Iterator<WebSocketSession> iterator = this.wsClients.iterator();
     while (iterator.hasNext()) {
-      final WsContext client = iterator.next();
-      final Session session = client.session;
+      final WebSocketSession session = iterator.next();
       if (!session.isOpen()) {
         iterator.remove();
         continue;
       }
       try {
-        client.send(copy);
+        session.sendMessage(new BinaryMessage(copy));
       } catch (final Exception e) {
         iterator.remove();
       }
@@ -151,10 +172,123 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void stop() {
-    if (this.app != null) {
-      this.app.stop();
-      this.wsClients.forEach(WsContext::closeSession);
+    if (this.context != null) {
+      this.wsClients.forEach(session -> {
+          try {
+            session.close();
+          } catch (final IOException ignored) {}
+        });
       this.wsClients.clear();
+      this.context.close();
+    }
+  }
+
+  @SpringBootApplication
+  @EnableWebSocket
+  static class HttpServerApplication {
+
+    @Bean
+    public HttpServerConfiguration httpServerConfiguration() {
+      return new HttpServerConfiguration();
+    }
+
+    @Bean
+    public WebSocketConfigurer webSocketConfigurer(final HttpServerConfiguration config) {
+      return registry -> registry.addHandler(config.createWebSocketHandler(), "/audio").setAllowedOrigins("*");
+    }
+  }
+
+  static class HttpServerConfiguration {
+
+    private HttpResultImpl httpResultInstance;
+
+    void setHttpResultInstance(final HttpResultImpl instance) {
+      this.httpResultInstance = instance;
+    }
+
+    HttpResultImpl getHttpResultInstance() {
+      return this.httpResultInstance;
+    }
+
+    AudioWebSocketHandler createWebSocketHandler() {
+      return new AudioWebSocketHandler(this);
+    }
+  }
+
+  static class AudioWebSocketHandler extends BinaryWebSocketHandler {
+
+    private final HttpServerConfiguration config;
+
+    AudioWebSocketHandler(final HttpServerConfiguration config) {
+      this.config = config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void afterConnectionEstablished(final WebSocketSession session) throws Exception {
+      final HttpResultImpl instance = this.config.getHttpResultInstance();
+      System.out.println("WebSocket connection established: " + session.getId());
+      if (instance != null) {
+        instance.wsClients.add(session);
+      }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void afterConnectionClosed(final WebSocketSession session, final CloseStatus status) throws Exception {
+      final HttpResultImpl instance = this.config.getHttpResultInstance();
+      if (instance != null) {
+        instance.wsClients.remove(session);
+      }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void handleTransportError(final WebSocketSession session, final Throwable exception) throws Exception {
+      final HttpResultImpl instance = this.config.getHttpResultInstance();
+      if (instance != null) {
+        instance.wsClients.remove(session);
+      }
+    }
+  }
+
+  @RestController
+  static class HttpController {
+
+    private final HttpServerConfiguration config;
+
+    HttpController(final HttpServerConfiguration config) {
+      this.config = config;
+    }
+
+    /**
+     * Handles the root path and returns the HTML template.
+     *
+     * @return The HTML template as a string.
+     */
+    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    public String index() {
+      final HttpResultImpl instance = this.config.getHttpResultInstance();
+      return instance != null ? instance.html : "";
+    }
+
+    /**
+     * Handles the "/media" path and returns the current media URL parse dump.
+     *
+     * @return The current URL parse dump as JSON.
+     */
+    @GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public URLParseDump media() {
+      final HttpResultImpl instance = this.config.getHttpResultInstance();
+      return instance != null ? instance.current : new URLParseDump();
     }
   }
 }

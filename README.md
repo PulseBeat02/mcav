@@ -48,7 +48,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                   |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                          |
 | `mcav-jda`       | A module for integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels. |
-| `mcav-http`      | A module for integrating with [Javalin](https://github.com/javalin/javalin) to stream PCM audio to an HTTP website.               |
+| `mcav-http`      | A module for integrating with [Spring Boot](https://spring.io/) to stream PCM audio to an HTTP website.                           |
 | `mcav-vm`        | A module for integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                              |
 | `mcav-vnc`       | A module for integrating with VNC servers to capture video and control remote desktops.                                           |
 | `mcav-browser`   | A module for integrating with [Selenium](https://www.selenium.dev/) to provide browser support.                                   |

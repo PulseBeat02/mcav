@@ -3,18 +3,20 @@ plugins {
 }
 
 dependencies {
+
     // project dependencies
-    api("io.javalin:javalin:6.7.0")
-    api("com.fasterxml.jackson.core:jackson-databind:2.19.1")
+    api("org.springframework.boot:spring-boot-starter-web:3.5.3") {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
+    }
+    api("org.springframework.boot:spring-boot-starter-websocket:3.5.3") {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
+    }
 
     // provided
     compileOnlyApi(project(":mcav-common"))
 
     // testing
-    testImplementation("io.javalin:javalin:6.7.0")
     testImplementation(project(":mcav-common"))
-    testImplementation("org.slf4j:slf4j-simple:2.1.0-alpha1")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.1")
 }
 
 tasks {

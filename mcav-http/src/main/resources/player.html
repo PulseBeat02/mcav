@@ -905,7 +905,10 @@
 
                 pcmProcessor.gainNode.gain.value = volumeSlider.value / 100;
 
-                ws = new WebSocket('ws://' + location.hostname + ':%%PORT%%');
+                const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+                const endpoint = `${scheme}://${location.host}/audio`;
+
+                ws = new WebSocket(endpoint);
                 ws.binaryType = 'arraybuffer';
 
                 ws.onopen = function () {
