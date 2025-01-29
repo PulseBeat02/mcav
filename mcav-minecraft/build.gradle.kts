@@ -8,3 +8,16 @@ dependencies {
     compileOnlyApi("com.google.code.gson:gson:2.13.1")
     compileOnlyApi("net.java.dev.jna:jna:5.17.0")
 }
+
+tasks {
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    withType<Javadoc>().configureEach {
+        options.encoding = "UTF-8"
+    }
+
+}

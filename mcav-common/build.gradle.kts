@@ -7,3 +7,16 @@ dependencies {
     api("io.github.bonigarcia:webdrivermanager:6.1.0")
     api("com.shinyhut:vernacular:1.14")
 }
+
+tasks {
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    withType<Javadoc>().configureEach {
+        options.encoding = "UTF-8"
+    }
+
+}

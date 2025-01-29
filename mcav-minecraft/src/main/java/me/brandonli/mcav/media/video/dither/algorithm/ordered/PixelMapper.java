@@ -17,12 +17,19 @@
  */
 package me.brandonli.mcav.media.video.dither.algorithm.ordered;
 
+import com.google.common.base.Preconditions;
+
 /**
  * An interface representing a pixel mapping strategy. Implementations of this interface
  * define methods to provide a two-dimensional float matrix that transforms or maps pixel
  * data according to a specific algorithm.
  */
 public interface PixelMapper {
+
+  float MIN_STRENGTH = 0.0f;
+  float NORMAL_STRENGTH = 1.0f;
+  float MAX_STRENGTH = 2.0f;
+
   /**
    * Retrieves a two-dimensional float matrix that defines a mapping or transformation
    * strategy for pixel data. The matrix encapsulates the algorithm used for pixel mapping.
@@ -30,4 +37,25 @@ public interface PixelMapper {
    * @return a two-dimensional array of floats representing the pixel mapping or transformation matrix
    */
   float[][] getMatrix();
+
+  /**
+   * Creates a new instance of a {@link PixelMapper} that processes the provided input matrix
+   * using an ordered dithering algorithm. The method calculates a matrix of precomputed float
+   * values derived from the input integer matrix, a maximum threshold value, and a strength
+   * factor.
+   *
+   * @param matrix   a two-dimensional array of integers representing the input matrix to be
+   *                 processed. Each element of the matrix contributes to the final computed
+   *                 float values based on the dithering algorithm.
+   * @param strength a floating-point factor that adjusts the scaling strength of the dithering
+   *                 algorithm. This affects the degree of pixel intensity modification.
+   * @return an instance of {@link PixelMapper} containing the processed float matrix derived
+   * from the input values, maximum threshold, and strength.
+   */
+  static PixelMapper ofPixelMapper(final int[][] matrix, final float strength) {
+    Preconditions.checkNotNull(matrix, "Matrix cannot be null");
+    Preconditions.checkArgument(matrix.length > 0, "Matrix must have at least one row");
+    final int max = matrix.length * matrix[0].length - 1;
+    return new OrderedPixelMapper(matrix, max, strength);
+  }
 }

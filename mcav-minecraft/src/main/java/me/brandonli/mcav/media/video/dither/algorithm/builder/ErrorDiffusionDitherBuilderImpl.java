@@ -38,7 +38,7 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  */
 public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuilder<ErrorDiffusionDither, ErrorDiffusionDitherBuilderImpl> {
 
-  private Palette palette;
+  private Palette palette = Palette.DEFAULT;
   private Algorithm algorithm = Algorithm.FILTER_LITE;
 
   /**

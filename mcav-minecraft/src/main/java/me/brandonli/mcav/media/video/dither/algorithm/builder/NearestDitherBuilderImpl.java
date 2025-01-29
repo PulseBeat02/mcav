@@ -23,7 +23,7 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
 
 public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDither, NearestDitherBuilderImpl> {
 
-  private Palette palette;
+  private Palette palette = Palette.DEFAULT;
 
   /**
    * {@inheritDoc}

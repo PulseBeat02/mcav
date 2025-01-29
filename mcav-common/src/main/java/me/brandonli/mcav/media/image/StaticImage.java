@@ -17,13 +17,12 @@
  */
 package me.brandonli.mcav.media.image;
 
-import me.brandonli.mcav.media.source.FileSource;
-import me.brandonli.mcav.media.source.UriSource;
-import me.brandonli.mcav.utils.immutable.Point;
-
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
+import me.brandonli.mcav.media.source.FileSource;
+import me.brandonli.mcav.media.source.UriSource;
+import me.brandonli.mcav.utils.immutable.Point;
 
 /**
  * The StaticImage interface provides a suite of methods for handling and manipulating static images.

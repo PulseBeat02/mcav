@@ -19,12 +19,11 @@ package me.brandonli.mcav.media.video.result;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 import com.google.common.base.Preconditions;
+import java.util.Collection;
+import java.util.UUID;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.video.DitherResultStep;
 import me.brandonli.mcav.utils.PacketUtils;
-
-import java.util.Collection;
-import java.util.UUID;
 
 /**
  * Represents the result of processing a mapped video frame in a dithering operation.
@@ -67,7 +66,6 @@ public class MapResult implements DitherResultStep {
       return this;
     }
   }
-
 
   /**
    * Creates a new {@link Builder} instance for constructing {@link MapResult} objects.

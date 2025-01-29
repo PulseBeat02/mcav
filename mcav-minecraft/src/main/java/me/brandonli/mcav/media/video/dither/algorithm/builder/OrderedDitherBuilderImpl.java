@@ -30,8 +30,8 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  */
 public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDither, OrderedDitherBuilderImpl> {
 
-  private Palette palette;
-  private PixelMapper ditherMatrix;
+  private Palette palette = Palette.DEFAULT;
+  private PixelMapper ditherMatrix = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, PixelMapper.NORMAL_STRENGTH);
 
   /**
    * {@inheritDoc}

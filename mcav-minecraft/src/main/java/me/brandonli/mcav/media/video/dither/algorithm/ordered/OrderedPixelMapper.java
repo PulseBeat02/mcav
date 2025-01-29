@@ -35,28 +35,8 @@ public final class OrderedPixelMapper implements PixelMapper {
 
   private final float[][] matrix;
 
-  private OrderedPixelMapper(final int[][] matrix, final int max, final float strength) {
+  OrderedPixelMapper(final int[][] matrix, final int max, final float strength) {
     this.matrix = this.calculateMatrixArray(matrix, max, strength);
-  }
-
-  /**
-   * Creates a new instance of a {@link PixelMapper} that processes the provided input matrix
-   * using an ordered dithering algorithm. The method calculates a matrix of precomputed float
-   * values derived from the input integer matrix, a maximum threshold value, and a strength
-   * factor.
-   *
-   * @param matrix   a two-dimensional array of integers representing the input matrix to be
-   *                 processed. Each element of the matrix contributes to the final computed
-   *                 float values based on the dithering algorithm.
-   * @param max      the maximum threshold value. This is used to normalize the input values
-   *                 during the calculation of the resulting matrix.
-   * @param strength a floating-point factor that adjusts the scaling strength of the dithering
-   *                 algorithm. This affects the degree of pixel intensity modification.
-   * @return an instance of {@link PixelMapper} containing the processed float matrix derived
-   * from the input values, maximum threshold, and strength.
-   */
-  public static PixelMapper ofPixelMapper(final int[][] matrix, final int max, final float strength) {
-    return new OrderedPixelMapper(matrix, max, strength);
   }
 
   private float convertThresholdToAddition(

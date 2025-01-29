@@ -36,8 +36,8 @@ import me.brandonli.mcav.media.video.dither.palette.Palette;
  */
 public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither, RandomDitherBuilderImpl> {
 
-  private Palette palette;
-  private int weight;
+  private Palette palette = Palette.DEFAULT;;
+  private int weight = RandomDither.NORMAL_WEIGHT;
 
   /**
    * {@inheritDoc}
