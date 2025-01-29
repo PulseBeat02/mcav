@@ -107,7 +107,7 @@ public class VMInputExample {
 
     final VMConfiguration config = VMConfiguration.builder().cdrom(isoPath).memory(2048);
 
-    this.vmPlayer.start(pipeline, VMPlayer.Architecture.X86_64, config, VideoMetadata.of(600, 800));
+    this.vmPlayer.startAsync(pipeline, VMPlayer.Architecture.X86_64, config, VideoMetadata.of(600, 800));
   }
 
   private void cleanup() {

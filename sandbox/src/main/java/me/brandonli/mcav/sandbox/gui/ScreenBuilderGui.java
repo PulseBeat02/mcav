@@ -96,6 +96,7 @@ public final class ScreenBuilderGui extends Gui {
     this.setItem(3, 2, this.getWidthItem());
     this.setItem(3, 3, this.getHeightItem());
     this.setItem(3, 4, this.getMapItem());
+    this.setItem(3, 6, this.getMaterialItem());
     this.setItem(3, 8, this.getBuildScreenItem());
     this.update();
   }

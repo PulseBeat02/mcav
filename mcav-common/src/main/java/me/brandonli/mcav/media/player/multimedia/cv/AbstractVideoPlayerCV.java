@@ -73,7 +73,8 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private volatile @Nullable FrameGrabber audio;
   private volatile @Nullable FrameGrabber video;
-  private volatile @Nullable CompletableFuture<Void> retrievalFuture;
+  private volatile @Nullable CompletableFuture<Void> audioRetrievalFuture;
+  private volatile @Nullable CompletableFuture<Void> videoRetrievalFuture;
   private volatile @Nullable CompletableFuture<Void> audioProcessingFuture;
   private volatile @Nullable CompletableFuture<Void> videoProcessingFuture;
 
@@ -109,10 +110,11 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   }
 
   public AbstractVideoPlayerCV() {
+    final int threads = Runtime.getRuntime().availableProcessors();
     this.lock = new Object();
     this.running = new AtomicBoolean(false);
-    this.frameRetrieverExecutor = Executors.newSingleThreadExecutor();
-    this.frameProcessorExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    this.frameRetrieverExecutor = Executors.newFixedThreadPool(threads);
+    this.frameProcessorExecutor = Executors.newFixedThreadPool(threads);
     this.videoFrameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
     this.audioFrameBuffer = new LinkedBlockingQueue<>(BUFFER_CAPACITY);
   }
@@ -153,7 +155,8 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
 
       this.running.set(true);
-      this.retrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexer, this.frameRetrieverExecutor);
+      this.audioRetrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexerAudio, this.frameRetrieverExecutor);
+      this.videoRetrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexerVideo, this.frameRetrieverExecutor);
       this.audioProcessingFuture = CompletableFuture.runAsync(this::processAudioFrames, this.frameProcessorExecutor);
       this.videoProcessingFuture = CompletableFuture.runAsync(this::processVideoFrames, this.frameProcessorExecutor);
 
@@ -161,7 +164,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
   }
 
-  private void retrieveFramesMultiplexer() {
+  private void retrieveFramesMultiplexerAudio() {
     final FrameGrabber audio = requireNonNull(this.audio);
     final AudioMetadata audioMetadata = AudioMetadata.of(
       audio.getAudioCodecName(),
@@ -169,14 +172,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       audio.getSampleRate(),
       audio.getAudioChannels()
     );
-    final FrameGrabber video = requireNonNull(this.video);
-    final int width = video.getImageWidth();
-    final int height = video.getImageHeight();
-    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, video.getVideoBitrate(), (float) video.getFrameRate());
     try {
       Frame audioFrame;
-      Frame videoFrame;
-      while ((audioFrame = audio.grabFrame()) != null && (videoFrame = video.grabFrame()) != null && this.running.get()) {
+      while ((audioFrame = audio.grabFrame()) != null && this.running.get()) {
         final EnumSet<Frame.Type> audioTypes = audioFrame.getTypes();
         if (audioTypes.contains(Frame.Type.AUDIO)) {
           final Buffer[] arr = audioFrame.samples;
@@ -185,6 +183,21 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
             this.audioFrameBuffer.put(MediaFrame.audio(outBuffer, audioMetadata, audioFrame.timestamp));
           }
         }
+      }
+    } catch (final FrameGrabber.Exception | InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
+
+  private void retrieveFramesMultiplexerVideo() {
+    final FrameGrabber video = requireNonNull(this.video);
+    final int width = video.getImageWidth();
+    final int height = video.getImageHeight();
+    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, video.getVideoBitrate(), (float) video.getFrameRate());
+    try {
+      Frame videoFrame;
+      while ((videoFrame = video.grabFrame()) != null && this.running.get()) {
         final EnumSet<Frame.Type> videoTypes = videoFrame.getTypes();
         if (videoTypes.contains(Frame.Type.VIDEO)) {
           final Buffer[] arr = videoFrame.image;
@@ -368,7 +381,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
 
       this.running.set(true);
-      this.retrievalFuture = CompletableFuture.runAsync(this::retrieveFrames, this.frameRetrieverExecutor);
+      this.videoRetrievalFuture = CompletableFuture.runAsync(this::retrieveFrames, this.frameRetrieverExecutor);
       this.audioProcessingFuture = CompletableFuture.runAsync(this::processAudioFrames, this.frameProcessorExecutor);
       this.videoProcessingFuture = CompletableFuture.runAsync(this::processVideoFrames, this.frameProcessorExecutor);
 
@@ -410,9 +423,13 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private void shutdownGrabbers() {
     this.running.set(false);
-    if (this.retrievalFuture != null) {
-      this.retrievalFuture.cancel(true);
-      this.retrievalFuture = null;
+    if (this.audioRetrievalFuture != null) {
+      this.audioRetrievalFuture.cancel(true);
+      this.audioRetrievalFuture = null;
+    }
+    if (this.videoRetrievalFuture != null) {
+      this.videoRetrievalFuture.cancel(true);
+      this.videoRetrievalFuture = null;
     }
     if (this.audioProcessingFuture != null) {
       this.audioProcessingFuture.cancel(true);
@@ -464,10 +481,11 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         if (multiplexer) {
           requireNonNull(this.audio).start();
           requireNonNull(this.video).start();
-          this.retrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexer, this.frameRetrieverExecutor);
+          this.videoRetrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexerVideo, this.frameRetrieverExecutor);
+          this.audioRetrievalFuture = CompletableFuture.runAsync(this::retrieveFramesMultiplexerAudio, this.frameRetrieverExecutor);
         } else {
           requireNonNull(this.video).start();
-          this.retrievalFuture = CompletableFuture.runAsync(this::retrieveFrames, this.frameRetrieverExecutor);
+          this.videoRetrievalFuture = CompletableFuture.runAsync(this::retrieveFrames, this.frameRetrieverExecutor);
         }
       } catch (final FrameGrabber.Exception e) {
         throw new PlayerException(e.getMessage(), e);

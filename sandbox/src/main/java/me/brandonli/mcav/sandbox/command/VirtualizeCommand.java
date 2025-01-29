@@ -19,6 +19,8 @@ package me.brandonli.mcav.sandbox.command;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -32,6 +34,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -43,10 +46,14 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class VirtualizeCommand implements AnnotationCommandFeature {
 
+  private ExecutorService service;
+
   private @Nullable VMPlayer vmPlayer;
 
   @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {}
+  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+    this.service = Executors.newVirtualThreadPerTaskExecutor();
+  }
 
   @Command("mcav vm release")
   @Permission("mcav.vm.release")
@@ -116,7 +123,7 @@ public final class VirtualizeCommand implements AnnotationCommandFeature {
 
     try {
       this.vmPlayer = VMPlayer.vm();
-      this.vmPlayer.startAsync(pipeline, architecture, config, metadata);
+      this.vmPlayer.startAsync(pipeline, architecture, config, metadata, this.service);
     } catch (final Exception e) {
       throw new AssertionError(e);
     }
@@ -139,5 +146,10 @@ public final class VirtualizeCommand implements AnnotationCommandFeature {
       }
     }
     return config;
+  }
+
+  @Override
+  public void shutdown() {
+    ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 }

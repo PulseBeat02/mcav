@@ -21,6 +21,9 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 
+@FunctionalInterface
 public interface AnnotationCommandFeature {
   void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser);
+
+  default void shutdown() {}
 }

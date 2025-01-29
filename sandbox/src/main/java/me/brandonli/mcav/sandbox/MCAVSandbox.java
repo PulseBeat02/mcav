@@ -35,6 +35,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private MCAVApi mcav;
   private AudioProvider audioProvider;
   private VideoPlayerManager videoPlayerManager;
+  private AnnotationParserHandler annotationParserHandler;
   private PluginDataConfigurationMapper configurationMapper;
 
   @Override
@@ -85,8 +86,15 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onDisable() {
     this.shutdownLookupTables();
+    this.shutdownCommands();
     this.saveData();
     this.unloadMCAV();
+  }
+
+  private void shutdownCommands() {
+    if (this.annotationParserHandler != null) {
+      this.annotationParserHandler.shutdownCommands();
+    }
   }
 
   private void saveData() {
@@ -101,8 +109,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private void loadCommands() {
     this.logger.info("Loading Commands");
     final long startTime = System.currentTimeMillis();
-    final AnnotationParserHandler annotationParserHandler = new AnnotationParserHandler(this);
-    annotationParserHandler.registerCommands();
+    this.annotationParserHandler = new AnnotationParserHandler(this);
+    this.annotationParserHandler.registerCommands();
     final long endTime = System.currentTimeMillis();
     this.logger.info("Commands loaded in " + (endTime - startTime) + "ms");
   }

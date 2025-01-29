@@ -85,7 +85,7 @@ public class VMPlayerImpl implements VMPlayer {
       final ProcessBuilder processBuilder = new ProcessBuilder(arguments);
       this.qemuProcess = processBuilder.start();
       try {
-        Thread.sleep(2000);
+        Thread.sleep(10000);
       } catch (final InterruptedException e) {
         final Thread currentThread = Thread.currentThread();
         currentThread.interrupt();

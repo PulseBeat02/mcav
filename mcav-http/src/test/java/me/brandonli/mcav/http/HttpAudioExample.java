@@ -49,7 +49,7 @@ public final class HttpAudioExample {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.NO_OP;
     result.start();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.start(audioPipelineStep, videoPipelineStep, videoFormat, audioFormat);
 
     Runtime.getRuntime()

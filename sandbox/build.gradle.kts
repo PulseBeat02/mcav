@@ -48,7 +48,7 @@ tasks.withType<AbstractRun>().configureEach {
         languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     })
     jvmArgs(
-        "-Xmx8192m",
+        "-Xmx3072m",
         "-XX:+AllowEnhancedClassRedefinition",
         "-XX:+AllowRedefinitionToAddDeleteMethods"
     )
@@ -73,7 +73,7 @@ tasks {
         options.encoding = "UTF-8"
         options.release.set(targetJavaVersion)
         options.isFork = true
-        options.forkOptions.memoryMaximumSize = "4g"
+        options.forkOptions.memoryMaximumSize = "2g"
     }
 
     processResources {

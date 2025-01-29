@@ -1,5 +1,11 @@
-Things to implement into plugin
-  - Images and GIFs into Plugin
-  - Add Support for Virtual Machine into Plugin
-  - Add Interaction for Virtual Machine / Browser
-  - Update video showcase in the README
+Development Milestones
+  - Fix Virtual Machine Support
+
+  - Add Images and GIF Support into Plugin
+  - Add Interaction Support for Virtual Machine
+  - Add Interaction Support for Browser
+
+Public Milestones
+  - Update video showcase in the README (music discs for VM, etc)
+  - Post onto Reddit (admincraft, sysadmin, etc..)
+  - Post onto Discord

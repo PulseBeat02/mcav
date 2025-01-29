@@ -91,4 +91,10 @@ public final class AnnotationParserHandler {
       this.parser.parse(feature);
     }
   }
+
+  public void shutdownCommands() {
+    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
+      feature.shutdown();
+    }
+  }
 }
