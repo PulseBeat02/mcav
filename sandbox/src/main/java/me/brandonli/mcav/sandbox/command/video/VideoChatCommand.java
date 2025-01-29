@@ -40,6 +40,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.result.ChatResult;
+import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.media.source.*;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
@@ -156,7 +157,9 @@ public final class VideoChatCommand implements AnnotationCommandFeature {
   private VideoPipelineStep createChatVideoFilter(final String character, final Pair<Integer, Integer> resolution) {
     final Collection<UUID> players = this.getAllViewers();
     final ChatConfiguration configuration = this.constructChatConfiguration(resolution, character, players);
-    final VideoFilter result = new ChatResult(configuration);
+    final FunctionalVideoFilter result = new ChatResult(configuration);
+    result.start();
+    this.manager.setFilter(result);
     return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(result).build();
   }
 

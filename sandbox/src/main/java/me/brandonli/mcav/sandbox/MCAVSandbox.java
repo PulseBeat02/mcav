@@ -51,8 +51,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private AudienceProvider audienceProvider;
   private Logger logger;
 
-  private VideoPlayerManager videoPlayerManager;
   private MCAVApi mcav;
+  private VideoPlayerManager videoPlayerManager;
   private PluginDataConfigurationMapper configurationMapper;
 
   @Override
@@ -146,7 +146,9 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private void shutdownLookupTables() {
-    // no-op
+    if (this.videoPlayerManager != null) {
+      this.videoPlayerManager.shutdown();
+    }
   }
 
   private void initLookupTables() {

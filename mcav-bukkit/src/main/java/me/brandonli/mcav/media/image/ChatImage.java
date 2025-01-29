@@ -68,6 +68,7 @@ public class ChatImage implements DisplayableImage {
    */
   @Override
   public void release() {
-    // none
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    ChatUtils.clearChat(viewers);
   }
 }

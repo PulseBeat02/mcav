@@ -43,7 +43,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  * - Creating chat components from processed frames
  * - Sending chat messages to the configured set of viewers
  */
-public class ChatResult implements VideoFilter {
+public class ChatResult implements FunctionalVideoFilter {
 
   private final ChatConfiguration configuration;
 
@@ -72,5 +72,20 @@ public class ChatResult implements VideoFilter {
     final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWdith, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);
+  }
+
+  @Override
+  public void start() {
+    this.clearChatMessages();
+  }
+
+  @Override
+  public void release() {
+    this.clearChatMessages();
+  }
+
+  private void clearChatMessages() {
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    ChatUtils.clearChat(viewers);
   }
 }

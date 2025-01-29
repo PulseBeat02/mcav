@@ -17,8 +17,13 @@
  */
 package me.brandonli.mcav.utils;
 
+import java.util.Collection;
+import java.util.UUID;
 import net.minecraft.network.chat.Component;
+import org.apache.commons.lang3.StringUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.util.CraftChatMessage;
+import org.bukkit.entity.Player;
 
 /**
  * Utility class for creating and manipulating chat components with color-coded text representations.
@@ -100,5 +105,23 @@ public final class ChatUtils {
     }
     final String line = builder.toString();
     return CraftChatMessage.fromStringOrNull(line, true);
+  }
+
+  /**
+   * Clears the chat for a collection of viewers by sending a large number of newline characters
+   * to simulate an empty chat screen.
+   *
+   * @param viewers a collection of {@link UUID} objects representing the players whose chat
+   *                will be cleared
+   */
+  public static void clearChat(final Collection<UUID> viewers) {
+    final String repeated = StringUtils.repeat("\n", 100);
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
+      player.sendMessage(repeated);
+    }
   }
 }

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
@@ -45,8 +47,10 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void releaseVideo(final Player player) {
     final BukkitAudiences audiences = this.manager.getAudiences();
     final Audience audience = audiences.sender(player);
-    this.manager.releaseVideoPlayer();
-    audience.sendMessage(Message.VIDEO_RELEASED.build());
+    final ExecutorService service = this.manager.getService();
+    audience.sendMessage(Message.VIDEO_RELEASED_START.build());
+    CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service).thenRun(() -> audience.sendMessage(Message.VIDEO_RELEASED.build())
+    );
   }
 
   @Command("mcav video pause")

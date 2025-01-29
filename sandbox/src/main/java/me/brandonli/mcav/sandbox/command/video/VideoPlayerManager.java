@@ -24,6 +24,7 @@ import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.result.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
+import me.brandonli.mcav.utils.ExecutorUtils;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -36,15 +37,15 @@ public final class VideoPlayerManager {
   private final ExecutorService service;
   private final BukkitAudiences audiences;
 
-  // create separate classes for each video player (map, entity, scoreboard, chat)
-  // create basic video player control class
-  // create class to extend
-
   public VideoPlayerManager(final MCAVSandbox plugin) {
     final AudienceProvider provider = plugin.getAudience();
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.audiences = provider.retrieve();
+  }
+
+  public void shutdown() {
+    ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 
   public void releaseVideoPlayer() {

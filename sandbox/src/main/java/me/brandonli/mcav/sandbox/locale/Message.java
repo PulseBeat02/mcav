@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
+  NullComponent<Sender> VIDEO_RELEASED_START = direct("mcav.command.video.release.start");
   NullComponent<Sender> VIDEO_LOADING_ERROR = direct("mcav.command.video.load.error");
   NullComponent<Sender> VIDEO_RELEASED = direct("mcav.command.video.release");
   NullComponent<Sender> VIDEO_PAUSED = direct("mcav.command.video.pause");
