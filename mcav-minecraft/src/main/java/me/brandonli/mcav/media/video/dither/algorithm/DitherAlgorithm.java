@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.video.dither.algorithm;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.video.dither.algorithm.builder.*;
 import me.brandonli.mcav.media.video.dither.algorithm.error.ErrorDiffusionDither;
+import me.brandonli.mcav.media.video.dither.algorithm.nearest.NearestDither;
 import me.brandonli.mcav.media.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDither;
 import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDitherImpl;
@@ -99,5 +100,17 @@ public interface DitherAlgorithm {
    */
   static OrderedDitherBuilder<BayerDither, OrderedDitherBuilderImpl> ordered() {
     return new OrderedDitherBuilderImpl();
+  }
+
+  /**
+   * Creates a builder for constructing instances of {@code NearestDither}.
+   * This builder allows customization of parameters such as the palette,
+   * used to configure and build the dithering algorithm.
+   *
+   * @return an instance of {@code NearestDitherBuilderImpl} for configuring and
+   * building a {@code NearestDither} instance.
+   */
+  static NearestDitherBuilder<NearestDither, NearestDitherBuilderImpl> nearest() {
+    return new NearestDitherBuilderImpl();
   }
 }

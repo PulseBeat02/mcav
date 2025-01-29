@@ -87,6 +87,10 @@ subprojects {
             dependsOn("spotlessApply")
         }
 
+        configurations.all {
+            resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+        }
+
         spotless {
             java {
                 importOrder()

@@ -9,7 +9,9 @@ plugins {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.5-R0.1-SNAPSHOT")
     implementation("com.alessiodp.libby:libby-bukkit:2.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-minecraft:1.0.0-SNAPSHOT") {
+        isChanging = true
+    }
     compileOnly("org.incendo:cloud-core:2.0.0")
     compileOnly("org.incendo:cloud-annotations:2.0.0")
     compileOnly("org.incendo:cloud-paper:2.0.0-beta.10")
