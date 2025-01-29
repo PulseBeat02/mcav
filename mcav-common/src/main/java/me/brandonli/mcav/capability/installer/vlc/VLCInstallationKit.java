@@ -17,17 +17,18 @@
  */
 package me.brandonli.mcav.capability.installer.vlc;
 
+import me.brandonli.mcav.capability.installer.AbstractInstaller;
+import me.brandonli.mcav.capability.installer.vlc.discovery.LinuxNativeDiscoveryStrategy;
+import me.brandonli.mcav.capability.installer.vlc.discovery.OsxNativeDiscoveryStrategy;
+import me.brandonli.mcav.capability.installer.vlc.discovery.WindowsNativeDiscoveryStrategy;
+import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
-import me.brandonli.mcav.capability.installer.AbstractInstaller;
-import me.brandonli.mcav.capability.installer.vlc.discovery.LinuxNativeDiscoveryStrategy;
-import me.brandonli.mcav.capability.installer.vlc.discovery.OsxNativeDiscoveryStrategy;
-import me.brandonli.mcav.capability.installer.vlc.discovery.WindowsNativeDiscoveryStrategy;
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
 /**
  * VLC Installation manager.
@@ -69,7 +70,7 @@ public final class VLCInstallationKit {
     final String value = absolute.toString();
 
     final Properties properties = new Properties();
-    properties.setProperty("libvlc4.nativeDirectory", value);
+    properties.setProperty("nativeDirectory", value);
 
     try (final OutputStream stream = Files.newOutputStream(CONFIG_FILE)) {
       properties.store(stream, "VLC native directory configuration");
@@ -80,9 +81,9 @@ public final class VLCInstallationKit {
     final OsxNativeDiscoveryStrategy osxNativeDiscoveryStrategy = new OsxNativeDiscoveryStrategy();
     final WindowsNativeDiscoveryStrategy windowsNativeDiscoveryStrategy = new WindowsNativeDiscoveryStrategy();
     final NativeDiscovery discovery = new NativeDiscovery(
-      linuxNativeDiscoveryStrategy,
-      osxNativeDiscoveryStrategy,
-      windowsNativeDiscoveryStrategy
+            linuxNativeDiscoveryStrategy,
+            osxNativeDiscoveryStrategy,
+            windowsNativeDiscoveryStrategy
     );
     final NativeDiscovery defaultDiscovery = new NativeDiscovery();
     if (!discovery.discover() && !defaultDiscovery.discover()) {
