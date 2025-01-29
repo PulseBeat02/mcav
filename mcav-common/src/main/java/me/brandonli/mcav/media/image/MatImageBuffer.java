@@ -17,7 +17,10 @@
  */
 package me.brandonli.mcav.media.image;
 
+import static org.bytedeco.opencv.global.opencv_core.*;
+
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,7 +33,6 @@ import me.brandonli.mcav.utils.examinable.ExaminableObject;
 import me.brandonli.mcav.utils.examinable.ExaminableProperty;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.indexer.Indexer;
-import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -49,7 +51,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   private final Mat mat;
 
   MatImageBuffer(final byte[] bytes, final int width, final int height) {
-    this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+    this.mat = new Mat(height, width, CV_8UC3);
     this.mat.data().put(bytes);
     this.assignMat(this.mat);
   }
@@ -65,7 +67,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   }
 
   MatImageBuffer(final int[] data, final int width, final int height) {
-    final Mat originalMat = new Mat(height, width, opencv_core.CV_8UC4);
+    final Mat originalMat = new Mat(height, width, CV_8UC4);
     final byte[] byteData = new byte[data.length * 4];
     for (int i = 0; i < data.length; i++) {
       final int pixel = data[i];
@@ -81,12 +83,52 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   }
 
   MatImageBuffer(final BufferedImage image) throws IOException {
-    image.setAccelerationPriority(1.0f);
-    final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-    ImageIO.write(image, "jpg", byteArrayOutputStream);
-    byteArrayOutputStream.flush();
-    this.mat = opencv_imgcodecs.imdecode(new Mat(new BytePointer(byteArrayOutputStream.toByteArray())), opencv_imgcodecs.IMREAD_UNCHANGED);
-    this.assignMat(this.mat);
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final Mat mat;
+    switch (image.getType()) {
+      case BufferedImage.TYPE_3BYTE_BGR: {
+        final byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        mat = new Mat(height, width, CV_8UC3);
+        mat.data().put(pixels);
+        this.mat = mat;
+        this.assignMat(this.mat);
+        break;
+      }
+      case BufferedImage.TYPE_4BYTE_ABGR: {
+        final byte[] abgr = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        mat = new Mat(height, width, CV_8UC4);
+        final BytePointer ptr = mat.data();
+        for (int i = 0; i < abgr.length; i += 4) {
+          ptr.put(i + 0, abgr[i + 1]);
+          ptr.put(i + 1, abgr[i + 2]);
+          ptr.put(i + 2, abgr[i + 3]);
+          ptr.put(i + 3, abgr[i + 0]);
+        }
+        this.mat = mat;
+        this.assignMat(this.mat);
+        break;
+      }
+      case BufferedImage.TYPE_BYTE_GRAY: {
+        final byte[] gray = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        mat = new Mat(height, width, CV_8UC1);
+        mat.data().put(gray);
+        this.mat = mat;
+        this.assignMat(this.mat);
+        break;
+      }
+      default: {
+        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ImageIO.write(image, "jpg", byteArrayOutputStream);
+        byteArrayOutputStream.flush();
+        this.mat = opencv_imgcodecs.imdecode(
+          new Mat(new BytePointer(byteArrayOutputStream.toByteArray())),
+          opencv_imgcodecs.IMREAD_UNCHANGED
+        );
+        this.assignMat(this.mat);
+        break;
+      }
+    }
   }
 
   MatImageBuffer(final byte[] bytes) {
@@ -209,7 +251,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
       final byte[] bytes = byteArrayOutputStream.toByteArray();
       byteArrayOutputStream.close();
       final BytePointer bytePointer = new BytePointer(bytes);
-      final Mat byteMat = new Mat(1, bytes.length, opencv_core.CV_8UC1, bytePointer);
+      final Mat byteMat = new Mat(1, bytes.length, CV_8UC1, bytePointer);
       final Mat newMat = opencv_imgcodecs.imdecode(byteMat, opencv_imgcodecs.IMREAD_UNCHANGED);
       this.mat.release();
       newMat.copyTo(this.mat);

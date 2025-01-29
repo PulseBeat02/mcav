@@ -28,7 +28,8 @@ import me.brandonli.mcav.utils.examinable.Examinable;
  */
 public interface ImageBuffer extends Image, Examinable {
   /**
-   * Creates a new StaticImage instance using the given byte data, width, and height.
+   * Creates a new StaticImage instance using the given byte data, width, and height. Must be 3
+   * channels RGB format.
    *
    * @param data   the byte array representing the image data
    * @param width  the width of the image
@@ -40,7 +41,7 @@ public interface ImageBuffer extends Image, Examinable {
   }
 
   /**
-   * Converts the given byte array into a StaticImage object.
+   * Converts the given byte array directly into a StaticImage object.
    *
    * @param bytes the byte array representing the image data
    * @return a StaticImage object created from the provided byte array
@@ -70,7 +71,7 @@ public interface ImageBuffer extends Image, Examinable {
   }
 
   /**
-   * Creates a StaticImage instance from an array of pixel data.
+   * Creates a StaticImage instance from an array of pixel data. Must be 4 channels RGBA.
    *
    * @param data   the pixel data as an array of integers
    * @param width  the width of the image

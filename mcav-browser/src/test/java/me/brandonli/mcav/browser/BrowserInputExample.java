@@ -53,7 +53,7 @@ public final class BrowserInputExample {
     video.add(videoLabel, BorderLayout.CENTER);
     video.setVisible(true);
 
-    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.papermc.io"), 100, 1920, 1080, 1);
+    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
 
     BufferedImage bufferedImage;
     ImageIcon icon;
@@ -62,7 +62,7 @@ public final class BrowserInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final BrowserPlayer browser = BrowserPlayer.playwright();
+    final BrowserPlayer browser = BrowserPlayer.selenium();
     browser.start(videoPipelineStep, browserSource);
     videoLabel.addMouseListener(
       new MouseAdapter() {
