@@ -29,10 +29,13 @@ dependencies {
 
 ## Getting Started
 
-You must call the `initialize()` method with your own plugin, as `mcav-bukkit` requires a plugin instance.
+You must pass the plugin class to the `MCAVApi` install method to initialize the Bukkit module. Then, you must inject
+your plugin instance using the `inject` method, as `mcav-bukkit` requires a plugin instance.
 
 ```java
-  final MCAVApi api = ...;
+  final MCAVApi api = MCAV.api();
+  api.install(BukkitModule.class);
+
   final BukkitModule module = api.getModule(BukkitModule.class);
   module.inject(this);
 ```

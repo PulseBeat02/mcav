@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.sandbox;
 
-import dev.triumphteam.gui.TriumphGui;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
@@ -56,7 +55,6 @@ public final class MCAVSandbox extends JavaPlugin {
     this.loadManager();
     this.loadCommands();
     this.loadListeners();
-    this.initLookupTables();
   }
 
   private void loadManager() {
@@ -69,10 +67,13 @@ public final class MCAVSandbox extends JavaPlugin {
   private void loadMCAV() {
     this.logger.info("Loading MCAV Library");
     final long startTime = System.currentTimeMillis();
+
     this.mcav = MCAV.api();
-    this.mcav.install();
+    this.mcav.install(BukkitModule.class);
+
     final BukkitModule module = this.mcav.getModule(BukkitModule.class);
     module.inject(this);
+
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Library loaded in " + (endTime - startTime) + "ms");
   }
@@ -137,14 +138,6 @@ public final class MCAVSandbox extends JavaPlugin {
     if (this.imageManager != null) {
       this.imageManager.shutdown();
     }
-  }
-
-  private void initLookupTables() {
-    this.logger.info("Initializing Lookup Tables");
-    final long startTime = System.currentTimeMillis();
-    TriumphGui.init(this);
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("Lookup Tables initialized in " + (endTime - startTime) + "ms");
   }
 
   public MCAVApi getMCAV() {

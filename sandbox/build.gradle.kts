@@ -23,9 +23,9 @@ dependencies {
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
     runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.10")
     runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.10")
+
     runtimeDownload("me.lucko:commodore:2.2")
     runtimeDownload("org.bstats:bstats-bukkit:3.1.0")
-    runtimeDownload("dev.triumphteam:triumph-gui:3.1.12")
     runtimeDownload("net.dv8tion:JDA:5.5.1")
     runtimeDownload("io.javalin:javalin:6.6.0")
 }

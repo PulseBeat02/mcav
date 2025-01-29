@@ -18,10 +18,12 @@
 package me.brandonli.mcav.browser;
 
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public final class BrowserModule implements MCAVModule {
+
+  public BrowserModule() {
+    // no-op
+  }
 
   @Override
   public void start() {

@@ -18,10 +18,12 @@
 package me.brandonli.mcav.vnc;
 
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public final class VNCModule implements MCAVModule {
+
+  public VNCModule() {
+    // no-op
+  }
 
   @Override
   public void start() {

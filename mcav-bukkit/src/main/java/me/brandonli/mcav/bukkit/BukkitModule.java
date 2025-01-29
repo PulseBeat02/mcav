@@ -21,19 +21,17 @@ import me.brandonli.mcav.MCAVModule;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import org.bukkit.plugin.Plugin;
-import org.pf4j.Extension;
 
 /**
  * The main entry point for Bukkit integration. Requires injection of a plugin instance to load
  * listeners and schedulers.
  */
-@Extension
 public final class BukkitModule implements MCAVModule {
 
   private static Plugin PLUGIN;
 
-  private BukkitModule() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  public BukkitModule() {
+    // no-op
   }
 
   /**
@@ -42,9 +40,9 @@ public final class BukkitModule implements MCAVModule {
    * @param plugin the Plugin instance
    */
   public void inject(final Plugin plugin) {
+    PLUGIN = plugin;
     BlockPaletteLookup.init();
     PacketUtils.init();
-    PLUGIN = plugin;
   }
 
   /**

@@ -7,6 +7,7 @@ parts:
   - caption: Sandbox Plugin 🏗️
     chapters:
       - file: plugin/plugin.md
+      - file: plugin/tutorial.md
       - file: plugin/commands.md
       - file: plugin/faq.md
   - caption: Common Library + Core Modules 🚀

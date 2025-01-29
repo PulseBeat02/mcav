@@ -22,12 +22,16 @@ which will tab-complete the permission for you.
 
 ---
 
-| **Command**     | `/mcav screen`                                                                                      |
-|-----------------|-----------------------------------------------------------------------------------------------------|
-| **Usage**       | `/mcav screen`                                                                                      |
-| **Permission**  | `mcav.command.screen`                                                                               |
-| **Description** | Brings up a menu to build a new map screen. Use the block width and height to construct the screen. |
-| **Arguments**   | None                                                                                                |
+| **Command**                               | `/mcav screen <blockDimensions> <mapID> <material> <location>`                                      |
+|-------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav screen <blockDimensions> <mapID> <material> <location>`                                      |
+| **Permission**                            | `mcav.command.screen`                                                                               |
+| **Description**                           | Brings up a menu to build a new map screen. Use the block width and height to construct the screen. |
+| **Arguments**                             |                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions` | The dimensions of the map blocks (e.g., 3x2)                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapID`           | The ID of the map to use                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`material`        | The material to use for the screen frame                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to build the screen                                                       |
 
 ---
 
@@ -41,6 +45,11 @@ which will tab-complete the permission for you.
 ---
 
 ## Video Commands
+
+```{note}
+If you set the video player to be `FFMPEG`, you can also specify directly a format and input to use. For example, you can
+stream OBS output by setting the `mrl` argument to be `dshow:video=OBS Virtual Camera` on Windows.
+```
 
 | **Command**     | `/mcav video release`                                     |
 |-----------------|-----------------------------------------------------------|
@@ -180,7 +189,7 @@ which will tab-complete the permission for you.
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full URL**.                                                                     |
 
 ---
 
@@ -208,20 +217,20 @@ You must have QEMU installed and configured to use these commands.
 
 ---
 
-| **Command**                                  | `/mcav vm create`                                                                                                                        |
-|----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav vm create <playerSelector> <browserResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>` |
-| **Permission**                               | `mcav.command.vm.create`                                                                                                                 |
-| **Description**                              | Creates and displays a virtual machine on a map.                                                                                         |
-| **Arguments**                                |                                                                                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720)                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`targetFps`          | Target frames per second for the VM (minimum value: 1)                                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory, etc)                                   |
+| **Command**                                  | `/mcav vm create`                                                                                                                   |
+|----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>` |
+| **Permission**                               | `mcav.command.vm.create`                                                                                                            |
+| **Description**                              | Creates and displays a virtual machine on a map.                                                                                    |
+| **Arguments**                                |                                                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`targetFps`          | Target frames per second for the VM (minimum value: 1)                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory, etc)                              |
 
 ---
 

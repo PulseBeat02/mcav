@@ -105,14 +105,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   }
 
   @Command(
-    "mcav vm create <playerSelector> <browserResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
+    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
   public void playVM(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "resolutions") @Quoted final String vmResolution,
     @Argument(suggestions = "target-fps") @Range(min = "1") final int targetFps,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
@@ -123,7 +123,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
     try {
-      resolution = ArgumentUtils.parseDimensions(browserResolution);
+      resolution = ArgumentUtils.parseDimensions(vmResolution);
       dimensions = ArgumentUtils.parseDimensions(blockDimensions);
     } catch (final IllegalArgumentException e) {
       sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());

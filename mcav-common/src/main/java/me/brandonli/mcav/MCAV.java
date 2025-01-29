@@ -18,9 +18,11 @@
 package me.brandonli.mcav;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
@@ -38,8 +40,6 @@ import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
 import org.bytedeco.opencv.global.*;
 import org.bytedeco.opencv.opencv_java;
-import org.pf4j.JarPluginManager;
-import org.pf4j.PluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,13 +94,13 @@ public final class MCAV implements MCAVApi {
    * {@inheritDoc}
    */
   @Override
-  public void install() {
+  public void install(final Class<?>... plugins) {
     this.installYTDLP();
     this.installVLC();
     this.installQemu();
     this.installMisc();
+    this.loadPlugins(plugins);
     this.updateLoadStatus();
-    this.loadPlugins();
   }
 
   @Override
@@ -108,28 +108,39 @@ public final class MCAV implements MCAVApi {
     final MCAVModule module = this.modules.get(moduleClass);
     if (module == null) {
       final String name = moduleClass.getSimpleName();
-      final String msg = "Module %s does not exist or is not loaded!";
-      throw new UnknownModuleException(msg);
+      final String msg = "Module %s does not exist or is not loaded!".formatted(name);
+      throw new ModuleException(msg);
     }
     return moduleClass.cast(module);
   }
 
-  private void loadPlugins() {
-    final PluginManager manager = new JarPluginManager();
-    final List<MCAVModule> loaded = manager.getExtensions(MCAVModule.class);
-    for (final MCAVModule module : loaded) {
+  private void loadPlugins(final Class<?>... plugins) {
+    final MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    final MethodType type = MethodType.methodType(void.class);
+    for (final Class<?> plugin : plugins) {
+      if (!MCAVModule.class.isAssignableFrom(plugin)) {
+        final String name = plugin.getSimpleName();
+        final String msg = "Plugin %s is not a valid MCAV plugin!".formatted(name);
+        throw new ModuleException(msg);
+      }
+      final MCAVModule module = this.tryPluginLoad(plugin, lookup, type);
       final Class<?> moduleClass = module.getClass();
       this.modules.put(moduleClass, module);
+      module.start();
+    }
+  }
+
+  private MCAVModule tryPluginLoad(final Class<?> plugin, final MethodHandles.Lookup lookup, final MethodType type) {
+    try {
+      final MethodHandle constructor = lookup.findConstructor(plugin, type);
+      return (MCAVModule) constructor.invoke();
+    } catch (final Throwable e) {
+      throw new ModuleException(e.getMessage(), e);
     }
   }
 
   private void shutdownPlugins() {
-    final PluginManager manager = new JarPluginManager();
-    for (final MCAVModule module : this.modules.values()) {
-      module.stop();
-    }
-    manager.stopPlugins();
-    this.modules.clear();
+    this.modules.values().forEach(MCAVModule::stop);
   }
 
   private void updateLoadStatus() {

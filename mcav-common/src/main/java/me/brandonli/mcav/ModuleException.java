@@ -18,17 +18,18 @@
 package me.brandonli.mcav;
 
 import java.io.Serial;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class UnknownModuleException extends AssertionError {
+public class ModuleException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = -2431307065385281467L;
 
-  public UnknownModuleException(final String message) {
+  public ModuleException(final String message) {
     super(message);
   }
 
-  public UnknownModuleException(final String message, final Throwable cause) {
+  public ModuleException(final @Nullable String message, final Throwable cause) {
     super(message, cause);
   }
 }

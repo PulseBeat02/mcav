@@ -18,10 +18,12 @@
 package me.brandonli.mcav.jda;
 
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public class JDAModule implements MCAVModule {
+
+  public JDAModule() {
+    // no-op
+  }
 
   @Override
   public void start() {

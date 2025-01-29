@@ -46,7 +46,7 @@ public interface MCAVApi {
    * It is recommended to invoke this method before attempting to utilize any
    * capabilities provided by the library.
    */
-  void install();
+  void install(final Class<?>... plugins);
 
   /**
    * Asynchronously installs the required resources and dependencies for the library.
@@ -55,23 +55,12 @@ public interface MCAVApi {
    *
    * @return a {@link CompletableFuture} that completes when the installation process has finished.
    */
-  default CompletableFuture<Void> installAsync() {
-    return this.installAsync(ForkJoinPool.commonPool());
+  default CompletableFuture<Void> installAsync(final Class<?>... plugins) {
+    return this.installAsync(ForkJoinPool.commonPool(), plugins);
   }
 
-  /**
-   * Executes the {@link #install()} method asynchronously using the specified {@link ExecutorService}.
-   * The asynchronous operation allows for the installation process to run in a separate thread,
-   * enabling non-blocking behavior.
-   *
-   * @param service the {@link ExecutorService} to be used for running the asynchronous installation
-   *                process. This allows the caller to control the thread-pool configuration, such
-   *                as the number of threads and execution policy.
-   * @return a {@link CompletableFuture} that completes when the {@link #install()} method has
-   * finished execution, or completes exceptionally if an error occurs during installation.
-   */
-  default CompletableFuture<Void> installAsync(final ExecutorService service) {
-    return CompletableFuture.runAsync(this::install, service);
+  default CompletableFuture<Void> installAsync(final ExecutorService service, final Class<?>... plugins) {
+    return CompletableFuture.runAsync(() -> this.install(plugins), service);
   }
 
   /**

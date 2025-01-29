@@ -18,10 +18,12 @@
 package me.brandonli.mcav.vm;
 
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public final class VMModule implements MCAVModule {
+
+  public VMModule() {
+    // no-op
+  }
 
   @Override
   public void start() {

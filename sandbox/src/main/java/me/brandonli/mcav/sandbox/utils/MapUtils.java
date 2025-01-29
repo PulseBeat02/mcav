@@ -54,6 +54,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -99,11 +100,22 @@ public final class MapUtils {
     return map;
   }
 
-  public static void buildMapScreen(final Player player, final Material mat, final int width, final int height, final int map) {
-    final World world = player.getWorld();
-    final BlockFace face = player.getFacing();
+  public static void buildMapScreen(
+    final CommandSender sender,
+    final Location location,
+    final Material mat,
+    final int width,
+    final int height,
+    final int map
+  ) {
+    final World world = location.getWorld();
+    final BlockFace face;
+    if (sender instanceof final Player player) {
+      face = player.getFacing();
+    } else {
+      face = BlockFace.NORTH;
+    }
     final BlockFace opposite = face.getOppositeFace();
-    final Location location = requireNonNull(player.getLocation());
     final Block start = location.getBlock().getRelative(face);
     if (face == BlockFace.NORTH) {
       handleNorth(mat, width, height, start, face, world, opposite, map);

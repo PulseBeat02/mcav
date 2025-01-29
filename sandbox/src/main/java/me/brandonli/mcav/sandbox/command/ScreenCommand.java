@@ -18,28 +18,46 @@
 package me.brandonli.mcav.sandbox.command;
 
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.gui.ScreenBuilderGui;
+import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.MapUtils;
+import me.brandonli.mcav.utils.immutable.Pair;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-import org.incendo.cloud.annotations.AnnotationParser;
-import org.incendo.cloud.annotations.Command;
-import org.incendo.cloud.annotations.CommandDescription;
-import org.incendo.cloud.annotations.Permission;
+import org.incendo.cloud.annotation.specifier.Quoted;
+import org.incendo.cloud.annotation.specifier.Range;
+import org.incendo.cloud.annotations.*;
 
 public final class ScreenCommand implements AnnotationCommandFeature {
 
-  private MCAVSandbox plugin;
-
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    this.plugin = plugin;
+    // no-op
   }
 
-  @Command("mcav screen")
+  @Command("mcav screen <blockDimensions> <mapId> <material> <location>")
   @Permission("mcav.command.screen")
   @CommandDescription("mcav.command.screen.info")
-  public void showScreenBuilderGui(final Player player) {
-    final ScreenBuilderGui gui = new ScreenBuilderGui(player);
-    gui.open(player);
+  public void buildScreen(
+    final CommandSender sender,
+    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
+    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    final Material material,
+    final Location location
+  ) {
+    final Pair<Integer, Integer> dimensions;
+    try {
+      dimensions = ArgumentUtils.parseDimensions(blockDimensions);
+    } catch (final IllegalArgumentException e) {
+      sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
+      return;
+    }
+
+    final int width = dimensions.getFirst();
+    final int height = dimensions.getSecond();
+    MapUtils.buildMapScreen(sender, location, material, width, height, mapId);
+
+    sender.sendMessage(Message.SCREEN_BUILD.build());
   }
 }

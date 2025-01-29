@@ -10,23 +10,26 @@ dependencies {
 }
 ```
 
-Now, create a new module class with the `@Extension` qualifier so that it can be recognized and loaded. Now, when another user shades your library, MCAV will detect it on the classpath and automatically load it and stop it as needed!
+Now, create your module by implementing the `MCAVModule` interface. To use your new module, pass `ExampleModule.class`
+when you call the `install` method on the `MCAVApi` class.
 
 ```java
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public final class ExampleModule implements MCAVModule {
 
-  @Override
-  public void start() {
+  public ExampleModule() {
     // no-op
   }
 
   @Override
+  public void start() {
+    // startup logic here
+  }
+
+  @Override
   public void stop() {
-    // no-op
+    // shutdown logic here
   }
 
   @Override
@@ -36,5 +39,6 @@ public final class ExampleModule implements MCAVModule {
 }
 
 ```
+
 
 This is useful for creating, for example, look-up tables or classes that require additional handling. Or injecting other fields, like in the `mcav-bukkit` module when we inject the `Plugin` instance.

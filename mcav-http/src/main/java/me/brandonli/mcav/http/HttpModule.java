@@ -18,10 +18,12 @@
 package me.brandonli.mcav.http;
 
 import me.brandonli.mcav.MCAVModule;
-import org.pf4j.Extension;
 
-@Extension
 public final class HttpModule implements MCAVModule {
+
+  public HttpModule() {
+    // no-op
+  }
 
   @Override
   public void start() {
