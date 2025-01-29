@@ -53,7 +53,7 @@ public final class ScreenBuilderGui extends Gui {
 
   static {
     try {
-      final Map<String, String> map = JsonUtils.toMapFromResource("heads.json");
+      final Map<String, String> map = JsonUtils.toMapFromResource("/heads.json");
       INCREASE_BASE64 = requireNonNull(map.get("INCREASE_ARROW"));
       DECREASE_BASE64 = requireNonNull(map.get("DECREASE_ARROW"));
       INVENTORY_PROVIDER = (title, owner, rows) -> Bukkit.createInventory(owner, rows, Legacy.SERIALIZER.serialize(title));
@@ -127,8 +127,15 @@ public final class ScreenBuilderGui extends Gui {
   public void update() {
     super.update();
     this.setItem(3, 2, this.getWidthItem());
-    this.setItem(3, 4, this.getHeightItem());
+    this.setItem(3, 3, this.getHeightItem());
+    this.setItem(3, 4, this.getMapItem());
     this.setItem(3, 6, this.getMaterialItem());
+  }
+
+  public GuiItem getMapItem() {
+    return ItemBuilder.from(this.material)
+      .name(join(noSeparators(), text("Map ID - ", GOLD), text(this.id.getNumber(), AQUA)))
+      .asGuiItem(this::handleMaterial);
   }
 
   public GuiItem getMaterialItem() {

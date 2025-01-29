@@ -41,22 +41,6 @@ public final class FFmpegExecutableProvider {
   }
 
   /**
-   * Initializes and prepares the FFmpegExecutableProvider class for use.
-   * <p>
-   * This method ensures that the static initialization of the FFmpeg executable path
-   * is triggered. While the class will initialize itself on first access through
-   * other methods or static blocks, calling this method explicitly can guarantee the
-   * readiness of the FFmpeg executable path in advance, avoiding any potential
-   * delays on first usage.
-   * <p>
-   * This is especially useful in scenarios where you want to initialize resources
-   * or perform checks early in the application lifecycle.
-   */
-  public static void init() {
-    // init
-  }
-
-  /**
    * Returns the path to the FFmpeg executable.
    * <p>
    * This method retrieves the pre-initialized path of the FFmpeg executable,

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import java.util.List;
 import me.brandonli.mcav.sandbox.MCAV;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -29,13 +30,13 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
 public final class AnnotationParserHandler {
 
-  private static final AnnotationCommandFeature[] COMMAND_FEATURES = {
+  private static final List<AnnotationCommandFeature> COMMAND_FEATURES = List.of(
     new BrowserCommand(),
     new DumpCommand(),
     new HelpCommand(),
     new ScreenCommand(),
-    new VideoCommand(),
-  };
+    new VideoCommand()
+  );
 
   private final CommandManager<CommandSender> manager;
   private final AnnotationParser<CommandSender> parser;
@@ -78,9 +79,10 @@ public final class AnnotationParserHandler {
   }
 
   public void registerCommands() {
-    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
-      feature.registerFeature(this.plugin, this.parser);
-      this.parser.parse(feature);
-    }
+    COMMAND_FEATURES.parallelStream()
+      .forEach(feature -> {
+        feature.registerFeature(this.plugin, this.parser);
+        this.parser.parse(feature);
+      });
   }
 }

@@ -22,6 +22,8 @@ import static java.util.Objects.requireNonNull;
 import com.mojang.brigadier.context.CommandContext;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
+import java.util.UUID;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.combined.pipeline.filter.video.VideoFilter;
@@ -40,6 +42,7 @@ import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.annotation.specifier.Quoted;
@@ -106,7 +109,13 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final int blockWidth = dimensions.getFirst();
     final int blockHeight = dimensions.getSecond();
 
-    final DitherResultStep result = MapResult.builder().map(mapId).mapBlockHeight(blockHeight).mapBlockWidth(blockWidth).build();
+    final Collection<UUID> players = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
+    final DitherResultStep result = MapResult.builder()
+      .map(mapId)
+      .mapBlockHeight(blockHeight)
+      .mapBlockWidth(blockWidth)
+      .viewers(players)
+      .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);

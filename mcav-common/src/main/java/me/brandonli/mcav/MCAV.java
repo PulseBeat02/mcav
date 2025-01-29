@@ -20,8 +20,6 @@ package me.brandonli.mcav;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
@@ -30,9 +28,9 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
+import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.opencv_java;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,18 +78,12 @@ public final class MCAV implements MCAVApi {
    * {@inheritDoc}
    */
   @Override
-  public void install(final ExecutorService service) {
-    final CompletableFuture<Void> ytDlpTask = CompletableFuture.runAsync(this::installYTDLP, service);
-    final CompletableFuture<Void> vlcTask = CompletableFuture.runAsync(this::installVLC, service);
-    final CompletableFuture<Void> qemuTask = CompletableFuture.runAsync(this::installQemu, service);
-    final CompletableFuture<Void> webDriverTask = CompletableFuture.runAsync(this::installWebDriver, service);
-    final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::installMisc, service);
-    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, webDriverTask, miscTask).exceptionally(this::handleException).join();
-  }
-
-  private @Nullable Void handleException(final Throwable e) {
-    LOGGER.error("Failed to install required capabilities", e);
-    return null;
+  public void install() {
+    this.installYTDLP();
+    this.installVLC();
+    this.installQemu();
+    this.installWebDriver();
+    this.installMisc();
   }
 
   /**
@@ -104,6 +96,7 @@ public final class MCAV implements MCAVApi {
 
   private void installMisc() {
     Loader.load(opencv_java.class);
+    Loader.load(ffmpeg.class);
     ImageIO.setUseCache(false);
   }
 

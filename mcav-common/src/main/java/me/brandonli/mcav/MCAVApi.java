@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.capability.Capability;
@@ -32,35 +33,45 @@ public interface MCAVApi {
    * @param capability the capability to check
    * @return true if the capability is supported and enabled, false otherwise
    */
-  boolean hasCapability(Capability capability);
+  boolean hasCapability(final Capability capability);
 
   /**
-   * Installs the necessary components and dependencies required for the media playback library.
-   * This method initiates parallel tasks to handle the installation of various media-related tools
-   * such as VLC, YTDLP, WebDriver, and additional miscellaneous resources.
+   * Installs all dependencies and resources required for the library's functionality.
+   * This method initializes the installation of tools and components such as VLC, QEMU,
+   * YTDLP, and other required dependencies, based on the capabilities enabled in the library.
    * <p>
-   * The installation process includes:
-   * - Downloading and configuring VLC for media playback capabilities.
-   * - Installing and configuring YTDLP for handling YouTube media sources.
-   * - Initializing WebDriver for browser-based playback or interactions.
-   * - Loading additional dependencies, such as FFmpeg and OpenCV, into the environment.
+   * If any errors occur during the installation process, an exception is thrown to indicate
+   * failure and halt further installations.
    * <p>
-   * After this method is executed, the library's capabilities can be verified using the
-   * {@code hasCapability} method with specific {@code Capability} values.
+   * It is recommended to invoke this method before attempting to utilize any
+   * capabilities provided by the library.
+   */
+  void install();
+
+  /**
+   * Asynchronously installs the required resources and dependencies for the library.
+   * This method utilizes a default executor service, specifically the {@link ForkJoinPool#commonPool()},
+   * to execute the installation process in an asynchronous manner.
    *
-   * @param service the executor service to run the installation tasks
+   * @return a {@link CompletableFuture} that completes when the installation process has finished.
    */
-  void install(final ExecutorService service);
+  default CompletableFuture<Void> installAsync() {
+    return this.installAsync(ForkJoinPool.commonPool());
+  }
 
   /**
-   * Installs the necessary components and dependencies required for the media playback library
-   * using the common ForkJoinPool.
-   * <p>
-   * This method is a convenience overload that uses the common pool for executing installation tasks.
-   * It is equivalent to calling {@code install(ForkJoinPool.commonPool())}.
+   * Executes the {@link #install()} method asynchronously using the specified {@link ExecutorService}.
+   * The asynchronous operation allows for the installation process to run in a separate thread,
+   * enabling non-blocking behavior.
+   *
+   * @param service the {@link ExecutorService} to be used for running the asynchronous installation
+   *                process. This allows the caller to control the thread-pool configuration, such
+   *                as the number of threads and execution policy.
+   * @return a {@link CompletableFuture} that completes when the {@link #install()} method has
+   * finished execution, or completes exceptionally if an error occurs during installation.
    */
-  default void install() {
-    this.install(ForkJoinPool.commonPool());
+  default CompletableFuture<Void> installAsync(final ExecutorService service) {
+    return CompletableFuture.runAsync(this::install, service);
   }
 
   /**

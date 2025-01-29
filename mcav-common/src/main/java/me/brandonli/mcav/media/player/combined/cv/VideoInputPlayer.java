@@ -17,12 +17,12 @@
  */
 package me.brandonli.mcav.media.player.combined.cv;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.VideoInputFrameGrabber;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * The VideoInputPlayer class is a concrete implementation of the AbstractVideoPlayerCV
