@@ -21,7 +21,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class provides functionality to manage and load dependencies dynamically
@@ -30,6 +31,8 @@ import java.util.function.Consumer;
  * parameters.
  */
 public class MCAVInstaller {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(MCAVInstaller.class);
 
   private final Path folder;
   private final ClassLoader classLoader;
@@ -70,17 +73,16 @@ public class MCAVInstaller {
    * Downloads and loads the required dependencies for the given artifact. Progress updates are
    * provided through the specified progress logger during the download and loading process.
    *
-   * @param artifact       the artifact whose dependencies need to be downloaded and loaded
-   * @param progressLogger a Consumer function that logs progress messages during the operation
-   * @param loader         the JarLoader implementation used for dynamically loading the dependencies
+   * @param artifact the artifact whose dependencies need to be downloaded and loaded
+   * @param loader   the JarLoader implementation used for dynamically loading the dependencies
    */
-  public void loadMCAVDependencies(final Artifact artifact, final Consumer<String> progressLogger, final JarLoader loader) {
-    try (final InstallationManager manager = new InstallationManager(this.folder, progressLogger)) {
-      progressLogger.accept("Downloading dependencies...");
+  public void loadMCAVDependencies(final Artifact artifact, final JarLoader loader) {
+    try (final InstallationManager manager = new InstallationManager(this.folder)) {
+      LOGGER.info("Downloading dependencies...");
       final Collection<Path> jars = manager.downloadDependencies(artifact);
-      progressLogger.accept("Loading dependencies...");
+      LOGGER.info("Loading dependencies...");
       loader.loadJars(jars, this.classLoader);
-      progressLogger.accept("Successfully loaded dependencies!");
+      LOGGER.info("Successfully loaded dependencies!");
     }
   }
 
@@ -88,11 +90,9 @@ public class MCAVInstaller {
    * Downloads and loads the required dependencies for the given artifact. This method provides
    * progress updates via the specified progress logger during the download and loading processes.
    *
-   * @param artifact       the artifact for which dependencies need to be downloaded and loaded
-   * @param progressLogger a Consumer function to handle log messages indicating
-   *                       the progress of the operation
+   * @param artifact the artifact for which dependencies need to be downloaded and loaded
    */
-  public void loadMCAVDependencies(final Artifact artifact, final Consumer<String> progressLogger) {
-    this.loadMCAVDependencies(artifact, progressLogger, JarLoader.DEFAULT_URL_LOADER);
+  public void loadMCAVDependencies(final Artifact artifact) {
+    this.loadMCAVDependencies(artifact, JarLoader.DEFAULT_URL_LOADER);
   }
 }

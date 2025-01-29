@@ -49,14 +49,22 @@ public interface AudioMetadata extends Metadata {
   int getAudioChannels();
 
   /**
+   * Retrieves the audio codec used for encoding the audio data.
+   *
+   * @return the audio codec as a string
+   */
+  String getAudioCodec();
+
+  /**
    * Creates a new instance of {@code AudioMetadata} with the specified audio properties.
    *
+   * @param codec           the audio codec used for encoding the audio data
    * @param audioBitrate    the audio bitrate in bits per second
    * @param audioSampleRate the audio sample rate in hertz
    * @param audioChannels   the number of audio channels
    * @return a new {@code AudioMetadata} instance containing the specified audio properties
    */
-  static AudioMetadata of(final int audioBitrate, final int audioSampleRate, final int audioChannels) {
-    return new AudioMetadataImpl(audioBitrate, audioSampleRate, audioChannels);
+  static AudioMetadata of(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
+    return new AudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels);
   }
 }

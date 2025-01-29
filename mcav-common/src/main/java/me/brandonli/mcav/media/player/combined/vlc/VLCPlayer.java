@@ -28,6 +28,7 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.utils.ByteUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
@@ -152,6 +153,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return true;
   }
 
+  // audio sample specialization
+  // PCM S16LE
+  // 2 Channels
+  // 48 kHz
   private void addCallbacks(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline) {
     final BufferFormatCallback callback = new BufferCallback();
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(this.video);
@@ -163,7 +168,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(this.audio);
     this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
     final AudioApi audioApi = this.player.audio();
-    audioApi.callback("s16be", audioMetadata.getAudioBitrate(), audioMetadata.getAudioChannels(), this.audioCallback);
+    audioApi.callback("S16N", 48000, 2, this.audioCallback);
   }
 
   private VideoSurfaceAdapter getAdapter() {
@@ -269,6 +274,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    */
   private static final class AudioCallback extends AudioCallbackAdapter {
 
+    private static final int BLOCK_SIZE = 4;
+
     private final AudioPipelineStep step;
     private final AudioMetadata metadata;
 
@@ -294,11 +301,13 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
      */
     @Override
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
-      final byte[] bytes = samples.getByteArray(0, sampleCount);
+      final int bufferSize = sampleCount * BLOCK_SIZE;
+      final byte[] bytes = samples.getByteArray(0, bufferSize);
       final ByteBuffer buffer = ByteBuffer.wrap(bytes);
+      final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
       AudioPipelineStep current = this.step;
       while (current != null) {
-        current.process(buffer, this.metadata);
+        current.process(converted, this.metadata);
         current = current.next();
       }
     }

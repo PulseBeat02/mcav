@@ -17,18 +17,24 @@ from different audio and video inputs at once. For example, the `VLCPlayer` is a
 from a separated audio and video input at the same time. It automatically synchronizes the audio and video streams to
 ensure that they are in sync.
 
+```{note}
+As an implementation note. All image and audio samples follow a standard format throughout the pipeline and should
+always maintain this same type at all times. The image frames are always encoded in **BGR24** format with 8-bits of
+padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endian** format.
+```
+
 ```java
-  final AudioPipelineStep audioPipelineStep = ...;
+final AudioPipelineStep audioPipelineStep = ...;
 final VideoPipelineStep videoPipelineStep = ...;
 final FileSource videoSource = ...;
 final FileSource audioSource = ...;
 final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
 // audioPipelineStep and videoPipelineStep from above
-  multiplexer.
+multiplexer.
 
 start(audioPipelineStep, videoPipelineStep, videoSource, audioSource);
 // ... do something with the player
-  multiplexer.
+multiplexer.
 
 release();
 ```
@@ -42,16 +48,16 @@ All multiplexer players support single input video and audio sources. For exampl
 so.
 
 ```java
-  final AudioPipelineStep audioPipelineStep = ...;
+final AudioPipelineStep audioPipelineStep = ...;
 final VideoPipelineStep videoPipelineStep = ...;
 final FileSource source = ...;
 final VideoPlayerMultiplexer player = VideoPlayer.vlc();
 // audioPipelineStep and videoPipelineStep from above
-  player.
+player.
 
 start(audioPipelineStep, videoPipelineStep, source);
 // ... do something with the player
-  player.
+player.
 
 release();
 ```
@@ -132,17 +138,21 @@ a `VNCSource`, and pass it to the player.
 
 ```java
   final VideoPipelineStep pipeline = ...;
-  final VNCSource source = VNCSource.vnc()
-    .host("localhost")
-    .port(5900)
-    .password("passwd")
-    .videoMetadata(videoMetadata)
-    .name("VNC Connection")
-    .build();
-  final VNCPlayer player = VNCPlayer.vm();
-  player.start(pipeline, source);
-  // ... do some play back
-  player.release();
+final VNCSource source = VNCSource.vnc()
+        .host("localhost")
+        .port(5900)
+        .password("passwd")
+        .videoMetadata(videoMetadata)
+        .name("VNC Connection")
+        .build();
+final VNCPlayer player = VNCPlayer.vm();
+  player.
+
+start(pipeline, source);
+// ... do some play back
+  player.
+
+release();
 ```
 
 That way, you're able to connect to virtual machines or any VNC server and interact with it as if it were a local

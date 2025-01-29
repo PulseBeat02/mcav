@@ -19,8 +19,6 @@ package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
 import java.nio.file.Path;
-import java.util.function.Consumer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
@@ -35,18 +33,6 @@ import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAVSandbox extends JavaPlugin {
-
-  /*
-
-  Things to implement into plugin
-  - Example showing VNC player
-  - Example showing video player (map, entities, chat, scoreboard)
-
-  - Add resource pack audio support
-  - Add Discord Audio Support
-  - Add resource pack hosting + Netty injection
-
-   */
 
   private AudienceProvider audienceProvider;
   private Logger logger;
@@ -97,10 +83,8 @@ public final class MCAVSandbox extends JavaPlugin {
     final ClassLoader loader = this.getClassLoader();
     final Path folder = IOUtils.getPluginDataFolderPath();
     final Path libs = folder.resolve("libs");
-    final Logger loggerFactory = Logger.getLogger("MCAV Installer");
     final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
-    final Consumer<String> logger = line -> loggerFactory.log(Level.INFO, line);
-    installer.loadMCAVDependencies(Artifact.COMMON, logger);
+    installer.loadMCAVDependencies(Artifact.COMMON);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }

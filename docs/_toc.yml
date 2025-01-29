@@ -8,7 +8,7 @@ parts:
     chapters:
       - file: started.md
       - file: licensing.md
-  - caption: MCAV Commons 🪄
+  - caption: MCAV Common Module 🪄
     chapters:
       - file: instance.md
       - file: source.md
@@ -18,14 +18,18 @@ parts:
       - file: image.md
       - file: ffmpeg.md
       - file: examples.md
-  - caption: MCAV Minecraft Platform 🧱
+  - caption: MCAV Minecraft Module 🧱
     chapters:
       - file: minecraft.md
       - file: resourcepack.md
       - file: map.md
       - file: result.md
       - file: display.md
-  - caption: MCAV Installer 🛠️
+  - caption: MCAV Installer Module 🛠️
     chapters:
       - file: installer.md
       - file: installer-use.md
+  - caption: JDA Installer Module 🔊
+    chapters:
+      - file: jda.md
+      - file: jda-use.md

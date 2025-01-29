@@ -37,6 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import org.bytedeco.ffmpeg.global.avcodec;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -136,7 +137,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       this.video = this.getFrameGrabber(videoResource);
 
       final FrameGrabber finalAudio = requireNonNull(this.audio);
-      finalAudio.setSampleMode(FrameGrabber.SampleMode.FLOAT);
+      finalAudio.setSampleMode(FrameGrabber.SampleMode.SHORT);
+      finalAudio.setAudioCodec(avcodec.AV_CODEC_ID_PCM_S16BE);
+      finalAudio.setSampleRate(48000);
 
       final FrameGrabber finalVideo = requireNonNull(this.video);
       finalVideo.setPixelFormat(AV_PIX_FMT_BGR24);
@@ -159,7 +162,12 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private void retrieveFramesMultiplexer() {
     final FrameGrabber audio = requireNonNull(this.audio);
-    final AudioMetadata audioMetadata = AudioMetadata.of(audio.getAudioBitrate(), audio.getSampleRate(), audio.getAudioChannels());
+    final AudioMetadata audioMetadata = AudioMetadata.of(
+      audio.getAudioCodecName(),
+      audio.getAudioBitrate(),
+      audio.getSampleRate(),
+      audio.getAudioChannels()
+    );
     final FrameGrabber video = requireNonNull(this.video);
     final int width = video.getImageWidth();
     final int height = video.getImageHeight();
@@ -200,7 +208,12 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     final FrameGrabber video = requireNonNull(this.video);
     final int width = video.getImageWidth();
     final int height = video.getImageHeight();
-    final AudioMetadata audioMetadata = AudioMetadata.of(video.getAudioBitrate(), video.getSampleRate(), video.getAudioChannels());
+    final AudioMetadata audioMetadata = AudioMetadata.of(
+      video.getAudioCodecName(),
+      video.getAudioBitrate(),
+      video.getSampleRate(),
+      video.getAudioChannels()
+    );
     final VideoMetadata videoMetadata = VideoMetadata.of(width, height, video.getVideoBitrate(), (float) video.getFrameRate());
 
     try {
@@ -235,8 +248,33 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private void processAudioFrames() {
     try {
+      final int bufferingThreshold = BUFFER_CAPACITY / 2;
+      if (this.running.get()) {
+        while (this.audioFrameBuffer.size() < bufferingThreshold && this.running.get()) {
+          Thread.sleep(20);
+        }
+      }
+      long startTime = System.nanoTime();
+      long firstFrameTimestamp = -1;
       while (this.running.get() || !this.audioFrameBuffer.isEmpty()) {
         final MediaFrame frame = this.audioFrameBuffer.take();
+        if (firstFrameTimestamp == -1) {
+          firstFrameTimestamp = frame.timestamp;
+          startTime = System.nanoTime();
+        }
+        final long currentTime = System.nanoTime();
+        final long elapsedRealTime = (currentTime - startTime) / 1000;
+        final long mediaTime = frame.timestamp - firstFrameTimestamp;
+        if (mediaTime > elapsedRealTime && this.running.get()) {
+          final long waitTime = (mediaTime - elapsedRealTime) / 1000;
+          if (waitTime > 0) {
+            Thread.sleep(waitTime);
+          }
+        }
+        final boolean shouldSkip = mediaTime < elapsedRealTime - 500000;
+        if (shouldSkip && this.audioFrameBuffer.size() > 15) {
+          continue;
+        }
         AudioPipelineStep next = this.audioPipeline;
         while (next != null) {
           next.process(frame.data, (AudioMetadata) frame.metadata);
@@ -290,6 +328,10 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
   }
 
+  // audio sample specialization
+  // PCM S16LE
+  // 2 Channels
+  // 48 kHz
   @Override
   public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
     synchronized (this.lock) {
@@ -308,6 +350,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
       finalGrabber.setPixelFormat(AV_PIX_FMT_BGR24);
       finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
+      finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
+      finalGrabber.setAudioCodec(avcodec.AV_CODEC_ID_PCM_S16LE);
+      finalGrabber.setSampleRate(48000);
 
       if (combined instanceof FFmpegDirectSource) {
         final FFmpegDirectSource directSource = (FFmpegDirectSource) combined;

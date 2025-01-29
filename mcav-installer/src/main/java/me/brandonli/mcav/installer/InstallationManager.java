@@ -25,7 +25,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
@@ -45,8 +44,12 @@ import org.eclipse.aether.resolution.DependencyResolutionException;
 import org.eclipse.aether.resolution.DependencyResult;
 import org.eclipse.aether.supplier.RepositorySystemSupplier;
 import org.eclipse.aether.util.filter.ScopeDependencyFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class InstallationManager implements AutoCloseable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(InstallationManager.class);
 
   private static final List<RemoteRepository> DEFAULT_REPOSITORIES = Stream.of(
     "https://repo.maven.apache.org/maven2/",
@@ -77,21 +80,19 @@ public final class InstallationManager implements AutoCloseable {
     return new RemoteRepository.Builder(name, "default", url).build();
   }
 
-  private final Consumer<String> logger;
   private final RepositorySystem repositorySystem;
   private final RepositorySystemSession repositorySystemSession;
   private final Path downloadPath;
   private final ExecutorService downloadExecutor;
   private final Properties artifactHashes;
 
-  InstallationManager(final Path downloadPath, final Consumer<String> logger) {
+  InstallationManager(final Path downloadPath) {
     final RepositorySystemSupplier repositorySystemSupplier = new RepositorySystemSupplier();
     this.downloadPath = downloadPath;
     this.repositorySystem = repositorySystemSupplier.get();
     this.repositorySystemSession = this.createSession(this.repositorySystem);
     this.downloadExecutor = this.createDownloadExecutor();
     this.artifactHashes = this.loadArtifactHashes(downloadPath);
-    this.logger = logger;
   }
 
   private Collection<Path> getAllJars() {
@@ -136,7 +137,7 @@ public final class InstallationManager implements AutoCloseable {
     final List<ArtifactResult> artifactResults = dependencyResult.getArtifactResults();
     final int size = artifactResults.size();
     final String msg = String.format("Resolved %d dependencies for %s", size, artifactId);
-    this.logger.accept(msg);
+    LOGGER.info(msg);
     return dependencyResult
       .getArtifactResults()
       .stream()
@@ -233,7 +234,7 @@ public final class InstallationManager implements AutoCloseable {
   private CompletableFuture<Void> saveArtifactsAsync(final Collection<Artifact> artifacts) throws IOException {
     final int size = artifacts.size();
     final String msg = String.format("Preparing to download %s artifacts", size);
-    this.logger.accept(msg);
+    LOGGER.info(msg);
     Files.createDirectories(this.downloadPath);
     final List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
     for (final Artifact artifact : artifacts) {
@@ -242,7 +243,7 @@ public final class InstallationManager implements AutoCloseable {
       final CompletableFuture<Void> future = CompletableFuture.runAsync(
         () -> this.tryArtifactDownload(artifact),
         this.downloadExecutor
-      ).thenRun(() -> this.logger.accept(completion));
+      ).thenRun(() -> LOGGER.info(completion));
       downloadFutures.add(future);
     }
     return CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).thenRun(this::saveArtifactHashes);
@@ -280,7 +281,7 @@ public final class InstallationManager implements AutoCloseable {
     final String name = IOUtils.getFileName(sourceFile);
     final String msg = e.getMessage();
     final String message = String.format("Download attempt %d failed for %s: %s", attempt, name, msg);
-    this.logger.accept(message);
+    LOGGER.error(message);
     try {
       Thread.sleep(RETRY_DELAY_MS);
     } catch (final InterruptedException ie) {

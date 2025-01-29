@@ -1,2 +1,8 @@
-- Add images to the plugin
-- Update video showcase in the README
+  Things to implement into plugin
+  - Example showing VNC player
+  - Images and GIFs into Plugin
+  - Add Resource Pack Audio Support
+  - Add Discord Audio Support
+  - Add Resource Pack Hosting + Netty injection
+
+  - Update video showcase in the README

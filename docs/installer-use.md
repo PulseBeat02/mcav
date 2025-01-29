@@ -5,14 +5,13 @@ To use the installer, it's super simple. You need to make sure that your current
 `MCAVInstaller` class as so.
 
 ```java
-  final Path downloaded = Path.of("dependencies");
-final Consumer<String> logger = System.out::println;
+final Path downloaded = Path.of("dependencies");
 final Class<InstallationExample> clazz = InstallationExample.class;
 final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
 final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-  installer.
+installer.
 
-loadMCAVDependencies(Artifact.COMMON, logger);
+loadMCAVDependencies(Artifact.COMMON);
 ```
 
 This will install the MCAV dependencies into the specified folder, and you can then use the `loader` to load the MCAV
