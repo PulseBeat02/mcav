@@ -41,7 +41,7 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/ivan-hc/VLC-appimage/releases/download/continuous-with-plugins/VLC-media-player_3.0.21-17-jre8-with-plugins-archimage4.3-x86_64.AppImage",
+    "url": "https://github.com/ivan-hc/VLC-appimage/releases/download/continuous-with-plugins/VLC-media-player_3.0.21-19-jre8-with-plugins-archimage4.3-x86_64.AppImage",
     "hash": "d10e455a8811fa93a2e7f33c30f97b53719b6f06edd35e7c86e6b3b3eaee506c"
   },
   {
@@ -50,7 +50,7 @@
       "arch": "X86",
       "bits": "BITS_32"
     },
-    "url": "https://github.com/ivan-hc/32-bit-AppImage-packages-database/releases/download/vlc/VLC-media-player_3.0.21-0+deb12u1-i386.AppImage",
+    "url": "https://github.com/ivan-hc/32-bit-AppImage-packages-database/releases/download/vlc/VLC-media-player_-i386.AppImage",
     "hash": "09072a7bbe96973b92dacca0f4c314fdff41eb5df03cefe29c44a546073120ee"
   }
 ]
