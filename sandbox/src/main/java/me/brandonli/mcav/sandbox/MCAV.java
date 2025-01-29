@@ -18,13 +18,6 @@
 package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -36,6 +29,14 @@ import org.bukkit.Server;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class MCAV extends JavaPlugin {
 
@@ -70,10 +71,6 @@ public final class MCAV extends JavaPlugin {
 
   @Override
   public void onEnable() {
-    this.loadAudience();
-    this.loadPluginData();
-    this.loadCommands();
-    this.initLookupTables();
     this.scheduleLoadTask();
   }
 
@@ -103,7 +100,11 @@ public final class MCAV extends JavaPlugin {
       this.logger.info("Loading MCAV!");
       this.mcav = me.brandonli.mcav.MCAV.api();
       final CompletableFuture<Void> future = this.mcav.installAsync(service);
-      future.thenRun(() -> this.logger.info("MCAV loaded successfully!"));
+      future.thenRun(() -> this.logger.info("MCAV loaded successfully!"))
+              .thenRun(this::loadAudience)
+              .thenRun(this::loadPluginData)
+              .thenRun(this::loadCommands)
+              .thenRun(this::initLookupTables);
     }
   }
 

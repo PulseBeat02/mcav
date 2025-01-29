@@ -17,11 +17,12 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
-import me.brandonli.mcav.media.video.dither.algorithm.DitherAlgorithm;
-import me.brandonli.mcav.media.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
-import me.brandonli.mcav.media.video.dither.algorithm.ordered.BayerDither;
-import me.brandonli.mcav.media.video.dither.algorithm.ordered.PixelMapper;
-import me.brandonli.mcav.media.video.dither.algorithm.random.RandomDither;
+
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 
 public enum DitheringArgument {
   // Error diffusion dithering algorithms
@@ -64,13 +65,13 @@ public enum DitheringArgument {
   CLUSTERED_DOT_6X6_3_NORMAL(bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAX, PixelMapper.NORMAL_STRENGTH)),
   CLUSTERED_DOT_6X6_3_HEAVY(bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAX, PixelMapper.MAX_STRENGTH)),
   CLUSTERED_DOT_DIAGONAL_8X8_3_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_3_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_3_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_4X4_LIGHT(bayer(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAX, PixelMapper.MIN_STRENGTH)),
   CLUSTERED_DOT_4X4_NORMAL(bayer(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAX, PixelMapper.NORMAL_STRENGTH)),
@@ -82,67 +83,67 @@ public enum DitheringArgument {
   HORIZONTAL_3X5_NORMAL(bayer(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAX, PixelMapper.NORMAL_STRENGTH)),
   HORIZONTAL_3X5_HEAVY(bayer(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAX, PixelMapper.MAX_STRENGTH)),
   CLUSTERED_DOT_DIAGONAL_6X6_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_6X6_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_6X6_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_2_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_2_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_2_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_16X16_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_16X16_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_16X16_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_SPIRAL_5X5_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_SPIRAL_5X5_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_SPIRAL_5X5_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_HORIZONTAL_LINE_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_HORIZONTAL_LINE_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_HORIZONTAL_LINE_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_VERTICAL_LINE_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_VERTICAL_LINE_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_VERTICAL_LINE_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAX, PixelMapper.MAX_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_LIGHT(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.MIN_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.MIN_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_NORMAL(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.NORMAL_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
   CLUSTERED_DOT_DIAGONAL_8X8_HEAVY(
-    bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.MAX_STRENGTH)
+          bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAX, PixelMapper.MAX_STRENGTH)
   );
 
   private static DitherAlgorithm bayer(final int[][] matrix, final int max, final float strength) {
