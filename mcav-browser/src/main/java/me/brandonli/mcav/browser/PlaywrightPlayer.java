@@ -170,7 +170,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final int height = source.getScreencastHeight();
     final int quality = source.getScreencastQuality();
     final int frameInterval = (1000 / 30) * source.getScreencastNthFrame();
-    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.getPipeline();
+    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.retrieve();
     final Page.ScreenshotOptions screenshotOptions = new Page.ScreenshotOptions()
       .setType(ScreenshotType.JPEG)
       .setQuality(quality)

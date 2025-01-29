@@ -17,15 +17,12 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
-import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
  * Represents a callback interface for audio that can be attached to a player.
  */
-public interface AudioAttachableCallback
-  extends AttachableCallback<AudioPipelineStep, ByteBuffer, OriginalAudioMetadata, AudioPipelineStep> {
+public interface AudioAttachableCallback extends AttachableCallback<AudioPipelineStep> {
   /**
    * Creates a new instance of {@link AudioAttachableCallback}.
    *

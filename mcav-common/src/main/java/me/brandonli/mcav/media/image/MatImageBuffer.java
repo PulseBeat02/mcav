@@ -50,9 +50,21 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
 
   private final Mat mat;
 
+  MatImageBuffer(final Mat mat) {
+    this.mat = mat;
+    this.assignMat(this.mat);
+  }
+
   MatImageBuffer(final byte[] bytes, final int width, final int height) {
+    final BytePointer ptr = new BytePointer(bytes);
+    final int step = bytes.length / height;
+    this.mat = new Mat(height, width, CV_8UC3, ptr, step);
+    this.assignMat(this.mat);
+  }
+
+  MatImageBuffer(final ByteBuffer bytes, final int width, final int height) {
     this.mat = new Mat(height, width, CV_8UC3);
-    this.mat.data().put(bytes);
+    this.mat.data().put(new BytePointer(bytes));
     this.assignMat(this.mat);
   }
 

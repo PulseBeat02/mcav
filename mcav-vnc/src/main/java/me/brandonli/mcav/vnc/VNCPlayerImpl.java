@@ -143,7 +143,7 @@ public class VNCPlayerImpl implements VNCPlayer {
 
     final int width = source.getScreenWidth();
     final int height = source.getScreenHeight();
-    final VideoPipelineStep videoPipeline = this.videoCallback.getPipeline();
+    final VideoPipelineStep videoPipeline = this.videoCallback.retrieve();
     final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, fps);
     config.setScreenUpdateListener(image -> this.processImageAsync(image, videoMetadata, videoPipeline));
 

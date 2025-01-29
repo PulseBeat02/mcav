@@ -23,6 +23,7 @@ import java.net.URI;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -67,13 +68,17 @@ public final class SingleCombinedInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
 
     final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
     audioCallback.attach(audioPipelineStep);
 
     final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
     videoCallback.attach(videoPipelineStep);
+
+    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
+    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1800, 1000);
+    dimensionCallback.attach(dimension);
 
     multiplexer.start(source);
 

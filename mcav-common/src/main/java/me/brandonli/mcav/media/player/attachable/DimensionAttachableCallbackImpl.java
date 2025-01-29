@@ -20,26 +20,25 @@ package me.brandonli.mcav.media.player.attachable;
 import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.atomic.AtomicReference;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
- * Implementation of {@link AudioAttachableCallback}.
+ * Implementation of {@link DimensionAttachableCallback}.
  */
-public class AudioAttachableCallbackImpl implements AudioAttachableCallback {
+public class DimensionAttachableCallbackImpl implements DimensionAttachableCallback {
 
-  private final AtomicReference<AudioPipelineStep> pipeline;
+  private final AtomicReference<Dimension> dimension;
 
-  AudioAttachableCallbackImpl() {
-    this.pipeline = new AtomicReference<>(AudioPipelineStep.NO_OP);
+  DimensionAttachableCallbackImpl() {
+    this.dimension = new AtomicReference<>(Dimension.NONE);
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public void attach(final AudioPipelineStep pipeline) {
+  public void attach(final Dimension pipeline) {
     requireNonNull(pipeline);
-    this.pipeline.set(pipeline);
+    this.dimension.set(pipeline);
   }
 
   /**
@@ -47,7 +46,7 @@ public class AudioAttachableCallbackImpl implements AudioAttachableCallback {
    */
   @Override
   public void detach() {
-    this.pipeline.set(AudioPipelineStep.NO_OP);
+    this.dimension.set(Dimension.NONE);
   }
 
   /**
@@ -55,14 +54,14 @@ public class AudioAttachableCallbackImpl implements AudioAttachableCallback {
    */
   @Override
   public boolean isAttached() {
-    return this.pipeline.get() != AudioPipelineStep.NO_OP;
+    return this.dimension.get() != Dimension.NONE;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public AudioPipelineStep retrieve() {
-    return this.pipeline.get();
+  public Dimension retrieve() {
+    return this.dimension.get();
   }
 }

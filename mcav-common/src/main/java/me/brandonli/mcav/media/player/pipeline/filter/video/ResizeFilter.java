@@ -43,6 +43,9 @@ public class ResizeFilter extends MatVideoFilter {
    */
   @Override
   void modifyMat(final Mat mat) {
+    if (mat.cols() == this.newSize.width() && mat.rows() == this.newSize.height()) {
+      return;
+    }
     final Mat resizedMat = new Mat();
     opencv_imgproc.resize(mat, resizedMat, this.newSize);
     resizedMat.copyTo(mat);

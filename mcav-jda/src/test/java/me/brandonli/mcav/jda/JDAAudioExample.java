@@ -44,7 +44,7 @@ public final class JDAAudioExample {
 
     // "MTM3MjczNDQyNDQwMzE0ODk3MA.Gv7sgZ.3t5njZYT97wAFvM6dHSKjaEh6VZ9IfJRu4jg_0"
 
-    final JDA jda = JDABuilder.createDefault("MTM3MjczNDQyNDQwMzE0ODk3MA.Gywon0.8YE4dZkQAq7AFEjKUSitxSSB39hAe_xcf6qN-M").build();
+    final JDA jda = JDABuilder.createDefault("MTM3MjczNDQyNDQwMzE0ODk3MA.G7JG6h.VQhzIY4ar5hFFRvEusge44l6dH77RYTztsc1mM").build();
     jda.awaitReady();
 
     final Guild guild = requireNonNull(jda.getGuildById("1372733795769520271"));

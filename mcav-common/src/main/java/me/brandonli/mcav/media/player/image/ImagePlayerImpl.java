@@ -90,7 +90,7 @@ public class ImagePlayerImpl implements ImagePlayer {
       }
       final int[] data = frame.array();
       final ImageBuffer image = ImageBuffer.buffer(data, width, height);
-      VideoPipelineStep next = this.callback.getPipeline();
+      VideoPipelineStep next = this.callback.retrieve();
       while (next != null) {
         next.process(image, metadata);
         next = next.next();

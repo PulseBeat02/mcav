@@ -52,15 +52,29 @@ public interface OriginalAudioMetadata extends OriginalMetadata {
   String getAudioCodec();
 
   /**
+   * Retrieves the sampling format of the audio data.
+   *
+   * @return the sampling format as an integer value
+   */
+  int getSamplingFormat();
+
+  /**
    * Creates a new instance of {@code AudioMetadata} with the specified audio properties.
    *
    * @param codec           the audio codec used for encoding the audio data
    * @param audioBitrate    the audio bitrate in bits per second
    * @param audioSampleRate the audio sample rate in hertz
    * @param audioChannels   the number of audio channels
+   * @param samplingFormat  the sampling format of the audio data
    * @return a new {@code AudioMetadata} instance containing the specified audio properties
    */
-  static OriginalAudioMetadata of(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
-    return new OriginalAudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels);
+  static OriginalAudioMetadata of(
+    final String codec,
+    final int audioBitrate,
+    final int audioSampleRate,
+    final int audioChannels,
+    final int samplingFormat
+  ) {
+    return new OriginalAudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels, samplingFormat);
   }
 }

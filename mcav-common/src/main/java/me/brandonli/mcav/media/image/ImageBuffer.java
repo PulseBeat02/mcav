@@ -19,14 +19,26 @@ package me.brandonli.mcav.media.image;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.examinable.Examinable;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
  * Represents a static image that can be manipulated and examined.
  */
 public interface ImageBuffer extends Image, Examinable {
+  /**
+   * Creates a new StaticImage instance using the given OpenCV Mat object.
+   *
+   * @param mat the OpenCV Mat object representing the image
+   * @return a new StaticImage instance containing the provided Mat object
+   */
+  static ImageBuffer mat(final Mat mat) {
+    return new MatImageBuffer(mat);
+  }
+
   /**
    * Creates a new StaticImage instance using the given byte data, width, and height. Must be 3
    * channels RGB format.
@@ -37,6 +49,19 @@ public interface ImageBuffer extends Image, Examinable {
    * @return a new StaticImage instance containing the provided data, width, and height
    */
   static ImageBuffer bytes(final byte[] data, final int width, final int height) {
+    return new MatImageBuffer(data, width, height);
+  }
+
+  /**
+   * Creates a new StaticImage instance using the given byte data, width, and height. Must be 3
+   * channels RGB format.
+   *
+   * @param data   the byte array representing the image data
+   * @param width  the width of the image
+   * @param height the height of the image
+   * @return a new StaticImage instance containing the provided data, width, and height
+   */
+  static ImageBuffer bytes(final ByteBuffer data, final int width, final int height) {
     return new MatImageBuffer(data, width, height);
   }
 

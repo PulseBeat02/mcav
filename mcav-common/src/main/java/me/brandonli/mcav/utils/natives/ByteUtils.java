@@ -103,22 +103,19 @@ public final class ByteUtils {
    * @return a ByteBuffer containing data in big-endian format
    */
   public static ByteBuffer clampNormalBufferToBigEndian(final ByteBuffer nativeBuffer) {
-    if (LITTLE_ENDIAN && nativeBuffer.order() == ByteOrder.LITTLE_ENDIAN) {
-      final ByteBuffer duplicate = nativeBuffer.duplicate();
-      final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
-      result.order(ByteOrder.BIG_ENDIAN);
-      while (duplicate.remaining() >= 2) {
-        final short value = duplicate.getShort();
-        final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
-        result.putShort(swapped);
-      }
-      if (duplicate.remaining() > 0) {
-        result.put(duplicate.get());
-      }
-      result.flip();
-      return result;
+    final ByteBuffer duplicate = nativeBuffer.duplicate();
+    final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
+    result.order(ByteOrder.BIG_ENDIAN);
+    while (duplicate.remaining() >= 2) {
+      final short value = duplicate.getShort();
+      final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
+      result.putShort(swapped);
     }
-    return nativeBuffer.order(ByteOrder.BIG_ENDIAN);
+    if (duplicate.remaining() > 0) {
+      result.put(duplicate.get());
+    }
+    result.flip();
+    return result;
   }
 
   /**
@@ -176,17 +173,48 @@ public final class ByteUtils {
   }
 
   /**
+   * Converts the provided ByteBuffer to little-endian format by swapping the byte order of each element.
+   *
+   * @param buffer the ByteBuffer to be converted to little-endian format
+   * @return a ByteBuffer containing data in little-endian format
+   */
+  public static ByteBuffer convertToLittleEndian(final ByteBuffer buffer) {
+    final ByteBuffer duplicate = buffer.duplicate();
+    duplicate.rewind();
+    final ByteBuffer result = ByteBuffer.allocate(duplicate.remaining());
+    while (duplicate.remaining() >= 2) {
+      final short value = duplicate.getShort();
+      final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
+      result.putShort(swapped);
+    }
+    if (duplicate.remaining() > 0) {
+      result.put(duplicate.get());
+    }
+    result.flip();
+    return result;
+  }
+
+  /**
    * Resamples the provided audio buffer from its original sample rate to a target sample rate using cubic interpolation.
    *
    * @param samples          the ByteBuffer containing the audio samples to be resampled
    * @param sampleRate       the sample rate of the original audio data in hertz (Hz)
    * @param targetSampleRate the desired target sample rate in hertz (Hz)
+   * @param frameSize       the frame size in bytes (e.g., 4 bytes for 16-bit stereo audio)
    * @return a new ByteBuffer containing the resampled audio data, or the original ByteBuffer if no resampling was necessary
    */
-  public static ByteBuffer resampleBufferCubic(final ByteBuffer samples, final float sampleRate, final float targetSampleRate) {
+  public static ByteBuffer resampleBufferCubic(
+    final ByteBuffer samples,
+    final float sampleRate,
+    final float targetSampleRate,
+    final int frameSize
+  ) {
     final ByteBuffer duplicate = samples.duplicate();
     if (Math.abs(sampleRate - targetSampleRate) <= 1) {
-      return duplicate;
+      final int validLength = duplicate.remaining() - (duplicate.remaining() % frameSize);
+      final ByteBuffer result = duplicate.slice();
+      result.limit(validLength);
+      return result;
     }
     final float ratio = targetSampleRate / sampleRate;
     final short[] inputSamples = new short[duplicate.remaining() / 2];
@@ -210,10 +238,12 @@ public final class ByteUtils {
       final float value = a0 * fract * fract * fract + a1 * fract * fract + a2 * fract + a3;
       outputSamples[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, Math.round(value)));
     }
-    final ByteBuffer resampledBuffer = ByteBuffer.allocate(outputSamples.length * 2);
+    final int totalBytes = outputSamples.length * 2;
+    final int validLength = totalBytes - (totalBytes % frameSize);
+    final ByteBuffer resampledBuffer = ByteBuffer.allocate(validLength);
     resampledBuffer.order(duplicate.order());
-    for (final short sample : outputSamples) {
-      resampledBuffer.putShort(sample);
+    for (int i = 0; i < validLength / 2; i++) {
+      resampledBuffer.putShort(outputSamples[i]);
     }
     resampledBuffer.flip();
     return resampledBuffer;

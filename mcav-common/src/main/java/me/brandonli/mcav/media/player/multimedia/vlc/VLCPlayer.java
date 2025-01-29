@@ -25,6 +25,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -61,6 +62,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final String[] LIBVLC_INIT_ARGS = { "--reset-plugins-cache" };
 
+  private final DimensionAttachableCallback dimensionAttachableCallback;
   private final VideoAttachableCallback videoAttachableCallback;
   private final AudioAttachableCallback audioAttachableCallback;
   private final MediaPlayerFactory factory;
@@ -83,6 +85,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * @param args the command-line arguments to pass to the VLC player
    */
   public VLCPlayer(final String[] args) {
+    this.dimensionAttachableCallback = DimensionAttachableCallback.create();
     this.videoAttachableCallback = VideoAttachableCallback.create();
     this.audioAttachableCallback = AudioAttachableCallback.create();
     this.factory = new MediaPlayerFactory(LIBVLC_INIT_ARGS);
@@ -143,6 +146,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return this.audioAttachableCallback;
   }
 
+  @Override
+  public DimensionAttachableCallback getDimensionAttachableCallback() {
+    return this.dimensionAttachableCallback;
+  }
+
   private void addCallbacks(final Source video, final Source audio) {
     final OriginalAudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
     final OriginalVideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
@@ -150,8 +158,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi videoSurfaceApi = this.factory.videoSurfaces();
 
-    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.getPipeline();
-    final AudioPipelineStep audioPipeline = this.audioAttachableCallback.getPipeline();
+    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.retrieve();
+    final AudioPipelineStep audioPipeline = this.audioAttachableCallback.retrieve();
     final BufferCallback bufferCallback = new BufferCallback(videoMetadata);
     final VideoCallback videoCallback = new VideoCallback(videoPipeline, videoMetadata);
     final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata);
@@ -228,6 +236,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private final RV32BufferFormat format;
 
     BufferCallback(final OriginalVideoMetadata metadata) {
+      final DimensionAttachableCallback.Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
+      if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
+        this.format = new RV32BufferFormat(dimension.width(), dimension.height());
+        return;
+      }
       this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
     }
 
@@ -273,11 +286,19 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     private final VideoPipelineStep step;
     private final OriginalVideoMetadata metadata;
+    private final int width;
+    private final int height;
 
     VideoCallback(final VideoPipelineStep step, final OriginalVideoMetadata metadata) {
-      final int width = metadata.getVideoWidth();
-      final int height = metadata.getVideoHeight();
-      final int[] buffer = new int[width * height];
+      final DimensionAttachableCallback.Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
+      if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
+        this.width = dimension.width();
+        this.height = dimension.height();
+      } else {
+        this.width = metadata.getVideoWidth();
+        this.height = metadata.getVideoHeight();
+      }
+      final int[] buffer = new int[this.width * this.height];
       this.step = step;
       this.metadata = metadata;
       this.setBuffer(buffer);
@@ -288,9 +309,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       if (!VLCPlayer.this.running.get()) {
         return;
       }
-      final int width = this.metadata.getVideoWidth();
-      final int height = this.metadata.getVideoHeight();
-      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
+      final ImageBuffer image = ImageBuffer.buffer(buffer, this.width, this.height);
       VideoPipelineStep current = this.step;
       while (current != null) {
         current.process(image, this.metadata);

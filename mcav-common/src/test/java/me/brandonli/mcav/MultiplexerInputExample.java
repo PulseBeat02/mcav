@@ -27,10 +27,12 @@ import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -67,7 +69,7 @@ public final class MultiplexerInputExample {
 
     BufferedImage bufferedImage;
     ImageIcon icon;
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of((samples, metadata) -> {});
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(new DirectAudioOutput());
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
@@ -80,6 +82,10 @@ public final class MultiplexerInputExample {
 
     final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
     audioCallback.attach(audioPipelineStep);
+
+    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
+    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1800, 1000);
+    dimensionCallback.attach(dimension);
 
     multiplexer.start(videoFormat, audioFormat);
 

@@ -32,6 +32,7 @@ import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
@@ -95,7 +96,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
-      .thenRun(TaskUtils.handleAsyncTask(plugin, () -> player.sendMessage(Message.START_VIDEO.build())))
+      .thenRun(TaskUtils.handleAsyncTask(this.plugin, () -> player.sendMessage(Message.START_VIDEO.build())))
       .exceptionally(this::handleException);
   }
 
@@ -214,6 +215,13 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
     audioCallback.attach(audioPipelineStep);
+
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(width, height);
+    dimensionCallback.attach(dimension);
+
     if (audio == null) {
       player.start(video);
     } else {

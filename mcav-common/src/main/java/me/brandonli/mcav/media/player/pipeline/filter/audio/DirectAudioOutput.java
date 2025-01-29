@@ -21,14 +21,25 @@ import java.nio.ByteBuffer;
 import javax.sound.sampled.*;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Streams audio samples directly to the system's default audio output device.
  */
 public class DirectAudioOutput implements AudioFilter {
 
-  private @Nullable SourceDataLine line;
+  private static final AudioFormat AUDIO_FORMAT = new AudioFormat(48000, 16, 2, true, false);
+  private static final SourceDataLine LINE_OUTPUT;
+
+  static {
+    try {
+      final DataLine.Info info = new DataLine.Info(SourceDataLine.class, AUDIO_FORMAT);
+      LINE_OUTPUT = (SourceDataLine) AudioSystem.getLine(info);
+      LINE_OUTPUT.open(AUDIO_FORMAT);
+      LINE_OUTPUT.start();
+    } catch (final LineUnavailableException e) {
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
 
   /**
    * Constructs a new {@link DirectAudioOutput} instance.
@@ -42,25 +53,12 @@ public class DirectAudioOutput implements AudioFilter {
    */
   @Override
   public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+    final byte[] data = new byte[samples.remaining()];
+    samples.get(data);
     try {
-      final AudioFormat format = new AudioFormat(48000, 16, 2, true, false);
-
-      if (this.line == null) {
-        final DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        final SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
-        this.line = line;
-      }
-
-      final byte[] data = new byte[samples.remaining()];
-      samples.get(data);
-
-      if (this.line != null) {
-        this.line.write(data, 0, data.length);
-      }
-    } catch (final LineUnavailableException e) {
-      throw new PlayerException(e.getMessage(), e);
+      LINE_OUTPUT.write(data, 0, data.length);
+    } catch (final Exception e) {
+      e.printStackTrace();
     }
   }
 }

@@ -24,12 +24,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.eclipse.jetty.websocket.api.Session;
 
 /**
@@ -97,7 +97,7 @@ public class HttpResultImpl implements HttpResult {
       return;
     }
 
-    final ByteBuffer clamped = ByteUtils.clampNormalBufferToLittleEndianHttpReads(samples);
+    final ByteBuffer clamped = samples.order(ByteOrder.BIG_ENDIAN);
     final int position = clamped.position();
     final int remaining = clamped.remaining();
     final ByteBuffer copy = ByteBuffer.allocate(remaining);

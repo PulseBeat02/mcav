@@ -17,15 +17,12 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
 /**
  * Represents a callback interface for video that can be attached to a player.
  */
-public interface VideoAttachableCallback
-  extends AttachableCallback<VideoPipelineStep, ImageBuffer, OriginalVideoMetadata, VideoPipelineStep> {
+public interface VideoAttachableCallback extends AttachableCallback<VideoPipelineStep> {
   /**
    * Creates a new instance of {@link VideoAttachableCallback}.
    * @return a new instance of {@link VideoAttachableCallback}

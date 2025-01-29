@@ -82,8 +82,9 @@ public final class MetadataUtils {
       final int bitrate = grabber.getAudioBitrate();
       final int sampleRate = grabber.getSampleRate();
       final int channels = grabber.getAudioChannels();
+      final int format = grabber.getSampleFormat();
       grabber.close();
-      return OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels);
+      return OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels, format);
     } catch (final FrameGrabber.Exception e) {
       throw new InputMetadataException(e.getMessage(), e);
     }

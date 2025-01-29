@@ -222,7 +222,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
     final ResizeFilter resizeFilter = new ResizeFilter(width, height);
     resizeFilter.applyFilter(staticImage, metadata);
 
-    VideoPipelineStep current = this.videoAttachableCallback.getPipeline();
+    VideoPipelineStep current = this.videoAttachableCallback.retrieve();
     while (current != null) {
       current.process(staticImage, metadata);
       current = current.next();

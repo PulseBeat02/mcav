@@ -58,7 +58,7 @@ public class VMPlayerImpl implements VMPlayer {
       this.process = process;
       final VNCSource source = this.getVncSource(settings);
       final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
-      final VideoPipelineStep step = this.videoAttachableCallback.getPipeline();
+      final VideoPipelineStep step = this.videoAttachableCallback.retrieve();
       final VideoAttachableCallback callback = vncPlayer.getVideoAttachableCallback();
       callback.attach(step);
       return vncPlayer.start(source);

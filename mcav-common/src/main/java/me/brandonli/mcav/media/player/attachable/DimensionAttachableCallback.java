@@ -18,31 +18,28 @@
 package me.brandonli.mcav.media.player.attachable;
 
 /**
- * Represents a callback interface for audio and video that can be attached to a player.
- *
- * @param <T> The type of pipeline the callback is associated with.
+ * Represents a callback for attaching a custom dimension to a media player.
  */
-public interface AttachableCallback<T> {
+public interface DimensionAttachableCallback extends AttachableCallback<DimensionAttachableCallback.Dimension> {
   /**
-   * Attaches the given object to the callback.
-   * @param obj the object to attach
+   * Creates a new instance of {@link DimensionAttachableCallback}.
+   *
+   * @return a new instance of {@link DimensionAttachableCallback}
    */
-  void attach(final T obj);
+  static DimensionAttachableCallback create() {
+    return new DimensionAttachableCallbackImpl();
+  }
 
   /**
-   * Detaches the currently attached object from the callback.
+   * A record representing the width and height dimensions.
+   *
+   * @param width  the width dimension
+   * @param height the height dimension
    */
-  void detach();
-
-  /**
-   * Checks if an object is currently attached to the callback.
-   * @return true if an object is attached, false otherwise
-   */
-  boolean isAttached();
-
-  /**
-   * Gets the currently attached object.
-   * @return the currently attached object
-   */
-  T retrieve();
+  record Dimension(int width, int height) {
+    /**
+     * A constant representing no dimension.
+     */
+    public static final Dimension NONE = new Dimension(0, 0);
+  }
 }

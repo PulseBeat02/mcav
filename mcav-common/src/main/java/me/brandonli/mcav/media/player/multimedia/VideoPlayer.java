@@ -21,13 +21,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.cv.FFmpegPlayer;
 import me.brandonli.mcav.media.player.multimedia.cv.OpenCVPlayer;
 import me.brandonli.mcav.media.player.multimedia.cv.VideoInputPlayer;
 import me.brandonli.mcav.media.player.multimedia.vlc.VLCPlayer;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 
 /**
@@ -64,11 +63,7 @@ public interface VideoPlayer {
    * @return a {@link CompletableFuture} that completes with {@code true} if the playback
    * starts successfully, or {@code false} otherwise
    */
-  default CompletableFuture<Boolean> startAsync(
-    final AudioPipelineStep audioPipeline,
-    final VideoPipelineStep videoPipeline,
-    final Source combined
-  ) {
+  default CompletableFuture<Boolean> startAsync(final Source combined) {
     return this.startAsync(combined, ForkJoinPool.commonPool());
   }
 
@@ -85,6 +80,13 @@ public interface VideoPlayer {
    * @return The audio-attachable callback.
    */
   AudioAttachableCallback getAudioAttachableCallback();
+
+  /**
+   * Gets the dimension-attachable callback associated with this player.
+   *
+   * @return The dimension-attachable callback.
+   */
+  DimensionAttachableCallback getDimensionAttachableCallback();
 
   /**
    * Creates an instance of a VLC-based VideoPlayerMultiplexer using the provided arguments.

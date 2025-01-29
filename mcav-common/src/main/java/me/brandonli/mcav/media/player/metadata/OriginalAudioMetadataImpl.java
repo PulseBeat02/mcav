@@ -26,12 +26,20 @@ public final class OriginalAudioMetadataImpl implements OriginalAudioMetadata {
   private final int audioBitrate;
   private final int audioSampleRate;
   private final int audioChannels;
+  private final int samplingFormat;
 
-  OriginalAudioMetadataImpl(final String codec, final int audioBitrate, final int audioSampleRate, final int audioChannels) {
+  OriginalAudioMetadataImpl(
+    final String codec,
+    final int audioBitrate,
+    final int audioSampleRate,
+    final int audioChannels,
+    final int samplingFormat
+  ) {
     this.codec = codec;
     this.audioBitrate = audioBitrate;
     this.audioSampleRate = audioSampleRate;
     this.audioChannels = audioChannels;
+    this.samplingFormat = samplingFormat;
   }
 
   /**
@@ -40,6 +48,14 @@ public final class OriginalAudioMetadataImpl implements OriginalAudioMetadata {
   @Override
   public String getAudioCodec() {
     return this.codec;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int getSamplingFormat() {
+    return this.samplingFormat;
   }
 
   /**
