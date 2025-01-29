@@ -445,9 +445,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           //            continue;
           //          }
           final Frame copied = copy == null ? frame.clone() : copy;
-          videoExec.submit(() -> {
-            if (this.processVideoFrame(copied, videoMeta)) {}
-          });
+          videoExec.submit(() -> this.processVideoFrame(copied, videoMeta));
         }
       }
     } catch (final FrameGrabber.Exception e) {
