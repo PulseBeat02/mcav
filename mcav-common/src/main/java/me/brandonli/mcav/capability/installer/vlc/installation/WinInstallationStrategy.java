@@ -19,14 +19,11 @@ package me.brandonli.mcav.capability.installer.vlc.installation;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.io.ByteStreams;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Enumeration;
 import java.util.Optional;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import me.brandonli.mcav.utils.IOUtils;
 
 /**
  * {@inheritDoc}
@@ -80,43 +77,13 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
     final Path parent = requireNonNull(zip.getParent());
     final Path temp = parent.resolve(VLC_TEMP);
     final Path path = parent.resolve(VLC_APP);
-    this.extractArchive(zip, temp);
+    IOUtils.unzip(zip, temp);
+
     this.deleteFile(zip);
     this.moveFiles(temp, path);
     this.deleteFile(temp);
 
     return path;
-  }
-
-  private void extractArchive(final Path zip, final Path temp) throws IOException {
-    final File file = zip.toFile();
-    try (final ZipFile zipFile = new ZipFile(file)) {
-      final Enumeration<? extends ZipEntry> entries = zipFile.entries();
-      while (entries.hasMoreElements()) {
-        final ZipEntry entry = entries.nextElement();
-        final Path entryDestination = temp.resolve(entry.getName());
-        this.handleZipEntry(entry, entryDestination, zipFile);
-      }
-    }
-  }
-
-  private void handleZipEntry(final ZipEntry entry, final Path entryDestination, final ZipFile zipFile) throws IOException {
-    if (entry.isDirectory()) {
-      this.createDirectories(entryDestination);
-    } else {
-      final Path parent = requireNonNull(entryDestination.getParent());
-      this.createDirectories(parent);
-      final File dest = entryDestination.toFile();
-      try (final InputStream in = requireNonNull(zipFile.getInputStream(entry)); final OutputStream out = new FileOutputStream(dest)) {
-        ByteStreams.copy(in, out);
-      }
-    }
-  }
-
-  private void createDirectories(final Path path) throws IOException {
-    if (Files.notExists(path)) {
-      Files.createDirectories(path);
-    }
   }
 
   private void moveFiles(final Path temp, final Path dest) throws IOException {

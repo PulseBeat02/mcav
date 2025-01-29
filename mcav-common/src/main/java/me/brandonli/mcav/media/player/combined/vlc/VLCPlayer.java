@@ -151,6 +151,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
           try {
             this.playbackCompletionFuture.get();
           } catch (final InterruptedException | ExecutionException e) {
+            final Thread currentThread = Thread.currentThread();
+            currentThread.interrupt();
             throw new AssertionError(e);
           }
         },

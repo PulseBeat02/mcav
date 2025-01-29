@@ -168,6 +168,8 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
       converter.close();
     } catch (final FrameGrabber.Exception | InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       throw new AssertionError(e);
     }
   }
@@ -217,6 +219,8 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
       converter.close();
     } catch (final FrameGrabber.Exception | InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       throw new AssertionError(e);
     }
   }

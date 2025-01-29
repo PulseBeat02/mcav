@@ -161,7 +161,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   private void downloadFile() throws IOException {
-    System.out.println("Downloading " + this.name + "...");
+    System.out.println("Downloading " + this.url + "...");
     final URL url = new URL(this.url);
     final File output = this.path.toFile();
 
@@ -248,6 +248,8 @@ public abstract class AbstractInstaller implements Installer {
       final Process process = builder.start();
       process.waitFor();
     } catch (final InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       throw new AssertionError(e);
     }
   }

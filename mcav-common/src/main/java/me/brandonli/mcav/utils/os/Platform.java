@@ -73,6 +73,9 @@ public final class Platform {
     if (!(obj instanceof Platform)) {
       return false;
     }
+    if (hashCode() != obj.hashCode()) {
+      return false;
+    }
     final Platform other = (Platform) obj;
     return this.os == other.os && this.arch == other.arch && this.bits == other.bits;
   }

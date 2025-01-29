@@ -666,7 +666,7 @@ public class MatBackedImage implements StaticImage {
    */
   @Override
   public void drawRectangle(final int x, final int y, final int width, final int height, final double[] colorScalar, final int thickness) {
-    Imgproc.rectangle(this.mat, new Point(x, y), new Point(x + width, y + height), new Scalar(colorScalar), thickness);
+    Imgproc.rectangle(this.mat, new Point(x, y), new Point((double) x + width, (double) y + height), new Scalar(colorScalar), thickness);
   }
 
   /**
@@ -888,8 +888,8 @@ public class MatBackedImage implements StaticImage {
           final int x = centerX - width / 2;
           final int y = centerY - height / 2;
           final Scalar color = new Scalar(scalarColor);
-          Imgproc.rectangle(this.mat, new Point(x, y), new Point(x + width, y + height), color, thickness);
-          Imgproc.putText(this.mat, classNames.get(classId), new Point(x, y - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
+          Imgproc.rectangle(this.mat, new Point(x, y), new Point((double) x + width, (double) y + height), color, thickness);
+          Imgproc.putText(this.mat, classNames.get(classId), new Point(x, (double) y - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
         }
       }
     }

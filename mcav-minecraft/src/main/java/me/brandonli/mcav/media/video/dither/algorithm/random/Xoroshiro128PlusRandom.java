@@ -153,7 +153,7 @@ public final class Xoroshiro128PlusRandom extends Random {
    * {@inheritDoc}
    */
   @Override
-  public double nextGaussian() {
+  public synchronized double nextGaussian() {
     return super.nextGaussian();
   }
 

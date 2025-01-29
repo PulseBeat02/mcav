@@ -223,14 +223,14 @@ public final class IOUtils {
     final String url = source.getResource();
     String filename = url.substring(url.lastIndexOf('/') + 1);
     if (!filename.contains(".")) {
-      filename = "image_" + Math.abs(url.hashCode()) + ".jpg";
+      filename = "image_" + url + ".jpg";
     }
     final Path cacheDir = getCachedFolder();
     final Path destination = cacheDir.resolve(filename);
     if (Files.exists(destination)) {
       return destination;
     }
-    try (final java.io.InputStream in = new URL(url).openStream()) {
+    try (final InputStream in = new URL(url).openStream()) {
       Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
     }
     return destination;
