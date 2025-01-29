@@ -20,32 +20,32 @@ package me.brandonli.mcav.bukkit.resourcepack.provider.http;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
 /**
- * Represents an HTTP-based hosting solution for resource packs.
- * This interface extends the {@code PackHosting} interface and provides additional methods
- * specific to HTTP hosting, such as retrieving the hostname and port, as well as constructing
- * the raw URL of the hosted resource pack.
+ * Represents an HTTP hosting interface for resource packs.
  */
 public interface HttpHosting extends PackHosting {
+  /**
+   * The format string for the host URL, which includes placeholders for the hostname and port.
+   */
   String HOST_URL = "http://%s:%s";
 
   /**
    * Returns the hostname of the HTTP server being used for hosting the resource pack.
    *
-   * @return the hostname as a {@code String}
+   * @return the hostname
    */
   String getHostName();
 
   /**
    * Retrieves the port number on which the server is configured to run.
    *
-   * @return the port number as an integer
+   * @return the port number
    */
   int getPort();
 
   /**
    * Constructs and returns the raw URL formatted with the current host name and port.
    *
-   * @return the raw URL as a {@code String}, using the format "http://{hostName}:{port}"
+   * @return the raw URL with the format {@code http://<hostName>:<port>}
    */
   @Override
   default String getRawUrl() {

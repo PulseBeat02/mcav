@@ -21,10 +21,7 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An exception that represents an error occurring within the HTTP server.
- * <p>
- * This class is a subclass of {@link AssertionError} and can be used to signal
- * unexpected issues or states related to HTTP server operations.
+ * Represents an exception during HTTP server operations.
  */
 public class HttpServerException extends AssertionError {
 
@@ -32,19 +29,19 @@ public class HttpServerException extends AssertionError {
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
-   * Constructs a new {@code HttpServerException} with the specified detail message.
+   * Constructs a new exception with the specified detail message.
    *
-   * @param message the detail message explaining the exception. This can be {@code null}.
+   * @param message the detail message explaining the exception
    */
   public HttpServerException(final @Nullable String message) {
     super(message);
   }
 
   /**
-   * Constructs a new {@code HttpServerException} with the specified detail message and cause.
+   * Constructs a new exception with the specified detail message and cause.
    *
-   * @param message the detail message explaining the exception. This can be {@code null}.
-   * @param cause   the cause of the exception. This can be {@code null}.
+   * @param message the detail message explaining the exception
+   * @param cause   the cause of the exception
    */
   public HttpServerException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);

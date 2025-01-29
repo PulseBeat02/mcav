@@ -39,27 +39,32 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
 /**
- * Utility class for sending packets to a collection of viewers in a Minecraft server context.
- * This class provides methods to manage and dispatch packets efficiently to players represented by their UUIDs.
- * <p>
- * PacketUtils is designed as a utility class and cannot be instantiated.
+ * Utility class for sending NMS packets to players in a Bukkit server.
  */
 public final class PacketUtils {
 
   private static final Map<UUID, ServerGamePacketListenerImpl> PLAYER_CONNECTIONS = new ConcurrentHashMap<>();
+
+  /**
+   * Utility method only meant to be used by {@link MCAVBukkit} to initialize the packet listener. Do not
+   * use this method directly.
+   */
+  public static void init() {
+    final Plugin plugin = MCAVBukkit.getPlugin();
+    final PluginManager manager = Bukkit.getPluginManager();
+    final Listener listener = new EventInitializer();
+    manager.registerEvents(listener, plugin);
+  }
 
   private PacketUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Sends an array of packets to a collection of viewers identified by their UUIDs.
-   * This method ensures that all viewers in the collection have an active connection
-   * before sending the specified packets.
+   * Sends the specified packets to all players in the provided collection of UUIDs.
    *
-   * @param viewers a collection of {@link UUID} objects representing the viewers to
-   *                whom the packets will be sent
-   * @param packets an array of packets to send to the specified viewers
+   * @param viewers a collection of player UUIDs to whom the packets will be sent
+   * @param packets the packets to send
    */
   public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
     for (final UUID viewer : viewers) {
@@ -71,13 +76,6 @@ public final class PacketUtils {
         conn.send(packet);
       }
     }
-  }
-
-  public static void init() {
-    final Plugin plugin = MCAVBukkit.getPlugin();
-    final PluginManager manager = Bukkit.getPluginManager();
-    final Listener listener = new EventInitializer();
-    manager.registerEvents(listener, plugin);
   }
 
   private static void addPlayerConnection(final UUID uuid) {
@@ -94,6 +92,11 @@ public final class PacketUtils {
 
   private static class EventInitializer implements Listener {
 
+    /**
+     * Creates a new player connection when a player joins the server.
+     *
+     * @param event the PlayerJoinEvent triggered when a player joins
+     */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(final PlayerJoinEvent event) {
       final Player player = event.getPlayer();
@@ -101,6 +104,11 @@ public final class PacketUtils {
       addPlayerConnection(uuid);
     }
 
+    /**
+     * Removes the player connection when a player quits the server.
+     *
+     * @param event the PlayerQuitEvent triggered when a player quits
+     */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerQuit(final PlayerQuitEvent event) {
       final Player player = event.getPlayer();

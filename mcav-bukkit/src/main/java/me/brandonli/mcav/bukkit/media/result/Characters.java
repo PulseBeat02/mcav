@@ -18,16 +18,36 @@
 package me.brandonli.mcav.bukkit.media.result;
 
 /**
- * The Characters interface defines a collection of symbolic constants
- * that represent various geometric or symbological characters. These characters
- * can be used in video players.
+ * Represents a collection of characters that can be used in scoreboard, chat, or
+ * entity displays.
  */
 public interface Characters {
+  /**
+   * Unicode character representing a full block
+   */
   String FULL_CHARACTER = "█";
+  /**
+   * Unicode character representing a white square
+   */
   String WHITE_SQUARE = "□";
+  /**
+   * Unicode character representing a black square
+   */
   String BLACK_SQUARE = "■";
+  /**
+   * Unicode character representing a white circle
+   */
   String WHITE_CIRCLE = "○";
+  /**
+   * Unicode character representing a black circle
+   */
   String BLACK_CIRCLE = "●";
+  /**
+   * Unicode character representing a small white square
+   */
   String SMALL_WHITE_SQUARE = "▫";
+  /**
+   * Unicode character representing a small black square
+   */
   String SMALL_BLACK_SQUARE = "▪";
 }

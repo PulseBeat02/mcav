@@ -29,12 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import me.brandonli.mcav.utils.IOUtils;
 
-/**
- * A handler for managing file server operations over a Netty channel.
- * Handles incoming channel activity to serve files to clients.
- * Implements file transfer using HTTP headers and ensures proper connection closure post-transfer.
- */
-public final class FileServerHandler extends ChannelInboundHandlerAdapter {
+final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private static final String RESPONSE_HEADERS_TEMPLATE =
     "HTTP/1.1 200 OK\r\n" +
@@ -46,26 +41,12 @@ public final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private final Path filePath;
 
-  /**
-   * Constructs a new instance of {@code FileServerHandler}.
-   * This handler is responsible for serving files to clients over a Netty channel.
-   *
-   * @param filePath the {@link Path} to the file that this handler will serve to clients.
-   *                 It must point to a valid and accessible file on the file system.
-   */
-  public FileServerHandler(final Path filePath) {
+  FileServerHandler(final Path filePath) {
     this.filePath = filePath;
   }
 
   /**
-   * Handles channel activation and initiates file transfer over the Netty channel.
-   * When the channel becomes active, this method reads the specified file, constructs
-   * HTTP headers, writes the headers and file content to the channel, and schedules
-   * the connection for closure upon completion of the transfer.
-   *
-   * @param ctx the {@code ChannelHandlerContext} that provides pipeline operations
-   *            and allows communication with the Channel.
-   * @throws Exception if any error occurs during file reading or data transmission.
+   * {@inheritDoc}
    */
   @Override
   public void channelActive(final ChannelHandlerContext ctx) throws Exception {
@@ -81,18 +62,7 @@ public final class FileServerHandler extends ChannelInboundHandlerAdapter {
     }
   }
 
-  /**
-   * Creates an HTTP response header as a byte array for serving a file.
-   * The response header includes information such as the content length
-   * and the name of the file.
-   *
-   * @param file the RandomAccessFile representing the file being served.
-   *             It is used to determine the file's size.
-   * @return a byte array containing the HTTP response header formatted
-   * with file details.
-   * @throws IOException if an I/O error occurs while accessing the file's length.
-   */
-  public byte[] createHeader(final RandomAccessFile file) throws IOException {
+  private byte[] createHeader(final RandomAccessFile file) throws IOException {
     final long fileLength = file.length();
     final String fileName = IOUtils.getName(this.filePath);
     final String responseHeaders = String.format(RESPONSE_HEADERS_TEMPLATE, fileLength, fileName);
@@ -100,11 +70,7 @@ public final class FileServerHandler extends ChannelInboundHandlerAdapter {
   }
 
   /**
-   * Handles any exceptions raised during channel operations.
-   * Logs or processes the exception and rethrows it as an assertion error.
-   *
-   * @param ctx   the {@link ChannelHandlerContext} providing context information about the channel
-   * @param cause the {@link Throwable} that was caught during processing
+   * {@inheritDoc}
    */
   @Override
   public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {

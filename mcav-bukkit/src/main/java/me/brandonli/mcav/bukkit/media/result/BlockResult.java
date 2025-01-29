@@ -32,6 +32,9 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
+/**
+ * Represents a filter for displaying frames as blocks.
+ */
 public class BlockResult implements FunctionalVideoFilter {
 
   private final BlockConfiguration blockConfiguration;
@@ -39,11 +42,21 @@ public class BlockResult implements FunctionalVideoFilter {
 
   private Location[] locationCache;
 
+  /**
+   * Constructs a new instance of the {@code BlockResult} class using the provided
+   * {@code BlockConfiguration}.
+   *
+   * @param configuration the configuration object that defines the properties of the
+   *                      block filter, including viewers, position, and block dimensions.
+   */
   public BlockResult(final BlockConfiguration configuration) {
     this.blockConfiguration = configuration;
     this.dither = BlockPaletteLookup.getDitheringImpl();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void applyFilter(final StaticImage data, final VideoMetadata metadata) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
@@ -78,6 +91,9 @@ public class BlockResult implements FunctionalVideoFilter {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
@@ -94,6 +110,9 @@ public class BlockResult implements FunctionalVideoFilter {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void release() {
     final BlockData empty = Material.AIR.createBlockData();

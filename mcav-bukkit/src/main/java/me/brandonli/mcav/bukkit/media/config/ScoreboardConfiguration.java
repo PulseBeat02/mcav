@@ -18,16 +18,12 @@
 package me.brandonli.mcav.bukkit.media.config;
 
 import com.google.common.base.Preconditions;
+
 import java.util.Collection;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.result.FunctionalVideoFilter;
-import me.brandonli.mcav.bukkit.media.result.ScoreboardResult;
 
 /**
- * Represents the configuration of a scoreboard. This class contains the properties
- * necessary for configuring a scoreboard, such as viewers, character, number of lines,
- * and width. Instances of this class are immutable and can be created using the
- * {@link Builder}.
+ * Represents a configuration for scoreboard related prototypes.
  */
 public class ScoreboardConfiguration {
 
@@ -44,47 +40,49 @@ public class ScoreboardConfiguration {
   }
 
   /**
-   * Retrieves the collection of viewers associated with the scoreboard configuration.
-   * Each viewer is represented by a unique {@link UUID}.
+   * Gets the viewers of this scoreboard configuration.
    *
-   * @return a collection of {@link UUID} objects representing the viewers
+   * @return the collection of UUIDs representing the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Retrieves the character associated with the scoreboard configuration.
+   * Gets the character string associated with this scoreboard configuration.
    *
-   * @return a string representing the configured character
+   * @return the character string, which may represent a specific
    */
   public String getCharacter() {
     return this.character;
   }
 
   /**
-   * Retrieves the number of lines configured in the scoreboard.
+   * Gets the number of lines in the scoreboard.
    *
-   * @return the number of lines as an integer
+   * @return the line count of the scoreboard
    */
   public int getLines() {
     return this.lines;
   }
 
   /**
-   * Retrieves the width of the scoreboard configuration.
+   * Gets the width of the scoreboard.
    *
-   * @return the width of the scoreboard as an integer
+   * @return the character width of the scoreboard
    */
   public int getWidth() {
     return this.width;
   }
 
   /**
-   * Builder class for constructing instances of {@link ScoreboardResult}.
-   * This class provides methods to set the properties of the scoreboard result.
+   * Scoreboard configuration builder abstraction.
    */
   public static final class ScoreboardResultBuilder extends Builder<ScoreboardResultBuilder> {
+
+    ScoreboardResultBuilder() {
+      // no-op
+    }
 
     @Override
     protected ScoreboardResultBuilder self() {
@@ -93,19 +91,16 @@ public class ScoreboardConfiguration {
   }
 
   /**
-   * Creates and returns a new instance of the builder for constructing a {@link ScoreboardConfiguration}.
-   * The builder provides methods for configuring the properties of the scoreboard configuration,
-   * such as viewers, character, lines, and width, and ensures valid construction of the object.
+   * Creates a new scoreboard configuration builder.
    *
-   * @return a {@link Builder} instance for configuring and constructing a {@link ScoreboardConfiguration}
+   * @return a new scoreboard configuration builder
    */
   public static Builder<?> builder() {
     return new ScoreboardResultBuilder();
   }
 
   /**
-   * Abstract builder class for creating instances of {@link ScoreboardResult}.
-   * This class provides methods to set the properties of the scoreboard result.
+   * Abstract builder for scoreboard configurations.
    *
    * @param <T> the type of the builder
    */
@@ -116,13 +111,17 @@ public class ScoreboardConfiguration {
     private int lines;
     private int width;
 
-    protected abstract T self();
+    Builder() {
+      // no-op
+    }
+
+    abstract T self();
 
     /**
-     * Sets the viewers for the builder.
+     * Sets the viewers of this scoreboard configuration.
      *
-     * @param viewers the collection of UUIDs representing the viewers
-     * @return the builder instance for method chaining
+     * @param viewers the viewers to set
+     * @return the builder instance for chaining
      */
     public T viewers(final Collection<UUID> viewers) {
       this.viewers = viewers;
@@ -130,10 +129,10 @@ public class ScoreboardConfiguration {
     }
 
     /**
-     * Sets the character to be used and returns the current builder instance.
+     * Sets the character string of this scoreboard configuration.
      *
-     * @param character the character to be used
-     * @return the current builder instance
+     * @param character the character value to be set
+     * @return the instance of the builder for method chaining
      */
     public T character(final String character) {
       this.character = character;
@@ -141,9 +140,9 @@ public class ScoreboardConfiguration {
     }
 
     /**
-     * Sets the number of lines and returns the builder instance.
+     * Sets the scoreboard lines of this scoreboard configuration.
      *
-     * @param lines the number of lines to be set; must be a positive integer
+     * @param lines the number of lines to be set
      * @return the current builder instance
      */
     public T lines(final int lines) {
@@ -152,10 +151,10 @@ public class ScoreboardConfiguration {
     }
 
     /**
-     * Sets the width property for the builder.
+     * Sets the character width of the scoreboard.
      *
-     * @param width the width value to be set; must be a positive integer
-     * @return the builder instance for method chaining
+     * @param width the width to be set
+     * @return the current builder instance
      */
     public T width(final int width) {
       this.width = width;
@@ -163,12 +162,9 @@ public class ScoreboardConfiguration {
     }
 
     /**
-     * Builds and returns an instance of {@link FunctionalVideoFilter}.
-     * This method performs validation checks to ensure all required fields have been set.
+     * Builds the scoreboard configuration.
      *
-     * @return a new instance of {@link FunctionalVideoFilter} with the configured properties.
-     * @throws NullPointerException     if any mandatory field (viewers or character) is null.
-     * @throws IllegalArgumentException if the lines or width values are non-positive.
+     * @return a new instance of ScoreboardConfiguration
      */
     public ScoreboardConfiguration build() {
       Preconditions.checkNotNull(this.viewers);

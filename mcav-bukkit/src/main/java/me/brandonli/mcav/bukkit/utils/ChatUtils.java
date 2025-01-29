@@ -27,11 +27,7 @@ import org.bukkit.craftbukkit.util.CraftChatMessage;
 import org.bukkit.entity.Player;
 
 /**
- * Utility class for creating and manipulating chat components with color-coded text representations.
- * This class is designed to generate components by processing data arrays and applying coloring
- * based on pixel values. It is optimized for creating visual output suitable for chat environments.
- * <p>
- * This is a non-instantiable utility class.
+ * Utility class for sending components to players.
  */
 public final class ChatUtils {
 
@@ -42,11 +38,11 @@ public final class ChatUtils {
   }
 
   /**
-   * Generates a unique colored string based on the hexadecimal representation of the given index.
-   * Each character in the hexadecimal string is mapped to a corresponding color using Minecraft color codes.
+   * Generates a unique colored string based on the hexadecimal representation of the given index. Meant to be
+   * used for creating teams with invisible names.
    *
-   * @param index an integer value whose hexadecimal representation will be used to generate the string
-   * @return a string containing Minecraft-style color codes corresponding to each character in the hexadecimal representation of the index
+   * @param index an integer seed, or index
+   * @return an "invisible" string that can be used for team names
    */
   public static String getUniqueString(final int index) {
     final StringBuilder entry = new StringBuilder();
@@ -60,31 +56,14 @@ public final class ChatUtils {
   }
 
   /**
-   * Creates a formatted Component representing a single line from an array of pixel data.
-   * The method maps pixel data to corresponding characters with specific color codes
-   * and converts the result into a Component.
+   * Creates a raw line of text with colored characters based on the RGB values in the provided data array.
+   * Each unique RGB value is represented by a Minecraft color code, and the specified character is appended after each color code.
    *
-   * @param data      an array of integers representing pixel data in RGB format
-   * @param character the character to use for visual representation of each pixel
-   * @param width     the width of the line in characters
-   * @param y         the vertical index of the line within the pixel data
-   * @return a Component representing the formatted line with applied color codes
-   */
-  public static Component createLine(final int[] data, final String character, final int width, final int y) {
-    final String line = createRawLine(data, character, width, y);
-    return CraftChatMessage.fromStringOrNull(line);
-  }
-
-  /**
-   * Generates a string representing a line of colored characters based on pixel data.
-   * Each distinct color change in the data array is prefixed with a Minecraft-style
-   * color code, followed by the specified character.
-   *
-   * @param data      an array of integers representing pixel data in RGB format
-   * @param character the character to use for visual representation of each pixel
-   * @param width     the width of the image being represented
-   * @param y         the index of the row from the data array to be converted
-   * @return a string containing color codes and characters representing the specified row of pixel data
+   * @param data      an array of RGB values representing pixel colors
+   * @param character the character to append after each color code
+   * @param width     the width of the line (number of pixels)
+   * @param y         the vertical position in the data array
+   * @return a string representing a single line of colored text
    */
   public static String createRawLine(final int[] data, final String character, final int width, final int y) {
     final StringBuilder builder = new StringBuilder(width * (14 + character.length()));
@@ -108,13 +87,14 @@ public final class ChatUtils {
   }
 
   /**
-   * Generates a string with color codes by mapping an array of RGB pixel data to text characters.
+   * Creates a chat component from the given rgb pixel data, character, width, and height.
+   * The component will have colors based on the RGB values in the data array.
    *
-   * @param data      an array of integers representing pixel data in RGB format
-   * @param character the character to use for visual representation of each pixel
-   * @param width     the width of the "image" to be represented in characters
-   * @param height    the height of the "image" to be represented in characters
-   * @return a String with color codes representing the visual data
+   * @param data      the pixel data as an array of RGB integers
+   * @param character the character to repeat for each pixel
+   * @param width     the width of the chat component
+   * @param height    the height of the chat component
+   * @return a Component representing the chat message
    */
   public static Component createChatComponent(final int[] data, final String character, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(width * height * (14 + character.length()) + height);
@@ -144,11 +124,9 @@ public final class ChatUtils {
   }
 
   /**
-   * Clears the chat for a collection of viewers by sending a large number of newline characters
-   * to simulate an empty chat screen.
+   * Emulates a clear chat by sending a large number of new lines to the players.
    *
-   * @param viewers a collection of {@link UUID} objects representing the players whose chat
-   *                will be cleared
+   * @param viewers players to clear the chat for
    */
   public static void clearChat(final Collection<UUID> viewers) {
     final String repeated = StringUtils.repeat("\n", 100);

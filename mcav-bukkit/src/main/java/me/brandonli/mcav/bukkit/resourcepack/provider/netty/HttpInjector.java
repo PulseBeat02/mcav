@@ -15,27 +15,25 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.Injector;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.InjectorContext;
 
 @Sharable
-public abstract class HttpInjector extends Injector {
+abstract class HttpInjector extends Injector {
 
-  public abstract HttpByteBuf intercept(final ChannelHandlerContext ctx, final HttpRequest request);
+  abstract HttpByteBuf intercept(final ChannelHandlerContext ctx, final HttpRequest request);
 
   @Override
-  public boolean isRelevant(final InjectorContext ctx) {
+  boolean isRelevant(final InjectorContext ctx) {
     return isRequestGet(ctx.getMessage());
   }
 
   @Override
-  public final boolean onRead(final ChannelHandlerContext ctx, final ByteBuf buf) {
+  final boolean onRead(final ChannelHandlerContext ctx, final ByteBuf buf) {
     final HttpRequest request = HttpRequest.parse(buf);
     final HttpByteBuf response = this.intercept(ctx, request);
     final ByteBuf inner = response.getInner();

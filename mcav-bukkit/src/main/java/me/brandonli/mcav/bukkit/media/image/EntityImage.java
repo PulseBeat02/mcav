@@ -38,16 +38,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
 /**
- * The EntityImage class represents an implementation of the DisplayableImage interface that
- * is responsible for rendering and managing images as collections of virtual entities in a 3D space.
- * The images are displayed using in-game entities such as Armor Stands.
- * <p>
- * This class uses an instance of {@link EntityConfiguration} to define the display parameters,
- * such as the position, dimensions, and character representation of the entities. It supports
- * resizing of the input image and ensures proper cleanup of resources when the entities are no longer needed.
- * <p>
- * Instances of EntityImage are immutable with respect to their configuration but are stateful
- * in managing the entities used for rendering the image.
+ * Represents an entity-based image display implementation. Uses a {@link TextDisplay} entity to display images in the world.
  */
 public class EntityImage implements DisplayableImage {
 

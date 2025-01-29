@@ -23,51 +23,16 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import java.nio.file.Path;
 
-/**
- * A ChannelInitializer implementation for initializing HTTP channels
- * in a File-based HTTP server.
- * <p>
- * This class is responsible for configuring the {@link ChannelPipeline} of a
- * {@link SocketChannel} to handle HTTP file transmission. It is specifically
- * designed to work with a {@link FileHttpServer}, ensuring the proper handling
- * of HTTP file requests and responses.
- * <p>
- * The initializer adds the following handlers to the pipeline:
- * - {@link ChunkedWriteHandler} for handling chunked file writes.
- * - {@link FileServerHandler} for serving the specified file to clients.
- * <p>
- * The file to be served is obtained through the {@link FileHttpServer#getFilePath()} method.
- * <p>
- * This class is immutable and thread-safe.
- */
-public final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel> {
+final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel> {
 
   private final FileHttpServer server;
 
-  /**
-   * Constructs a new instance of FileHttpChannelInitializer.
-   * <p>
-   * This initializer is responsible for configuring the pipeline of HTTP channels
-   * used in the {@link FileHttpServer}. It integrates custom handlers into the
-   * channel pipeline to handle file-based HTTP requests and responses.
-   *
-   * @param server the {@link FileHttpServer} instance to associate with this initializer,
-   *               providing access to necessary server properties such as file paths
-   *               and configurations.
-   */
-  public FileHttpChannelInitializer(final FileHttpServer server) {
+  FileHttpChannelInitializer(final FileHttpServer server) {
     this.server = server;
   }
 
   /**
-   * Initializes the {@link ChannelPipeline} of the given {@link SocketChannel}.
-   * <p>
-   * This method configures the pipeline of the provided channel to handle HTTP file requests.
-   * It adds the following handlers:
-   * - {@link ChunkedWriteHandler}: A handler for writing large data streams in chunks.
-   * - {@link FileServerHandler}: A custom handler for serving files from the provided file path.
-   *
-   * @param ch the {@link SocketChannel} whose pipeline is to be initialized
+   * {@inheritDoc}
    */
   @Override
   public void initChannel(final SocketChannel ch) {

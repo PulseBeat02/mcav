@@ -25,8 +25,6 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
 
 /**
  * Represents a hosting solution for resource packs.
- * This interface is designed to outline the necessary functions and facilitate different implementations
- * (e.g., HTTP-based hosting or website-based hosting).
  */
 public interface PackHosting {
   /**
@@ -37,19 +35,12 @@ public interface PackHosting {
   String getRawUrl();
 
   /**
-   * Starts the resource pack hosting service. This method is responsible for initiating
-   * the hosting process based on the specific implementation.
-   * <p>
-   * In
+   * Starts the resource pack hosting service.
    */
   void start();
 
   /**
    * Shuts down the resource pack hosting service.
-   * This method is responsible for stopping or deactivating the hosting process that
-   * was previously started using the start method. It should release any resources,
-   * terminate background processes, or close connections associated with the hosting.
-   * The specific shutdown behavior depends on the implementation of the interface
    */
   void shutdown();
 
@@ -61,21 +52,19 @@ public interface PackHosting {
   Path getZip();
 
   /**
-   * Creates an HTTP-based implementation of the {@code PackHosting} interface.
-   * This method returns an instance of {@code ServerPackHosting}, which handles
-   * hosting of resource packs over HTTP at the specified host name and port.
+   * Provides a resource pack hosting implementation that serves the pack over HTTP.
    *
-   * @param path     the path to the resource pack ZIP file to be hosted
-   * @param hostName the host name for the server (e.g., "localhost" or an IP address)
-   * @param port     the port number on which the server will run
-   * @return an instance of {@code PackHosting} for hosting the resource pack
+   * @param path     the path to the resource pack file to be hosted
+   * @param hostName the hostname for the HTTP server
+   * @param port     the port on which the HTTP server will listen
+   * @return an implementation of {@code HttpHosting} for serving resource packs over HTTP
    */
   static HttpHosting http(final Path path, final String hostName, final int port) {
     return new ServerPackHosting(path, hostName, port);
   }
 
   /**
-   * Provides a resource pack hosting implementation that interfaces with an external website.
+   * Provides a resource pack hosting implementation that interfaces with MCPack's website.
    *
    * @param path the path to the resource pack file to be hosted
    * @return an implementation of {@code PackHosting} specific to website-based hosting
@@ -85,12 +74,10 @@ public interface PackHosting {
   }
 
   /**
-   * Provides an implementation of {@code InjectorHosting} for hosting resource packs using
-   * injection mechanisms. This method creates and returns an instance of {@code NettyHosting},
-   * which applies advanced injection techniques for hosting.
+   * Provides a resource pack hosting implementation that uses Netty for serving the pack.
    *
-   * @param path the file system path to the resource pack ZIP file to be hosted
-   * @return an instance of {@code InjectorHosting} specialized for injection-based hosting
+   * @param path the path to the resource pack file to be hosted
+   * @return an implementation of {@code InjectorHosting} for serving resource packs using Netty
    */
   static InjectorHosting injector(final Path path) {
     return new NettyHosting(path);

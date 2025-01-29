@@ -22,75 +22,68 @@ import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * The DisplayableImage interface defines a contract for displaying images of type StaticImage.
- * Classes implementing this interface should provide the implementation for the display method
- * to render or handle the provided StaticImage as per specific requirements.
+ * Represents a DisplayableImage provider that can be used to display {@link StaticImage} images on command.
  */
 public interface DisplayableImage {
   /**
-   * Displays the specified static image. This method is intended to be implemented
-   * by classes that handle rendering or processing of images of type StaticImage.
+   * Displays the given image on the configured display.
    *
-   * @param image the static image to be displayed; must not be null
+   * @param image the image to display
    */
   void displayImage(final StaticImage image);
 
   /**
-   * Releases any resources associated with the DisplayableImage instance.
-   * <p>
-   * This method should be called to clean up resources when the instance is no longer needed.
-   * Implementations of this method ensure that any system or memory resources used are properly released.
+   * Releases any resources associated with this displayable image.
    */
   void release();
 
   /**
-   * Maps the provided map configuration and dithering algorithm into a displayable image.
+   * Creates a DisplayableImage for the given MapConfiguration.
    *
-   * @param mapConfiguration the configuration for the map, including dimensions, resolution, and viewers; must not be null
-   * @param algorithm        the dithering algorithm to apply when generating the image; must not be null
-   * @return a {@code DisplayableImage} instance constructed based on the provided map configuration and dithering algorithm
+   * @param mapConfiguration the configuration for the map
+   * @param algorithm        the dithering algorithm to use
+   * @return a DisplayableImage instance for the map
    */
   static DisplayableImage map(final MapConfiguration mapConfiguration, final DitherAlgorithm algorithm) {
     return new MapImage(mapConfiguration, algorithm);
   }
 
   /**
-   * Creates a DisplayableImage instance for displaying a chat-based image,
-   * using the specified ChatConfiguration to define the display settings.
+   * Creates a DisplayableImage for the given ChatConfiguration.
    *
-   * @param chatConfiguration the configuration object specifying parameters such as
-   *                          the audience, dimensions, and character used for rendering the image
-   * @return a DisplayableImage instance that can render the chat-based image
+   * @param chatConfiguration the configuration for the chat
+   * @return a DisplayableImage instance for the chat
    */
   static DisplayableImage chat(final ChatConfiguration chatConfiguration) {
     return new ChatImage(chatConfiguration);
   }
 
   /**
-   * Creates and returns a DisplayableImage instance configured for an entity based on the given
-   * EntityConfiguration. The resulting DisplayableImage represents the visual representation of
-   * an entity, built with the specified configuration properties such as dimensions, position,
-   * viewers, and associated character.
+   * Creates a DisplayableImage for the given EntityConfiguration.
    *
-   * @param entityConfiguration the configuration details for the entity, including its dimensions,
-   *                            position, viewers, and associated character; must not be null
-   * @return a DisplayableImage instance that represents the entity as per the provided configuration
+   * @param entityConfiguration the configuration for the entity
+   * @return a DisplayableImage instance for the entity
    */
   static DisplayableImage entity(final EntityConfiguration entityConfiguration) {
     return new EntityImage(entityConfiguration);
   }
 
   /**
-   * Creates a new {@link DisplayableImage} instance that represents a scoreboard configured
-   * using the provided {@link ScoreboardConfiguration}.
+   * Creates a DisplayableImage for the given ScoreboardConfiguration.
    *
-   * @param scoreboardConfiguration the configuration for the scoreboard; must not be null
-   * @return a {@link DisplayableImage} instance configured for the given scoreboard
+   * @param scoreboardConfiguration the configuration for the scoreboard
+   * @return a DisplayableImage instance for the scoreboard
    */
   static DisplayableImage scoreboard(final ScoreboardConfiguration scoreboardConfiguration) {
     return new ScoreboardImage(scoreboardConfiguration);
   }
 
+  /**
+   * Creates a DisplayableImage for the given BlockConfiguration.
+   *
+   * @param blockConfiguration the configuration for the block
+   * @return a DisplayableImage instance for the block
+   */
   static DisplayableImage block(final BlockConfiguration blockConfiguration) {
     return new BlockImage(blockConfiguration);
   }

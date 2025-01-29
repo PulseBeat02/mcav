@@ -39,18 +39,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 
 /**
- * Represents the result of an entity-based operation that applies a functional video filter.
- * The filter dynamically creates and manages virtual entities, modifies their metadata, and
- * applies visual effects based on the video data provided.
- * <p>
- * This class is built using a builder pattern to allow flexible initialization of its
- * properties, such as entity dimensions, position, and viewers. It ensures that all resources
- * associated with the entities are appropriately created and released during the lifecycle
- * of the filter.
- * <p>
- * Implements the {@link FunctionalVideoFilter} interface, providing additional control over
- * the initialization (`start`), application (`applyFilter`), and cleanup (`release`) phases
- * of the filter's lifecycle.
+ * Represents a filter for displaying frames as a {@link TextDisplay} entity.
  */
 public class EntityResult implements FunctionalVideoFilter {
 

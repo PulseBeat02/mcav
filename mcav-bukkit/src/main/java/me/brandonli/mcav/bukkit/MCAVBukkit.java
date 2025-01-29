@@ -22,10 +22,8 @@ import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import org.bukkit.plugin.Plugin;
 
 /**
- * The {@code MCAVBukkit} class is a utility class designed to manage
- * and provide access to a shared {@link Plugin} instance within a Minecraft Bukkit
- * environment. It cannot be instantiated and provides static methods for
- * manipulation and retrieval of a single plugin instance.
+ * The main entry point for Bukkit integration. Requires injection of a plugin instance to load
+ * listeners and schedulers.
  */
 public final class MCAVBukkit {
 
@@ -36,9 +34,9 @@ public final class MCAVBukkit {
   }
 
   /**
-   * Injects a Plugin instance into the class for future use.
+   * Injects a Plugin instance. Also initializes palettes and packet listeners.
    *
-   * @param plugin the Plugin instance to be injected
+   * @param plugin the Plugin instance
    */
   public static void inject(final Plugin plugin) {
     PLUGIN = plugin;
@@ -47,9 +45,9 @@ public final class MCAVBukkit {
   }
 
   /**
-   * Retrieves the plugin instance associated with the application.
+   * Retrieves the plugin instance.
    *
-   * @return the current Plugin instance registered with the application.
+   * @return the current Plugin instance
    */
   public static Plugin getPlugin() {
     return PLUGIN;

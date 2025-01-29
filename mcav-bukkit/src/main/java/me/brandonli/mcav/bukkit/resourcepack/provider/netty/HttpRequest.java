@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -25,10 +25,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.InjectorException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public final class HttpRequest {
+final class HttpRequest {
 
   private final String request;
   private final Map<String, String> headers;
@@ -37,7 +36,7 @@ public final class HttpRequest {
   private final String requestURI;
   private final String protocolVersion;
 
-  public HttpRequest(final String request, final Map<String, String> headers) {
+  HttpRequest(final String request, final Map<String, String> headers) {
     this.request = request;
     this.headers = headers;
     this.requestParts = request.split(" ");
@@ -46,11 +45,12 @@ public final class HttpRequest {
     this.protocolVersion = this.requestParts[2];
   }
 
-  public @Nullable String get(final String header) {
+  @Nullable
+  String get(final String header) {
     return this.headers.get(header);
   }
 
-  public static HttpRequest parse(final ByteBuf buf) {
+  static HttpRequest parse(final ByteBuf buf) {
     try (final ByteBufInputStream stream = new ByteBufInputStream(buf)) {
       return parse(stream);
     } catch (final IOException e) {
@@ -84,27 +84,27 @@ public final class HttpRequest {
     return headers;
   }
 
-  public String getRequest() {
+  String getRequest() {
     return this.request;
   }
 
-  public Map<String, String> getHeaders() {
+  Map<String, String> getHeaders() {
     return this.headers;
   }
 
-  public String[] getRequestParts() {
+  String[] getRequestParts() {
     return this.requestParts;
   }
 
-  public String getRequestMethod() {
+  String getRequestMethod() {
     return this.requestMethod;
   }
 
-  public String getRequestURI() {
+  String getRequestURI() {
     return this.requestURI;
   }
 
-  public String getProtocolVersion() {
+  String getProtocolVersion() {
     return this.protocolVersion;
   }
 }

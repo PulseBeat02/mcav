@@ -30,25 +30,12 @@ import team.unnamed.creative.sound.SoundEntry;
 import team.unnamed.creative.sound.SoundEvent;
 
 /**
- * A utility class that provides an abstraction for creating and managing a simple resource pack.
- * This class enables the addition of sounds, external files, metadata, and the generation of zip files
- * for Minecraft resource packs.
- * <p>
- * Instances of this class can be created using the {@code create()} method.
+ * Represents a simple class for creating and managing resource packs.
  */
 public final class SimpleResourcePack {
 
   private final ResourcePack resourcePack;
 
-  /**
-   * Constructs a new instance of {@code SimpleResourcePack}.
-   * <p>
-   * This constructor initializes a {@code ResourcePack} object using the static factory method
-   * {@code ResourcePack.resourcePack()} and assigns it to the internal field.
-   * <p>
-   * Note: This constructor is package-private and is intended to be used internally by the
-   * {@code SimpleResourcePack} class and its associated methods.
-   */
   SimpleResourcePack() {
     this.resourcePack = ResourcePack.resourcePack();
   }
@@ -63,13 +50,11 @@ public final class SimpleResourcePack {
   }
 
   /**
-   * Registers a sound to the resource pack using the specified name and file path.
-   * The method creates a sound key, associates it with the provided file path,
-   * and sets up the necessary sound and sound event for inclusion in the resource pack.
+   * Adds a sound to the resource pack using a raw key and a file path.
+   * The sound will be registered with the specified key and associated with the provided file path.
    *
-   * @param raw  the string identifier for the sound that will be used as its key
-   * @param path the file path pointing to the sound file to be added
-   * @throws NullPointerException if {@code raw} or {@code path} is null
+   * @param raw  the raw key for the sound
+   * @param path the path to the sound file
    */
   public void sound(final String raw, final Path path) {
     Preconditions.checkNotNull(raw);
@@ -83,11 +68,11 @@ public final class SimpleResourcePack {
   }
 
   /**
-   * Adds an external file to the resource pack at the specified path. This method allows the inclusion
-   * of arbitrary files that are not part of other predefined resource types.
+   * Adds an external file to the resource pack at the specified path.
+   * The file will be treated as an unknown file and added to the resource pack.
    *
-   * @param path The location within the resource pack where the file will be stored. It must not be null.
-   * @param file The path to the external file being added. It must not be null.
+   * @param path the path where the file will be added in the resource pack
+   * @param file the file to be added
    */
   public void external(final String path, final Path file) {
     Preconditions.checkNotNull(path);
@@ -96,10 +81,10 @@ public final class SimpleResourcePack {
   }
 
   /**
-   * Sets metadata for the resource pack, including the format version and a description.
+   * Adds the pack.mcmeta entry to the resource pack with the specified format and description.
    *
-   * @param format      the format version of the resource pack
-   * @param description the description text of the resource pack; must not be null
+   * @param format      the metadata format
+   * @param description the description of the resource pack
    */
   public void meta(final int format, final String description) {
     Preconditions.checkNotNull(description);

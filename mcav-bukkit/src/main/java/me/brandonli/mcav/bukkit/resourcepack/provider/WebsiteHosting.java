@@ -18,8 +18,6 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
 /**
- * Represents a website-based hosting solution for resource packs, extending the generic
- * {@code PackHosting} interface. This specialization provides functionalities specifically
- * tailored for hosting through a website or web-based service.
+ * Represents the hosting of a resource pack onto MCPack's website.
  */
 public interface WebsiteHosting extends PackHosting {}

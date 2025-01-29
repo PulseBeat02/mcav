@@ -24,11 +24,9 @@ import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegCommand;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegTemplates;
-import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * Utility class for extracting audio from a given source.
- * This class cannot be instantiated and provides static utility methods.
+ * Utility class for extracting audio from a source.
  */
 public final class SoundExtractorUtils {
 
@@ -37,10 +35,10 @@ public final class SoundExtractorUtils {
   }
 
   /**
-   * Extracts audio from a given source and converts it to OGG format.
-   * The extracted audio file is saved in a cached directory with a unique name.
+   * Extracts and transcode audio to OGG Vorbis using FFmpeg. The extracted audio file is saved in a cached
+   * directory with a unique name.
    *
-   * @param source the source object representing the audio or video resource from which audio is extracted
+   * @param source the source of the audio to be extracted from
    * @return the path to the saved OGG audio file
    * @throws IOException if an I/O error occurs during the extraction or file creation process
    */
@@ -52,15 +50,7 @@ public final class SoundExtractorUtils {
     final Path file = outputDir.resolve(name);
     final String output = file.toString();
     final FFmpegCommand command = FFmpegTemplates.extractAudio(input, "vorbis", output);
-    final CommandTask task = command.execute();
-    //    final Process process = task.getProcess();
-    //    try {
-    //      process.waitFor();
-    //    } catch (final InterruptedException e) {
-    //      final Thread currentThread = Thread.currentThread();
-    //      currentThread.interrupt();
-    //      throw new AssertionError(e);
-    //    }
+    command.execute();
     return file;
   }
 }

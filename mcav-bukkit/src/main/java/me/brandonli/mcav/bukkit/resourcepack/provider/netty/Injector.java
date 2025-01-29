@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
@@ -24,12 +24,15 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 
 @Sharable
-public abstract class Injector extends ChannelDuplexHandler {
+abstract class Injector extends ChannelDuplexHandler {
 
-  public abstract boolean isRelevant(InjectorContext ctx);
+  abstract boolean isRelevant(InjectorContext ctx);
 
-  public abstract boolean onRead(ChannelHandlerContext ctx, ByteBuf buf);
+  abstract boolean onRead(ChannelHandlerContext ctx, ByteBuf buf);
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) throws Exception {
     final ByteBuf buf = (ByteBuf) msg;
@@ -44,6 +47,4 @@ public abstract class Injector extends ChannelDuplexHandler {
       super.channelRead(ctx, msg);
     }
   }
-
-  public void register() {}
 }

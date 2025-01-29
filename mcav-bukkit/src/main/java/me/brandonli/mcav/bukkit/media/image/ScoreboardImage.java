@@ -32,16 +32,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scoreboard.*;
 
 /**
- * The ScoreboardImage class is responsible for managing and displaying scoreboard-style images based
- * on the provided configuration. It implements the DisplayableImage interface, allowing it to manage
- * reusable scoreboard resources effectively.
- * <p>
- * This class leverages teams within a scoreboard to display images by manipulating prefixes with character
- * sequences that represent pixel data. The visual representation is configured using the ScoreboardConfiguration
- * parameters, including dimensions, characters, and viewers.
- * <p>
- * Instances of this class manage the lifecycle of a scoreboard image, including creating, updating, and releasing
- * associated resources.
+ * Represents a scoreboard-based image display implementation.
  */
 public class ScoreboardImage implements DisplayableImage {
 

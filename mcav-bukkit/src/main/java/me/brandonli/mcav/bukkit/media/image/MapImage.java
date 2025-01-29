@@ -17,10 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.StaticImage;
@@ -34,19 +31,16 @@ import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 
 /**
- * The MapImage class provides a concrete implementation of the DisplayableImage interface.
- * It is responsible for displaying and managing image data on maps using a specific dither algorithm
- * and configuration settings. Instances of this class process static images and render them onto
- * map blocks for defined viewers.
+ * Represents a map-based image display implementation.
  */
 public class MapImage implements DisplayableImage {
 
-  private final List<Integer> mapIds;
+  private final Set<Integer> mapIds;
   private final MapConfiguration mapConfiguration;
   private final DitherAlgorithm algorithm;
 
   MapImage(final MapConfiguration mapConfiguration, final DitherAlgorithm algorithm) {
-    this.mapIds = new ArrayList<>();
+    this.mapIds = new HashSet<>();
     this.mapConfiguration = mapConfiguration;
     this.algorithm = algorithm;
   }
@@ -101,6 +95,7 @@ public class MapImage implements DisplayableImage {
         final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
         final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
         packetArray[arrIndex++] = packet;
+        this.mapIds.add(mapId);
       }
     }
     PacketUtils.sendPackets(viewers, packetArray);

@@ -18,18 +18,13 @@
 package me.brandonli.mcav.bukkit.media.config;
 
 import com.google.common.base.Preconditions;
-import java.util.Collection;
-import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.result.EntityResult;
-import me.brandonli.mcav.bukkit.media.result.FunctionalVideoFilter;
 import org.bukkit.Location;
 
+import java.util.Collection;
+import java.util.UUID;
+
 /**
- * Represents the configuration of an entity, including its dimensions, position, associated
- * viewers, and character definition.
- *
- * <p>This class is immutable and can only be instantiated using the {@link Builder} or its subclasses.
- * It ensures all mandatory attributes are properly set and validated.
+ * Represents a configuration for an entity related prototypes.
  */
 public class EntityConfiguration {
 
@@ -48,27 +43,27 @@ public class EntityConfiguration {
   }
 
   /**
-   * Retrieves the collection of viewers associated with this configuration.
+   * Gets the viewers of this entity configuration.
    *
-   * @return a collection of UUIDs representing the viewers
+   * @return the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Retrieves the character associated with this configuration.
+   * Gets the character string associated with this entity configuration.
    *
-   * @return the character as a String
+   * @return the character string, which may represent a specific
    */
   public String getCharacter() {
     return this.character;
   }
 
   /**
-   * Retrieves the width of the entity.
+   * Gets the width of the entity
    *
-   * @return an integer representing the width of the entity
+   * @return the width of the entity
    */
   public int getEntityWidth() {
     return this.entityWidth;
@@ -77,7 +72,7 @@ public class EntityConfiguration {
   /**
    * Retrieves the height of the entity.
    *
-   * @return the
+   * @return the height of the entity
    */
   public int getEntityHeight() {
     return this.entityHeight;
@@ -86,16 +81,20 @@ public class EntityConfiguration {
   /**
    * Retrieves the current position of the entity.
    *
-   * @return the position of the entity as a {@link Location} object
+   * @return the current position
    */
   public Location getPosition() {
     return this.position;
   }
 
   /**
-   * Creates a new instance of {@link EntityResult} using the provided builder.
+   * Entity configuration builder abstraction.
    */
   public static final class EntityResultBuilder extends Builder<EntityResultBuilder> {
+
+    EntityResultBuilder() {
+      // no-op
+    }
 
     @Override
     protected EntityResultBuilder self() {
@@ -104,14 +103,19 @@ public class EntityConfiguration {
   }
 
   /**
-   * Creates and returns a new {@code Builder} instance for constructing {@link EntityConfiguration}.
+   * Creates a new entity configuration builder.
    *
-   * @return a new {@link Builder} instance for setting up and building an {@link EntityConfiguration} object
+   * @return a new entity configuration builder
    */
   public static Builder<?> builder() {
     return new EntityResultBuilder();
   }
 
+  /**
+   * Abstract builder for entity configurations.
+   *
+   * @param <T> the type of the builder
+   */
   public abstract static class Builder<T extends Builder<T>> {
 
     private Collection<UUID> viewers;
@@ -120,13 +124,17 @@ public class EntityConfiguration {
     private int entityHeight;
     private Location position;
 
-    protected abstract T self();
+    Builder() {
+      // no-op
+    }
+
+    abstract T self();
 
     /**
-     * Sets the collection of viewers represented by their UUIDs.
+     * Sets the viewers of this entity configuration.
      *
-     * @param viewers a collection of UUIDs representing the viewers
-     * @return the builder instance with the updated viewers
+     * @param viewers the viewers to set
+     * @return the builder instance for chaining
      */
     public T viewers(final Collection<UUID> viewers) {
       this.viewers = viewers;
@@ -134,10 +142,10 @@ public class EntityConfiguration {
     }
 
     /**
-     * Sets the character associated with the entity and returns the builder instance.
+     * Sets the character string of this entity configuration.
      *
-     * @param character the character string to be associated with the entity
-     * @return the builder instance for chaining further configurations
+     * @param character the character value to be set
+     * @return the instance of the builder for method chaining
      */
     public T character(final String character) {
       this.character = character;
@@ -147,7 +155,7 @@ public class EntityConfiguration {
     /**
      * Sets the width of the entity.
      *
-     * @param entityWidth the width of the entity in units; must be a positive integer
+     * @param entityWidth the width of the entity to be set
      * @return the builder instance for method chaining
      */
     public T entityWidth(final int entityWidth) {
@@ -178,13 +186,9 @@ public class EntityConfiguration {
     }
 
     /**
-     * Builds and returns a new instance of {@link FunctionalVideoFilter} based on the properties
-     * configured in this builder. This method validates that all required fields are properly set
-     * and ensures logical constraints, such as positive dimensions for the entity, are met.
+     * Builds the entity configuration.
      *
-     * @return a new instance of {@link FunctionalVideoFilter} with the configured properties
-     * @throws NullPointerException     if any required field (viewers, character, or position) is null
-     * @throws IllegalArgumentException if entity dimensions (width or height) are not positive
+     * @return a new instance of EntityConfiguration
      */
     public EntityConfiguration build() {
       Preconditions.checkNotNull(this.viewers);

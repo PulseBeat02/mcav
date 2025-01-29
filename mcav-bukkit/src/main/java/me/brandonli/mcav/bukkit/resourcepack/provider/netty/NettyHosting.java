@@ -18,18 +18,23 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import java.nio.file.Path;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.ByteBuddyBukkitInjector;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.InjectorException;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.ReflectBukkitInjector;
 import me.brandonli.mcav.bukkit.utils.NetworkUtils;
 import org.bukkit.Bukkit;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
+/**
+ * Represents the Netty hosting implementation for the Bukkit server. Injects into the Netty pipeline.
+ */
 public final class NettyHosting implements InjectorHosting {
 
   private final Path zip;
   private final String url;
 
+  /**
+   * Constructs a new NettyHosting instance with the specified zip file.
+   *
+   * @param zip the path to the zip file containing the Netty injector
+   */
   public NettyHosting(final Path zip) {
     this.zip = zip;
     this.url = this.getPackUrl();
@@ -41,11 +46,17 @@ public final class NettyHosting implements InjectorHosting {
     return "http://%s:%s".formatted(ip, port);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getRawUrl() {
     return this.url;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     try {
@@ -58,9 +69,15 @@ public final class NettyHosting implements InjectorHosting {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void shutdown() {}
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Path getZip() {
     return this.zip;

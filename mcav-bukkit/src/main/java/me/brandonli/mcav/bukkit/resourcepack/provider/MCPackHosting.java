@@ -35,17 +35,8 @@ import me.brandonli.mcav.utils.IOUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The {@code MCPackHosting} class provides functionality for managing and hosting Minecraft resource
- * packs via the "mc-packs.net" platform. It handles uploading resource pack files, creating metadata,
- * and maintaining access URLs for hosted packs.
- * <p>
- * This class implements the {@link PackHosting} interface and provides methods to start and stop the hosting
- * process, retrieve the associated resource pack ZIP file path, and obtain the raw URL of the hosted pack.
- * <p>
- * Features include:
- * - Uploading resource packs to the hosting service.
- * - Generating and managing metadata for hosted packs, including load counts.
- * - Caching metadata locally for use during subsequent executions.
+ * The concrete implementation of {@link WebsiteHosting} for hosting resource packs on MCPacks.net. Periodically
+ * caches the pack information to avoid excessive loads on the server.
  */
 public class MCPackHosting implements WebsiteHosting {
 
@@ -176,53 +167,26 @@ public class MCPackHosting implements WebsiteHosting {
     return data.resolve("cached-packs.json");
   }
 
-  /**
-   * Represents metadata about a resource pack, encapsulating its download URL and the number
-   * of times it has been loaded or accessed. This class is designed to be immutable and provides
-   * functionality for equality comparison, hash code generation, and string representation.
-   */
-  public static final class PackInfo {
+  static final class PackInfo {
 
     private final String url;
     private final int loads;
 
-    /**
-     * Constructs an instance of {@code PackInfo} which represents the details
-     * of a resource pack, including its download URL and the number of loads it has.
-     *
-     * @param url   the URL for downloading the resource pack
-     * @param loads the number of loads or downloads associated with the resource pack
-     */
-    public PackInfo(final String url, final int loads) {
+    PackInfo(final String url, final int loads) {
       this.url = url;
       this.loads = loads;
     }
 
-    /**
-     * Retrieves the URL associated with this instance.
-     *
-     * @return the URL as a String
-     */
-    public String getUrl() {
+    String getUrl() {
       return this.url;
     }
 
-    /**
-     * Retrieves the number of times the resource pack has been loaded.
-     *
-     * @return the load count as an integer
-     */
-    public int getLoads() {
+    int getLoads() {
       return this.loads;
     }
 
     /**
-     * Compares this instance with the specified object to determine equality.
-     * The comparison is based on the {@code url} and {@code loads} fields.
-     *
-     * @param o the object to be compared for equality with this instance
-     * @return {@code true} if the specified object is equal to this instance,
-     * {@code false} otherwise
+     * {@inheritDoc}
      */
     @Override
     public boolean equals(final @Nullable Object o) {
@@ -237,12 +201,7 @@ public class MCPackHosting implements WebsiteHosting {
     }
 
     /**
-     * Computes the hash code for this object based on its URL and load properties.
-     * This method is overridden to ensure that objects with the same URL and load
-     * values produce the same hash code, satisfying the general contract of
-     * {@code hashCode}.
-     *
-     * @return the hash code of this object as an integer
+     * {@inheritDoc}
      */
     @Override
     public int hashCode() {
@@ -250,10 +209,7 @@ public class MCPackHosting implements WebsiteHosting {
     }
 
     /**
-     * Returns a string representation of the {@code PackInfo} object. The string includes
-     * the URL and the number of loads associated with the pack, formatted for readability.
-     *
-     * @return a string representation of this {@code PackInfo} instance
+     * {@inheritDoc}
      */
     @Override
     public String toString() {

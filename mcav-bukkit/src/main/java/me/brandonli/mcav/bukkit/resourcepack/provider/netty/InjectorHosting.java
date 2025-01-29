@@ -20,12 +20,6 @@ package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
 /**
- * Represents a specialized hosting solution that combines or builds upon capabilities from
- * the {@code PackHosting} interface. This interface serves as a marker or extension point
- * for resource pack hosting implementations that involve injection mechanisms or additional
- * hosting features beyond the standard pack hosting functionalities.
- * <p>
- * Implementations of this interface may provide injection-based techniques or advanced handling
- * of resource packs for scenarios such as dynamic updates or modified server environments.
+ * Represents a hosting interface for resource pack injectors.
  */
 public interface InjectorHosting extends PackHosting {}

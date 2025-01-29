@@ -24,24 +24,11 @@ import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
 /**
- * The ChatResult class implements the {@link VideoFilter} interface and provides
- * the functionality to apply a chat-based transformation to video data. It uses
- * the configuration provided by {@link ChatConfiguration} to customize the
- * chat display and interaction settings.
- * <p>
- * This class processes video frames by resizing them according to the chat
- * configuration dimensions and generating a chat component based on the frame
- * data. The chat component is then sent to the viewers provided by the configuration.
- * <p>
- * Responsibilities of this class include:
- * - Resizing video frames to the specified chat width and height
- * - Creating chat components from processed frames
- * - Sending chat messages to the configured set of viewers
+ * Represents a filter for displaying frames as chat messages.
  */
 public class ChatResult implements FunctionalVideoFilter {
 
@@ -74,11 +61,17 @@ public class ChatResult implements FunctionalVideoFilter {
     PacketUtils.sendPackets(viewers, packet);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void start() {
     this.clearChatMessages();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void release() {
     this.clearChatMessages();

@@ -32,23 +32,7 @@ import java.util.concurrent.Executors;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * A server implementation that serves files over HTTP using Netty framework.
- * <p>
- * This class is responsible for setting up an HTTP server that binds to a specified port and serves
- * a file from a provided file path. It features asynchronous operations and handles server events
- * such as starting and stopping the server.
- * <p>
- * The server uses a single-threaded executor service to manage asynchronous tasks and integrates
- * Netty's channel pipeline for handling HTTP requests. The server lifecycle is tied to methods
- * that start and stop the HTTP server.
- * <p>
- * Features include:
- * - Asynchronous server startup using a `CompletableFuture`
- * - Graceful shutdown of server resources and thread pools
- * - Customizable Netty event loop groups for handling server channels
- */
-public final class FileHttpServer {
+final class FileHttpServer {
 
   private final int port;
   private final Path filePath;
@@ -57,38 +41,13 @@ public final class FileHttpServer {
   private EventLoopGroup bossGroup;
   private EventLoopGroup workerGroup;
 
-  /**
-   * Constructs a new {@code FileHttpServer} instance for serving files over HTTP.
-   * This server operates on a specified port and serves files from a specified path.
-   *
-   * @param port     the port number on which the server will listen for HTTP requests
-   * @param filePath the path to the file to be served by the HTTP server
-   */
-  public FileHttpServer(final int port, final Path filePath) {
+  FileHttpServer(final int port, final Path filePath) {
     this.port = port;
     this.filePath = filePath;
     this.service = Executors.newSingleThreadExecutor();
   }
 
-  /**
-   * Starts the file HTTP server asynchronously using Netty.
-   * This method is responsible for initializing and bootstrapping the server,
-   * binding it to the configured port, and managing its lifecycle.
-   * <p>
-   * The server is run on an asynchronous task using a dedicated executor
-   * service to avoid blocking the calling thread. A countdown latch is used
-   * to ensure that the server binding process completes before proceeding.
-   * <p>
-   * The server listens for incoming connections, processes requests, and serves
-   * files over HTTP. Once the server is initiated, it waits for the channel's
-   * close future to complete, ensuring proper resource cleanup by shutting down
-   * thread pools and event loops.
-   * <p>
-   * Throws an {@link AssertionError} in case of interruptions or unexpected
-   * errors, interrupting the current thread as part of exception handling.
-   * Additionally, server shutdown is performed gracefully in case of any failures.
-   */
-  public void start() {
+  void start() {
     final CountDownLatch latch = new CountDownLatch(1);
     CompletableFuture.runAsync(
       () -> {
@@ -145,19 +104,7 @@ public final class FileHttpServer {
     };
   }
 
-  /**
-   * Stops the file HTTP server and releases all allocated resources.
-   * <p>
-   * This method shuts down the Netty event loop groups (`bossGroup` and `workerGroup`)
-   * gracefully to ensure proper cleanup of threads and resources used by the server.
-   * Additionally, it gracefully shuts down the executor service used for asynchronous
-   * tasks, ensuring that all tasks are handled appropriately before termination.
-   * <p>
-   * If any of the server resources (e.g., event loop groups or executor service)
-   * remain uninitialized, this method safely skips their shutdown to avoid null-related
-   * issues.
-   */
-  public void stop() {
+  void stop() {
     if (this.bossGroup != null) {
       this.bossGroup.shutdownGracefully();
     }
@@ -167,77 +114,7 @@ public final class FileHttpServer {
     ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 
-  /**
-   * Retrieves the port number on which the HTTP server is configured to listen
-   * for incoming connections.
-   *
-   * @return the port number as an integer.
-   */
-  public int getPort() {
-    return this.port;
-  }
-
-  /**
-   * Retrieves the file path associated with this server.
-   *
-   * @return the file path as a {@link Path} object, representing the location
-   * of the file being served.
-   */
-  public Path getFilePath() {
+  Path getFilePath() {
     return this.filePath;
-  }
-
-  /**
-   * Retrieves the {@link ExecutorService} instance associated with this server.
-   * The executor service is responsible for asynchronous task execution
-   * within the server's lifecycle.
-   *
-   * @return the {@link ExecutorService} used by this server for managing asynchronous tasks.
-   */
-  public ExecutorService getService() {
-    return this.service;
-  }
-
-  /**
-   * Retrieves the boss group associated with the server.
-   * The boss group is responsible for accepting incoming connections
-   * and delegating them to the worker group for processing.
-   *
-   * @return the {@link EventLoopGroup} handling incoming connection acceptances.
-   */
-  public EventLoopGroup getBossGroup() {
-    return this.bossGroup;
-  }
-
-  /**
-   * Sets the boss group for the server.
-   * The boss group is responsible for accepting incoming connections and delegating them
-   * for further processing.
-   *
-   * @param bossGroup the {@link EventLoopGroup} instance to be set as the boss group
-   */
-  public void setBossGroup(final EventLoopGroup bossGroup) {
-    this.bossGroup = bossGroup;
-  }
-
-  /**
-   * Retrieves the worker group used by the server for handling worker threads.
-   * The worker group is responsible for handling actual data I/O and processing
-   * incoming requests on the server.
-   *
-   * @return the {@link EventLoopGroup} instance being used as the worker group for this server.
-   */
-  public EventLoopGroup getWorkerGroup() {
-    return this.workerGroup;
-  }
-
-  /**
-   * Sets the worker group responsible for handling network events for worker threads
-   * in the Netty server.
-   *
-   * @param workerGroup the {@link EventLoopGroup} instance to be used as the worker group
-   */
-  public void setWorkerGroup(final EventLoopGroup workerGroup) {
-    this.workerGroup = workerGroup;
   }
 }

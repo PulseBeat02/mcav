@@ -22,9 +22,7 @@ import static java.util.Objects.requireNonNull;
 import java.nio.file.Path;
 
 /**
- * A concrete implementation of the {@code PackHosting} interface that hosts a resource pack ZIP file
- * on an HTTP server. Instances of this class enable hosting of resource packs over HTTP using
- * a specified hostname and port. The hosting process is managed by a {@code FileHttpServer}.
+ * Concrete implementation of {@link HttpHosting} that hosts a resource pack zip file on a specific HTTP server.
  */
 public class ServerPackHosting implements HttpHosting {
 

@@ -22,6 +22,9 @@ import static java.util.Objects.requireNonNull;
 import java.util.Map;
 import org.bukkit.Bukkit;
 
+/**
+ * Utility class to determine the server environment and version.
+ */
 public final class ServerEnvironment {
 
   private ServerEnvironment() {
@@ -34,6 +37,7 @@ public final class ServerEnvironment {
     ServerVersion.V_1_21_5,
     "v1_21_R4"
   );
+
   private static final String MINECRAFT_PACKAGE;
 
   static {
@@ -58,6 +62,11 @@ public final class ServerEnvironment {
     return fallbackVersion;
   }
 
+  /**
+   * Gets the server NMS version.
+   *
+   * @return the server version
+   */
   public static String getNMSRevision() {
     return MINECRAFT_PACKAGE;
   }

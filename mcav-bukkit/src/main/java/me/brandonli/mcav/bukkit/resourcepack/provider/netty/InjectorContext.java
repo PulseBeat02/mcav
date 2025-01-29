@@ -15,32 +15,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
-import java.util.Collection;
-import java.util.HashSet;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 
-public final class InjectorHandler {
+final class InjectorContext {
 
-  private final Collection<Injector> injectors;
+  private final ChannelPipeline pipeline;
+  private final ByteBuf message;
 
-  public InjectorHandler() {
-    this.injectors = new HashSet<>();
+  InjectorContext(final ChannelPipeline pipeline, final ByteBuf message) {
+    this.pipeline = pipeline;
+    this.message = message;
   }
 
-  public void addInjector(final Injector injector) {
-    this.injectors.add(injector);
+  ChannelPipeline getPipeline() {
+    return this.pipeline;
   }
 
-  public void removeInjector(final Injector injector) {
-    this.injectors.remove(injector);
-  }
-
-  public void clearInjectors() {
-    this.injectors.clear();
-  }
-
-  public Collection<Injector> getInjectors() {
-    return this.injectors;
+  ByteBuf getMessage() {
+    return this.message;
   }
 }

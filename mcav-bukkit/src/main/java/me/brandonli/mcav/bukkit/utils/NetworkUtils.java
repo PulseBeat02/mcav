@@ -26,6 +26,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.bukkit.Bukkit;
 
+/**
+ * Utility class for network operations.
+ */
 public final class NetworkUtils {
 
   private static final String IP_URL = "https://ipv4.icanhazip.com/";
@@ -34,6 +37,12 @@ public final class NetworkUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Retrieves the public IP address of the server. If the server's IP is not set in the
+   * server.properties, it will attempt to fetch it using an external service.
+   *
+   * @return The public IP address of the server, or "localhost" if it cannot be determined.
+   */
   public static String getPublicIPAddress() {
     final String ip = Bukkit.getIp();
     return ip.isEmpty() ? getPublicIPAddress0() : ip;
@@ -59,6 +68,12 @@ public final class NetworkUtils {
     }
   }
 
+  /**
+   * Checks if the following URI is a valid URL.
+   *
+   * @param uri The URI to check.
+   * @return True if the URI is a valid URL, false otherwise.
+   */
   public static boolean checkValidUrl(final URI uri) {
     try {
       final URL url = uri.toURL();

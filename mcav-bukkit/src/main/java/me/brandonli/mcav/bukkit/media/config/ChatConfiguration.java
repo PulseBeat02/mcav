@@ -18,27 +18,12 @@
 package me.brandonli.mcav.bukkit.media.config;
 
 import com.google.common.base.Preconditions;
+
 import java.util.Collection;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.result.ChatResult;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 
 /**
- * The {@code ChatConfiguration} class represents a configuration for a chat interface.
- * It holds the parameters required to customize the chat, including the audience,
- * dimensions, and character used for representation.
- * <p>
- * This class is designed to be immutable, and instances are created using
- * its nested {@link Builder} class or its specialized {@link ChatResultBuilder}.
- * <p>
- * Responsibilities:
- * - Defines the configuration properties for chat setup.
- * - Provides accessor methods to retrieve configuration data such as viewers,
- * character, width, and height.
- * <p>
- * The builder pattern ensures that all required properties are properly set
- * before an instance of {@code ChatConfiguration} is created, while also
- * allowing for a fluent interface.
+ * Represents a configuration for chat related prototypes.
  */
 public class ChatConfiguration {
 
@@ -55,49 +40,49 @@ public class ChatConfiguration {
   }
 
   /**
-   * Retrieves the collection of viewers associated with this configuration.
-   * Each viewer is represented by a unique UUID.
+   * Gets the viewers of this chat configuration.
    *
-   * @return a collection of UUIDs representing the viewers
+   * @return the collection of UUIDs representing the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Retrieves the character associated with the chat configuration.
+   * Gets the character string associated with this chat configuration.
    *
-   * @return the character as a string representation
+   * @return the character string, which may represent a specific
    */
   public String getCharacter() {
     return this.character;
   }
 
   /**
-   * Retrieves the width of the chat configuration.
+   * Gets the width of the chat
    *
-   * @return the width of the chat as an integer
+   * @return the chat width
    */
   public int getChatWdith() {
     return this.chatWdith;
   }
 
   /**
-   * Retrieves the height of the chat, which represents the configured vertical size
-   * available for chat display in terms of units or pixels.
+   * Gets the height of the chat
    *
-   * @return the current chat height as an integer
+   * @return the chat height as an integer
    */
   public int getChatHeight() {
     return this.chatHeight;
   }
 
   /**
-   * Builder class for constructing instances of {@link ChatResult}. This class
-   * extends the abstract Builder class and provides concrete implementations
-   * for the required parameters.
+   * Chat configuration builder abstraction.
    */
   public static final class ChatResultBuilder extends Builder<ChatResultBuilder> {
+
+    ChatResultBuilder() {
+      // no-op
+    }
 
     @Override
     protected ChatResultBuilder self() {
@@ -106,21 +91,18 @@ public class ChatConfiguration {
   }
 
   /**
-   * Creates a new builder instance for constructing a {@link ChatResult} object.
+   * Creates a new chat configuration builder.
    *
-   * @return a new instance of {@link ChatResultBuilder} for building
+   * @return a new chat configuration builder
    */
   public static Builder<?> builder() {
     return new ChatResultBuilder();
   }
 
   /**
-   * Abstract base class for building instances of {@link ChatResult}. This class
-   * provides methods to set the required parameters for constructing a ChatResult
-   * instance. The builder pattern allows for a fluent interface and ensures that
-   * all necessary fields are set before building the final object.
+   * Abstract builder for chat configurations.
    *
-   * @param <T> the type of the builder extending this abstract class
+   * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
 
@@ -129,13 +111,17 @@ public class ChatConfiguration {
     private int chatWidth;
     private int chatHeight;
 
-    protected abstract T self();
+    Builder() {
+      // no-op
+    }
+
+    abstract T self();
 
     /**
-     * Sets the collection of UUIDs representing the viewers for this builder.
+     * Sets the viewers of this chat configuration.
      *
-     * @param viewers the collection of UUID objects that represent the viewers
-     * @return the builder instance for method chaining
+     * @param viewers the viewers to set
+     * @return the builder instance for chaining
      */
     public T viewers(final Collection<UUID> viewers) {
       this.viewers = viewers;
@@ -143,7 +129,7 @@ public class ChatConfiguration {
     }
 
     /**
-     * Sets the character string for the builder.
+     * Sets the character string of this chat configuration.
      *
      * @param character the character value to be set
      * @return the instance of the builder for method chaining
@@ -154,9 +140,9 @@ public class ChatConfiguration {
     }
 
     /**
-     * Sets the chat width and returns the builder instance for method chaining.
+     * Sets the chat width of this chat configuration.
      *
-     * @param chatWidth the width of the chat, must be a positive integer
+     * @param chatWidth the width of the chat
      * @return the builder instance for method chaining
      */
     public T chatWidth(final int chatWidth) {
@@ -165,9 +151,9 @@ public class ChatConfiguration {
     }
 
     /**
-     * Sets the height of the chat interface.
+     * Sets the chat height of this chat configuration.
      *
-     * @param chatHeight the height of the chat in pixels; must be a positive integer
+     * @param chatHeight the height of the chat
      * @return the builder instance for method chaining
      */
     public T chatHeight(final int chatHeight) {
@@ -176,14 +162,9 @@ public class ChatConfiguration {
     }
 
     /**
-     * Builds and returns a new instance of {@link VideoFilter} with the configured
-     * parameters. This method validates the provided parameters to ensure the
-     * required fields are set and checks the correctness of the input values.
+     * Builds the chat configuration.
      *
-     * @return a newly constructed {@link VideoFilter} instance.
-     * @throws NullPointerException     if required parameters such as viewers or character
-     *                                  are null.
-     * @throws IllegalArgumentException if chat width or height are non
+     * @return a new instance of ChatConfiguration
      */
     public ChatConfiguration build() {
       Preconditions.checkNotNull(this.viewers);

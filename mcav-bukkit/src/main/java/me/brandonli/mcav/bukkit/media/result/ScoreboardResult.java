@@ -34,15 +34,7 @@ import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scoreboard.*;
 
 /**
- * Represents the result of processing a scoreboard using a functional video filter.
- * This class implements the {@link FunctionalVideoFilter} interface and provides specific
- * functionality to manage the lifecycle and application of a video filter configured
- * for scoreboard rendering.
- * <p>
- * ScoreboardResult is responsible for:
- * - Initializing the scoreboard filter using team-based entities and configurations defined in {@link ScoreboardConfiguration}.
- * - Releasing resources and cleaning up the scoreboard elements upon completion.
- * - Applying the functional filter logic to process static images and render scoreboard-related data.
+ * Represents a frame displaying frames on a scoreboard.
  */
 public class ScoreboardResult implements FunctionalVideoFilter {
 

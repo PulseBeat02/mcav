@@ -21,16 +21,7 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a custom exception specific to MC Packs, used for error handling
- * within the MC Packs functionality of a resource pack hosting system.
- * <p>
- * This exception is a subclass of {@link AssertionError}, allowing it to signal
- * assertion-like failures or conditions that are not expected to occur during
- * normal application execution. It is typically utilized to indicate problems
- * or violations within the context of MC Packs operations.
- * <p>
- * The exception includes a message that provides detailed information about
- * the nature of the error when it is instantiated.
+ * Represents an exception thrown when there was an issue uploading to MCPacks.
  */
 public class MCPacksException extends AssertionError {
 
@@ -38,26 +29,19 @@ public class MCPacksException extends AssertionError {
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
-   * Constructs an {@code MCPacksException} with the specified detail message.
-   * This constructor allows the creation of an exception instance that can carry
-   * additional context or description about the error, specific to MC Packs functionality.
+   * Constructs an exception with the specified detail message.
    *
    * @param message the detail message explaining the reason for the exception,
-   *                or {@code null} if no message is provided
    */
   public MCPacksException(final @Nullable String message) {
     super(message);
   }
 
   /**
-   * Constructs an {@code MCPacksException} with the specified detail message
-   * and cause. This constructor allows the creation of an exception instance
-   * that can carry additional context or description about the error, specific
-   * to MC Packs functionality, along with the underlying cause of the exception.
+   * Constructs an exception with the specified detail message and cause.
    *
    * @param message the detail message explaining the reason for the exception,
-   *                or {@code null} if no message is provided
-   * @param cause   the cause of the exception, or {@code null} if no cause is provided
+   * @param cause   the cause of the exception, which can be null
    */
   public MCPacksException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);

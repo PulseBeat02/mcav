@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import static java.util.Objects.requireNonNull;
 
@@ -24,10 +24,6 @@ import io.netty.channel.ChannelPipeline;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http.HttpByteBuf;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http.HttpInjector;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http.HttpRequest;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http.ResourcePackInjector;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import net.bytebuddy.asm.Advice;
@@ -41,24 +37,14 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
-/**
- * The ByteBuddyBukkitInjector is responsible for dynamically injecting and augmenting
- * Minecraft server classes and functionality during runtime. It leverages the ByteBuddy
- * library to modify bytecode and facilitate runtime class transformations.
- * <p>
- * This class handles setting up necessary properties, loading dependency classes,
- * and injecting custom behaviors into Minecraft's server networking components
- * (notably the `NetworkManager` class). It is useful for extending or modifying
- * server behavior without directly modifying the server codebase.
- */
-public final class ByteBuddyBukkitInjector {
+final class ByteBuddyBukkitInjector {
 
   private static final String INJECTOR_SYSTEM_PROPERTY = "murderrun.resourcepack";
 
   private final Path path;
   private final Class<?> clazz;
 
-  public ByteBuddyBukkitInjector(final Path path) {
+  ByteBuddyBukkitInjector(final Path path) {
     this.path = path;
     this.clazz = this.getConnectionClass();
   }
@@ -71,21 +57,7 @@ public final class ByteBuddyBukkitInjector {
     }
   }
 
-  /**
-   * Injects the ByteBuddy agent into the server to enable runtime modification of class behavior.
-   * This method performs the following steps:
-   * 1. Installs the ByteBuddy agent using the {@code ByteBuddyAgent.install()} method.
-   * 2. Sets a system property pointing to a required path for injection using {@code setZipProperty()}.
-   * 3. Injects necessary classes into the server's class loader using {@code injectClassesIntoClassLoader()}.
-   * 4. Modifies the connection handling method dynamically using {@code injectIntoConnectionMethod()}.
-   * <p>
-   * If any of these operations fail due to a missing class, a {@code ClassNotFoundException} is caught
-   * and wrapped in an {@code InjectorException}, which is subsequently thrown to indicate a critical
-   * failure during the injection process.
-   *
-   * @throws InjectorException if a {@code ClassNotFoundException} occurs during the injection process.
-   */
-  public void injectAgentIntoServer() {
+  void injectAgentIntoServer() {
     try {
       ByteBuddyAgent.install();
       this.setZipProperty();

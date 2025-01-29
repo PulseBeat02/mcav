@@ -33,6 +33,9 @@ import me.brandonli.mcav.utils.UncheckedIOException;
 import org.bukkit.Material;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 
+/**
+ * A utility class that provides easy ways to convert from colors to blocks and vice versa.
+ */
 public final class BlockPaletteLookup {
 
   private BlockPaletteLookup() {
@@ -69,6 +72,9 @@ public final class BlockPaletteLookup {
     return map;
   }
 
+  /**
+   * Creates all lookup tables and initializes the block palette.
+   */
   public static void init() {
     // init
   }
@@ -83,10 +89,21 @@ public final class BlockPaletteLookup {
     }
   }
 
+  /**
+   * Gets the closest {@link Material} for the given RGB color.
+   *
+   * @param color the RGB color (BGR24 format)
+   * @return the closest {@link Material} for the given RGB color, or {@link Material#AIR} if no match is found
+   */
   public static Material getMaterial(final int color) {
     return MATERIAL_LOOKUP.getOrDefault(color, Material.AIR);
   }
 
+  /**
+   * Gets the corresponding dithering implementation for the block palette.
+   *
+   * @return the dithering implementation for the block palette
+   */
   public static FilterLiteDither getDitheringImpl() {
     return DITHERING_IMPL;
   }

@@ -30,14 +30,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
- * The {@code MapResult} class implements {@code DitherResultStep} and
- * is responsible for processing dithered video data and associated metadata
- * to generate map-based visual output suitable for rendering.
- *
- * <p>This class uses a {@code MapConfiguration} instance to determine
- * the parameters for processing, such as map resolution, block sizes,
- * and the list of viewers. It computes and sends packets to viewers
- * based on the provided map configuration and video frame data.
+ * Represents a filter displaying frames on maps.
  */
 public class MapResult implements DitherResultStep {
 

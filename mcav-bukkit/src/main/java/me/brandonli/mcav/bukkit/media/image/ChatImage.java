@@ -27,17 +27,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
 /**
- * The ChatImage class provides an implementation of the DisplayableImage interface
- * to display static images in a chat environment. It leverages configurations
- * from a ChatConfiguration object to customize the representation of the image
- * using text displayed in the chat.
- * <p>
- * Responsibilities:
- * - Resizes the given StaticImage to match the dimensions specified in the ChatConfiguration.
- * - Converts the image data into a text-based representation using a specified character.
- * - Sends the resulting text image to a collection of viewers identified by their UUIDs.
- * <p>
- * This class is immutable and thread-safe as it does not modify shared state during usage.
+ * Represents a chat-based image display implementation.
  */
 public class ChatImage implements DisplayableImage {
 

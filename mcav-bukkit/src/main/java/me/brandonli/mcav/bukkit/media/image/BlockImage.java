@@ -31,6 +31,9 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
+/**
+ * Represents a block-based image display implementation.
+ */
 public class BlockImage implements DisplayableImage {
 
   private final BlockConfiguration blockConfiguration;
@@ -43,6 +46,9 @@ public class BlockImage implements DisplayableImage {
     this.dither = BlockPaletteLookup.getDitheringImpl();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void displayImage(final StaticImage image) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
@@ -87,6 +93,9 @@ public class BlockImage implements DisplayableImage {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void release() {
     if (this.locationCache == null) {

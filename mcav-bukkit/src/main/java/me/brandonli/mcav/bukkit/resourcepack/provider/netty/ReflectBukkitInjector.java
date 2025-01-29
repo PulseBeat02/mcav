@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.channel.*;
 import java.lang.invoke.MethodHandle;
@@ -25,12 +25,11 @@ import java.lang.invoke.VarHandle;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
-import me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http.ResourcePackInjector;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 
-public final class ReflectBukkitInjector {
+final class ReflectBukkitInjector {
 
   private static final String INJECTOR_SYSTEM_PROPERTY = "murderrun.resourcepack";
   private static final List<ChannelFuture> CONNECTIONS;
@@ -91,11 +90,11 @@ public final class ReflectBukkitInjector {
 
   private final Path path;
 
-  public ReflectBukkitInjector(final Path path) {
+  ReflectBukkitInjector(final Path path) {
     this.path = path;
   }
 
-  public void inject() {
+  void inject() {
     this.setZipProperty();
     this.install(this::installConsumer);
   }

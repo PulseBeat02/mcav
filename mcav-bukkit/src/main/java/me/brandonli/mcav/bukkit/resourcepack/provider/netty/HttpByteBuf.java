@@ -15,58 +15,58 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.resourcepack.provider.netty.injector.http;
+package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 import java.nio.charset.StandardCharsets;
 
-public final class HttpByteBuf {
+final class HttpByteBuf {
 
   private final ByteBuf inner;
 
-  public HttpByteBuf(final ByteBuf inner) {
+  HttpByteBuf(final ByteBuf inner) {
     this.inner = inner;
   }
 
-  public ByteBuf getInner() {
+  ByteBuf getInner() {
     return this.inner;
   }
 
-  public static HttpByteBuf httpBuffer(final ChannelHandlerContext ctx) {
+  static HttpByteBuf httpBuffer(final ChannelHandlerContext ctx) {
     final ByteBufAllocator allocator = ctx.alloc();
     final ByteBuf buffer = allocator.buffer();
     return new HttpByteBuf(buffer);
   }
 
-  public static HttpByteBuf buildHttpBuffer(final ChannelHandlerContext ctx, final HttpByteBufConsumer block) {
+  static HttpByteBuf buildHttpBuffer(final ChannelHandlerContext ctx, final HttpByteBufConsumer block) {
     final HttpByteBuf httpByteBuf = httpBuffer(ctx);
     block.accept(httpByteBuf);
     return httpByteBuf;
   }
 
-  public void writeStatusLine(final String protocolVersion, final int statusCode, final String statusMessage) {
-    final String status = "HTTP/%s %d %s%n".formatted(protocolVersion, statusCode, statusMessage);
+  void writeStatusLine() {
+    final String status = "HTTP/%s %d %s%n".formatted("1.1", 200, "OK");
     this.inner.writeCharSequence(status, StandardCharsets.US_ASCII);
   }
 
-  public void writeHeader(final String header, final String value) {
-    final String write = "%s: %s%n".formatted(header, value);
+  void writeHeader() {
+    final String write = "%s: %s%n".formatted("Content-Type", "application/zip");
     this.inner.writeCharSequence(write, StandardCharsets.US_ASCII);
   }
 
-  public void writeText(final String text) {
+  void writeText(final String text) {
     this.inner.writeCharSequence("\n" + text, StandardCharsets.US_ASCII);
   }
 
-  public void writeBytes(final byte[] bytes) {
+  void writeBytes(final byte[] bytes) {
     this.inner.writeCharSequence("\n", StandardCharsets.US_ASCII);
     this.inner.writeBytes(bytes);
   }
 
   @FunctionalInterface
-  public interface HttpByteBufConsumer {
+  interface HttpByteBufConsumer {
     void accept(HttpByteBuf httpByteBuf);
   }
 }

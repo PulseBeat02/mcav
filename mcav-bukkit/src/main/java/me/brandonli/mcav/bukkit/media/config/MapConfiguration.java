@@ -18,17 +18,14 @@
 package me.brandonli.mcav.bukkit.media.config;
 
 import com.google.common.base.Preconditions;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.result.MapResult;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 
 /**
- * Represents the configuration for a map, including its ID, dimensions, resolution,
- * and associated viewers. This class is immutable and must be constructed using the
- * nested {@link Builder} class or its concrete subclass {@link MapResultBuilder}.
+ * Represents a configuration for map related prototypes.
  */
 public class MapConfiguration {
 
@@ -51,7 +48,7 @@ public class MapConfiguration {
   }
 
   /**
-   * Retrieves the list of map IDs configured in this instance.
+   * Gets the list of map IDs associated with this configuration.
    *
    * @return a list of integers representing the map IDs
    */
@@ -60,17 +57,16 @@ public class MapConfiguration {
   }
 
   /**
-   * Retrieves the collection of viewers associated with this configuration.
-   * Each viewer is represented by a UUID.
+   * Gets the viewers of this map configuration.
    *
-   * @return a collection of UUIDs representing the viewers
+   * @return the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Retrieves the map ID associated with the current configuration instance.
+   * Gets the map ID.
    *
    * @return the map ID as an integer
    */
@@ -79,48 +75,49 @@ public class MapConfiguration {
   }
 
   /**
-   * Retrieves the width of an individual map block in the current configuration.
+   * Gets the width of the whole map screen in blocks.
    *
-   * @return the width of the map block as an integer
+   * @return the width of the map screen in blocks
    */
   public int getMapBlockWidth() {
     return this.mapBlockWidth;
   }
 
   /**
-   * Retrieves the height of the map block, which represents the vertical dimension
-   * of a single block in the map configuration.
+   * Gets the height of the whole map screen in blocks.
    *
-   * @return the height of the map block as an integer
+   * @return the height of the map screen in blocks
    */
   public int getMapBlockHeight() {
     return this.mapBlockHeight;
   }
 
   /**
-   * Retrieves the width resolution of the map configuration.
+   * Gets the width of the whole map screen in pixels.
    *
-   * @return the width resolution of the map as an integer
+   * @return the width of the map screen in pixels
    */
   public int getMapWidthResolution() {
     return this.mapWidthResolution;
   }
 
   /**
-   * Retrieves the vertical resolution of the map.
-   * The map height resolution represents the number of units or pixels
-   * designated for the map's height configuration.
+   * Gets the height of the whole map screen in pixels.
    *
-   * @return the height resolution of the map as an integer
+   * @return the height of the map screen in pixels
    */
   public int getMapHeightResolution() {
     return this.mapHeightResolution;
   }
 
   /**
-   * Map Result builder class for constructing instances of {@link MapResult}.
+   * Map configuration builder abstraction.
    */
   public static final class MapResultBuilder extends Builder<MapResultBuilder> {
+
+    MapResultBuilder() {
+      // no-op
+    }
 
     @Override
     protected MapResultBuilder self() {
@@ -129,22 +126,18 @@ public class MapConfiguration {
   }
 
   /**
-   * Creates and returns a new builder instance for constructing {@link MapConfiguration} objects.
-   * The builder allows setting various properties such as the map ID, block dimensions, viewers,
-   * and resolution parameters. This provides a flexible and readable API for configuration.
+   * Creates a new map configuration builder.
    *
-   * @return a {@link Builder} instance for configuring and building {@link MapConfiguration} objects
+   * @return a new map configuration builder
    */
   public static Builder<?> builder() {
     return new MapResultBuilder();
   }
 
   /**
-   * Abstract builder class for constructing instances of {@link MapResult}.
-   * This class provides methods to set the properties of the map result,
-   * including viewers, map ID, block dimensions, and resolution.
+   * Abstract builder for map configurations.
    *
-   * @param <T> the type of the builder extending this abstract class
+   * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
 
@@ -155,13 +148,17 @@ public class MapConfiguration {
     private int mapWidthResolution;
     private int mapHeightResolution;
 
-    protected abstract T self();
+    Builder() {
+      // no-op
+    }
+
+    abstract T self();
 
     /**
-     * Sets the collection of viewers for the builder.
+     * Sets the viewers of this map configuration.
      *
-     * @param viewers a collection of UUIDs representing the viewers to be set
-     * @return the builder instance
+     * @param viewers the viewers to set
+     * @return the builder instance for chaining
      */
     public T viewers(final Collection<UUID> viewers) {
       this.viewers = viewers;
@@ -169,7 +166,7 @@ public class MapConfiguration {
     }
 
     /**
-     * Sets the map ID to be used.
+     * Sets the map ID of this configuration.
      *
      * @param map the map ID, which must be non-negative
      * @return the builder instance for method chaining
@@ -180,9 +177,9 @@ public class MapConfiguration {
     }
 
     /**
-     * Sets the block width of the map and updates the builder with this value.
+     * Sets the map screen block width of this configuration.
      *
-     * @param mapBlockWidth the block width of the map to be set
+     * @param mapBlockWidth the block width of the map screen
      * @return the builder instance for method chaining
      */
     public T mapBlockWidth(final int mapBlockWidth) {
@@ -191,9 +188,9 @@ public class MapConfiguration {
     }
 
     /**
-     * Sets the block height of the map and updates the builder with this value.
+     * Sets the map screen block height of this configuration.
      *
-     * @param mapBlockHeight the block height of the map to be set
+     * @param mapBlockHeight the block height of the map screen
      * @return the builder instance for method chaining
      */
     public T mapBlockHeight(final int mapBlockHeight) {
@@ -202,10 +199,9 @@ public class MapConfiguration {
     }
 
     /**
-     * Sets the resolution of the map width. The resolution determines the number of pixels
-     * or units representing the width of the map.
+     * Sets the map screen width resolution in pixels.
      *
-     * @param mapWidthResolution the resolution of the map width
+     * @param mapWidthResolution the pixel width resolution of the map screen
      * @return the builder instance for chaining additional configuration
      */
     public T mapWidthResolution(final int mapWidthResolution) {
@@ -214,10 +210,9 @@ public class MapConfiguration {
     }
 
     /**
-     * Sets the resolution of the map height. This resolution determines the number
-     * of pixels or units representing the height of the map.
+     * Sets the map screen height resolution in pixels.
      *
-     * @param mapHeightResolution the resolution of the map height to be set
+     * @param mapHeightResolution the pixel height resolution of the map screen
      * @return the builder instance for chaining additional configuration
      */
     public T mapHeightResolution(final int mapHeightResolution) {
@@ -226,13 +221,9 @@ public class MapConfiguration {
     }
 
     /**
-     * Builds and returns a {@link DitherResultStep} instance configured with the specified parameters.
-     * Validates that all required fields have been properly initialized and applies default values
-     * for resolution if they are not explicitly set.
+     * Builds the map configuration.
      *
-     * @return a new {@link DitherResultStep} instance constructed based on the configured properties of the builder
-     * @throws IllegalArgumentException if any of the required parameters (e.g., map, map block width, map block height) are invalid
-     * @throws NullPointerException     if the viewers collection is not set
+     * @return a new instance of MapConfiguration
      */
     public MapConfiguration build() {
       Preconditions.checkArgument(this.map >= 0, "Map ID must be non-negative");
