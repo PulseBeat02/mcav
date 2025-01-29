@@ -35,6 +35,7 @@ import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.v136.page.Page;
+import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
@@ -57,6 +58,9 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   private final DevTools tools;
 
   private volatile byte[] frameBuffer;
+  private volatile long frameWidth;
+  private volatile long frameHeight;
+
   private volatile CompletableFuture<Void> captureTask;
   private volatile CompletableFuture<Void> processingTask;
 
@@ -112,6 +116,9 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Base64.Decoder decoder = Base64.getDecoder();
     this.tools.addListener(Page.screencastFrame(), frame -> {
         if (this.running.get()) {
+          final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
+          this.frameWidth = (long) frameMetadata.getDeviceWidth();
+          this.frameHeight = (long) frameMetadata.getDeviceHeight();
           this.frameBuffer = decoder.decode(frame.getData());
           this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
         }
@@ -131,6 +138,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
       while (this.running.get()) {
         if (this.frameBuffer != null) {
           final StaticImage staticImage = StaticImage.bytes(this.frameBuffer);
+          staticImage.resize(metadata.getVideoWidth(), metadata.getVideoHeight());
           VideoPipelineStep current = this.videoPipeline;
           while (current != null) {
             current.process(staticImage, metadata);
@@ -152,11 +160,23 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     if (!this.running.get()) {
       return;
     }
+    final int[] translated = this.translateCoordinates(x, y);
+    final int newX = translated[0];
+    final int newY = translated[1];
     final Actions actions = new Actions(this.driver);
-    final Actions move = actions.moveToLocation(x, y);
+    final Actions move = actions.moveToLocation(newX, newY);
     final Actions modified = this.getAction(type, move);
     final Action action = modified.build();
     action.perform();
+  }
+
+  private int[] translateCoordinates(final int x, final int y) {
+    final VideoMetadata videoMetadata = this.source.getMetadata();
+    final int targetWidth = videoMetadata.getVideoWidth();
+    final int targetHeight = videoMetadata.getVideoHeight();
+    final int newX = (int) (((float) x / this.frameWidth) * targetWidth);
+    final int newY = (int) (((float) y / this.frameHeight) * targetHeight);
+    return new int[] { newX, newY };
   }
 
   /**
