@@ -19,26 +19,36 @@ package me.brandonli.mcav.browser;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.MouseButton;
 import com.microsoft.playwright.options.ScreenshotType;
+import java.io.IOException;
+import java.io.Reader;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.StaticImage;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.CollectionUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PlaywrightPlayer implements BrowserPlayer {
+
+  private static final Set<String> PLAYWRIGHT_SPECIAL_KEYS;
 
   private static final TriConsumer<Mouse, Integer, Integer>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
     Mouse::click,
@@ -47,6 +57,17 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     (mouse, x, y) -> mouse.down(),
     (mouse, x, y) -> mouse.up()
   );
+
+  static {
+    final Gson gson = GsonProvider.getSimple();
+    try (final Reader reader = IOUtils.getResourceAsStreamReader("keybinds.json")) {
+      final TypeToken<Set<String>> token = new TypeToken<>() {};
+      final Type type = token.getType();
+      PLAYWRIGHT_SPECIAL_KEYS = requireNonNull(gson.fromJson(reader, type));
+    } catch (final IOException e) {
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
 
   private final BrowserType.LaunchOptions launchOptions;
   private final ExecutorService captureExecutor;
@@ -246,39 +267,6 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final int clampedY = Math.clamp(newY, 0, targetHeight - 1);
     return new int[] { clampedX, clampedY };
   }
-
-  private static final Set<String> PLAYWRIGHT_SPECIAL_KEYS = Set.of(
-    "Enter",
-    "Tab",
-    "ArrowLeft",
-    "ArrowRight",
-    "ArrowUp",
-    "ArrowDown",
-    "Escape",
-    "Backspace",
-    "Delete",
-    "Shift",
-    "Control",
-    "Alt",
-    "Meta",
-    "Home",
-    "End",
-    "PageUp",
-    "PageDown",
-    "Insert",
-    "F1",
-    "F2",
-    "F3",
-    "F4",
-    "F5",
-    "F6",
-    "F7",
-    "F8",
-    "F9",
-    "F10",
-    "F11",
-    "F12"
-  ); // add more if needed
 
   /**
    * {@inheritDoc}
