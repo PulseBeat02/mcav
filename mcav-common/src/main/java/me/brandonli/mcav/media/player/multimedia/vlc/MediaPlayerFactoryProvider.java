@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
 /**
@@ -30,7 +31,7 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
  */
 public final class MediaPlayerFactoryProvider {
 
-  private static final MediaPlayerFactory FACTORY;
+  private static final @Nullable MediaPlayerFactory FACTORY;
 
   static {
     MediaPlayerFactory factory;
