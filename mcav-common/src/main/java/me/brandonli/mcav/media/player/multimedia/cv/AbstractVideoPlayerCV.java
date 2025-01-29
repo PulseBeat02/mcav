@@ -48,6 +48,9 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Abstract implementation of a video player that uses JavaCV for multimedia processing.
+ */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private static final long MAX_DESYNC_NS = 10_000_000L;
@@ -75,6 +78,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   private final AtomicBoolean running;
   private final Lock lock;
 
+  /**
+   * Constructs a new AbstractVideoPlayerCV instance.
+   */
   public AbstractVideoPlayerCV() {
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.videoCallback = VideoAttachableCallback.create();
