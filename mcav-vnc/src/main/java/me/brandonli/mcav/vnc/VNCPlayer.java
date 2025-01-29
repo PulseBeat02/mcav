@@ -23,12 +23,13 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * An interface representing a VNC (Virtual Network Computing) player, useful for handling virtual desktops, etc.
  */
-public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer {
+public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, ExceptionHandler {
   /**
    * Starts the playback process with the specified video pipeline and VNC source.
    *

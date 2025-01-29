@@ -25,10 +25,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -80,9 +82,12 @@ public final class SeleniumPlayer implements BrowserPlayer {
 
   @Nullable private volatile BrowserSource source;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+
   SeleniumPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final ChromeOptions options = new ChromeOptions().addArguments(args);
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.videoAttachableCallback = VideoAttachableCallback.create();
     this.driver = new ChromeDriver(service, options);
     this.handles = Collections.synchronizedSet(new HashSet<>());
@@ -92,6 +97,22 @@ public final class SeleniumPlayer implements BrowserPlayer {
     this.actionExecutor = Executors.newVirtualThreadPerTaskExecutor();
     this.tools = this.driver.getDevTools();
     this.lock = new ReentrantLock();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
   }
 
   /**

@@ -178,7 +178,11 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public BufferedImage toBufferedImage() {
-    return Java2DFrameUtils.toBufferedImage(this.mat);
+    try {
+      return Java2DFrameUtils.toBufferedImage(this.mat);
+    } catch (final Exception e) {
+      throw new RuntimeException("Failed to convert Mat to BufferedImage", e);
+    }
   }
 
   /**
@@ -333,7 +337,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public int getPixelCount() {
-    return (int) this.mat.elemSize();
+    return (int) this.mat.arraySize();
   }
 
   /**

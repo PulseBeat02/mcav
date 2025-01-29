@@ -78,7 +78,7 @@ public final class DependencyLoader {
     Loader.load(ffmpeg.class);
     CLASSES.forEach(Loader::load);
     FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
-    avutil.setLogCallback(new FFmpegLogger());
+    //    avutil.setLogCallback(new FFmpegLogger());
     final long end = System.currentTimeMillis();
     LOGGER.info("JavaCV modules loaded in {} ms", end - start);
   }

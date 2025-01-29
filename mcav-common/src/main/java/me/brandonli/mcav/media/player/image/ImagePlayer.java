@@ -22,12 +22,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.source.FrameSource;
 
 /**
  * An interface for image players that can play images from a source.
  */
-public interface ImagePlayer extends ReleasablePlayer {
+public interface ImagePlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Starts the image player with the given video pipeline step and frame source.
    *

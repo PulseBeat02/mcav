@@ -76,6 +76,10 @@ public final class MultiplexerInputExample {
       .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    multiplexer.setExceptionHandler((context, throwable) -> {
+      System.err.println("Error occurred while processing media: " + context);
+      throwable.printStackTrace();
+    });
 
     final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
     videoCallback.attach(videoPipelineStep);

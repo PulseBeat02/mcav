@@ -17,18 +17,22 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.sun.jna.Pointer;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -79,12 +83,15 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   @Nullable private volatile BufferFormatCallback bufferFormatCallback;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+
   /**
    * Constructs a new VLCPlayer instance with the specified command-line arguments.
    *
    * @param args the command-line arguments to pass to the VLC player
    */
   public VLCPlayer(final String[] args) {
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.dimensionAttachableCallback = DimensionAttachableCallback.create();
     this.videoAttachableCallback = VideoAttachableCallback.create();
     this.audioAttachableCallback = AudioAttachableCallback.create();
@@ -93,6 +100,22 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.args = args;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
   }
 
   /**
@@ -244,6 +267,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
       return this.format;
@@ -270,14 +296,20 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       if (!VLCPlayer.this.running.get()) {
         return;
       }
-      final int bufferSize = sampleCount * BLOCK_SIZE;
-      final byte[] bytes = samples.getByteArray(0, bufferSize);
-      final ByteBuffer buffer = ByteBuffer.wrap(bytes);
-      final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
-      AudioPipelineStep current = this.step;
-      while (current != null) {
-        current.process(converted, this.metadata);
-        current = current.next();
+      try {
+        final int bufferSize = sampleCount * BLOCK_SIZE;
+        final byte[] bytes = samples.getByteArray(0, bufferSize);
+        final ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
+        AudioPipelineStep current = this.step;
+        while (current != null) {
+          current.process(converted, this.metadata);
+          current = current.next();
+        }
+      } catch (final Exception e) {
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        VLCPlayer.this.exceptionHandler.accept(msg, e);
       }
     }
   }
@@ -304,18 +336,27 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.setBuffer(buffer);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected void onDisplay(final MediaPlayer mediaPlayer, final int[] buffer) {
       if (!VLCPlayer.this.running.get()) {
         return;
       }
-      final ImageBuffer image = ImageBuffer.buffer(buffer, this.width, this.height);
-      VideoPipelineStep current = this.step;
-      while (current != null) {
-        current.process(image, this.metadata);
-        current = current.next();
+      try {
+        final ImageBuffer image = ImageBuffer.buffer(buffer, this.width, this.height);
+        VideoPipelineStep current = this.step;
+        while (current != null) {
+          current.process(image, this.metadata);
+          current = current.next();
+        }
+        image.release();
+      } catch (final Exception e) {
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        VLCPlayer.this.exceptionHandler.accept(msg, e);
       }
-      image.release();
     }
   }
 }

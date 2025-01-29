@@ -33,11 +33,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.*;
@@ -89,8 +91,11 @@ public final class PlaywrightPlayer implements BrowserPlayer {
 
   @Nullable private volatile BrowserSource source;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+
   PlaywrightPlayer(final String... args) {
     final List<String> launchArgs = Arrays.asList(args);
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.videoAttachableCallback = VideoAttachableCallback.create();
     this.pageIds = Collections.synchronizedSet(new HashSet<>());
     this.running = new AtomicBoolean(false);
@@ -99,6 +104,22 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     this.actionExecutor = Executors.newVirtualThreadPerTaskExecutor();
     this.lock = new ReentrantLock();
     this.launchOptions = new BrowserType.LaunchOptions().setHeadless(true).setArgs(launchArgs);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
   }
 
   /**
@@ -137,8 +158,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     try {
       Thread.sleep(50);
     } catch (final InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 
@@ -188,19 +210,25 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final int frameInterval
   ) {
     final ResizeFilter resizeFilter = new ResizeFilter(width, height);
-    while (this.running.get() && this.page != null) {
-      final Page page = requireNonNull(this.page);
-      final byte[] buffer = page.screenshot(screenshotOptions);
-      final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
-      final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
-      resizeFilter.applyFilter(staticImage, metadata);
-      VideoPipelineStep current = videoPipeline;
-      while (current != null) {
-        current.process(staticImage, metadata);
-        current = current.next();
+    try {
+      while (this.running.get() && this.page != null) {
+        final Page page = requireNonNull(this.page);
+        final byte[] buffer = page.screenshot(screenshotOptions);
+        final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
+        final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
+        resizeFilter.applyFilter(staticImage, metadata);
+        VideoPipelineStep current = videoPipeline;
+        while (current != null) {
+          current.process(staticImage, metadata);
+          current = current.next();
+        }
+        staticImage.release();
+        this.waitForNextFrame(frameInterval);
       }
-      staticImage.release();
-      this.waitForNextFrame(frameInterval);
+    } catch (final Exception e) {
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 
@@ -208,8 +236,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     try {
       Thread.sleep(sleep);
     } catch (final InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 

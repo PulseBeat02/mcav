@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
-import javax.sound.sampled.*;
+import java.util.function.BiConsumer;
+import javax.sound.sampled.LineUnavailableException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -37,6 +38,7 @@ import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FFmpegDirectSource;
@@ -53,7 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
-  private static final long MAX_DESYNC_NS = 10_000_000L;
+  private static final long MAX_DESYNC_NS = 50_000_000L;
 
   private final DimensionAttachableCallback dimensionCallback;
   private final VideoAttachableCallback videoCallback;
@@ -71,17 +73,20 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   @Nullable private volatile Long seekPosition;
 
-  @Nullable private volatile SourceDataLine audioLine;
-
   private final AtomicLong audioFrames;
   private final AtomicLong videoFrames;
   private final AtomicBoolean running;
   private final Lock lock;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+  private long firstFramePtsUs;
+  private long playStartNs;
+
   /**
    * Constructs a new AbstractVideoPlayerCV instance.
    */
   public AbstractVideoPlayerCV() {
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.videoCallback = VideoAttachableCallback.create();
     this.audioCallback = AudioAttachableCallback.create();
@@ -89,8 +94,29 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.audioFrames = new AtomicLong(0);
     this.videoFrames = new AtomicLong(0);
     this.lock = new ReentrantLock();
+    this.firstFramePtsUs = -1;
+    this.playStartNs = -1;
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean start(final Source video, final Source audio) {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -102,6 +128,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         return true;
       } catch (final Exception e) {
         this.stop();
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        this.exceptionHandler.accept(msg, e);
         throw new PlayerException(e.getMessage(), e);
       }
     });
@@ -111,14 +140,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.running.set(true);
     this.audioFrames.set(0);
     this.videoFrames.set(0);
-
-    final AudioFormat fmt = this.getAudioFormat();
-    final DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
-    final int bufferBytes = (int) (fmt.getFrameSize() * fmt.getFrameRate() * 0.2);
-    final SourceDataLine audioLine = (SourceDataLine) AudioSystem.getLine(info);
-    audioLine.open(fmt, bufferBytes);
-    audioLine.start();
-    this.audioLine = audioLine;
 
     this.audioProcessor = new ThreadPoolExecutor(
       1,
@@ -181,13 +202,19 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         this.playbackCombinedSource(videoGrabber, videoMeta, audioMeta, audioExec, videoExec);
       }
     } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     } finally {
       if (audioGrabber != null) {
         try {
           audioGrabber.stop();
           audioGrabber.close();
-        } catch (final FrameGrabber.Exception ignored) {}
+        } catch (final FrameGrabber.Exception e) {
+          final String msg = e.getMessage();
+          requireNonNull(msg);
+          this.exceptionHandler.accept(msg, e);
+        }
       }
     }
   }
@@ -211,7 +238,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           }
         }
       } catch (final FrameGrabber.Exception e) {
-        throw new PlayerException(e.getMessage(), e);
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        this.exceptionHandler.accept(msg, e);
       }
     });
 
@@ -227,7 +256,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     try {
       audioSourceThread.awaitTermination(1, TimeUnit.SECONDS);
     } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 
@@ -257,7 +288,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     grabber.setOption("tune", "zerolatency");
     grabber.setOption("preset", "ultrafast");
     grabber.setOption("threads", "auto");
-    grabber.setOption("fflags", "nobuffer+fastseek+flush_packets");
+    grabber.setOption("fflags", "fastseek+flush_packets");
     grabber.setOption("flags", "low_delay");
     grabber.setOption("audio_buffer_size", "16384");
     grabber.setOption("thread_queue_size", "16384");
@@ -283,6 +314,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     return grabber;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean start(final Source combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -294,6 +328,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         return true;
       } catch (final Exception e) {
         this.stop();
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        this.exceptionHandler.accept(msg, e);
         throw new PlayerException(e.getMessage(), e);
       }
     });
@@ -306,7 +343,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     grabber.setOption("preset", "ultrafast");
     grabber.setOption("threads", "auto");
     grabber.setOption("thread_type", "slice+frame");
-    grabber.setOption("fflags", "nobuffer+fastseek+flush_packets");
+    grabber.setOption("fflags", "fastseek+flush_packets");
     grabber.setOption("flags", "low_delay");
     grabber.setOption("probesize", "32");
     grabber.setOption("analyzeduration", "0");
@@ -345,20 +382,11 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     return grabber;
   }
 
-  private void startPlayback() throws LineUnavailableException {
+  private void startPlayback() {
     this.running.set(true);
 
     this.audioFrames.set(0);
     this.videoFrames.set(0);
-
-    final AudioFormat fmt = this.getAudioFormat();
-    final DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
-    final int bufferBytes = (int) (fmt.getFrameSize() * fmt.getFrameRate() * 0.2);
-    final SourceDataLine audioLine = (SourceDataLine) AudioSystem.getLine(info);
-    audioLine.open(fmt, bufferBytes);
-    audioLine.start();
-
-    this.audioLine = audioLine;
 
     this.audioProcessor = new ThreadPoolExecutor(
       1,
@@ -383,24 +411,15 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.playerThread = service;
   }
 
-  private AudioFormat getAudioFormat() {
-    final FrameGrabber grabber = requireNonNull(this.grabber);
-    final int sampleRate = grabber.getSampleRate();
-    final int channels = grabber.getAudioChannels();
-    return new AudioFormat(sampleRate, 16, channels, true, false);
-  }
-
   private void playback() {
     final FrameGrabber grabber = requireNonNull(this.grabber);
     final ExecutorService audioExec = requireNonNull(this.audioProcessor);
     final ExecutorService videoExec = requireNonNull(this.videoProcessor);
-    final float detectedFps = (float) grabber.getFrameRate();
-    final float targetFps = detectedFps > 0 ? detectedFps : 30f;
     final OriginalVideoMetadata videoMeta = OriginalVideoMetadata.of(
       grabber.getImageWidth(),
       grabber.getImageHeight(),
       grabber.getVideoBitrate(),
-      targetFps
+      (float) grabber.getFrameRate()
     );
     final OriginalAudioMetadata audioMeta = OriginalAudioMetadata.of(
       grabber.getAudioCodecName(),
@@ -422,59 +441,72 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         }
       }
     } catch (final FrameGrabber.Exception e) {
-      throw new PlayerException(e.getMessage(), e);
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 
   private void processAudioFrame(final Frame frame, final OriginalAudioMetadata meta) {
     try (frame) {
+      final long ptsUs = frame.timestamp;
+      if (this.firstFramePtsUs < 0) {
+        this.firstFramePtsUs = ptsUs;
+        this.playStartNs = System.nanoTime();
+      }
       final ByteBuffer data = ByteUtils.convertAudioSamples(frame.samples[0]);
       final ByteBuffer buf = ByteUtils.convertToLittleEndian(data);
-      final byte[] pcm = new byte[buf.remaining()];
-      buf.get(pcm);
-
-      final SourceDataLine audioLine = requireNonNull(this.audioLine);
-      audioLine.write(pcm, 0, pcm.length);
       AudioPipelineStep step = this.audioCallback.retrieve();
-
-      final ByteBuffer wrap = ByteBuffer.wrap(pcm);
       while (step != null) {
-        step.process(wrap, meta);
+        step.process(buf, meta);
         step = step.next();
       }
-    } catch (final Exception ignored) {}
+    } catch (final Exception e) {
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
+    }
   }
 
   private void processVideoFrame(final Frame frame, final OriginalVideoMetadata meta) {
     try (frame) {
-      final long timestamp = frame.timestamp;
-      final int width = frame.imageWidth;
-      final int height = frame.imageHeight;
-      final SourceDataLine audioLine = requireNonNull(this.audioLine);
-      final long audioUs = audioLine.getMicrosecondPosition();
-      final long delayUs = timestamp - audioUs;
-
-      if (delayUs > 0) {
-        final long nanos = TimeUnit.MICROSECONDS.toNanos(delayUs);
-        if (nanos > MAX_DESYNC_NS) {
-          LockSupport.parkNanos(nanos - MAX_DESYNC_NS);
+      final long ptsUs = frame.timestamp;
+      if (this.firstFramePtsUs < 0) {
+        this.firstFramePtsUs = ptsUs;
+        this.playStartNs = System.nanoTime();
+      }
+      final long elapsedMediaNs = TimeUnit.MICROSECONDS.toNanos(ptsUs - this.firstFramePtsUs);
+      final long targetNs = this.playStartNs + elapsedMediaNs;
+      final long nowNs = System.nanoTime();
+      long delayNs = targetNs - nowNs;
+      if (delayNs > 0) {
+        if (delayNs > MAX_DESYNC_NS) {
+          LockSupport.parkNanos(delayNs - MAX_DESYNC_NS);
+          delayNs = MAX_DESYNC_NS;
         }
-        final long deadline = System.nanoTime() + Math.min(nanos, MAX_DESYNC_NS);
+        final long deadline = System.nanoTime() + delayNs;
         while (System.nanoTime() < deadline) {
           Thread.onSpinWait();
         }
       }
       final ByteBuffer data = (ByteBuffer) frame.image[0];
-      final ImageBuffer img = ImageBuffer.bytes(data, width, height);
+      final ImageBuffer img = ImageBuffer.bytes(data, frame.imageWidth, frame.imageHeight);
       VideoPipelineStep step = this.videoCallback.retrieve();
       while (step != null) {
         step.process(img, meta);
         step = step.next();
       }
       img.release();
-    } catch (final Exception ignored) {}
+    } catch (final Exception e) {
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
+    }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean pause() {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -483,17 +515,26 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     });
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean resume() {
     return LockUtils.executeWithLock(this.lock, () -> this.currentSource != null && this.start(this.currentSource));
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean seek(final long time) {
     this.seekPosition = time;
     return this.resume();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean release() {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -504,6 +545,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private void stop() {
     this.running.set(false);
+    this.firstFramePtsUs = -1;
+    this.playStartNs = -1;
 
     if (this.playerThread != null) {
       final ExecutorService playerThread = requireNonNull(this.playerThread);
@@ -529,35 +572,37 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         grabber.stop();
         grabber.close();
       } catch (final FrameGrabber.Exception e) {
-        throw new PlayerException(e.getMessage(), e);
+        final String msg = e.getMessage();
+        requireNonNull(msg);
+        this.exceptionHandler.accept(msg, e);
       }
       this.grabber = null;
     }
-
-    if (this.audioLine != null) {
-      final SourceDataLine audioLine = requireNonNull(this.audioLine);
-      audioLine.drain();
-      audioLine.stop();
-      audioLine.close();
-      this.audioLine = null;
-    }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public VideoAttachableCallback getVideoAttachableCallback() {
     return this.videoCallback;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public AudioAttachableCallback getAudioAttachableCallback() {
     return this.audioCallback;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public DimensionAttachableCallback getDimensionAttachableCallback() {
     return this.dimensionCallback;
   }
 
-  @Override
   public abstract FrameGrabber getFrameGrabber(final String resource);
 }

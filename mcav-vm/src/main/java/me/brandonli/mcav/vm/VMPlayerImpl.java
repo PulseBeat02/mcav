@@ -21,7 +21,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -41,10 +43,31 @@ public class VMPlayerImpl implements VMPlayer {
 
   @Nullable private volatile VMProcess process;
 
+  private final BiConsumer<String, Throwable> exceptionHandler;
+
   VMPlayerImpl() {
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.videoAttachableCallback = VideoAttachableCallback.create();
     this.lock = new ReentrantLock();
     this.vncPlayer = VNCPlayer.vm();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
+    return vncPlayer.getExceptionHandler();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
+    vncPlayer.setExceptionHandler(exceptionHandler);
   }
 
   /**

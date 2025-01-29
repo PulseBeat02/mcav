@@ -22,13 +22,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * Interface representing a browser-based player that supports interaction with browser elements,
  * video pipeline processing, and mouse event handling.
  */
-public interface BrowserPlayer extends ReleasablePlayer {
+public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Default arguments for Selenium ChromeDriver.
    */

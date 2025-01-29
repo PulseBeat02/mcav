@@ -32,7 +32,7 @@ import me.brandonli.mcav.media.source.Source;
 /**
  * Represents a video player interface for processing and playing video streams.
  */
-public interface VideoPlayer {
+public interface VideoPlayer extends ExceptionHandler {
   /**
    * Starts the video playback process using the specified audio and video pipeline steps
    * and a combined source for media playback.

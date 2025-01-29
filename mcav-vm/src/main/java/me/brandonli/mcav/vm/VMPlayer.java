@@ -23,12 +23,13 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
  * Represents a virtual machine player interface that extends the capabilities of a controllable player
  */
-public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
+public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, ExceptionHandler {
   /**
    * Creates a new instance of the VMPlayer implementation.
    *

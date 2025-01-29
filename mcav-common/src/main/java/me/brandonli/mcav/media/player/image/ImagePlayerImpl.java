@@ -25,10 +25,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FrameSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
@@ -47,7 +48,10 @@ public class ImagePlayerImpl implements ImagePlayer {
 
   @Nullable private volatile FrameSource source;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+
   ImagePlayerImpl() {
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.executor = Executors.newSingleThreadExecutor();
@@ -82,20 +86,24 @@ public class ImagePlayerImpl implements ImagePlayer {
     final int width = source.getFrameWidth();
     final int height = source.getFrameHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
-    while (this.running.get()) {
-      final IntBuffer frame = source.getFrameSupplier().get();
-      if (frame == null || frame.remaining() == 0) {
-        this.waitForFrame();
-        continue;
+    try {
+      while (this.running.get()) {
+        final IntBuffer frame = source.getFrameSupplier().get();
+        if (frame == null || frame.remaining() == 0) {
+          this.waitForFrame();
+          continue;
+        }
+        final int[] data = frame.array();
+        final ImageBuffer image = ImageBuffer.buffer(data, width, height);
+        VideoPipelineStep next = this.callback.retrieve();
+        while (next != null) {
+          next.process(image, metadata);
+          next = next.next();
+        }
+        image.release();
       }
-      final int[] data = frame.array();
-      final ImageBuffer image = ImageBuffer.buffer(data, width, height);
-      VideoPipelineStep next = this.callback.retrieve();
-      while (next != null) {
-        next.process(image, metadata);
-        next = next.next();
-      }
-      image.release();
+    } catch (final Exception e) {
+      this.exceptionHandler.accept("Error processing frame in ImagePlayer", e);
     }
   }
 
@@ -103,9 +111,9 @@ public class ImagePlayerImpl implements ImagePlayer {
     try {
       Thread.sleep(50);
     } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-      throw new PlayerException(e.getMessage(), e);
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 
@@ -119,5 +127,21 @@ public class ImagePlayerImpl implements ImagePlayer {
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
       return true;
     });
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
   }
 }

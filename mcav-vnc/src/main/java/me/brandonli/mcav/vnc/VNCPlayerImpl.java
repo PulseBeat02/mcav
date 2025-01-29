@@ -38,12 +38,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.CollectionUtils;
@@ -102,12 +104,31 @@ public class VNCPlayerImpl implements VNCPlayer {
 
   @Nullable private volatile VNCSource source;
 
+  private BiConsumer<String, Throwable> exceptionHandler;
+
   VNCPlayerImpl() {
+    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
     this.videoCallback = VideoAttachableCallback.create();
     this.frameProcessorExecutor = Executors.newSingleThreadExecutor();
     this.current = new AtomicReference<>(null);
     this.running = new AtomicBoolean(false);
     this.lock = new ReentrantLock();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    this.exceptionHandler = exceptionHandler;
   }
 
   /**
@@ -186,8 +207,10 @@ public class VNCPlayerImpl implements VNCPlayer {
         current = current.next();
       }
       staticImage.release();
-    } catch (final IOException e) {
-      throw new PlayerException(e.getMessage(), e);
+    } catch (final Exception e) {
+      final String msg = e.getMessage();
+      requireNonNull(msg);
+      this.exceptionHandler.accept(msg, e);
     }
   }
 

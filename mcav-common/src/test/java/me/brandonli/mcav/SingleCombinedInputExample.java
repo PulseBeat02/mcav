@@ -69,6 +69,10 @@ public final class SingleCombinedInputExample {
       .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    multiplexer.setExceptionHandler((context, throwable) -> {
+      System.err.println("Error occurred while processing media: " + context);
+      throwable.printStackTrace();
+    });
 
     final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
     audioCallback.attach(audioPipelineStep);
@@ -79,6 +83,15 @@ public final class SingleCombinedInputExample {
     final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
     final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(900, 500);
     dimensionCallback.attach(dimension);
+
+    Thread.getAllStackTraces()
+      .keySet()
+      .forEach(thread1 -> {
+        thread1.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+          System.err.println("Uncaught exception in thread: " + thread.getName());
+          throwable.printStackTrace();
+        });
+      });
 
     multiplexer.start(source);
 
