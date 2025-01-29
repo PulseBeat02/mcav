@@ -185,14 +185,15 @@ public final class VideoCommand implements AnnotationCommandFeature {
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
     final Source video = sources[0];
     final Source audio = sources[1];
-    final VideoPlayerMultiplexer multiplexer = playerType.createPlayer();
+    final VideoPlayerMultiplexer player = playerType.createPlayer();
+    this.videoPlayer = player;
     try {
       requireNonNull(video);
       if (audio == null) {
-        multiplexer.start(audioPipelineStep, videoPipelineStep, video);
+        player.start(audioPipelineStep, videoPipelineStep, video);
       } else {
         requireNonNull(audio);
-        multiplexer.start(audioPipelineStep, videoPipelineStep, video, audio);
+        player.start(audioPipelineStep, videoPipelineStep, video, audio);
       }
     } catch (final Exception e) {
       throw new AssertionError(e);
@@ -210,7 +211,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     final MapResult result = new MapResult(configuration);
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
     final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-    return PipelineBuilder.video().then(ditherFilter).build();
+    return PipelineBuilder.video().then(VideoFilter.FRAME_RATE).then(ditherFilter).build();
   }
 
   private MapConfiguration constructMapConfiguration(

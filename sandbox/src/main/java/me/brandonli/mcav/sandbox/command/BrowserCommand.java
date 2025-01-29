@@ -82,7 +82,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final Player player,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "id") @Range(min = "0") final int mapId,
+    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String url
   ) {

@@ -231,10 +231,18 @@ public final class InstallationManager implements AutoCloseable {
   }
 
   private CompletableFuture<Void> saveArtifactsAsync(final Collection<Artifact> artifacts) throws IOException {
+    final int size = artifacts.size();
+    final String msg = String.format("Preparing to download %s artifacts", size);
+    this.logger.accept(msg);
     Files.createDirectories(this.downloadPath);
     final List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
     for (final Artifact artifact : artifacts) {
-      final CompletableFuture<Void> future = CompletableFuture.runAsync(() -> this.tryArtifactDownload(artifact), this.downloadExecutor);
+      final String id = artifact.getArtifactId();
+      final String completion = String.format("Downloaded artifact %s", id);
+      final CompletableFuture<Void> future = CompletableFuture.runAsync(
+        () -> this.tryArtifactDownload(artifact),
+        this.downloadExecutor
+      ).thenRun(() -> this.logger.accept(completion));
       downloadFutures.add(future);
     }
     return CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).thenRun(this::saveArtifactHashes);
@@ -286,9 +294,6 @@ public final class InstallationManager implements AutoCloseable {
     Files.copy(sourceFile, targetPath, StandardCopyOption.REPLACE_EXISTING);
     final String hash = IOUtils.calculateSha256Hash(targetPath);
     this.artifactHashes.setProperty(artifactKey, hash);
-    final String name = IOUtils.getFileName(sourceFile);
-    final String message = String.format("Installing %s to %s", name, targetPath);
-    this.logger.accept(message);
   }
 
   private boolean jarWithHashExists(final Path targetPath, final String artifactKey, final Path sourcePath) throws IOException {

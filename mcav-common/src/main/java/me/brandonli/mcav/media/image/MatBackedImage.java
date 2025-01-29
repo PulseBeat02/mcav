@@ -639,16 +639,34 @@ public class MatBackedImage implements StaticImage {
   public int[] getAllPixels() {
     final int width = this.mat.cols();
     final int height = this.mat.rows();
+    final int channels = this.mat.channels();
     final int[] pixels = new int[width * height];
     final byte[] byteData = new byte[(int) (this.mat.total() * this.mat.elemSize())];
     this.mat.get(0, 0, byteData);
-    for (int i = 0; i < pixels.length; i++) {
-      final int idx = i * 4;
-      final int blue = byteData[idx] & 0xFF;
-      final int green = byteData[idx + 1] & 0xFF;
-      final int red = byteData[idx + 2] & 0xFF;
-      final int alpha = byteData[idx + 3] & 0xFF;
-      pixels[i] = (alpha << 24) | (red << 16) | (green << 8) | blue;
+    if (channels == 4) {
+      for (int i = 0; i < pixels.length; i++) {
+        final int idx = i * 4;
+        final int blue = byteData[idx] & 0xFF;
+        final int green = byteData[idx + 1] & 0xFF;
+        final int red = byteData[idx + 2] & 0xFF;
+        final int alpha = byteData[idx + 3] & 0xFF;
+        pixels[i] = (alpha << 24) | (red << 16) | (green << 8) | blue;
+      }
+    } else if (channels == 3) {
+      for (int i = 0; i < pixels.length; i++) {
+        final int idx = i * 3;
+        final int blue = byteData[idx] & 0xFF;
+        final int green = byteData[idx + 1] & 0xFF;
+        final int red = byteData[idx + 2] & 0xFF;
+        pixels[i] = (255 << 24) | (red << 16) | (green << 8) | blue;
+      }
+    } else if (channels == 1) {
+      for (int i = 0; i < pixels.length; i++) {
+        final int gray = byteData[i] & 0xFF;
+        pixels[i] = (255 << 24) | (gray << 16) | (gray << 8) | gray;
+      }
+    } else {
+      throw new IllegalStateException("Unsupported image format with " + channels + " channels");
     }
     return pixels;
   }

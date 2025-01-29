@@ -62,6 +62,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final String[] args;
 
   private CompletableFuture<Void> playbackCompletionFuture;
+  private VideoCallback videoCallback;
+  private AudioCallback audioCallback;
+  private CallbackVideoSurface videoSurface;
 
   private Source video;
   private Source audio;
@@ -153,15 +156,15 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private void addCallbacks(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline) {
     final BufferFormatCallback callback = new BufferCallback();
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(this.video);
-    final RenderCallback callbackAdapter = new VideoCallback(videoPipeline, videoMetadata);
-    final VideoSurface surface = new CallbackVideoSurface(callback, callbackAdapter, true, this.getAdapter());
+    this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
+    this.videoSurface = new CallbackVideoSurface(callback, this.videoCallback, true, this.getAdapter());
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
-    surfaceApi.set(surface);
+    surfaceApi.set(this.videoSurface);
 
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(this.audio);
-    final AudioCallback audioCallback = new AudioCallback(audioPipeline, audioMetadata);
+    this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
     final AudioApi audioApi = this.player.audio();
-    audioApi.callback("s16be", audioMetadata.getAudioBitrate(), audioMetadata.getAudioChannels(), audioCallback);
+    audioApi.callback("s16be", audioMetadata.getAudioBitrate(), audioMetadata.getAudioChannels(), this.audioCallback);
   }
 
   private VideoSurfaceAdapter getAdapter() {
@@ -218,7 +221,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return true;
   }
 
-  private final class BufferCallback implements BufferFormatCallback {
+  private static final class BufferCallback implements BufferFormatCallback {
 
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
@@ -265,7 +268,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * - The play method handles concurrency via an executor service, isolating audio processing
    *   from the main playback thread.
    */
-  private final class AudioCallback extends AudioCallbackAdapter {
+  private static final class AudioCallback extends AudioCallbackAdapter {
 
     private final AudioPipelineStep step;
     private final AudioMetadata metadata;
@@ -340,7 +343,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * asynchronous task execution and leveraging thread-safe constructs to manage shared
    * resources, such as the task list.
    */
-  private final class VideoCallback implements RenderCallback {
+  private static final class VideoCallback implements RenderCallback {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;

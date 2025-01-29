@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command;
 
 import java.util.stream.Stream;
+import me.brandonli.mcav.media.result.Characters;
 import me.brandonli.mcav.sandbox.MCAV;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
@@ -25,7 +26,7 @@ import org.incendo.cloud.annotations.suggestion.Suggestions;
 
 public final class SuggestionProvider implements AnnotationCommandFeature {
 
-  @Suggestions("id")
+  @Suggestions("ids")
   public Stream<String> suggestId() {
     return Stream.of(0, 5, 10, 100, 1000, 10000, 100000).map(String::valueOf);
   }
@@ -38,6 +39,16 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   @Suggestions("resolutions")
   public Stream<String> suggestResolutions() {
     return Stream.of("512x512", "640x640", "1280x720", "1920x1080");
+  }
+
+  @Suggestions("chat-resolutions")
+  public Stream<String> suggestChatResolutions() {
+    return Stream.of("8x8", "16x16", "32x32");
+  }
+
+  @Suggestions("chat-characters")
+  public Stream<String> suggestChatCharacters() {
+    return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
   }
 
   @Override
