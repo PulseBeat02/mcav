@@ -1,10 +1,9 @@
 Development Milestones
-  - Fix Virtual Machine Support
   - Build QEMU Statically for All Platforms
-
-  - Add Images and GIF Support into Plugin
   - Add Interaction Support for Virtual Machine
   - Add Interaction Support for Browser
+
+  - Add Images and GIF Support into Plugin
 
 Public Milestones
   - Update video showcase in the README (music discs for VM, etc)

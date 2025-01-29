@@ -112,12 +112,15 @@ public class VNCPlayerImpl implements VNCPlayer {
   }
 
   private void processFrames() {
+    final int width = this.videoMetadata.getVideoWidth();
+    final int height = this.videoMetadata.getVideoHeight();
     while (this.running.get()) {
       try {
         if (this.current == null) {
           continue;
         }
         final StaticImage image = StaticImage.image(this.current);
+        image.resize(width, height);
         VideoPipelineStep current = this.videoPipeline;
         while (current != null) {
           current.process(image, this.videoMetadata);

@@ -121,14 +121,15 @@ public final class VirtualizeCommand implements AnnotationCommandFeature {
     final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);
     final VMConfiguration config = this.parseVMOptions(flags);
 
+    player.sendMessage(Message.VM_LOADING.build());
     try {
       this.vmPlayer = VMPlayer.vm();
-      this.vmPlayer.startAsync(pipeline, architecture, config, metadata, this.service);
+      this.vmPlayer.startAsync(pipeline, architecture, config, metadata, this.service).thenRun(() ->
+          player.sendMessage(Message.VM_CREATE.build())
+        );
     } catch (final Exception e) {
       throw new AssertionError(e);
     }
-
-    player.sendMessage(Message.VM_CREATE.build());
   }
 
   private VMConfiguration parseVMOptions(final String commandLine) {

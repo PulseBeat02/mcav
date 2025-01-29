@@ -26,6 +26,7 @@ import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MCAVSandbox extends JavaPlugin {
@@ -33,6 +34,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private Logger logger;
 
   private MCAVApi mcav;
+  private JukeBoxListener listener;
   private AudioProvider audioProvider;
   private VideoPlayerManager videoPlayerManager;
   private AnnotationParserHandler annotationParserHandler;
@@ -55,6 +57,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.loadPluginData();
     this.loadManager();
     this.loadCommands();
+    this.loadListeners();
     this.initLookupTables();
   }
 
@@ -86,9 +89,19 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onDisable() {
     this.shutdownLookupTables();
+    this.unloadListeners();
     this.shutdownCommands();
     this.saveData();
     this.unloadMCAV();
+  }
+
+  private void unloadListeners() {
+    this.listener.shutdown();
+  }
+
+  private void loadListeners() {
+    this.listener = new JukeBoxListener(this);
+    this.listener.start();
   }
 
   private void shutdownCommands() {
