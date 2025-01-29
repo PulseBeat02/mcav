@@ -17,8 +17,9 @@
  */
 package me.brandonli.mcav.media.player.vm;
 
-import java.util.*;
-import org.checkerframework.checker.nullness.qual.KeyFor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A builder class for creating QEMU virtual machine configurations.
@@ -27,10 +28,10 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
  */
 public class VMConfiguration {
 
-  private final Map<String, String> options;
+  private final List<String> arguments;
 
   private VMConfiguration() {
-    this.options = new HashMap<>();
+    this.arguments = new ArrayList<>();
   }
 
   /**
@@ -49,8 +50,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration memory(final int memoryMB) {
-    this.options.put("m", memoryMB + "M");
-    return this;
+    return this.option("m", memoryMB + "M");
   }
 
   /**
@@ -61,8 +61,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration memory(final int amount, final String unit) {
-    this.options.put("m", amount + unit);
-    return this;
+    return this.option("m", amount + unit);
   }
 
   /**
@@ -72,8 +71,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration cores(final int cores) {
-    this.options.put("smp", String.valueOf(cores));
-    return this;
+    return this.option("smp", String.valueOf(cores));
   }
 
   /**
@@ -83,8 +81,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration cdrom(final String isoPath) {
-    this.options.put("cdrom", isoPath);
-    return this;
+    return this.option("cdrom", isoPath);
   }
 
   /**
@@ -94,8 +91,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration hda(final String hdaPath) {
-    this.options.put("hda", hdaPath);
-    return this;
+    return this.option("hda", hdaPath);
   }
 
   /**
@@ -105,8 +101,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration hdb(final String hdbPath) {
-    this.options.put("hdb", hdbPath);
-    return this;
+    return this.option("hdb", hdbPath);
   }
 
   /**
@@ -116,8 +111,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration boot(final String bootOrder) {
-    this.options.put("boot", bootOrder);
-    return this;
+    return this.option("boot", bootOrder);
   }
 
   /**
@@ -127,8 +121,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration network(final String netConfig) {
-    this.options.put("net", netConfig);
-    return this;
+    return this.option("net", netConfig);
   }
 
   /**
@@ -138,8 +131,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration cpu(final String model) {
-    this.options.put("cpu", model);
-    return this;
+    return this.option("cpu", model);
   }
 
   /**
@@ -149,8 +141,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration machine(final String machineType) {
-    this.options.put("machine", machineType);
-    return this;
+    return this.option("machine", machineType);
   }
 
   /**
@@ -161,10 +152,10 @@ public class VMConfiguration {
    */
   public VMConfiguration kvm(final boolean enable) {
     if (enable) {
-      this.options.put("enable-kvm", "");
-    } else {
-      this.options.remove("enable-kvm");
+      return this.flag("enable-kvm");
     }
+    // Remove the flag if it exists
+    this.arguments.removeIf(arg -> arg.equals("-enable-kvm"));
     return this;
   }
 
@@ -175,8 +166,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration display(final String displayType) {
-    this.options.put("display", displayType);
-    return this;
+    return this.option("display", displayType);
   }
 
   /**
@@ -187,10 +177,10 @@ public class VMConfiguration {
    */
   public VMConfiguration graphics(final boolean enable) {
     if (!enable) {
-      this.options.put("nographic", "");
-    } else {
-      this.options.remove("nographic");
+      return this.flag("nographic");
     }
+    // Remove the flag if it exists
+    this.arguments.removeIf(arg -> arg.equals("-nographic"));
     return this;
   }
 
@@ -201,8 +191,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration audio(final String driver) {
-    this.options.put("audio", driver);
-    return this;
+    return this.option("audio", driver);
   }
 
   /**
@@ -222,8 +211,7 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration diskSize(final String size) {
-    this.options.put("drive", "file=fat:rw:" + size);
-    return this;
+    return this.option("drive", "file=fat:rw:" + size);
   }
 
   /**
@@ -234,7 +222,13 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration option(final String key, final String value) {
-    this.options.put(key, value);
+    this.arguments.removeIf(arg -> arg.equals("-" + key));
+    final int valueIndex = this.arguments.indexOf("-" + key) + 1;
+    if (valueIndex > 0 && valueIndex < this.arguments.size()) {
+      this.arguments.remove(valueIndex);
+    }
+    this.arguments.add("-" + key);
+    this.arguments.add(value);
     return this;
   }
 
@@ -245,17 +239,19 @@ public class VMConfiguration {
    * @return this builder instance
    */
   public VMConfiguration flag(final String flag) {
-    this.options.put(flag, "");
+    if (!this.arguments.contains("-" + flag)) {
+      this.arguments.add("-" + flag);
+    }
     return this;
   }
 
   /**
-   * Returns an unmodifiable view of the configuration options.
+   * Returns an unmodifiable view of the configuration arguments.
    *
-   * @return the configured options
+   * @return the configured arguments list
    */
-  public Map<String, String> getOptions() {
-    return Collections.unmodifiableMap(this.options);
+  public List<String> getArguments() {
+    return Collections.unmodifiableList(this.arguments);
   }
 
   /**
@@ -264,16 +260,6 @@ public class VMConfiguration {
    * @return a string array of QEMU arguments
    */
   public String[] buildArgs() {
-    final List<String> args = new ArrayList<>();
-    final Set<Map.Entry<@KeyFor("this.options") String, String>> entries = this.options.entrySet();
-    for (final Map.Entry<String, String> entry : entries) {
-      final String key = entry.getKey();
-      final String value = entry.getValue();
-      args.add("-" + key);
-      if (!value.isEmpty()) {
-        args.add(value);
-      }
-    }
-    return args.toArray(new String[0]);
+    return this.arguments.toArray(new String[0]);
   }
 }

@@ -17,21 +17,17 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import static java.util.Objects.requireNonNull;
-
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
-import me.brandonli.mcav.media.player.driver.BrowserPlayer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.media.source.BrowserSource;
+import me.brandonli.mcav.media.player.vm.VMConfiguration;
+import me.brandonli.mcav.media.player.vm.VMPlayer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
@@ -45,39 +41,40 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
-public final class BrowserCommand implements AnnotationCommandFeature {
+public final class VirtualizeCommand implements AnnotationCommandFeature {
 
-  private @Nullable BrowserPlayer browser;
+  private @Nullable VMPlayer vmPlayer;
 
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {}
 
-  @Command("mcav browser release")
-  @Permission("mcav.browser.release")
-  @CommandDescription("mcav.command.browser.release.info")
-  public void releaseBrowser(final CommandSender player) {
-    if (this.browser != null) {
+  @Command("mcav vm release")
+  @Permission("mcav.vm.release")
+  @CommandDescription("mcav.command.vm.release.info")
+  public void releaseVM(final CommandSender player) {
+    if (this.vmPlayer != null) {
       try {
-        this.browser.release();
-        this.browser = null;
+        this.vmPlayer.release();
+        this.vmPlayer = null;
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
     }
-    player.sendMessage(Message.RELEASE_BROWSER.build());
+    player.sendMessage(Message.VM_RELEASE.build());
   }
 
-  @Command("mcav browser create <playerSelector> <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
-  @Permission("mcav.command.browser.create")
-  @CommandDescription("mcav.command.browser.create.info")
-  public void playBrowser(
+  @Command("mcav vm create <playerSelector> <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>")
+  @Permission("mcav.command.vm.create")
+  @CommandDescription("mcav.command.vm.create.info")
+  public void playVM(
     final CommandSender player,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Greedy final String url
+    final VMPlayer.Architecture architecture,
+    @Greedy final String flags
   ) {
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
@@ -89,23 +86,10 @@ public final class BrowserCommand implements AnnotationCommandFeature {
       return;
     }
 
-    boolean failed = false;
-    URI uri = null;
-    try {
-      uri = new URI(url);
-    } catch (final URISyntaxException e) {
-      failed = true;
-    }
-    if (failed) {
-      player.sendMessage(Message.UNSUPPORTED_URL.build());
-      return;
-    }
-    requireNonNull(uri);
-
-    if (this.browser != null) {
+    if (this.vmPlayer != null) {
       try {
-        this.browser.release();
-        this.browser = null;
+        this.vmPlayer.release();
+        this.vmPlayer = null;
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
@@ -128,14 +112,32 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);
-    final BrowserSource source = BrowserSource.uri(uri, metadata);
+    final VMConfiguration config = this.parseVMOptions(flags);
+
     try {
-      this.browser = BrowserPlayer.defaultChrome();
-      this.browser.start(pipeline, source);
+      this.vmPlayer = VMPlayer.vm();
+      this.vmPlayer.startAsync(pipeline, architecture, config, metadata);
     } catch (final Exception e) {
       throw new AssertionError(e);
     }
 
-    player.sendMessage(Message.START_BROWSER.build());
+    player.sendMessage(Message.VM_CREATE.build());
+  }
+
+  private VMConfiguration parseVMOptions(final String commandLine) {
+    final VMConfiguration config = VMConfiguration.builder();
+    final String[] parts = commandLine.trim().split("\\s+");
+    for (int i = 0; i < parts.length; i++) {
+      if (parts[i].startsWith("-")) {
+        final String option = parts[i].substring(1);
+        if (i + 1 < parts.length && !parts[i + 1].startsWith("-")) {
+          config.option(option, parts[i + 1]);
+          i++;
+        } else {
+          config.flag(option);
+        }
+      }
+    }
+    return config;
   }
 }
