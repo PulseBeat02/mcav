@@ -93,7 +93,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
-    @Argument(suggestions = "quality") @Range(min = "1") final int quality,
+    @Argument(suggestions = "quality") @Range(min = "1", max = "100") final int quality,
     @Argument(suggestions = "nth") @Range(min = "1") final int nth,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,

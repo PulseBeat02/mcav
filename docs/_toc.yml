@@ -4,7 +4,11 @@
 format: jb-book
 root: intro
 parts:
-  - caption: Getting Started 🚀
+  - caption: Using the MCAV Sandbox Plugin 🏗️
+    chapters:
+      - file: plugin.md
+      - file: commands.md
+  - caption: Getting Started with MCAV 🚀
     chapters:
       - file: started.md
       - file: licensing.md
