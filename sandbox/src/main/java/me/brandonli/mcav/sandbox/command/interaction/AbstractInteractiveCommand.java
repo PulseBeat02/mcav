@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.interaction;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -27,7 +28,10 @@ import me.brandonli.mcav.sandbox.utils.InteractUtils;
 import me.brandonli.mcav.sandbox.utils.Keys;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.Location;
 import org.bukkit.Server;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
@@ -63,6 +67,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   @Override
   public void shutdown() {
+    if (this.player != null) {
+      this.releasePlayer();
+      this.player = null;
+    }
     HandlerList.unregisterAll(this);
   }
 
@@ -74,31 +82,37 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     }
 
     final Player mcPlayer = event.getPlayer();
-    if (!this.activePlayers.contains(mcPlayer)) {
-      return;
-    }
-
-    final RayTraceResult entityRay = mcPlayer.rayTraceEntities(100, false);
+    final RayTraceResult entityRay = mcPlayer.rayTraceBlocks(100, FluidCollisionMode.NEVER);
     if (entityRay == null) {
       return;
     }
 
-    final Entity entity = entityRay.getHitEntity();
-    if (!(entity instanceof final ItemFrame frame)) {
+    final Block block = entityRay.getHitBlock();
+    if (block == null) {
       return;
     }
 
-    final PersistentDataContainer data = frame.getPersistentDataContainer();
-    if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+    final Location blockLocation = block.getLocation();
+    final World world = blockLocation.getWorld();
+    final Collection<Entity> entities = world.getNearbyEntities(blockLocation, 0.5, 0.5, 0.5);
+    for (final Entity entity : entities) {
+      if (!(entity instanceof final ItemFrame frame)) {
+        continue;
+      }
+
+      final PersistentDataContainer data = frame.getPersistentDataContainer();
+      if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+        continue;
+      }
+      event.setCancelled(true);
+
+      final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer, frame);
+      final int x = coordinates[0];
+      final int y = coordinates[1];
+      this.handleLeftClick(player, x, y);
+
       return;
     }
-    event.setCancelled(true);
-
-    final Block block = event.getBlock();
-    final int[] coordinates = InteractUtils.getBoardCoordinates(mcPlayer);
-    final int x = coordinates[0];
-    final int y = coordinates[1];
-    this.handleLeftClick(player, x, y);
   }
 
   @EventHandler
@@ -166,6 +180,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (player == null) {
       return;
     }
+    event.setCancelled(true);
 
     final Component message = event.message();
     final String raw = PLAIN_TEXT_SERIALIZER.serialize(message);

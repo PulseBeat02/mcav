@@ -30,6 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -106,7 +107,10 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final int width = metadata.getVideoWidth();
     final int height = metadata.getVideoHeight();
     final Dimension size = new Dimension(width, height);
-    this.driver.manage().window().setSize(size);
+    final WebDriver.Options options = this.driver.manage();
+    final WebDriver.Window window = options.window();
+    window.setSize(size);
+    window.maximize();
 
     final String resource = this.source.getResource();
     this.driver.get(resource);
@@ -172,11 +176,17 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private int[] translateCoordinates(final int x, final int y) {
     final VideoMetadata videoMetadata = this.source.getMetadata();
-    final int targetWidth = videoMetadata.getVideoWidth();
-    final int targetHeight = videoMetadata.getVideoHeight();
-    final int newX = (int) (((float) x / this.frameWidth) * targetWidth);
-    final int newY = (int) (((float) y / this.frameHeight) * targetHeight);
-    return new int[] { newX, newY };
+    final int sourceWidth = videoMetadata.getVideoWidth();
+    final int sourceHeight = videoMetadata.getVideoHeight();
+    final int targetWidth = (int) this.frameWidth;
+    final int targetHeight = (int) this.frameHeight;
+    final double widthRatio = (double) targetWidth / sourceWidth;
+    final double heightRatio = (double) targetHeight / sourceHeight;
+    final int newX = (int) (x * widthRatio);
+    final int newY = (int) (y * heightRatio);
+    final int clampedX = Math.clamp(newX, 0, targetWidth - 1);
+    final int clampedY = Math.clamp(newY, 0, targetHeight - 1);
+    return new int[] { clampedX, clampedY };
   }
 
   /**

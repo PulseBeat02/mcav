@@ -48,7 +48,7 @@ public final class ChromeDriverServiceProvider {
     manager.clearResolutionCache();
     manager.cachePath(raw);
     manager.setup();
-    SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.DEBUG).usingAnyFreePort().build();
+    SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.WARNING).usingAnyFreePort().build();
   }
 
   private ChromeDriverServiceProvider() {

@@ -38,7 +38,14 @@ public final class InteractUtils {
 
   public static int[] getBoardCoordinates(final Player player) {
     final Entity firstEntity = player.getTargetEntity(100);
-    if (!(firstEntity instanceof final ItemFrame frame)) {
+    if (firstEntity == null) {
+      throw new IllegalArgumentException("No target entity found within range");
+    }
+    return getBoardCoordinates(player, firstEntity);
+  }
+
+  public static int[] getBoardCoordinates(final Player player, final Entity entity) {
+    if (!(entity instanceof final ItemFrame frame)) {
       throw new IllegalArgumentException("Target entity is not an ItemFrame");
     }
 

@@ -196,16 +196,20 @@ public class VNCPlayerImpl implements VNCPlayer {
   }
 
   private int[] translateCoordinates(final int x, final int y) {
-    final int originWidth = this.videoMetadata.getVideoWidth();
-    final int originHeight = this.videoMetadata.getVideoHeight();
     if (this.current == null) {
       throw new PlayerException("VNC source not started!");
     }
+    final int sourceWidth = this.videoMetadata.getVideoWidth();
+    final int sourceHeight = this.videoMetadata.getVideoHeight();
     final int targetWidth = this.current.getWidth();
     final int targetHeight = this.current.getHeight();
-    final int newX = (int) (((float) x / originWidth) * targetWidth);
-    final int newY = (int) (((float) y / originHeight) * targetHeight);
-    return new int[] { newX, newY };
+    final double widthRatio = (double) targetWidth / sourceWidth;
+    final double heightRatio = (double) targetHeight / sourceHeight;
+    final int newX = (int) (x * widthRatio);
+    final int newY = (int) (y * heightRatio);
+    final int clampedX = Math.clamp(newX, 0, targetWidth - 1);
+    final int clampedY = Math.clamp(newY, 0, targetHeight - 1);
+    return new int[] { clampedX, clampedY };
   }
 
   /**
