@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+/**
+ * A filter that displays the current frame rate on the video.
+ */
 public class FPSFilter extends MatVideoFilter {
 
   private static final Scalar BLACK = new Scalar(0);
@@ -29,10 +32,16 @@ public class FPSFilter extends MatVideoFilter {
 
   private long lastFrameTime;
 
+  /**
+   * Creates a new FPSFilter instance.
+   */
   public FPSFilter() {
     this.lastFrameTime = System.currentTimeMillis();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final long current = System.currentTimeMillis();

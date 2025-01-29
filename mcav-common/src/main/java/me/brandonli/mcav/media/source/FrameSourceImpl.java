@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,8 @@
  */
 package me.brandonli.mcav.media.source;
 
-import java.util.function.Supplier;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-
 /**
- * A concrete implementation of the {@link FrameSource} interface that provides
- * functionality for supplying frame samples and retrieving video metadata.
- * This class encapsulates a {@link Supplier} for frame samples and a {@link VideoMetadata} instance.
- * It is designed to act as a source of video frame data and associated video-specific metadata.
+ * A concrete implementation of the {@link FrameSource} interface.
  */
 public class FrameSourceImpl implements FrameSource {
 
@@ -52,11 +46,17 @@ public class FrameSourceImpl implements FrameSource {
     return this.frameSamplesSupplier;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getFrameWidth() {
     return this.width;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getFrameHeight() {
     return this.height;

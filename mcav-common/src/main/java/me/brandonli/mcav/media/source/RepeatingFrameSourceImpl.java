@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,9 +24,7 @@ import me.brandonli.mcav.media.image.DynamicImageBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 
 /**
- * Implementation of the {@link RepeatingFrameSource} interface that repeats video frames
- * a specified number of times. This class acts as a wrapper for a given {@link DynamicImageBuffer},
- * transforming it into a repeated frame source.
+ * Implementation of the {@link RepeatingFrameSource} interface.
  */
 public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
 
@@ -87,11 +85,17 @@ public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
     return () -> frameSamples;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getFrameWidth() {
     return this.width;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getFrameHeight() {
     return this.height;

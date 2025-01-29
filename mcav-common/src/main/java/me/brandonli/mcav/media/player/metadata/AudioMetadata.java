@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,22 +18,18 @@
 package me.brandonli.mcav.media.player.metadata;
 
 /**
- * Represents metadata related to audio-specific properties.
- * This interface provides methods for retrieving details about an audio file or stream
- * including its bitrate, sample rate, and the number of audio channels.
+ * Represents metadata specific to audio files or streams.
  */
 public interface AudioMetadata extends Metadata {
   /**
-   * Retrieves the audio bitrate of the audio file or stream, measured in kilobits per second (kbps).
+   * Retrieves the audio bitrate of the audio file or stream in raw bits per second.
    *
-   * @return the audio bitrate as an integer value in kbps
+   * @return the audio bitrate as an integer value in raw bits per second.
    */
   int getAudioBitrate();
 
   /**
    * Retrieves the audio sample rate in hertz (Hz).
-   * This value corresponds to the number of samples of audio carried per second
-   * and is typically used to define the audio quality.
    *
    * @return the audio sample rate in Hz
    */

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,19 +18,11 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * The Source interface represents a general abstraction of a resource.
- * It defines methods for retrieving the resource, its name, and whether
- * it is static in nature.
- * <p>
- * This interface allows for implementation-specific definitions of the
- * resource while maintaining a common contract for querying static or
- * dynamic behavior.
+ * Represents a general abstraction of a resource.
  */
 public interface Source {
   /**
-   * Retrieves the resource associated with the source. The returned string typically
-   * represents the location or identifier of the resource, such as a file path, URI, or
-   * frame-related information.
+   * Retrieves the resource associated with the source.
    *
    * @return the resource as a string, representing its location or identifier.
    */

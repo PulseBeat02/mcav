@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,5 @@ package me.brandonli.mcav.media.player.metadata;
 
 /**
  * Represents a general-purpose metadata interface.
- * This serves as a marker interface for defining and organizing metadata-related
- * classes specific to audio, video, or other media components.
- * <p>
- * Classes implementing this interface are expected to provide additional methods
- * to access metadata details for their respective media types.
  */
 public interface Metadata {}

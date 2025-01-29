@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,24 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A filter that applies a color map to a video frame.
+ */
 public class ColorMapFilter extends MatVideoFilter {
 
   private final int colorMapType;
 
+  /**
+   * Creates a new ColorMapFilter with the specified color map type.
+   * @param colorMapType the type of color map to apply, such as
+   */
   public ColorMapFilter(final int colorMapType) {
     this.colorMapType = colorMapType;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final Mat colored = new Mat();

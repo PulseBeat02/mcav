@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,8 +20,14 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A video filter that transposes the input Mat, effectively flipping it over its diagonal.
+ */
 public class TransposeFilter extends MatVideoFilter {
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_core.transpose(mat, mat);

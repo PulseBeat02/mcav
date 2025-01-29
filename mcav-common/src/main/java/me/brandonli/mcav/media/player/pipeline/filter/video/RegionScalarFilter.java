@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,9 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A video filter that modifies a specified rectangular region of a video frame to a given scalar value.
+ */
 public class RegionScalarFilter extends MatVideoFilter {
 
   private final int x;
@@ -28,22 +31,34 @@ public class RegionScalarFilter extends MatVideoFilter {
   private final int height;
   private final Mat scalar;
 
+  /**
+   * Constructs a RegionScalarFilter with the specified region and scalar value.
+   *
+   * @param x           the x-coordinate of the top-left corner of the region
+   * @param y           the y-coordinate of the top-left corner of the region
+   * @param width       the width of the region
+   * @param height      the height of the region
+   * @param scalarValue an array representing the scalar value to set in the region (should be of length 3 for RGB)
+   */
   public RegionScalarFilter(final int x, final int y, final int width, final int height, final double[] scalarValue) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
     this.scalar = new Mat(1, 3, opencv_core.CV_8U);
-    byte[] byteValues = new byte[scalarValue.length];
+    final byte[] byteValues = new byte[scalarValue.length];
     for (int i = 0; i < scalarValue.length; i++) {
       byteValues[i] = (byte) scalarValue[i];
     }
     this.scalar.data().put(byteValues);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
-    final Mat submat = mat.adjustROI(x, y, width, height);
+    final Mat submat = mat.adjustROI(this.x, this.y, this.width, this.height);
     submat.setTo(this.scalar);
   }
 }

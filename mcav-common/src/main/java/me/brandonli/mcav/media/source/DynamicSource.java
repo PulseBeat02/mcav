@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,16 +18,7 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Represents a type of {@link Source} that is not static, indicating that its
- * content or resource can change over time or is dynamically resolved.
- * <p>
- * A class implementing {@code DynamicSource} should provide behavior for
- * accessing dynamic resources or data, while guaranteeing that its static
- * state is always {@code false}.
- * <p>
- * By default, the {@code isStatic()} method is overridden to return
- * {@code false}, ensuring that any instance of a {@code DynamicSource}
- * is recognized as non-static.
+ * Represents a type of {@link Source} that is dynamically resolved.
  */
 public interface DynamicSource extends Source {
   /**

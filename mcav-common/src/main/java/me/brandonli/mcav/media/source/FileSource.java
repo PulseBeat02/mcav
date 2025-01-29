@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,13 +21,7 @@ import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 
 /**
- * The FileSource interface represents a source of a file and provides methods
- * to interact with the file system. It extends the {@link StaticSource}
- * interface, signifying that it represents a static source, and provides
- * utilities for working with file paths and creating writable instances.
- * <p>
- * A FileSource is characterized by its associated file path and provides
- * implementations for retrieving its resource name and path as a string.
+ * Represents a source that is backed by a file on the filesystem.
  */
 public interface FileSource extends StaticSource {
   /**

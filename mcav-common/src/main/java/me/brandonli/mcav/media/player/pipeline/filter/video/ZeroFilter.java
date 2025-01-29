@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,16 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A video filter that sets the output Mat to zero, effectively clearing it.
+ */
 public class ZeroFilter extends MatVideoFilter {
 
   private static final Mat ZERO_MAT = new Mat(1, 1, 0);
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     mat.setTo(ZERO_MAT);

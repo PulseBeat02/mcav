@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,12 +32,7 @@ import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.LockUtils;
 
 /**
- * The ImagePlayerImpl class implements the ImagePlayer interface and provides the functionality
- * for processing video frames using a pipeline of video processing steps. The class leverages
- * concurrency and asynchronous processing to handle video frames and execute pipeline steps in parallel.
- * <p>
- * This implementation uses two executor services: one for managing overall pipeline execution and another
- * for intensive frame processing tasks. It also ensures thread safety and proper resource management.
+ * A default implementation of the {@link ImagePlayer} interface.
  */
 public class ImagePlayerImpl implements ImagePlayer {
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,10 +18,11 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * The {@code DeviceSource} interface represents a type of {@link DynamicSource}*/
+ * Represents a source that has a device ID.
+ */
 public interface DeviceSource extends DynamicSource {
   /**
-   * Retrieves the unique identifier of the device associated with this source.
+   * Retrieves the device id (integer) associated with this source.
    *
    * @return the device ID as an integer.
    */
@@ -43,6 +44,12 @@ public interface DeviceSource extends DynamicSource {
     return "device";
   }
 
+  /**
+   * Creates a new {@link DeviceSource} instance with the specified device ID.
+   *
+   * @param deviceId the device ID to associate with the source.
+   * @return a new instance of {@link DeviceSource}.
+   */
   static DeviceSource device(final int deviceId) {
     return new DeviceSourceImpl(deviceId);
   }

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,11 +18,7 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Represents a functional interface that supplies an array of integers representing pixel data.
- * This interface can be implemented to provide custom logic for retrieving pixel data for a frame.
- * <p>
- * This interface is a core part of the media playback utilities and is used for extracting or
- * streaming frame samples in a flexible manner.
+ * A functional interface that provides a method to supply pixel data for a frame.
  */
 @FunctionalInterface
 public interface SampleSupplier {

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,25 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A video filter that applies rotation to video frames.
+ */
 public class RotationFilter extends MatVideoFilter {
 
   private final int code;
 
+  /**
+   * Constructs a RotationFilter with the specified rotation.
+   *
+   * @param rotation The rotation to apply to the video frames.
+   */
   public RotationFilter(final Rotation rotation) {
     this.code = rotation.code;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final Mat rotatedMat = new Mat();
@@ -36,9 +47,23 @@ public class RotationFilter extends MatVideoFilter {
     rotatedMat.release();
   }
 
+  /**
+   * Enum representing the different rotation options available for video frames.
+   */
   public enum Rotation {
+    /**
+     * 90 degrees clockwise rotation.
+     */
     ROTATE_90_CLOCKWISE(opencv_core.ROTATE_90_CLOCKWISE),
+
+    /**
+     * 180 degrees rotation.
+     */
     ROTATE_180(opencv_core.ROTATE_180),
+
+    /**
+     * 90 degrees counterclockwise rotation.
+     */
     ROTATE_90_COUNTERCLOCKWISE(opencv_core.ROTATE_90_COUNTERCLOCKWISE);
 
     private final int code;

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,18 +23,33 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+/**
+ * A filter that draws a line on a video frame from a specified start point to an end point with a given color.
+ */
 public class LineFilter extends MatVideoFilter {
 
   private final Point start;
   private final Point end;
   private final Scalar color;
 
+  /**
+   * Constructs a LineFilter with specified start and end points and color.
+   *
+   * @param startX      the x-coordinate of the start point
+   * @param startY      the y-coordinate of the start point
+   * @param endX        the x-coordinate of the end point
+   * @param endY        the y-coordinate of the end point
+   * @param colorScalar an array representing the color in BGR format
+   */
   public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] colorScalar) {
     this.start = new Point(startX, startY);
     this.end = new Point(endX, endY);
     this.color = ImageUtils.toScalar(colorScalar);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_imgproc.line(mat, this.start, this.end, this.color);

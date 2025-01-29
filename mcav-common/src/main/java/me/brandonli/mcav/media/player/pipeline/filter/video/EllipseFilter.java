@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,9 @@ import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 
+/**
+ * A filter that draws an ellipse on a video frame.
+ */
 public class EllipseFilter extends MatVideoFilter {
 
   private final int angle;
@@ -33,6 +36,18 @@ public class EllipseFilter extends MatVideoFilter {
   private final Size axes;
   private final Scalar color;
 
+  /**
+   * Constructs an EllipseFilter with the specified parameters.
+   *
+   * @param centerX     The x-coordinate of the center of the ellipse.
+   * @param centerY     The y-coordinate of the center of the ellipse.
+   * @param axisX       The length of the semi-major axis of the ellipse.
+   * @param axisY       The length of the semi-minor axis of the ellipse.
+   * @param angle       The rotation angle of the ellipse in degrees.
+   * @param startAngle  The starting angle of the elliptic arc in degrees.
+   * @param endAngle    The ending angle of the elliptic arc in degrees.
+   * @param colorScalar An array representing the color to draw the ellipse, in BGR format.
+   */
   public EllipseFilter(
     final int centerX,
     final int centerY,
@@ -51,6 +66,9 @@ public class EllipseFilter extends MatVideoFilter {
     this.color = ImageUtils.toScalar(colorScalar);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_imgproc.ellipse(mat, this.center, this.axes, this.angle, this.startAngle, this.endAngle, this.color);

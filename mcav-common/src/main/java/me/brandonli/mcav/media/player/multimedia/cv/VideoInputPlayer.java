@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,12 +25,16 @@ import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.VideoInputFrameGrabber;
 
 /**
- * The VideoInputPlayer class is a concrete implementation of the AbstractVideoPlayerCV
- * that provides functionality to handle video input using the VideoInputFrameGrabber.
- * This class is responsible for fetching frames from a video device based on the
- * device URI provided and preparing it for further processing.
+ * Represents a video player that uses a device input (like a webcam) for frame grabbing.
  */
 public class VideoInputPlayer extends AbstractVideoPlayerCV {
+
+  /**
+   * Constructs a new VideoInputPlayer instance.
+   */
+  public VideoInputPlayer() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}

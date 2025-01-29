@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,9 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
+/**
+ * A filter that applies various types of blur effects to video frames.
+ */
 public class BlurFilter extends MatVideoFilter {
 
   private final Size size;
@@ -32,6 +35,13 @@ public class BlurFilter extends MatVideoFilter {
 
   private final Consumer<Mat> blurFunction;
 
+  /**
+   * Creates a new BlurFilter with the specified parameters.
+   * @param type the type of blur to apply (NORMAL, MEDIAN, GAUSSIAN, STACK)
+   * @param kernelSize the size of the kernel to use for the blur effect
+   * @param sigmaX the standard deviation in the X direction for Gaussian blur
+   * @param sigmaY the standard deviation in the Y direction for Gaussian blur
+   */
   @SuppressWarnings("all") // checker
   public BlurFilter(final BlurType type, final int kernelSize, final double sigmaX, final double sigmaY) {
     this.size = new Size(kernelSize, kernelSize);
@@ -63,15 +73,36 @@ public class BlurFilter extends MatVideoFilter {
     opencv_imgproc.stackBlur(mat, mat, this.size);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     this.blurFunction.accept(mat);
   }
 
+  /**
+   * Enum representing the different types of blur effects that can be applied.
+   */
   public enum BlurType {
+    /**
+     * Normal blur effect.
+     */
     NORMAL,
+
+    /**
+     * Median blur effect.
+     */
     MEDIAN,
+
+    /**
+     * Gaussian blur effect.
+     */
     GAUSSIAN,
+
+    /**
+     * Stack blur effect.
+     */
     STACK,
   }
 }

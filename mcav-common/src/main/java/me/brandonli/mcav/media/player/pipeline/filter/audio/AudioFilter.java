@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,15 +23,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.Filter;
 
 /**
  * Represents a functional interface for applying audio-specific filters within an audio processing pipeline.
- * This interface extends {@link Filter} and operates on audio data represented as {@link ByteBuffer}
- * alongside its associated metadata of type {@link AudioMetadata}.
- * <p>
- * Implementations of this interface define a specific transformation or operation applied
- * to the raw audio samples and associated metadata. It is commonly used in audio pipeline
- * construction where multiple filters can be chained to sequentially process audio data.
- * <p>
- * This interface is a functional interface and can therefore be represented as a lambda expression
- * or a method reference to simplify usage in functional programming contexts.
  */
 @FunctionalInterface
 public interface AudioFilter extends Filter<ByteBuffer, AudioMetadata> {}

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,15 +26,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 
 /**
- * The {@code VideoPlayerMultiplexer} interface extends the functionality of {@code VideoPlayer},
- * {@code ControllablePlayer}, {@code SeekablePlayer}, and {@code ReleasablePlayer} interfaces to
- * support advanced video playback and control mechanisms. It integrates functionalities for
- * multiplexing audio and video streams, ensuring synchronized playback and providing control
- * over playback operations such as pausing, resuming, seeking, and releasing resources.
- * <p>
- * This interface provides an essential method to start playback using audio and video pipeline
- * steps along with corresponding audio and video sources, allowing precise and configurable setup
- * of media processing and playback.
+ * A multiplexer interface for video players that combines functionalities of many video player interfaces.
  */
 public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer, SeekablePlayer, ReleasablePlayer {
   /**

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,6 @@ package me.brandonli.mcav.media.player.metadata;
 
 /**
  * A concrete implementation of the {@code AudioMetadata} interface.
- * This class encapsulates metadata related to audio-specific properties,
- * including audio bitrate, sample rate, and the number of audio channels.
- * <p>
- * Instances of this class are immutable and provide read-only access to audio-related metadata.
  */
 public final class AudioMetadataImpl implements AudioMetadata {
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -48,23 +48,9 @@ import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * AbstractVideoPlayerCV is an abstract implementation of the VideoPlayerCV interface
- * that defines a general-purpose video player with support for pipeline processing of
- * audio and video frames. This class provides mechanisms for multimedia playback,
- * frame multiplexing, pipeline-based processing, and lifecycle control for media streams.
- * <p>
- * Features supported by this class include:
- * - Initialization and management of video and audio frame grabbers.
- * - Concurrent processing of media frames using defined audio and video pipelines.
- * - Support for both audio/video multiplexed and video-only sources.
- * - Media playback lifecycle management, including start, pause, resume, seek, and release operations.
- * - Thread-safe operation management to ensure consistent behavior across multiple states.
- * <p>
- * Subclasses are expected to implement the {@link #getFrameGrabber(String)} method
- * to provide a concrete frame grabber implementation for fetching multimedia frames
- * (e.g., via FFmpeg or other video processing libraries).
+ * A full JavaCV-based video player that supports both audio and video playback.
  */
-abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
+public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   private static final int BUFFER_CAPACITY = 128;
 
@@ -97,6 +83,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.lock = new ReentrantLock();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean start(
     final AudioPipelineStep audioPipeline,
@@ -350,6 +339,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
   // audio sample specialization
   // PCM S16LE
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean start(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline, final Source combined) {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -391,6 +383,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean pause() {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -424,6 +419,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean resume() {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -482,12 +480,18 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean seek(final long time) {
     this.timestamp = time;
     return this.resume();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean release() {
     return LockUtils.executeWithLock(this.lock, () -> {
@@ -500,6 +504,9 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     });
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public abstract FrameGrabber getFrameGrabber(String resource);
 }

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -41,6 +41,9 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  */
 public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
 
+  /**
+   * A property that represents the OpenCV Mat object associated with this image buffer.
+   */
   public static final ExaminableProperty<Mat> MAT_PROPERTY = ExaminableProperty.property("mat", Mat.class);
 
   private final Mat mat;
@@ -101,9 +104,9 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   @Override
   public BufferedImage toBufferedImage() {
     try {
-      BytePointer bytePointer = new BytePointer();
+      final BytePointer bytePointer = new BytePointer();
       opencv_imgcodecs.imencode(".jpg", this.mat, bytePointer);
-      byte[] byteArray = new byte[(int) bytePointer.limit()];
+      final byte[] byteArray = new byte[(int) bytePointer.limit()];
       bytePointer.get(byteArray);
       bytePointer.deallocate();
       return ImageIO.read(new ByteArrayInputStream(byteArray));
@@ -117,10 +120,10 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public void setPixel(final int x, final int y, final double[] value) {
-    try (Indexer indexer = this.mat.createIndexer()) {
+    try (final Indexer indexer = this.mat.createIndexer()) {
       final int len = Math.min(value.length, this.mat.channels());
       for (int c = 0; c < len; c++) {
-        long[] indices = new long[] { y, x, c };
+        final long[] indices = new long[] { y, x, c };
         indexer.putDouble(indices, value[c]);
       }
     }
@@ -131,8 +134,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public double[] getPixel(final int x, final int y) {
-    double[] values = new double[this.mat.channels()];
-    try (Indexer indexer = this.mat.createIndexer()) {
+    final double[] values = new double[this.mat.channels()];
+    try (final Indexer indexer = this.mat.createIndexer()) {
       for (int c = 0; c < values.length; c++) {
         values[c] = indexer.getDouble(y, x, c);
       }
@@ -192,16 +195,19 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     return pixels;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void setAsBufferedImage(final BufferedImage image) {
     try {
-      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+      final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
       ImageIO.write(image, "jpg", byteArrayOutputStream);
-      byte[] bytes = byteArrayOutputStream.toByteArray();
+      final byte[] bytes = byteArrayOutputStream.toByteArray();
       byteArrayOutputStream.close();
-      BytePointer bytePointer = new BytePointer(bytes);
-      Mat byteMat = new Mat(1, bytes.length, opencv_core.CV_8UC1, bytePointer);
-      Mat newMat = opencv_imgcodecs.imdecode(byteMat, opencv_imgcodecs.IMREAD_UNCHANGED);
+      final BytePointer bytePointer = new BytePointer(bytes);
+      final Mat byteMat = new Mat(1, bytes.length, opencv_core.CV_8UC1, bytePointer);
+      final Mat newMat = opencv_imgcodecs.imdecode(byteMat, opencv_imgcodecs.IMREAD_UNCHANGED);
       this.mat.release();
       newMat.copyTo(this.mat);
       newMat.release();
@@ -212,21 +218,25 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public int getPixelCount() {
     return (int) this.mat.elemSize();
   }
 
   /**
-   * Releases the resources associated with the 'mat' object and ensures proper cleanup.
-   * If the 'mat' object is not null, it calls the release method on it and sets it to null.
-   * This method is invoked to free up memory and prevent resource leaks.
+   * {@inheritDoc}
    */
   @Override
   public void close() {
     this.mat.release();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void release() {
     this.close();

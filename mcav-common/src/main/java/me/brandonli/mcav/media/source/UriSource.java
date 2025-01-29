@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,14 +22,6 @@ import java.net.URI;
 
 /**
  * Represents a type of {@link DynamicSource} that is associated with a specific URI.
- * This interface provides methods for accessing the URI and defining default resource
- * and name behaviors specific to URI-based sources.
- * <p>
- * An {@code UriSource} is characterized by its ability to retrieve the resource
- * represented by the URI as a string and its default name ("uri").
- * <p>
- * Implementations of this interface should provide the actual logic
- * for handling and managing the URI resource.
  */
 public interface UriSource extends DynamicSource {
   /**

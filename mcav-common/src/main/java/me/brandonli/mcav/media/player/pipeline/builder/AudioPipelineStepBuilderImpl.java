@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,13 +24,6 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
  * A concrete implementation of {@link AbstractPipelineStepBuilder} for constructing audio processing pipelines.
- * This builder is specifically designed to create {@link AudioPipelineStep} instances, chaining multiple
- * {@link AudioFilter} elements in reverse order to form a processing chain.
- * <p>
- * The resulting pipeline processes audio data represented as {@link ByteBuffer} along with its associated
- * {@link AudioMetadata}. Each filter in the chain will process the output of the previous filter,
- * forming a backward-linked chain where the last added filter is the first to be executed.
- * If no filters are added, the builder will return a no-operation pipeline step.
  */
 public final class AudioPipelineStepBuilderImpl
   extends AbstractPipelineStepBuilder<ByteBuffer, AudioMetadata, AudioFilter, AudioPipelineStep> {

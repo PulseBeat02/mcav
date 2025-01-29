@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.media.source;
 
+/**
+ * Represents a direct FFmpeg source with a format and resource locator.
+ */
 public interface FFmpegDirectSource extends StaticSource {
   /**
    * Retrieves the Media Resource Locator (MRL) associated with the source.

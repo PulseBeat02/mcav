@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,34 +19,26 @@ package me.brandonli.mcav.media.player.metadata;
 
 /**
  * Represents metadata for video-specific properties.
- * This interface defines methods for retrieving essential details about a video file or stream,
- * including its width, height, bitrate, and frame rate. It provides static utility methods for
- * creating instances of {@code VideoMetadata}.
- * <p>
- * The instances of this interface are typically immutable, offering read-only access
- * to the video metadata.
  */
 public interface VideoMetadata extends Metadata {
   /**
    * A constant value indicating that an operation or parameter is not applicable or is undefined
    * in the current context.
-   * <p>
-   * This can be used as a placeholder to represent optional or default states where
-   * no specific value or action is required.
    */
   int NO_OP = -1;
 
+  /**
+   * An empty instance of {@code VideoMetadata} with all properties set to {@link #NO_OP}.
+   */
   VideoMetadata EMPTY = new VideoMetadataImpl(NO_OP, NO_OP, NO_OP, NO_OP);
+
   /**
    * The default bitrate for video files or streams, measured in kilobits per second (kbps).
-   * This value is used as a fallback when a specific bitrate is not explicitly provided.
    */
   int DEFAULT_BITRATE = 4000;
 
   /**
    * The default frame rate used for video playback or metadata processing.
-   * It represents the number of frames displayed per second, typically measured in frames per second (fps).
-   * This constant can be used as a fallback value when a specific frame rate is not provided or available.
    */
   int DEFAULT_FRAME_RATE = 30;
 
@@ -65,18 +57,14 @@ public interface VideoMetadata extends Metadata {
   int getVideoHeight();
 
   /**
-   * Retrieves the bitrate of the video, typically measured in kilobits per second (kbps).
-   * This value reflects the amount of data used per second for the video encoding,
-   * impacting the video quality and file size.
+   * Retrieves the bitrate of the video in bits per second (bps).
    *
-   * @return the video bitrate as an integer value in kbps
+   * @return the video bitrate as an integer value in bits per second (bps)
    */
   int getVideoBitrate();
 
   /**
-   * Retrieves the frame rate of the video, representing the number of frames
-   * displayed per second (fps). This value is typically used to determine the
-   * smoothness of the video playback.
+   * Retrieves the frame rate of the video in frames per second (fps).
    *
    * @return the video frame rate as a floating-point value in frames per second
    */

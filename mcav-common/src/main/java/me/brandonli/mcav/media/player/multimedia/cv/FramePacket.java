@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,21 +32,21 @@ class FramePacket {
     this.timestamp = timestamp;
   }
 
-  public Metadata getMetadata() {
+  Metadata getMetadata() {
     return this.metadata;
   }
 
-  public ByteBuffer getData() {
+  ByteBuffer getData() {
     return this.data;
   }
 
-  public long getTimestamp() {
+  long getTimestamp() {
     return this.timestamp;
   }
 
   static class AudioFramePacket extends FramePacket {
 
-    public AudioFramePacket(final ByteBuffer data, final Metadata metadata, final long timestamp) {
+    AudioFramePacket(final ByteBuffer data, final Metadata metadata, final long timestamp) {
       super(metadata, data, timestamp);
     }
   }
@@ -56,17 +56,17 @@ class FramePacket {
     private final int width;
     private final int height;
 
-    public VideoFramePacket(final ByteBuffer data, final Metadata metadata, final int width, final int height, final long timestamp) {
+    VideoFramePacket(final ByteBuffer data, final Metadata metadata, final int width, final int height, final long timestamp) {
       super(metadata, data, timestamp);
       this.width = width;
       this.height = height;
     }
 
-    public int getWidth() {
+    int getWidth() {
       return this.width;
     }
 
-    public int getHeight() {
+    int getHeight() {
       return this.height;
     }
   }

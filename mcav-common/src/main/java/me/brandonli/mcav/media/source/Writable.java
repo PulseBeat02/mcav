@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,10 +26,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 
 /**
- * The Writable interface defines a contract for objects that support
- * reading and writing operations tied to a specific path. It provides
- * default methods for obtaining input and output streams and includes
- * a utility method to create Writable instances.
+ * Defines a contract for objects that support reading and writing operations tied to a specific path.
  */
 public interface Writable {
   /**

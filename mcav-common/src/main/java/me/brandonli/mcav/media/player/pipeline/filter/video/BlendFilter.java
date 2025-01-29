@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,16 +21,29 @@ import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A video filter that blends the current frame with another frame using a specified alpha value.
+ */
 public class BlendFilter extends MatVideoFilter {
 
   private final double alpha;
   private final Mat otherMat;
 
+  /**
+   * Constructs a BlendFilter that blends the current frame with another frame.
+   *
+   * @param other the MatImageBuffer containing the other frame to blend with
+   * @param alpha the blending factor, where 0.0 means only the other frame is visible,
+   *              and 1.0 means only the current frame is visible
+   */
   public BlendFilter(final MatImageBuffer other, final double alpha) {
     this.alpha = alpha;
     this.otherMat = other.getOrThrow(MatImageBuffer.MAT_PROPERTY);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     if (mat.size().equals(this.otherMat.size())) {

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,15 +21,16 @@ import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * FFmpegPlayer is an implementation of the AbstractVideoPlayerCV class that utilizes
- * FFmpegFrameGrabber from the FFmpeg library to handle video and audio frames.
- * <p>
- * This player provides the ability to initialize a frame grabber using a given URI
- * and seamlessly integrates with the AbstractVideoPlayerCV's generic video player mechanisms.
- * The FFmpegPlayer relies on FFmpegFrameGrabber as the underlying technology for
- * multimedia processing, enabling robust playback and pipeline support.
+ * Represents a video player that uses FFmpeg for frame grabbing.
  */
 public class FFmpegPlayer extends AbstractVideoPlayerCV {
+
+  /**
+   * Constructs a new FFmpegPlayer instance.
+   */
+  public FFmpegPlayer() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}

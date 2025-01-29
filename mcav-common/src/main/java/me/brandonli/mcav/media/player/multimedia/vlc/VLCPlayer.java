@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -55,16 +55,7 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
 
 /**
- * VLCPlayer is a fully featured video and audio player implementation utilizing an embedded VLC media player.
- * It supports playback of media files with separate or combined audio and video sources. This class also
- * provides functionality for managing playback control, seeking, and managing audio and video processing pipelines.
- * <p>
- * This class implements the {@link VideoPlayerMultiplexer} interface, which includes methods to control playback,
- * handle processing steps for both audio and video, and release resources.
- * <p>
- * The `VLCPlayer` class operates by using asynchronous task processing to handle media rendering and playback.
- * All playback operations are synchronized to ensure thread safety. Media playback events are handled through
- * event listeners that respond to playback completion or errors.
+ * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.
  */
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
@@ -149,7 +140,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
     this.bufferFormatCallback = new BufferCallback();
     this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.videoSurface = new CallbackVideoSurface(bufferFormatCallback, this.videoCallback, true, this.adapter);
+    this.videoSurface = new CallbackVideoSurface(this.bufferFormatCallback, this.videoCallback, true, this.adapter);
     surfaceApi.set(this.videoSurface);
 
     // audio sample specialization
@@ -219,14 +210,24 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final class BufferCallback implements BufferFormatCallback {
 
+    BufferCallback() {
+      // no-op
+    }
+
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
       return new RV32BufferFormat(sourceWidth, sourceHeight);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void newFormatSize(final int bufferWidth, final int bufferHeight, final int displayWidth, final int displayHeight) {}
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void allocatedBuffers(final ByteBuffer[] buffers) {}
   }
@@ -238,11 +239,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private final AudioPipelineStep step;
     private final AudioMetadata metadata;
 
-    public AudioCallback(final AudioPipelineStep step, final AudioMetadata metadata) {
+    AudioCallback(final AudioPipelineStep step, final AudioMetadata metadata) {
       this.step = step;
       this.metadata = metadata;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
       final int bufferSize = sampleCount * BLOCK_SIZE;
@@ -262,14 +266,20 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
 
-    public VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
+    VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
       this.step = step;
       this.metadata = metadata;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void lock(final MediaPlayer mediaPlayer) {}
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void display(
       final MediaPlayer mediaPlayer,
@@ -298,6 +308,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       image.release();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void unlock(final MediaPlayer mediaPlayer) {}
   }

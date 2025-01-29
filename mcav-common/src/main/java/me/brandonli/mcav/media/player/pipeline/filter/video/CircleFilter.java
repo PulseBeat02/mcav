@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,18 +23,32 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+/**
+ * A filter that draws a circle on a video frame.
+ */
 public class CircleFilter extends MatVideoFilter {
 
   private final int radius;
   private final Point center;
   private final Scalar color;
 
+  /**
+   * Creates a new CircleFilter with the specified center, radius, and color.
+   *
+   * @param centerX the x-coordinate of the circle's center
+   * @param centerY the y-coordinate of the circle's center
+   * @param radius the radius of the circle
+   * @param scalarColor the color of the circle in scalar format
+   */
   public CircleFilter(final int centerX, final int centerY, final int radius, final double[] scalarColor) {
     this.radius = radius;
     this.center = new Point(centerX, centerY);
     this.color = ImageUtils.toScalar(scalarColor);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_imgproc.circle(mat, this.center, this.radius, this.color);

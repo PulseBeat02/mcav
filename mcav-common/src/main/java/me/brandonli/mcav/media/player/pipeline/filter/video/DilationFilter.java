@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,15 +21,25 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
+/**
+ * A video filter that applies a dilation operation to the input video frames.
+ */
 public class DilationFilter extends MatVideoFilter {
 
   private final Mat kernel;
 
+  /**
+   * Creates a new DilationFilter with the specified kernel size.
+   * @param kernelSize the size of the square kernel to use for dilation
+   */
   public DilationFilter(final int kernelSize) {
     final Size size = new Size(kernelSize, kernelSize);
     this.kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_imgproc.dilate(mat, mat, this.kernel);

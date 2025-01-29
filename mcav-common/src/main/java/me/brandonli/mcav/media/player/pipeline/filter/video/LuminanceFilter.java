@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,16 +19,28 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A filter that adjusts the luminance of a video frame by applying a contrast or brightness transformation.
+ */
 public class LuminanceFilter extends MatVideoFilter {
 
   private final double alpha;
   private final double beta;
 
+  /**
+   * Constructs a LuminanceFilter with the specified alpha and beta values.
+   *
+   * @param alpha the scaling factor for the luminance
+   * @param beta  the offset added to the luminance
+   */
   public LuminanceFilter(final double alpha, final double beta) {
     this.alpha = alpha;
     this.beta = beta;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     mat.convertTo(mat, -1, this.alpha, this.beta);

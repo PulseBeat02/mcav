@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,23 +21,28 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * PlayerException is a custom exception that extends {@link AssertionError}.
- * It is used to indicate exceptional conditions specifically related to
- * player functionality or operations in the media playback library.
- * <p>
- * This exception can be thrown when an error occurs in the implementation or
- * usage of player-related components and serves as a mechanism for error
- * reporting within the context of the application.
+ * An exception that is thrown when there is an error related to the player.
  */
 public class PlayerException extends AssertionError {
 
   @Serial
   private static final long serialVersionUID = 5422221049222805060L;
 
+  /**
+   * Constructs a new PlayerException with the specified detail message.
+   *
+   * @param message the detail message
+   */
   public PlayerException(final @Nullable String message) {
     super(message);
   }
 
+  /**
+   * Constructs a new PlayerException with the specified detail message and cause.
+   *
+   * @param message the detail message
+   * @param cause the cause of the exception
+   */
   public PlayerException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);
   }

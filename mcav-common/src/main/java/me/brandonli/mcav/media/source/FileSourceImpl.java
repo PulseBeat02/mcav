@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,12 +20,7 @@ package me.brandonli.mcav.media.source;
 import java.nio.file.Path;
 
 /**
- * An implementation of the {@link FileSource} interface that represents a file source
- * based on a specified file path. This class provides the concrete functionality for
- * interacting with the file system through its associated {@code Path}.
- * <p>
- * This class is immutable and thread-safe, as the {@code Path} it encapsulates is final,
- * ensuring consistent behavior once an instance of this class is created.
+ * Implementation of {@link FileSource} that provides the file path.
  */
 public final class FileSourceImpl implements FileSource {
 

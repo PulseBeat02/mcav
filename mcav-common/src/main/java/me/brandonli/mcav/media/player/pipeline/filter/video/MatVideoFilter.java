@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -31,8 +31,14 @@ import org.bytedeco.javacv.Java2DFrameUtils;
 import org.bytedeco.opencv.global.opencv_imgcodecs;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * An abstract class for video filters that operate on OpenCV Mat objects.
+ */
 abstract class MatVideoFilter implements VideoFilter {
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void applyFilter(final ImageBuffer samples, final VideoMetadata metadata) {
     final Consumer<Mat> matOperation = this::modifyMat;
@@ -44,8 +50,20 @@ abstract class MatVideoFilter implements VideoFilter {
     }
   }
 
+  /**
+   * Modifies the given OpenCV Mat object.
+   *
+   * @param mat the OpenCV Mat object to modify
+   */
   abstract void modifyMat(final Mat mat);
 
+  /**
+   * Retrieves the OpenCV Mat object from the given ImageBuffer.
+   * If the ImageBuffer does not contain a Mat, it converts the buffer to a Mat.
+   *
+   * @param buffer the ImageBuffer containing image data
+   * @return the OpenCV Mat object
+   */
   Mat getMat(final ImageBuffer buffer) {
     if (buffer.has(MatImageBuffer.MAT_PROPERTY)) {
       return buffer.getOrThrow(MatImageBuffer.MAT_PROPERTY);
@@ -55,15 +73,29 @@ abstract class MatVideoFilter implements VideoFilter {
     }
   }
 
+  /**
+   * Determines whether the Mat operation must be applied to the ImageBuffer.
+   * This is true if the ImageBuffer does not already contain a Mat object.
+   *
+   * @param buffer the ImageBuffer to check
+   * @return true if the Mat operation must be applied, false otherwise
+   */
   boolean mustApplyMat(final ImageBuffer buffer) {
     return !buffer.has(MatImageBuffer.MAT_PROPERTY);
   }
 
+  /**
+   * Applies the results of the Mat operation to the ImageBuffer.
+   * This method encodes the Mat as a JPEG image and sets it in the ImageBuffer.
+   *
+   * @param buffer the ImageBuffer to update
+   * @param mat    the OpenCV Mat object containing the processed image
+   */
   void applyMatResults(final ImageBuffer buffer, final Mat mat) {
     try {
-      BytePointer bytePointer = new BytePointer();
+      final BytePointer bytePointer = new BytePointer();
       opencv_imgcodecs.imencode(".jpg", mat, bytePointer);
-      byte[] byteArray = new byte[(int) bytePointer.limit()];
+      final byte[] byteArray = new byte[(int) bytePointer.limit()];
       bytePointer.get(byteArray);
       final BufferedImage img = ImageIO.read(new ByteArrayInputStream(byteArray));
       buffer.setAsBufferedImage(img);

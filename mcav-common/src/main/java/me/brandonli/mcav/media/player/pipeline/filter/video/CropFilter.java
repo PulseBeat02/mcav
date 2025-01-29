@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,28 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Rect;
 
+/**
+ * A filter that crops a video frame to a specified rectangle.
+ */
 public class CropFilter extends MatVideoFilter {
 
   private final Rect rect;
 
+  /**
+   * Constructs a CropFilter with the specified rectangle.
+   *
+   * @param x      The x-coordinate of the top-left corner of the crop rectangle.
+   * @param y      The y-coordinate of the top-left corner of the crop rectangle.
+   * @param width  The width of the crop rectangle.
+   * @param height The height of the crop rectangle.
+   */
   public CropFilter(final int x, final int y, final int width, final int height) {
     this.rect = new Rect(x, y, width, height);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final Mat croppedMat = new Mat(mat, this.rect);

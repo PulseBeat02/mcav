@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,8 +32,6 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /**
  * Implementation of {@link DynamicImageBuffer} that uses FFmpeg to read GIF frames.
- * <p>
- * This class is not thread-safe.
  */
 public class DynamicImageBufferImpl implements DynamicImageBuffer {
 

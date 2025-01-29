@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,25 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
+/**
+ * A filter that flips video frames in a specified direction.
+ */
 public class FlipFilter extends MatVideoFilter {
 
   private final int flipCode;
 
+  /**
+   * Constructs a FlipFilter with the specified flip direction.
+   *
+   * @param direction the direction to flip the video frames
+   */
   public FlipFilter(final FlipDirection direction) {
     this.flipCode = direction.code;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final Mat flippedMat = new Mat();
@@ -36,9 +47,23 @@ public class FlipFilter extends MatVideoFilter {
     flippedMat.release();
   }
 
+  /**
+   * Enum representing the possible flip directions for the video frames.
+   */
   public enum FlipDirection {
+    /**
+     * Horizontal flip.
+     */
     HORIZONTAL(1),
+
+    /**
+     * Vertical flip.
+     */
     VERTICAL(0),
+
+    /**
+     * Both horizontal and vertical flip.
+     */
     BOTH(-1);
 
     private final int code;

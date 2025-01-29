@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,9 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Range;
 
+/**
+ * A video filter that overlays an image on top of the video frame at a specified position.
+ */
 public class OverlayImageFilter extends MatVideoFilter {
 
   private final int x;
@@ -30,6 +33,13 @@ public class OverlayImageFilter extends MatVideoFilter {
   private final int overlayWidth;
   private final int overlayHeight;
 
+  /**
+   * Constructs an OverlayImageFilter with the specified overlay image and position.
+   *
+   * @param overlay The MatImageBuffer containing the overlay image.
+   * @param x       The x-coordinate where the overlay will be placed.
+   * @param y       The y-coordinate where the overlay will be placed.
+   */
   public OverlayImageFilter(final MatImageBuffer overlay, final int x, final int y) {
     this.x = x;
     this.y = y;
@@ -38,6 +48,9 @@ public class OverlayImageFilter extends MatVideoFilter {
     this.overlayHeight = this.overlayMat.rows();
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final int width = Math.min(this.overlayWidth, mat.cols() - this.x);

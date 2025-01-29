@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,12 +27,7 @@ import uk.co.caprica.vlcj.log.LogLevel;
 import uk.co.caprica.vlcj.log.NativeLog;
 
 /**
- * The MediaPlayerFactoryProvider class provides a factory for creating
- * media player instances using the underlying VLC library. It ensures
- * the factory is initialized and handles its lifecycle.
- * <p>
- * This class cannot be instantiated as it is designed to act as a utility
- * class for managing the MediaPlayerFactory instance.
+ * A utility class to manage the VLC MediaPlayerFactory instance.
  */
 public final class MediaPlayerFactoryProvider {
 
@@ -78,8 +73,6 @@ public final class MediaPlayerFactoryProvider {
 
   /**
    * Retrieves the MediaPlayerFactory instance initialized with the underlying VLC library.
-   * This method ensures the factory is available for use. If the factory is not supported
-   * on the current system, an exception will be thrown.
    *
    * @return the initialized MediaPlayerFactory instance.
    * @throws UnsupportedOperationException if VLC is not supported on the current system.
@@ -93,13 +86,6 @@ public final class MediaPlayerFactoryProvider {
 
   /**
    * Releases resources held by the MediaPlayerFactory instance, if it has been initialized.
-   * <p>
-   * This method ensures that any resources associated with the MediaPlayerFactory
-   * are properly released to avoid potential memory leaks or other issues. If the
-   * factory has not been initialized, the method performs no operation.
-   * <p>
-   * It is important to call this method when the application no longer needs
-   * the media player functionality to ensure resources are cleaned up appropriately.
    */
   public static void shutdown() {
     if (FACTORY == null) {

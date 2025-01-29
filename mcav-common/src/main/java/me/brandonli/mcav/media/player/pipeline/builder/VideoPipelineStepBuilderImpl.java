@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,14 +24,6 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
 /**
  * Concrete implementation of a pipeline step builder for video processing.
- * This class extends the {@link AbstractPipelineStepBuilder} to construct
- * {@link VideoPipelineStep} instances by chaining together a sequence of
- * {@link VideoFilter} filters. Each filter in the chain processes the output
- * of the previous filter, forming a backward-linked chain.
- * <p>
- * This builder is used to define a sequence of video processing steps where each
- * step applies a {@code VideoFilter} to an input. If no filters are added, a no-operation
- * instance of {@code VideoPipelineStep} is returned upon invocation of the {@code build} method.
  */
 public final class VideoPipelineStepBuilderImpl
   extends AbstractPipelineStepBuilder<ImageBuffer, VideoMetadata, VideoFilter, VideoPipelineStep> {

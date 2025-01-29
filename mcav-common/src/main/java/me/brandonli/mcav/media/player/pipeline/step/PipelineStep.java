@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -29,10 +29,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface PipelineStep<A, B, C> {
   /**
    * Retrieves the next step in the pipeline if present.
-   * <p>
-   * This method is used to traverse or retrieve the subsequent step
-   * in a chained pipeline configuration. If no further steps exist,
-   * it returns null, indicating the end of the pipeline.
    *
    * @return the next step in the pipeline, or null if this is the last step
    */
@@ -50,8 +46,6 @@ public interface PipelineStep<A, B, C> {
 
   /**
    * Processes the input data and associated metadata for this pipeline step.
-   * The specific operation performed on the data and metadata depends on the
-   * implementation of the pipeline step.
    *
    * @param buffer   the input data to be processed. The type of this parameter
    *                 is determined by the generic type {@code A}.

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,17 +21,27 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
+/**
+ * A filter that applies erosion to a video frame.
+ */
 public class ErosionFilter extends MatVideoFilter {
 
   private final Mat kernel;
 
+  /**
+   * Creates an instance of the ErosionFilter with a specified kernel size.
+   * @param kernelSize the size of the kernel to be used for erosion, must be an odd integer.
+   */
   public ErosionFilter(final int kernelSize) {
     final Size size = new Size(kernelSize, kernelSize);
     this.kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
-    opencv_imgproc.erode(mat, mat, kernel);
+    opencv_imgproc.erode(mat, mat, this.kernel);
   }
 }

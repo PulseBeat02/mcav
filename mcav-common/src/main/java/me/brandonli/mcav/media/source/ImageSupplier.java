@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,17 +20,22 @@ package me.brandonli.mcav.media.source;
 import java.awt.image.BufferedImage;
 
 /**
- *
+ * An interface for supplying image data as a {@link BufferedImage}.
  */
 @FunctionalInterface
 public interface ImageSupplier {
   /**
-   * Supplies a {@link java.awt.image.BufferedImage} representing the image data.
+   * Supplies a {@link BufferedImage} representing the image data.
    *
-   * @return a {@link java.awt.image.BufferedImage} representing the image data
+   * @return a {@link BufferedImage} representing the image data
    */
   BufferedImage getImage();
 
+  /**
+   * Converts this {@link ImageSupplier} to a {@link SampleSupplier} that provides pixel data.
+   *
+   * @return a {@link SampleSupplier} that provides pixel data from the image
+   */
   default SampleSupplier toSampleSupplier() {
     return () -> {
       final BufferedImage image = this.getImage();

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,15 +18,8 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * A concrete implementation of the {@link DeviceSource} interface that represents
- * a source identified by a specific device ID. This class provides a simple mechanism
- * to associate a device ID with a source and retrieve it as needed.
- * <p>
- * The {@code DeviceSourceImpl} encapsulates the device identifier and serves as
- * the basis for interacting with device-specific sources in the system.
- * <p>
- * This class is immutable and thread-safe as its state does not change after
- * instantiation.
+ * An implementation of the {@link DeviceSource} interface that represents a source
+ * associated with a specific device ID.
  */
 public final class DeviceSourceImpl implements DeviceSource {
 

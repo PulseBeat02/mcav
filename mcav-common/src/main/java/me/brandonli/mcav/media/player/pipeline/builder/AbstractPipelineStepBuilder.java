@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,8 +24,6 @@ import me.brandonli.mcav.media.player.pipeline.step.PipelineStep;
 
 /**
  * An abstract builder class for constructing instances of {@link PipelineStep} implementations in a sequential manner.
- * This class allows chaining of filters, represented by the generic parameter {@code F},
- * to construct a processing pipeline for handling data and metadata.
  *
  * @param <T> the type representing the data to be processed in the pipeline
  * @param <M> the type representing the metadata associated with the data
@@ -53,9 +51,6 @@ public abstract class AbstractPipelineStepBuilder<T, M, F extends Filter<T, M>, 
 
   /**
    * Constructs and returns a new instance of the pipeline step of type {@code S}.
-   * This method consolidates all filters added to the builder and creates a processing
-   * pipeline in a backward-linked chain where each filter processes the output
-   * of the previous filter. If no filters are added, a no-operation pipeline step is returned.
    *
    * @return a fully constructed pipeline step of type {@code S}, representing the
    * sequence of filters added to the builder, or a no-operation pipeline

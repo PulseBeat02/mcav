@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
+import java.util.List;
+import java.util.Optional;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.dialog.CommonDialogData;
 import net.minecraft.server.dialog.DialogAction;
-
-import java.util.List;
-import java.util.Optional;
 
 public class DialogResult implements FunctionalVideoFilter {
 

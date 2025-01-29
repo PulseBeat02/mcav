@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,17 +21,16 @@ import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 
 /**
- * The OpenCVPlayer class is a concrete implementation of the AbstractVideoPlayerCV
- * for video playback using OpenCV as the backend. It uses the OpenCVFrameGrabber
- * for frame grabbing and processing.
- * <p>
- * OpenCVPlayer provides an implementation of the {@linkplain AbstractVideoPlayerCV#getFrameGrabber(String)}
- * method to return an OpenCV-specific frame grabber instance for the given media URI.
- * <p>
- * This class integrates with the AbstractVideoPlayerCV framework for handling
- * video playback, audio-video synchronization, and processing pipelines.
+ * Represents a video player that uses OpenCV for frame grabbing.
  */
 public final class OpenCVPlayer extends AbstractVideoPlayerCV {
+
+  /**
+   * Constructs a new OpenCVPlayer instance.
+   */
+  public OpenCVPlayer() {
+    // no-op
+  }
 
   /**
    * {@inheritDoc}

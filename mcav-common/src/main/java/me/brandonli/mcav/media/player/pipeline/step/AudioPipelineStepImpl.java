@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,18 +25,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * An implementation of the {@link AudioPipelineStep} interface that represents
  * a step in the audio processing pipeline.
- * <p>
- * This class applies a specific {@link AudioFilter} to the audio data represented
- * as a {@link ByteBuffer}, along with its associated {@link AudioMetadata}.
- * The processed data can then be forwarded to the next step in the pipeline, if one exists.
- * <p>
- * Key behavior:
- * - Filters audio data using the provided {@link AudioFilter}.
- * - Supports chaining by holding a reference to the next {@link AudioPipelineStep} in the sequence.
- * - Implements the {@link PipelineStep} contract for audio-specific data.
- * <p>
- * Thread-safety: This class is immutable and thread-safe provided that the associated
- * {@link AudioFilter} implementation is thread-safe.
  */
 public final class AudioPipelineStepImpl implements AudioPipelineStep {
 

@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,21 +25,38 @@ import org.bytedeco.opencv.opencv_core.RectVector;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 
+/**
+ * A video filter that detects faces in a video stream using OpenCV's Haar Cascade Classifier.
+ */
 public class FaceDetectionFilter extends MatVideoFilter {
 
   private final CascadeClassifier faceCascade;
   private final Scalar color;
 
+  /**
+   * Constructs a FaceDetectionFilter with the specified Haar Cascade file path and color for face rectangles.
+   *
+   * @param faceCascadePath The path to the Haar Cascade XML file for face detection.
+   * @param color           The color to use for drawing rectangles around detected faces, represented as an array of doubles.
+   */
   public FaceDetectionFilter(final String faceCascadePath, final double[] color) {
     this.faceCascade = new CascadeClassifier(faceCascadePath);
     this.color = ImageUtils.toScalar(color);
   }
 
+  /**
+   * Constructs a FaceDetectionFilter with the specified color for face rectangles.
+   *
+   * @param color The color to use for drawing rectangles around detected faces, represented as an array of doubles.
+   */
   public FaceDetectionFilter(final double[] color) {
     this.faceCascade = new CascadeClassifier();
     this.color = ImageUtils.toScalar(color);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final RectVector faces = new RectVector();

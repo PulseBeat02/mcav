@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,9 +17,8 @@
  */
 package me.brandonli.mcav.vm; // Licensed to the Software Freedom Conservancy (SFC) under one
 
-import me.brandonli.mcav.utils.os.OS;
-import me.brandonli.mcav.utils.os.OSUtils;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +27,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
+import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.OSUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A utility class to find executables, stolen directly from Selenium.

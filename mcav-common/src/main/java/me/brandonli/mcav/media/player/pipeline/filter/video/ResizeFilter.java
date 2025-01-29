@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,14 +21,26 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
+/**
+ * A filter that resizes video frames to a specified width and height.
+ */
 public class ResizeFilter extends MatVideoFilter {
 
   private final Size newSize;
 
+  /**
+   * Constructs a ResizeFilter with the specified width and height.
+   *
+   * @param width  the new width of the video frames
+   * @param height the new height of the video frames
+   */
   public ResizeFilter(final int width, final int height) {
     this.newSize = new Size(width, height);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     final Mat resizedMat = new Mat();

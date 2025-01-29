@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -30,7 +30,6 @@ import me.brandonli.mcav.media.source.Source;
 
 /**
  * Represents a video player interface for processing and playing video streams.
- * Provides methods for starting video playback and creating specific video player implementations.
  */
 public interface VideoPlayer {
   /**

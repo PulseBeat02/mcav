@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,10 +24,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents a concrete implementation of the {@link VideoPipelineStep} interface.
- * This class is a step in a video processing pipeline that applies a specific {@link VideoFilter}
- * to the given {@link ImageBuffer} and optionally delegates further processing to the next step.
- * <p>
- * Instances of this class are immutable and support chaining in video processing pipelines.
  */
 public final class VideoPipelineStepImpl implements VideoPipelineStep {
 

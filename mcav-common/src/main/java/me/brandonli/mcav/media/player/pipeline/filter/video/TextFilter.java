@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+/**
+ * A video filter that draws text on video frames.
+ */
 public class TextFilter extends MatVideoFilter {
 
   private final String text;
@@ -31,6 +34,16 @@ public class TextFilter extends MatVideoFilter {
   private final Point position;
   private final Scalar color;
 
+  /**
+   * Constructs a TextFilter to draw text on a video frame.
+   *
+   * @param text        The text to draw.
+   * @param x           The x-coordinate of the text position.
+   * @param y           The y-coordinate of the text position.
+   * @param fontFace    The font face to use for the text.
+   * @param fontScale   The scale factor for the font size.
+   * @param scalarColor The color of the text in scalar format (BGR).
+   */
   public TextFilter(final String text, final int x, final int y, final int fontFace, final double fontScale, final double[] scalarColor) {
     this.text = text;
     this.fontFace = fontFace;
@@ -39,6 +52,9 @@ public class TextFilter extends MatVideoFilter {
     this.color = ImageUtils.toScalar(scalarColor);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   void modifyMat(final Mat mat) {
     opencv_imgproc.putText(mat, this.text, this.position, this.fontFace, this.fontScale, this.color);

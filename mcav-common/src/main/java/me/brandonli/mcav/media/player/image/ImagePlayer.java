@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,9 +24,27 @@ import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.FrameSource;
 
+/**
+ * An interface for image players that can play images from a source.
+ */
 public interface ImagePlayer extends ReleasablePlayer {
+  /**
+   * Starts the image player with the given video pipeline step and frame source.
+   *
+   * @param videoPipeline The video pipeline step to use.
+   * @param source        The frame source to read images from.
+   * @return true if the player started successfully, false otherwise.
+   */
   boolean start(final VideoPipelineStep videoPipeline, final FrameSource source);
 
+  /**
+   * Starts the image player asynchronously with the given video pipeline step, frame source and executor service.
+   *
+   * @param videoPipeline The video pipeline step to use.
+   * @param source        The frame source to read images from.
+   * @param service       The executor service to run the task on.
+   * @return A CompletableFuture that completes with true if the player started successfully, false otherwise.
+   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep videoPipeline,
     final FrameSource source,
@@ -35,10 +53,22 @@ public interface ImagePlayer extends ReleasablePlayer {
     return CompletableFuture.supplyAsync(() -> this.start(videoPipeline, source), service);
   }
 
+  /**
+   * Starts the image player asynchronously with the given video pipeline step and frame source.
+   *
+   * @param videoPipeline The video pipeline step to use.
+   * @param source        The frame source to read images from.
+   * @return A CompletableFuture that completes with true if the player started successfully, false otherwise.
+   */
   default CompletableFuture<Boolean> startAsync(final VideoPipelineStep videoPipeline, final FrameSource source) {
     return this.startAsync(videoPipeline, source, ForkJoinPool.commonPool());
   }
 
+  /**
+   * Creates a new instance of the ImagePlayer implementation.
+   *
+   * @return A new ImagePlayer instance.
+   */
   static ImagePlayer player() {
     return new ImagePlayerImpl();
   }

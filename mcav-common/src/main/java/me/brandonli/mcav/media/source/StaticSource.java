@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,14 +18,7 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * The StaticSource interface represents a source identified as being static.
- * It extends the {@link Source} interface and provides a default implementation
- * that signifies the immutability of this source's nature.
- * <p>
- * A StaticSource is characterized by its unchanging state or content.
- * Implementers of this interface inherit the default behavior of the
- * {@code isStatic} method to always return {@code true}, indicating
- * that the source is static.
+ * Represents a source identified as being static.
  */
 public interface StaticSource extends Source {
   /**

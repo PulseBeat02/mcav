@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,20 +23,11 @@ import java.util.concurrent.ForkJoinPool;
 
 /**
  * The {@code SeekablePlayer} interface provides functionality for seeking media playback
- * to a specific point in time. Implementations of this interface allow users to control
- * and navigate the media timeline by specifying a timestamp in milliseconds.
- * <p>
- * This interface is intended to be implemented by media players that support seeking
- * capabilities, enabling precise control over playback position.
- * <p>
- * The {@link #seek(long)} method plays a key role in enabling seek operations, returning
- * a boolean indicating the success of the operation, while also ensuring proper exception
- * handling for invalid seek requests or errors during the process.
+ * to a specific point in time.
  */
 public interface SeekablePlayer {
   /**
-   * Seeks the media to the specified timestamp in milliseconds. This method is used
-   * to reposition the playback to a specific point in time within the media.
+   * Seeks the media to the specified timestamp in milliseconds.
    *
    * @param time the position in milliseconds to seek to. This value must be a non-negative
    *             long and within the valid duration of the media.
@@ -46,8 +37,6 @@ public interface SeekablePlayer {
 
   /**
    * Asynchronously seeks the media to the specified timestamp in milliseconds.
-   * This method allows repositioning the playback to a specific point in time within the media
-   * on a background thread using the common fork-join thread pool.
    *
    * @param time the position in milliseconds to seek to. This value must be a non-negative
    *             long and within the valid duration of the media.
@@ -60,8 +49,7 @@ public interface SeekablePlayer {
 
   /**
    * Asynchronously seeks the media to the specified timestamp in milliseconds using the provided
-   * {@link ExecutorService}. This method allows for non-blocking seek operations by executing
-   * the {@link #seek(long)} method in a different thread managed by the specified executor.
+   * {@link ExecutorService}.
    *
    * @param service the {@code ExecutorService} used to manage the thread executing the asynchronous seek operation
    * @param time    the position in milliseconds to seek to. Must be a non-negative value and within the valid duration of the media

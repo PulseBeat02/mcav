@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,7 @@ package me.brandonli.mcav.media.source;
 import java.nio.file.Path;
 
 /**
- * WritableImpl is a final implementation of the {@link Writable} interface that
- * represents a resource associated with a specific file path. It provides
- * base-level functionality to retrieve the path of the resource.
- * <p>
- * This implementation encapsulates a single file path, which is immutable once
- * assigned. Instances of WritableImpl are created as the underlying
- * implementation when the Writable interface is used to associate resources
- * with a file path.
+ * An implementation of the {@link Writable} interface that represents a writable resource
  */
 public final class WritableImpl implements Writable {
 

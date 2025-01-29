@@ -1,5 +1,5 @@
 /*
- * This file is part of mcav, a media playback library for Minecraft
+ * This file is part of mcav, a media playback library for Java
  * Copyright (C) Brandon Li <https://brandonli.me/>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,13 +21,7 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * Represents a video player interface that extends the functionality of
- * {@link VideoPlayerMultiplexer}. This interface is designed to handle video frames
- * using the concept of a {@link FrameGrabber}. Various implementations of this
- * interface will provide specific frame grabber configurations.
- * <p>
- * The implementations of this interface are responsible for enabling video playback
- * via different backend technologies such as FFmpeg, OpenCV, or VideoInput.
+ * Represents a video player interface that uses JavaCV for video processing.
  */
 interface VideoPlayerCV extends VideoPlayerMultiplexer {
   /**
