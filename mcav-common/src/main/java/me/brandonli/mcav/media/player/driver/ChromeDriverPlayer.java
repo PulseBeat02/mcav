@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -30,6 +31,7 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.BrowserSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.KeyUtils;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -48,25 +50,28 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private final ChromeDriver driver;
   private final AtomicBoolean running;
+
   private final ExecutorService captureExecutor;
-  private final ExecutorService processingExecutor;
-  private final Object lock;
+  private final ExecutorService actionExecutor;
+  private final ExecutorService tabExecutor;
+
+  private CompletableFuture<Void> captureTask;
+  private CompletableFuture<Void> tabTask;
   private final DevTools tools;
 
+  private volatile String currentWindowHandle;
   private volatile long frameWidth;
   private volatile long frameHeight;
-  private volatile CompletableFuture<Void> captureTask;
   private volatile VideoPipelineStep videoPipeline;
   private volatile BrowserSource source;
 
   public ChromeDriverPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
-    final int processors = Runtime.getRuntime().availableProcessors();
-    this.lock = new Object();
     this.driver = new ChromeDriver(service, new ChromeOptions().addArguments(args));
     this.running = new AtomicBoolean(false);
     this.captureExecutor = Executors.newSingleThreadExecutor();
-    this.processingExecutor = Executors.newFixedThreadPool(processors);
+    this.tabExecutor = Executors.newSingleThreadExecutor();
+    this.actionExecutor = Executors.newVirtualThreadPerTaskExecutor();
     this.tools = this.driver.getDevTools();
   }
 
@@ -75,13 +80,45 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public boolean start(final VideoPipelineStep videoPipeline, final BrowserSource combined) {
-    synchronized (this.lock) {
-      this.source = combined;
-      this.videoPipeline = videoPipeline;
-      this.running.set(true);
-      this.captureTask = CompletableFuture.runAsync(this::startScreenCapture, this.captureExecutor);
-      return true;
+    this.source = combined;
+    this.videoPipeline = videoPipeline;
+    this.running.set(true);
+    this.captureTask = CompletableFuture.runAsync(this::startScreenCapture, this.captureExecutor);
+    return true;
+  }
+
+  private void startTabMonitoring() {
+    try {
+      while (this.running.get()) {
+        final String activeHandle = this.driver.getWindowHandle();
+        if (!activeHandle.equals(this.currentWindowHandle)) {
+          this.currentWindowHandle = activeHandle;
+          this.resetDevToolsSession();
+        }
+        Thread.sleep(500);
+      }
+    } catch (final InterruptedException e) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
+  }
+
+  private void resetDevToolsSession() {
+    final int width = this.source.getScreencastWidth();
+    final int height = this.source.getScreencastHeight();
+    final int qualityRaw = this.source.getScreencastQuality();
+    final int nthRaw = this.source.getScreencastNthFrame();
+    this.captureTask.complete(null);
+    this.tools.disconnectSession();
+    this.tools.createSession();
+    this.tools.addListener(Page.screencastFrame(), this::handleFrame);
+
+    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
+    final Optional<Integer> quality = Optional.of(qualityRaw);
+    final Optional<Integer> maxWidth = Optional.of(width);
+    final Optional<Integer> maxHeight = Optional.of(height);
+    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
+    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
   }
 
   private void startScreenCapture() {
@@ -106,6 +143,9 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Optional<Integer> maxHeight = Optional.of(height);
     final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
     this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
+
+    this.currentWindowHandle = this.driver.getWindowHandle();
+    this.tabTask = CompletableFuture.runAsync(this::startTabMonitoring, this.tabExecutor);
   }
 
   private void handleFrame(final ScreencastFrame frame) {
@@ -128,8 +168,12 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
           }
           staticImage.release();
         }
+        if (this.tools != null && this.running.get()) {
+          try {
+            this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
+          } catch (final Exception ignored) {}
+        }
       }
-      this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
     } catch (final IOException e) {
       throw new PlayerException(e.getMessage(), e);
     }
@@ -150,7 +194,7 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     final Actions move = actions.moveToLocation(newX, newY);
     final Actions modified = this.getAction(type, move);
     final Action action = modified.build();
-    action.perform();
+    CompletableFuture.runAsync(action::perform, this.actionExecutor).completeOnTimeout(null, 1, TimeUnit.SECONDS);
   }
 
   private int[] translateCoordinates(final int x, final int y) {
@@ -175,10 +219,11 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
     if (!this.running.get()) {
       return;
     }
+    final String replaced = KeyUtils.replaceKeysWithKeyCodes(text);
     final Actions actions = new Actions(this.driver);
-    final Actions move = actions.sendKeys(text);
+    final Actions move = actions.sendKeys(replaced);
     final Action action = move.build();
-    action.perform();
+    CompletableFuture.runAsync(action::perform, this.actionExecutor).completeOnTimeout(null, 1, TimeUnit.SECONDS);
   }
 
   private Actions getAction(final MouseClick type, final Actions move) {
@@ -196,22 +241,25 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
    */
   @Override
   public boolean release() {
-    synchronized (this.lock) {
-      if (!this.running.get()) {
-        return false;
-      }
-
-      this.tools.close();
-      this.running.set(false);
-
-      if (this.captureTask != null) {
-        this.captureTask.cancel(true);
-      }
-
-      ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.processingExecutor);
-
-      return true;
+    if (!this.running.get()) {
+      return false;
     }
+
+    this.tools.close();
+    this.running.set(false);
+
+    if (!this.captureTask.isDone()) {
+      this.captureTask.complete(null);
+    }
+
+    if (!this.tabTask.isDone()) {
+      this.tabTask.complete(null);
+    }
+
+    ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
+    ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);
+    ExecutorUtils.shutdownExecutorGracefully(this.tabExecutor);
+
+    return true;
   }
 }

@@ -27,6 +27,7 @@ import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
+import me.brandonli.mcav.utils.KeyUtils;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import me.brandonli.mcav.utils.natives.NativeUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -181,7 +182,9 @@ public class VMPlayerImpl implements VMPlayer {
   @Override
   public void type(final String text) {
     if (this.vncPlayer != null) {
-      this.vncPlayer.type(text);
+      final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
+      final String replaced = KeyUtils.replaceKeysWithKeyCodes(text);
+      vncPlayer.type(replaced);
     }
   }
 

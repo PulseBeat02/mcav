@@ -30,33 +30,7 @@ import me.brandonli.mcav.media.source.BrowserSource;
  * Extends the functionality of {@link ReleasablePlayer}.
  */
 public interface BrowserPlayer extends ReleasablePlayer {
-  String[] DEFAULT_CHROME_ARGUMENTS = {
-    "--headless",
-    "--disable-gpu",
-    "--disable-software-rasterizer",
-    "--disable-dev-shm-usage",
-    "--disable-extensions",
-    "--disable-background-networking",
-    "--disable-background-timer-throttling",
-    "--disable-backgrounding-occluded-windows",
-    "--disable-breakpad",
-    "--disable-client-side-phishing-detection",
-    "--disable-default-apps",
-    "--disable-hang-monitor",
-    "--disable-popup-blocking",
-    "--disable-prompt-on-repost",
-    "--disable-renderer-backgrounding",
-    "--disable-sync",
-    "--disable-translate",
-    "--metrics-recording-only",
-    "--no-first-run",
-    "--safebrowsing-disable-auto-update",
-    "--enable-automation",
-    "--password-store=basic",
-    "--use-mock-keychain",
-    "--start-maximized",
-    "--start-fullscreen",
-  };
+  String[] DEFAULT_CHROME_ARGUMENTS = { "--headless", "--disable-gpu", "--disable-software-rasterizer" };
 
   /**
    * Starts the browser player with the provided video pipeline step and browser source.
