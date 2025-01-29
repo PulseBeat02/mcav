@@ -30,7 +30,7 @@ public class JavaDocFormattingExample {
   public static void main(final String[] args) {
     final Collection<UUID> viewers = null;
     final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
-      .character(Characters.BLACK_SQUARE)
+      .character(Characters.FULL_CHARACTER)
       .lines(16)
       .width(16)
       .viewers(viewers)

@@ -13,7 +13,18 @@ dependencies {
 ```
 
 ```{note}
-The `mcav-bukkit` module already includes the `mcav-common` module, so you do not need to add it separately.
+The Bukkit module uses NMS (net.minecraft.server) code to access the Minecraft server. It uses the paperweight-userdev
+plugin to access internals, meaning that you must shade this into your plugin so it can be remapped to the correct
+mappings. If using the installer, you should expect a configuration like so:
+
+```kts
+dependencies {
+    implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT");
+    implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT");
+    compileOnly("me.brandonli:mcav-common:1.0.0-SNAPSHOT");
+}
+```
+
 ```
 
 ## Getting Started
@@ -22,7 +33,5 @@ You must call the `initialize()` method with your own plugin, as `mcav-bukkit` r
 
 ```java
   final Plugin plugin = ...;
-        MCAVBukkit.
-
-inject(plugin);
+  MCAVBukkit.inject(plugin);
 ```

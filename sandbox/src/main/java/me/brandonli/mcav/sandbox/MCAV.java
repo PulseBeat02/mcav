@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox;
 
 import dev.triumphteam.gui.TriumphGui;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
@@ -90,7 +91,8 @@ public final class MCAV extends JavaPlugin {
     final Path libs = folder.resolve("libs");
     final Logger loggerFactory = Logger.getLogger("MCAV Installer");
     final MCAVInstaller installer = MCAVInstaller.injector(libs, loader);
-    installer.loadMCAVDependencies(Artifact.BUKKIT, line -> loggerFactory.log(Level.INFO, line));
+    final Consumer<String> logger = line -> loggerFactory.log(Level.INFO, line);
+    installer.loadMCAVDependencies(Artifact.COMMON, logger);
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Dependencies loaded in " + (endTime - startTime) + "ms");
   }

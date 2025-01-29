@@ -6,12 +6,13 @@ To use the installer, it's super simple. You need to make sure that your current
 
 ```java
   final Path downloaded = Path.of("dependencies");
-  final Consumer<String> logger = System.out::println;
-  final Artifact download = Artifact.MINECRAFT;
-  final Class<InstallationExample> clazz = InstallationExample.class;
-  final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-  final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-  installer.loadMCAVDependencies(download, logger);
+final Consumer<String> logger = System.out::println;
+final Class<InstallationExample> clazz = InstallationExample.class;
+final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
+final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
+  installer.
+
+loadMCAVDependencies(Artifact.COMMON, logger);
 ```
 
 This will install the MCAV dependencies into the specified folder, and you can then use the `loader` to load the MCAV

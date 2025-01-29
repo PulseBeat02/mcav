@@ -23,6 +23,7 @@ package me.brandonli.mcav.media.result;
  * can be used in video players.
  */
 public interface Characters {
+  String FULL_CHARACTER = "█";
   String WHITE_SQUARE = "□";
   String BLACK_SQUARE = "■";
   String WHITE_CIRCLE = "○";

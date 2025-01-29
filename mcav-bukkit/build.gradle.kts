@@ -7,11 +7,11 @@ dependencies {
 
     // project dependencies
     paperweight.paperDevBundle("1.21.5-no-moonrise-SNAPSHOT")
-    api(project(":mcav-common"))
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
 
     // provided
+    compileOnlyApi(project(":mcav-common"))
     compileOnlyApi("io.netty:netty-all:4.1.97.Final")
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
     compileOnlyApi("com.google.code.gson:gson:2.13.1")
@@ -64,8 +64,14 @@ publishing {
             artifactId = project.name
             version = "${rootProject.version}"
             artifact(tasks.named("reobfJar"))
-            artifact(tasks["javadocJar"])
-            artifact(tasks["sourcesJar"])
+            artifact(tasks.named("sourcesJar")) {
+                classifier = "sources"
+                builtBy(tasks.named("reobfJar"))
+            }
+            artifact(tasks.named("javadocJar")) {
+                classifier = "javadoc"
+                builtBy(tasks.named("reobfJar"))
+            }
         }
     }
 }

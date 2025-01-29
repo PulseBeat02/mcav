@@ -14,7 +14,8 @@ dependencies {
 
     // mcav
     implementation("me.brandonli:mcav-installer:1.0.0-SNAPSHOT")
-    compileOnly("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
+    compileOnly("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
 
     // plugin dependencies
     compileOnly("org.incendo:cloud-core:2.0.0")
@@ -101,7 +102,7 @@ tasks {
 
     runServer {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
-        minecraftVersion("1.21.4")
+        minecraftVersion("1.21.5")
     }
 }
 

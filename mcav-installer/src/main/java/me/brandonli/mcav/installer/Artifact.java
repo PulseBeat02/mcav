@@ -24,12 +24,7 @@ public enum Artifact {
   /**
    * Represents the common artifact, identified by the artifact ID "mcav-common".
    */
-  COMMON("mcav-common"),
-  /**
-   * Represents an artifact specifically associated with the artifact ID "mcav-bukkit".
-   * Includes mcav-common as a dependency.
-   */
-  BUKKIT("mcav-bukkit");
+  COMMON("mcav-common");
 
   private final String artifactId;
 
