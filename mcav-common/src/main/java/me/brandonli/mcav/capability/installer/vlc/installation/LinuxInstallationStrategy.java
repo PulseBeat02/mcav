@@ -17,15 +17,14 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.runtime.CommandTask;
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
  * {@inheritDoc}
@@ -85,7 +84,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     final String rawFolder = folder.toString();
     this.runNativeProcess("chmod", "+x", rawAppImage);
     this.runNativeProcess(rawAppImage, "--appimage-extract");
-    this.runNativeProcess("cp", "-aLfr", "squashfs-root", rawFolder);
+    this.runNativeProcess("cp", "-R", "--preserve=all", "squashfs-root/", rawFolder);
     this.runNativeProcess("rm", "-rf", "squashfs-root");
     Files.deleteIfExists(appImage);
 

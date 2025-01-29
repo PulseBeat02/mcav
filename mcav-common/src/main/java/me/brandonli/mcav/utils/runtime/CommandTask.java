@@ -80,7 +80,7 @@ public class CommandTask {
     if (this.output == null && process != null) {
       final StringBuilder outputBuilder = new StringBuilder();
       final Thread stdoutThread = this.createStdOutReader(process, outputBuilder);
-      final Thread stderrThread = this.createStdErrReader(this.getStdErrBufferedReader(process), outputBuilder);
+      final Thread stderrThread = this.createStdErrReader(process, outputBuilder);
       stdoutThread.start();
       stderrThread.start();
       try {
@@ -95,7 +95,7 @@ public class CommandTask {
     }
   }
 
-  private Thread createStdOutReader(final Process process, final StringBuilder outputBuilder) {
+  private Thread createStdOutReader(@UnderInitialization CommandTask this, final Process process, final StringBuilder outputBuilder) {
     return new Thread(() -> {
       try (final BufferedReader reader = this.getStdBufferedReader(process)) {
         String str;
@@ -108,9 +108,9 @@ public class CommandTask {
     });
   }
 
-  private Thread createStdErrReader(final BufferedReader process, final StringBuilder outputBuilder) {
+  private Thread createStdErrReader(@UnderInitialization CommandTask this, final Process process, final StringBuilder outputBuilder) {
     return new Thread(() -> {
-      try (final BufferedReader reader = process) {
+      try (final BufferedReader reader = this.getStdErrBufferedReader(process)) {
         String str;
         while ((str = reader.readLine()) != null) {
           outputBuilder.append(str).append(System.lineSeparator());

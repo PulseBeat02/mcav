@@ -169,8 +169,8 @@ public class MatBackedImage implements StaticImage {
   public void rotate90Clockwise() {
     final Mat rotatedMat = new Mat();
     Core.rotate(this.mat, rotatedMat, Core.ROTATE_90_CLOCKWISE);
-    this.mat.release();
-    this.mat.assignTo(rotatedMat);
+    rotatedMat.copyTo(this.mat);
+    rotatedMat.release();
   }
 
   /**
@@ -180,8 +180,8 @@ public class MatBackedImage implements StaticImage {
   public void rotate90CounterClockwise() {
     final Mat rotatedMat = new Mat();
     Core.rotate(this.mat, rotatedMat, Core.ROTATE_90_COUNTERCLOCKWISE);
-    this.mat.release();
-    this.mat.assignTo(rotatedMat);
+    rotatedMat.copyTo(this.mat);
+    rotatedMat.release();
   }
 
   /**
@@ -191,8 +191,8 @@ public class MatBackedImage implements StaticImage {
   public void flipHorizontally() {
     final Mat flippedMat = new Mat();
     Core.flip(this.mat, flippedMat, 1);
-    this.mat.release();
-    this.mat.assignTo(flippedMat);
+    flippedMat.copyTo(this.mat);
+    flippedMat.release();
   }
 
   /**
@@ -202,8 +202,8 @@ public class MatBackedImage implements StaticImage {
   public void flipVertically() {
     final Mat flippedMat = new Mat();
     Core.flip(this.mat, flippedMat, 0);
-    this.mat.release();
-    this.mat.assignTo(flippedMat);
+    flippedMat.copyTo(this.mat);
+    flippedMat.release();
   }
 
   /**
@@ -213,8 +213,8 @@ public class MatBackedImage implements StaticImage {
   public void crop(final int x, final int y, final int width, final int height) {
     final Rect roi = new Rect(x, y, width, height);
     final Mat croppedMat = new Mat(this.mat, roi);
-    this.mat.release();
-    this.mat.assignTo(croppedMat);
+    croppedMat.copyTo(this.mat);
+    croppedMat.release();
   }
 
   /**
@@ -708,8 +708,8 @@ public class MatBackedImage implements StaticImage {
   public void applyPerspectiveTransform(final MatBackedImage transformMatrix, final int width, final int height) {
     final Mat transformedMat = new Mat();
     Imgproc.warpPerspective(this.mat, transformedMat, transformMatrix.getMat(), new Size(width, height));
-    this.mat.release();
-    this.mat.assignTo(transformedMat);
+    transformedMat.copyTo(this.mat);
+    transformedMat.release();
   }
 
   /**
@@ -956,8 +956,8 @@ public class MatBackedImage implements StaticImage {
   public void applyColorMap(final int colorMap) {
     final Mat colored = new Mat();
     Imgproc.applyColorMap(this.mat, colored, colorMap);
-    this.mat.release();
-    this.mat.assignTo(colored);
+    colored.copyTo(this.mat);
+    colored.release();
   }
 
   /**
@@ -979,8 +979,8 @@ public class MatBackedImage implements StaticImage {
     kernel.put(0, 0, kernelData);
     final Mat dst = new Mat();
     Imgproc.filter2D(this.mat, dst, -1, kernel);
-    this.mat.release();
-    this.mat.assignTo(dst);
+    dst.copyTo(this.mat);
+    dst.release();
     kernel.release();
   }
 
