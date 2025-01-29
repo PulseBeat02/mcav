@@ -20,10 +20,14 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
+  NullComponent<Sender> VIDEO_LOADING_ERROR = direct("mcav.command.video.load.error");
+  NullComponent<Sender> VIDEO_RELEASED = direct("mcav.command.video.release");
+  NullComponent<Sender> VIDEO_PAUSED = direct("mcav.command.video.pause");
+  NullComponent<Sender> VIDEO_STARTED = direct("mcav.command.video.start");
+  NullComponent<Sender> VIDEO_LOADING = direct("mcav.command.video.info");
   NullComponent<Sender> BROWSER_RELEASED = direct("mcav.command.browser.release");
   NullComponent<Sender> BROWSER_STARTED = direct("mcav.command.browser.start");
   NullComponent<Sender> MRL_ERROR = direct("mcav.command.mrl.error");
-  NullComponent<Sender> DITHERING_ERROR = direct("mcav.command.dither.error");
   NullComponent<Sender> URL_ERROR = direct("mcav.command.url.error");
   NullComponent<Sender> DIMENSION_ERROR = direct("mcav.command.dimension.error");
   UniComponent<Sender, String> SEND_DUMP = direct("mcav.command.dump.result", null);

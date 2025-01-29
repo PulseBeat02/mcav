@@ -17,16 +17,12 @@
  */
 package me.brandonli.mcav.media.player.combined.vlc;
 
-import static java.util.Objects.requireNonNull;
-
 import com.sun.jna.Pointer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import me.brandonli.mcav.media.image.StaticImage;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -37,7 +33,6 @@ import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.media.MediaSlaveType;
@@ -71,7 +66,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final Object lock;
 
   private CompletableFuture<Void> playbackCompletionFuture;
-  private @Nullable Thread keepAliveThread;
 
   private Source video;
   private Source audio;
@@ -120,8 +114,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
         this.playbackCompletionFuture = new CompletableFuture<>();
       }
 
-      this.startKeepAliveThread();
-
       final MediaApi mediaApi = this.player.media();
       final String audioResource = audio.getResource();
       final String videoResource = video.getResource();
@@ -141,35 +133,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private void startKeepAliveThread() {
-    synchronized (this.lock) {
-      if (this.keepAliveThread != null && this.keepAliveThread.isAlive()) {
-        final Thread oldThread = this.keepAliveThread;
-        oldThread.interrupt();
-        try {
-          oldThread.join(1000);
-        } catch (final InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      this.keepAliveThread = new Thread(
-        () -> {
-          try {
-            this.playbackCompletionFuture.get();
-          } catch (final InterruptedException | ExecutionException e) {
-            final Thread currentThread = Thread.currentThread();
-            currentThread.interrupt();
-            throw new PlayerException(e.getMessage());
-          }
-        },
-        "VLC-KeepAlive"
-      );
-      final Thread oldThread = this.keepAliveThread;
-      oldThread.setDaemon(false);
-      oldThread.start();
-    }
-  }
-
   /**
    * {@inheritDoc}
    */
@@ -180,8 +143,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       if (this.playbackCompletionFuture.isDone()) {
         this.playbackCompletionFuture = new CompletableFuture<>();
       }
-
-      this.startKeepAliveThread();
 
       final MediaApi mediaApi = this.player.media();
       final String resource = combined.getResource();
@@ -231,7 +192,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean pause() throws Exception {
     synchronized (this.lock) {
       final ControlsApi controls = this.player.controls();
-      controls.setPause(true);
+      controls.pause();
       return true;
     }
   }
@@ -243,7 +204,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean resume() throws Exception {
     synchronized (this.lock) {
       final ControlsApi controls = this.player.controls();
-      controls.setPause(false);
+      controls.play();
       return true;
     }
   }
@@ -269,12 +230,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.pause();
       if (!this.playbackCompletionFuture.isDone()) {
         this.playbackCompletionFuture.complete(null);
-      }
-      final Thread oldThread = requireNonNull(this.keepAliveThread);
-      if (this.keepAliveThread.isAlive()) {
-        oldThread.interrupt();
-        oldThread.join(1000);
-        this.keepAliveThread = null;
       }
       this.player.release();
       ExecutorUtils.shutdownExecutorGracefully(this.processor);

@@ -20,10 +20,16 @@ package me.brandonli.mcav.sandbox.command;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.primitives.Ints;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -31,7 +37,9 @@ import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
 import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.combined.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.result.MapResult;
@@ -52,6 +60,7 @@ import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
@@ -59,28 +68,48 @@ import org.incendo.cloud.annotations.*;
 
 public final class VideoCommand implements AnnotationCommandFeature {
 
-  private static final String SOUND_KEY = "mcav.video.sound";
-
   private @Nullable VideoPlayerMultiplexer videoPlayer;
-  private MCAV plugin;
+  private AtomicBoolean initializing;
+
+  private ExecutorService service;
   private BukkitAudiences audiences;
 
   @Override
   public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
     final AudienceProvider provider = plugin.getAudience();
-    this.plugin = plugin;
+    this.initializing = new AtomicBoolean(false);
+    this.service = Executors.newSingleThreadExecutor();
     this.audiences = provider.retrieve();
   }
 
-  @Command("mcav release")
-  @Permission("mcav.command.release")
-  @CommandDescription("mcav.command.release.info")
-  public void releaseVideo(final Player player) {}
+  @Command("mcav video release")
+  @Permission("mcav.command.video.release")
+  @CommandDescription("mcav.command.video.release.info")
+  public void releaseVideo(final Player player) {
+    final Audience audience = this.audiences.sender(player);
+    this.releaseVideoPlayer();
+    audience.sendMessage(Message.VIDEO_RELEASED.build());
+  }
 
-  @Command("mcav maps <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
-  @Permission("mcav.command.maps")
-  @CommandDescription("mcav.command.maps.info")
-  public void playMapsVideo(
+  @Command("mcav video pause")
+  @Permission("mcav.command.video.pause")
+  @CommandDescription("mcav.command.video.pause.info")
+  public void pauseVideo(final Player player) {
+    final Audience audience = this.audiences.sender(player);
+    if (this.videoPlayer != null) {
+      try {
+        this.videoPlayer.pause();
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+    }
+    audience.sendMessage(Message.VIDEO_PAUSED.build());
+  }
+
+  @Command("mcav video map <playerType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
+  @Permission("mcav.command.video.map")
+  @CommandDescription("mcav.command.video.map.info")
+  public void playMapVideo(
     final Player player,
     final PlayerArgument playerType,
     @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
@@ -88,7 +117,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     @Argument(suggestions = "id") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String mrl
-  ) throws Exception {
+  ) {
     final Audience audience = this.audiences.sender(player);
     final Pair<Integer, Integer> resolution;
     final Pair<Integer, Integer> dimensions;
@@ -100,9 +129,124 @@ public final class VideoCommand implements AnnotationCommandFeature {
       return;
     }
 
+    if (this.initializing.get()) {
+      audience.sendMessage(Message.VIDEO_LOADING_ERROR.build());
+      return;
+    }
+
+    this.initializing.set(true);
+
+    audience.sendMessage(Message.VIDEO_LOADING.build());
+    CompletableFuture.runAsync(
+      () -> this.synchronizeMapPlayer(playerType, mapId, ditheringAlgorithm, mrl, audience, dimensions, resolution),
+      this.service
+    )
+      .exceptionally(this.handleException())
+      .thenRun(() -> this.initializing.set(false))
+      .thenRun(() -> audience.sendMessage(Message.VIDEO_STARTED.build()));
+  }
+
+  private @NonNull Function<Throwable, Void> handleException() {
+    return e -> {
+      this.initializing.set(false);
+      throw new AssertionError(e);
+    };
+  }
+
+  private synchronized void synchronizeMapPlayer(
+    final PlayerArgument playerType,
+    final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    final String mrl,
+    final Audience audience,
+    final Pair<Integer, Integer> dimensions,
+    final Pair<Integer, Integer> resolution
+  ) {
+    @Nullable
+    final Source[] sources = this.retrievePair(mrl);
+    if (sources == null) {
+      audience.sendMessage(Message.MRL_ERROR.build());
+      return;
+    }
+    this.releaseVideoPlayer();
+    this.startMapPlayer(playerType, mapId, ditheringAlgorithm, dimensions, resolution, sources);
+  }
+
+  private void startMapPlayer(
+    final PlayerArgument playerType,
+    final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    final Pair<Integer, Integer> dimensions,
+    final Pair<Integer, Integer> resolution,
+    final @Nullable Source[] sources
+  ) {
+    final VideoPipelineStep videoPipelineStep = this.createMapVideoFilter(mapId, ditheringAlgorithm, dimensions, resolution);
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
+    final Source video = sources[0];
+    final Source audio = sources[1];
+    final VideoPlayerMultiplexer multiplexer = playerType.createPlayer();
+    try {
+      requireNonNull(video);
+      if (audio == null) {
+        multiplexer.start(audioPipelineStep, videoPipelineStep, video);
+      } else {
+        requireNonNull(audio);
+        multiplexer.start(audioPipelineStep, videoPipelineStep, video, audio);
+      }
+    } catch (final Exception e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private VideoPipelineStep createMapVideoFilter(
+    final int mapId,
+    final DitheringArgument ditheringAlgorithm,
+    final Pair<Integer, Integer> dimensions,
+    final Pair<Integer, Integer> resolution
+  ) {
+    final Collection<UUID> players = this.getAllViewers();
+    final MapConfiguration configuration = this.constructMapConfiguration(mapId, dimensions, resolution, players);
+    final MapResult result = new MapResult(configuration);
+    final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
+    final VideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
+    return PipelineBuilder.video().then(ditherFilter).then(VideoFilter.FRAME_RATE).build();
+  }
+
+  private MapConfiguration constructMapConfiguration(
+    final int mapId,
+    final Pair<@NonNull Integer, @NonNull Integer> dimensions,
+    final Pair<@NonNull Integer, @NonNull Integer> resolution,
+    final Collection<UUID> players
+  ) {
+    return MapConfiguration.builder()
+      .map(mapId)
+      .mapBlockWidth(dimensions.getFirst())
+      .mapBlockHeight(dimensions.getSecond())
+      .mapWidthResolution(resolution.getFirst())
+      .mapHeightResolution(resolution.getSecond())
+      .viewers(players)
+      .build();
+  }
+
+  private Collection<UUID> getAllViewers() {
+    final Collection<? extends Player> online = Bukkit.getOnlinePlayers();
+    return online.stream().map(Player::getUniqueId).toList();
+  }
+
+  private void releaseVideoPlayer() {
+    if (this.videoPlayer != null) {
+      try {
+        this.videoPlayer.release();
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+      this.videoPlayer = null;
+    }
+  }
+
+  private @Nullable Source@Nullable[] retrievePair(final String mrl) {
     final Source video;
     Source audio = null;
-
     final Integer deviceId = Ints.tryParse(mrl);
     if (SourceUtils.isPath(mrl)) {
       video = FileSource.path(Path.of(mrl));
@@ -111,8 +255,7 @@ public final class VideoCommand implements AnnotationCommandFeature {
     } else if (SourceUtils.isUri(mrl)) {
       final UriSource uri = UriSource.uri(URI.create(mrl));
       if (!SourceUtils.isDirectVideoFile(mrl)) {
-        final YTDLPParser parser = YTDLPParser.simple();
-        final URLParseDump dump = parser.parse(uri);
+        final URLParseDump dump = this.getUrlParseDump(uri);
         final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
@@ -120,36 +263,17 @@ public final class VideoCommand implements AnnotationCommandFeature {
         video = uri;
       }
     } else {
-      audience.sendMessage(Message.MRL_ERROR.build());
-      return;
+      return null;
     }
-    requireNonNull(video);
+    return new Source[] { video, audio };
+  }
 
-    if (this.videoPlayer != null) {
-      this.videoPlayer.release();
-      this.videoPlayer = null;
-    }
-
-    final Collection<UUID> players = Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList();
-    final MapConfiguration configuration = MapConfiguration.builder()
-      .map(mapId)
-      .mapBlockWidth(dimensions.getFirst())
-      .mapBlockHeight(dimensions.getSecond())
-      .mapWidthResolution(resolution.getFirst())
-      .mapHeightResolution(resolution.getSecond())
-      .viewers(players)
-      .build();
-    final MapResult result = new MapResult(configuration);
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.NO_OP;
-    final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then(DitherFilter.dither(ditheringAlgorithm.getAlgorithm(), result))
-      .build();
-
-    final VideoPlayerMultiplexer multiplexer = playerType.createPlayer();
-    if (audio == null) {
-      multiplexer.start(audioPipelineStep, videoPipelineStep, video);
-    } else {
-      multiplexer.start(audioPipelineStep, videoPipelineStep, video, audio);
+  private URLParseDump getUrlParseDump(final UriSource uri) {
+    final YTDLPParser parser = YTDLPParser.simple();
+    try {
+      return parser.parse(uri);
+    } catch (final IOException e) {
+      throw new AssertionError(e);
     }
   }
 }

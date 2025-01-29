@@ -111,7 +111,6 @@ public class MapImage implements DisplayableImage {
   @Override
   public void release() {
     for (final int mapId : this.mapIds) {
-      @SuppressWarnings("deprecation")
       final MapView mapView = Bukkit.getMap(mapId);
       if (mapView == null) {
         continue;
