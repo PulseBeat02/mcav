@@ -268,12 +268,12 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
   @Override
   public byte[] ditherIntoBytes(final StaticImage image, final int width) {
     final Palette palette = this.getPalette();
-    if (NATIVE_SUPPORTED) {
-      final int[] colors = palette.getFullColorMap();
-      final byte[] mapColors = palette.getColorMap();
-      final int[] buffer = image.getAllPixels();
-      return this.ditherNatively(buffer, width, colors, mapColors);
-    }
+    //    if (NATIVE_SUPPORTED) {
+    //      final int[] colors = palette.getFullColorMap();
+    //      final byte[] mapColors = palette.getColorMap();
+    //      final int[] buffer = image.getAllPixels();
+    //      return this.ditherNatively(buffer, width, colors, mapColors);
+    //    }
     final int[] buffer = image.getAllPixels();
     final int length = buffer.length;
     final int height = length / width;
@@ -294,12 +294,9 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          red = red + buf1[bufferIndex++];
-          red = (red | ((255 - red) >> 31)) & (red | ((red - 256) >> 31));
-          green = green + buf1[bufferIndex++];
-          green = (green | ((255 - green) >> 31)) & (green | ((green - 256) >> 31));
-          blue = blue + buf1[bufferIndex++];
-          blue = (blue | ((255 - blue) >> 31)) & (blue | ((blue - 256) >> 31));
+          red = (red += buf1[bufferIndex++]) > 255 ? 255 : Math.max(red, 0);
+          green = (green += buf1[bufferIndex++]) > 255 ? 255 : Math.max(green, 0);
+          blue = (blue += buf1[bufferIndex++]) > 255 ? 255 : Math.max(blue, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
@@ -307,15 +304,17 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
           final int delta_r = red - r;
           final int delta_g = green - g;
           final int delta_b = blue - b;
-          final int xMask = -((x < widthMinus) ? 1 : 0);
-          buf1[bufferIndex] = (delta_r >> 1) & xMask;
-          buf1[bufferIndex + 1] = (delta_g >> 1) & xMask;
-          buf1[bufferIndex + 2] = (delta_b >> 1) & xMask;
+          if (x < widthMinus) {
+            buf1[bufferIndex] = delta_r >> 1;
+            buf1[bufferIndex + 1] = delta_g >> 1;
+            buf1[bufferIndex + 2] = delta_b >> 1;
+          }
           if (hasNextY) {
-            final int prevXMask = -((x > 0) ? 1 : 0);
-            buf2[bufferIndex - 6] = (delta_r >> 2) & prevXMask;
-            buf2[bufferIndex - 5] = (delta_g >> 2) & prevXMask;
-            buf2[bufferIndex - 4] = (delta_b >> 2) & prevXMask;
+            if (x > 0) {
+              buf2[bufferIndex - 6] = delta_r >> 2;
+              buf2[bufferIndex - 5] = delta_g >> 2;
+              buf2[bufferIndex - 4] = delta_b >> 2;
+            }
             buf2[bufferIndex - 3] = delta_r >> 2;
             buf2[bufferIndex - 2] = delta_g >> 2;
             buf2[bufferIndex - 1] = delta_b >> 2;
@@ -323,7 +322,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
         }
       } else {
-        int bufferIndex = (width << 1) - 1;
+        int bufferIndex = width + (width << 1) - 1;
         final int[] buf1 = ditherBuffer[1];
         final int[] buf2 = ditherBuffer[0];
         for (int x = width - 1; x >= 0; --x) {
@@ -332,12 +331,9 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
           int red = (rgb >> 16) & 0xFF;
           int green = (rgb >> 8) & 0xFF;
           int blue = rgb & 0xFF;
-          red = red + buf1[bufferIndex--];
-          red = (red | ((255 - red) >> 31)) & (red | ((red - 256) >> 31));
-          green = green + buf1[bufferIndex--];
-          green = (green | ((255 - green) >> 31)) & (green | ((green - 256) >> 31));
-          blue = blue + buf1[bufferIndex--];
-          blue = (blue | ((255 - blue) >> 31)) & (blue | ((blue - 256) >> 31));
+          blue = (blue += buf1[bufferIndex--]) > 255 ? 255 : Math.max(blue, 0);
+          green = (green += buf1[bufferIndex--]) > 255 ? 255 : Math.max(green, 0);
+          red = (red += buf1[bufferIndex--]) > 255 ? 255 : Math.max(red, 0);
           final int closest = DitherUtils.getBestFullColor(palette, red, green, blue);
           final int r = (closest >> 16) & 0xFF;
           final int g = (closest >> 8) & 0xFF;
@@ -345,18 +341,20 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
           final int delta_r = red - r;
           final int delta_g = green - g;
           final int delta_b = blue - b;
-          final int xMask = -((x > 0) ? 1 : 0);
-          buf1[bufferIndex] = (delta_r >> 1) & xMask;
-          buf1[bufferIndex - 1] = (delta_g >> 1) & xMask;
-          buf1[bufferIndex - 2] = (delta_b >> 1) & xMask;
+          if (x > 0) {
+            buf1[bufferIndex] = delta_b >> 1;
+            buf1[bufferIndex - 1] = delta_g >> 1;
+            buf1[bufferIndex - 2] = delta_r >> 1;
+          }
           if (hasNextY) {
-            final int nextXMask = -((x < widthMinus) ? 1 : 0);
-            buf2[bufferIndex + 6] = (delta_r >> 2) & nextXMask;
-            buf2[bufferIndex + 5] = (delta_g >> 2) & nextXMask;
-            buf2[bufferIndex + 4] = (delta_b >> 2) & nextXMask;
-            buf2[bufferIndex + 3] = delta_r >> 2;
+            if (x < widthMinus) {
+              buf2[bufferIndex + 6] = delta_b >> 2;
+              buf2[bufferIndex + 5] = delta_g >> 2;
+              buf2[bufferIndex + 4] = delta_r >> 2;
+            }
+            buf2[bufferIndex + 3] = delta_b >> 2;
             buf2[bufferIndex + 2] = delta_g >> 2;
-            buf2[bufferIndex + 1] = delta_b >> 2;
+            buf2[bufferIndex + 1] = delta_r >> 2;
           }
           data.put(index, DitherUtils.getBestColor(palette, r, g, b));
         }

@@ -17,6 +17,13 @@
  */
 package me.brandonli.mcav.media.player.browser;
 
+import java.io.IOException;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -30,14 +37,6 @@ import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.v136.page.Page;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
-
-import java.io.IOException;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A browser-based player implementation using ChromeDriver to facilitate video streaming,
@@ -119,11 +118,11 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
 
     final Base64.Decoder decoder = Base64.getDecoder();
     this.tools.addListener(Page.screencastFrame(), frame -> {
-      if (this.running.get()) {
-        this.frameBuffer = decoder.decode(frame.getData());
-        this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
-      }
-    });
+        if (this.running.get()) {
+          this.frameBuffer = decoder.decode(frame.getData());
+          this.tools.send(Page.screencastFrameAck(frame.getSessionId()));
+        }
+      });
 
     final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
     final Optional<Integer> quality = Optional.of(80);

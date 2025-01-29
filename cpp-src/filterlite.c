@@ -20,7 +20,7 @@
 
 #include "filterlite_asm.h"
 
-JNIEXPORT jbyteArray JNICALL Java_me_brandonli_mcav_media_video_dither_algorithm_error_FilterLiteDither_ditherNatively
+JNIEXPORT jbyteArray JNICALL Java_me_brandonli_mcav_media_player_pipeline_filter_video_dither_algorithm_error_FilterLiteDither_ditherNatively
   (JNIEnv *env, jobject obj, jintArray buffer, jint width, jintArray colors, jbyteArray mapColors) {
 
   jint *bufferPtr = (*env)->GetIntArrayElements(env, buffer, NULL);
