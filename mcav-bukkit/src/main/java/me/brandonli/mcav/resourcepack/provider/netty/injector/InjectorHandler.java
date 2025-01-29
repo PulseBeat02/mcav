@@ -15,22 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.resourcepack.provider.netty.injector;
 
-import static java.util.Objects.requireNonNull;
+import java.util.Collection;
+import java.util.HashSet;
 
-import java.nio.file.Path;
-import me.brandonli.mcav.installer.Artifact;
-import me.brandonli.mcav.installer.MCAVInstaller;
+public final class InjectorHandler {
 
-public final class InstallationExample {
+  private final Collection<Injector> injectors;
 
-  public static void main(final String[] args) {
-    final Path downloaded = Path.of("dependencies");
-    final Artifact download = Artifact.COMMON;
-    final Class<InstallationExample> clazz = InstallationExample.class;
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-    installer.loadMCAVDependencies(download);
+  public InjectorHandler() {
+    this.injectors = new HashSet<>();
+  }
+
+  public void addInjector(final Injector injector) {
+    this.injectors.add(injector);
+  }
+
+  public void removeInjector(final Injector injector) {
+    this.injectors.remove(injector);
+  }
+
+  public void clearInjectors() {
+    this.injectors.clear();
+  }
+
+  public Collection<Injector> getInjectors() {
+    return this.injectors;
   }
 }

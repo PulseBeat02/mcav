@@ -153,10 +153,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return true;
   }
 
-  // audio sample specialization
-  // PCM S16LE
-  // 2 Channels
-  // 48 kHz
   private void addCallbacks(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline) {
     final BufferFormatCallback callback = new BufferCallback();
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(this.video);
@@ -165,6 +161,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
     surfaceApi.set(this.videoSurface);
 
+    // audio sample specialization
+    // PCM S16LE
+    // 2 Channels
+    // 48 kHz
     final AudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(this.audio);
     this.audioCallback = new AudioCallback(audioPipeline, audioMetadata);
     final AudioApi audioApi = this.player.audio();

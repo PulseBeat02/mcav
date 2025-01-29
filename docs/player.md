@@ -20,7 +20,8 @@ ensure that they are in sync.
 ```{note}
 As an implementation note. All image and audio samples follow a standard format throughout the pipeline and should
 always maintain this same type at all times. The image frames are always encoded in **BGR24** format with 8-bits of
-padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endian** format.
+padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endian** format, with 48kHz sample rate and
+2 channels.
 ```
 
 ```java

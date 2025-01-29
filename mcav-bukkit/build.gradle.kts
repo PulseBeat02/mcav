@@ -9,6 +9,8 @@ dependencies {
     paperweight.paperDevBundle("1.21.5-no-moonrise-SNAPSHOT")
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
+    api("net.bytebuddy:byte-buddy:1.17.5")
+    api("net.bytebuddy:byte-buddy-agent:1.17.5")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
@@ -16,7 +18,7 @@ dependencies {
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
     compileOnlyApi("com.google.code.gson:gson:2.13.1")
     compileOnlyApi("net.java.dev.jna:jna:5.17.0")
-    
+
     // testing
     testImplementation(project(":mcav-common"))
 }

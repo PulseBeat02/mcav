@@ -1,4 +1,5 @@
 ## Audio Resource Packs
+
 Audio resource packs allow you to play audio to players from media in-game. There are several utility methods to help
 assist you with resource packs, such as creation, audio extraction and more.
 
@@ -17,12 +18,14 @@ this while constructing your resource packs using the `SimpleResourcePack` build
 ```
 
 This will extract the audio from the specified URI, convert it to OGG format, and then add it to the resource pack under
-the name `example_audio`. The audio will be saved to a temporary path, which you can then use to create your resource pack.
+the name `example_audio`. The audio will be saved to a temporary path, which you can then use to create your resource
+pack.
 To play the audio, play the audio in Minecraft with the sound name `example_audio`.
 
 ## Hosting Resource Packs
+
 Hosting resource packs is its own story. Currently, MCAV supports two ways to host resource packs: using an HTTP server
-or by uploading to [MCPacks](https://mc-packs.net/). The latter is a community-driven project that allows you to upload 
+or by uploading to [MCPacks](https://mc-packs.net/). The latter is a community-driven project that allows you to upload
 and share resource packs easily.
 
 Here is an example using MCPacks.
@@ -50,3 +53,7 @@ Or if you want to use the ServerHosting method.
 
   hosting.shutdown(); // Stop the hosting when done
 ```
+
+There is also an experimental method using `PackHosting.injector(...)` which allows you to inject a resource pack into
+the current Netty stream, allowing you to not have to port-forward or host the resource pack. This is experimental and
+many not always work depending on your server environment.

@@ -15,22 +15,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.resourcepack.provider.netty;
 
-import static java.util.Objects.requireNonNull;
+import me.brandonli.mcav.resourcepack.provider.PackHosting;
 
-import java.nio.file.Path;
-import me.brandonli.mcav.installer.Artifact;
-import me.brandonli.mcav.installer.MCAVInstaller;
-
-public final class InstallationExample {
-
-  public static void main(final String[] args) {
-    final Path downloaded = Path.of("dependencies");
-    final Artifact download = Artifact.COMMON;
-    final Class<InstallationExample> clazz = InstallationExample.class;
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-    installer.loadMCAVDependencies(download);
-  }
-}
+/**
+ * Represents a specialized hosting solution that combines or builds upon capabilities from
+ * the {@code PackHosting} interface. This interface serves as a marker or extension point
+ * for resource pack hosting implementations that involve injection mechanisms or additional
+ * hosting features beyond the standard pack hosting functionalities.
+ * <p>
+ * Implementations of this interface may provide injection-based techniques or advanced handling
+ * of resource packs for scenarios such as dynamic updates or modified server environments.
+ */
+public interface InjectorHosting extends PackHosting {}

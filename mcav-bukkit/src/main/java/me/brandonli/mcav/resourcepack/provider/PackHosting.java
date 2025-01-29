@@ -20,6 +20,8 @@ package me.brandonli.mcav.resourcepack.provider;
 import java.nio.file.Path;
 import me.brandonli.mcav.resourcepack.provider.http.HttpHosting;
 import me.brandonli.mcav.resourcepack.provider.http.ServerPackHosting;
+import me.brandonli.mcav.resourcepack.provider.netty.InjectorHosting;
+import me.brandonli.mcav.resourcepack.provider.netty.NettyHosting;
 
 /**
  * Represents a hosting solution for resource packs.
@@ -80,5 +82,17 @@ public interface PackHosting {
    */
   static WebsiteHosting website(final Path path) {
     return new MCPackHosting(path);
+  }
+
+  /**
+   * Provides an implementation of {@code InjectorHosting} for hosting resource packs using
+   * injection mechanisms. This method creates and returns an instance of {@code NettyHosting},
+   * which applies advanced injection techniques for hosting.
+   *
+   * @param path the file system path to the resource pack ZIP file to be hosted
+   * @return an instance of {@code InjectorHosting} specialized for injection-based hosting
+   */
+  static InjectorHosting injector(final Path path) {
+    return new NettyHosting(path);
   }
 }

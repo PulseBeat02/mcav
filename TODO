@@ -1,8 +1,6 @@
-  Things to implement into plugin
-  - Example showing VNC player
+Things to implement into plugin
   - Images and GIFs into Plugin
   - Add Resource Pack Audio Support
   - Add Discord Audio Support
-  - Add Resource Pack Hosting + Netty injection
-
+  - Add HTTP Website / Website Injector Audio Support
   - Update video showcase in the README

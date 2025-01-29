@@ -15,22 +15,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav;
+package me.brandonli.mcav.resourcepack.provider.netty.injector;
 
-import static java.util.Objects.requireNonNull;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 
-import java.nio.file.Path;
-import me.brandonli.mcav.installer.Artifact;
-import me.brandonli.mcav.installer.MCAVInstaller;
+public final class InjectorContext {
 
-public final class InstallationExample {
+  private final ChannelPipeline pipeline;
+  private final ByteBuf message;
 
-  public static void main(final String[] args) {
-    final Path downloaded = Path.of("dependencies");
-    final Artifact download = Artifact.COMMON;
-    final Class<InstallationExample> clazz = InstallationExample.class;
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-    installer.loadMCAVDependencies(download);
+  public InjectorContext(final ChannelPipeline pipeline, final ByteBuf message) {
+    this.pipeline = pipeline;
+    this.message = message;
+  }
+
+  public ChannelPipeline getPipeline() {
+    return this.pipeline;
+  }
+
+  public ByteBuf getMessage() {
+    return this.message;
   }
 }
