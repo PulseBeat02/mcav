@@ -8,6 +8,8 @@
 
 ## Developer
 
+<img align="right" src="developer.png" alt="My Image">
+
 ⚙️ PulseBeat02
 
 - **Docs**: https://mcav.readthedocs.io/en/latest/intro.html

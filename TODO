@@ -1,4 +1,9 @@
 High Priority Tasks:
-  - Rewrite all JavaDocs
+
   - Write Code Fixes
     - Look into Optimizing ChromeDriverPlayer
+    - Refactor all Player Classes
+    - Refactor interaction methods for browser / virtual machine
+    - Remove the hardcoded keyboard characters and leave to the user to convert (copy Selenium Keys class)
+
+  - Write JavaDocs (wtf)
