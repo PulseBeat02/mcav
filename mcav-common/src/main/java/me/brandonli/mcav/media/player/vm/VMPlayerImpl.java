@@ -17,6 +17,12 @@
  */
 package me.brandonli.mcav.media.player.vm;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -24,13 +30,6 @@ import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.UncheckedIOException;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.io.IOException;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Provides an implementation of the {@link VMPlayer} interface to manage
@@ -61,11 +60,11 @@ public class VMPlayerImpl implements VMPlayer {
    */
   @Override
   public boolean start(
-          final VideoPipelineStep step,
-          final int port,
-          final Architecture architecture,
-          final VMConfiguration arguments,
-          final VideoMetadata metadata
+    final VideoPipelineStep step,
+    final int port,
+    final Architecture architecture,
+    final VMConfiguration arguments,
+    final VideoMetadata metadata
   ) {
     this.architecture = architecture;
     this.qemuArgs = arguments;

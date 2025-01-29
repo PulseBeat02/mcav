@@ -123,6 +123,8 @@ public final class MCAV implements MCAVApi {
   private void loadModules() {
     final long start = System.currentTimeMillis();
     LOGGER.info("Loading JavaCV modules...");
+    final LibraryInjector injector = new LibraryInjector();
+    injector.load();
     FFmpegLogCallback.set();
     Loader.load(Loader.class);
     Loader.load(opencv_java.class);

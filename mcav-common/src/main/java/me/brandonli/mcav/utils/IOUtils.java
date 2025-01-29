@@ -265,7 +265,8 @@ public final class IOUtils {
         throw new UncheckedIOException(e.getMessage(), e);
       }
     }
-    return cacheDir;
+    final Path absolute = cacheDir.toAbsolutePath();
+    return absolute;
   }
 
   /**

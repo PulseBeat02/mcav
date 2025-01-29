@@ -20,8 +20,15 @@ tasks {
         includeEmptyDirs = false
     }
 
+    register<Copy>("copyDummyOutput") {
+        from("${projectDir}/../dummy/output")
+        into(layout.buildDirectory.dir("resources/main"))
+        includeEmptyDirs = false
+    }
+
     processResources {
         dependsOn("copyCppOutput")
+        dependsOn("copyDummyOutput")
     }
 
     java {
