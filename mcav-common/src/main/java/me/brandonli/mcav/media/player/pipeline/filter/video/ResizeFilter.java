@@ -47,7 +47,7 @@ public class ResizeFilter extends MatVideoFilter {
       return;
     }
     final Mat resizedMat = new Mat();
-    opencv_imgproc.resize(mat, resizedMat, this.newSize);
+    opencv_imgproc.resize(mat, resizedMat, this.newSize, 0, 0, opencv_imgproc.INTER_NEAREST);
     resizedMat.copyTo(mat);
     resizedMat.release();
   }

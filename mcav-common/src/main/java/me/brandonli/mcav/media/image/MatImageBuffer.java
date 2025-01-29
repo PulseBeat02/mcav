@@ -17,6 +17,18 @@
  */
 package me.brandonli.mcav.media.image;
 
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
+
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.FileSource;
 import me.brandonli.mcav.media.source.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -30,19 +42,6 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.opencv.core.CvType;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -170,6 +169,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   private void assignMat(@UnderInitialization MatImageBuffer this, final Mat mat) {
     this.set(MAT_PROPERTY, mat);
   }
+
   /**
    * {@inheritDoc}
    */
@@ -292,20 +292,15 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     return pixels;
   }
 
-
   /**
    * {@inheritDoc}
    */
   @Override
   public void setAsBufferedImage(final BufferedImage image) {
-
     final BufferedImage bgrImage = this.convertImage(image);
 
-    final byte[] pixels = ((DataBufferByte) bgrImage.getRaster().getDataBuffer())
-            .getData();
-    final Mat newMat = new Mat(bgrImage.getHeight(),
-            bgrImage.getWidth(),
-            CvType.CV_8UC3);
+    final byte[] pixels = ((DataBufferByte) bgrImage.getRaster().getDataBuffer()).getData();
+    final Mat newMat = new Mat(bgrImage.getHeight(), bgrImage.getWidth(), CvType.CV_8UC3);
     newMat.data().put(pixels);
 
     this.mat.release();
@@ -319,9 +314,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     if (image.getType() == BufferedImage.TYPE_3BYTE_BGR) {
       bgrImage = image;
     } else {
-      bgrImage = new BufferedImage(image.getWidth(),
-              image.getHeight(),
-              BufferedImage.TYPE_3BYTE_BGR);
+      bgrImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
       final Graphics2D g = bgrImage.createGraphics();
       try {
         g.drawImage(image, 0, 0, null);
@@ -331,7 +324,6 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     }
     return bgrImage;
   }
-
 
   /**
    * {@inheritDoc}

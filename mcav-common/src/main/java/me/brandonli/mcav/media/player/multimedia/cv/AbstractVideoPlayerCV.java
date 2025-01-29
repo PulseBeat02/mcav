@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -142,7 +143,10 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     finalAudio.setSampleMode(FrameGrabber.SampleMode.SHORT);
     finalAudio.setSampleFormat(AV_SAMPLE_FMT_S16);
     finalAudio.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
+    finalAudio.setOption("tune", "zerolatency");
+
     finalVideo.setPixelFormat(AV_PIX_FMT_BGR24);
+    finalVideo.setOption("tune", "zerolatency");
 
     if (this.dimensionAttachableCallback.isAttached()) {
       final DimensionAttachableCallback.Dimension dimension = this.dimensionAttachableCallback.retrieve();
@@ -280,24 +284,22 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           firstFrameTimestamp = frame.getTimestamp();
           startTime = System.nanoTime();
         }
-        final long currentTime = System.nanoTime();
-        final long elapsedRealTime = (currentTime - startTime) / 1000;
-        final long mediaTime = frame.getTimestamp() - firstFrameTimestamp;
-        if (mediaTime > elapsedRealTime && this.running.get()) {
-          final long waitTime = (mediaTime - elapsedRealTime) / 1000;
-          if (waitTime > 0) {
-            Thread.sleep(waitTime);
-          }
+        final long now = System.nanoTime();
+        final long elapsedUs = (now - startTime) / 1_000;
+        final long mediaUs = frame.getTimestamp() - firstFrameTimestamp;
+        if (mediaUs > elapsedUs) {
+          final long lagNs = (mediaUs - elapsedUs) * 1_000;
+          LockSupport.parkNanos(lagNs);
         }
-        final boolean shouldSkip = mediaTime < elapsedRealTime - 500000;
-        if (shouldSkip && this.audioFrameBuffer.size() > 15) {
+        final boolean shouldSkip = mediaUs < elapsedUs - 500_000;
+        if (shouldSkip && this.audioFrameBuffer.size() > 2) {
           continue;
         }
         final ByteBuffer buffer = frame.getData();
         AudioPipelineStep next = this.audioAttachableCallback.retrieve();
         final OriginalAudioMetadata audioMetadata = (OriginalAudioMetadata) frame.getMetadata();
         final int sampleRate = audioMetadata.getAudioSampleRate();
-        final ByteBuffer samples = ByteUtils.resampleBufferCubic(buffer, sampleRate, 48000, 4);
+        final ByteBuffer samples = ByteUtils.resampleFast(buffer, sampleRate, 48000, 4);
         final ByteBuffer converted = ByteUtils.convertToLittleEndian(samples);
         while (next != null) {
           next.process(converted, audioMetadata);
@@ -319,17 +321,15 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           firstFrameTimestamp = frame.getTimestamp();
           startTime = System.nanoTime();
         }
-        final long currentTime = System.nanoTime();
-        final long elapsedRealTime = (currentTime - startTime) / 1000;
-        final long mediaTime = frame.getTimestamp() - firstFrameTimestamp;
-        if (mediaTime > elapsedRealTime && this.running.get()) {
-          final long waitTime = (mediaTime - elapsedRealTime) / 1000;
-          if (waitTime > 0) {
-            Thread.sleep(waitTime);
-          }
+        final long now = System.nanoTime();
+        final long elapsedUs = (now - startTime) / 1_000;
+        final long mediaUs = frame.getTimestamp() - firstFrameTimestamp;
+        if (mediaUs > elapsedUs) {
+          final long lagNs = (mediaUs - elapsedUs) * 1_000;
+          LockSupport.parkNanos(lagNs);
         }
-        final boolean shouldSkip = mediaTime < elapsedRealTime - 500000;
-        if (shouldSkip && this.videoFrameBuffer.size() > 15) {
+        final boolean shouldSkip = mediaUs < elapsedUs - 500_000;
+        if (shouldSkip && this.audioFrameBuffer.size() > 2) {
           continue;
         }
         final ByteBuffer buffer = frame.getData();
@@ -383,6 +383,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     finalGrabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
     finalGrabber.setSampleFormat(AV_SAMPLE_FMT_S16);
     finalGrabber.setAudioCodec(AV_CODEC_ID_PCM_S16LE);
+    finalGrabber.setOption("tune", "zerolatency");
+    finalGrabber.setOption("preset", "ultrafast");
+
     if (this.dimensionAttachableCallback.isAttached()) {
       final DimensionAttachableCallback.Dimension dimension = this.dimensionAttachableCallback.retrieve();
       finalGrabber.setImageWidth(dimension.width());

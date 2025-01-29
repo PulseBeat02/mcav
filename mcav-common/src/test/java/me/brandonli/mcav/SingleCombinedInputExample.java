@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
+import javax.swing.*;
+import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -28,14 +33,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.UriSource;
-
-import javax.swing.*;
-import javax.swing.border.LineBorder;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
@@ -71,7 +68,7 @@ public final class SingleCombinedInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
 
     final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
     audioCallback.attach(audioPipelineStep);
@@ -80,22 +77,10 @@ public final class SingleCombinedInputExample {
     videoCallback.attach(videoPipelineStep);
 
     final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(1800, 1000);
+    final DimensionAttachableCallback.Dimension dimension = new DimensionAttachableCallback.Dimension(900, 500);
     dimensionCallback.attach(dimension);
 
     multiplexer.start(source);
-
-    CompletableFuture.runAsync(() -> {
-      while (true) {
-        System.gc();
-        try {
-          Thread.sleep(1000);
-        } catch (final InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
-        }
-      }
-    }, Executors.newSingleThreadExecutor());
 
     Runtime.getRuntime()
       .addShutdownHook(

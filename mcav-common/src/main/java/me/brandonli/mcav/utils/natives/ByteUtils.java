@@ -26,6 +26,20 @@ import me.brandonli.mcav.media.player.PlayerException;
 public final class ByteUtils {
 
   private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+  private static final int LUT_SIZE = 1024;
+  private static final float[][] CUBIC_LUT = buildCubicLUT();
+
+  private static float[][] buildCubicLUT() {
+    final float[][] lut = new float[ByteUtils.LUT_SIZE][4];
+    for (int i = 0; i < ByteUtils.LUT_SIZE; i++) {
+      final float t = i / (float) (ByteUtils.LUT_SIZE - 1);
+      lut[i][0] = -0.5f * t * t * t + t * t - 0.5f * t;
+      lut[i][1] = 1.5f * t * t * t - 2.5f * t * t + 1.0f;
+      lut[i][2] = -1.5f * t * t * t + 2.0f * t * t + 0.5f * t;
+      lut[i][3] = 0.5f * t * t * t - 0.5f * t * t;
+    }
+    return lut;
+  }
 
   private ByteUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -195,57 +209,55 @@ public final class ByteUtils {
   }
 
   /**
-   * Resamples the provided audio buffer from its original sample rate to a target sample rate using cubic interpolation.
-   *
-   * @param samples          the ByteBuffer containing the audio samples to be resampled
-   * @param sampleRate       the sample rate of the original audio data in hertz (Hz)
-   * @param targetSampleRate the desired target sample rate in hertz (Hz)
-   * @param frameSize       the frame size in bytes (e.g., 4 bytes for 16-bit stereo audio)
-   * @return a new ByteBuffer containing the resampled audio data, or the original ByteBuffer if no resampling was necessary
+   * Resamples audio samples from a ByteBuffer using cubic interpolation.
+   * @param samples the ByteBuffer containing audio samples
+   * @param sampleRate the original sample rate of the audio
+   * @param targetRate the target sample rate to resample to
+   * @param frameSize the size of each frame in bytes (e.g., 2 for 16-bit audio)
+   * @return a ByteBuffer containing the resampled audio samples
    */
-  public static ByteBuffer resampleBufferCubic(
-    final ByteBuffer samples,
-    final float sampleRate,
-    final float targetSampleRate,
-    final int frameSize
-  ) {
-    final ByteBuffer duplicate = samples.duplicate();
-    if (Math.abs(sampleRate - targetSampleRate) <= 1) {
-      final int validLength = duplicate.remaining() - (duplicate.remaining() % frameSize);
-      final ByteBuffer result = duplicate.slice();
-      result.limit(validLength);
-      return result;
+  public static ByteBuffer resampleFast(final ByteBuffer samples, final float sampleRate, final float targetRate, final int frameSize) {
+    final ByteOrder order = samples.order();
+    if (Math.abs(sampleRate - targetRate) <= 1f) {
+      final ByteBuffer dup = samples.duplicate();
+      final int valid = dup.remaining() - (dup.remaining() % frameSize);
+      final ByteBuffer slice = dup.slice();
+      slice.limit(valid);
+      return slice.order(order);
     }
-    final float ratio = targetSampleRate / sampleRate;
-    final short[] inputSamples = new short[duplicate.remaining() / 2];
-    for (int i = 0; i < inputSamples.length; i++) {
-      inputSamples[i] = duplicate.getShort();
+
+    final float ratio = targetRate / sampleRate;
+    final int inLen = samples.remaining() / 2;
+    final short[] in = new short[inLen];
+    samples.order(order);
+    for (int i = 0; i < inLen; i++) {
+      in[i] = samples.getShort();
     }
-    final int outputLength = (int) Math.ceil(inputSamples.length * ratio);
-    final short[] outputSamples = new short[outputLength];
-    for (int i = 0; i < outputLength; i++) {
-      final float srcPos = i / ratio;
-      final int index = (int) srcPos;
-      final float fract = srcPos - index;
-      final short y0 = (index > 0) ? inputSamples[index - 1] : inputSamples[0];
-      final short y1 = inputSamples[index];
-      final short y2 = (index < inputSamples.length - 1) ? inputSamples[index + 1] : y1;
-      final short y3 = (index < inputSamples.length - 2) ? inputSamples[index + 2] : y2;
-      final float a0 = y3 - y2 - y0 + (float) y1;
-      final float a1 = y0 - y1 - a0;
-      final float a2 = y2 - (float) y0;
-      final float a3 = y1;
-      final float value = a0 * fract * fract * fract + a1 * fract * fract + a2 * fract + a3;
-      outputSamples[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, Math.round(value)));
+
+    final int outLen = (int) Math.ceil(inLen * ratio);
+    final short[] out = new short[outLen];
+    for (int i = 0; i < outLen; i++) {
+      final float src = i / ratio;
+      final int idx = (int) src;
+      final float fract = src - idx;
+      final int lutIdx = (int) (fract * (LUT_SIZE - 1));
+      final float[] w = CUBIC_LUT[lutIdx];
+      final short y0 = (idx > 0) ? in[idx - 1] : in[0];
+      final short y1 = in[idx];
+      final short y2 = (idx < inLen - 1) ? in[idx + 1] : y1;
+      final short y3 = (idx < inLen - 2) ? in[idx + 2] : y2;
+      final float v = w[0] * y0 + w[1] * y1 + w[2] * y2 + w[3] * y3;
+      final int iv = Math.round(v);
+      out[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, iv));
     }
-    final int totalBytes = outputSamples.length * 2;
-    final int validLength = totalBytes - (totalBytes % frameSize);
-    final ByteBuffer resampledBuffer = ByteBuffer.allocate(validLength);
-    resampledBuffer.order(duplicate.order());
-    for (int i = 0; i < validLength / 2; i++) {
-      resampledBuffer.putShort(outputSamples[i]);
+
+    final int validBytes = (outLen * 2) - ((outLen * 2) % frameSize);
+    final ByteBuffer res = ByteBuffer.allocate(validBytes).order(order);
+    for (int i = 0; i < validBytes / 2; i++) {
+      res.putShort(out[i]);
     }
-    resampledBuffer.flip();
-    return resampledBuffer;
+    res.flip();
+
+    return res;
   }
 }
