@@ -8,6 +8,7 @@ parts:
     chapters:
       - file: plugin/plugin.md
       - file: plugin/commands.md
+      - file: plugin/faq.md
   - caption: Common Library + Core Modules 🚀
     chapters:
       - file: library/prerequisites.md
@@ -34,5 +35,3 @@ parts:
       - file: bukkit/other.md
       - file: bukkit/image.md
       - file: bukkit/resourcepack.md
-
-

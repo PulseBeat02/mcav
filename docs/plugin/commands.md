@@ -1,4 +1,4 @@
-# MCAV Plugin Commands
+# Commands
 
 MCAV has many commands that you can use to interact with the library. This page will document all the commands,
 including each argument and its purpose. If you want to see the commands in-game, you can use the `/mcav help` command

@@ -1,4 +1,4 @@
-# MCAV Plugin Documentation
+# Installation
 
 ```{note}
 The MCAV plugin is currently in heavy development and may contain bugs or incomplete features. As the name suggests,
