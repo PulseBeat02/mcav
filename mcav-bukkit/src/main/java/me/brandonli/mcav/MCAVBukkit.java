@@ -17,15 +17,21 @@
  */
 package me.brandonli.mcav;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.PacketEventsAPI;
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import org.bukkit.plugin.Plugin;
 
 public final class MCAVBukkit {
 
+  private static Plugin PLUGIN;
+
+  private MCAVBukkit() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
   public static void inject(final Plugin plugin) {
-    final PacketEventsAPI<?> api = SpigotPacketEventsBuilder.build(plugin);
-    PacketEvents.setAPI(api);
+    PLUGIN = plugin;
+  }
+
+  public static Plugin getPlugin() {
+    return PLUGIN;
   }
 }

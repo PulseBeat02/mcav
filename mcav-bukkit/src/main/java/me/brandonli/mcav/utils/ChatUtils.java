@@ -17,11 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
-import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.format.TextColor.color;
-
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.minecraft.network.chat.Component;
+import org.bukkit.craftbukkit.util.CraftChatMessage;
 
 /**
  * Utility class for creating and manipulating chat components with color-coded text representations.
@@ -32,62 +29,81 @@ import net.kyori.adventure.text.TextComponent;
  */
 public final class ChatUtils {
 
+  private static final char[] CHARACTER_DICTIONARY = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
   private ChatUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  public static net.minecraft.network.chat.Component toComponent(final String raw) {
+    return CraftChatMessage.fromStringOrNull(raw);
+  }
+
   /**
-   * Creates a single line of color-coded text components based on pixel values from an array.
-   * Each character in the line is styled with a color corresponding to the RGB value at its position.
+   * Creates a single line of color-coded text in string format based on pixel values from an array.
    *
    * @param data      an array of integers representing RGB values for pixels in the image
    * @param character the character to use for building the line
    * @param width     the total width of the line in pixels
    * @param y         the vertical index or row in the data array to process
-   * @return a {@code Component} object representing the constructed line with color-coded text
+   * @return a String representing the constructed line with color-coded text
    */
   public static Component createLine(final int[] data, final String character, final int width, final int y) {
-    final TextComponent.Builder builder = text();
+    final StringBuilder builder = new StringBuilder(width * (8 + character.length()));
     int before = -1;
     for (int x = 0; x < width; ++x) {
       final int rgb = data[width * y + x];
       if (before != rgb) {
-        builder.append(text(character).color(color(rgb)));
+        builder.append("§#");
+        appendHexColor(builder, rgb & 0xFFFFFF);
+        builder.append(character);
         before = rgb;
       } else {
-        builder.append(text(character));
+        builder.append(character);
       }
     }
-    return builder.build();
+    final String line = builder.toString();
+    return toComponent(line);
   }
 
   /**
-   * Generates a chat component by mapping an array of RGB pixel data to text characters with
-   * appropriate colors. This method is used to create a visual representation that resembles
-   * an image, using text in a chat context.
+   * Generates a string with color codes by mapping an array of RGB pixel data to text characters.
    *
-   * @param data      an array of integers representing pixel data in RGB format, where each value
-   *                  corresponds to a color.
-   * @param character the character to use for visual representation of each pixel.
-   * @param width     the width of the "image" to be represented in characters.
-   * @param height    the height of the "image" to be represented in characters.
-   * @return a {@link Component} representing the constructed colored
-   * chat component.
+   * @param data      an array of integers representing pixel data in RGB format
+   * @param character the character to use for visual representation of each pixel
+   * @param width     the width of the "image" to be represented in characters
+   * @param height    the height of the "image" to be represented in characters
+   * @return a String with color codes representing the visual data
    */
   public static Component createChatComponent(final int[] data, final String character, final int width, final int height) {
-    final TextComponent.Builder builder = text();
+    final StringBuilder builder = new StringBuilder(width * height * (8 + character.length()) + height);
     int before = -1;
     for (int y = 0; y < height; ++y) {
+      if (y > 0) {
+        builder.append('\n');
+      }
       for (int x = 0; x < width; ++x) {
         final int rgb = data[width * y + x];
         if (before != rgb) {
-          builder.append(text(character).color(color(rgb)));
+          builder.append("§#");
+          appendHexColor(builder, rgb & 0xFFFFFF);
+          builder.append(character);
           before = rgb;
         } else {
-          builder.append(text(character));
+          builder.append(character);
         }
       }
     }
-    return builder.build();
+    final String line = builder.toString();
+    return toComponent(line);
+  }
+
+  private static void appendHexColor(final StringBuilder builder, final int rgb) {
+    builder.append(CHARACTER_DICTIONARY[(rgb >> 20) & 0xF]);
+    builder.append(CHARACTER_DICTIONARY[(rgb >> 16) & 0xF]);
+    builder.append(CHARACTER_DICTIONARY[(rgb >> 12) & 0xF]);
+    builder.append(CHARACTER_DICTIONARY[(rgb >> 8) & 0xF]);
+    builder.append(CHARACTER_DICTIONARY[(rgb >> 4) & 0xF]);
+    builder.append(CHARACTER_DICTIONARY[rgb & 0xF]);
   }
 }

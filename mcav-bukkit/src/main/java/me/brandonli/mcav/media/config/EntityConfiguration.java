@@ -17,12 +17,12 @@
  */
 package me.brandonli.mcav.media.config;
 
-import com.github.retrooper.packetevents.util.Vector3d;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.media.result.EntityResult;
 import me.brandonli.mcav.media.result.FunctionalVideoFilter;
+import org.bukkit.Location;
 
 /**
  * Represents the configuration of an entity, including its dimensions, position, associated
@@ -37,7 +37,7 @@ public class EntityConfiguration {
   private final String character;
   private final int entityWidth;
   private final int entityHeight;
-  private final Vector3d position;
+  private final Location position;
 
   private EntityConfiguration(final Builder<?> builder) {
     this.viewers = builder.viewers;
@@ -86,9 +86,9 @@ public class EntityConfiguration {
   /**
    * Retrieves the current position of the entity.
    *
-   * @return the position of the entity as a {@link Vector3d} object
+   * @return the position of the entity as a {@link Location} object
    */
-  public Vector3d getPosition() {
+  public Location getPosition() {
     return this.position;
   }
 
@@ -118,7 +118,7 @@ public class EntityConfiguration {
     private String character;
     private int entityWidth;
     private int entityHeight;
-    private Vector3d position;
+    private Location position;
 
     protected abstract T self();
 
@@ -167,15 +167,13 @@ public class EntityConfiguration {
     }
 
     /**
-     * Sets the position in 3D space using the specified x, y, and z coordinates.
+     * Sets the position of the entity.
      *
-     * @param x the x-coordinate of the position
-     * @param y the y-coordinate of the position
-     * @param z the z-coordinate of the position
+     * @param position the location to set as the entity's position
      * @return the builder instance for method chaining
      */
-    public T position(final double x, final double y, final double z) {
-      this.position = new Vector3d(x, y, z);
+    public T position(final Location position) {
+      this.position = position;
       return this.self();
     }
 

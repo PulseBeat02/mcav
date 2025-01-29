@@ -17,13 +17,17 @@
  */
 package me.brandonli.mcav.media.result;
 
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.utils.PacketUtils;
+import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
  * The {@code MapResult} class implements {@code DitherResultStep} and
@@ -72,7 +76,8 @@ public class MapResult implements DitherResultStep {
     final int yLoopMin = Math.max(0, yOff >> 7);
     final int xLoopMax = Math.min(mapWidthResolution, (int) Math.ceil(negXOff / 128.0));
     final int yLoopMax = Math.min(height, (int) Math.ceil(negYOff / 128.0));
-    final WrapperPlayServerMapData[] packetArray = new WrapperPlayServerMapData[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
+    final Collection<MapDecoration> empty = new ArrayList<>();
+    final ClientboundMapItemDataPacket[] packetArray = new ClientboundMapItemDataPacket[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
     int arrIndex = 0;
     for (int y = yLoopMin; y < yLoopMax; y++) {
       final int relY = y << 7;
@@ -93,18 +98,9 @@ public class MapResult implements DitherResultStep {
           }
         }
         final int mapId = map + mapWidthResolution * y + x;
-        final WrapperPlayServerMapData packet = new WrapperPlayServerMapData(
-          mapId,
-          (byte) 0,
-          false,
-          false,
-          null,
-          topX,
-          topY,
-          xDiff,
-          yDiff,
-          mapData
-        );
+        final MapId id = new MapId(mapId);
+        final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
+        final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
         packetArray[arrIndex++] = packet;
       }
     }

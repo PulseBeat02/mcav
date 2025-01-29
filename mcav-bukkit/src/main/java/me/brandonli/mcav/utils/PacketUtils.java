@@ -17,14 +17,17 @@
  */
 package me.brandonli.mcav.utils;
 
-import com.github.retrooper.packetevents.PacketEvents;
-import com.github.retrooper.packetevents.PacketEventsAPI;
-import com.github.retrooper.packetevents.manager.player.PlayerManager;
-import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import org.bukkit.Server;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 
 /**
  * Utility class for sending packets to a collection of viewers in a Minecraft server context.
@@ -34,28 +37,36 @@ import org.bukkit.entity.Player;
  */
 public final class PacketUtils {
 
+  private static final Map<UUID, ServerGamePacketListenerImpl> PLAYER_CONNECTIONS = new ConcurrentHashMap<>();
+
   private PacketUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * Sends a collection of packets to a specified group of viewers.
-   * Utilizes the PacketEvents API to retrieve player channels and send the designated packets.
-   *
-   * @param viewers a {@code Collection} of {@code UUID} representing the viewers to whom the packets will be sent
-   * @param packets an array of {@code PacketWrapper<?>} representing the packets to be transmitted to each viewer
-   */
-  public static void sendPackets(final Collection<UUID> viewers, final PacketWrapper<?>... packets) {
-    final PacketEventsAPI<?> api = PacketEvents.getAPI();
-    final PlayerManager manager = api.getPlayerManager();
+  public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
     for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
+      if (!PLAYER_CONNECTIONS.containsKey(viewer)) {
+        addPlayerConnection(viewer);
+      }
+      final ServerGamePacketListenerImpl conn = PLAYER_CONNECTIONS.get(viewer);
+      if (conn == null) {
         continue;
       }
-      for (final PacketWrapper<?> packet : packets) {
-        manager.sendPacket(player, packet);
+      for (final Packet<?> packet : packets) {
+        conn.send(packet);
       }
     }
+  }
+
+  private static void addPlayerConnection(final UUID uuid) {
+    final Server server = Bukkit.getServer();
+    final CraftServer craftServer = (CraftServer) server;
+    final CraftPlayer player = (CraftPlayer) craftServer.getPlayer(uuid);
+    if (player == null) {
+      return;
+    }
+    final ServerPlayer nmsPlayer = player.getHandle();
+    final ServerGamePacketListenerImpl conn = nmsPlayer.connection;
+    PLAYER_CONNECTIONS.put(uuid, conn);
   }
 }

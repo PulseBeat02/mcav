@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.media.image;
 
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +24,13 @@ import java.util.UUID;
 import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.utils.PacketUtils;
+import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+import org.bukkit.Bukkit;
+import org.bukkit.map.MapRenderer;
+import org.bukkit.map.MapView;
 
 /**
  * The MapImage class provides a concrete implementation of the DisplayableImage interface.
@@ -55,8 +61,8 @@ public class MapImage implements DisplayableImage {
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
     final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
     final int map = this.mapConfiguration.getMap();
-    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
     final int height = rgb.length / mapWidthResolution;
+    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
     final int pixW = mapBlockWidth << 7;
     final int pixH = mapBlockHeight << 7;
     final int xOff = (pixW - mapWidthResolution) >> 1;
@@ -68,7 +74,8 @@ public class MapImage implements DisplayableImage {
     final int yLoopMin = Math.max(0, yOff >> 7);
     final int xLoopMax = Math.min(mapWidthResolution, (int) Math.ceil(negXOff / 128.0));
     final int yLoopMax = Math.min(height, (int) Math.ceil(negYOff / 128.0));
-    final WrapperPlayServerMapData[] packetArray = new WrapperPlayServerMapData[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
+    final Collection<MapDecoration> empty = new ArrayList<>();
+    final ClientboundMapItemDataPacket[] packetArray = new ClientboundMapItemDataPacket[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
     int arrIndex = 0;
     for (int y = yLoopMin; y < yLoopMax; y++) {
       final int relY = y << 7;
@@ -89,19 +96,9 @@ public class MapImage implements DisplayableImage {
           }
         }
         final int mapId = map + mapWidthResolution * y + x;
-        this.mapIds.add(mapId);
-        final WrapperPlayServerMapData packet = new WrapperPlayServerMapData(
-          mapId,
-          (byte) 0,
-          false,
-          false,
-          null,
-          topX,
-          topY,
-          xDiff,
-          yDiff,
-          mapData
-        );
+        final MapId id = new MapId(mapId);
+        final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
+        final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
         packetArray[arrIndex++] = packet;
       }
     }
@@ -114,9 +111,13 @@ public class MapImage implements DisplayableImage {
   @Override
   public void release() {
     for (final int mapId : this.mapIds) {
-      final Collection<UUID> viewers = this.mapConfiguration.getViewers();
-      final WrapperPlayServerMapData packet = new WrapperPlayServerMapData(mapId, (byte) 0, true, false, null, 0, 0, 0, 0, null);
-      PacketUtils.sendPackets(viewers, packet);
+      @SuppressWarnings("deprecation")
+      final MapView mapView = Bukkit.getMap(mapId);
+      if (mapView == null) {
+        continue;
+      }
+      final List<MapRenderer> renderers = mapView.getRenderers();
+      renderers.clear();
     }
   }
 }

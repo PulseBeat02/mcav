@@ -1,14 +1,17 @@
 plugins {
     id("maven-publish")
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.16"
 }
 
 dependencies {
+
+    // project dependencies
+    paperweight.paperDevBundle("1.21.5-no-moonrise-SNAPSHOT")
     api(project(":mcav-common"))
-    api("com.github.retrooper:packetevents-api:2.7.0")
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
-    api("com.github.retrooper:packetevents-spigot:2.7.0")
-    compileOnlyApi("org.spigotmc:spigot-api:1.21.5-R0.1-SNAPSHOT")
+
+    // provided
     compileOnlyApi("io.netty:netty-all:4.1.97.Final")
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
     compileOnlyApi("com.google.code.gson:gson:2.13.1")
@@ -30,19 +33,13 @@ tasks {
         options.release.set(targetJavaVersion)
     }
 
-    register<Copy>("copyCppOutput") {
-        from("${projectDir}/../cpp-src/output")
-        into(layout.buildDirectory.dir("resources/main"))
-        includeEmptyDirs = false
-    }
-
-    processResources {
-        dependsOn("copyCppOutput")
-    }
-
     java {
         withSourcesJar()
         withJavadocJar()
+    }
+
+    assemble {
+        dependsOn("reobfJar")
     }
 
     withType<Javadoc>().configureEach {
@@ -66,7 +63,9 @@ publishing {
             groupId = "me.brandonli"
             artifactId = project.name
             version = "${rootProject.version}"
-            from(components["java"])
+            artifact(tasks.named("reobfJar"))
+            artifact(tasks["javadocJar"])
+            artifact(tasks["sourcesJar"])
         }
     }
 }

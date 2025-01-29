@@ -17,18 +17,21 @@
  */
 package me.brandonli.mcav.media.image;
 
-import static net.kyori.adventure.text.Component.empty;
+import static java.util.Objects.requireNonNull;
 
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+import net.minecraft.world.scores.PlayerTeam;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.ScoreboardManager;
+import org.bukkit.scoreboard.Team;
 
 /**
  * The ScoreboardImage class is responsible for managing and displaying scoreboard-style images based
@@ -45,11 +48,11 @@ import net.kyori.adventure.text.format.NamedTextColor;
 public class ScoreboardImage implements DisplayableImage {
 
   private final ScoreboardConfiguration configuration;
-  private final List<String> teamLines;
+  private final Team[] teamLines;
 
   ScoreboardImage(final ScoreboardConfiguration configuration) {
     this.configuration = configuration;
-    this.teamLines = new ArrayList<>();
+    this.teamLines = new Team[configuration.getLines()];
   }
 
   /**
@@ -57,16 +60,8 @@ public class ScoreboardImage implements DisplayableImage {
    */
   @Override
   public void release() {
-    final int lines = this.configuration.getLines();
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    for (int i = 0; i < lines; i++) {
-      final String teamName = this.teamLines.get(i);
-      final WrapperPlayServerTeams remove = new WrapperPlayServerTeams(
-        teamName,
-        WrapperPlayServerTeams.TeamMode.REMOVE,
-        (WrapperPlayServerTeams.ScoreBoardTeamInfo) null
-      );
-      PacketUtils.sendPackets(viewers, remove);
+    for (final Team team : this.teamLines) {
+      team.unregister();
     }
   }
 
@@ -77,44 +72,35 @@ public class ScoreboardImage implements DisplayableImage {
   public void displayImage(final StaticImage data) {
     this.release();
     final int lines = this.configuration.getLines();
-    final String character = this.configuration.getCharacter();
-    final int width = this.configuration.getWidth();
     final Collection<UUID> viewers = this.configuration.getViewers();
+    final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
+    final Scoreboard scoreboard = scoreboardManager.getNewScoreboard();
     for (int i = 0; i < lines; i++) {
       final UUID random = UUID.randomUUID();
       final String name = random.toString();
-      final WrapperPlayServerTeams.ScoreBoardTeamInfo teamInfo = new WrapperPlayServerTeams.ScoreBoardTeamInfo(
-        empty(),
-        empty(),
-        empty(),
-        WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
-        WrapperPlayServerTeams.CollisionRule.ALWAYS,
-        NamedTextColor.WHITE,
-        WrapperPlayServerTeams.OptionData.ALL
-      );
-      final WrapperPlayServerTeams create = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.CREATE, teamInfo);
-      PacketUtils.sendPackets(viewers, create);
-      final String[] entries = viewers.stream().map(UUID::toString).toArray(String[]::new);
-      final WrapperPlayServerTeams add = new WrapperPlayServerTeams(name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES, teamInfo, entries);
-      PacketUtils.sendPackets(viewers, add);
-      this.teamLines.add(name);
+      final Team team = scoreboard.registerNewTeam(name);
+      for (final UUID viewer : viewers) {
+        final Player player = Bukkit.getPlayer(viewer);
+        if (player == null) {
+          continue;
+        }
+        final String viewerName = viewer.toString();
+        team.addEntry(viewerName);
+      }
+      this.teamLines[i] = team;
     }
+    final String character = this.configuration.getCharacter();
+    final int width = this.configuration.getWidth();
     data.resize(width, lines);
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < lines; i++) {
-      final String teamName = this.teamLines.get(i);
+      final Team team = this.teamLines[i];
+      final PlayerTeam playerTeam = (PlayerTeam) team;
       final Component prefix = ChatUtils.createLine(resizedData, character, width, i);
-      final WrapperPlayServerTeams.ScoreBoardTeamInfo teamInfo = new WrapperPlayServerTeams.ScoreBoardTeamInfo(
-        empty(),
-        prefix,
-        empty(),
-        WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
-        WrapperPlayServerTeams.CollisionRule.ALWAYS,
-        NamedTextColor.WHITE,
-        WrapperPlayServerTeams.OptionData.ALL
-      );
-      final WrapperPlayServerTeams update = new WrapperPlayServerTeams(teamName, WrapperPlayServerTeams.TeamMode.UPDATE, teamInfo);
-      PacketUtils.sendPackets(viewers, update);
+      playerTeam.setPlayerPrefix(prefix);
+
+      final ClientboundSetPlayerTeamPacket packet = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(playerTeam, false);
+      PacketUtils.sendPackets(viewers, packet);
     }
   }
 }

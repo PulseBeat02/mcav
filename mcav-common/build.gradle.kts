@@ -12,6 +12,28 @@ dependencies {
     api("com.shinyhut:vernacular:1.14")
 }
 
+tasks {
+
+    register<Copy>("copyCppOutput") {
+        from("${projectDir}/../cpp-src/output")
+        into(layout.buildDirectory.dir("resources/main"))
+        includeEmptyDirs = false
+    }
+
+    processResources {
+        dependsOn("copyCppOutput")
+    }
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    withType<Javadoc>().configureEach {
+        options.encoding = "UTF-8"
+    }
+}
+
 publishing {
     repositories {
         maven {
@@ -31,17 +53,4 @@ publishing {
             from(components["java"])
         }
     }
-}
-
-tasks {
-
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
-
-    withType<Javadoc>().configureEach {
-        options.encoding = "UTF-8"
-    }
-
 }

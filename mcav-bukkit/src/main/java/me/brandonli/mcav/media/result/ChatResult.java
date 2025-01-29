@@ -17,9 +17,6 @@
  */
 package me.brandonli.mcav.media.result;
 
-import com.github.retrooper.packetevents.protocol.chat.ChatTypes;
-import com.github.retrooper.packetevents.protocol.chat.message.ChatMessageLegacy;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChatMessage;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.media.config.ChatConfiguration;
@@ -28,7 +25,8 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
-import net.kyori.adventure.text.Component;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
 /**
  * The ChatResult class implements the {@link VideoFilter} interface and provides
@@ -72,9 +70,7 @@ public class ChatResult implements VideoFilter {
     data.resize(chatWdith, chatHeight);
     final int[] resizedData = data.getAllPixels();
     final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWdith, chatHeight);
-    @SuppressWarnings("deprecation")
-    final ChatMessageLegacy chatMessageLegacy = new ChatMessageLegacy(msg, ChatTypes.GAME_INFO);
-    final WrapperPlayServerChatMessage packet = new WrapperPlayServerChatMessage(chatMessageLegacy);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);
   }
 }

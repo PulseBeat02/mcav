@@ -17,22 +17,30 @@
  */
 package me.brandonli.mcav.media.result;
 
-import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
-import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
-import com.github.retrooper.packetevents.protocol.world.Location;
-import com.github.retrooper.packetevents.util.Vector3d;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
-import java.util.*;
+import static java.util.Objects.requireNonNull;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+import me.brandonli.mcav.MCAVBukkit;
 import me.brandonli.mcav.media.config.EntityConfiguration;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.ChatUtils;
 import me.brandonli.mcav.utils.PacketUtils;
-import net.kyori.adventure.text.Component;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 /**
  * Represents the result of an entity-based operation that applies a functional video filter.
@@ -50,10 +58,8 @@ import net.kyori.adventure.text.Component;
  */
 public class EntityResult implements FunctionalVideoFilter {
 
-  private static final SplittableRandom SPLITTABLE_RANDOM = new SplittableRandom();
-
   private final EntityConfiguration entityConfiguration;
-  private final List<Integer> entityIds;
+  private final Entity[] entities;
 
   /**
    * Constructs an instance of {@code EntityResult} with the specified configuration.
@@ -64,7 +70,7 @@ public class EntityResult implements FunctionalVideoFilter {
    */
   public EntityResult(final EntityConfiguration configuration) {
     this.entityConfiguration = configuration;
-    this.entityIds = new ArrayList<>();
+    this.entities = new Entity[configuration.getEntityHeight()];
   }
 
   /**
@@ -79,14 +85,26 @@ public class EntityResult implements FunctionalVideoFilter {
     data.resize(entityWidth, entityHeight);
     final int[] resizedData = data.getAllPixels();
     for (int i = 0; i < entityHeight; i++) {
-      final Integer id = this.entityIds.get(i);
+      final Entity entity = this.entities[i];
+      final CraftEntity glow = (CraftEntity) entity;
+      final net.minecraft.world.entity.Entity nmsEntity = glow.getHandle();
+      final SynchedEntityData entityData = nmsEntity.getEntityData();
+
+      // send via raw components because serializing components to legacy for Bukkit support is slow
+      List<SynchedEntityData.DataValue<?>> packed = entityData.getNonDefaultValues();
+      if (packed == null) {
+        packed = new ArrayList<>();
+      } else {
+        packed.removeIf(dataValue -> dataValue.id() == 5);
+      }
+
       final Component prefix = ChatUtils.createLine(resizedData, character, entityWidth, i);
-      final EntityData invisible = new EntityData(0, EntityDataTypes.BYTE, (byte) 0x20);
-      final EntityData name = new EntityData(5, EntityDataTypes.ADV_COMPONENT, prefix);
-      final EntityData show = new EntityData(6, EntityDataTypes.BOOLEAN, true);
-      final List<EntityData> dataList = List.of(invisible, name, show);
-      final WrapperPlayServerEntityMetadata update = new WrapperPlayServerEntityMetadata(id, dataList);
-      PacketUtils.sendPackets(viewers, update);
+      final SynchedEntityData.DataValue<?> value = new SynchedEntityData.DataValue<>(5, EntityDataSerializers.COMPONENT, prefix);
+      packed.add(value);
+
+      final int id = entity.getEntityId();
+      final ClientboundSetEntityDataPacket packet = new ClientboundSetEntityDataPacket(id, packed);
+      PacketUtils.sendPackets(viewers, packet);
     }
   }
 
@@ -95,19 +113,28 @@ public class EntityResult implements FunctionalVideoFilter {
    */
   @Override
   public void start() {
-    final int random = SPLITTABLE_RANDOM.nextInt();
     final int entityHeight = this.entityConfiguration.getEntityHeight();
-    final Vector3d pos = this.entityConfiguration.getPosition();
-    final Vector3d clone = pos.add(0, 0, 0);
+    final Location pos = this.entityConfiguration.getPosition();
+    final Location clone = pos.add(0, 0, 0);
     final Collection<UUID> viewers = this.entityConfiguration.getViewers();
+    final World world = requireNonNull(clone.getWorld());
+    final Plugin plugin = MCAVBukkit.getPlugin();
     for (int i = 0; i < entityHeight; i++) {
-      final int id = random + i;
-      final UUID randomUUID = UUID.randomUUID();
-      final EntityType type = EntityTypes.ARMOR_STAND;
-      final Location position = new Location(clone.add(0, 0.1, 0), 0, 0);
-      final WrapperPlayServerSpawnEntity spawnEntity = new WrapperPlayServerSpawnEntity(id, randomUUID, type, position, 0f, 0, null);
-      PacketUtils.sendPackets(viewers, spawnEntity);
-      this.entityIds.add(id);
+      final Location position = clone.add(0, 0.1, 0);
+      final ArmorStand entity = world.spawn(position, ArmorStand.class, stand -> {
+        stand.setInvisible(true);
+        stand.setInvulnerable(true);
+        stand.setCustomNameVisible(true);
+        stand.setVisibleByDefault(false);
+      });
+      for (final UUID viewer : viewers) {
+        final Player player = Bukkit.getPlayer(viewer);
+        if (player == null) {
+          continue;
+        }
+        player.showEntity(plugin, entity);
+      }
+      this.entities[i] = entity;
     }
   }
 
@@ -116,9 +143,8 @@ public class EntityResult implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
-    final int[] kill = this.entityIds.stream().mapToInt(Integer::intValue).toArray();
-    final Collection<UUID> viewers = this.entityConfiguration.getViewers();
-    final WrapperPlayServerDestroyEntities destroyEntities = new WrapperPlayServerDestroyEntities(kill);
-    PacketUtils.sendPackets(viewers, destroyEntities);
+    for (final Entity entity : this.entities) {
+      entity.remove();
+    }
   }
 }
