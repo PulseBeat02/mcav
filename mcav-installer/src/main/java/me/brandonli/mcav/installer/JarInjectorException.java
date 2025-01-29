@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.installer;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * A specific type of {@link UnsupportedOperationException} that is thrown to indicate
  * an exceptional condition related to Jar injection operations.
@@ -29,7 +31,7 @@ public class JarInjectorException extends UnsupportedOperationException {
 
   private static final long serialVersionUID = 861375458420366052L;
 
-  JarInjectorException(final String msg) {
+  JarInjectorException(final @Nullable String msg) {
     super(msg);
   }
 }

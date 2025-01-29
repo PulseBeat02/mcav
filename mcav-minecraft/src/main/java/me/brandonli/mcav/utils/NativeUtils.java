@@ -51,10 +51,12 @@ public final class NativeUtils {
       final int lastDotIndex = fileName.lastIndexOf('.');
       final String fileNamePrefix = fileName.substring(0, lastDotIndex);
       final String fileNameSuffix = fileName.substring(lastDotIndex);
-      final Path tempFilePath = Files.createTempFile(fileNamePrefix, fileNameSuffix);
-      final File tempFile = tempFilePath.toFile();
+      final Path parent = IOUtils.getCachedFolder();
+      final File file = parent.toFile();
+      final File tempFile = File.createTempFile(fileNamePrefix, fileNameSuffix, file);
       tempFile.deleteOnExit();
 
+      final Path tempFilePath = tempFile.toPath();
       final ClassLoader classLoader = requireNonNull(NativeUtils.class.getClassLoader());
       try (final InputStream resourceStream = requireNonNull(classLoader.getResourceAsStream(resourcePath))) {
         Files.copy(resourceStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);

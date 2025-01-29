@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.resourcepack.provider.http;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * An exception that represents an error occurring within the HTTP server.
  * <p>
@@ -27,7 +29,7 @@ public class HttpServerException extends AssertionError {
 
   private static final long serialVersionUID = -6775463807604247034L;
 
-  public HttpServerException(final String message) {
+  public HttpServerException(final @Nullable String message) {
     super(message);
   }
 }

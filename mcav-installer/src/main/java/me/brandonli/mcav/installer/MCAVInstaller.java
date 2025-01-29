@@ -62,7 +62,7 @@ public class MCAVInstaller {
    */
   public static MCAVInstaller injector(final Path folder, final Object object) {
     final Class<?> clazz = object.getClass();
-    final ClassLoader classLoader = clazz.getClassLoader();
+    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
     return injector(folder, classLoader);
   }
 

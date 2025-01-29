@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.installer;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Represents an exception specific to HTTP repository resolution errors.
  * This exception is typically thrown when an error occurs while attempting
@@ -26,7 +28,7 @@ public class HttpRepositoryResolverError extends AssertionError {
 
   private static final long serialVersionUID = 6370074734200515542L;
 
-  HttpRepositoryResolverError(final String message) {
+  HttpRepositoryResolverError(final @Nullable String message) {
     super(message);
   }
 }

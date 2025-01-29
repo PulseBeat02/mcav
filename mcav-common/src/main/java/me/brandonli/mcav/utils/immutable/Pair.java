@@ -36,11 +36,13 @@ public final class Pair<A, B> {
   }
 
   /**
-   * Creates a new {@code Pair} instance with the given first and second elements.
+   * Creates a new {@code Pair} instance with the specified first and second elements.
    * Both elements must be non-null.
    *
-   * @param first  the first element of the pair, of type {@code C}
-   * @param second the second element of the pair, of type {@code D}
+   * @param <C>    the type of the first element in the pair
+   * @param <D>    the type of the second element in the pair
+   * @param first  the first element of the pair, must not be null
+   * @param second the second element of the pair, must not be null
    * @return a new {@code Pair} instance containing the specified elements
    * @throws NullPointerException if either {@code first} or {@code second} is null
    */

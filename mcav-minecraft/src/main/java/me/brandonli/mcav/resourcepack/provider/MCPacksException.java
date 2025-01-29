@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.resourcepack.provider;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Represents a custom exception specific to MC Packs, used for error handling
  * within the MC Packs functionality of a resource pack hosting system.
@@ -33,7 +35,7 @@ public class MCPacksException extends AssertionError {
 
   private static final long serialVersionUID = -6775463807604247034L;
 
-  public MCPacksException(final String message) {
+  public MCPacksException(final @Nullable String message) {
     super(message);
   }
 }

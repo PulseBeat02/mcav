@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.video.dither.palette;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Thrown to indicate that an error occurred during the loading or processing of a palette.
  * This exception extends {@link AssertionError}, as it is expected to occur only in cases
@@ -37,7 +39,7 @@ public class PaletteLoadingException extends AssertionError {
 
   private static final long serialVersionUID = 3449385531808176439L;
 
-  PaletteLoadingException(final String message) {
+  PaletteLoadingException(final @Nullable String message) {
     super(message);
   }
 }

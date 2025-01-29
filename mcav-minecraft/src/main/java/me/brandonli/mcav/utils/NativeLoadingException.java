@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Exception thrown to indicate errors during the loading of native libraries.
  * This class extends {@link AssertionError}, typically to signal fatal conditions
@@ -29,7 +31,7 @@ public class NativeLoadingException extends AssertionError {
 
   private static final long serialVersionUID = -1718334825313639127L;
 
-  NativeLoadingException(final String msg) {
+  NativeLoadingException(final @Nullable String msg) {
     super(msg);
   }
 }
