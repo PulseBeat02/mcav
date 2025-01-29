@@ -103,7 +103,7 @@ subprojects {
                 rootFile.mkdirs()
             }
             extraJavacArgs = listOf(
-                "-AsuppressWarnings=uninitialized",
+                "-AsuppressWarnings=uninitialized,type.anno.before.modifier",
                 "-Astubs=${file}",
                 "-Astubs=${rootFile}"
             )

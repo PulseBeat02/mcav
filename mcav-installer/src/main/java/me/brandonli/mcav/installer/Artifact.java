@@ -22,24 +22,33 @@ package me.brandonli.mcav.installer;
  */
 public enum Artifact {
   /**
-   * Represents the common artifact, containing the core functionality of the mcav project.
+   * common artifact
    */
   COMMON("mcav-common"),
 
   /**
-   * Represents the JDA artifact, which provides integration with the JDA (Java Discord API).
+   * jda artifact
    */
   JDA("mcav-jda"),
 
   /**
-   * Represents the HTTP artifact, which provides HTTP audio streaming.
+   * http artifact
    */
   HTTP("mcav-http"),
 
+  /**
+   * browser artifact
+   */
   BROWSER("mcav-browser"),
 
+  /**
+   * vm artifact
+   */
   VM("mcav-vm"),
 
+  /**
+   * vnc artifact
+   */
   VNC("mcav-vnc");
 
   private final String artifactId;

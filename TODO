@@ -1,7 +1,4 @@
 High Priority Tasks:
-  - Write Dialog API
   - Write JavaDocs for common module, dither package
-  - Fix Annotation Warnings
-
-Medium Priority Tasks:
-  - Update demo video
+  - Write Dialog API
+  - Update plugin to 1.21.6, add dialog API

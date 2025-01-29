@@ -40,6 +40,9 @@ public class ExecutableFinder {
     ? Arrays.asList("", ".cmd", ".exe", ".com", ".bat")
     : singletonList("");
 
+  /**
+   * Creates a new instance of the ExecutableFinder.
+   */
   public ExecutableFinder() {
     // no-op
   }
