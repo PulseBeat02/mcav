@@ -34,7 +34,6 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
@@ -49,7 +48,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     this.plugin = plugin;
   }
 
-  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <mrl>")
+  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <flags> <mrl>")
   @Permission("mcav.command.video.block")
   @CommandDescription("mcav.command.video.block.info")
   public void playBlockVideo(
@@ -59,11 +58,12 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     final Location location,
-    @Greedy final String mrl
+    @Default("") @Quoted final String flags,
+    @Quoted final String mrl
   ) {
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configProvider = resolution -> this.constructBlockConfiguration(resolution, location, players);
-    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl);
+    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
   @Override

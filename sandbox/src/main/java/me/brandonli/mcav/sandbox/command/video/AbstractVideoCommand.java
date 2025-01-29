@@ -73,7 +73,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlayerArgument playerType,
     final AudioArgument audioType,
     final String videoResolution,
-    final String mrl
+    final String mrl,
+    final String flags
   ) {
     if (!this.sanitizeArguments(player, playerType, audioType, videoResolution)) {
       return;
@@ -83,7 +84,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution = requireNonNull(this.sanitizeResolution(videoResolution));
     final AtomicBoolean initializing = this.manager.getStatus();
     final ExecutorService service = this.manager.getService();
-    final Runnable command = () -> this.synchronizePlayer(playerType, audioType, mrl, player, resolution, configProvider);
+    final VideoFlagsParser flagsParser = new VideoFlagsParser();
+    final String[] arguments = flagsParser.parseYTDLPFlags(flags);
+    final Runnable command = () -> this.synchronizePlayer(playerType, audioType, mrl, arguments, player, resolution, configProvider);
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
@@ -170,11 +173,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlayerArgument playerType,
     final AudioArgument audioType,
     final String mrl,
+    final String[] arguments,
     final Audience audience,
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configProvider
   ) {
-    @Nullable final Source[] sources = this.retrievePair(mrl, playerType);
+    @Nullable final Source[] sources = this.retrievePair(playerType, mrl, arguments);
     if (sources == null) {
       audience.sendMessage(Message.UNSUPPORTED_MRL.build());
       return;
@@ -208,7 +212,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   public abstract VideoPipelineStep createVideoFilter(Pair<Integer, Integer> resolution, VideoConfigurationProvider configProvider);
 
-  private @Nullable Source@Nullable[] retrievePair(final String mrl, final PlayerArgument argument) {
+  private @Nullable Source@Nullable[] retrievePair(final PlayerArgument argument, final String mrl, final String[] arguments) {
     final Source video;
     Source audio = null;
     final Integer deviceId = Ints.tryParse(mrl);
@@ -219,7 +223,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } else if (SourceUtils.isUri(mrl)) {
       final UriSource uri = UriSource.uri(URI.create(mrl));
       if (!SourceUtils.isDirectVideoFile(mrl)) {
-        final URLParseDump dump = this.getUrlParseDump(uri);
+        final URLParseDump dump = this.getUrlParseDump(uri, arguments);
         final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
         video = selector.getVideoSource(dump).toUriSource();
         audio = selector.getAudioSource(dump).toUriSource();
@@ -237,7 +241,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return new Source[] { video, audio };
   }
 
-  protected URLParseDump getUrlParseDump(final UriSource uri) {
+  protected URLParseDump getUrlParseDump(final UriSource uri, final String[] arguments) {
     final YTDLPParser parser = YTDLPParser.simple();
     try {
       return parser.parse(uri);

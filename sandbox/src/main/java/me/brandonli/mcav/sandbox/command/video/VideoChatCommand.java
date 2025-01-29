@@ -30,7 +30,6 @@ import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -40,7 +39,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 public final class VideoChatCommand extends AbstractVideoCommand {
 
-  @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <mrl>")
+  @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <flags> <mrl>")
   @Permission("mcav.command.video.chat")
   @CommandDescription("mcav.command.video.chat.info")
   public void playChatVideo(
@@ -50,11 +49,12 @@ public final class VideoChatCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
-    @Greedy final String mrl
+    @Quoted final String flags,
+    @Quoted final String mrl
   ) {
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configProvider = resolution -> this.constructChatConfiguration(resolution, character, players);
-    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl);
+    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
   @Override

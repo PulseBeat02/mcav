@@ -78,81 +78,86 @@ stream OBS output by setting the `mrl` argument to be `dshow:video=OBS Virtual C
 
 ---
 
-| **Command**                               | `/mcav video block`                                                                              |
-|-------------------------------------------|--------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <mrl>` |
-| **Permission**                            | `mcav.command.video.block`                                                                       |
-| **Description**                           | Displays a video in blocks.                                                                      |
-| **Arguments**                             |                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to display the video                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                 |
+| **Command**                               | `/mcav video block`                                                                                      |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <flags> <mrl>` |
+| **Permission**                            | `mcav.command.video.block`                                                                               |
+| **Description**                           | Displays a video in blocks.                                                                              |
+| **Arguments**                             |                                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to display the video                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`           | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 
 ---
 
-| **Command**                               | `/mcav video chat`                                                                               |
-|-------------------------------------------|--------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <mrl>` |
-| **Permission**                            | `mcav.command.video.chat`                                                                        |
-| **Description**                           | Displays a video in chat.                                                                        |
-| **Arguments**                             |                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                 |
+| **Command**                               | `/mcav video chat`                                                                                       |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <flags> <mrl>` |
+| **Permission**                            | `mcav.command.video.chat`                                                                                |
+| **Description**                           | Displays a video in chat.                                                                                |
+| **Arguments**                             |                                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`           | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 
 ---
 
-| **Command**                               | `/mcav video entity`                                                                                          |
-|-------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <mrl>` |
-| **Permission**                            | `mcav.command.video.entity`                                                                                   |
-| **Description**                           | Displays a video as a TextDisplay entity.                                                                     |
-| **Arguments**                             |                                                                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                              |
+| **Command**                               | `/mcav video entity`                                                                                                  |
+|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <flags> <mrl>` |
+| **Permission**                            | `mcav.command.video.entity`                                                                                           |
+| **Description**                           | Displays a video as a TextDisplay entity.                                                                             |
+| **Arguments**                             |                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`           | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                                      |
 
 ---
 
-| **Command**                                  | `/mcav video map`                                                                                                                  |
-|----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>` |
-| **Permission**                               | `mcav.command.video.map`                                                                                                           |
-| **Description**                              | Displays a video on a map screen.                                                                                                  |
-| **Arguments**                                |                                                                                                                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the video                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`         | The type of video player to use                                                                                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | The type of audio output to use                                                                                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in width×height format (example, 640x360)                                                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                   |
+| **Command**                                  | `/mcav video map`                                                                                                                          |
+|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl>` |
+| **Permission**                               | `mcav.command.video.map`                                                                                                                   |
+| **Description**                              | Displays a video on a map screen.                                                                                                          |
+| **Arguments**                                |                                                                                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the video                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`         | The type of video player to use                                                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | The type of audio output to use                                                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in width×height format (example, 640x360)                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
 
 ---
 
-| **Command**                               | `/mcav video scoreboard`                                                                               |
-|-------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <mrl>` |
-| **Permission**                            | `mcav.command.video.scoreboard`                                                                        |
-| **Description**                           | Displays a video in a scoreboard.                                                                      |
-| **Arguments**                             |                                                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                       |
+| **Command**                               | `/mcav video scoreboard`                                                                                       |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <flags> <mrl>` |
+| **Permission**                            | `mcav.command.video.scoreboard`                                                                                |
+| **Description**                           | Displays a video in a scoreboard.                                                                              |
+| **Arguments**                             |                                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard                                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`           | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                               |
 
 ---
 

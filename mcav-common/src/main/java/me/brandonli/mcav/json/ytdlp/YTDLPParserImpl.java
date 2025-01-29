@@ -49,7 +49,7 @@ public final class YTDLPParserImpl implements YTDLPParser {
    * {@inheritDoc}
    */
   @Override
-  public URLParseDump parse(final UriSource input) throws IOException {
+  public URLParseDump parse(final UriSource input, final String... arguments) throws IOException {
     final URI uri = input.getUri();
     final String raw = uri.toString();
     final URLParseDump cachedResult = this.cache.getIfPresent(raw);
@@ -60,7 +60,7 @@ public final class YTDLPParserImpl implements YTDLPParser {
     final YTDLPInstaller installer = YTDLPInstaller.create();
     final Path path = installer.download(true);
     final String executable = path.toString();
-    final String[] args = new String[] { executable, "--dump-json", raw };
+    final String[] args = this.constructArguments(executable, raw, arguments);
     final CommandTask task = new CommandTask(args, true);
     final Gson gson = GsonProvider.getSimple();
     final String output = task.getOutput();
@@ -68,5 +68,18 @@ public final class YTDLPParserImpl implements YTDLPParser {
     this.cache.put(raw, result);
 
     return result;
+  }
+
+  private String[] constructArguments(final String executable, final String raw, final String... arguments) {
+    final String[] args = new String[3 + arguments.length];
+    args[0] = executable;
+    args[1] = "--dump-json";
+    args[2] = raw;
+
+    if (arguments.length > 0) {
+      System.arraycopy(arguments, 0, args, 3, arguments.length);
+    }
+
+    return args;
   }
 }

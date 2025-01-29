@@ -32,10 +32,12 @@ public interface YTDLPParser {
    * Parses the given input and returns a {@link URLParseDump} object.
    *
    * @param input the input to parse
+   * @param arguments additional arguments for parsing that can be null or empty
+   *
    * @return a {@link URLParseDump} object containing the parsed data
    * @throws IOException if an I/O error occurs during parsing
    */
-  URLParseDump parse(final UriSource input) throws IOException;
+  URLParseDump parse(final UriSource input, final String... arguments) throws IOException;
 
   /**
    * Parses the given input and returns a {@link URLParseDump} object.

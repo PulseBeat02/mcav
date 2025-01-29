@@ -143,7 +143,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   ) {
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
-    this.bufferFormatCallback = new BufferCallback();
+    this.bufferFormatCallback = new BufferCallback(videoMetadata);
     this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
     this.videoSurface = new CallbackVideoSurface(this.bufferFormatCallback, this.videoCallback, true, this.adapter);
     surfaceApi.set(this.videoSurface);
@@ -215,13 +215,17 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final class BufferCallback implements BufferFormatCallback {
 
-    BufferCallback() {
-      // no-op
+    private final int width;
+    private final int height;
+
+    BufferCallback(final VideoMetadata metadata) {
+      this.width = metadata.getVideoWidth();
+      this.height = metadata.getVideoHeight();
     }
 
     @Override
     public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
-      return new RV32BufferFormat(sourceWidth, sourceHeight);
+      return new RV32BufferFormat(this.width, this.height);
     }
 
     /**
@@ -270,10 +274,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
+    private final int[] buffer;
 
     VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
+      final int width = metadata.getVideoWidth();
+      final int height = metadata.getVideoHeight();
       this.step = step;
       this.metadata = metadata;
+      this.buffer = new int[width * height];
     }
 
     /**
@@ -300,10 +308,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final VideoMetadata updated = VideoMetadata.of(width, height, bitrate, frameRate);
       final ByteBuffer first = nativeBuffers[0];
       final IntBuffer intBuffer = first.asIntBuffer();
-      final int[] buffer = new int[width * height];
-      intBuffer.get(buffer, 0, width * height);
+      intBuffer.get(this.buffer, 0, width * height);
 
-      final ImageBuffer image = ImageBuffer.buffer(buffer, width, height);
+      final ImageBuffer image = ImageBuffer.buffer(this.buffer, width, height);
       VideoPipelineStep current = this.step;
       while (current != null) {
         current.process(image, updated);

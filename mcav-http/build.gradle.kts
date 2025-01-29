@@ -10,7 +10,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
 
     // testing
-    testImplementation("io.javalin:javalin:6.6.0")
+    testImplementation("io.javalin:javalin:6.7.0")
     testImplementation(project(":mcav-common"))
     testImplementation("org.slf4j:slf4j-simple:2.1.0-alpha1")
 }

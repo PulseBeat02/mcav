@@ -35,7 +35,6 @@ import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
@@ -47,7 +46,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class VideoMapCommand extends AbstractVideoCommand {
 
   @Command(
-    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>"
+    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl>"
   )
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
@@ -60,7 +59,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Greedy final String mrl
+    @Quoted final String flags,
+    @Quoted final String mrl
   ) {
     final Pair<Integer, Integer> dimensions;
     try {
@@ -72,7 +72,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configProvider = resolution ->
       this.constructMapConfiguration(mapId, dimensions, resolution, players, ditheringAlgorithm);
-    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl);
+    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
   @Override

@@ -34,7 +34,6 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
@@ -49,7 +48,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     this.plugin = plugin;
   }
 
-  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <mrl>")
+  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <flags> <mrl>")
   @Permission("mcav.command.video.entity")
   @CommandDescription("mcav.command.video.entity.info")
   public void playEntityVideo(
@@ -60,12 +59,13 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
     final Location location,
-    @Greedy final String mrl
+    @Quoted final String flags,
+    @Quoted final String mrl
   ) {
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configProvider = resolution ->
       this.constructEntityConfiguration(resolution, character, location, players);
-    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl);
+    this.playVideo(configProvider, player, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
   @Override
