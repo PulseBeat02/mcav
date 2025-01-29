@@ -22,13 +22,8 @@ import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 
 /**
- * A class that implements the {@code DiscordFilter} interface, responsible for processing and filtering
- * audio data. This implementation manages a buffer to handle audio samples and applies transformations
- * on received audio chunks.
- * <p>
- * The {@code DiscordFilterImpl} includes methods to determine if enough audio data is available for
- * processing, provide audio data in a fixed 20ms size, and apply filters to incoming audio samples and
- * associated metadata.
+ * The concrete implementation of {@link DiscordPlayer}, which provides audio playback functionality for Discord
+ * voice channels.
  */
 public class DiscordPlayerImpl implements DiscordPlayer {
 

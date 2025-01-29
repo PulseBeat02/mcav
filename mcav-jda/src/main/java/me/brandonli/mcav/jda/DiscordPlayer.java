@@ -22,30 +22,34 @@ import net.dv8tion.jda.api.audio.AudioReceiveHandler;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 
 /**
- * Represents a specialized filter interface for handling Discord's audio data.
- * This interface combines the behavior of {@code AudioFilter}, {@code AudioSendHandler},
- * and {@code AudioReceiveHandler}, enabling it to process, send, and receive audio data
- * effectively within the Discord voice pipeline.
+ * Represents a Discord audio filter which can be used to play audio in voice channels. Implements both
+ * {@link AudioFilter}, and JDA {@link AudioSendHandler} and {@link AudioReceiveHandler} interfaces for
+ * providing and sending audio data. You don't have to worry about transcoding data, as the implementation
+ * already handles that conversion for you.
  * <p>
- * The {@code DiscordFilter} is designed to process incoming and outgoing audio streams,
- * apply transformations or filters, and provide audio data in a format that complies
- * with Discord's 20ms audio frame requirement.
- * <p>
- * Key Responsibilities:
- * - Filtering and transforming audio data using methods defined in {@code AudioFilter}.
- * - Sending audio data chunks in 20ms intervals via {@code AudioSendHandler}.
- * - Receiving and integrating incoming audio streams via {@code AudioReceiveHandler}.
- * <p>
- * This interface provides a factory method {@code filter()} for instantiating a default
- * implementation.
+ * Here is an example of how to use it with the JDA API.
+ *
+ * <pre><code>
+ *     final JDA jda = JDABuilder.createDefault(...).build();
+ *     jda.awaitReady();
+ *
+ *     final Guild guild = jda.getGuildById(...);
+ *     final VoiceChannel voiceChannel = guild.getVoiceChannelById(...);
+ *     final AudioManager audioManager = guild.getAudioManager();
+ *     audioManager.openAudioConnection(voiceChannel);
+ *
+ *     final DiscordPlayer player = DiscordPlayer.voice();
+ *     audioManager.setSendingHandler(player);
+ *
+ *     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(player);
+ *     ...
+ * </code></pre>
  */
 public interface DiscordPlayer extends AudioFilter, AudioSendHandler, AudioReceiveHandler {
   /**
-   * Creates and returns a new instance of the default implementation of {@code DiscordFilter}.
-   * The returned instance implements the {@code DiscordFilter} interface, providing functionality
-   * to process, filter, send, and receive Discord audio data in compliance with Discord's voice API specifications.
+   * Creates a new instance of {@link DiscordPlayer}.
    *
-   * @return a new instance of the default implementation of {@code DiscordFilter}
+   * @return a new instance of {@link DiscordPlayer}
    */
   static DiscordPlayer voice() {
     return new DiscordPlayerImpl();

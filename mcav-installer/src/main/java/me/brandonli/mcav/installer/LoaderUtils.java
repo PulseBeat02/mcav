@@ -31,7 +31,7 @@ import java.util.ServiceLoader;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-public final class LoaderUtils {
+final class LoaderUtils {
 
   private static final int MAX_ENTRIES = 100_000;
   private static final int MAX_BYTES = 1024 * 1024 * 1024;

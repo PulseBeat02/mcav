@@ -25,13 +25,13 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public final class IOUtils {
+final class IOUtils {
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  public static String getFileName(final Path file) {
+  static String getFileName(final Path file) {
     final Path name = requireNonNull(file.getFileName());
     return name.toString();
   }

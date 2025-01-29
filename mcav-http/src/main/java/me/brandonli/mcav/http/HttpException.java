@@ -17,18 +17,16 @@
  */
 package me.brandonli.mcav.http;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception that occurs during HTTP operations.
- * This exception extends {@link AssertionError} and is used to signal HTTP-related
- * errors encountered during execution.
- * <p>
- * The {@code HttpException} is a runtime exception that allows for propagation
- * of error messages associated with HTTP-related issues.
+ * Represents a critical exception that occurs during HTTP operations, like loading the
+ * default HTML template or handling WebSocket connections.
  */
 public class HttpException extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = -4536819561346624904L;
 
   HttpException(final @Nullable String message) {

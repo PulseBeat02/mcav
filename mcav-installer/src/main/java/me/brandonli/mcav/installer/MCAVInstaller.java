@@ -25,11 +25,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class provides functionality to manage and load dependencies dynamically
- * into an application at runtime. It allows downloading and loading of dependencies
- * from a specified location and provides methods for initialization with configurable
- * parameters.
+ * Allows you to install and manage mcav dependencies for many artifacts. Downloads all transitive dependencies as
+ * well. In general, you should use this class to construct your own ClassLoader that contains references to the
+ * downloaded jars.
+ *
+ * <pre><code>
+ *   final Path downloaded = Path.of("dependencies");
+ *   final Class&lt;?&gt; clazz = this.getClass();
+ *   final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
+ *   final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
+ *   installer.loadMCAVDependencies(Artifact.COMMON);
+ * </code></pre>
+ *
+ * @deprecated You shouldn't load dependencies at runtime unless you really have to. In that case, you should allow
+ * other libraries to handle the large dependencies for you.
  */
+@Deprecated
 public class MCAVInstaller {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVInstaller.class);
@@ -47,7 +58,7 @@ public class MCAVInstaller {
    *
    * @param folder      the folder path where dependencies or resources will be managed
    * @param classLoader the class loader used to load dependencies at runtime
-   * @return an instance of MCAVInstaller initialized with the provided parameters
+   * @return an instance of MCAVInstaller
    */
   public static MCAVInstaller injector(final Path folder, final ClassLoader classLoader) {
     requireNonNull(folder);
@@ -56,12 +67,11 @@ public class MCAVInstaller {
   }
 
   /**
-   * Creates a new {@link MCAVInstaller} instance by extracting the class loader
-   * from the provided object's class and using it along with the specified folder path.
+   * Creates an instance of MCAVInstaller with the specified folder and the class loader of the provided object.
    *
-   * @param folder the folder path where dependencies should be managed or loaded.
-   * @param object the object whose class loader will be utilized for loading resources.
-   * @return a new instance of {@link MCAVInstaller} initialized with the specified folder and object's class loader.
+   * @param folder the folder path where dependencies or resources will be managed
+   * @param object an object whose class loader will be used to load dependencies
+   * @return an instance of MCAVInstaller
    */
   public static MCAVInstaller injector(final Path folder, final Object object) {
     final Class<?> clazz = object.getClass();
@@ -70,8 +80,7 @@ public class MCAVInstaller {
   }
 
   /**
-   * Downloads and loads the required dependencies for the given artifact. Progress updates are
-   * provided through the specified progress logger during the download and loading process.
+   * Downloads and loads the required dependencies for the given artifact.
    *
    * @param artifact the artifact whose dependencies need to be downloaded and loaded
    * @param loader   the JarLoader implementation used for dynamically loading the dependencies
@@ -87,8 +96,7 @@ public class MCAVInstaller {
   }
 
   /**
-   * Downloads and loads the required dependencies for the given artifact. This method provides
-   * progress updates via the specified progress logger during the download and loading processes.
+   * Downloads and loads the required dependencies for the given artifact using the default JarLoader.
    *
    * @param artifact the artifact for which dependencies need to be downloaded and loaded
    */

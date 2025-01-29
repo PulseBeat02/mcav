@@ -26,6 +26,10 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Injector that uses reflection to add URLs to a {@link URLClassLoader}.
+ * This is used when the {@link URLClassLoader#addURL(URL)} method is not accessible.
+ */
 final class ReflectiveInjector extends URLClassLoaderInjector {
 
   private static final @Nullable Method ADD_URL_METHOD = getUrlMethod();
@@ -51,7 +55,7 @@ final class ReflectiveInjector extends URLClassLoaderInjector {
   }
 
   @Override
-  public void addURL(final URL url) {
+  void addURL(final URL url) {
     if (ADD_URL_METHOD == null) {
       throw new JarInjectorException("Reflective injector not supported");
     }

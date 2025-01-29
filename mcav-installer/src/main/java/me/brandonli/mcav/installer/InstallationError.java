@@ -17,19 +17,15 @@
  */
 package me.brandonli.mcav.installer;
 
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an error that occurs during the installation process of the application.
- * This error is a subclass of {@link AssertionError} and is used to indicate critical issues
- * that prevent the installation from proceeding successfully.
- * <p>
- * Instances of this error are typically thrown when an unrecoverable condition occurs,
- * such as missing dependencies, invalid configurations, or unavailable resources essential
- * to the installation process.
+ * Represents a critical error which occurred while installing the dependencies of the specified artifact.
  */
 public class InstallationError extends AssertionError {
 
+  @Serial
   private static final long serialVersionUID = 6370074734200515542L;
 
   InstallationError(final @Nullable String message) {

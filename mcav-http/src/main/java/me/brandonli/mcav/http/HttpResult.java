@@ -20,66 +20,76 @@ package me.brandonli.mcav.http;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
 /**
- * Represents the result of an HTTP-based audio processing operation that extends
- * the capabilities of an {@link AudioFilter}.
+ * Represents an HTTP-based audio filter that can stream PCM audio data into web browsers. Uses Javalin for
+ * serving HTTP pages and WebSocket connections for streaming.
  * <p>
- * This interface is primarily used to define behavior for managing HTTP services
- * that interact with processed audio data.
- * Implementations can apply audio filters, and they should also provide the ability
- * to stop the HTTP service or clean up associated resources.
+ * Here is an example of how to use it:
+ *
+ * <pre><code>
+ *   final HttpResult result = HttpResult.port(3000);
+ *   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(result);
+ *   ...
+ * </code></pre>
  */
 public interface HttpResult extends AudioFilter {
   /**
-   * Starts the HTTP service to process and handle audio-related requests.
-   * This method initializes the necessary resources and begins serving incoming
-   * HTTP requests. It is typically called to make the service operational.
-   * Implementations of this method should ensure that the service is correctly configured
-   * and ready to handle requests.
+   * Starts the HTTP server and opens web socket connections for clients to receive audio data.
    */
   void start();
 
   /**
-   * Terminates the HTTP service and releases any resources associated with it.
-   * This method stops the underlying HTTP server, ensuring that no further
-   * requests can be handled. It is typically invoked when the service is no
-   * longer needed or during application shutdown.
-   * <p>
-   * Implementations of this method should ensure that the cleanup process is
-   * thread-safe and frees resources efficiently.
+   * Stops the HTTP server and closes all web socket connections.
    */
   void stop();
 
   /**
-   * Retrieves the full URL of the HTTP service, including the protocol, host, and port.
-   * This method provides the complete address at which the HTTP server is accessible.
+   * Returns the full URL to the web page that streams audio data. In the format of
+   * {@code http://<domain>:<port>/}
    *
-   * @return the full URL as a String, representing the location of the HTTP service.
+   * @return the full URL to the web page
    */
   String getFullUrl();
 
   /**
-   * Creates a new {@link HttpResult} instance that starts an HTTP server at the specified port
-   * and provides endpoints for handling audio processing operations.
+   * Creates a new {@link HttpResult} instance with the default domain "localhost" and the specified port.
    *
-   * @param port the port number on which the HTTP server will be started.
-   *             Must be a valid TCP port within the range 0 to 65535.
-   * @return a newly created {@link HttpResult} instance configured to run on the specified port.
-   * The HTTP server will be started and accessible via the specified port.
+   * @param port the port to bind the HTTP server to
+   * @return a new {@link HttpResult} instance
    */
   static HttpResult port(final int port) {
-    return new HttpResultImpl(port);
+    return http("localhost", port);
   }
 
   /**
-   * Creates an {@link HttpResult} instance with the specified port and an HTML response
-   * for the root endpoint. The HTTP server runs on the given port and responds with the
-   * provided HTML content for the root ("/") path.
+   * Creates a new {@link HttpResult} instance with the specified domain and default port 80.
    *
-   * @param port the HTTP port on which the server should run
-   * @param html the HTML content to be served at the root endpoint
-   * @return an instance of {@link HttpResult} that manages the HTTP service
+   * @param domain the domain to bind the HTTP server to
+   * @return a new {@link HttpResult} instance
    */
-  static HttpResult port(final int port, final String html) {
-    return new HttpResultImpl(port, html);
+  static HttpResult domain(final String domain) {
+    return http(domain, 80);
+  }
+
+  /**
+   * Creates a new {@link HttpResult} instance with the specified domain and port.
+   *
+   * @param domain the domain to bind the HTTP server to
+   * @param port   the port to bind the HTTP server to
+   * @return a new {@link HttpResult} instance
+   */
+  static HttpResult http(final String domain, final int port) {
+    return new HttpResultImpl(domain, port);
+  }
+
+  /**
+   * Creates a new {@link HttpResult} instance with the specified domain, port, and HTML content.
+   *
+   * @param domain the domain to bind the HTTP server to
+   * @param port   the port to bind the HTTP server to
+   * @param html   the HTML content to serve
+   * @return a new {@link HttpResult} instance
+   */
+  static HttpResult http(final String domain, final int port, final String html) {
+    return new HttpResultImpl(domain, port, html);
   }
 }

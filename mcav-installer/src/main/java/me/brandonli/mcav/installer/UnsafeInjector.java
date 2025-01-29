@@ -94,7 +94,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
   }
 
   @Override
-  public void addURL(final URL url) {
+  void addURL(final URL url) {
     if (this.unopenedURLs == null || this.pathURLs == null) {
       throw new JarInjectorException("Unsafe injector is not supported!");
     }

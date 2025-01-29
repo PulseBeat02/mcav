@@ -47,7 +47,7 @@ import org.eclipse.aether.util.filter.ScopeDependencyFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class InstallationManager implements AutoCloseable {
+final class InstallationManager implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(InstallationManager.class);
 

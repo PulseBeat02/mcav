@@ -18,22 +18,21 @@
 package me.brandonli.mcav.installer;
 
 /**
- * Enum representing different types of artifacts, each associated with a specific artifact ID.
+ * Enum representing different artifacts in the mcav project.
  */
 public enum Artifact {
   /**
-   * Represents the common artifact, identified by the artifact ID "mcav-common".
+   * Represents the common artifact, containing the core functionality of the mcav project.
    */
   COMMON("mcav-common"),
 
   /**
-   * Represents the JDA artifact, identified by the artifact ID "mcav-jda".
-   * This artifact is associated with the JDA functionality within the mcav project.
+   * Represents the JDA artifact, which provides integration with the JDA (Java Discord API).
    */
   JDA("mcav-jda"),
 
   /**
-   * Represents the HTTP artifact, identified by the artifact ID "mcav-http".
+   * Represents the HTTP artifact, which provides HTTP audio streaming.
    */
   HTTP("mcav-http");
 

@@ -21,8 +21,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 
 /**
- * An interface for loading JAR files into a given {@link ClassLoader}.
- * This is useful for dynamically adding JAR files to the runtime classpath.
+ * Interface to provide a mechanism to load jar files into the current ClassLoader.
  */
 public interface JarLoader {
   /**
@@ -33,5 +32,8 @@ public interface JarLoader {
    */
   void loadJars(final Collection<Path> jars, final ClassLoader loader);
 
+  /**
+   * Default implementation of JarLoader that uses the Unasfe or Reflective injector to load JAR files.
+   */
   JarLoader DEFAULT_URL_LOADER = LoaderUtils::loadJarPaths;
 }

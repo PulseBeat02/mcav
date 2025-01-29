@@ -37,7 +37,7 @@ abstract class URLClassLoaderInjector {
     this.classLoader = classLoader;
   }
 
-  public abstract void addURL(final URL url);
+  abstract void addURL(final URL url);
 
   URLClassLoader getClassLoader() {
     return this.classLoader;

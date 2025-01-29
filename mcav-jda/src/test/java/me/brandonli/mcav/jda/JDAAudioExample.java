@@ -47,7 +47,6 @@ public final class JDAAudioExample {
 
     final Guild guild = requireNonNull(jda.getGuildById("1372733795769520271"));
     final VoiceChannel voiceChannel = requireNonNull(guild.getVoiceChannelById("1372733796709040221"));
-
     final AudioManager audioManager = guild.getAudioManager();
     audioManager.openAudioConnection(voiceChannel);
 

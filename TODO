@@ -1,5 +1,6 @@
 High Priority Tasks:
-  - Rewrite all JavaDocs / Code Clean Up
+  - Rewrite all JavaDocs (mcav-common, mcav-bukkit)
+  - Clean Up Codebase / Optimize
   - Write Documentation for Plugin
 
 Medium Priority Tasks:

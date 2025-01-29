@@ -30,6 +30,11 @@ import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 
+/**
+ * The concrete implementation of the {@link HttpResult} interface, providing a default HTML template
+ * if none isn't specified. Opens multiple web socket connections and sends PCM audio data, which the
+ * JavaScript client can encode and play in the browser.
+ */
 public class HttpResultImpl implements HttpResult {
 
   private static final String HTML_TEMPLATE = loadHtmlFromResource();
@@ -47,17 +52,19 @@ public class HttpResultImpl implements HttpResult {
   }
 
   private final CopyOnWriteArrayList<WsContext> wsClients;
+  private final String domain;
   private final int port;
   private final String html;
 
   private Javalin app;
 
-  HttpResultImpl(final int port) {
-    this(port, HTML_TEMPLATE);
+  HttpResultImpl(final String domain, final int port) {
+    this(domain, port, HTML_TEMPLATE);
   }
 
-  HttpResultImpl(final int port, final String html) {
+  HttpResultImpl(final String domain, final int port, final String html) {
     this.wsClients = new CopyOnWriteArrayList<>();
+    this.domain = domain;
     this.port = port;
     this.html = html.replace("%%PORT%%", String.valueOf(port));
   }
@@ -108,7 +115,7 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public String getFullUrl() {
-    return String.format("http://localhost:%s", this.port);
+    return String.format("http://%s:%s", this.domain, this.port);
   }
 
   /**
@@ -118,6 +125,9 @@ public class HttpResultImpl implements HttpResult {
   public void stop() {
     if (this.app != null) {
       this.app.stop();
+    }
+    for (final WsContext client : this.wsClients) {
+      client.closeSession();
     }
     this.wsClients.clear();
   }

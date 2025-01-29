@@ -17,19 +17,15 @@
  */
 package me.brandonli.mcav.installer;
 
+import java.io.Serial;
+
 /**
- * This exception is thrown to indicate a violation of integrity for a JAR entry.
- * It is used to signal that an expected condition related to the security
- * or integrity of a JAR entry has failed.
- * <p>
- * The exception extends {@link SecurityException}, inheriting its behavior while
- * providing a specific context for JAR entry validation issues.
- * <p>
- * Constructors provide mechanisms to supply detailed exception messages when the
- * issue is encountered.
+ * Represents an exception when a jar entry's integrity is compromised, such as for unzipping and loading the
+ * service entries in a jar file.
  */
 public class JarEntryIntegrityException extends SecurityException {
 
+  @Serial
   private static final long serialVersionUID = -5481191042398056901L;
 
   JarEntryIntegrityException(final String message) {
