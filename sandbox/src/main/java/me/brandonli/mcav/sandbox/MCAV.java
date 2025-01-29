@@ -17,20 +17,21 @@
  */
 package me.brandonli.mcav.sandbox;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
-import me.brandonli.mcav.utils.ExecutorUtils;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class MCAV extends JavaPlugin {
 
@@ -79,18 +80,16 @@ public final class MCAV extends JavaPlugin {
     try {
       installer.loadMCAVDependencies(line -> temporary.log(Level.INFO, line));
     } catch (final IOException e) {
+      final Server server = Bukkit.getServer();
+      final PluginManager pluginManager = server.getPluginManager();
+      pluginManager.disablePlugin(this);
       throw new AssertionError(e);
     }
   }
 
   private void loadMCAV() {
-    final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
     this.mcav = me.brandonli.mcav.MCAV.api();
-    try {
-      this.mcav.install(executorService);
-    } finally {
-      ExecutorUtils.shutdownExecutorGracefully(executorService);
-    }
+    this.mcav.install();
   }
 
   private void shutdownAudience() {

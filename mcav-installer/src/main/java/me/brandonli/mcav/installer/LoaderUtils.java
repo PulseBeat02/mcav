@@ -30,7 +30,7 @@ import java.util.jar.JarFile;
 
 public final class LoaderUtils {
 
-  private static final int MAX_ENTRIES = 10000;
+  private static final int MAX_ENTRIES = 100_000;
   private static final int MAX_BYTES = 64 * 1024 * 1024;
   private static final String META_INF_SERVICES = "META-INF/services/";
   private static final int MAX_SERVICE_NAME_LENGTH = META_INF_SERVICES.length();
