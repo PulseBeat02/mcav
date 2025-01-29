@@ -34,23 +34,5 @@
     },
     "url": "https://get.videolan.org/vlc/3.0.21/macosx/vlc-3.0.21-intel64.dmg",
     "hash": "d431fd051c3dc7af02bd313c6d05d90cf604b70ed3ec5bba6fd4c49ef3e638d9"
-  },
-  {
-    "platform": {
-      "os": "LINUX",
-      "arch": "X86",
-      "bits": "BITS_64"
-    },
-    "url": "https://github.com/ivan-hc/VLC-appimage/releases/download/continuous-with-plugins/VLC-media-player_3.0.21-19-jre8-with-plugins-archimage4.3-x86_64.AppImage",
-    "hash": "3f0be9cff2a95b0ebe66c7d9d320c5b83ce2715bb3269a5f8d50adba1b0c5cea"
-  },
-  {
-    "platform": {
-      "os": "LINUX",
-      "arch": "X86",
-      "bits": "BITS_32"
-    },
-    "url": "https://github.com/ivan-hc/32-bit-AppImage-packages-database/releases/download/vlc/VLC-media-player_-i386.AppImage",
-    "hash": "567a4d9679d2080bd2b7f868b00a13da86912cf7fed3d2b45b1bc09281b69bf6"
   }
 ]

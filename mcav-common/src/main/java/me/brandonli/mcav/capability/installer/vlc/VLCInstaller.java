@@ -22,11 +22,11 @@ import java.nio.file.Path;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.Download;
+import me.brandonli.mcav.capability.installer.vlc.github.ReleasePackageManager;
 import me.brandonli.mcav.capability.installer.vlc.installation.InstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.LinuxInstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.OSXInstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.WinInstallationStrategy;
-import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 
@@ -42,7 +42,7 @@ public final class VLCInstaller extends AbstractInstaller {
 
   public static final String VERSION = "3.0.21";
 
-  private static final Download[] DOWNLOADS = IOUtils.readDownloadsFromJsonResource("vlc.json");
+  private static final Download[] DOWNLOADS = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");
 
   VLCInstaller(final Path folder) {
     super(folder, "vlc", DOWNLOADS);

@@ -96,6 +96,30 @@ public final class IOUtils {
   }
 
   /**
+   * Generates the SHA-256 hash of the content retrieved from the given URL.
+   * The method reads the content from the specified URL, computes its SHA-256 hash,
+   * and returns the hash as a hexadecimal string.
+   *
+   * @param url the URL pointing to the resource whose content needs to be hashed. Must not be null.
+   * @return a hexadecimal string representation of the SHA-256 hash of the content.
+   * @throws NullPointerException if the provided URL is null.
+   * @throws UncheckedIOException if an I/O error occurs while reading the content from the URL.
+   */
+  public static String getSHA256Hash(final String url) {
+    try {
+      final HashFunction function = Hashing.sha256();
+      try (final InputStream stream = new URL(url).openStream()) {
+        final byte[] bytes = stream.readAllBytes();
+        final HashCode code = function.hashBytes(bytes);
+        final byte[] hash = code.asBytes();
+        return bytesToHex(hash);
+      }
+    } catch (final IOException e) {
+      throw new UncheckedIOException(e.getMessage());
+    }
+  }
+
+  /**
    * Generates the SHA-256 hash of the file located at the specified path.
    * The method reads the entire content of the file and computes its SHA-1 hash.
    *

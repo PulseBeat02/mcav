@@ -25,6 +25,7 @@ import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
+import me.brandonli.mcav.capability.installer.vlc.github.ReleasePackageManager;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
@@ -98,7 +99,16 @@ public final class MCAV implements MCAVApi {
   private void installMisc() {
     this.loadModules();
     this.loadMapCache();
+    this.loadVLCPackages();
     ImageIO.setUseCache(false);
+  }
+
+  private void loadVLCPackages() {
+    LOGGER.info("Loading GitHub releases...");
+    final long start = System.currentTimeMillis();
+    ReleasePackageManager.init();
+    final long end = System.currentTimeMillis();
+    LOGGER.info("GitHub releases loaded in {} ms", end - start);
   }
 
   private void loadMapCache() {
