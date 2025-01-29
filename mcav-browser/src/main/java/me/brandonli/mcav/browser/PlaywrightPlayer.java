@@ -158,6 +158,8 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     try {
       Thread.sleep(50);
     } catch (final InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);
@@ -236,6 +238,8 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     try {
       Thread.sleep(sleep);
     } catch (final InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);

@@ -253,13 +253,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     }
 
     audioSourceThread.shutdownNow();
-    try {
-      audioSourceThread.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (final InterruptedException e) {
-      final String msg = e.getMessage();
-      requireNonNull(msg);
-      this.exceptionHandler.accept(msg, e);
-    }
   }
 
   private void playbackCombinedSource(

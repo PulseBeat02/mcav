@@ -1,7 +1,7 @@
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
-    id("com.gradleup.shadow") version "8.3.7"
+    id("com.gradleup.shadow") version "8.3.8"
     id("xyz.jpenilla.run-paper") version "2.3.1"
     id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.0"
     id("xyz.jpenilla.gremlin-gradle") version "0.0.8"

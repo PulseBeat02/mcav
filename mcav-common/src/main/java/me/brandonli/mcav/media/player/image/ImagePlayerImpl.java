@@ -111,6 +111,8 @@ public class ImagePlayerImpl implements ImagePlayer {
     try {
       Thread.sleep(50);
     } catch (final InterruptedException e) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
       final String msg = e.getMessage();
       requireNonNull(msg);
       this.exceptionHandler.accept(msg, e);
