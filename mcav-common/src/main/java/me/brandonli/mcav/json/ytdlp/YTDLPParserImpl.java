@@ -17,13 +17,10 @@
  */
 package me.brandonli.mcav.json.ytdlp;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
@@ -39,10 +36,8 @@ public final class YTDLPParserImpl implements YTDLPParser {
 
   static final YTDLPParser INSTANCE = new YTDLPParserImpl();
 
-  private final Cache<String, URLParseDump> cache;
-
   YTDLPParserImpl() {
-    this.cache = CacheBuilder.newBuilder().expireAfterWrite(30, TimeUnit.MINUTES).maximumSize(100).build();
+    // no-op
   }
 
   /**
@@ -52,11 +47,6 @@ public final class YTDLPParserImpl implements YTDLPParser {
   public URLParseDump parse(final UriSource input, final String... arguments) throws IOException {
     final URI uri = input.getUri();
     final String raw = uri.toString();
-    final URLParseDump cachedResult = this.cache.getIfPresent(raw);
-    if (cachedResult != null) {
-      return cachedResult;
-    }
-
     final YTDLPInstaller installer = YTDLPInstaller.create();
     final Path path = installer.download(true);
     final String executable = path.toString();
@@ -64,20 +54,18 @@ public final class YTDLPParserImpl implements YTDLPParser {
     final CommandTask task = new CommandTask(args, true);
     final Gson gson = GsonProvider.getSimple();
     final String output = task.getOutput();
-    final URLParseDump result = gson.fromJson(output, URLParseDump.class);
-    this.cache.put(raw, result);
-
-    return result;
+    return gson.fromJson(output, URLParseDump.class);
   }
 
   private String[] constructArguments(final String executable, final String raw, final String... arguments) {
-    final String[] args = new String[3 + arguments.length];
+    final String[] args = new String[4 + arguments.length];
     args[0] = executable;
     args[1] = "--dump-json";
-    args[2] = raw;
+    args[2] = "--no-cache-dir";
+    args[3] = raw;
 
     if (arguments.length > 0) {
-      System.arraycopy(arguments, 0, args, 3, arguments.length);
+      System.arraycopy(arguments, 0, args, 4, arguments.length);
     }
 
     return args;
