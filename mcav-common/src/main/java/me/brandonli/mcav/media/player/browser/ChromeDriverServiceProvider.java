@@ -18,10 +18,11 @@
 package me.brandonli.mcav.media.player.browser;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
-import java.nio.file.Path;
 import me.brandonli.mcav.utils.IOUtils;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel;
+
+import java.nio.file.Path;
 
 /**
  * A provider class for managing the ChromeDriver service setup and initialization.
@@ -41,11 +42,14 @@ public final class ChromeDriverServiceProvider {
 
   static {
     final Path path = IOUtils.getCachedFolder();
-    final String raw = path.toString();
+    final Path driver = path.resolve("driver");
+    final String raw = driver.toString();
     final WebDriverManager manager = WebDriverManager.chromedriver();
+    manager.clearDriverCache();
+    manager.clearResolutionCache();
     manager.cachePath(raw);
     manager.setup();
-    SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.SEVERE).usingAnyFreePort().build();
+    SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.DEBUG).usingAnyFreePort().build();
   }
 
   /**

@@ -19,6 +19,9 @@ package me.brandonli.mcav;
 
 import me.brandonli.mcav.capability.Capability;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+
 /**
  * Represents the main API interface for handling media playback capabilities,
  * installation, and resource management in the MCAV library.
@@ -45,8 +48,21 @@ public interface MCAVApi {
    * <p>
    * After this method is executed, the library's capabilities can be verified using the
    * {@code hasCapability} method with specific {@code Capability} values.
+   *
+   * @param service the executor service to run the installation tasks
    */
-  void install();
+  void install(final ExecutorService service);
+
+  /**
+   * Installs the necessary components and dependencies required for the media playback library
+   * using the common ForkJoinPool.
+   * <p>
+   * This method is a convenience overload that uses the common pool for executing installation tasks.
+   * It is equivalent to calling {@code install(ForkJoinPool.commonPool())}.
+   */
+  default void install() {
+    this.install(ForkJoinPool.commonPool());
+  }
 
   /**
    * Releases resources and performs cleanup operations as required by the library.

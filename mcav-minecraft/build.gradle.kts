@@ -16,6 +16,16 @@ dependencies {
 
 tasks {
 
+    register<Copy>("copyCppOutput") {
+        from("${projectDir}/../cpp-src/output")
+        into(layout.buildDirectory.dir("resources/main"))
+        includeEmptyDirs = false
+    }
+
+    processResources {
+        dependsOn("copyCppOutput")
+    }
+
     assemble {
         dependsOn(shadowJar)
     }

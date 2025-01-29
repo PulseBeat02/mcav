@@ -17,9 +17,6 @@
  */
 package me.brandonli.mcav.sandbox;
 
-import java.nio.file.Path;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.installer.MCAVInstaller;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -27,7 +24,14 @@ import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.AudienceProvider;
 import me.brandonli.mcav.sandbox.utils.ClassGraphUtils;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
+import me.brandonli.mcav.utils.ExecutorUtils;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.nio.file.Path;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class MCAV extends JavaPlugin {
 
@@ -56,8 +60,8 @@ public final class MCAV extends JavaPlugin {
 
   @Override
   public void onEnable() {
-    this.loadAudience();
     this.loadPluginData();
+    this.loadAudience();
     this.initLookupTables();
     this.loadCommands();
   }
@@ -77,8 +81,13 @@ public final class MCAV extends JavaPlugin {
   }
 
   private void loadMCAV() {
+    final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
     this.mcav = me.brandonli.mcav.MCAV.api();
-    this.mcav.install();
+    try {
+      this.mcav.install(executorService);
+    } finally {
+      ExecutorUtils.shutdownExecutorGracefully(executorService);
+    }
   }
 
   private void shutdownAudience() {

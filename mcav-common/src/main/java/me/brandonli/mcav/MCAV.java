@@ -17,19 +17,20 @@
  */
 package me.brandonli.mcav;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.qemu.QemuInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
-import me.brandonli.mcav.media.player.browser.ChromeDriverServiceProvider;
 import me.brandonli.mcav.media.player.combined.vlc.MediaPlayerFactoryProvider;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.opencv_java;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 /**
  * MCAV is the main implementation of the {@link MCAVApi} interface, providing core functionality
@@ -73,13 +74,12 @@ public final class MCAV implements MCAVApi {
    * {@inheritDoc}
    */
   @Override
-  public void install() {
-    final CompletableFuture<Void> ytDlpTask = CompletableFuture.runAsync(this::installYTDLP);
-    final CompletableFuture<Void> vlcTask = CompletableFuture.runAsync(this::installVLC);
-    final CompletableFuture<Void> webDriverTask = CompletableFuture.runAsync(this::installWebDriver);
-    final CompletableFuture<Void> qemuTask = CompletableFuture.runAsync(this::installQemu);
-    final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::loadMisc);
-    CompletableFuture.allOf(ytDlpTask, vlcTask, webDriverTask, qemuTask, miscTask).join();
+  public void install(final ExecutorService service) {
+    final CompletableFuture<Void> ytDlpTask = CompletableFuture.runAsync(this::installYTDLP, service);
+    final CompletableFuture<Void> vlcTask = CompletableFuture.runAsync(this::installVLC, service);
+    final CompletableFuture<Void> qemuTask = CompletableFuture.runAsync(this::installQemu, service);
+    final CompletableFuture<Void> miscTask = CompletableFuture.runAsync(this::loadMisc, service);
+    CompletableFuture.allOf(ytDlpTask, vlcTask, qemuTask, miscTask).join();
   }
 
   /**
@@ -128,9 +128,5 @@ public final class MCAV implements MCAVApi {
     } catch (final IOException e) {
       throw new AssertionError(e);
     }
-  }
-
-  private void installWebDriver() {
-    ChromeDriverServiceProvider.init();
   }
 }
