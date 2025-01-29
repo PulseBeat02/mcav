@@ -4,7 +4,7 @@ import xyz.jpenilla.runtask.task.AbstractRun
 plugins {
     id("com.gradleup.shadow") version "8.3.6"
     id("xyz.jpenilla.run-paper") version "2.3.1"
-    id("xyz.jpenilla.resource-factory-bukkit-convention") version "1.2.1"
+    id("xyz.jpenilla.resource-factory-bukkit-convention") version "1.3.0"
 }
 
 dependencies {
@@ -26,7 +26,7 @@ dependencies {
     compileOnly("org.bstats:bstats-bukkit:3.1.0")
     compileOnly("dev.triumphteam:triumph-gui:3.1.12")
     compileOnly("net.kyori:adventure-api:4.21.0")
-    compileOnly("net.kyori:adventure-platform-bukkit:4.3.4")
+    compileOnly("net.kyori:adventure-platform-bukkit:4.4.0")
     compileOnly("net.kyori:adventure-text-minimessage:4.21.0")
     compileOnly("net.kyori:adventure-text-serializer-legacy:4.21.0")
     compileOnly("net.kyori:adventure-text-serializer-plain:4.21.0")
@@ -86,7 +86,7 @@ tasks {
             "org.bstats:bstats-bukkit:3.1.0",
             "dev.triumphteam:triumph-gui:3.1.12",
             "net.kyori:adventure-api:4.21.0",
-            "net.kyori:adventure-platform-bukkit:4.3.4",
+            "net.kyori:adventure-platform-bukkit:4.4.0",
             "net.kyori:adventure-text-minimessage:4.21.0",
             "net.kyori:adventure-text-serializer-legacy:4.21.0",
             "net.kyori:adventure-text-serializer-plain:4.21.0"
