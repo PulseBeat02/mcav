@@ -26,9 +26,11 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.metadata.AudioMetadata;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.natives.ByteUtils;
+import org.eclipse.jetty.websocket.api.Session;
 
 /**
  * The concrete implementation of the {@link HttpResult} interface, providing a default HTML template
@@ -45,9 +47,11 @@ public class HttpResultImpl implements HttpResult {
       final InputStreamReader isr = new InputStreamReader(is);
       final BufferedReader reader = new BufferedReader(isr)
     ) {
-      return reader.lines().collect(Collectors.joining("\n"));
+      final Stream<String> lines = reader.lines();
+      return lines.collect(Collectors.joining("\n"));
     } catch (final IOException e) {
-      throw new HttpException(e.getMessage(), e);
+      final String msg = e.getMessage();
+      throw new HttpException(msg, e);
     }
   }
 
@@ -63,10 +67,11 @@ public class HttpResultImpl implements HttpResult {
   }
 
   HttpResultImpl(final String domain, final int port, final String html) {
+    final String portValue = String.valueOf(port);
     this.wsClients = new CopyOnWriteArrayList<>();
     this.domain = domain;
     this.port = port;
-    this.html = html.replace("%%PORT%%", String.valueOf(port));
+    this.html = html.replace("%%PORT%%", portValue);
   }
 
   /**
@@ -91,20 +96,20 @@ public class HttpResultImpl implements HttpResult {
     if (samples == null || metadata == null) {
       return;
     }
+
     final ByteBuffer clamped = ByteUtils.clampNormalBufferToLittleEndianHttpReads(samples);
     final int position = clamped.position();
-    final ByteBuffer copy = ByteBuffer.allocate(clamped.remaining());
+    final int remaining = clamped.remaining();
+    final ByteBuffer copy = ByteBuffer.allocate(remaining);
     copy.put(clamped);
     copy.flip();
     clamped.position(position);
-    this.streamPCMToClients(copy);
-  }
 
-  private void streamPCMToClients(final ByteBuffer samples) {
     for (final WsContext client : this.wsClients) {
-      try {
-        client.send(samples);
-      } catch (final Exception e) {
+      final Session session = client.session;
+      if (session.isOpen()) {
+        client.send(copy);
+      } else {
         this.wsClients.remove(client);
       }
     }
@@ -125,10 +130,8 @@ public class HttpResultImpl implements HttpResult {
   public void stop() {
     if (this.app != null) {
       this.app.stop();
+      this.wsClients.forEach(WsContext::closeSession);
+      this.wsClients.clear();
     }
-    for (final WsContext client : this.wsClients) {
-      client.closeSession();
-    }
-    this.wsClients.clear();
   }
 }

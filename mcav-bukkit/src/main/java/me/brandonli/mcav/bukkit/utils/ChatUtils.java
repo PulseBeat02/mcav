@@ -32,6 +32,7 @@ import org.bukkit.entity.Player;
 public final class ChatUtils {
 
   private static final char[] CHARACTER_DICTIONARY = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+  private static final String CLEAR_CHAT_MESSAGE = StringUtils.repeat("\n", 100);
 
   private ChatUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -129,13 +130,12 @@ public final class ChatUtils {
    * @param viewers players to clear the chat for
    */
   public static void clearChat(final Collection<UUID> viewers) {
-    final String repeated = StringUtils.repeat("\n", 100);
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player == null) {
         continue;
       }
-      player.sendMessage(repeated);
+      player.sendMessage(CLEAR_CHAT_MESSAGE);
     }
   }
 }

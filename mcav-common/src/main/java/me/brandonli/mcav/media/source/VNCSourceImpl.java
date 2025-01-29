@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.source;
 
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
+import com.google.common.base.Preconditions;
 
 /**
  * Implementation of the {@link VNCSource} interface, representing a VNC (Virtual Network Computing)
@@ -31,15 +31,17 @@ public class VNCSourceImpl implements VNCSource {
   private final String host;
   private final int port;
   private final String password;
-  private final VideoMetadata videoMetadata;
-  private final String name;
+  private final int width;
+  private final int height;
+  private final int targetFrameRate;
 
-  VNCSourceImpl(final String host, final int port, final String password, final VideoMetadata videoMetadata, final String name) {
+  VNCSourceImpl(final String host, final int port, final String password, final int width, final int height, final int targetFrameRate) {
     this.host = host;
     this.port = port;
     this.password = password;
-    this.videoMetadata = videoMetadata;
-    this.name = name;
+    this.width = width;
+    this.height = height;
+    this.targetFrameRate = targetFrameRate;
   }
 
   /**
@@ -66,20 +68,22 @@ public class VNCSourceImpl implements VNCSource {
     return this.password;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public VideoMetadata getVideoMetadata() {
-    return this.videoMetadata;
+  public int getScreenWidth() {
+    return this.width;
+  }
+
+  @Override
+  public int getScreenHeight() {
+    return this.height;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public String getName() {
-    return this.name;
+  public int getTargetFrameRate() {
+    return this.targetFrameRate;
   }
 
   /**
@@ -110,21 +114,11 @@ public class VNCSourceImpl implements VNCSource {
      */
     Builder password(String password);
 
-    /**
-     * Sets the video metadata.
-     *
-     * @param videoMetadata the video metadata
-     * @return this builder
-     */
-    Builder videoMetadata(VideoMetadata videoMetadata);
+    Builder screenWidth(int width);
 
-    /**
-     * Sets the name for this VNC connection.
-     *
-     * @param name the connection name
-     * @return this builder
-     */
-    Builder name(String name);
+    Builder screenHeight(int height);
+
+    Builder targetFrameRate(int targetFrameRate);
 
     /**
      * Builds a new VNCSource instance with the configured properties.
@@ -142,8 +136,9 @@ public class VNCSourceImpl implements VNCSource {
     private String host;
     private int port;
     private String password;
-    private VideoMetadata videoMetadata;
-    private String name;
+    private int width;
+    private int height;
+    private int targetFrameRate;
 
     @Override
     public Builder host(final String host) {
@@ -164,20 +159,31 @@ public class VNCSourceImpl implements VNCSource {
     }
 
     @Override
-    public Builder videoMetadata(final VideoMetadata videoMetadata) {
-      this.videoMetadata = videoMetadata;
+    public Builder screenWidth(final int width) {
+      this.width = width;
       return this;
     }
 
     @Override
-    public Builder name(final String name) {
-      this.name = name;
+    public Builder screenHeight(final int height) {
+      this.height = height;
+      return this;
+    }
+
+    @Override
+    public Builder targetFrameRate(final int targetFrameRate) {
+      this.targetFrameRate = targetFrameRate;
       return this;
     }
 
     @Override
     public VNCSource build() {
-      return new VNCSourceImpl(host, port, password, videoMetadata, name);
+      Preconditions.checkNotNull(this.host);
+      Preconditions.checkArgument(this.port > 0 && this.port <= 65535, "Port must be between 1 and 65535");
+      Preconditions.checkArgument(this.width >= 0, "Width must be non-negative");
+      Preconditions.checkArgument(this.height >= 0, "Height must be non-negative");
+      Preconditions.checkArgument(this.targetFrameRate > 0, "Target frame rate must be positive");
+      return new VNCSourceImpl(this.host, this.port, this.password, this.width, this.height, this.targetFrameRate);
     }
   }
 

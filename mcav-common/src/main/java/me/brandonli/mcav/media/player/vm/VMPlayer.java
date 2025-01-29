@@ -21,10 +21,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.ControllablePlayer;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.utils.IOUtils;
 
 /**
  * The VMPlayer interface defines the contract for a virtual machine-based
@@ -42,132 +40,25 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer {
     return new VMPlayerImpl();
   }
 
-  /**
-   * Starts the execution of a specific step in the video processing pipeline.
-   *
-   * @param step         The video pipeline step to be executed.
-   * @param port         The port number to be used for communication or data transfer.
-   * @param architecture The architecture type for which the step is to be executed.
-   * @param arguments    An array of additional arguments required for the step execution.
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return True if the step started successfully, otherwise false.
-   */
-  boolean start(
-    final VideoPipelineStep step,
-    final int port,
-    final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
-  );
+  boolean start(final VideoPipelineStep step, final VMSettings settings, final Architecture architecture, final VMConfiguration arguments);
 
-  /**
-   * Starts the given video pipeline step with the specified architecture and arguments.
-   *
-   * @param step         the video pipeline step to start
-   * @param architecture the architecture to be used
-   * @param arguments    the arguments to be passed to the video pipeline step
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return true if the step was started successfully; false otherwise
-   */
-  default boolean start(
-    final VideoPipelineStep step,
-    final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
-  ) {
-    final int free = IOUtils.getNextFreeVNCPort();
-    return this.start(step, free, architecture, arguments, metadata);
-  }
-
-  /**
-   * Asynchronously starts the provided video pipeline step using the
-   * specified architecture and arguments within the given executor service.
-   *
-   * @param step         the video pipeline step to be executed
-   * @param architecture the target architecture for the video pipeline
-   * @param arguments    additional arguments required to configure the pipeline step
-   * @param service      the executor service used to perform the operation asynchronously
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return a CompletableFuture that resolves to {@code true} if the operation
-   * completes successfully, or {@code false} otherwise
-   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep step,
+    final VMSettings settings,
     final Architecture architecture,
     final VMConfiguration arguments,
-    final VideoMetadata metadata,
     final ExecutorService service
   ) {
-    return CompletableFuture.supplyAsync(() -> this.start(step, architecture, arguments, metadata), service);
+    return CompletableFuture.supplyAsync(() -> this.start(step, settings, architecture, arguments), service);
   }
 
-  /**
-   * Asynchronously starts the video playback pipeline using the provided video pipeline step,
-   * architecture, and arguments, utilizing the common ForkJoinPool for execution.
-   *
-   * @param step         the video pipeline step to be used in the playback process.
-   *                     Must not be null.
-   * @param architecture the architecture to be used for the playback environment.
-   *                     Must not be null.
-   * @param arguments    an array of arguments to configure the playback pipeline.
-   *                     Must not be null.
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return a {@code CompletableFuture} that completes with {@code true} if the playback
-   * pipeline is successfully started, or {@code false} otherwise.
-   */
   default CompletableFuture<Boolean> startAsync(
     final VideoPipelineStep step,
+    final VMSettings settings,
     final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
+    final VMConfiguration arguments
   ) {
-    return this.startAsync(step, architecture, arguments, metadata, ForkJoinPool.commonPool());
-  }
-
-  /**
-   * Initiates an asynchronous execution of the video pipeline step with the specified parameters
-   * using a provided executor service.
-   *
-   * @param step         the video pipeline step to be started; must not be null.
-   * @param port         the port number to be used; must be a valid and open port.
-   * @param architecture the architecture to be used for executing the pipeline step; must not be null.
-   * @param arguments    an array of additional command-line arguments to configure the step; can be empty but not null.
-   * @param service      the {@link ExecutorService} to execute the asynchronous task; must not be null.
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return a {@link CompletableFuture} representing the result of the asynchronous execution.
-   * The future holds {@code true} if the operation was successful, {@code false} otherwise.
-   */
-  default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep step,
-    final int port,
-    final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata,
-    final ExecutorService service
-  ) {
-    return CompletableFuture.supplyAsync(() -> this.start(step, port, architecture, arguments, metadata), service);
-  }
-
-  /**
-   * Starts the video pipeline step asynchronously on the specified port, architecture,
-   * and with the given arguments using the common pool for execution.
-   *
-   * @param step         the video pipeline step to be started. Must not be null.
-   * @param port         the port number to be used for the operation.
-   * @param architecture the architecture to be used. Must not be null.
-   * @param arguments    an array of arguments for the pipeline step. Can be empty but not null.
-   * @param metadata     the metadata associated with the video. Must not be null.
-   * @return a CompletableFuture that resolves to {@code true} if the operation is successful,
-   * or {@code false} otherwise.
-   */
-  default CompletableFuture<Boolean> startAsync(
-    final VideoPipelineStep step,
-    final int port,
-    final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
-  ) {
-    return this.startAsync(step, port, architecture, arguments, metadata, ForkJoinPool.commonPool());
+    return this.startAsync(step, settings, architecture, arguments, ForkJoinPool.commonPool());
   }
 
   /**

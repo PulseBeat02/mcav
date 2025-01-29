@@ -27,7 +27,6 @@ import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.driver.BrowserPlayer;
 import me.brandonli.mcav.media.player.driver.MouseClick;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -87,13 +86,15 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     super.releaseResource(sender, Message.RELEASE_BROWSER.build());
   }
 
-  @Command("mcav browser create <playerSelector> <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
+  @Command("mcav browser create <playerSelector> <browserResolution> <quality> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
   @Permission("mcav.command.browser.create")
   @CommandDescription("mcav.command.browser.create.info")
   public void playBrowser(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "quality") @Range(min = "1") final int quality,
+    @Argument(suggestions = "nth") @Range(min = "1") final int nth,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -147,8 +148,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final MapResult result = new MapResult(configuration);
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
-    final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);
-    final BrowserSource source = BrowserSource.uri(uri, metadata);
+    final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);
     try {
       this.player = BrowserPlayer.defaultChrome();
       this.player.start(pipeline, source);

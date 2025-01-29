@@ -18,10 +18,9 @@
 package me.brandonli.mcav.bukkit.media.config;
 
 import com.google.common.base.Preconditions;
-import org.bukkit.Location;
-
 import java.util.Collection;
 import java.util.UUID;
+import org.bukkit.Location;
 
 /**
  * Represents a configuration for an entity related prototypes.

@@ -51,6 +51,21 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
     return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
   }
 
+  @Suggestions("quality")
+  public Stream<String> suggestQuality() {
+    return Stream.of("10", "20", "30", "40", "50", "60", "70", "80", "90", "100");
+  }
+
+  @Suggestions("nth")
+  public Stream<String> suggestNth() {
+    return Stream.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+  }
+
+  @Suggestions("target-fps")
+  public Stream<String> suggestTargetFps() {
+    return Stream.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
+  }
+
   @Override
   public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
     // do nothing

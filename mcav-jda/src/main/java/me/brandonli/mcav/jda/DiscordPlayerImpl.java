@@ -51,10 +51,12 @@ public class DiscordPlayerImpl implements DiscordPlayer {
     if (!this.canProvide()) {
       return ByteBuffer.allocate(0);
     }
+
     final byte[] audioChunk = new byte[TWENTY_MS_SIZE];
     this.buffer.flip();
     this.buffer.get(audioChunk, 0, TWENTY_MS_SIZE);
     this.buffer.compact();
+
     return ByteBuffer.wrap(audioChunk);
   }
 

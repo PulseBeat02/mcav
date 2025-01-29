@@ -115,6 +115,6 @@ public interface VideoMetadata {
    * along with default values for bitrate and frame rate
    */
   static VideoMetadata of(final int width, final int height) {
-    return new VideoMetadataImpl(width, height, DEFAULT_BITRATE, DEFAULT_FRAME_RATE);
+    return new VideoMetadataImpl(width, height, NO_OP, NO_OP);
   }
 }

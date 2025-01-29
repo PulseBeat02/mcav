@@ -32,6 +32,14 @@ public final class ByteUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  public static boolean isLittleEndian() {
+    return LITTLE_ENDIAN;
+  }
+
+  public static boolean isBigEndian() {
+    return !LITTLE_ENDIAN;
+  }
+
   /**
    * Ensures the provided ByteBuffer is in big-endian format. If the system's native byte order
    * is little-endian, the method converts the actual bytes to big-endian order.

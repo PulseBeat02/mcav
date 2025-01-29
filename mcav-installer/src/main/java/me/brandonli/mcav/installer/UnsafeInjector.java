@@ -84,6 +84,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
     }
   }
 
+  @SuppressWarnings("deprecation")
   private static Object fetchField(final Class<?> clazz, final Object object, final String name) throws NoSuchFieldException {
     if (UNSAFE == null) {
       throw new JarInjectorException("Unsafe injector is not supported!");

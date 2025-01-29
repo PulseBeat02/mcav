@@ -26,7 +26,6 @@ import javax.swing.*;
 import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.driver.BrowserPlayer;
 import me.brandonli.mcav.media.player.driver.MouseClick;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -54,8 +53,7 @@ public final class BrowserInputExample {
     video.add(videoLabel, BorderLayout.CENTER);
     video.setVisible(true);
 
-    final VideoMetadata data = VideoMetadata.of(1920, 1080);
-    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), data);
+    final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
 
     BufferedImage bufferedImage;
     ImageIcon icon;

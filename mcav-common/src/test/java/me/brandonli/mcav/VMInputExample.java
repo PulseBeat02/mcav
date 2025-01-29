@@ -26,6 +26,7 @@ import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vm.VMConfiguration;
 import me.brandonli.mcav.media.player.vm.VMPlayer;
+import me.brandonli.mcav.media.player.vm.VMSettings;
 
 @SuppressWarnings("all")
 public class VMInputExample {
@@ -107,7 +108,8 @@ public class VMInputExample {
 
     final VMConfiguration config = VMConfiguration.builder().cdrom(isoPath).memory(2048);
 
-    this.vmPlayer.start(pipeline, VMPlayer.Architecture.X86_64, config, VideoMetadata.of(600, 800));
+    final VMSettings settings = VMSettings.of(600, 800, 120);
+    this.vmPlayer.start(pipeline, settings, VMPlayer.Architecture.X86_64, config);
   }
 
   private void cleanup() {

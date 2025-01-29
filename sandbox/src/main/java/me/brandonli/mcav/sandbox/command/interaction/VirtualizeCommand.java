@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -31,6 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vm.ExecutableNotInPathException;
 import me.brandonli.mcav.media.player.vm.VMConfiguration;
 import me.brandonli.mcav.media.player.vm.VMPlayer;
+import me.brandonli.mcav.media.player.vm.VMSettings;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
@@ -111,6 +111,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = "target-fps") @Range(min = "1") final int targetFps,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -152,13 +153,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final MapResult result = new MapResult(configuration);
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
-    final VideoMetadata metadata = VideoMetadata.of(resolutionWidth, resolutionHeight);
     final VMConfiguration config = this.parseVMOptions(flags);
+    final VMSettings settings = VMSettings.of(resolutionWidth, resolutionHeight, targetFps);
 
     sender.sendMessage(Message.VM_LOADING.build());
     try {
       this.player = VMPlayer.vm();
-      this.player.startAsync(pipeline, architecture, config, metadata, this.service)
+      this.player.startAsync(pipeline, settings, architecture, config, this.service)
         .exceptionally(throwable -> handleException(sender, throwable))
         .thenRun(() -> sender.sendMessage(Message.VM_CREATE.build()));
     } catch (final Exception e) {

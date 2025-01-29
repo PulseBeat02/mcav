@@ -29,16 +29,19 @@ import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 public class FrameSourceImpl implements FrameSource {
 
   private final SampleSupplier frameSamplesSupplier;
-  private final VideoMetadata videoMetadata;
+  private final int width;
+  private final int height;
 
-  FrameSourceImpl(final SampleSupplier supplier, final VideoMetadata videoMetadata) {
+  FrameSourceImpl(final SampleSupplier supplier, final int width, final int height) {
     this.frameSamplesSupplier = supplier;
-    this.videoMetadata = videoMetadata;
+    this.width = width;
+    this.height = height;
   }
 
-  FrameSourceImpl(final ImageSupplier supplier, final VideoMetadata videoMetadata) {
+  FrameSourceImpl(final ImageSupplier supplier, final int width, final int height) {
     this.frameSamplesSupplier = supplier.toSampleSupplier();
-    this.videoMetadata = videoMetadata;
+    this.width = width;
+    this.height = height;
   }
 
   /**
@@ -49,11 +52,13 @@ public class FrameSourceImpl implements FrameSource {
     return this.frameSamplesSupplier;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public VideoMetadata getVideoMetadata() {
-    return this.videoMetadata;
+  public int getFrameWidth() {
+    return this.width;
+  }
+
+  @Override
+  public int getFrameHeight() {
+    return this.height;
   }
 }

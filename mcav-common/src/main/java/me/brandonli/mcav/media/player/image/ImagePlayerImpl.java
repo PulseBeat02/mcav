@@ -70,9 +70,9 @@ public class ImagePlayerImpl implements ImagePlayer {
   }
 
   private void runExecutorTask() {
-    final VideoMetadata metadata = this.source.getVideoMetadata();
-    final int width = metadata.getVideoWidth();
-    final int height = metadata.getVideoHeight();
+    final int width = this.source.getFrameWidth();
+    final int height = this.source.getFrameHeight();
+    final VideoMetadata metadata = VideoMetadata.of(width, height);
     while (this.running.get()) {
       final IntBuffer frame = this.source.getFrameSupplier().get();
       final int[] data = frame.array();

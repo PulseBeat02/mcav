@@ -40,15 +40,6 @@ import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
-/**
- * A browser-based player implementation using ChromeDriver to facilitate video streaming,
- * browser interaction, and screen capture processing. The {@code ChromeDriverPlayer} class
- * manages a ChromeDriver instance, frame rate controlled screenshot capture, video pipeline
- * step execution for video processing, and sending mouse events within the browser's window.
- * <p>
- * This class provides functionalities such as session management, screen capture at specific frame rates,
- * video pipeline integration, and executing tasks in a thread-safe manner with concurrency control.
- */
 public final class ChromeDriverPlayer implements BrowserPlayer {
 
   private final ChromeDriver driver;
@@ -68,14 +59,6 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   private volatile VideoPipelineStep videoPipeline;
   private volatile BrowserSource source;
 
-  /**
-   * Initializes an instance of {@code ChromeDriverPlayer} with the specified arguments.
-   * This implementation sets up a ChromeDriver instance with given browser arguments
-   * and prepares three executors - one for capturing frames, one for processing them,
-   * and one for handling miscellaneous tasks.
-   *
-   * @param args the arguments to configure the Chrome browser instance.
-   */
   public ChromeDriverPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
     final int processors = Runtime.getRuntime().availableProcessors();
@@ -103,9 +86,8 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   }
 
   private void startScreenCapture() {
-    final VideoMetadata metadata = this.source.getMetadata();
-    final int width = metadata.getVideoWidth();
-    final int height = metadata.getVideoHeight();
+    final int width = this.source.getScreencastWidth();
+    final int height = this.source.getScreencastHeight();
     final Dimension size = new Dimension(width, height);
     final WebDriver.Options options = this.driver.manage();
     final WebDriver.Window window = options.window();
@@ -128,21 +110,25 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         }
       });
 
+    final int qualityRaw = this.source.getScreencastQuality();
+    final int nthRaw = this.source.getScreencastNthFrame();
     final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality = Optional.of(80);
+    final Optional<Integer> quality = Optional.of(qualityRaw);
     final Optional<Integer> maxWidth = Optional.of(width);
     final Optional<Integer> maxHeight = Optional.of(height);
-    final Optional<Integer> everyNthFrame = Optional.of(1);
+    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
     this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
   }
 
   private void processFrames() {
     try {
-      final VideoMetadata metadata = this.source.getMetadata();
+      final int width = this.source.getScreencastWidth();
+      final int height = this.source.getScreencastHeight();
+      final VideoMetadata metadata = VideoMetadata.of(width, height);
       while (this.running.get()) {
         if (this.frameBuffer != null) {
           final StaticImage staticImage = StaticImage.bytes(this.frameBuffer);
-          staticImage.resize(metadata.getVideoWidth(), metadata.getVideoHeight());
+          staticImage.resize(width, height);
           VideoPipelineStep current = this.videoPipeline;
           while (current != null) {
             current.process(staticImage, metadata);
@@ -175,9 +161,8 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
   }
 
   private int[] translateCoordinates(final int x, final int y) {
-    final VideoMetadata videoMetadata = this.source.getMetadata();
-    final int sourceWidth = videoMetadata.getVideoWidth();
-    final int sourceHeight = videoMetadata.getVideoHeight();
+    final int sourceWidth = this.source.getScreencastWidth();
+    final int sourceHeight = this.source.getScreencastHeight();
     final int targetWidth = (int) this.frameWidth;
     final int targetHeight = (int) this.frameHeight;
     final double widthRatio = (double) targetWidth / sourceWidth;

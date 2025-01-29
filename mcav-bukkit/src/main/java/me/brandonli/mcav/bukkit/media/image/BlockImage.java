@@ -101,6 +101,7 @@ public class BlockImage implements DisplayableImage {
     if (this.locationCache == null) {
       return;
     }
+
     final BlockData empty = Material.AIR.createBlockData();
     final BlockState emptyState = empty.createBlockState();
     final Collection<BlockState> blockStates = new HashSet<>();
@@ -108,6 +109,7 @@ public class BlockImage implements DisplayableImage {
       final BlockState copy = emptyState.copy(location);
       blockStates.add(copy);
     }
+
     final Collection<UUID> viewers = this.blockConfiguration.getViewers();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);

@@ -17,10 +17,9 @@
  */
 package me.brandonli.mcav.bukkit.utils.versioning;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Map;
 import org.bukkit.Bukkit;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utility class to determine the server environment and version.
@@ -31,34 +30,25 @@ public final class ServerEnvironment {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static final Map<ServerVersion, String> VERSION_MAP = Map.of(
-    ServerVersion.V_1_21_4,
-    "v1_21_R3",
-    ServerVersion.V_1_21_5,
-    "v1_21_R4"
-  );
+  private static final Map<ServerVersion, String> VERSION_MAP = Map.of(ServerVersion.V_1_21_5, "v1_21_R4");
 
-  private static final String MINECRAFT_PACKAGE;
-
-  static {
-    final ServerVersion version = getVersion();
-    MINECRAFT_PACKAGE = requireNonNull(VERSION_MAP.get(version));
-  }
+  private static final @Nullable String MINECRAFT_PACKAGE = VERSION_MAP.get(getVersion());
 
   private static ServerVersion getVersion() {
     final String bukkitVersion = Bukkit.getBukkitVersion();
     final ServerVersion fallbackVersion = ServerVersion.V_1_8_8;
     if (bukkitVersion.contains("Unknown")) {
       return fallbackVersion;
-    } else {
-      final ServerVersion[] reversed = ServerVersion.getReversed();
-      for (final ServerVersion val : reversed) {
-        final String name = val.getReleaseName();
-        if (bukkitVersion.contains(name)) {
-          return val;
-        }
+    }
+
+    final ServerVersion[] reversed = ServerVersion.getReversed();
+    for (final ServerVersion version : reversed) {
+      final String versionName = version.getReleaseName();
+      if (bukkitVersion.contains(versionName)) {
+        return version;
       }
     }
+
     return fallbackVersion;
   }
 
@@ -68,6 +58,6 @@ public final class ServerEnvironment {
    * @return the server version
    */
   public static String getNMSRevision() {
-    return MINECRAFT_PACKAGE;
+    return MINECRAFT_PACKAGE != null ? MINECRAFT_PACKAGE : "v1_8_R3";
   }
 }

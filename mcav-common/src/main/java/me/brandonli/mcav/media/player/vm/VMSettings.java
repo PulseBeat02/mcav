@@ -15,42 +15,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.source;
+package me.brandonli.mcav.media.player.vm;
 
-import java.net.URI;
+import me.brandonli.mcav.utils.IOUtils;
 
-public class BrowserSourceImpl extends UriSourceImpl implements BrowserSource {
+public final class VMSettings {
 
-  private final int quality;
+  private final int port;
   private final int width;
   private final int height;
-  private final int nthFrame;
+  private final int targetFps;
 
-  public BrowserSourceImpl(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
-    super(uri);
-    this.quality = quality;
+  VMSettings(final int port, final int width, final int height, final int targetFps) {
+    this.port = port;
     this.width = width;
     this.height = height;
-    this.nthFrame = nthFrame;
+    this.targetFps = targetFps;
   }
 
-  @Override
-  public int getScreencastQuality() {
-    return this.quality;
+  public int getPort() {
+    return this.port;
   }
 
-  @Override
-  public int getScreencastWidth() {
+  public int getWidth() {
     return this.width;
   }
 
-  @Override
-  public int getScreencastHeight() {
+  public int getHeight() {
     return this.height;
   }
 
-  @Override
-  public int getScreencastNthFrame() {
-    return this.nthFrame;
+  public int getTargetFps() {
+    return this.targetFps;
+  }
+
+  public static VMSettings of(final int width, final int height, final int targetFps) {
+    final int free = IOUtils.getNextFreeVNCPort();
+    return of(free, width, height, targetFps);
+  }
+
+  public static VMSettings of(final int port, final int width, final int height, final int targetFps) {
+    return new VMSettings(port, width, height, targetFps);
   }
 }

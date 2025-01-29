@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.media.source;
 
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
-
 /**
  * Represents a VNC (Virtual Network Computing) source with properties such as
  * host, port, password, video metadata, and connection name.
@@ -52,20 +50,16 @@ public interface VNCSource extends DynamicSource {
    */
   String getPassword();
 
-  /**
-   * Gets the video metadata associated with this VNC source.
-   *
-   * @return the video metadata
-   */
-  VideoMetadata getVideoMetadata();
+  int getScreenWidth();
 
-  /**
-   * Gets a unique name for this VNC connection.
-   *
-   * @return the connection name
-   */
+  int getScreenHeight();
+
+  int getTargetFrameRate();
+
   @Override
-  String getName();
+  default String getName() {
+    return "vnc";
+  }
 
   /**
    * Creates a new {@link VNCSourceImpl.Builder} instance to facilitate the

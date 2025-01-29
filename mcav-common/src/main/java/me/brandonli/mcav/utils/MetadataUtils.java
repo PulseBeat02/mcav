@@ -58,6 +58,7 @@ public final class MetadataUtils {
       final int height = grabber.getImageHeight();
       final int bitrate = grabber.getVideoBitrate();
       final float frameRate = (float) grabber.getFrameRate();
+
       grabber.close();
       return VideoMetadata.of(width, height, bitrate, frameRate);
     } catch (final FrameGrabber.Exception e) {

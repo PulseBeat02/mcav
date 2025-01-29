@@ -179,14 +179,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   }
 
   private VideoSurfaceAdapter getAdapter() {
-    switch (OSUtils.getOS()) {
-      case WINDOWS:
-        return new WindowsVideoSurfaceAdapter();
-      case MAC:
-        return new OsxVideoSurfaceAdapter();
-      default:
-        return new LinuxVideoSurfaceAdapter();
-    }
+    return switch (OSUtils.getOS()) {
+      case WINDOWS -> new WindowsVideoSurfaceAdapter();
+      case MAC -> new OsxVideoSurfaceAdapter();
+      default -> new LinuxVideoSurfaceAdapter();
+    };
   }
 
   /**

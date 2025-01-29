@@ -28,6 +28,7 @@ public final class InstallationExample {
     final Artifact download = Artifact.COMMON;
     final Class<InstallationExample> clazz = InstallationExample.class;
     final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
+    @SuppressWarnings("deprecation")
     final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
     installer.loadMCAVDependencies(download);
   }

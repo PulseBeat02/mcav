@@ -20,7 +20,6 @@ package me.brandonli.mcav;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.swing.*;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
@@ -61,10 +60,7 @@ public class VNCInputExample {
     frame.setVisible(true);
 
     final VideoPipelineStep pipeline = PipelineBuilder.video().then((image, step) -> vncPanel.setImage(image.toBufferedImage())).build();
-
-    final VideoMetadata videoMetadata = VideoMetadata.of(800, 600, 30);
-    final VNCSource source = VNCSource.vnc().host("localhost").port(5900).videoMetadata(videoMetadata).name("VNC Connection").build();
-
+    final VNCSource source = VNCSource.vnc().host("localhost").port(5900).screenWidth(800).screenHeight(600).targetFrameRate(30).build();
     final VNCPlayer player = VNCPlayer.vm();
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(

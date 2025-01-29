@@ -24,7 +24,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
@@ -49,8 +48,7 @@ public class VMPlayerImpl implements VMPlayer {
 
   private Architecture architecture;
   private VMConfiguration qemuArgs;
-  private VideoMetadata metadata;
-  private int vncPort;
+  private VMSettings settings;
 
   VMPlayerImpl() {
     this.vncPlayer = VNCPlayer.vm();
@@ -62,15 +60,13 @@ public class VMPlayerImpl implements VMPlayer {
   @Override
   public boolean start(
     final VideoPipelineStep step,
-    final int port,
+    final VMSettings settings,
     final Architecture architecture,
-    final VMConfiguration arguments,
-    final VideoMetadata metadata
+    final VMConfiguration arguments
   ) {
     this.architecture = architecture;
     this.qemuArgs = arguments;
-    this.vncPort = port;
-    this.metadata = metadata;
+    this.settings = settings;
     this.startQemuProcess();
     final VNCSource source = this.getVncSource();
     final VNCPlayer vncPlayer = requireNonNull(this.vncPlayer);
@@ -78,7 +74,11 @@ public class VMPlayerImpl implements VMPlayer {
   }
 
   private VNCSource getVncSource() {
-    return VNCSource.vnc().host("localhost").port(this.vncPort).name("VNC Connection").videoMetadata(this.metadata).build();
+    final int vncPort = this.settings.getPort();
+    final int width = this.settings.getWidth();
+    final int height = this.settings.getHeight();
+    final int targetFps = this.settings.getTargetFps();
+    return VNCSource.vnc().host("localhost").port(vncPort).screenWidth(width).screenHeight(height).targetFrameRate(targetFps).build();
   }
 
   private void startQemuProcess() {
@@ -102,7 +102,8 @@ public class VMPlayerImpl implements VMPlayer {
     boolean connected = false;
     while (System.currentTimeMillis() < timeout && !connected) {
       try {
-        final Socket socket = new Socket("localhost", this.vncPort);
+        final int vncPort = this.settings.getPort();
+        final Socket socket = new Socket("localhost", vncPort);
         socket.close();
         connected = true;
         this.sleep();
@@ -136,8 +137,9 @@ public class VMPlayerImpl implements VMPlayer {
     }
 
     if (!hasVncOption) {
+      final int vncPort = this.settings.getPort();
       command.add("-vnc");
-      command.add(":" + (this.vncPort - 5900));
+      command.add(":" + (vncPort - 5900));
     }
 
     return command;

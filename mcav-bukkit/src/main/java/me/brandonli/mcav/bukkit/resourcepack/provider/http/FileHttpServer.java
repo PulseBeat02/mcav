@@ -49,31 +49,30 @@ final class FileHttpServer {
 
   void start() {
     final CountDownLatch latch = new CountDownLatch(1);
-    CompletableFuture.runAsync(
-      () -> {
-        try {
-          final ServerBootstrap b = this.initializeServerBootstrap();
-          final ChannelFuture before = this.addServerListener(b, latch);
-          final ChannelFuture f = before.sync();
-          final Channel channel = f.channel();
-          final ChannelFuture closeFuture = channel.closeFuture();
-          closeFuture.sync();
-        } catch (final InterruptedException e) {
-          final Thread current = Thread.currentThread();
-          current.interrupt();
-          throw new HttpServerException(e.getMessage(), e);
-        } finally {
-          this.stop();
-        }
-      },
-      this.service
-    );
+    CompletableFuture.runAsync(() -> this.start0(latch), this.service);
     try {
       latch.await();
     } catch (final InterruptedException e) {
       final Thread current = Thread.currentThread();
       current.interrupt();
       throw new HttpServerException(e.getMessage(), e);
+    }
+  }
+
+  private void start0(final CountDownLatch latch) {
+    try {
+      final ServerBootstrap b = this.initializeServerBootstrap();
+      final ChannelFuture before = this.addServerListener(b, latch);
+      final ChannelFuture f = before.sync();
+      final Channel channel = f.channel();
+      final ChannelFuture closeFuture = channel.closeFuture();
+      closeFuture.sync();
+    } catch (final InterruptedException e) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      throw new HttpServerException(e.getMessage(), e);
+    } finally {
+      this.stop();
     }
   }
 

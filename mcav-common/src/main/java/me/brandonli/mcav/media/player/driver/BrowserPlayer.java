@@ -31,7 +31,6 @@ import me.brandonli.mcav.media.source.BrowserSource;
  */
 public interface BrowserPlayer extends ReleasablePlayer {
   String[] DEFAULT_CHROME_ARGUMENTS = {
-    "--no-sandbox",
     "--headless",
     "--disable-gpu",
     "--disable-software-rasterizer",

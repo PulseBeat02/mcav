@@ -1,7 +1,8 @@
 High Priority Tasks:
-  - Rewrite all JavaDocs (mcav-common)
+  - Optimize Code for Browser / Virtual Machine
+    - Fix the messy ugly little/big endian issues
   - Write Documentation for Plugin
-  - Clean Up Codebase / Optimize
+  - Rewrite all JavaDocs (mcav-common)
 
 Medium Priority Tasks:
   - Create Showcase Video

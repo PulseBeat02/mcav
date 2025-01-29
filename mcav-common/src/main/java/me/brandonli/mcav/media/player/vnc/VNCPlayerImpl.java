@@ -55,7 +55,7 @@ public class VNCPlayerImpl implements VNCPlayer {
 
   private volatile BufferedImage current;
   private volatile VideoPipelineStep videoPipeline;
-  private volatile VideoMetadata videoMetadata;
+  private volatile VNCSource source;
 
   VNCPlayerImpl() {
     final int availableProcessors = Runtime.getRuntime().availableProcessors();
@@ -73,7 +73,7 @@ public class VNCPlayerImpl implements VNCPlayer {
         return true;
       }
       this.videoPipeline = videoPipeline;
-      this.videoMetadata = source.getVideoMetadata();
+      this.source = source;
 
       final VernacularConfig config = this.createConfig(source);
       this.vncClient = new VernacularClient(config);
@@ -97,8 +97,8 @@ public class VNCPlayerImpl implements VNCPlayer {
       config.setPasswordSupplier(() -> passwd);
     }
 
-    final int frames = Math.max(120, (int) this.videoMetadata.getVideoFrameRate());
-    config.setTargetFramesPerSecond(frames);
+    final int fps = source.getTargetFrameRate();
+    config.setTargetFramesPerSecond(fps);
     config.setScreenUpdateListener(image -> {
       if (this.running.get()) {
         if (image == null) {
@@ -111,8 +111,10 @@ public class VNCPlayerImpl implements VNCPlayer {
   }
 
   private void processFrames() {
-    final int width = this.videoMetadata.getVideoWidth();
-    final int height = this.videoMetadata.getVideoHeight();
+    final int width = this.source.getScreenWidth();
+    final int height = this.source.getScreenHeight();
+    final int fps = this.source.getTargetFrameRate();
+    final VideoMetadata videoMetadata = VideoMetadata.of(width, height, (float) fps);
     while (this.running.get()) {
       try {
         if (this.current == null) {
@@ -122,7 +124,7 @@ public class VNCPlayerImpl implements VNCPlayer {
         image.resize(width, height);
         VideoPipelineStep current = this.videoPipeline;
         while (current != null) {
-          current.process(image, this.videoMetadata);
+          current.process(image, videoMetadata);
           current = current.next();
         }
         image.release();
@@ -199,8 +201,8 @@ public class VNCPlayerImpl implements VNCPlayer {
     if (this.current == null) {
       throw new PlayerException("VNC source not started!");
     }
-    final int sourceWidth = this.videoMetadata.getVideoWidth();
-    final int sourceHeight = this.videoMetadata.getVideoHeight();
+    final int sourceWidth = this.source.getScreenWidth();
+    final int sourceHeight = this.source.getScreenHeight();
     final int targetWidth = this.current.getWidth();
     final int targetHeight = this.current.getHeight();
     final double widthRatio = (double) targetWidth / sourceWidth;

@@ -139,6 +139,7 @@ final class InstallationManager implements AutoCloseable {
     final int size = artifactResults.size();
     final String msg = String.format("Resolved %d dependencies for %s", size, artifactId);
     LOGGER.info(msg);
+
     return dependencyResult
       .getArtifactResults()
       .stream()
@@ -153,6 +154,7 @@ final class InstallationManager implements AutoCloseable {
     final DependencyRequest dependencyRequest = new DependencyRequest();
     dependencyRequest.setCollectRequest(collectRequest);
     dependencyRequest.setFilter(filter);
+
     return dependencyRequest;
   }
 
@@ -168,6 +170,7 @@ final class InstallationManager implements AutoCloseable {
     final Dependency dependency = new Dependency(artifact, "compile");
     collectRequest.setRoot(dependency);
     collectRequest.setRepositories(InstallationManager.DEFAULT_REPOSITORIES);
+
     return collectRequest;
   }
 
@@ -177,6 +180,7 @@ final class InstallationManager implements AutoCloseable {
       return;
     }
     this.downloadExecutor.shutdown();
+
     try {
       final boolean await = this.downloadExecutor.awaitTermination(10, TimeUnit.SECONDS);
       if (!await) {
@@ -198,6 +202,7 @@ final class InstallationManager implements AutoCloseable {
     session.setSystemProperties(properties);
     session.setConfigProperties(properties);
     session.setReadOnly();
+
     return session;
   }
 
@@ -206,6 +211,7 @@ final class InstallationManager implements AutoCloseable {
     properties.putAll(System.getProperties());
     properties.setProperty("aether.connector.connectTimeout", String.valueOf(CONNECTION_TIMEOUT_MS));
     properties.setProperty("aether.connector.requestTimeout", String.valueOf(REQUEST_TIMEOUT_MS));
+
     return properties;
   }
 
@@ -215,6 +221,7 @@ final class InstallationManager implements AutoCloseable {
     if (Files.notExists(hashFile)) {
       return props;
     }
+
     try (final InputStream in = Files.newInputStream(hashFile)) {
       props.load(in);
       return props;
@@ -233,10 +240,11 @@ final class InstallationManager implements AutoCloseable {
   }
 
   private CompletableFuture<Void> saveArtifactsAsync(final Collection<Artifact> artifacts, final Path folderPath) throws IOException {
+    Files.createDirectories(folderPath);
     final int size = artifacts.size();
     final String msg = String.format("Preparing to download %s artifacts", size);
     LOGGER.info(msg);
-    Files.createDirectories(folderPath);
+
     final List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
     for (final Artifact artifact : artifacts) {
       final String id = artifact.getArtifactId();
@@ -247,6 +255,7 @@ final class InstallationManager implements AutoCloseable {
       ).thenRun(() -> LOGGER.info(completion));
       downloadFutures.add(future);
     }
+
     return CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[0])).thenRun(this::saveArtifactHashes);
   }
 
@@ -279,10 +288,12 @@ final class InstallationManager implements AutoCloseable {
     if (attempt == MAX_RETRIES) {
       throw e;
     }
+
     final String name = IOUtils.getFileName(sourceFile);
     final String msg = e.getMessage();
     final String message = String.format("Download attempt %d failed for %s: %s", attempt, name, msg);
     LOGGER.error(message);
+
     try {
       Thread.sleep(RETRY_DELAY_MS);
     } catch (final InterruptedException ie) {
