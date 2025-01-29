@@ -26,19 +26,28 @@ users. Designed for pure performance and compatability, MCAV isn't just a YouTub
 live-streams, local files, and even a web browser.
 
 MCAV is not a library just for Java developers, but also a great library to integrate Minecraft plugins with. While you
-can use MCAV in any Java project, there's also a Minecraft-specific module that provides useful features allowing you
-to playback videos like the following.
+can use MCAV in any Java project, there's also a Bukkit-specific module that provides useful features allowing you
+to play videos like the following.
 
 https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
 
-The `common` module is the core of MCAV, and contains all the common multimedia functionality. The `bukkit` module is
-the Minecraft-specific module, providing useful features like dithering, and outputs like maps, entities, scoreboards,
-and chat. There is also an `installer` module that provides a simple way to install the required libraries for MCAV, a
-`jda` module that integrates with the [Java Discord API](https://github.com/discord-jda/JDA), and a `http` module that
-integrates with [Javalin](https://github.com/javalin/javalin) to provide a simple way to stream videos over HTTP.
+---
 
-The `sandbox` plugin only supports Paper and forks of it! However, any other aspect of the library can be used in any
-Java context.
+### Modules
+
+Here is a list of all the modules that are included in MCAV
+
+| Module           | Description                                                                                                                       |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `sandbox`        | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                      |
+| `mcav-common`    | The core library for multimedia functionality.                                                                                    |
+| `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                   |
+| `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                          |
+| `mcav-jda`       | A module for integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels. |
+| `mcav-http`      | A module for integrating with [Javalin](https://github.com/javalin/javalin) to stream PCM audio to an HTTP website.               |
+| `mcav-vm`        | A module for integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                              |
+| `mcav-vnc`       | A module for integrating with VNC servers to capture video and control remote desktops.                                           |
+| `mcav-browser`   | A module for integrating with [Selenium](https://www.selenium.dev/) to provide browser support.                                   |
 
 ---
 
