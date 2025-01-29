@@ -17,14 +17,15 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import static java.util.Objects.requireNonNull;
+import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.runtime.CommandTask;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * {@inheritDoc}
@@ -108,6 +109,14 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   }
 
   private void runNativeProcess(final String... arguments) throws IOException {
-    new CommandTask(arguments, true);
+    final CommandTask task = new CommandTask(arguments, true);
+    final Process process = task.getProcess();
+    try {
+      process.waitFor();
+    } catch (final InterruptedException e) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      throw new AssertionError(e);
+    }
   }
 }
