@@ -20,10 +20,8 @@ package me.brandonli.mcav.sandbox.command;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.primitives.Ints;
-import com.mojang.brigadier.context.CommandContext;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.stream.Stream;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -54,7 +52,6 @@ import org.bukkit.entity.Player;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
-import org.incendo.cloud.annotations.suggestion.Suggestions;
 
 public final class VideoCommand implements AnnotationCommandFeature {
 
@@ -135,20 +132,5 @@ public final class VideoCommand implements AnnotationCommandFeature {
     } else {
       multiplexer.start(audioPipelineStep, videoPipelineStep, video, audio);
     }
-  }
-
-  @Suggestions("id")
-  public Stream<Integer> suggestId(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of(0, 5, 10, 100, 1000, 10000, 100000);
-  }
-
-  @Suggestions("dimensions")
-  public Stream<String> suggestDimensions(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of("4x4", "5x5", "16x9", "32x18");
-  }
-
-  @Suggestions("resolutions")
-  public Stream<String> suggestResolutions(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of("512x512", "640x640", "1280x720", "1920x1080");
   }
 }

@@ -36,7 +36,8 @@ public final class IOUtils {
   public static Path getPluginDataFolderPath() {
     final MCAV plugin = MCAV.getPlugin(MCAV.class);
     final File dataFolder = plugin.getDataFolder();
-    return dataFolder.toPath();
+    final Path dataFolderPath = dataFolder.toPath();
+    return dataFolderPath.toAbsolutePath();
   }
 
   public static Reader getResourceAsStreamReader(final String path) {
@@ -46,7 +47,8 @@ public final class IOUtils {
 
   public static InputStream getResourceAsStream(final String path) {
     final Class<IOUtils> clazz = IOUtils.class;
-    return requireNonNull(clazz.getResourceAsStream(path));
+    final ClassLoader loader = requireNonNull(clazz.getClassLoader());
+    return requireNonNull(loader.getResourceAsStream(path));
   }
 
   public static boolean createFileIfNotExists(final Path path) {

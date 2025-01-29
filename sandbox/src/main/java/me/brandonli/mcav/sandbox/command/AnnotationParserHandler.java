@@ -31,6 +31,7 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 public final class AnnotationParserHandler {
 
   private static final List<AnnotationCommandFeature> COMMAND_FEATURES = List.of(
+    new SuggestionProvider(),
     new BrowserCommand(),
     new DumpCommand(),
     new HelpCommand(),

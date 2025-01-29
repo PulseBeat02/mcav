@@ -19,12 +19,10 @@ package me.brandonli.mcav.sandbox.command;
 
 import static java.util.Objects.requireNonNull;
 
-import com.mojang.brigadier.context.CommandContext;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
-import java.util.stream.Stream;
 import me.brandonli.mcav.media.config.MapConfiguration;
 import me.brandonli.mcav.media.player.browser.BrowserPlayer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
@@ -45,15 +43,15 @@ import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
-import org.incendo.cloud.annotations.suggestion.Suggestions;
 
 public final class BrowserCommand implements AnnotationCommandFeature {
 
   private BukkitAudiences audiences;
-  private BrowserPlayer browser;
+  private @Nullable BrowserPlayer browser;
 
   @Override
   public void registerFeature(final MCAV plugin, final AnnotationParser<CommandSender> parser) {
@@ -61,9 +59,25 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     this.audiences = provider.retrieve();
   }
 
-  @Command("mcav browser <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
-  @Permission("mcav.browser")
-  @CommandDescription("mcav.command.browser.info")
+  @Command("mcav browser release")
+  @Permission("mcav.browser.release")
+  @CommandDescription("mcav.command.browser.release.info")
+  public void playBrowser(final Player player) {
+    final Audience audience = this.audiences.sender(player);
+    if (this.browser != null) {
+      try {
+        this.browser.release();
+        this.browser = null;
+      } catch (final Exception e) {
+        throw new AssertionError(e);
+      }
+    }
+    audience.sendMessage(Message.BROWSER_RELEASED.build());
+  }
+
+  @Command("mcav browser create <browserResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
+  @Permission("mcav.browser.create")
+  @CommandDescription("mcav.command.browser.create.info")
   public void playBrowser(
     final Player player,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
@@ -99,6 +113,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     if (this.browser != null) {
       try {
         this.browser.release();
+        this.browser = null;
       } catch (final Exception e) {
         throw new AssertionError(e);
       }
@@ -128,20 +143,7 @@ public final class BrowserCommand implements AnnotationCommandFeature {
     } catch (final Exception e) {
       throw new AssertionError(e);
     }
-  }
 
-  @Suggestions("id")
-  public Stream<Integer> suggestId(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of(0, 5, 10, 100, 1000, 10000, 100000);
-  }
-
-  @Suggestions("dimensions")
-  public Stream<String> suggestDimensions(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of("4x4", "5x5", "16x9", "32x18");
-  }
-
-  @Suggestions("resolutions")
-  public Stream<String> suggestResolutions(final CommandContext<CommandSender> ctx, final String input) {
-    return Stream.of("512x512", "640x640", "1280x720", "1920x1080");
+    audience.sendMessage(Message.BROWSER_STARTED.build());
   }
 }

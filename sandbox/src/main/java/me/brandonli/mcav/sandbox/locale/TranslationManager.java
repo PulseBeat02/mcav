@@ -61,7 +61,7 @@ public final class TranslationManager {
     final me.brandonli.mcav.sandbox.locale.Locale locale = mapper.getLocale();
     final String name = locale.name();
     final String lower = name.toLowerCase();
-    return "/locale/mcav_%s.properties".formatted(lower);
+    return "locale/mcav_%s.properties".formatted(lower);
   }
 
   private ResourceBundle getBundle(@UnderInitialization TranslationManager this, final String propertiesPath) {

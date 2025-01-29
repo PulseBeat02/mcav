@@ -20,6 +20,8 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
+  NullComponent<Sender> BROWSER_RELEASED = direct("mcav.command.browser.release");
+  NullComponent<Sender> BROWSER_STARTED = direct("mcav.command.browser.start");
   NullComponent<Sender> MRL_ERROR = direct("mcav.command.mrl.error");
   NullComponent<Sender> DITHERING_ERROR = direct("mcav.command.dither.error");
   NullComponent<Sender> URL_ERROR = direct("mcav.command.url.error");

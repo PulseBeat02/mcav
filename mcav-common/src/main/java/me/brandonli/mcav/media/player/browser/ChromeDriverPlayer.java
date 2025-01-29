@@ -193,7 +193,8 @@ public final class ChromeDriverPlayer implements BrowserPlayer {
         return false;
       }
 
-      this.tools.send(Page.stopScreencast());
+      this.tools.clearListeners();
+      this.tools.close();
       this.running.set(false);
 
       if (this.captureTask != null) {
