@@ -162,7 +162,7 @@ public final class InteractUtils {
       }
       final Location blockLocation = currentBlock.getLocation();
       final Location added = blockLocation.add(0.5, 0.5, 0.5);
-      final Collection<Entity> nearbyEntities = world.getNearbyEntities(blockLocation, 1, 1, 1);
+      final Collection<Entity> nearbyEntities = world.getNearbyEntities(added, 1, 1, 1);
       for (final Entity entity : nearbyEntities) {
         if (!(entity instanceof final ItemFrame frame) || frame.getFacing() != hitFace) {
           continue;

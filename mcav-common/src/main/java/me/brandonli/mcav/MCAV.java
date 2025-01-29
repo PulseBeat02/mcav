@@ -36,6 +36,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palet
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.bytedeco.ffmpeg.ffmpeg;
+import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
 import org.bytedeco.opencv.global.*;
@@ -199,6 +200,8 @@ public final class MCAV implements MCAVApi {
     } else {
       Loader.load(opencv_java.class);
     }
+    FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
+    avutil.setLogCallback(new FFmpegLogger());
   }
 
   private void installQemu() {

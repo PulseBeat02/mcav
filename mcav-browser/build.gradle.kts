@@ -6,6 +6,7 @@ dependencies {
     // project dependencies
     api("org.seleniumhq.selenium:selenium-java:4.33.0")
     api("io.github.bonigarcia:webdrivermanager:6.1.0")
+    api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
 
     // provided
     compileOnlyApi(project(":mcav-common"))

@@ -19,7 +19,12 @@ package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import uk.co.caprica.vlcj.factory.ApplicationApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
+import uk.co.caprica.vlcj.log.LogLevel;
+import uk.co.caprica.vlcj.log.NativeLog;
 
 /**
  * The MediaPlayerFactoryProvider class provides a factory for creating
@@ -31,16 +36,40 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
  */
 public final class MediaPlayerFactoryProvider {
 
+  private static final Logger INTERNAL_LOGGER = LoggerFactory.getLogger(MediaPlayerFactoryProvider.class);
   private static final @Nullable MediaPlayerFactory FACTORY;
 
   static {
     MediaPlayerFactory factory;
     try {
       factory = new MediaPlayerFactory();
+      setLoggerCallbacks(factory);
     } catch (final UnsatisfiedLinkError e) {
       factory = null;
     }
     FACTORY = factory;
+  }
+
+  private static void setLoggerCallbacks(final MediaPlayerFactory factory) {
+    final ApplicationApi api = factory.application();
+    final NativeLog nativeLog = api.newLog();
+    nativeLog.setLevel(LogLevel.ERROR);
+    nativeLog.addLogListener((level, module, file, line, name, header, id, message) -> {
+      switch (level) {
+        case ERROR:
+          INTERNAL_LOGGER.error("[VLC] {}: {} ({}:{}) - {}", module, message, file, line, name);
+          break;
+        case WARNING:
+          INTERNAL_LOGGER.warn("[VLC] {}: {} ({}:{}) - {}", module, message, file, line, name);
+          break;
+        case DEBUG:
+          INTERNAL_LOGGER.debug("[VLC] {}: {} ({}:{}) - {}", module, message, file, line, name);
+          break;
+        default:
+          INTERNAL_LOGGER.trace("[VLC] {}: {} ({}:{}) - {}", module, message, file, line, name);
+          break;
+      }
+    });
   }
 
   private MediaPlayerFactoryProvider() {

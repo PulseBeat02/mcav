@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import me.brandonli.mcav.utils.IOUtils;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * A provider class for managing the ChromeDriver service setup and initialization.
@@ -49,6 +50,7 @@ public final class ChromeDriverServiceProvider {
     manager.cachePath(raw);
     manager.setup();
     SERVICE = new ChromeDriverService.Builder().withLogLevel(ChromiumDriverLogLevel.WARNING).usingAnyFreePort().build();
+    SLF4JBridgeHandler.install();
   }
 
   private ChromeDriverServiceProvider() {
