@@ -27,6 +27,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.Filter;
  */
 @FunctionalInterface
 public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> {
+  /**
+   * Applies the filter to the provided video samples with default empty metadata.
+   *
+   * @param samples  the video samples to be processed
+   */
   default void applyFilter(final ImageBuffer samples) {
     this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
   }
