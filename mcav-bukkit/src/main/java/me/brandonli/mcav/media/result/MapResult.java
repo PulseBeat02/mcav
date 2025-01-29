@@ -59,23 +59,22 @@ public class MapResult implements DitherResultStep {
    */
   @Override
   public void process(final byte[] rgb, final VideoMetadata metadata) {
-    final int mapWidthResolution = this.mapConfiguration.getMapWidthResolution();
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
     final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
     final int map = this.mapConfiguration.getMap();
-    final int height = rgb.length / mapWidthResolution;
     final Collection<UUID> viewers = this.mapConfiguration.getViewers();
     final int pixW = mapBlockWidth << 7;
     final int pixH = mapBlockHeight << 7;
-    final int xOff = (pixW - mapWidthResolution) >> 1;
-    final int yOff = (pixH - height) >> 1;
-    final int vidHeight = rgb.length / mapWidthResolution;
-    final int negXOff = xOff + mapWidthResolution;
+    final int vidWidth = metadata.getVideoWidth();
+    final int vidHeight = metadata.getVideoHeight();
+    final int xOff = (pixW - vidWidth) >> 1;
+    final int yOff = (pixH - vidHeight) >> 1;
+    final int negXOff = xOff + vidWidth;
     final int negYOff = yOff + vidHeight;
     final int xLoopMin = Math.max(0, xOff >> 7);
     final int yLoopMin = Math.max(0, yOff >> 7);
-    final int xLoopMax = Math.min(mapWidthResolution, (int) Math.ceil(negXOff / 128.0));
-    final int yLoopMax = Math.min(height, (int) Math.ceil(negYOff / 128.0));
+    final int xLoopMax = Math.min(mapBlockWidth, (int) Math.ceil(negXOff / 128.0));
+    final int yLoopMax = Math.min(mapBlockHeight, (int) Math.ceil(negYOff / 128.0));
     final Collection<MapDecoration> empty = new ArrayList<>();
     final ClientboundMapItemDataPacket[] packetArray = new ClientboundMapItemDataPacket[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
     int arrIndex = 0;
@@ -92,12 +91,13 @@ public class MapResult implements DitherResultStep {
         final byte[] mapData = new byte[xDiff * yDiff];
         for (int iy = topY; iy < yPixMax; iy++) {
           final int yPos = relY + iy;
-          final int indexY = (yPos - yOff) * mapWidthResolution;
+          final int indexY = (yPos - yOff) * vidWidth;
           for (int ix = topX; ix < xPixMax; ix++) {
-            mapData[(iy - topY) * xDiff + ix - topX] = rgb[indexY + relX + ix - xOff];
+            final int val = (iy - topY) * xDiff + ix - topX;
+            mapData[val] = rgb[indexY + relX + ix - xOff];
           }
         }
-        final int mapId = map + mapWidthResolution * y + x;
+        final int mapId = map + mapBlockWidth * y + x;
         final MapId id = new MapId(mapId);
         final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
         final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);

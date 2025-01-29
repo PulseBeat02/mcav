@@ -50,7 +50,10 @@ public final class MetadataUtils {
     try {
       final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
       grabber.start();
-      grabber.grabFrame();
+      int count = 0;
+      while (grabber.grabFrame() != null && count < 30) {
+        count++; // ensure right frame data
+      }
       final int width = grabber.getImageWidth();
       final int height = grabber.getImageHeight();
       final int bitrate = grabber.getVideoBitrate();
@@ -75,7 +78,10 @@ public final class MetadataUtils {
     try {
       final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
       grabber.start();
-      grabber.grabFrame();
+      int count = 0;
+      while (grabber.grabFrame() != null && count < 30) {
+        count++; // ensure right frame data
+      }
       final int bitrate = grabber.getAudioBitrate();
       final int sampleRate = grabber.getSampleRate();
       final int channels = grabber.getAudioChannels();

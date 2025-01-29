@@ -274,10 +274,9 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
     //      final int[] buffer = image.getAllPixels();
     //      return this.ditherNatively(buffer, width, colors, mapColors);
     //    }
-    final int width = image.getWidth();
     final int[] buffer = image.getAllPixels();
-    final int length = buffer.length;
-    final int height = length / width;
+    final int width = image.getWidth();
+    final int height = image.getHeight();
     final int widthMinus = width - 1;
     final int heightMinus = height - 1;
     final int[][] ditherBuffer = new int[2][width << 2];

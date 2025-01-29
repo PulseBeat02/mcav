@@ -126,6 +126,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       final String audioResource = audio.getResource();
       final String videoResource = video.getResource();
       mediaApi.addSlave(MediaSlaveType.AUDIO, audioResource, true);
+
       this.video = video;
       this.audio = audio;
 
@@ -201,7 +202,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private void addCallbacks(final AudioPipelineStep audioPipeline, final VideoPipelineStep videoPipeline) {
     final BufferFormatCallback callback = new BufferCallback();
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(this.video);
-    final RenderCallback callbackAdapter = new VideoCallback(videoPipeline, videoMetadata, this.processor);
+    final RenderCallback callbackAdapter = new VideoCallback(videoPipeline, videoMetadata);
     final VideoSurface surface = new CallbackVideoSurface(callback, callbackAdapter, true, this.getAdapter());
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
     surfaceApi.set(surface);
@@ -410,19 +411,16 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
     private final VideoPipelineStep step;
     private final VideoMetadata metadata;
-    private final ExecutorService executor;
 
     /**
      * Constructor for the VideoCallback class.
      *
      * @param step     the video pipeline step associated with this callback
      * @param metadata the metadata related to the video being processed
-     * @param executor the executor service for managing asynchronous tasks in the video pipeline
      */
-    public VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata, final ExecutorService executor) {
+    public VideoCallback(final VideoPipelineStep step, final VideoMetadata metadata) {
       this.step = step;
       this.metadata = metadata;
-      this.executor = executor;
     }
 
     /**
@@ -452,12 +450,13 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     ) {
       final int width = bufferFormat.getWidth();
       final int height = bufferFormat.getHeight();
+      final VideoMetadata updated = VideoMetadata.of(width, height, this.metadata.getVideoBitrate(), this.metadata.getVideoFrameRate());
       final int[] buffer = new int[width * height];
       nativeBuffers[0].asIntBuffer().get(buffer, 0, width * height);
       final StaticImage image = StaticImage.buffer(buffer, width, height);
       VideoPipelineStep current = this.step;
       while (current != null) {
-        current.process(image, this.metadata);
+        current.process(image, updated);
         current = current.next();
       }
       image.release();
