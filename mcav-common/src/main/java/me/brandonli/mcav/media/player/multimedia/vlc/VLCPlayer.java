@@ -82,6 +82,9 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Nullable
   private volatile CallbackVideoSurface videoSurface;
 
+  @Nullable
+  private volatile BufferFormatCallback bufferFormatCallback;
+
   public VLCPlayer(final String[] args) {
     final MediaPlayerFactory factory = MediaPlayerFactoryProvider.getPlayerFactory();
     final MediaPlayerApi mediaPlayerApi = factory.mediaPlayers();
@@ -146,11 +149,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final Source video,
     final Source audio
   ) {
-    final BufferFormatCallback callback = new BufferCallback();
     final VideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final VideoSurfaceApi surfaceApi = this.player.videoSurface();
+    this.bufferFormatCallback = new BufferCallback();
     this.videoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.videoSurface = new CallbackVideoSurface(callback, this.videoCallback, true, this.adapter);
+    this.videoSurface = new CallbackVideoSurface(bufferFormatCallback, this.videoCallback, true, this.adapter);
     surfaceApi.set(this.videoSurface);
 
     // audio sample specialization
