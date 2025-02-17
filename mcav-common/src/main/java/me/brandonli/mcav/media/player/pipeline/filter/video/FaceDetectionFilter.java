@@ -17,38 +17,36 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfRect;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.CascadeClassifier;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.RectVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 
 public class FaceDetectionFilter extends MatVideoFilter {
 
   private final CascadeClassifier faceCascade;
   private final Scalar color;
-  private final int thickness;
 
-  public FaceDetectionFilter(final String faceCascadePath, final double[] color, final int thickness) {
+  public FaceDetectionFilter(final String faceCascadePath, final double[] color) {
     this.faceCascade = new CascadeClassifier(faceCascadePath);
-    this.color = new Scalar(color);
-    this.thickness = thickness;
+    this.color = ImageUtils.toScalar(color);
   }
 
-  public FaceDetectionFilter(final double[] color, final int thickness) {
+  public FaceDetectionFilter(final double[] color) {
     this.faceCascade = new CascadeClassifier();
-    this.color = new Scalar(color);
-    this.thickness = thickness;
+    this.color = ImageUtils.toScalar(color);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    final MatOfRect faces = new MatOfRect();
+    final RectVector faces = new RectVector();
     this.faceCascade.detectMultiScale(mat, faces);
-    final Rect[] facesArray = faces.toArray();
+    final Rect[] facesArray = faces.get();
     for (final Rect face : facesArray) {
-      Imgproc.rectangle(mat, face.tl(), face.br(), this.color, this.thickness);
+      opencv_imgproc.rectangle(mat, face.tl(), face.br(), this.color);
     }
   }
 }

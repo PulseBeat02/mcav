@@ -17,27 +17,26 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class CircleFilter extends MatVideoFilter {
 
   private final int radius;
-  private final int thickness;
   private final Point center;
   private final Scalar color;
 
-  public CircleFilter(final int centerX, final int centerY, final int radius, final double[] scalarColor, final int thickness) {
+  public CircleFilter(final int centerX, final int centerY, final int radius, final double[] scalarColor) {
     this.radius = radius;
-    this.thickness = thickness;
     this.center = new Point(centerX, centerY);
-    this.color = new Scalar(scalarColor);
+    this.color = ImageUtils.toScalar(scalarColor);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.circle(mat, this.center, this.radius, this.color, this.thickness);
+    opencv_imgproc.circle(mat, this.center, this.radius, this.color);
   }
 }

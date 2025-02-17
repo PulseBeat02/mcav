@@ -23,6 +23,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
@@ -32,14 +33,12 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.media.player.multimedia.vlc.MediaPlayerFactoryProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Palette;
-import me.brandonli.mcav.utils.os.OS;
-import me.brandonli.mcav.utils.os.OSUtils;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
 import org.bytedeco.opencv.global.*;
-import org.bytedeco.opencv.opencv_java;
+import org.bytedeco.opencv.presets.opencv_dnn_superres;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +55,16 @@ import org.slf4j.LoggerFactory;
 public final class MCAV implements MCAVApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
+
+  private static final List<Class<?>> CLASSES = List.of(
+    org.bytedeco.opencv.presets.opencv_bgsegm.class,
+    org.bytedeco.opencv.presets.opencv_face.class,
+    org.bytedeco.opencv.presets.opencv_img_hash.class,
+    org.bytedeco.opencv.presets.opencv_tracking.class,
+    org.bytedeco.opencv.presets.opencv_ximgproc.class,
+    org.bytedeco.opencv.presets.opencv_xphoto.class,
+    opencv_dnn_superres.class
+  );
 
   private final Map<Class<?>, MCAVModule> modules;
   private final EnumSet<Capability> capabilities;
@@ -172,34 +181,15 @@ public final class MCAV implements MCAVApi {
   private void loadModules() {
     final long start = System.currentTimeMillis();
     LOGGER.info("Loading JavaCV modules...");
+    System.setProperty("org.bytedeco.openblas.load", "none"); // fix OpenBlas hanging
     FFmpegLogCallback.set();
     Loader.load(Loader.class);
-    this.loadOpenCVModules();
     Loader.load(ffmpeg.class);
-    final long end = System.currentTimeMillis();
-    LOGGER.info("JavaCV modules loaded in {} ms", end - start);
-  }
-
-  private void loadOpenCVModules() {
-    final OS os = OSUtils.getOS();
-    if (os != OS.WINDOWS) {
-      // load headless libraries only
-      System.setProperty("org.bytedeco.javacpp.loadlibraries", "false");
-      Loader.load(opencv_core.class);
-      Loader.load(opencv_imgproc.class);
-      Loader.load(opencv_imgcodecs.class);
-      Loader.load(opencv_videoio.class);
-      Loader.load(opencv_video.class);
-      Loader.load(opencv_calib3d.class);
-      Loader.load(opencv_features2d.class);
-      Loader.load(opencv_objdetect.class);
-      Loader.load(opencv_photo.class);
-      Loader.load(opencv_dnn.class);
-    } else {
-      Loader.load(opencv_java.class);
-    }
+    CLASSES.forEach(Loader::load);
     FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
     avutil.setLogCallback(new FFmpegLogger());
+    final long end = System.currentTimeMillis();
+    LOGGER.info("JavaCV modules loaded in {} ms", end - start);
   }
 
   private void installVLC() {

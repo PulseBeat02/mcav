@@ -17,18 +17,18 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 
 public class EllipseFilter extends MatVideoFilter {
 
   private final int angle;
   private final int startAngle;
   private final int endAngle;
-  private final int thickness;
   private final Point center;
   private final Size axes;
   private final Scalar color;
@@ -41,20 +41,18 @@ public class EllipseFilter extends MatVideoFilter {
     final int angle,
     final int startAngle,
     final int endAngle,
-    final double[] colorScalar,
-    final int thickness
+    final double[] colorScalar
   ) {
     this.angle = angle;
     this.startAngle = startAngle;
     this.endAngle = endAngle;
-    this.thickness = thickness;
     this.center = new Point(centerX, centerY);
     this.axes = new Size(axisX, axisY);
-    this.color = new Scalar(colorScalar);
+    this.color = ImageUtils.toScalar(colorScalar);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.ellipse(mat, this.center, this.axes, this.angle, this.startAngle, this.endAngle, this.color, this.thickness);
+    opencv_imgproc.ellipse(mat, this.center, this.axes, this.angle, this.startAngle, this.endAngle, this.color);
   }
 }

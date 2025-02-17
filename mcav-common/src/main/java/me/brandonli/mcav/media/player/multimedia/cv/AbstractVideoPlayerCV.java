@@ -268,7 +268,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
       long startTime = System.nanoTime();
       long firstFrameTimestamp = -1;
-      while (this.running.get() || !this.audioFrameBuffer.isEmpty()) {
+      while (this.running.get()) {
         final FramePacket frame = this.audioFrameBuffer.take();
         if (firstFrameTimestamp == -1) {
           firstFrameTimestamp = frame.getTimestamp();
@@ -312,7 +312,7 @@ abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
       long startTime = System.nanoTime();
       long firstFrameTimestamp = -1;
-      while (this.running.get() || !this.videoFrameBuffer.isEmpty()) {
+      while (this.running.get()) {
         final FramePacket.VideoFramePacket frame = this.videoFrameBuffer.take();
         if (firstFrameTimestamp == -1) {
           firstFrameTimestamp = frame.getTimestamp();

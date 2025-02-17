@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class LuminanceFilter extends MatVideoFilter {
 

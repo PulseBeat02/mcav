@@ -17,39 +17,30 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class TextFilter extends MatVideoFilter {
 
   private final String text;
   private final int fontFace;
   private final double fontScale;
-  private final int thickness;
   private final Point position;
   private final Scalar color;
 
-  public TextFilter(
-    final String text,
-    final int x,
-    final int y,
-    final int fontFace,
-    final double fontScale,
-    final double[] scalarColor,
-    final int thickness
-  ) {
+  public TextFilter(final String text, final int x, final int y, final int fontFace, final double fontScale, final double[] scalarColor) {
     this.text = text;
     this.fontFace = fontFace;
     this.fontScale = fontScale;
-    this.thickness = thickness;
     this.position = new Point(x, y);
-    this.color = new Scalar(scalarColor);
+    this.color = ImageUtils.toScalar(scalarColor);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.putText(mat, this.text, this.position, this.fontFace, this.fontScale, this.color, this.thickness);
+    opencv_imgproc.putText(mat, this.text, this.position, this.fontFace, this.fontScale, this.color);
   }
 }

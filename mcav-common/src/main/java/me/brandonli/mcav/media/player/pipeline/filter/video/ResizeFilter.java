@@ -17,9 +17,9 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 
 public class ResizeFilter extends MatVideoFilter {
 
@@ -32,7 +32,7 @@ public class ResizeFilter extends MatVideoFilter {
   @Override
   void modifyMat(final Mat mat) {
     final Mat resizedMat = new Mat();
-    Imgproc.resize(mat, resizedMat, this.newSize);
+    opencv_imgproc.resize(mat, resizedMat, this.newSize);
     resizedMat.copyTo(mat);
     resizedMat.release();
   }

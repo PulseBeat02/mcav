@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class ColorMapFilter extends MatVideoFilter {
 
@@ -31,7 +31,7 @@ public class ColorMapFilter extends MatVideoFilter {
   @Override
   void modifyMat(final Mat mat) {
     final Mat colored = new Mat();
-    Imgproc.applyColorMap(mat, colored, this.colorMapType);
+    opencv_imgproc.applyColorMap(mat, colored, this.colorMapType);
     colored.copyTo(mat);
     colored.release();
   }

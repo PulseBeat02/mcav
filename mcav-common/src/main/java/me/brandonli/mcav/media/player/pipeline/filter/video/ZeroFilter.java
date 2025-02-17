@@ -17,15 +17,14 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class ZeroFilter extends MatVideoFilter {
 
-  private static final Scalar ZERO_SCALAR = new Scalar(0);
+  private static final Mat ZERO_MAT = new Mat(1, 1, 0);
 
   @Override
   void modifyMat(final Mat mat) {
-    mat.setTo(ZERO_SCALAR);
+    mat.setTo(ZERO_MAT);
   }
 }

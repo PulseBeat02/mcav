@@ -18,9 +18,10 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import java.util.function.Consumer;
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 
 public class BlurFilter extends MatVideoFilter {
 
@@ -47,19 +48,19 @@ public class BlurFilter extends MatVideoFilter {
   }
 
   private void applyNormalBlur(final Mat mat) {
-    Imgproc.blur(mat, mat, this.size);
+    opencv_imgproc.blur(mat, mat, this.size);
   }
 
   private void applyMedianBlur(final Mat mat) {
-    Imgproc.medianBlur(mat, mat, this.kernelSize);
+    opencv_imgproc.medianBlur(mat, mat, this.kernelSize);
   }
 
   private void applyGaussianBlur(final Mat mat) {
-    Imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY);
+    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT);
   }
 
   private void applyStackBlur(final Mat mat) {
-    Imgproc.stackBlur(mat, mat, this.size);
+    opencv_imgproc.stackBlur(mat, mat, this.size);
   }
 
   @Override

@@ -18,9 +18,9 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import me.brandonli.mcav.media.image.MatImageBuffer;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.Rect;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Range;
 
 public class OverlayImageFilter extends MatVideoFilter {
 
@@ -45,9 +45,8 @@ public class OverlayImageFilter extends MatVideoFilter {
     if (width <= 0 || height <= 0) {
       return;
     }
-    final Rect roi = new Rect(this.x, this.y, width, height);
-    final Mat submat = mat.submat(roi);
-    final Mat overlaySubmat = this.overlayMat.submat(0, height, 0, width);
-    Core.addWeighted(submat, 1.0, overlaySubmat, 1.0, 0.0, submat);
+    final Mat submat = mat.adjustROI(this.x, this.y, width, height);
+    final Mat overlaySubmat = this.overlayMat.apply(new Range(0, height), new Range(0, width));
+    opencv_core.addWeighted(submat, 1.0, overlaySubmat, 1.0, 0.0, submat);
   }
 }

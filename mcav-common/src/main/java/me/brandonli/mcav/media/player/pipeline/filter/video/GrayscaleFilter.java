@@ -17,16 +17,16 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class GrayscaleFilter extends MatVideoFilter {
 
   @Override
   void modifyMat(final Mat mat) {
     final Mat grayMat = new Mat();
-    Imgproc.cvtColor(mat, grayMat, Imgproc.COLOR_BGR2GRAY);
-    Imgproc.cvtColor(grayMat, mat, Imgproc.COLOR_GRAY2BGR);
+    opencv_imgproc.cvtColor(mat, grayMat, opencv_imgproc.COLOR_BGR2GRAY);
+    opencv_imgproc.cvtColor(grayMat, mat, opencv_imgproc.COLOR_GRAY2BGR);
     grayMat.release();
   }
 }

@@ -17,9 +17,9 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 
 public class ErosionFilter extends MatVideoFilter {
 
@@ -27,11 +27,11 @@ public class ErosionFilter extends MatVideoFilter {
 
   public ErosionFilter(final int kernelSize) {
     final Size size = new Size(kernelSize, kernelSize);
-    this.kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, size);
+    this.kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.erode(mat, mat, kernel);
+    opencv_imgproc.erode(mat, mat, kernel);
   }
 }

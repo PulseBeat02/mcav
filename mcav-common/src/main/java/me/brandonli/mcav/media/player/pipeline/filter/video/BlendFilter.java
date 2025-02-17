@@ -18,8 +18,8 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import me.brandonli.mcav.media.image.MatImageBuffer;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class BlendFilter extends MatVideoFilter {
 
@@ -34,7 +34,7 @@ public class BlendFilter extends MatVideoFilter {
   @Override
   void modifyMat(final Mat mat) {
     if (mat.size().equals(this.otherMat.size())) {
-      Core.addWeighted(mat, this.alpha, this.otherMat, 1.0 - this.alpha, 0.0, mat);
+      opencv_core.addWeighted(mat, this.alpha, this.otherMat, 1.0 - this.alpha, 0.0, mat);
     }
   }
 }

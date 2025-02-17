@@ -17,13 +17,13 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class InvertFilter extends MatVideoFilter {
 
   @Override
   void modifyMat(final Mat mat) {
-    Core.bitwise_not(mat, mat);
+    opencv_core.bitwise_not(mat, mat);
   }
 }

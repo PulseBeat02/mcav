@@ -17,10 +17,11 @@
  */
 package me.brandonli.mcav.utils.opencv;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 
 /**
  * A utility class for performing image-related operations such as resizing.
@@ -32,6 +33,14 @@ public class ImageUtils {
 
   private ImageUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  public static Scalar toScalar(final double[] scalar) {
+    final double v0 = scalar.length > 0 ? scalar[0] : 0;
+    final double v1 = scalar.length > 1 ? scalar[1] : 0;
+    final double v2 = scalar.length > 2 ? scalar[2] : 0;
+    final double v3 = scalar.length > 3 ? scalar[3] : 0;
+    return new Scalar(v0, v1, v2, v3);
   }
 
   /**
@@ -52,7 +61,7 @@ public class ImageUtils {
     final int newWidth,
     final int newHeight
   ) {
-    final Mat originalMat = new Mat(originalHeight, originalWidth, CvType.CV_8UC4);
+    final Mat originalMat = new Mat(originalHeight, originalWidth, opencv_core.CV_8UC4);
     final byte[] byteData = new byte[originalData.length * 4];
     for (int i = 0; i < originalData.length; i++) {
       final int pixel = originalData[i];
@@ -62,12 +71,12 @@ public class ImageUtils {
       byteData[idx + 2] = (byte) ((pixel >> 16) & 0xFF);
       byteData[idx + 3] = (byte) 0xFF;
     }
-    originalMat.put(0, 0, byteData);
+    originalMat.data().put(byteData);
     final Mat resizedMat = new Mat();
-    Imgproc.resize(originalMat, resizedMat, new Size(newWidth, newHeight));
+    opencv_imgproc.resize(originalMat, resizedMat, new Size(newWidth, newHeight));
     final int[] resizedData = new int[newWidth * newHeight];
     final byte[] resizedByteData = new byte[resizedData.length * 4];
-    resizedMat.get(0, 0, resizedByteData);
+    resizedMat.data().put(resizedByteData);
     for (int i = 0; i < resizedData.length; i++) {
       final int idx = i * 4;
       final int b = resizedByteData[idx] & 0xFF;

@@ -26,10 +26,10 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.media.player.metadata.VideoMetadata;
 import me.brandonli.mcav.utils.UncheckedIOException;
+import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Java2DFrameUtils;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
+import org.bytedeco.opencv.global.opencv_imgcodecs;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 abstract class MatVideoFilter implements VideoFilter {
 
@@ -51,8 +51,7 @@ abstract class MatVideoFilter implements VideoFilter {
       return buffer.getOrThrow(MatImageBuffer.MAT_PROPERTY);
     } else {
       final BufferedImage image = buffer.toBufferedImage();
-      final org.bytedeco.opencv.opencv_core.Mat mat = Java2DFrameUtils.toMat(image);
-      return new Mat(mat.address());
+      return Java2DFrameUtils.toMat(image);
     }
   }
 
@@ -61,13 +60,14 @@ abstract class MatVideoFilter implements VideoFilter {
   }
 
   void applyMatResults(final ImageBuffer buffer, final Mat mat) {
-    // used for non-native image buffers
-    final MatOfByte mob = new MatOfByte();
-    Imgcodecs.imencode(".jpg", mat, mob);
-    final byte[] ba = mob.toArray();
     try {
-      final BufferedImage img = ImageIO.read(new ByteArrayInputStream(ba));
+      BytePointer bytePointer = new BytePointer();
+      opencv_imgcodecs.imencode(".jpg", mat, bytePointer);
+      byte[] byteArray = new byte[(int) bytePointer.limit()];
+      bytePointer.get(byteArray);
+      final BufferedImage img = ImageIO.read(new ByteArrayInputStream(byteArray));
       buffer.setAsBufferedImage(img);
+      bytePointer.deallocate();
     } catch (final IOException e) {
       throw new UncheckedIOException(e.getMessage(), e);
     }

@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class BilateralFilter extends MatVideoFilter {
 
@@ -34,6 +34,6 @@ public class BilateralFilter extends MatVideoFilter {
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.bilateralFilter(mat, mat, this.diameter, this.sigmaColor, this.sigmaSpace);
+    opencv_imgproc.bilateralFilter(mat, mat, this.diameter, this.sigmaColor, this.sigmaSpace);
   }
 }

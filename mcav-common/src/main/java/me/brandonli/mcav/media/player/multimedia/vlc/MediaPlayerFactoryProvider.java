@@ -42,7 +42,7 @@ public final class MediaPlayerFactoryProvider {
   static {
     MediaPlayerFactory factory;
     try {
-      factory = new MediaPlayerFactory();
+      factory = new MediaPlayerFactory("--reset-plugins-cache");
       setLoggerCallbacks(factory);
     } catch (final UnsatisfiedLinkError e) {
       factory = null;

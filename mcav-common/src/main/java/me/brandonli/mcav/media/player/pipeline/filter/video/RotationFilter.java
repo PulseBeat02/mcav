@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class RotationFilter extends MatVideoFilter {
 
@@ -31,15 +31,15 @@ public class RotationFilter extends MatVideoFilter {
   @Override
   void modifyMat(final Mat mat) {
     final Mat rotatedMat = new Mat();
-    Core.rotate(mat, rotatedMat, this.code);
+    opencv_core.rotate(mat, rotatedMat, this.code);
     rotatedMat.copyTo(mat);
     rotatedMat.release();
   }
 
   public enum Rotation {
-    ROTATE_90_CLOCKWISE(Core.ROTATE_90_CLOCKWISE),
-    ROTATE_180(Core.ROTATE_180),
-    ROTATE_90_COUNTERCLOCKWISE(Core.ROTATE_90_COUNTERCLOCKWISE);
+    ROTATE_90_CLOCKWISE(opencv_core.ROTATE_90_CLOCKWISE),
+    ROTATE_180(opencv_core.ROTATE_180),
+    ROTATE_90_COUNTERCLOCKWISE(opencv_core.ROTATE_90_COUNTERCLOCKWISE);
 
     private final int code;
 

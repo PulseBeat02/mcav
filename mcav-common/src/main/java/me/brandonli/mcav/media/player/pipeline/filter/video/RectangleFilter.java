@@ -17,27 +17,26 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class RectangleFilter extends MatVideoFilter {
 
-  private final int thickness;
   private final Point topLeft;
   private final Point bottomRight;
   private final Scalar color;
 
-  public RectangleFilter(final int x, final int y, final int width, final int height, final double[] colorScalar, final int thickness) {
-    this.thickness = thickness;
+  public RectangleFilter(final int x, final int y, final int width, final int height, final double[] colorScalar) {
     this.topLeft = new Point(x, y);
-    this.bottomRight = new Point((double) x + width, (double) y + height);
-    this.color = new Scalar(colorScalar);
+    this.bottomRight = new Point(x + width, y + height);
+    this.color = ImageUtils.toScalar(colorScalar);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color, this.thickness);
+    opencv_imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color);
   }
 }

@@ -17,27 +17,26 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class LineFilter extends MatVideoFilter {
 
-  private final int thickness;
   private final Point start;
   private final Point end;
   private final Scalar color;
 
-  public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] colorScalar, final int thickness) {
-    this.thickness = thickness;
+  public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] colorScalar) {
     this.start = new Point(startX, startY);
     this.end = new Point(endX, endY);
-    this.color = new Scalar(colorScalar);
+    this.color = ImageUtils.toScalar(colorScalar);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    Imgproc.line(mat, this.start, this.end, this.color, this.thickness);
+    opencv_imgproc.line(mat, this.start, this.end, this.color);
   }
 }

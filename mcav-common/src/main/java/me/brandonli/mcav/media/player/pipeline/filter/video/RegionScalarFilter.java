@@ -17,23 +17,33 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class RegionScalarFilter extends MatVideoFilter {
 
-  private final Rect rect;
-  private final Scalar scalar;
+  private final int x;
+  private final int y;
+  private final int width;
+  private final int height;
+  private final Mat scalar;
 
   public RegionScalarFilter(final int x, final int y, final int width, final int height, final double[] scalarValue) {
-    this.rect = new Rect(x, y, width, height);
-    this.scalar = new Scalar(scalarValue);
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.scalar = new Mat(1, 3, opencv_core.CV_8U);
+    byte[] byteValues = new byte[scalarValue.length];
+    for (int i = 0; i < scalarValue.length; i++) {
+      byteValues[i] = (byte) scalarValue[i];
+    }
+    this.scalar.data().put(byteValues);
   }
 
   @Override
   void modifyMat(final Mat mat) {
-    final Mat submat = mat.submat(this.rect);
+    final Mat submat = mat.adjustROI(x, y, width, height);
     submat.setTo(this.scalar);
   }
 }

@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class TintFilter extends MatVideoFilter {
 
@@ -27,14 +28,14 @@ public class TintFilter extends MatVideoFilter {
   private final double alpha;
 
   public TintFilter(final double[] tintColor, final double alpha) {
-    this.tintColor = new Scalar(tintColor);
+    this.tintColor = ImageUtils.toScalar(tintColor);
     this.alpha = alpha;
   }
 
   @Override
   void modifyMat(final Mat mat) {
     final Mat tintedMat = new Mat(mat.size(), mat.type(), this.tintColor);
-    Core.addWeighted(mat, 1.0 - this.alpha, tintedMat, this.alpha, 0.0, mat);
+    opencv_core.addWeighted(mat, 1.0 - this.alpha, tintedMat, this.alpha, 0.0, mat);
     tintedMat.release();
   }
 }

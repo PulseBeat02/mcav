@@ -17,16 +17,14 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import static org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX;
-
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 public class FPSFilter extends MatVideoFilter {
 
-  private static final Scalar BLACK = new Scalar(0, 0, 0);
+  private static final Scalar BLACK = new Scalar(0);
   private static final Point POSITION = new Point(10, 20);
 
   private long lastFrameTime;
@@ -42,6 +40,6 @@ public class FPSFilter extends MatVideoFilter {
     final int frameRate = Math.toIntExact(1000 / elapsed);
     this.lastFrameTime = current;
     final String text = "Frame Rate: " + frameRate + " FPS";
-    Imgproc.putText(mat, text, POSITION, FONT_HERSHEY_SIMPLEX, 0.25, BLACK, 1);
+    opencv_imgproc.putText(mat, text, POSITION, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.25, BLACK);
   }
 }

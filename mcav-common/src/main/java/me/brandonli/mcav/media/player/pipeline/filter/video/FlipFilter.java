@@ -17,8 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 public class FlipFilter extends MatVideoFilter {
 
@@ -31,7 +31,7 @@ public class FlipFilter extends MatVideoFilter {
   @Override
   void modifyMat(final Mat mat) {
     final Mat flippedMat = new Mat();
-    Core.flip(mat, flippedMat, this.flipCode);
+    opencv_core.flip(mat, flippedMat, this.flipCode);
     flippedMat.copyTo(mat);
     flippedMat.release();
   }
