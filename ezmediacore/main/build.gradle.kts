@@ -9,8 +9,8 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     implementation("uk.co.caprica:vlcj:4.8.3")
     implementation("uk.co.caprica:vlcj-natives:4.8.3")
-    implementation("net.java.dev.jna:jna:5.15.0")
-    implementation("net.java.dev.jna:jna-platform:5.15.0")
+    implementation("net.java.dev.jna:jna:5.17.0")
+    implementation("net.java.dev.jna:jna-platform:5.17.0")
     implementation("net.dv8tion:JDA:5.1.2")
 
     // Provided dependencies
