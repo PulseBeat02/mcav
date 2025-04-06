@@ -5,7 +5,7 @@ plugins {
 }
 
 var runtimeDeps = listOf(
-    "net.kyori:adventure-api:4.17.0",
+    "net.kyori:adventure-api:4.20.0",
     "net.kyori:adventure-platform-bukkit:4.3.4",
     "net.kyori:adventure-text-minimessage:4.17.0",
     "org.incendo:cloud-annotations:2.0.0",
