@@ -6,7 +6,7 @@ dependencies {
 
     // Project dependencies
     implementation("org.bytedeco:javacv-platform:1.5.10")
-    implementation("org.jsoup:jsoup:1.18.1")
+    implementation("org.jsoup:jsoup:1.19.1")
     implementation("uk.co.caprica:vlcj:4.8.3")
     implementation("uk.co.caprica:vlcj-natives:4.8.3")
     implementation("net.java.dev.jna:jna:5.15.0")
