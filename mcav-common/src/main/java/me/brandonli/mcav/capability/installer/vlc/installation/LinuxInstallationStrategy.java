@@ -86,7 +86,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     this.runNativeProcess(rawAppImage, "--appimage-extract");
     this.runNativeProcess("cp", "-a", "squashfs-root/.", rawFolder);
     this.runNativeProcess("rm", "-rf", "squashfs-root");
-    Files.deleteIfExists(appImage);
+    this.runNativeProcess("rm", "-rf", rawAppImage);
 
     final Path junest = folder.resolve(".junest");
     if (Files.notExists(junest)) {

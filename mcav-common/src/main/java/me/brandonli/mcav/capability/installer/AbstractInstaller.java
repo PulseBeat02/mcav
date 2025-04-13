@@ -116,7 +116,7 @@ public abstract class AbstractInstaller implements Installer {
     return this.supported;
   }
 
-  private void writePathToConfig(final Path path) throws IOException {
+  public void writePathToConfig(final Path path) throws IOException {
     Files.createDirectories(FOLDER_PATH);
     final Properties props = new Properties();
     if (Files.exists(CONFIG_FILE)) {

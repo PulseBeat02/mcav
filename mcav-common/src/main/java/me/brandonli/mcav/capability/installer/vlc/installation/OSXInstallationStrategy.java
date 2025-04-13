@@ -17,11 +17,14 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
@@ -52,7 +55,8 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
   public Optional<Path> getInstalledPath() {
     final VLCInstaller installer = this.getInstaller();
     final Path path = installer.getPath();
-    final Path app = path.resolve(VLC_APP);
+    final Path parent = requireNonNull(path.getParent());
+    final Path app = parent.resolve(VLC_APP);
     final Path contents = app.resolve("Contents");
     final Path macos = contents.resolve("MacOS");
     final Path lib = macos.resolve("lib");
@@ -74,7 +78,10 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
     final String raw = disk.toString();
 
     final Path appFolder = installer.getPath();
-    final Path app = appFolder.resolve(VLC_APP);
+    final String appFolderRaw = appFolder.toString();
+
+    final Path parent = requireNonNull(appFolder.getParent());
+    final Path app = parent.resolve(VLC_APP);
     final String appRaw = app.toString();
 
     final Path dmg = installer.getPath();
@@ -82,12 +89,15 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
 
     final Path src = disk.resolve(VLC_APP);
     final String srcRaw = src + "/";
+    IOUtils.createDirectoryIfNotExists(app);
 
-    this.runNativeProcess("/usr/bin/hdiutil", "attach", dmgRaw);
-    this.runNativeProcess("rsync", "-a", srcRaw, appRaw);
+    this.runNativeProcess("hdiutil", "attach", dmgRaw);
+    this.runNativeProcess("mkdir", "-p", appRaw);
+    this.runNativeProcess("cp", "-R", srcRaw, appRaw);
     this.runNativeProcess("chmod", "-R", "755", appRaw);
     this.runNativeProcess("diskutil", "unmount", raw);
-    this.deleteFile(dmg);
+    this.runNativeProcess("rm", "-rf", appFolderRaw);
+    installer.writePathToConfig(app);
 
     final Path contents = app.resolve("Contents");
     final Path macos = contents.resolve("MacOS");
