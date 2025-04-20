@@ -11,7 +11,7 @@ dependencies {
     implementation("uk.co.caprica:vlcj-natives:4.8.3")
     implementation("net.java.dev.jna:jna:5.15.0")
     implementation("net.java.dev.jna:jna-platform:5.15.0")
-    implementation("net.dv8tion:JDA:5.1.2")
+    implementation("net.dv8tion:JDA:5.4.0")
 
     // Provided dependencies
     compileOnly("org.spigotmc:spigot-api:1.21.1-R0.1-SNAPSHOT")
