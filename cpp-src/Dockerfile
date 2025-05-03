@@ -1,4 +1,4 @@
-﻿FROM debian:bullseye as linux-windows-build
+﻿FROM debian:bookworm as linux-windows-build
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc-x86-64-linux-gnu \
@@ -42,7 +42,7 @@ RUN echo '#define JNIEXPORT __attribute__((visibility("default")))' > /tmp/mac_j
 RUN apt-get update && apt-get install -y nasm && rm -rf /var/lib/apt/lists/* && \
     x86_64-apple-darwin24-gcc -shared -fPIC -I/tmp/mac_jni filterlite.c -o libfilterlite-darwin-x86_64.dylib && \
     aarch64-apple-darwin24-gcc -shared -fPIC -I/tmp/mac_jni filterlite.c -o libfilterlite-darwin-aarch64.dylib
-FROM debian:bullseye
+FROM debian:bookworm
 WORKDIR /output
 COPY --from=linux-windows-build /src/libfilterlite-linux-x86_64.so /output/
 COPY --from=linux-windows-build /src/libfilterlite-linux-aarch64.so /output/
