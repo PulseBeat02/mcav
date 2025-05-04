@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    api("uk.co.caprica:vlcj:4.10.1")
+    api("uk.co.caprica:vlcj:4.11.0")
     api("org.bytedeco:javacv-platform:1.5.11")
     api("com.google.guava:guava:33.4.8-jre")
     api("com.google.code.gson:gson:2.13.1")
