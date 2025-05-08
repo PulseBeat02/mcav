@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.apache.maven.resolver:maven-resolver-impl:2.0.0-alpha-8")
+    implementation("org.apache.maven.resolver:maven-resolver-impl:2.0.8")
     implementation("org.apache.maven.resolver:maven-resolver-supplier:2.0.0-alpha-8")
     implementation("org.slf4j:slf4j-nop:2.1.0-alpha1")
 }
