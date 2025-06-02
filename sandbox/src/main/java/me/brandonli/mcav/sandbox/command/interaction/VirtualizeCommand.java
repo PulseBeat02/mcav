@@ -28,6 +28,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.media.player.vm.ExecutableNotInPathException;
 import me.brandonli.mcav.media.player.vm.VMConfiguration;
 import me.brandonli.mcav.media.player.vm.VMPlayer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -43,6 +44,8 @@ import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer> {
 
@@ -155,12 +158,21 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     sender.sendMessage(Message.VM_LOADING.build());
     try {
       this.player = VMPlayer.vm();
-      this.player.startAsync(pipeline, architecture, config, metadata, this.service).thenRun(() ->
-          sender.sendMessage(Message.VM_CREATE.build())
-        );
+      this.player.startAsync(pipeline, architecture, config, metadata, this.service)
+        .exceptionally(throwable -> handleException(sender, throwable))
+        .thenRun(() -> sender.sendMessage(Message.VM_CREATE.build()));
     } catch (final Exception e) {
       throw new AssertionError(e);
     }
+  }
+
+  private static boolean handleException(final CommandSender sender, final Throwable throwable) {
+    if (throwable instanceof ExecutableNotInPathException) {
+      sender.sendMessage(Message.VM_PATH.build());
+    }
+    final Logger logger = LoggerFactory.getLogger("QEMU");
+    logger.error("Failed to start VM", throwable);
+    return false;
   }
 
   private VMConfiguration parseVMOptions(final String commandLine) {

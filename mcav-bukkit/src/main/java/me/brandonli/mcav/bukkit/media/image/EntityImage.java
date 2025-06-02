@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.image;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collection;
-import java.util.SplittableRandom;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.MCAVBukkit;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
@@ -51,8 +50,6 @@ import org.bukkit.scheduler.BukkitScheduler;
  * in managing the entities used for rendering the image.
  */
 public class EntityImage implements DisplayableImage {
-
-  private static final SplittableRandom SPLITTABLE_RANDOM = new SplittableRandom();
 
   private final EntityConfiguration entityConfiguration;
 
@@ -114,6 +111,9 @@ public class EntityImage implements DisplayableImage {
    */
   @Override
   public void release() {
+    if (this.entity == null) {
+      return;
+    }
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final Plugin plugin = MCAVBukkit.getPlugin();
     scheduler.runTask(plugin, this::release0);

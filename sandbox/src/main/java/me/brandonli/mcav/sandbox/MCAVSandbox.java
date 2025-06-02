@@ -24,6 +24,7 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.MCAVBukkit;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
+import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
@@ -36,6 +37,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private MCAVApi mcav;
   private JukeBoxListener listener;
   private AudioProvider audioProvider;
+  private ImageManager imageManager;
   private VideoPlayerManager videoPlayerManager;
   private AnnotationParserHandler annotationParserHandler;
   private PluginDataConfigurationMapper configurationMapper;
@@ -65,6 +67,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.audioProvider = new AudioProvider(this);
     this.audioProvider.initialize();
     this.videoPlayerManager = new VideoPlayerManager(this);
+    this.imageManager = new ImageManager();
   }
 
   private void loadMCAV() {
@@ -134,6 +137,9 @@ public final class MCAVSandbox extends JavaPlugin {
     if (this.videoPlayerManager != null) {
       this.videoPlayerManager.shutdown();
     }
+    if (this.imageManager != null) {
+      this.imageManager.shutdown();
+    }
   }
 
   private void initLookupTables() {
@@ -158,5 +164,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
   public AudioProvider getAudioProvider() {
     return this.audioProvider;
+  }
+
+  public ImageManager getImageManager() {
+    return this.imageManager;
   }
 }

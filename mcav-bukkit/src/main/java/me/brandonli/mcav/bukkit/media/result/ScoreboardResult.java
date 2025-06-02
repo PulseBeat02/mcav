@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.result;
 
 import static java.util.Objects.requireNonNull;
 
+import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.MCAVBukkit;
@@ -80,6 +81,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
     @SuppressWarnings("deprecation")
     final Objective objective = scoreboard.registerNewObjective(objectiveName, "dummy", "");
     objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+    objective.numberFormat(NumberFormat.blank());
     for (int i = 0; i < lines; i++) {
       final UUID random = UUID.randomUUID();
       final String name = random.toString();

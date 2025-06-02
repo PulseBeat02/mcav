@@ -33,12 +33,12 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   @Suggestions("dimensions")
   public Stream<String> suggestDimensions() {
-    return Stream.of("4x4", "5x5", "16x9", "32x18");
+    return Stream.of("4x4", "5x5", "16x9", "16x16", "32x18");
   }
 
   @Suggestions("resolutions")
   public Stream<String> suggestResolutions() {
-    return Stream.of("512x512", "640x640", "1280x720", "1920x1080");
+    return Stream.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
   }
 
   @Suggestions("chat-resolutions")

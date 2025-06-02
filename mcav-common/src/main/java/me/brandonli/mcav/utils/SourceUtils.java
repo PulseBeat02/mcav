@@ -68,6 +68,21 @@ public final class SourceUtils {
     Pair.pair(SourceUtils::isUri, FileSource.class)
   );
 
+  public static boolean isImageGif(final Source source) {
+    if (source instanceof final FileSource fileSource) {
+      final Path path = fileSource.getPath();
+      final String rawPath = path.toString();
+      final String lower = rawPath.toLowerCase();
+      return lower.endsWith(".gif");
+    } else if (source instanceof final UriSource uriSource) {
+      final URI uri = uriSource.getUri();
+      final String rawPath = uri.toString();
+      final String lower = rawPath.toLowerCase();
+      return lower.endsWith(".gif");
+    }
+    return false;
+  }
+
   /**
    * Determines whether the provided string is a valid URI with both a scheme and a host.
    *

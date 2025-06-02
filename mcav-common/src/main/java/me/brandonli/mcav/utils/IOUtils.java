@@ -33,6 +33,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import me.brandonli.mcav.capability.installer.Download;
@@ -231,15 +232,11 @@ public final class IOUtils {
    */
   public static Path downloadImage(final UriSource source) {
     final String url = source.getResource();
-    String filename = url.substring(url.lastIndexOf('/') + 1);
-    if (!filename.contains(".")) {
-      filename = "image_" + url + ".jpg";
-    }
-    final Path cacheDir = getCachedFolder();
-    final Path destination = cacheDir.resolve(filename);
-    if (Files.exists(destination)) {
-      return destination;
-    }
+    final byte[] bytes = url.getBytes();
+    final UUID uuid = UUID.nameUUIDFromBytes(bytes);
+    final String name = uuid.toString();
+    final Path cache = getCachedFolder();
+    final Path destination = cache.resolve(name);
     try (final InputStream in = new URL(url).openStream()) {
       Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException e) {

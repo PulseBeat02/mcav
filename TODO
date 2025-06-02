@@ -1,8 +1,7 @@
 High Priority Tasks:
   - Fix Interaction Support for Virtual Machine / Browser
-  - Build QEMU Statically for All Platforms
-  - Add Support for Images / GIFs
-  - Rewrite all JavaDocs
+  - Compile QEMU Statically
+  - Rewrite all JavaDocs / Code Clean Up
 
 Medium Priority Tasks:
   - Create Showcase Video

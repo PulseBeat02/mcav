@@ -47,6 +47,7 @@ public final class VideoPlayerManager {
   }
 
   public void shutdown() {
+    this.releaseVideoPlayer();
     ExecutorUtils.shutdownExecutorGracefully(this.service);
   }
 

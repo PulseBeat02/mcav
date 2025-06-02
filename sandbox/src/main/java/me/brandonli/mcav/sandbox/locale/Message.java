@@ -20,6 +20,11 @@ package me.brandonli.mcav.sandbox.locale;
 import static me.brandonli.mcav.sandbox.locale.LocaleTools.direct;
 
 public interface Message extends LocaleTools {
+  NullComponent<Sender> RELEASE_IMAGE = direct("mcav.command.image.release");
+  NullComponent<Sender> RELEASE_IMAGE_START = direct("mcav.command.image.release.start");
+  NullComponent<Sender> LOAD_IMAGE = direct("mcav.command.image.load");
+  NullComponent<Sender> LOAD_IMAGE_START = direct("mcav.command.image.load.start");
+  NullComponent<Sender> VM_PATH = direct("mcav.command.vm.path.error");
   NullComponent<Sender> INTERACT_DISABLE = direct("mcav.command.interaction.remove");
   NullComponent<Sender> INTERACT_ENABLE = direct("mcav.command.interaction.add");
   NullComponent<Sender> VM_LOADING = direct("mcav.command.vm.loading");

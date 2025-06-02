@@ -89,6 +89,9 @@ public class BlockImage implements DisplayableImage {
 
   @Override
   public void release() {
+    if (this.locationCache == null) {
+      return;
+    }
     final BlockData empty = Material.AIR.createBlockData();
     final BlockState emptyState = empty.createBlockState();
     final Collection<BlockState> blockStates = new HashSet<>();

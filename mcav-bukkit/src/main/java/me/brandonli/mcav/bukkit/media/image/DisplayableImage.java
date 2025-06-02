@@ -17,10 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
-import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
-import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
-import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
+import me.brandonli.mcav.bukkit.media.config.*;
 import me.brandonli.mcav.media.image.StaticImage;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
@@ -92,5 +89,9 @@ public interface DisplayableImage {
    */
   static DisplayableImage scoreboard(final ScoreboardConfiguration scoreboardConfiguration) {
     return new ScoreboardImage(scoreboardConfiguration);
+  }
+
+  static DisplayableImage block(final BlockConfiguration blockConfiguration) {
+    return new BlockImage(blockConfiguration);
   }
 }

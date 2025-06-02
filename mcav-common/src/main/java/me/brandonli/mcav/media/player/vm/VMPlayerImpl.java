@@ -29,6 +29,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.player.vnc.VNCPlayer;
 import me.brandonli.mcav.media.source.VNCSource;
 import me.brandonli.mcav.utils.UncheckedIOException;
+import me.brandonli.mcav.utils.natives.NativeUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -81,6 +82,10 @@ public class VMPlayerImpl implements VMPlayer {
   }
 
   private void startQemuProcess() {
+    final String cmd = this.architecture.getCommand();
+    if (!NativeUtils.checkIfExecutableInPath(cmd)) {
+      throw new ExecutableNotInPathException("QEMU");
+    }
     try {
       final List<String> command = this.formatQemuArguments();
       final String[] arguments = command.toArray(new String[0]);

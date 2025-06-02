@@ -52,6 +52,8 @@ import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
@@ -85,7 +87,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
-      .thenRun(() -> player.sendMessage(Message.START_VIDEO.build()));
+      .thenRun(() -> player.sendMessage(Message.START_VIDEO.build()))
+      .exceptionally(this::handleException);
+  }
+
+  private @Nullable Void handleException(final Throwable throwable) {
+    final Logger logger = LoggerFactory.getLogger("MCAV Video");
+    logger.error("An exception occurred while playing a video", throwable);
+    return null;
   }
 
   private void sendArgumentUrl(final AudioArgument audioType, final MultiplePlayerSelector selector) {
