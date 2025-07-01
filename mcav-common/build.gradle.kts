@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     api("uk.co.caprica:vlcj:4.11.0")
-    api("org.bytedeco:javacv-platform:1.5.11") {
+    api("org.bytedeco:javacv-platform:1.5.12") {
         exclude(group = "org.bytedeco", module = "flycapture")
         exclude(group = "org.bytedeco", module = "flycapture-platform")
         exclude(group = "org.bytedeco", module = "libdc1394")
