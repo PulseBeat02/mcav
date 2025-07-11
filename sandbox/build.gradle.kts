@@ -21,7 +21,7 @@ dependencies {
 
     runtimeDownload("org.incendo:cloud-core:2.0.0")
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
-    runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.10")
+    runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.11")
     runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.10")
 
     runtimeDownload("me.lucko:commodore:2.2")
