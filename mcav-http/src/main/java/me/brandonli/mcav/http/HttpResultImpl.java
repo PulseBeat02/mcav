@@ -229,7 +229,6 @@ public class HttpResultImpl implements HttpResult {
     @Override
     public void afterConnectionEstablished(final WebSocketSession session) throws Exception {
       final HttpResultImpl instance = this.config.getHttpResultInstance();
-      System.out.println("WebSocket connection established: " + session.getId());
       if (instance != null) {
         instance.wsClients.add(session);
       }

@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.loader.DependencyLoader;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
@@ -27,10 +30,6 @@ import me.brandonli.mcav.utils.CopyUtils;
 import me.brandonli.mcav.utils.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.imageio.ImageIO;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The main implementation of the MCAV library. Don't instantiate this class directly.
