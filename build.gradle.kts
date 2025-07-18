@@ -14,6 +14,15 @@ repositories {
     mavenCentral()
 }
 
+val windows = System.getProperty("os.name").lowercase().contains("windows")
+
+fun getNodeExecutable(): File {
+    val npmExec = if (windows) "node.exe" else "bin/node"
+    val folder = node.resolvedNodeDir.get()
+    val executable = folder.file(npmExec).asFile
+    return executable
+}
+
 subprojects {
 
     apply(plugin = "java")
@@ -59,6 +68,7 @@ subprojects {
         }
 
         build {
+            dependsOn("npmInstall")
             dependsOn("spotlessApply")
         }
 
@@ -77,7 +87,7 @@ subprojects {
                             "printWidth" to 140
                         )
                     )
-                    .nodeExecutable(provider { setupNodeEnvironment() })
+                    .nodeExecutable(provider { getNodeExecutable() })
                 val file = rootProject.file("HEADER")
                 licenseHeaderFile(file)
                 importOrder()
@@ -115,13 +125,4 @@ subprojects {
             workDir = file("build/nodejs")
         }
     }
-}
-
-val windows = System.getProperty("os.name").lowercase().contains("windows")
-
-fun setupNodeEnvironment(): File {
-    val npmExec = if (windows) "node.exe" else "bin/node"
-    val folder = node.resolvedNodeDir.get()
-    val executable = folder.file(npmExec).asFile
-    return executable
 }

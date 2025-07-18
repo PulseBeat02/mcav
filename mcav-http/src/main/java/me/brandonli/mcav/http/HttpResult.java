@@ -88,16 +88,4 @@ public interface HttpResult extends AudioFilter {
   static HttpResult http(final String domain, final int port) {
     return new HttpResultImpl(domain, port);
   }
-
-  /**
-   * Creates a new {@link HttpResult} instance with the specified domain, port, and HTML content.
-   *
-   * @param domain the domain to bind the HTTP server to
-   * @param port   the port to bind the HTTP server to
-   * @param html   the HTML content to serve
-   * @return a new {@link HttpResult} instance
-   */
-  static HttpResult http(final String domain, final int port, final String html) {
-    return new HttpResultImpl(domain, port, html);
-  }
 }

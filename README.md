@@ -41,17 +41,31 @@ https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-
 
 Here is a list of all the modules that are included in MCAV
 
-| Module           | Description                                                                                                                       |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox`        | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                      |
-| `mcav-common`    | The core library for multimedia functionality.                                                                                    |
-| `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                   |
-| `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                          |
-| `mcav-jda`       | A module for integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels. |
-| `mcav-http`      | A module for integrating with [Spring Boot](https://spring.io/) to stream PCM audio to an HTTP website.                           |
-| `mcav-vm`        | A module for integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                              |
-| `mcav-vnc`       | A module for integrating with VNC servers to capture video and control remote desktops.                                           |
-| `mcav-browser`   | A module for integrating with [Selenium](https://www.selenium.dev/) to provide browser support.                                   |
+| Module           | Description                                                                                                                                                  |
+|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `sandbox`        | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                                                 |
+| `mcav-common`    | The core library for multimedia functionality.                                                                                                               |
+| `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                                              |
+| `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
+| `mcav-jda`       | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
+| `mcav-http`      | A module with [Spring Boot](https://spring.io/) back-end and [Typescript](https://www.typescriptlang.org/) front-end to stream PCM audio to an HTTP website. |
+| `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                                                             |
+| `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
+| `mcav-browser`   | A module using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/) to provide browser support.                                   |
+
+---
+
+### Contributing
+
+MCAV is looking for contributors to help improve the library and plugin. We need
+- Web Developers (Typescript, React, NextJS) to help improve the front-end of the HTTP module.
+- Back-end Developers (Java, Spring Boot) to help improve the back-end of the HTTP module.
+- Java Developers to help improve the core library.
+- Bukkit Developers to help improve the Bukkit module and the sandbox plugin.
+- Writers to help improve the documentation and tutorials.
+- Testers to help test the library and plugin.
+- Content Creators to help promote the library and plugin.
+- And much more!
 
 ---
 

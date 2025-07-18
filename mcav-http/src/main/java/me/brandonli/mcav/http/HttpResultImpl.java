@@ -17,18 +17,16 @@
  */
 package me.brandonli.mcav.http;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import me.brandonli.mcav.utils.IOUtils;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -38,6 +36,10 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.resource.PathResourceResolver;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
@@ -52,40 +54,23 @@ import org.springframework.web.socket.handler.BinaryWebSocketHandler;
  */
 public class HttpResultImpl implements HttpResult {
 
-  private static final String HTML_TEMPLATE = loadHtmlFromResource();
-
-  private static String loadHtmlFromResource() {
-    try (
-      final InputStream is = IOUtils.getResourceAsInputStream("player.html", HttpResultImpl.class);
-      final InputStreamReader isr = new InputStreamReader(is);
-      final BufferedReader reader = new BufferedReader(isr)
-    ) {
-      final Stream<String> lines = reader.lines();
-      return lines.collect(Collectors.joining("\n"));
-    } catch (final IOException e) {
-      final String msg = e.getMessage();
-      throw new HttpException(msg, e);
-    }
-  }
-
   private final CopyOnWriteArrayList<WebSocketSession> wsClients;
   private final String domain;
   private final int port;
-  private final String html;
+  private final String directory;
 
   private URLParseDump current;
   private ConfigurableApplicationContext context;
 
   HttpResultImpl(final String domain, final int port) {
-    this(domain, port, HTML_TEMPLATE);
+    this(domain, port, "static");
   }
 
-  HttpResultImpl(final String domain, final int port, final String html) {
-    final String portValue = String.valueOf(port);
+  HttpResultImpl(final String domain, final int port, final String directory) {
     this.wsClients = new CopyOnWriteArrayList<>();
     this.domain = domain;
     this.port = port;
-    this.html = html.replace("%%PORT%%", portValue);
+    this.directory = directory;
     this.current = new URLParseDump();
   }
 
@@ -108,7 +93,7 @@ public class HttpResultImpl implements HttpResult {
         .logStartupInfo(true)
         .registerShutdownHook(false); // Bukkit classloader is closed before Spring shutdown hook runs, causing NoClassDefFoundError
       try {
-        this.context = builder.run();
+        this.context = builder.run("--directory=%s".formatted(this.directory));
         final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
         config.setHttpResultInstance(this);
       } finally {
@@ -153,7 +138,7 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public String getFullUrl() {
-    return String.format("http://%s:%s", this.domain, this.port);
+    return String.format("http://%s:%s/index.html", this.domain, this.port);
   }
 
   /**
@@ -185,7 +170,15 @@ public class HttpResultImpl implements HttpResult {
 
   @SpringBootApplication
   @EnableWebSocket
-  static class HttpServerApplication {
+  static class HttpServerApplication implements ApplicationRunner {
+
+    private String directory;
+
+    @Override
+    public void run(final ApplicationArguments args) {
+      final List<String> optionalValues = args.getOptionValues("directory");
+      this.directory = optionalValues != null && !optionalValues.isEmpty() ? optionalValues.getFirst() : "static";
+    }
 
     @Bean
     public HttpServerConfiguration httpServerConfiguration() {
@@ -195,6 +188,28 @@ public class HttpResultImpl implements HttpResult {
     @Bean
     public WebSocketConfigurer webSocketConfigurer(final HttpServerConfiguration config) {
       return registry -> registry.addHandler(config.createWebSocketHandler(), "/audio").setAllowedOrigins("*");
+    }
+
+    @Bean
+    public WebMvcConfigurer webMvcConfigurer(final HttpServerConfiguration config) {
+      return new WebMvcConfigurer() {
+        @Override
+        public void addResourceHandlers(final @NonNull ResourceHandlerRegistry registry) {
+          registry
+            .addResourceHandler("/**")
+            // if you are using IDE to test, use file:/C:/Users/brand/IdeaProjects/mcav/mcav-http/mcav-website/out or whatever
+            // path the static build files are located. This is because the classpath is not available in the IDE.
+            .addResourceLocations("classpath:/static/", "file:/C:/Users/brand/IdeaProjects/mcav/mcav-http/mcav-website/out")
+            .setCachePeriod(3600)
+            .resourceChain(true)
+            .addResolver(new PathResourceResolver());
+        }
+
+        @Override
+        public void addViewControllers(final @NonNull ViewControllerRegistry registry) {
+          registry.addViewController("/").setViewName("forward:/index.html");
+        }
+      };
     }
   }
 
@@ -264,18 +279,6 @@ public class HttpResultImpl implements HttpResult {
 
     HttpController(final HttpServerConfiguration config) {
       this.config = config;
-    }
-
-    /**
-     * Handles the root path and returns the HTML template.
-     *
-     * @return The HTML template as a string.
-     */
-    @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-    @ResponseBody
-    public String index() {
-      final HttpResultImpl instance = this.config.getHttpResultInstance();
-      return instance != null ? instance.html : "";
     }
 
     /**
