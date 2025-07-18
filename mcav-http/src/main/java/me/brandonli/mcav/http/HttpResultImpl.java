@@ -23,7 +23,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Iterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -136,34 +135,16 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
-    if (samples == null || metadata == null) {
-      return;
-    }
-
     if (this.wsClients.isEmpty()) {
       return;
     }
 
     final ByteBuffer clamped = samples.order(ByteOrder.BIG_ENDIAN);
-    final int position = clamped.position();
-    final int remaining = clamped.remaining();
-    final ByteBuffer copy = ByteBuffer.allocate(remaining);
-    copy.put(clamped);
-    copy.flip();
-    clamped.position(position);
-
-    final Iterator<WebSocketSession> iterator = this.wsClients.iterator();
-    while (iterator.hasNext()) {
-      final WebSocketSession session = iterator.next();
-      if (!session.isOpen()) {
-        iterator.remove();
-        continue;
-      }
+    final BinaryMessage message = new BinaryMessage(clamped);
+    for (final WebSocketSession session : this.wsClients) {
       try {
-        session.sendMessage(new BinaryMessage(copy));
-      } catch (final Exception e) {
-        iterator.remove();
-      }
+        session.sendMessage(message);
+      } catch (final Exception ignored) {}
     }
   }
 
