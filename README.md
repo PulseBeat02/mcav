@@ -52,6 +52,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                                                             |
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
 | `mcav-browser`   | A module using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/) to provide browser support.                                   |
+| `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
 
 ---
 

@@ -369,4 +369,9 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   public void release() {
     this.close();
   }
+
+  @Override
+  public ByteBuffer getData() {
+    return this.mat.createBuffer();
+  }
 }

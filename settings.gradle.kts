@@ -29,3 +29,4 @@ include("mcav-vm")
 project(":mcav-vm").name = "mcav-vm"
 
 include("sandbox")
+include("mcav-lwjgl")

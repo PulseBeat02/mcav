@@ -194,4 +194,11 @@ public interface ImageBuffer extends Image, Examinable {
    * This method should be called when the image buffer is no longer needed.
    */
   void release();
+
+  /**
+   * Gets the raw pixel data of the image buffer as a ByteBuffer.
+   *
+   * @return a ByteBuffer containing the raw pixel data
+   */
+  ByteBuffer getData();
 }
