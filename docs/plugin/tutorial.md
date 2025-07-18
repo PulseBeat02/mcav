@@ -7,7 +7,7 @@ plugin up.
 
 **Step 1: Install the Plugin**  
 If you haven't already, follow the installation instructions in the [Installation Guide](./plugin.md#installation) to 
-install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (1.21.6).
+install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (1.21.8).
 
 ---
 

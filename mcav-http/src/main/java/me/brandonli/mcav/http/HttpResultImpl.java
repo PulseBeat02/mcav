@@ -57,7 +57,7 @@ public class HttpResultImpl implements HttpResult {
 
   private static String loadHtmlFromResource() {
     try (
-      final InputStream is = IOUtils.getResourceAsInputStream("player.html");
+      final InputStream is = IOUtils.getResourceAsInputStream("player.html", HttpResultImpl.class);
       final InputStreamReader isr = new InputStreamReader(is);
       final BufferedReader reader = new BufferedReader(isr)
     ) {
@@ -95,23 +95,39 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void start() {
-    System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
-    final SpringApplicationBuilder builder = new SpringApplicationBuilder()
-      .sources(HttpServerApplication.class)
-      .web(WebApplicationType.SERVLET)
-      .properties(
-        "server.port=" + this.port,
-        "spring.application.name=mcav-http-" + this.port,
-        "spring.jmx.enabled=false",
-        "spring.main.banner-mode=off"
-      )
-      .logStartupInfo(true);
+    final Runnable runnable = () -> {
+      System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
+      final SpringApplicationBuilder builder = new SpringApplicationBuilder()
+        .sources(HttpServerApplication.class)
+        .web(WebApplicationType.SERVLET)
+        .properties(
+          "server.port=" + this.port,
+          "spring.application.name=mcav-http-" + this.port,
+          "spring.jmx.enabled=false",
+          "spring.main.banner-mode=off"
+        )
+        .logStartupInfo(true)
+        .registerShutdownHook(false); // Bukkit classloader is closed before Spring shutdown hook runs, causing NoClassDefFoundError
+      try {
+        this.context = builder.run();
+        final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
+        config.setHttpResultInstance(this);
+      } finally {
+        System.clearProperty("org.springframework.boot.logging.LoggingSystem");
+      }
+    };
+    this.executeSpringRunnable(runnable);
+  }
+
+  private void executeSpringRunnable(final Runnable runnable) {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader oldClassLoader = thread.getContextClassLoader();
+    final ClassLoader newClassLoader = HttpResultImpl.class.getClassLoader();
+    thread.setContextClassLoader(newClassLoader);
     try {
-      this.context = builder.run();
-      final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
-      config.setHttpResultInstance(this);
+      runnable.run();
     } finally {
-      System.clearProperty("org.springframework.boot.logging.LoggingSystem");
+      thread.setContextClassLoader(oldClassLoader);
     }
   }
 
@@ -172,15 +188,18 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void stop() {
-    if (this.context != null) {
-      this.wsClients.forEach(session -> {
-          try {
-            session.close();
-          } catch (final IOException ignored) {}
-        });
-      this.wsClients.clear();
-      this.context.close();
-    }
+    final Runnable runnable = () -> {
+      if (this.context != null) {
+        this.wsClients.forEach(session -> {
+            try {
+              session.close();
+            } catch (final IOException ignored) {}
+          });
+        this.wsClients.clear();
+        this.context.close();
+      }
+    };
+    this.executeSpringRunnable(runnable);
   }
 
   @SpringBootApplication

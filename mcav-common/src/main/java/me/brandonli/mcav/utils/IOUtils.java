@@ -333,6 +333,20 @@ public final class IOUtils {
   }
 
   /**
+   * Retrieves a resource as an InputStream from the classpath.
+   *
+   * @param resource the path to the resource to be loaded; must not be null
+   * @param clazz the class whose classloader will be used to load the resource; must not be null
+   * @return an InputStream for the specified resource
+   * @throws NullPointerException if the resource path is null or if the resource cannot be found
+   */
+  public static InputStream getResourceAsInputStream(final String resource, final Class<?> clazz) {
+    Preconditions.checkNotNull(resource);
+    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
+    return requireNonNull(classLoader.getResourceAsStream(resource));
+  }
+
+  /**
    * Extracts the contents of a ZIP file from the specified source path to the destination directory.
    * Ensures the security and integrity of the extraction process by validating paths and checking size limits.
    *
