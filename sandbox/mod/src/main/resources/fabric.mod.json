@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "mcav",
+	"version": "${version}",
+	"name": "mcav",
+	"description": "Television Screen mod - adds television screens that can be mounted like item frames",
+	"authors": [
+		"Brandon Li"
+	],
+	"contact": {
+		"homepage": "https://brandonli.me/",
+		"sources": "https://github.com/brandonli2006/mcav"
+	},
+	"license": "GPL-3.0",
+	"icon": "assets/mcav/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"me.brandonli.Mcav"
+		],
+		"client": [
+			"me.brandonli.McavClient"
+		]
+	},
+	"mixins": [],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}

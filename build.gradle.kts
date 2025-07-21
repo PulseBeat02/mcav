@@ -96,12 +96,6 @@ subprojects {
             }
         }
 
-        whenTaskAdded {
-            if (name == "spotlessInternalRegisterDependencies") {
-                dependsOn("nodeSetup", "npmSetup")
-            }
-        }
-
         checkerFramework {
             checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
             val file = project.file("checker-framework")

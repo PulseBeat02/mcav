@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "item": "minecraft:gray_concrete"
+    },
+    "B": {
+      "item": "minecraft:black_concrete"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "GBG",
+    "GIG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "mcav:television_screen"
+  },
+  "show_notification": true
+}

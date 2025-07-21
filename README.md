@@ -43,7 +43,8 @@ Here is a list of all the modules that are included in MCAV
 
 | Module           | Description                                                                                                                                                  |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox`        | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                                                 |
+| `sandbox:plugin` | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                                                 |
+| `sandbox:mod`    | A Fabric mod for Minecraft servers that utilizes all the features of MCAV (in heavy development).                                                            |
 | `mcav-common`    | The core library for multimedia functionality.                                                                                                               |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                                              |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
@@ -62,6 +63,7 @@ MCAV is looking for contributors to help improve the library and plugin. We need
 - Web Developers (Typescript, React, NextJS) to help improve the front-end of the HTTP module.
 - Back-end Developers (Java, Spring Boot) to help improve the back-end of the HTTP module.
 - Java Developers to help improve the core library.
+- Fabric Developers to help improve the Fabric mod.
 - Bukkit Developers to help improve the Bukkit module and the sandbox plugin.
 - Writers to help improve the documentation and tutorials.
 - Testers to help test the library and plugin.

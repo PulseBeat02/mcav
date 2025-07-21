@@ -1,0 +1,50 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "screen": "mcav:block/television_screen",
+    "frame": "minecraft:block/gray_concrete",
+    "particle": "mcav:block/television_screen"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 15],
+      "to": [16, 16, 16],
+      "faces": {
+        "north": {
+          "texture": "#frame",
+          "uv": [0, 0, 16, 16]
+        },
+        "east": {
+          "texture": "#frame",
+          "uv": [0, 0, 1, 16]
+        },
+        "south": {
+          "texture": "#frame",
+          "uv": [0, 0, 16, 16]
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [15, 0, 16, 16]
+        },
+        "up": {
+          "texture": "#frame",
+          "uv": [0, 15, 16, 16]
+        },
+        "down": {
+          "texture": "#frame",
+          "uv": [0, 0, 16, 1]
+        }
+      }
+    },
+    {
+      "from": [1, 1, 14.9],
+      "to": [15, 15, 15.1],
+      "faces": {
+        "north": {
+          "texture": "#screen",
+          "uv": [1, 1, 15, 15]
+        }
+      }
+    }
+  ]
+}

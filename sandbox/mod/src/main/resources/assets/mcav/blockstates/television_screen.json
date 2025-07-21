@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "mcav:block/television_screen_single"
+    },
+    "facing=south": {
+      "model": "mcav:block/television_screen_single",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "mcav:block/television_screen_single",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "mcav:block/television_screen_single",
+      "y": 270
+    }
+  }
+}

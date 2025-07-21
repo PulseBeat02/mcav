@@ -1,3 +1,14 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = "Fabric"
+            url = uri("https://maven.fabricmc.net/")
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
@@ -28,8 +39,13 @@ project(":mcav-vnc").name = "mcav-vnc"
 include("mcav-vm")
 project(":mcav-vm").name = "mcav-vm"
 
-include("sandbox")
-project(":sandbox").name = "sandbox"
-
 include("mcav-lwjgl")
 project(":mcav-lwjgl").name = "mcav-lwjgl"
+
+include(":sandbox:plugin")
+project(":sandbox:plugin").name = "plugin"
+
+include(":sandbox:mod")
+project(":sandbox:mod").name = "mod"
+
+//includeBuild("sandbox/mod")
