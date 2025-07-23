@@ -32,6 +32,8 @@ YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local fi
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to or a Discord bot to play audio in voice channels.
 
+https://raw.githubusercontent.com/PulseBeat02/mcav/refs/heads/master/mcav.mp4
+
 https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
 
 ---

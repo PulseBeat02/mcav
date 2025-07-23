@@ -68,21 +68,21 @@ tasks {
     }
 
     jar {
-        dependsOn(buildWebsite)
+        //dependsOn(buildWebsite)
         from("mcav-website/out") {
             into("static")
         }
     }
 
     named<Jar>("sourcesJar") {
-        dependsOn(buildWebsite)
+        //dependsOn(buildWebsite)
         from("mcav-website/out") {
             into("static")
         }
     }
 
     build {
-        dependsOn(buildWebsite)
+        //dependsOn(buildWebsite)
     }
 }
 
