@@ -45,66 +45,66 @@ public class ThreadSafeVideoFilter implements FunctionalVideoFilter {
 
   @Override
   public void start() {
-    if (isStarted) return;
+    if (this.isStarted) {
+      return;
+    }
 
-    // Create GL texture on main thread
     MinecraftClient.getInstance()
       .execute(() -> {
-        glTextureId = GL11.glGenTextures();
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, glTextureId);
+        this.glTextureId = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.glTextureId);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
       });
 
-    isStarted = true;
+    this.isStarted = true;
   }
 
   @Override
   public void release() {
-    if (!isStarted) return;
+    if (!this.isStarted) {
+      return;
+    }
 
-    // Delete GL texture on main thread
-    if (glTextureId >= 0) {
-      final int textureToDelete = glTextureId;
+    if (this.glTextureId >= 0) {
+      final int textureToDelete = this.glTextureId;
       MinecraftClient.getInstance()
         .execute(() -> {
           GL11.glDeleteTextures(textureToDelete);
         });
-      glTextureId = -1;
+      this.glTextureId = -1;
     }
 
-    frameQueue.clear();
-    isStarted = false;
+    this.frameQueue.clear();
+    this.isStarted = false;
   }
 
   @Override
   public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    if (!isStarted || samples == null) {
+    if (!this.isStarted || samples == null) {
       return;
     }
 
-    // Queue the frame data for processing on main thread (runs on VLC worker thread)
     final FrameData frameData = new FrameData(samples);
-    frameQueue.offer(frameData);
+    this.frameQueue.offer(frameData);
 
-    // Schedule processing on main thread if not already processing
-    if (isProcessing.compareAndSet(false, true)) {
+    if (this.isProcessing.compareAndSet(false, true)) {
       MinecraftClient.getInstance().execute(this::processQueuedFrames);
     }
   }
 
   private void processQueuedFrames() {
     try {
-      if (glTextureId < 0) return;
+      if (this.glTextureId < 0) {
+        return;
+      }
 
-      // Process all queued frames on main thread with GL context
       FrameData frameData;
       FrameData latestFrame = null;
 
-      // Get the latest frame (drop intermediate frames for performance)
-      while ((frameData = frameQueue.poll()) != null) {
+      while ((frameData = this.frameQueue.poll()) != null) {
         latestFrame = frameData;
       }
 
@@ -114,24 +114,21 @@ public class ThreadSafeVideoFilter implements FunctionalVideoFilter {
         final int width = imageBuffer.getWidth();
         final int height = imageBuffer.getHeight();
 
-        // Upload texture data to GPU
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, glTextureId);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.glTextureId);
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGB, width, height, 0, GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, pixelData);
 
-        // Update global texture state
-        GLTextureStreamer.streamTextureToAllTVs(glTextureId, width, height);
+        GLTextureStreamer.streamTextureToAllTVs(this.glTextureId, width, height);
       }
     } finally {
-      isProcessing.set(false);
+      this.isProcessing.set(false);
 
-      // If more frames were queued while we were processing, schedule another run
-      if (!frameQueue.isEmpty() && isProcessing.compareAndSet(false, true)) {
+      if (!this.frameQueue.isEmpty() && this.isProcessing.compareAndSet(false, true)) {
         MinecraftClient.getInstance().execute(this::processQueuedFrames);
       }
     }
   }
 
   public int getTextureId() {
-    return glTextureId;
+    return this.glTextureId;
   }
 }

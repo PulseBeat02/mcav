@@ -47,7 +47,6 @@ public final class ClientTestCommand {
     final FabricClientCommandSource source = context.getSource();
 
     try {
-      // This runs on the client thread
       final VideoPlayerMultiplexer player = VideoPlayer.vlc();
       final ThreadSafeVideoFilter filter = new ThreadSafeVideoFilter();
       filter.start();
