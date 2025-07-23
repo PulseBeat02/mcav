@@ -64,6 +64,7 @@ tasks {
         inputs.file("mcav-website/next.config.ts")
         outputs.dir("mcav-website/out")
         outputs.cacheIf { false }
+        environment("NODE_OPTIONS", "--max-old-space-size=4096")
     }
 
     jar {
