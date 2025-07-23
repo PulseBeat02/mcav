@@ -32,14 +32,9 @@ YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local fi
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to or a Discord bot to play audio in voice channels.
 
+[![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
 
-[mcav.mp4](mcav.mp4)
-
-
-https://raw.githubusercontent.com/PulseBeat02/mcav/refs/heads/master/mcav.mp4
-
-
-https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
+Click to watch a demo video above.
 
 ---
 
@@ -126,3 +121,9 @@ license that is compatible with the [GPLv3](https://opensource.org/license/lgpl-
 |-----------------------------------------------------------|----------------------------------------|
 | [MakiDesktop](https://github.com/ayunami2000/MakiDesktop) | Controlling VNC through Minecraft Maps |
 | [MakiScreen](https://github.com/makifoxgirl/MakiScreen)   | Streaming OBS onto Minecraft Maps      |
+
+---
+
+### Legacy Demo
+
+https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4
