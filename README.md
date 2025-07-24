@@ -72,6 +72,8 @@ MCAV is looking for contributors to help improve the library and plugin. We need
 - Content Creators to help promote the library and plugin.
 - And much more!
 
+For a curated list of issues to work on, please check out the [TODO](TODO.md) file.
+
 ---
 
 ### Licensing
