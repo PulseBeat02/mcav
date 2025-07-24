@@ -17,14 +17,19 @@
  */
 package me.brandonli.mcav.svc;
 
-import static java.util.Objects.requireNonNull;
-
 import de.maxhenkel.voicechat.api.Entity;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import de.maxhenkel.voicechat.api.audio.AudioConverter;
 import de.maxhenkel.voicechat.api.audiochannel.AudioPlayer;
 import de.maxhenkel.voicechat.api.audiochannel.EntityAudioChannel;
 import de.maxhenkel.voicechat.api.opus.OpusEncoder;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,12 +39,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * An implementation of the SVCFilter interface that processes audio samples for a set of players.
@@ -121,7 +122,9 @@ public final class SVCFilterImpl implements SVCFilter {
       final short[] remainingShorts = converter.bytesToShorts(remainingBytes);
       final short[] finalFrame = new short[FRAME_SIZE];
       System.arraycopy(remainingShorts, 0, finalFrame, 0, Math.min(remainingShorts.length, FRAME_SIZE));
-      this.frameQueue.offer(finalFrame);
+      if (!this.frameQueue.offer(finalFrame)) {
+        LOGGER.error("Warning: Final audio frame dropped due to full queue");
+      }
     }
 
     for (int i = 0; i < this.players.length; i++) {
