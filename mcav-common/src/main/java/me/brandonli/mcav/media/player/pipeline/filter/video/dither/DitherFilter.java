@@ -19,7 +19,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 

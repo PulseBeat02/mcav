@@ -1,3 +1,4 @@
+import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
@@ -18,6 +19,7 @@ dependencies {
     runtimeDownload("me.brandonli:mcav-vm:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-vnc:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-browser:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-svc:1.0.0-SNAPSHOT")
 
     runtimeDownload("org.incendo:cloud-core:2.0.0")
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
@@ -58,6 +60,7 @@ paperPluginYaml {
     prefix = "MCAV Sandbox"
     loader = "me.brandonli.mcav.sandbox.MCAVLoader"
     main = "me.brandonli.mcav.sandbox.MCAVSandbox"
+    dependencies.server("voicechat", PaperPluginYaml.Load.BEFORE, false)
 }
 
 tasks {
@@ -73,5 +76,8 @@ tasks {
     runServer {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
         minecraftVersion("1.21.8")
+        downloadPlugins {
+            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/bNX2205a/voicechat-bukkit-2.5.35.jar")
+        }
     }
 }

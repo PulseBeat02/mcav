@@ -15,24 +15,40 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter;
+package me.brandonli.mcav.lwjgl;
 
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * Represents a functional video filter that can be started and released. Extends the
- * {@link VideoFilter} interface to provide additional functionality for managing the lifecycle of the filter.
+ * The main entry point for the LWJGL module of MCAV.
  */
-public interface FunctionalVideoFilter extends VideoFilter {
-  /**
-   * Starts the video filter, initializing any necessary resources or processes.
-   * This method should be called before applying the filter to the pipeline.
-   */
-  void start();
+public final class LWJGLModule implements MCAVModule {
+
+  LWJGLModule() {
+    // no-op
+  }
 
   /**
-   * Releases any resources or processes associated with the video filter.
-   * This method should be called when the filter is no longer needed to prevent memory leaks.
+   * {@inheritDoc}
    */
-  void release();
+  @Override
+  public void start() {
+    // no-op
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void stop() {
+    // no-op
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String getModuleName() {
+    return "lwjgl";
+  }
 }

@@ -24,7 +24,7 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.utils.ExecutorUtils;

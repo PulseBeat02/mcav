@@ -28,7 +28,7 @@ import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;

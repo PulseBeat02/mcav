@@ -30,7 +30,7 @@ The plugin is an example demonstrating the power of the library. For media playb
 websites that can be listed [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), some of which include
 YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local files, stream from IP cameras, screen-share 
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
-stream audio to or a Discord bot to play audio in voice channels.
+stream audio to, [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or a Discord bot to play audio in voice channels.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
 
@@ -55,6 +55,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
 | `mcav-browser`   | A module using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/) to provide browser support.                                   |
 | `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
+| `mcav-svc`       | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
 
 ---
 

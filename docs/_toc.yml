@@ -23,6 +23,7 @@ parts:
       - file: library/vm.md
       - file: library/jda.md
       - file: library/http.md
+      - file: library/voice.md
       - file: library/lwjgl.md
       - file: library/image.md
       - file: library/yt-dlp.md

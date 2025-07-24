@@ -49,3 +49,13 @@ http-server:
   # The port of the daemon (for example, 3000)
   # Default is 3000
   port: 3000
+
+# ======================================================================
+# SIMPLE VOICE CHAT CONFIGURATION
+# ======================================================================
+
+# This is the Simple Voice Chat extension that plays audio in the background
+simple-voice-chat:
+
+  # Whether or not the Simple Voice Chat extension is enabled
+  enabled: false

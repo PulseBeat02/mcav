@@ -27,6 +27,7 @@ import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
+import me.brandonli.mcav.svc.SVCModule;
 import me.brandonli.mcav.vm.VMModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -73,7 +74,7 @@ public final class MCAVSandbox extends JavaPlugin {
     final long startTime = System.currentTimeMillis();
 
     this.mcav = MCAV.api();
-    this.mcav.install(BukkitModule.class, BrowserModule.class, VMModule.class);
+    this.mcav.install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
 
     final BukkitModule module = this.mcav.getModule(BukkitModule.class);
     module.inject(this);

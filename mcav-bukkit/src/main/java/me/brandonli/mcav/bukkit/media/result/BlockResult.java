@@ -26,7 +26,7 @@ import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import org.bukkit.Bukkit;

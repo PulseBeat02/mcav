@@ -42,10 +42,11 @@ project(":mcav-vm").name = "mcav-vm"
 include("mcav-lwjgl")
 project(":mcav-lwjgl").name = "mcav-lwjgl"
 
+include("mcav-svc")
+project(":mcav-svc").name = "mcav-svc"
+
 include(":sandbox:plugin")
 project(":sandbox:plugin").name = "plugin"
 
 include(":sandbox:mod")
 project(":sandbox:mod").name = "mod"
-
-//includeBuild("sandbox/mod")

@@ -20,7 +20,7 @@ package me.brandonli.mcav.lwjgl;
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import org.lwjgl.opengl.GL11;
 
 /**

@@ -51,6 +51,13 @@ subprojects {
             maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
             maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
             maven("https://repo.codemc.io/repository/maven-releases/")
+            maven("https://maven.maxhenkel.de/repository/public")
+            maven {
+                url = uri("https://api.modrinth.com/maven")
+                content {
+                    includeGroup("maven.modrinth")
+                }
+            }
         }
 
         withType<JavaCompile>().configureEach {

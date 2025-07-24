@@ -22,7 +22,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.media.result.ScoreboardResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;

@@ -30,6 +30,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.embedded.tomcat.TomcatWebServer;
+import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
@@ -162,6 +164,17 @@ public class HttpResultImpl implements HttpResult {
             } catch (final IOException ignored) {}
           });
         this.wsClients.clear();
+        try {
+          if (this.context instanceof final ServletWebServerApplicationContext wsContext) {
+            final var webServer = wsContext.getWebServer();
+            webServer.stop();
+            if (webServer instanceof final TomcatWebServer cat) {
+              final var tomcatServer = cat.getTomcat();
+              tomcatServer.stop();
+              tomcatServer.destroy();
+            }
+          }
+        } catch (final Exception ignored) {}
         this.context.close();
       }
     };

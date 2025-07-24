@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.audio;
 
 import static java.util.Objects.requireNonNull;
 
+import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.http.HttpResult;
 import me.brandonli.mcav.jda.DiscordPlayer;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
@@ -26,11 +27,15 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.svc.SVCFilter;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.managers.AudioManager;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
+import org.bukkit.plugin.PluginManager;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class AudioProvider {
@@ -38,15 +43,20 @@ public final class AudioProvider {
   private static final AudioFilter NO_OP = (samples, metadata) -> {};
 
   private final PluginDataConfigurationMapper config;
+  private final MCAVSandbox sandbox;
+  private final MCAVApi mcav;
 
   private @Nullable JDA jda;
   private @Nullable AudioManager audioManager;
   private @Nullable VoiceChannel channel;
   private @Nullable DiscordPlayer discord;
   private @Nullable HttpResult result;
+  private @Nullable SVCFilter svc;
 
   public AudioProvider(final MCAVSandbox sandbox) {
     this.config = sandbox.getConfiguration();
+    this.mcav = sandbox.getMCAV();
+    this.sandbox = sandbox;
   }
 
   public void initialize() {
@@ -66,6 +76,15 @@ public final class AudioProvider {
       final HttpResult result = HttpResult.port(port);
       result.start();
       this.result = result;
+    }
+    if (this.config.isSimpleVoiceChatEnabled()) {
+      final Server server = Bukkit.getServer();
+      final PluginManager pluginManager = server.getPluginManager();
+      if (!pluginManager.isPluginEnabled("voicechat")) {
+        throw new IllegalStateException("Simple Voice Chat not installed!");
+      }
+      final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
+      pluginManager.registerEvents(listener, this.sandbox);
     }
   }
 
@@ -101,12 +120,20 @@ public final class AudioProvider {
     }
   }
 
-  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump) {
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object... players) {
     return switch (argument) {
       case NONE -> NO_OP;
       case DISCORD_BOT -> this.constructDiscordFilter(dump);
       case HTTP_SERVER -> this.constructHttpFilter(dump);
+      case SIMPLE_VOICE_CHAT -> this.constructSVCFilter(players);
     };
+  }
+
+  private AudioFilter constructSVCFilter(final Object[] players) {
+    final SVCFilter filter = SVCFilter.svc(players);
+    filter.start();
+    this.svc = filter;
+    return filter;
   }
 
   private AudioFilter constructHttpFilter(final URLParseDump dump) {
@@ -142,6 +169,11 @@ public final class AudioProvider {
 
     if (this.result != null) {
       this.result.setCurrentMedia(dump);
+    }
+
+    if (this.svc != null) {
+      this.svc.release();
+      this.svc = null;
     }
   }
 

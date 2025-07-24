@@ -47,6 +47,8 @@ public final class PluginDataConfigurationMapper {
   private static final String HTTP_PORT_FIELD = "http-server.port";
   private static final String HTTP_ENABLED = "http-server.enabled";
 
+  private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
+
   private final ExecutorService service;
   private final MCAVSandbox plugin;
   private final Lock readLock;
@@ -61,6 +63,8 @@ public final class PluginDataConfigurationMapper {
   private boolean httpEnabled;
   private String httpHostName;
   private int httpPort;
+
+  private boolean simpleVoiceChatEnabled;
 
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
     final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -88,6 +92,7 @@ public final class PluginDataConfigurationMapper {
     this.httpPort = this.getHttpPort(config);
     this.discordBotEnabled = this.isDiscordBotEnabled(config);
     this.httpEnabled = this.isHttpEnabled(config);
+    this.simpleVoiceChatEnabled = this.isSimpleVoiceChatEnabled(config);
     this.readLock.unlock();
   }
 
@@ -106,6 +111,10 @@ public final class PluginDataConfigurationMapper {
 
   private boolean isDiscordBotEnabled(final FileConfiguration config) {
     return config.getBoolean(DISCORD_BOT_ENABLED, false);
+  }
+
+  private boolean isSimpleVoiceChatEnabled(final FileConfiguration config) {
+    return config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
   }
 
   private boolean isHttpEnabled(final FileConfiguration config) {
@@ -166,5 +175,9 @@ public final class PluginDataConfigurationMapper {
 
   public synchronized boolean isHttpEnabled() {
     return this.httpEnabled;
+  }
+
+  public synchronized boolean isSimpleVoiceChatEnabled() {
+    return this.simpleVoiceChatEnabled;
   }
 }

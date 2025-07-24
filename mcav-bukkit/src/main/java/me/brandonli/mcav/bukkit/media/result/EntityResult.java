@@ -26,7 +26,7 @@ import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.utils.ChatUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import net.minecraft.network.chat.Component;
 import org.bukkit.Bukkit;

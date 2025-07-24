@@ -15,11 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.sandbox.utils;
+package me.brandonli.mcav.svc;
 
-public enum AudioArgument {
-  NONE,
-  DISCORD_BOT,
-  HTTP_SERVER,
-  SIMPLE_VOICE_CHAT,
+import me.brandonli.mcav.media.player.pipeline.filter.audio.FunctionalAudioFilter;
+
+/**
+ * Represents a filter for Simple Voice Chat (SVC) audio processing.
+ */
+public interface SVCFilter extends FunctionalAudioFilter {
+  /**
+   * Creates a new SVCFilter instance with the specified player UUIDs.
+   *
+   * @param players the objects of the players to filter
+   * @return a new SVCFilter instance
+   */
+  static SVCFilter svc(final Object... players) {
+    return new SVCFilterImpl(players);
+  }
 }

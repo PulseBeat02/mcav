@@ -96,6 +96,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
 
     final Collection<Player> players = selector.values();
+    final Player[] viewers = players.toArray(new Player[0]);
+
     for (final Player watcher : players) {
       watcher.sendMessage(Message.LOAD_VIDEO.build());
     }
@@ -105,7 +107,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final ExecutorService service = this.manager.getService();
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
     final String[] arguments = flagsParser.parseYTDLPFlags(flags);
-    final Runnable command = () -> this.synchronizePlayer(playerType, audioType, mrl, arguments, player, resolution, configProvider);
+    final Runnable command = () ->
+      this.synchronizePlayer(playerType, audioType, mrl, arguments, player, resolution, configProvider, viewers);
     CompletableFuture.runAsync(command, service)
       .thenRun(() -> initializing.set(false))
       .thenRun(() -> this.sendArgumentUrl(audioType, selector))
@@ -195,7 +198,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final String[] arguments,
     final Audience audience,
     final Pair<Integer, Integer> resolution,
-    final VideoConfigurationProvider configProvider
+    final VideoConfigurationProvider configProvider,
+    final Player[] viewers
   ) {
     final RetrievalResult sources = this.retrievePair(playerType, mrl, arguments);
     if (sources.audio == null && sources.video == null) {
@@ -204,7 +208,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
     this.manager.releaseVideoPlayer(false);
 
-    this.startPlayer(playerType, audioType, resolution, sources, configProvider);
+    this.startPlayer(playerType, audioType, resolution, sources, configProvider, viewers);
   }
 
   private void startPlayer(
@@ -212,7 +216,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final Pair<Integer, Integer> resolution,
     final RetrievalResult source,
-    final VideoConfigurationProvider configProvider
+    final VideoConfigurationProvider configProvider,
+    final Player[] viewers
   ) {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTaskLater(
@@ -220,7 +225,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       () -> {
         final URLParseDump dump = source.dump;
         final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
-        final AudioFilter filter = this.provider.constructFilter(audioType, dump);
+        final AudioFilter filter = this.provider.constructFilter(audioType, dump, viewers);
         final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
         final Source video = source.video;
         final Source audio = source.audio;

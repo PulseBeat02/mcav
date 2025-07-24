@@ -15,11 +15,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.sandbox.utils;
+package me.brandonli.mcav.media.player.pipeline.filter.audio;
 
-public enum AudioArgument {
-  NONE,
-  DISCORD_BOT,
-  HTTP_SERVER,
-  SIMPLE_VOICE_CHAT,
+/**
+ * Represents a functional audio filter that can be started and released. Extends the
+ * {@link AudioFilter} interface to provide additional functionality for managing the lifecycle of the filter.
+ */
+public interface FunctionalAudioFilter extends AudioFilter {
+  /**
+   * Starts the audio filter, initializing any necessary resources or processes.
+   * This method should be called before applying the filter to the pipeline.
+   */
+  void start();
+
+  /**
+   * Releases any resources or processes associated with the audio filter.
+   * This method should be called when the filter is no longer needed to prevent memory leaks.
+   */
+  void release();
 }
