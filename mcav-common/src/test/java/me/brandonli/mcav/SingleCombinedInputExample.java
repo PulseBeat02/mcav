@@ -62,7 +62,10 @@ public final class SingleCombinedInputExample {
       URI.create("http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_native_60fps_normal.mp4")
     );
 
-    final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(new DirectAudioOutput()).build();
+    final DirectAudioOutput output = new DirectAudioOutput();
+    output.start();
+
+    final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(output).build();
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
@@ -98,6 +101,7 @@ public final class SingleCombinedInputExample {
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
+          output.release();
           multiplexer.release();
           api.release();
         })

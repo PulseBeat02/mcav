@@ -69,7 +69,10 @@ public final class MultiplexerInputExample {
 
     BufferedImage bufferedImage;
     ImageIcon icon;
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(new DirectAudioOutput());
+    final DirectAudioOutput output = new DirectAudioOutput();
+    output.start();
+
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(output);
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
@@ -96,6 +99,7 @@ public final class MultiplexerInputExample {
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
+          output.release();
           multiplexer.release();
           api.release();
         })

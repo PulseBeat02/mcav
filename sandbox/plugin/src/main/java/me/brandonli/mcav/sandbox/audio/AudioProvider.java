@@ -120,7 +120,7 @@ public final class AudioProvider {
     }
   }
 
-  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object... players) {
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object[] players) {
     return switch (argument) {
       case NONE -> NO_OP;
       case DISCORD_BOT -> this.constructDiscordFilter(dump);

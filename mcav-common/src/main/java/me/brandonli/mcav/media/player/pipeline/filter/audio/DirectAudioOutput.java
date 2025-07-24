@@ -25,28 +25,11 @@ import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 /**
  * Streams audio samples directly to the system's default audio output device.
  */
-public class DirectAudioOutput implements AudioFilter {
+public class DirectAudioOutput implements FunctionalAudioFilter {
 
   private static final AudioFormat AUDIO_FORMAT = new AudioFormat(48000, 16, 2, true, false);
-  private static final SourceDataLine LINE_OUTPUT;
 
-  static {
-    try {
-      final DataLine.Info info = new DataLine.Info(SourceDataLine.class, AUDIO_FORMAT);
-      LINE_OUTPUT = (SourceDataLine) AudioSystem.getLine(info);
-      LINE_OUTPUT.open(AUDIO_FORMAT);
-      LINE_OUTPUT.start();
-    } catch (final LineUnavailableException e) {
-      throw new PlayerException(e.getMessage(), e);
-    }
-  }
-
-  /**
-   * Initializes the audio output system.
-   */
-  public static void init() {
-    // init
-  }
+  private SourceDataLine line;
 
   /**
    * Constructs a new {@link DirectAudioOutput} instance.
@@ -60,8 +43,37 @@ public class DirectAudioOutput implements AudioFilter {
    */
   @Override
   public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+    if (this.line == null) {
+      throw new PlayerException("Audio line is not open!");
+    }
     final byte[] data = new byte[samples.remaining()];
     samples.get(data);
-    LINE_OUTPUT.write(data, 0, data.length);
+    this.line.write(data, 0, data.length);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void start() {
+    try {
+      final DataLine.Info info = new DataLine.Info(SourceDataLine.class, AUDIO_FORMAT);
+      this.line = (SourceDataLine) AudioSystem.getLine(info);
+      this.line.open(AUDIO_FORMAT);
+      this.line.start();
+    } catch (final LineUnavailableException e) {
+      throw new PlayerException(e.getMessage(), e);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void release() {
+    if (this.line == null || !this.line.isOpen()) {
+      return;
+    }
+    this.line.close();
   }
 }

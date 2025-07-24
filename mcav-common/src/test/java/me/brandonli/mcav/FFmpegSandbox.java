@@ -61,7 +61,10 @@ public class FFmpegSandbox {
       URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4")
     );
 
-    final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(new DirectAudioOutput()).build();
+    final DirectAudioOutput output = new DirectAudioOutput();
+    output.start();
+
+    final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(output).build();
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
@@ -86,6 +89,7 @@ public class FFmpegSandbox {
     Runtime.getRuntime()
       .addShutdownHook(
         new Thread(() -> {
+          output.release();
           multiplexer.release();
           api.release();
         })

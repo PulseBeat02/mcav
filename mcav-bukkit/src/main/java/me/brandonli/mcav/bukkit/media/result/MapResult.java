@@ -26,6 +26,9 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import net.minecraft.world.level.saveddata.maps.MapId;
@@ -75,8 +78,7 @@ public class MapResult implements DitherResultStep {
     final int xLoopMax = Math.min(mapBlockWidth, (int) Math.ceil(negXOff / 128.0));
     final int yLoopMax = Math.min(mapBlockHeight, (int) Math.ceil(negYOff / 128.0));
     final Collection<MapDecoration> empty = new ArrayList<>();
-    final ClientboundMapItemDataPacket[] packetArray = new ClientboundMapItemDataPacket[(xLoopMax - xLoopMin) * (yLoopMax - yLoopMin)];
-    int arrIndex = 0;
+    final Collection<Packet<? super ClientGamePacketListener>> packetArray = new ArrayList<>((xLoopMax - xLoopMin) * (yLoopMax - yLoopMin));
     for (int y = yLoopMin; y < yLoopMax; y++) {
       final int relY = y << 7;
       final int topY = Math.max(0, yOff - relY);
@@ -100,10 +102,12 @@ public class MapResult implements DitherResultStep {
         final MapId id = new MapId(mapId);
         final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
         final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
-        packetArray[arrIndex++] = packet;
+        packetArray.add(packet);
       }
     }
-    PacketUtils.sendPackets(viewers, packetArray);
+
+    final ClientboundBundlePacket packet = new ClientboundBundlePacket(packetArray);
+    PacketUtils.sendPackets(viewers, packet);
   }
 
   /**
