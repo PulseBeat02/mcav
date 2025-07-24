@@ -1,5 +1,5 @@
 **MCAV Common**
-- Fix dependency support for Linux
+- Fix dependency support for Linux (libgtk shared library)
 
 **MCAV Browser**
 - Add support for receiving audio from browser

@@ -13,11 +13,15 @@ dependencies {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
+    api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
+
     // provided
     compileOnlyApi(project(":mcav-common"))
+    compileOnlyApi("org.apache.logging.log4j:log4j-core:3.0.0-beta3")
 
     // testing
     testImplementation(project(":mcav-common"))
+    testImplementation("org.slf4j:slf4j-simple:2.1.0-alpha1")
 }
 
 val windows = System.getProperty("os.name").lowercase().contains("windows")

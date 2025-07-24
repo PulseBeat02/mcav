@@ -13,6 +13,13 @@ The browser module provides two browser implementations. The `SeleniumPlayer` an
 uses the [Selenium WebDriver](https://www.selenium.dev/documentation/webdriver/) to control a web browser, while the
 `PlaywrightPlayer` uses the [Playwright](https://playwright.dev/) library to control a web browser.
 
+```{warning}
+Playwright isn't supported on all platforms. Unfortuantely, there isn't a good way to determine if Playwright is
+supported on your platform or not. Therefore, the Playwright browser service is not started by default. If you would
+like to use it, run the `PlaywrightServiceProvider.init()` method to start the Playwright service. MCAV will automatically
+shut it down upon release.
+```
+
 Each browser player has its own advantages. Unfortunately, audio is not supported in both players due to limitations in the
 Chrome WebDriver. To use either browser, you must have a `BrowserSource` that specifies the URL of the web
 page to connect to.
@@ -20,7 +27,7 @@ page to connect to.
 ```java
   final VideoPipelineStep videoPipelineStep = ...;
   final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
-  final BrowserPlayer player = BrowserPlayer.defaultSelenium(); // starts Selenium WebDriver with default arguments
+  final BrowserPlayer player = BrowserPlayer.selenium(); // starts Selenium WebDriver with default arguments
   final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
   callback.attach(videoPipelineStep);
 

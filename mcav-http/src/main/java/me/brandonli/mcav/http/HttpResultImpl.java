@@ -25,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
@@ -81,26 +82,20 @@ public class HttpResultImpl implements HttpResult {
    */
   @Override
   public void start() {
+    SLF4JBridgeHandler.removeHandlersForRootLogger();
+    SLF4JBridgeHandler.install();
     final Runnable runnable = () -> {
       System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
       final SpringApplicationBuilder builder = new SpringApplicationBuilder()
         .sources(HttpServerApplication.class)
         .web(WebApplicationType.SERVLET)
-        .properties(
-          "server.port=" + this.port,
-          "spring.application.name=mcav-http-" + this.port,
-          "spring.jmx.enabled=false",
-          "spring.main.banner-mode=off"
-        )
+        .headless(true)
+        .properties("server.port=" + this.port, "spring.application.name=mcav-http-" + this.port, "spring.jmx.enabled=false")
         .logStartupInfo(true)
         .registerShutdownHook(false); // Bukkit classloader is closed before Spring shutdown hook runs, causing NoClassDefFoundError
-      try {
-        this.context = builder.run("--directory=%s".formatted(this.directory));
-        final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
-        config.setHttpResultInstance(this);
-      } finally {
-        System.clearProperty("org.springframework.boot.logging.LoggingSystem");
-      }
+      this.context = builder.run("--directory=%s".formatted(this.directory));
+      final HttpServerConfiguration config = this.context.getBean(HttpServerConfiguration.class);
+      config.setHttpResultInstance(this);
     };
     this.executeSpringRunnable(runnable);
   }

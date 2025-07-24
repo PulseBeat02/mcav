@@ -20,7 +20,10 @@ package me.brandonli.mcav.browser;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.impl.driver.jar.DriverJar;
 
-final class PlaywrightServiceProvider {
+/**
+ * A service provider for Playwright, which initializes the Playwright instance
+ */
+public final class PlaywrightServiceProvider {
 
   private static final Playwright PLAYWRIGHT;
 
@@ -38,7 +41,11 @@ final class PlaywrightServiceProvider {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  static void init() {
+  /**
+   * Initializes the Playwright service provider.
+   * This method is called to ensure that the Playwright instance is created.
+   */
+  public static void init() {
     // init
   }
 

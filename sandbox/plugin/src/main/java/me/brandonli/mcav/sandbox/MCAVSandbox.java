@@ -87,6 +87,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
     final long endTime = System.currentTimeMillis();
     this.logger.info("MCAV Library loaded in {}ms", endTime - startTime);
+
+    this.getLogger().info("Paper Logger: " + this.getLogger().getClass().getName());
+    System.out.println("SLF4J: " + org.slf4j.LoggerFactory.getILoggerFactory().getClass().getName());
   }
 
   private void loadPluginData() {
