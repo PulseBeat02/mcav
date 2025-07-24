@@ -15,9 +15,6 @@ MCAV is not a library just for Java developers but also a great library to integ
 can use MCAV in any Java project, there's also a Minecraft-specific module that provides useful features allowing you
 to play back videos like the following.
 
-<video width="640" height="480" controls>
-  <source src="https://user-images.githubusercontent.com/40838203/132433665-a675fc35-e31f-4044-a960-ce46a8fb7df5.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/ifs0GiAtqIs?si=qxLjZLfNv3W8tJpz" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ---

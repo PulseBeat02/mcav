@@ -38,6 +38,13 @@ Paste that ID into the `channel-id` field under the `discord-bot` section in you
 8) Set the `enabled` option under `discord-bot` to `true`.
 9) Restart your server to apply the changes.
 
+**Option 3**: Simple Voice Chat
+1) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin on your server. Make sure that
+it's the correct version for your Minecraft server.
+2) Open the `config.yml` file, and set the `enabled` option under the `simple-voice-chat` section to `true`.
+3) (User Side) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) mod on your client.
+4) Restart your server to apply the changes.
+
 ---
 
 **Step 3: Profit**  
