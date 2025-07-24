@@ -157,7 +157,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);
 
     try {
-      final BrowserPlayer player = BrowserPlayer.playwright();
+      final BrowserPlayer player = BrowserPlayer.selenium();
       final VideoAttachableCallback callback = player.getVideoAttachableCallback();
       callback.attach(pipeline);
       player.startAsync(source, this.service);

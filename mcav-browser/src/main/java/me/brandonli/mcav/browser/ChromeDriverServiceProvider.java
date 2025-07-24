@@ -54,6 +54,9 @@ final class ChromeDriverServiceProvider {
   }
 
   static void shutdown() {
+    if (SERVICE == null || !SERVICE.isRunning()) {
+      return;
+    }
     SERVICE.close();
     SERVICE.stop();
   }

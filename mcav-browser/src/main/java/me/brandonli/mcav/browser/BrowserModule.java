@@ -35,8 +35,8 @@ public final class BrowserModule implements MCAVModule {
   @Override
   public void start() {
     final CompletableFuture<Void> first = CompletableFuture.runAsync(ChromeDriverServiceProvider::init);
-    final CompletableFuture<Void> second = CompletableFuture.runAsync(PlaywrightServiceProvider::init);
-    CompletableFuture.allOf(first, second).join();
+    // final CompletableFuture<Void> second = CompletableFuture.runAsync(PlaywrightServiceProvider::init);
+    CompletableFuture.allOf(first).join();
   }
 
   /**

@@ -47,8 +47,9 @@ final class PlaywrightServiceProvider {
   }
 
   static void shutdown() {
-    if (PLAYWRIGHT != null) {
-      PLAYWRIGHT.close();
+    if (PLAYWRIGHT == null) {
+      return;
     }
+    PLAYWRIGHT.close();
   }
 }

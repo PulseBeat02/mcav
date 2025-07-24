@@ -9,4 +9,3 @@
 
 **MCAV Sandbox**
 - Fix maps breaking when you hit them out of their hitbox and destroy the block beneath
-- Add fallback to Selenium browser if Playwright dependencies aren't found
