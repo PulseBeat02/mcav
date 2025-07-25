@@ -37,11 +37,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -206,6 +209,70 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final Component message = event.message();
     final String raw = PLAIN_TEXT_SERIALIZER.serialize(message);
     this.handleTextInput(player, raw);
+  }
+
+  @EventHandler
+  public void onItemFrameBreak(final HangingBreakEvent event) {
+    final Entity entity = event.getEntity();
+    if (!(entity instanceof final ItemFrame frame)) {
+      return;
+    }
+
+    final PersistentDataContainer data = frame.getPersistentDataContainer();
+    if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+      return;
+    }
+
+    // don't break
+
+    event.setCancelled(true);
+  }
+
+  @EventHandler
+  public void onItemFrameBreak(final HangingBreakByEntityEvent event) {
+    final T player = this.player;
+    if (player == null) {
+      return;
+    }
+
+    final Entity entity = event.getEntity();
+    if (!(entity instanceof final ItemFrame frame)) {
+      return;
+    }
+
+    final PersistentDataContainer data = frame.getPersistentDataContainer();
+    if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+      return;
+    }
+
+    event.setCancelled(true);
+  }
+
+  @EventHandler
+  public void onItemFrameMapDamage(final EntityDamageByEntityEvent event) {
+    final T player = this.player;
+    if (player == null) {
+      return;
+    }
+
+    final Entity entity = event.getEntity();
+    if (!(entity instanceof final ItemFrame frame)) {
+      return;
+    }
+
+    final PersistentDataContainer data = frame.getPersistentDataContainer();
+    if (!data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN)) {
+      return;
+    }
+
+    final Entity damager = event.getDamager();
+    final boolean isPlayer = damager instanceof Player;
+    final boolean isPlayerShooter = damager instanceof Projectile && ((Projectile) damager).getShooter() instanceof Player;
+    if (!isPlayer && !isPlayerShooter) {
+      return;
+    }
+
+    event.setCancelled(true);
   }
 
   protected void activateInteraction(final Player player, final Component enableMessage, final Component disableMessage) {
