@@ -178,7 +178,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     final int width = combined.getScreencastWidth();
     final int height = combined.getScreencastHeight();
     final Browser.NewContextOptions contextOptions = new Browser.NewContextOptions().setViewportSize(width, height);
-    final Playwright playwright = PlaywrightServiceProvider.getService();
+    final Playwright playwright = requireNonNull(PlaywrightServiceProvider.getService());
     final Browser browser = playwright.chromium().launch(this.launchOptions);
     final BrowserContext context = browser.newContext(contextOptions);
     final String url = combined.getResource();

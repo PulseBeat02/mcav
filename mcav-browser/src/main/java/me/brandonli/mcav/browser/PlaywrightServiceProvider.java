@@ -19,23 +19,14 @@ package me.brandonli.mcav.browser;
 
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.impl.driver.jar.DriverJar;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A service provider for Playwright, which initializes the Playwright instance
  */
 public final class PlaywrightServiceProvider {
 
-  private static final Playwright PLAYWRIGHT;
-
-  static {
-    final Thread thread = Thread.currentThread();
-    final ClassLoader classLoader = thread.getContextClassLoader();
-    final Class<?> clazz = DriverJar.class;
-    final ClassLoader driverClassLoader = clazz.getClassLoader();
-    thread.setContextClassLoader(driverClassLoader);
-    PLAYWRIGHT = Playwright.create();
-    thread.setContextClassLoader(classLoader);
-  }
+  private static @Nullable Playwright PLAYWRIGHT;
 
   private PlaywrightServiceProvider() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -46,10 +37,16 @@ public final class PlaywrightServiceProvider {
    * This method is called to ensure that the Playwright instance is created.
    */
   public static void init() {
-    // init
+    final Thread thread = Thread.currentThread();
+    final ClassLoader classLoader = thread.getContextClassLoader();
+    final Class<?> clazz = DriverJar.class;
+    final ClassLoader driverClassLoader = clazz.getClassLoader();
+    thread.setContextClassLoader(driverClassLoader);
+    PLAYWRIGHT = Playwright.create();
+    thread.setContextClassLoader(classLoader);
   }
 
-  static Playwright getService() {
+  static @Nullable Playwright getService() {
     return PLAYWRIGHT;
   }
 
