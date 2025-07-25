@@ -28,11 +28,22 @@ public class NativeLoadingException extends AssertionError {
   @Serial
   private static final long serialVersionUID = -1718334825313639127L;
 
-  NativeLoadingException(final @Nullable String msg) {
+  /**
+   * Constructs a new NativeLoadingException with the specified detail message.
+   *
+   * @param msg the detail message
+   */
+  public NativeLoadingException(final @Nullable String msg) {
     super(msg);
   }
 
-  NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
+  /**
+   * Constructs a new NativeLoadingException with the specified detail message and cause.
+   *
+   * @param msg   the detail message
+   * @param cause the cause of the exception
+   */
+  public NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
     super(msg, cause);
   }
 }

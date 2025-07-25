@@ -27,6 +27,7 @@ import me.brandonli.mcav.module.MCAVModule;
 import me.brandonli.mcav.module.ModuleLoader;
 import me.brandonli.mcav.utils.CopyUtils;
 import me.brandonli.mcav.utils.ReflectionUtils;
+import me.brandonli.mcav.utils.natives.DummyLibraryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,7 @@ public final class MCAV implements MCAVApi {
     this.loadMapCache();
     ImageIO.setUseCache(false);
     CopyUtils.init();
+    DummyLibraryUtils.copyLibraries();
   }
 
   private void loadMapCache() {
