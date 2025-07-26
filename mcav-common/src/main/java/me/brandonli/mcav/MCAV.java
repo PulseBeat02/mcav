@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.dependency.NixInstaller;
 import me.brandonli.mcav.loader.DependencyLoader;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.module.MCAVModule;
@@ -103,6 +104,8 @@ public final class MCAV implements MCAVApi {
   }
 
   private void installMisc() {
+    final NixInstaller installer = new NixInstaller();
+    installer.install();
     this.dependencyLoader.loadModules();
     this.loadMapCache();
     ImageIO.setUseCache(false);

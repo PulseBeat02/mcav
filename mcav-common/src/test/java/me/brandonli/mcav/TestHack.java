@@ -17,10 +17,9 @@
  */
 package me.brandonli.mcav;
 
-import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import sun.misc.Unsafe;
 
 public class TestHack {
 
@@ -40,7 +39,7 @@ public class TestHack {
     final long offset = unsafe.staticFieldOffset(field);
     final String[] SYS_PATHS = (String[]) unsafe.getObject(base, offset);
     System.out.println(Arrays.toString(SYS_PATHS));
-//    unsafe.putObject(base, offset, null);
+    //    unsafe.putObject(base, offset, null);
 
     System.out.println(System.getProperty("java.library.path"));
   }

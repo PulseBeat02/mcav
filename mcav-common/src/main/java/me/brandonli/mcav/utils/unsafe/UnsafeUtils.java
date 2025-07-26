@@ -17,11 +17,10 @@
  */
 package me.brandonli.mcav.utils.unsafe;
 
-import me.brandonli.mcav.utils.natives.NativeLoadingException;
-import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 import java.util.Collection;
+import me.brandonli.mcav.utils.natives.NativeLoadingException;
+import sun.misc.Unsafe;
 
 /**
  * A utility class for unsafe operations, specifically for modifying the Java library path.
@@ -62,7 +61,6 @@ public final class UnsafeUtils {
    */
   @SuppressWarnings("all") // checker
   public static void addJavaLibraryPaths(final Collection<String> paths) {
-
     final Unsafe unsafe = UnsafeProvider.getUnsafe();
     final String[] currentPaths = (String[]) unsafe.getObject(USER_BASE, USER_OFFSET);
     final String[] newPaths = new String[currentPaths.length + paths.size()];

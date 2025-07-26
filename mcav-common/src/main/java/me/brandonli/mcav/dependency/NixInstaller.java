@@ -17,11 +17,7 @@
  */
 package me.brandonli.mcav.dependency;
 
-import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.natives.NativeLoadingException;
-import me.brandonli.mcav.utils.os.OS;
-import me.brandonli.mcav.utils.os.Platform;
-import me.brandonli.mcav.utils.runtime.CommandTask;
+import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,8 +31,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
+import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.natives.NativeLoadingException;
+import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.Platform;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
  * A class that installs Nix on the system by downloading and executing a script. Installs proper dependencies needed
@@ -72,36 +71,32 @@ public final class NixInstaller {
   }
 
   private static final List<String> LOAD_ORDER = List.of(
-
-          "libva",
-          "libva-x11",
-
-          "libva-drm",
-          "libavutil",
-          "libswscale",
-          "libswresample",
-          "libpostproc",
-          "libavcodec",
-          "libavformat",
-          "libavfilter",
-          "libavdevice",
-
-          "libvlccore",
-          "libvlc",
-
-          "libgomp",
-          "libOpenCL",
-          "libopenblas_nolapack",
-          "libgfortran",
-          "libopenblas",
-          "libopencv_core",
-          "libopencv_imgproc",
-          "libjpeg",
-          "libwebpmux",
-          "libwebpdemux",
-          "libopencv_imgcodecs",
-          "libopencv_videoio",
-          "libopencv_highgui"
+    "libva",
+    "libva-x11",
+    "libva-drm",
+    "libavutil",
+    "libswscale",
+    "libswresample",
+    "libpostproc",
+    "libavcodec",
+    "libavformat",
+    "libavfilter",
+    "libavdevice",
+    "libvlccore",
+    "libvlc",
+    "libgomp",
+    "libOpenCL",
+    "libopenblas_nolapack",
+    "libgfortran",
+    "libopenblas",
+    "libopencv_core",
+    "libopencv_imgproc",
+    "libjpeg",
+    "libwebpmux",
+    "libwebpdemux",
+    "libopencv_imgcodecs",
+    "libopencv_videoio",
+    "libopencv_highgui"
   );
 
   private void loadLibraries() {
@@ -111,29 +106,23 @@ public final class NixInstaller {
 
     final Map<String, Path> libraryMap = new HashMap<>();
 
-    try (final Stream<Path> files = Files.walk(absolute, 1)
-            .filter(Files::isDirectory)) {
+    try (final Stream<Path> files = Files.walk(absolute, 1).filter(Files::isDirectory)) {
       files.forEach(dir -> this.collectLibrariesFromDirectory(dir, libraryMap));
     } catch (final IOException e) {
       throw new NativeLoadingException(e.getMessage(), e);
     }
 
     for (final String libName : LOAD_ORDER) {
-      libraryMap.entrySet().stream()
-              .filter(entry -> entry.getKey().contains(libName))
-              .forEach(entry -> this.loadLibrary(entry.getValue()));
+      libraryMap.entrySet().stream().filter(entry -> entry.getKey().contains(libName)).forEach(entry -> this.loadLibrary(entry.getValue()));
     }
 
     libraryMap.values().forEach(this::loadLibrary);
   }
 
-  private void collectLibrariesFromDirectory(final Path directory,
-                                             final Map<String, Path> libraryMap) {
+  private void collectLibrariesFromDirectory(final Path directory, final Map<String, Path> libraryMap) {
     final Path lib = directory.resolve("lib");
     if (Files.exists(lib) && Files.isDirectory(lib)) {
-      try (final Stream<Path> files = Files.walk(lib)
-              .filter(Files::isRegularFile)
-              .filter(this::isSharedLibrary)) {
+      try (final Stream<Path> files = Files.walk(lib).filter(Files::isRegularFile).filter(this::isSharedLibrary)) {
         files.forEach(library -> {
           final String name = requireNonNull(library.getFileName()).toString();
           libraryMap.put(name, library);
@@ -150,8 +139,7 @@ public final class NixInstaller {
       System.load(libraryPath);
       System.out.println("Loaded: " + library.getFileName());
     } catch (final UnsatisfiedLinkError e) {
-      System.err.println("Failed to load " + library.getFileName() +
-              ": " + e.getMessage());
+      System.err.println("Failed to load " + library.getFileName() + ": " + e.getMessage());
     }
   }
 
@@ -162,8 +150,7 @@ public final class NixInstaller {
   }
 
   private boolean isTargetLibrary(final String filename) {
-    return LOAD_ORDER.stream()
-            .anyMatch(prefix -> filename.startsWith(prefix + ".so"));
+    return LOAD_ORDER.stream().anyMatch(prefix -> filename.startsWith(prefix + ".so"));
   }
 
   private void installBinaries() throws IOException {

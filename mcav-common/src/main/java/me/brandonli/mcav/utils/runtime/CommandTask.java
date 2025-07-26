@@ -104,6 +104,7 @@ public class CommandTask {
         String str;
         while ((str = reader.readLine()) != null) {
           outputBuilder.append(str).append(System.lineSeparator());
+          System.out.println(str);
         }
       } catch (final IOException e) {
         throw new ProcessException(e.getMessage(), e);
@@ -117,6 +118,7 @@ public class CommandTask {
         String str;
         while ((str = reader.readLine()) != null) {
           outputBuilder.append(str).append(System.lineSeparator());
+          System.err.println(str);
         }
       } catch (final IOException e) {
         throw new ProcessException(e.getMessage(), e);
