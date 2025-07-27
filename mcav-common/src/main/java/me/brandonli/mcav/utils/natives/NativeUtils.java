@@ -37,6 +37,32 @@ public final class NativeUtils {
   }
 
   /**
+   * Checks if the current operating system is Debian-based.
+   * This includes Debian, Ubuntu, Mint, Raspbian, Kali, Pop!_OS, and other derivatives.
+   *
+   * @return true if the OS is Debian-based, false otherwise
+   */
+  public static boolean isDebianBased() {
+    try {
+      final Path osRelease = Path.of("/etc/os-release");
+      if (Files.exists(osRelease)) {
+        final String content = Files.readString(osRelease).toLowerCase();
+        return (
+          content.contains("debian") ||
+          content.contains("ubuntu") ||
+          content.contains("mint") ||
+          content.contains("raspbian") ||
+          content.contains("kali") ||
+          content.contains("pop!_os") ||
+          content.contains("id_like=debian") ||
+          content.contains("id_like=\"debian\"")
+        );
+      }
+    } catch (final IOException ignored) {}
+    return false;
+  }
+
+  /**
    * Loads a native library from the JAR resources.
    * The library is extracted to a temporary file and then loaded.
    *

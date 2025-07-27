@@ -18,7 +18,6 @@
 package me.brandonli.mcav.utils.unsafe;
 
 import java.lang.reflect.Field;
-import java.util.Collection;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import sun.misc.Unsafe;
 
@@ -32,19 +31,13 @@ public final class UnsafeUtils {
   private static final Object USER_BASE;
   private static final long USER_OFFSET;
 
-  private static final Object SYS_BASE;
-  private static final long SYS_OFFSET;
-
   static {
     final Unsafe unsafe = UnsafeProvider.getUnsafe();
     try {
       final Class<?> clazz = Class.forName("jdk.internal.loader.NativeLibraries$LibraryPaths");
       final Field field = clazz.getDeclaredField("USER_PATHS");
-      final Field sysField = clazz.getDeclaredField("SYS_PATHS");
       USER_BASE = unsafe.staticFieldBase(field);
       USER_OFFSET = unsafe.staticFieldOffset(field);
-      SYS_BASE = unsafe.staticFieldBase(sysField);
-      SYS_OFFSET = unsafe.staticFieldOffset(sysField);
     } catch (final ClassNotFoundException | NoSuchFieldException e) {
       throw new NativeLoadingException("Failed to initialize Unsafe", e);
     }
@@ -57,19 +50,19 @@ public final class UnsafeUtils {
   /**
    * Adds a new path to the Java library path using Unsafe.
    *
-   * @param paths the path to add
+   * @param path the path to add
    */
   @SuppressWarnings("all") // checker
-  public static void addJavaLibraryPaths(final Collection<String> paths) {
+  public static void addJavaLibraryPath(final String path) {
     final Unsafe unsafe = UnsafeProvider.getUnsafe();
     final String[] currentPaths = (String[]) unsafe.getObject(USER_BASE, USER_OFFSET);
-    final String[] newPaths = new String[currentPaths.length + paths.size()];
+    final String[] newPaths = new String[currentPaths.length + 1];
     System.arraycopy(currentPaths, 0, newPaths, 0, currentPaths.length);
-    int index = currentPaths.length;
-    for (final String path : paths) {
-      newPaths[index++] = path;
-    }
+    newPaths[newPaths.length - 1] = path;
     unsafe.putObject(USER_BASE, USER_OFFSET, newPaths);
-    System.setProperty("java.library.path", String.join(":", newPaths));
+
+    final String current = System.getProperty("platform.linkpath");
+    final String newPath = current == null ? path : current + ":" + path;
+    System.setProperty("platform.linkpath", newPath);
   }
 }

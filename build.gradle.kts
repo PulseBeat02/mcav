@@ -46,12 +46,12 @@ subprojects {
             mavenCentral()
             google()
             maven("https://repo.brandonli.me/snapshots")
+            maven("https://maven.maxhenkel.de/repository/public")
             maven("https://repo.papermc.io/repository/maven-public/")
             maven("https://oss.sonatype.org/content/repositories/snapshots")
             maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
             maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
             maven("https://repo.codemc.io/repository/maven-releases/")
-            maven("https://maven.maxhenkel.de/repository/public")
             maven {
                 url = uri("https://api.modrinth.com/maven")
                 content {

@@ -3,6 +3,9 @@
 MCAV is a Java library that can be used in any project. To get started, you need to add the MCAV core dependency to your
 project. You must use a build system that supports Maven repositories, such as Gradle or Maven.
 
+QEMU is not installed by default. MCAV can run out of the box for all Windows, MacOS, and all Debian/Debian-based
+Linux distributions that are x86_64 or aarch64. Otherwise, you have to install some libraries manually.
+
 ```{note}
 All of MCAV's modules require at least Java 21 in order to work.
 ```
