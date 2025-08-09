@@ -60,6 +60,10 @@ subprojects {
             }
         }
 
+        withType<Test> {
+            failOnNoDiscoveredTests = false
+        }
+
         withType<JavaCompile>().configureEach {
             val set = setOf("-parameters")
             options.release.set(targetJavaVersion)

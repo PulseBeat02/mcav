@@ -9,6 +9,13 @@ plugin up.
 If you haven't already, follow the installation instructions in the [Installation Guide](./plugin.md#installation) to 
 install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (1.21.8).
 
+```{warning}
+If you are running a Linux headless server, you will need to set the LD_LIBRARY_PATH environment variable to where
+the `mcav` library installs binaries. This would be in the `~/.apt/usr/lib/{platform}/` directory, where platform is
+your current operating system platform. You have to either export LD_LIBRARY_PATH to include this before you start
+the server, or append it to the `java.library.path` system property in your server's startup script.
+```
+
 ---
 
 **Step 2: Configure the Plugin**  

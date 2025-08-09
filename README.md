@@ -32,8 +32,9 @@ YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local fi
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to, [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or a Discord bot to play audio in voice channels.
 
-QEMU is not installed by default. MCAV can run out of the box for all Windows, MacOS, and all Debian/Debian-based 
-Linux distributions that are x86_64 or aarch64. Otherwise, you have to install some libraries manually.
+QEMU is not installed by default. MCAV can run out of the box for all Windows, MacOS, and most Debian/Debian-based 
+Linux distributions that are x86_64 or aarch64. You may have to install some libraries. If not all libraries were found,
+you have to set the LD_LIBRARY_PATH variable to where the mcav libraries are automatically installed.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
 

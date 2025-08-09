@@ -1,0 +1,358 @@
+#!/usr/bin/env bash
+
+set -e
+
+BUILD_DIR="${BUILD_DIR:-/home/$USER}"
+APT_DIR="$BUILD_DIR/.apt"
+PATCHELF_VERSION="0.18.0"
+PATCHELF_DIR="$BUILD_DIR/.local/bin"
+
+LOG_LEVEL="${LOG_LEVEL:-INFO}"
+LOG_FILE="${LOG_FILE:-}"
+
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+function log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local log_entry="[$timestamp] [$level] $message"
+
+    local should_log=0
+    case "$LOG_LEVEL" in
+        DEBUG) should_log=1 ;;
+        INFO) [[ "$level" != "DEBUG" ]] && should_log=1 ;;
+        WARN) [[ "$level" == "WARN" || "$level" == "ERROR" ]] && should_log=1 ;;
+        ERROR) [[ "$level" == "ERROR" ]] && should_log=1 ;;
+    esac
+
+    if [[ $should_log -eq 1 ]]; then
+        case "$level" in
+            ERROR) echo -e "${RED}$log_entry${NC}" >&2 ;;
+            WARN)  echo -e "${YELLOW}$log_entry${NC}" >&2 ;;
+            INFO)  echo -e "${GREEN}$log_entry${NC}" >&2 ;;
+            DEBUG) echo -e "${BLUE}$log_entry${NC}" >&2 ;;
+        esac
+
+        if [[ -n "$LOG_FILE" ]]; then
+            echo "$log_entry" >> "$LOG_FILE"
+        fi
+    fi
+}
+
+function error() {
+    log "ERROR" "$*"
+    exit 1
+}
+
+function detect_arch() {
+    local arch=$(uname -m)
+    log "DEBUG" "Detecting architecture: $arch"
+
+    case "$arch" in
+        x86_64)
+            log "INFO" "Detected architecture: x86_64"
+            echo "x86_64"
+            ;;
+        i686|i386)
+            log "INFO" "Detected architecture: i686"
+            echo "i686"
+            ;;
+        aarch64)
+            log "INFO" "Detected architecture: aarch64"
+            echo "aarch64"
+            ;;
+        armv7l)
+            log "INFO" "Detected architecture: armv7l"
+            echo "armv7l"
+            ;;
+        *) error "Unsupported architecture: $arch" ;;
+    esac
+}
+
+function ensure_patchelf() {
+    local arch=$(detect_arch)
+    local patchelf_url="https://github.com/NixOS/patchelf/releases/download/${PATCHELF_VERSION}/patchelf-${PATCHELF_VERSION}-${arch}.tar.gz"
+    local patchelf_bin="$PATCHELF_DIR/patchelf"
+
+    log "INFO" "Ensuring patchelf is available at $patchelf_bin"
+
+    mkdir -p "$PATCHELF_DIR" || error "Failed to create directory $PATCHELF_DIR"
+
+    if [[ -x "$patchelf_bin" ]] && "$patchelf_bin" --version >/dev/null 2>&1; then
+        log "INFO" "patchelf already installed and working"
+        return 0
+    fi
+
+    [[ -f "$patchelf_bin" ]] && {
+        log "WARN" "Removing non-functional patchelf binary"
+        rm -f "$patchelf_bin"
+    }
+
+    log "INFO" "Downloading patchelf version $PATCHELF_VERSION for $arch"
+    log "DEBUG" "Download URL: $patchelf_url"
+
+    local temp_dir=$(mktemp -d)
+    cd "$temp_dir" || error "Failed to create temporary directory"
+
+    curl -L -f -s -o "patchelf.tar.gz" "$patchelf_url" || error "Failed to download patchelf from $patchelf_url"
+    log "DEBUG" "Downloaded patchelf archive"
+
+    tar -xzf patchelf.tar.gz || error "Failed to extract patchelf archive"
+    log "DEBUG" "Extracted patchelf archive"
+
+    if [[ -f "bin/patchelf" ]]; then
+        mv "bin/patchelf" "$patchelf_bin"
+        log "DEBUG" "Moved patchelf from bin/patchelf"
+    elif [[ -f "patchelf" ]]; then
+        mv "patchelf" "$patchelf_bin"
+        log "DEBUG" "Moved patchelf from root directory"
+    else
+        error "Could not find patchelf binary in archive"
+    fi
+
+    chmod +x "$patchelf_bin" || error "Failed to make patchelf executable"
+    cd - >/dev/null
+    rm -rf "$temp_dir"
+
+    "$patchelf_bin" --version >/dev/null 2>&1 || error "patchelf installation failed - binary not working"
+    log "INFO" "Successfully installed patchelf"
+}
+
+function get_lib_paths() {
+    log "DEBUG" "Getting library paths from $APT_DIR"
+    local paths=""
+    local arch=$(detect_arch)
+
+    local lib_dirs=(
+        "usr/lib"
+        "usr/lib64"
+        "lib"
+        "lib64"
+    )
+
+    case "$arch" in
+        x86_64) lib_dirs+=("usr/lib/x86_64-linux-gnu" "lib/x86_64-linux-gnu") ;;
+        i686) lib_dirs+=("usr/lib/i386-linux-gnu" "lib/i386-linux-gnu") ;;
+        aarch64) lib_dirs+=("usr/lib/aarch64-linux-gnu" "lib/aarch64-linux-gnu") ;;
+        armv7l) lib_dirs+=("usr/lib/arm-linux-gnueabihf" "lib/arm-linux-gnueabihf") ;;
+    esac
+
+    local found_dirs=0
+
+    for dir in "${lib_dirs[@]}"; do
+        local full_path="$APT_DIR/$dir"
+        if [[ -d "$full_path" ]]; then
+            log "DEBUG" "Found library directory: $full_path"
+            found_dirs=$((found_dirs + 1))
+            if [[ -n "$paths" ]]; then
+                paths="$paths:$full_path"
+            else
+                paths="$full_path"
+            fi
+        fi
+    done
+
+    log "INFO" "Searching for subdirectories containing shared libraries"
+    local subdirs_added=0
+
+    while IFS= read -r -d '' subdir; do
+        if [[ ":$paths:" != *":$subdir:"* ]]; then
+            if ls "$subdir"/*.so* >/dev/null 2>&1; then
+                log "DEBUG" "Found library subdirectory: $subdir"
+                subdirs_added=$((subdirs_added + 1))
+                if [[ -n "$paths" ]]; then
+                    paths="$paths:$subdir"
+                else
+                    paths="$subdir"
+                fi
+            fi
+        fi
+    done < <(find "$APT_DIR" -type d -print0 2>/dev/null)
+
+    log "INFO" "Found $found_dirs main library directories and $subdirs_added subdirectories"
+
+    local unique_paths=""
+    local IFS=':'
+    for path in $paths; do
+        if [[ ":$unique_paths:" != *":$path:"* ]]; then
+            if [[ -n "$unique_paths" ]]; then
+                unique_paths="$unique_paths:$path"
+            else
+                unique_paths="$path"
+            fi
+        fi
+    done
+
+    echo "$unique_paths"
+}
+
+function is_elf_binary() {
+    local file="$1"
+    [[ -f "$file" ]] && file "$file" 2>/dev/null | grep -q "ELF"
+}
+
+function patch_binary() {
+    local binary="$1"
+    local rpath="$2"
+    local patchelf_bin="$PATCHELF_DIR/patchelf"
+
+    log "DEBUG" "Patching binary: $binary"
+
+    local current_interp=$("$patchelf_bin" --print-interpreter "$binary" 2>/dev/null || echo "")
+
+    if [[ -n "$current_interp" ]]; then
+        log "DEBUG" "Current interpreter: $current_interp"
+        local interp_name=$(basename "$current_interp")
+        local found_interp=0
+
+        for interp_candidate in $(find "$APT_DIR" -name "$interp_name" -type f 2>/dev/null); do
+            if [[ -x "$interp_candidate" ]]; then
+                log "DEBUG" "Setting new interpreter: $interp_candidate"
+                "$patchelf_bin" --set-interpreter "$interp_candidate" "$binary" 2>/dev/null || true
+                found_interp=1
+                break
+            fi
+        done
+
+        if [[ $found_interp -eq 0 ]]; then
+            log "WARN" "Could not find replacement interpreter for $interp_name"
+        fi
+    fi
+
+    "$patchelf_bin" --set-rpath "$rpath" "$binary" 2>/dev/null || {
+        log "WARN" "Failed to set rpath for $binary"
+        return 1
+    }
+
+    local existing_rpath=$("$patchelf_bin" --print-rpath "$binary" 2>/dev/null || echo "")
+    if [[ -n "$existing_rpath" ]]; then
+        log "DEBUG" "Appending to existing rpath: $existing_rpath"
+        "$patchelf_bin" --set-rpath "$rpath:$existing_rpath" "$binary" 2>/dev/null || true
+    fi
+
+    log "DEBUG" "Successfully patched $binary"
+    return 0
+}
+
+function main() {
+    log "INFO" "Starting binary patching script"
+    log "INFO" "Build directory: $BUILD_DIR"
+    log "INFO" "APT directory: $APT_DIR"
+
+    command -v file >/dev/null 2>&1 || error "Required command 'file' not found"
+    command -v curl >/dev/null 2>&1 || error "Required command 'curl' not found"
+
+    [[ ! -d "$APT_DIR" ]] && error ".apt directory not found at $APT_DIR"
+
+    ensure_patchelf
+
+    local lib_paths=$(get_lib_paths)
+    [[ -z "$lib_paths" ]] && error "No library directories found in $APT_DIR"
+
+    local bin_dirs=(
+        "bin"
+        "sbin"
+        "usr/bin"
+        "usr/sbin"
+        "usr/local/bin"
+        "usr/local/sbin"
+    )
+
+    local arch=$(detect_arch)
+    case "$arch" in
+        x86_64) bin_dirs+=("usr/lib/x86_64-linux-gnu") ;;
+        i686) bin_dirs+=("usr/lib/i386-linux-gnu") ;;
+        aarch64) bin_dirs+=("usr/lib/aarch64-linux-gnu") ;;
+        armv7l) bin_dirs+=("usr/lib/arm-linux-gnueabihf") ;;
+    esac
+
+    log "INFO" "Processing binary directories"
+    local total_binaries_patched=0
+
+    for dir in "${bin_dirs[@]}"; do
+        local full_dir="$APT_DIR/$dir"
+        if [[ -d "$full_dir" ]]; then
+            log "DEBUG" "Processing directory: $full_dir"
+            local dir_count=0
+
+            for file in "$full_dir"/*; do
+                if is_elf_binary "$file"; then
+                    if patch_binary "$file" "$lib_paths"; then
+                        dir_count=$((dir_count + 1))
+                        total_binaries_patched=$((total_binaries_patched + 1))
+                    fi
+                fi
+            done
+
+            for subdir in "bin" "sbin"; do
+                if [[ -d "$full_dir/$subdir" ]]; then
+                    log "DEBUG" "Processing subdirectory: $full_dir/$subdir"
+                    for file in "$full_dir/$subdir"/*; do
+                        if is_elf_binary "$file"; then
+                            if patch_binary "$file" "$lib_paths"; then
+                                dir_count=$((dir_count + 1))
+                                total_binaries_patched=$((total_binaries_patched + 1))
+                            fi
+                        fi
+                    done
+                fi
+            done
+
+            if [[ $dir_count -gt 0 ]]; then
+                log "INFO" "Patched $dir_count binaries in $dir"
+            fi
+        fi
+    done
+
+    log "INFO" "Processing shared libraries"
+    local lib_count=0
+    while IFS= read -r -d '' file; do
+        if is_elf_binary "$file"; then
+            if patch_binary "$file" "$lib_paths"; then
+                lib_count=$((lib_count + 1))
+                total_binaries_patched=$((total_binaries_patched + 1))
+            fi
+        fi
+    done < <(find "$APT_DIR" -type f -name "*.so*" -print0 2>/dev/null)
+    log "INFO" "Patched $lib_count shared libraries"
+
+    log "INFO" "Processing other executable files"
+    local other_count=0
+    while IFS= read -r -d '' file; do
+        if [[ ! "$file" =~ \.so($|\.) ]]; then
+            if is_elf_binary "$file"; then
+                local already_processed=false
+                for dir in "${bin_dirs[@]}"; do
+                    if [[ "$file" =~ ^"$APT_DIR/$dir"/ ]]; then
+                        already_processed=true
+                        break
+                    fi
+                done
+                if [[ "$already_processed" == "false" ]]; then
+                    if patch_binary "$file" "$lib_paths"; then
+                        other_count=$((other_count + 1))
+                        total_binaries_patched=$((total_binaries_patched + 1))
+                    fi
+                fi
+            fi
+        fi
+    done < <(find "$APT_DIR" -type f -executable -print0 2>/dev/null)
+    log "INFO" "Patched $other_count other executable files"
+
+    log "INFO" "Binary patching completed successfully"
+    log "INFO" "Total binaries patched: $total_binaries_patched"
+}
+
+if [[ -n "$LOG_FILE" ]]; then
+    log_dir=$(dirname "$LOG_FILE")
+    [[ ! -d "$log_dir" ]] && mkdir -p "$log_dir"
+    log "INFO" "Logging to file: $LOG_FILE"
+fi
+
+main "$@"

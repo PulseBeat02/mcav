@@ -26,6 +26,7 @@ import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
+import me.brandonli.mcav.dependency.PackageInstaller;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.ffmpeg.global.avutil;
@@ -75,6 +76,20 @@ public final class DependencyLoader {
   public void loadModules() {
     final long start = System.currentTimeMillis();
     LOGGER.info("Loading JavaCV modules...");
+
+    try {
+      load();
+    } catch (final UnsatisfiedLinkError error) {
+      final PackageInstaller installer = new PackageInstaller();
+      installer.install();
+      load();
+    }
+
+    final long end = System.currentTimeMillis();
+    LOGGER.info("JavaCV modules loaded in {} ms", end - start);
+  }
+
+  private static void load() {
     System.setProperty("org.bytedeco.openblas.load", "none"); // fix OpenBlas hanging
     System.setProperty("org.bytedeco.javacpp.pathsFirst", "true");
     FFmpegLogCallback.set();
@@ -82,9 +97,6 @@ public final class DependencyLoader {
     loadFFmpeg();
     CLASSES.forEach(Loader::load);
     FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
-    //    avutil.setLogCallback(new FFmpegLogger());
-    final long end = System.currentTimeMillis();
-    LOGGER.info("JavaCV modules loaded in {} ms", end - start);
   }
 
   private static void loadFFmpeg() {
@@ -94,6 +106,7 @@ public final class DependencyLoader {
       final String msg = requireNonNull(e.getMessage());
       if (msg.contains("jniavdevice")) {
         LOGGER.warn("jniavdevice is not available, some features may not work properly.");
+        return;
       }
       throw new NativeLoadingException(e.getMessage(), e);
     }

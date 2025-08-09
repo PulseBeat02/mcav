@@ -39,4 +39,12 @@ public interface CLibrary extends Library {
    * @return 0 on success, or -1 on error.
    */
   int setenv(String name, String value, int overwrite);
+
+  /**
+   * Gets the value of an environment variable.
+   *
+   * @param name The name of the environment variable.
+   * @return The value of the environment variable, or null if it does not exist.
+   */
+  String getenv(String name);
 }

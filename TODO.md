@@ -1,5 +1,7 @@
 **MCAV Common**
-- Fix dependency support for Linux
+- Test dependency support for Linux
+- Look into QEMU support
+- Look into replacing VLC AppImage with proper installation
 
 **MCAV Browser**
 - Add support for receiving audio from browser
