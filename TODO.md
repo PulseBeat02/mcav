@@ -1,8 +1,3 @@
-**MCAV Common**
-- Test dependency support for Linux
-- Look into QEMU support
-- Look into replacing VLC AppImage with proper installation
-
 **MCAV Browser**
 - Add support for receiving audio from browser
 - Look into using JCEF instead of Selenium and Playwright

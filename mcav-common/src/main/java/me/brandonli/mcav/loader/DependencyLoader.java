@@ -79,7 +79,7 @@ public final class DependencyLoader {
 
     try {
       load();
-    } catch (final UnsatisfiedLinkError error) {
+    } catch (final Throwable error) {
       final PackageInstaller installer = new PackageInstaller();
       installer.install();
       load();
