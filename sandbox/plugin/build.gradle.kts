@@ -10,7 +10,7 @@ plugins {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
-    implementation("xyz.jpenilla:gremlin-runtime:0.0.8")
+    implementation("xyz.jpenilla:gremlin-runtime:0.0.9")
 
     runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
     runtimeDownload("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
