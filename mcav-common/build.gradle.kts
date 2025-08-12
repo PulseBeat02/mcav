@@ -41,24 +41,6 @@ dependencies {
 }
 
 tasks {
-
-    register<Copy>("copyCppOutput") {
-        from("${projectDir}/../cpp-src/output")
-        into(layout.buildDirectory.dir("resources/main"))
-        includeEmptyDirs = false
-    }
-
-    register<Copy>("copyDummyOutput") {
-        from("${projectDir}/../dummy/output")
-        into(layout.buildDirectory.dir("resources/main"))
-        includeEmptyDirs = false
-    }
-
-    processResources {
-        dependsOn("copyCppOutput")
-        dependsOn("copyDummyOutput")
-    }
-
     java {
         withSourcesJar()
         withJavadocJar()
