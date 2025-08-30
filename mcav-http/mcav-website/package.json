@@ -16,7 +16,7 @@
     "@mui/material": "^7.2.0",
     "@types/howler": "^2.2.12",
     "howler": "^2.2.4",
-    "next": "15.4.6",
+    "next": "15.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
