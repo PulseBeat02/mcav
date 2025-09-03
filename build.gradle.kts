@@ -118,6 +118,7 @@ subprojects {
                 rootFile.mkdirs()
             }
             extraJavacArgs = listOf(
+                "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
                 "-AsuppressWarnings=uninitialized,type.anno.before.modifier",
                 "-Astubs=${file}",
                 "-Astubs=${rootFile}"
