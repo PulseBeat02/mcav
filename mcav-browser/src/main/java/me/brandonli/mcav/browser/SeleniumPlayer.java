@@ -46,9 +46,9 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.Event;
-import org.openqa.selenium.devtools.v136.page.Page;
-import org.openqa.selenium.devtools.v136.page.model.ScreencastFrame;
-import org.openqa.selenium.devtools.v136.page.model.ScreencastFrameMetadata;
+import org.openqa.selenium.devtools.v139.page.Page;
+import org.openqa.selenium.devtools.v139.page.model.ScreencastFrame;
+import org.openqa.selenium.devtools.v139.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
 
