@@ -71,6 +71,12 @@ subprojects {
             options.encoding = "UTF-8"
             options.isFork = true
             options.forkOptions.memoryMaximumSize = "4g"
+            options.forkOptions.jvmArgs = (options.forkOptions.jvmArgs ?: mutableListOf()).apply {
+                // Checker Framework Gradle Plugin forgot to include this argument for latest Checker Framework versions
+                // See https://github.com/typetools/checker-framework/issues/7241
+                // See https://github.com/kelloggm/checkerframework-gradle-plugin/blob/fe79a94a8399d097cf3e2e3e2ab0626e46bfbd4f/src/main/groovy/org/checkerframework/gradle/plugin/CheckerFrameworkPlugin.groovy#L384
+                add("--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
+            }
         }
 
         processResources {
@@ -108,8 +114,7 @@ subprojects {
         }
 
         checkerFramework {
-            // fix checker... they have an issue with module exports
-            checkers = listOf(/*"org.checkerframework.checker.nullness.NullnessChecker"*/)
+            checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
             val file = project.file("checker-framework")
             if (!file.exists()) {
                 file.mkdirs()
