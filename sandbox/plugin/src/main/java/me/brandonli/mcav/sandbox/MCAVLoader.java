@@ -17,19 +17,22 @@
  */
 package me.brandonli.mcav.sandbox;
 
-import static java.util.Objects.requireNonNull;
-
 import io.papermc.paper.plugin.loader.PluginClasspathBuilder;
 import io.papermc.paper.plugin.loader.PluginLoader;
-import java.nio.file.Path;
-import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.LoggerFactory;
 import xyz.jpenilla.gremlin.runtime.DependencyCache;
 import xyz.jpenilla.gremlin.runtime.DependencyResolver;
 import xyz.jpenilla.gremlin.runtime.DependencySet;
 import xyz.jpenilla.gremlin.runtime.ResolvedDependencySet;
+import xyz.jpenilla.gremlin.runtime.logging.GremlinLogger;
+import xyz.jpenilla.gremlin.runtime.logging.Slf4jGremlinLogger;
 import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
+
+import java.nio.file.Path;
+import java.util.Set;
+
+import static java.util.Objects.requireNonNull;
 
 public final class MCAVLoader implements PluginLoader {
 
@@ -42,7 +45,8 @@ public final class MCAVLoader implements PluginLoader {
     final DependencySet deps = DependencySet.readDefault(classLoader);
     final DependencyCache cache = new DependencyCache(libs);
     final org.slf4j.Logger logger = LoggerFactory.getLogger("Gremlin");
-    try (final DependencyResolver downloader = new DependencyResolver(logger)) {
+    final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(logger);
+    try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
       final ResolvedDependencySet resolvedDeps = downloader.resolve(deps, cache);
       final Set<Path> jars = resolvedDeps.jarFiles();
       final PaperClasspathAppender appender = new PaperClasspathAppender(classpathBuilder);
