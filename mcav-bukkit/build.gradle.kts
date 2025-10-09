@@ -9,7 +9,7 @@ dependencies {
     paperweight.paperDevBundle("1.21.8-R0.1-SNAPSHOT")
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
-    api("net.bytebuddy:byte-buddy:1.17.7")
+    api("net.bytebuddy:byte-buddy:1.17.8")
     api("net.bytebuddy:byte-buddy-agent:1.17.7")
 
     // provided
