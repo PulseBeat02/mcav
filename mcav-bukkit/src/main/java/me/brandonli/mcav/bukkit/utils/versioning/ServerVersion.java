@@ -263,6 +263,14 @@ public enum ServerVersion {
    */
   V_1_21_8,
   /**
+   * Server Version 1.21.9
+   */
+  V_1_21_9,
+  /**
+   * Server Version 1.21.10
+   */
+  V_1_21_10,
+  /**
    * Invalid Version
    */
   ERROR;

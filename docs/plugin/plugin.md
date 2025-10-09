@@ -14,10 +14,10 @@ It's super easy to install the MCAV plugin on your Minecraft server.
 
 ```{warning}
 The MCAV plugin is compatible with **Paper** servers only. It will not work on **Spigot** or **Bukkit** servers. You must
-also use version **1.21.8** to run the plugin. It will not work on any other version of Minecraft.
+also use version **1.21.10** to run the plugin. It will not work on any other version of Minecraft.
 ```
 
-1) Grab the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v1.21.8-all.jar).
+1) Grab the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v1.21.10-all.jar).
 2) Place the JAR file into the `plugins` folder of your server.
 
 ```{warning}
