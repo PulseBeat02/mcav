@@ -37,31 +37,33 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
 
   static {
     NATIVE_SUPPORTED = false;
-    final Map<Platform, String> libraryMap = Map.of(
-      Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64),
-      "libfilterlite-linux-x86_64.so",
-      Platform.ofPlatform(OS.LINUX, Arch.ARM, Bits.BITS_32),
-      "libfilterlite-linux-armhf.so",
-      Platform.ofPlatform(OS.LINUX, Arch.ARM, Bits.BITS_64),
-      "libfilterlite-linux-aarch64.so",
-      Platform.ofPlatform(OS.WINDOWS, Arch.X86, Bits.BITS_32),
-      "filterlite-win32.dll",
-      Platform.ofPlatform(OS.WINDOWS, Arch.X86, Bits.BITS_64),
-      "filterlite-win64.dll",
-      Platform.ofPlatform(OS.WINDOWS, Arch.ARM, Bits.BITS_32),
-      "filterlite-win-arm32.dll",
-      Platform.ofPlatform(OS.WINDOWS, Arch.ARM, Bits.BITS_64),
-      "filterlite-win-arm64.dll",
-      Platform.ofPlatform(OS.MAC, Arch.X86, Bits.BITS_64),
-      "libfilterlite-darwin-x86_64.dylib",
-      Platform.ofPlatform(OS.MAC, Arch.ARM, Bits.BITS_64),
-      "libfilterlite-darwin-aarch64.dylib"
-    );
-    final Platform platform = Platform.getCurrentPlatform();
-    final String libraryName = libraryMap.get(platform);
-    if (libraryName != null) {
-      NativeUtils.loadLibrary(libraryName);
-      NATIVE_SUPPORTED = true;
+    if (NATIVE_SUPPORTED) {
+      final Map<Platform, String> libraryMap = Map.of(
+        Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64),
+        "libfilterlite-linux-x86_64.so",
+        Platform.ofPlatform(OS.LINUX, Arch.ARM, Bits.BITS_32),
+        "libfilterlite-linux-armhf.so",
+        Platform.ofPlatform(OS.LINUX, Arch.ARM, Bits.BITS_64),
+        "libfilterlite-linux-aarch64.so",
+        Platform.ofPlatform(OS.WINDOWS, Arch.X86, Bits.BITS_32),
+        "filterlite-win32.dll",
+        Platform.ofPlatform(OS.WINDOWS, Arch.X86, Bits.BITS_64),
+        "filterlite-win64.dll",
+        Platform.ofPlatform(OS.WINDOWS, Arch.ARM, Bits.BITS_32),
+        "filterlite-win-arm32.dll",
+        Platform.ofPlatform(OS.WINDOWS, Arch.ARM, Bits.BITS_64),
+        "filterlite-win-arm64.dll",
+        Platform.ofPlatform(OS.MAC, Arch.X86, Bits.BITS_64),
+        "libfilterlite-darwin-x86_64.dylib",
+        Platform.ofPlatform(OS.MAC, Arch.ARM, Bits.BITS_64),
+        "libfilterlite-darwin-aarch64.dylib"
+      );
+      final Platform platform = Platform.getCurrentPlatform();
+      final String libraryName = libraryMap.get(platform);
+      if (libraryName != null) {
+        NativeUtils.loadLibrary(libraryName);
+        NATIVE_SUPPORTED = true;
+      }
     }
   }
 
