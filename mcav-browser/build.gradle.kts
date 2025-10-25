@@ -5,7 +5,7 @@ plugins {
 dependencies {
     // project dependencies
     api("com.microsoft.playwright:playwright:1.55.0")
-    api("org.seleniumhq.selenium:selenium-java:4.36.0")
+    api("org.seleniumhq.selenium:selenium-java:4.38.0")
     api("io.github.bonigarcia:webdrivermanager:6.3.2")
     api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
 
@@ -13,7 +13,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
 
     // test dependencies
-    testImplementation("org.seleniumhq.selenium:selenium-java:4.36.0")
+    testImplementation("org.seleniumhq.selenium:selenium-java:4.38.0")
     testImplementation("io.github.bonigarcia:webdrivermanager:6.3.2")
     testImplementation(project(":mcav-common"))
 }
