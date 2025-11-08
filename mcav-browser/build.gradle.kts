@@ -6,7 +6,7 @@ dependencies {
     // project dependencies
     api("com.microsoft.playwright:playwright:1.56.0")
     api("org.seleniumhq.selenium:selenium-java:4.38.0")
-    api("io.github.bonigarcia:webdrivermanager:6.3.2")
+    api("io.github.bonigarcia:webdrivermanager:6.3.3")
     api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
 
     // provided
@@ -14,7 +14,7 @@ dependencies {
 
     // test dependencies
     testImplementation("org.seleniumhq.selenium:selenium-java:4.38.0")
-    testImplementation("io.github.bonigarcia:webdrivermanager:6.3.2")
+    testImplementation("io.github.bonigarcia:webdrivermanager:6.3.3")
     testImplementation(project(":mcav-common"))
 }
 
