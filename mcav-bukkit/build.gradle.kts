@@ -10,7 +10,7 @@ dependencies {
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
     api("net.bytebuddy:byte-buddy:1.17.8")
-    api("net.bytebuddy:byte-buddy-agent:1.17.8")
+    api("net.bytebuddy:byte-buddy-agent:1.18.2")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
