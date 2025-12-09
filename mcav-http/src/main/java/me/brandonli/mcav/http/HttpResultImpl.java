@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav.http;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -31,8 +26,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.embedded.tomcat.TomcatWebServer;
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
+import org.springframework.boot.tomcat.TomcatWebServer;
+import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
@@ -49,6 +44,14 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * The concrete implementation of the {@link HttpResult} interface, providing a default HTML template
@@ -161,7 +164,7 @@ public class HttpResultImpl implements HttpResult {
         this.wsClients.clear();
         try {
           if (this.context instanceof final ServletWebServerApplicationContext wsContext) {
-            final var webServer = wsContext.getWebServer();
+            final var webServer = requireNonNull(wsContext.getWebServer());
             webServer.stop();
             if (webServer instanceof final TomcatWebServer cat) {
               final var tomcatServer = cat.getTomcat();
