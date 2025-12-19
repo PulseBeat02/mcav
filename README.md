@@ -1,5 +1,5 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/pulsebeat02/mcav/badge)](https://www.codefactor.io/repository/github/pulsebeat02/mcav)
-[![TeamCity Full Build Status](https://img.shields.io/teamcity/build/s/murderrun_Build?server=https%3A%2F%2Fci.brandonli.me
+[![TeamCity Full Build Status](https://img.shields.io/teamcity/build/s/mcav_Build?server=https%3A%2F%2Fci.brandonli.me
 )](https://ci.brandonli.me/project/mcav)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=PulseBeat02_mcav&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=PulseBeat02_mcav)
 
