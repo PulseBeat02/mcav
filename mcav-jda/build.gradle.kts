@@ -4,13 +4,13 @@ plugins {
 
 dependencies {
     // project dependencies
-    api("net.dv8tion:JDA:6.2.1")
+    api("net.dv8tion:JDA:6.3.0")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
 
     // testing
-    testImplementation("net.dv8tion:JDA:6.2.1")
+    testImplementation("net.dv8tion:JDA:6.3.0")
     testImplementation(project(":mcav-common"))
     testImplementation("net.java.dev.jna:jna:5.18.1")
 }
