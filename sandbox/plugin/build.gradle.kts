@@ -9,7 +9,7 @@ plugins {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:gremlin-runtime:0.0.9")
 
     runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
@@ -36,7 +36,7 @@ configurations.compileOnly {
     extendsFrom(configurations.runtimeDownload.get())
 }
 
-version = "1.0.0-v1.21.10"
+version = "1.0.0-v1.21.11"
 
 tasks.withType<AbstractRun>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
@@ -75,7 +75,7 @@ tasks {
 
     runServer {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
-        minecraftVersion("1.21.10")
+        minecraftVersion("1.21.11")
         downloadPlugins {
             url("https://cdn.modrinth.com/data/9eGKb6K1/versions/bNX2205a/voicechat-bukkit-2.5.35.jar")
         }

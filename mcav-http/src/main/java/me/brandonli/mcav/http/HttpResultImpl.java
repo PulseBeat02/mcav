@@ -17,6 +17,13 @@
  */
 package me.brandonli.mcav.http;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -44,14 +51,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * The concrete implementation of the {@link HttpResult} interface, providing a default HTML template
