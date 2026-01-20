@@ -16,7 +16,7 @@
     "@mui/material": "^7.2.0",
     "@types/howler": "^2.2.12",
     "howler": "^2.2.4",
-    "next": "16.1.3",
+    "next": "16.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -27,7 +27,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.3",
+    "eslint-config-next": "16.1.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
