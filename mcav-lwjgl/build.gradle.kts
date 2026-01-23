@@ -5,7 +5,7 @@ plugins {
 dependencies {
 
     // project dependencies
-    api("org.lwjgl:lwjgl:3.3.6")
+    api("org.lwjgl:lwjgl:3.4.0")
     api("org.lwjgl:lwjgl-opengl:3.4.0")
 
     // provided
