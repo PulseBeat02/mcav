@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // project dependencies
-    api("com.microsoft.playwright:playwright:1.57.0")
+    api("com.microsoft.playwright:playwright:1.58.0")
     api("org.seleniumhq.selenium:selenium-java:4.40.0")
     api("io.github.bonigarcia:webdrivermanager:6.3.3")
     api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
