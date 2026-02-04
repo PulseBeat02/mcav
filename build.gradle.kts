@@ -3,7 +3,7 @@ plugins {
     id("java-library")
     id("com.github.node-gradle.node") version "7.1.0"
     id("com.diffplug.spotless") version "7.0.0.BETA4"
-    id("org.checkerframework") version "0.6.61"
+    id("org.checkerframework") version "1.0.1"
 }
 
 group = "me.brandonli"
