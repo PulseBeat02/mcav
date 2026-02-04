@@ -23,6 +23,12 @@ fun getNodeExecutable(): File {
     return executable
 }
 
+// temporary configure the root project for checker framework
+checkerFramework {
+    version = "3.53.1"
+    checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
+}
+
 subprojects {
 
     apply(plugin = "java")
@@ -114,6 +120,7 @@ subprojects {
         }
 
         checkerFramework {
+            version = "3.53.1"
             checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
             val file = project.file("checker-framework")
             if (!file.exists()) {
