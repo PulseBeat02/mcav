@@ -28,7 +28,7 @@ dependencies {
 
     runtimeDownload("me.lucko:commodore:2.2")
     runtimeDownload("org.bstats:bstats-bukkit:3.1.0")
-    runtimeDownload("net.dv8tion:JDA:6.3.0")
+    runtimeDownload("net.dv8tion:JDA:6.3.1")
     runtimeDownload("io.javalin:javalin:6.7.0")
 }
 
