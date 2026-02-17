@@ -27,6 +27,11 @@ public final class ByteUtils {
 
   private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
+  @SuppressWarnings("all") // checker
+  private static final ThreadLocal<ByteBuffer> REUSABLE_AUDIO_BUFFER = ThreadLocal.withInitial(() ->
+    ByteBuffer.allocate(8192).order(ByteOrder.LITTLE_ENDIAN)
+  );
+
   private ByteUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -62,16 +67,24 @@ public final class ByteUtils {
     switch (buffer) {
       case final FloatBuffer floatBuffer -> {
         final int capacity = floatBuffer.capacity();
-        result = ByteBuffer.allocate(capacity * 4).order(ByteOrder.LITTLE_ENDIAN);
+        result = getReusableBuffer(capacity * 4);
         for (int i = 0; i < capacity; i++) {
           result.putFloat(floatBuffer.get(i));
         }
       }
       case final ShortBuffer shortBuffer -> {
-        final int capacity = shortBuffer.capacity();
-        result = ByteBuffer.allocate(capacity * 2).order(ByteOrder.LITTLE_ENDIAN);
-        for (int i = 0; i < capacity; i++) {
-          result.putShort(shortBuffer.get(i));
+        if (LITTLE_ENDIAN) {
+          final int byteSize = shortBuffer.capacity() * 2;
+          result = getReusableBuffer(byteSize);
+          for (int i = 0; i < shortBuffer.capacity(); i++) {
+            result.putShort(shortBuffer.get(i));
+          }
+        } else {
+          final int capacity = shortBuffer.capacity();
+          result = getReusableBuffer(capacity * 2);
+          for (int i = 0; i < capacity; i++) {
+            result.putShort(shortBuffer.get(i));
+          }
         }
       }
       case final ByteBuffer byteBuffer -> {
@@ -80,7 +93,7 @@ public final class ByteUtils {
         }
         final ByteBuffer duplicate = byteBuffer.duplicate();
         duplicate.rewind();
-        result = ByteBuffer.allocate(duplicate.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+        result = getReusableBuffer(duplicate.remaining());
         while (duplicate.remaining() >= 2) {
           final short value = duplicate.getShort();
           final short swapped = (short) (((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
@@ -94,6 +107,17 @@ public final class ByteUtils {
     }
     result.flip();
     return result;
+  }
+
+  private static ByteBuffer getReusableBuffer(final int requiredCapacity) {
+    ByteBuffer buf = REUSABLE_AUDIO_BUFFER.get();
+    if (buf.capacity() < requiredCapacity) {
+      buf = ByteBuffer.allocate(requiredCapacity).order(ByteOrder.LITTLE_ENDIAN);
+      REUSABLE_AUDIO_BUFFER.set(buf);
+    }
+    buf.clear();
+    buf.order(ByteOrder.LITTLE_ENDIAN);
+    return buf;
   }
 
   /**

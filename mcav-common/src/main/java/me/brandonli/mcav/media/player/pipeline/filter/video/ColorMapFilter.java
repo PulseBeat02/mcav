@@ -40,9 +40,6 @@ public class ColorMapFilter extends MatVideoFilter {
    */
   @Override
   void modifyMat(final Mat mat) {
-    final Mat colored = new Mat();
-    opencv_imgproc.applyColorMap(mat, colored, this.colorMapType);
-    colored.copyTo(mat);
-    colored.release();
+    opencv_imgproc.applyColorMap(mat, mat, this.colorMapType);
   }
 }

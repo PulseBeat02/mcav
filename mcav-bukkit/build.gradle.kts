@@ -11,6 +11,7 @@ dependencies {
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
     api("net.bytebuddy:byte-buddy:1.18.5")
     api("net.bytebuddy:byte-buddy-agent:1.18.5")
+    api("net.openhft:zero-allocation-hashing:0.27ea1")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
@@ -37,6 +38,10 @@ tasks {
     withType<Javadoc>().configureEach {
         options.encoding = "UTF-8"
     }
+
+    withType<GenerateModuleMetadata>().configureEach {
+        enabled = false
+    }
 }
 
 publishing {
@@ -52,18 +57,15 @@ publishing {
     }
     publications {
         create<MavenPublication>("maven") {
+            from(components["java"])
             groupId = "me.brandonli"
             artifactId = project.name
-            version = "${rootProject.version}"
-            artifact(tasks.named("reobfJar"))
-            artifact(tasks.named("sourcesJar")) {
-                classifier = "sources"
-                builtBy(tasks.named("reobfJar"))
+            version = rootProject.version.toString()
+            artifacts.removeIf { it.extension == "jar" && it.classifier == null }
+            artifact(tasks.named("reobfJar")) {
+                classifier = null
             }
-            artifact(tasks.named("javadocJar")) {
-                classifier = "javadoc"
-                builtBy(tasks.named("reobfJar"))
-            }
+            suppressAllPomMetadataWarnings()
         }
     }
 }

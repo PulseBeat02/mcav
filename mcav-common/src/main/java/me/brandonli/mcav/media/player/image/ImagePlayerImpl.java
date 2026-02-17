@@ -48,7 +48,7 @@ public class ImagePlayerImpl implements ImagePlayer {
 
   @Nullable private volatile FrameSource source;
 
-  private BiConsumer<String, Throwable> exceptionHandler;
+  private volatile BiConsumer<String, Throwable> exceptionHandler;
 
   ImagePlayerImpl() {
     this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
@@ -113,8 +113,9 @@ public class ImagePlayerImpl implements ImagePlayer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      final String msg = e.getMessage();
-      requireNonNull(msg);
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }

@@ -91,7 +91,7 @@ public final class PlaywrightPlayer implements BrowserPlayer {
 
   @Nullable private volatile BrowserSource source;
 
-  private BiConsumer<String, Throwable> exceptionHandler;
+  private volatile BiConsumer<String, Throwable> exceptionHandler;
 
   PlaywrightPlayer(final String... args) {
     final List<String> launchArgs = Arrays.asList(args);
@@ -160,8 +160,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      final String msg = e.getMessage();
-      requireNonNull(msg);
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }
@@ -231,8 +232,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
         this.waitForNextFrame(frameInterval);
       }
     } catch (final Throwable e) {
-      final String msg = e.getMessage();
-      requireNonNull(msg);
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }
@@ -243,8 +245,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      final String msg = e.getMessage();
-      requireNonNull(msg);
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }
@@ -347,8 +350,9 @@ public final class PlaywrightPlayer implements BrowserPlayer {
       } catch (final InterruptedException e) {
         final Thread currentThread = Thread.currentThread();
         currentThread.interrupt();
-        final String msg = e.getMessage();
-        requireNonNull(msg);
+        final String raw = e.getMessage();
+        final Class<?> clazz = e.getClass();
+        final String msg = raw != null ? raw : clazz.getName();
         this.exceptionHandler.accept(msg, e);
       }
 

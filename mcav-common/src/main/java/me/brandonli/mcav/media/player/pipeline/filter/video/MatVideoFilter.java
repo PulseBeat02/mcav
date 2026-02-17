@@ -18,17 +18,11 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.function.Consumer;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.utils.UncheckedIOException;
-import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Java2DFrameUtils;
-import org.bytedeco.opencv.global.opencv_imgcodecs;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
@@ -86,22 +80,13 @@ abstract class MatVideoFilter implements VideoFilter {
 
   /**
    * Applies the results of the Mat operation to the ImageBuffer.
-   * This method encodes the Mat as a JPEG image and sets it in the ImageBuffer.
+   * Converts the Mat directly to a BufferedImage via raw pixel copy (no JPEG roundtrip).
    *
    * @param buffer the ImageBuffer to update
    * @param mat    the OpenCV Mat object containing the processed image
    */
   void applyMatResults(final ImageBuffer buffer, final Mat mat) {
-    try {
-      final BytePointer bytePointer = new BytePointer();
-      opencv_imgcodecs.imencode(".jpg", mat, bytePointer);
-      final byte[] byteArray = new byte[(int) bytePointer.limit()];
-      bytePointer.get(byteArray);
-      final BufferedImage img = ImageIO.read(new ByteArrayInputStream(byteArray));
-      buffer.setAsBufferedImage(img);
-      bytePointer.deallocate();
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
-    }
+    final BufferedImage img = Java2DFrameUtils.toBufferedImage(mat);
+    buffer.setAsBufferedImage(img);
   }
 }

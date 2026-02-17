@@ -30,6 +30,9 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FlipFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.InvertFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
@@ -59,7 +62,7 @@ public final class SingleCombinedInputExample {
     BufferedImage bufferedImage;
     ImageIcon icon;
     final UriSource source = UriSource.uri(
-      URI.create("http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_native_60fps_normal.mp4")
+      URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov")
     );
 
     final DirectAudioOutput output = new DirectAudioOutput();
@@ -68,6 +71,9 @@ public final class SingleCombinedInputExample {
     final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(output).build();
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
+      .then(new ResizeFilter(500, 500))
+      .then(new InvertFilter())
+      .then(new FlipFilter(FlipFilter.FlipDirection.HORIZONTAL))
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 

@@ -82,7 +82,7 @@ public final class SeleniumPlayer implements BrowserPlayer {
 
   @Nullable private volatile BrowserSource source;
 
-  private BiConsumer<String, Throwable> exceptionHandler;
+  private volatile BiConsumer<String, Throwable> exceptionHandler;
 
   SeleniumPlayer(final String... args) {
     final ChromeDriverService service = ChromeDriverServiceProvider.getService();
@@ -225,36 +225,39 @@ public final class SeleniumPlayer implements BrowserPlayer {
       return;
     }
 
-    final BrowserSource source = requireNonNull(this.source);
-    final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    this.frameWidth = (long) frameMetadata.getDeviceWidth();
-    this.frameHeight = (long) frameMetadata.getDeviceHeight();
+    try {
+      final BrowserSource source = requireNonNull(this.source);
+      final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
+      final int width = source.getScreencastWidth();
+      final int height = source.getScreencastHeight();
+      this.frameWidth = (long) frameMetadata.getDeviceWidth();
+      this.frameHeight = (long) frameMetadata.getDeviceHeight();
 
-    final String data = frame.getData();
-    final byte[] buffer = BASE64_DECODER.decode(data);
-    if (buffer == null) {
-      return;
+      final String data = frame.getData();
+      final byte[] buffer = BASE64_DECODER.decode(data);
+      if (buffer == null) {
+        return;
+      }
+
+      final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
+      final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
+      final ResizeFilter resizeFilter = new ResizeFilter(width, height);
+      resizeFilter.applyFilter(staticImage, metadata);
+
+      VideoPipelineStep current = this.videoAttachableCallback.retrieve();
+      while (current != null) {
+        current.process(staticImage, metadata);
+        current = current.next();
+      }
+
+      staticImage.release();
+
+      final int id = frame.getSessionId();
+      final Command<Void> event = Page.screencastFrameAck(id);
+      this.tools.send(event);
+    } finally {
+      this.lock.unlock();
     }
-
-    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
-    final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
-    final ResizeFilter resizeFilter = new ResizeFilter(width, height);
-    resizeFilter.applyFilter(staticImage, metadata);
-
-    VideoPipelineStep current = this.videoAttachableCallback.retrieve();
-    while (current != null) {
-      current.process(staticImage, metadata);
-      current = current.next();
-    }
-
-    staticImage.release();
-
-    final int id = frame.getSessionId();
-    final Command<Void> event = Page.screencastFrameAck(id);
-    this.tools.send(event);
-    this.lock.unlock();
   }
 
   /**

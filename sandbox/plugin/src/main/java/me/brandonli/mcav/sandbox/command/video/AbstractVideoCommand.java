@@ -219,38 +219,38 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final VideoConfigurationProvider configProvider,
     final Player[] viewers
   ) {
+    final URLParseDump dump = source.dump;
+    final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
+    final AudioFilter filter = this.provider.constructFilter(audioType, dump, viewers);
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
+    final Source video = source.video;
+    final Source audio = source.audio;
+    final VideoPlayerMultiplexer player = playerType.createPlayer();
+    this.manager.setPlayer(player);
+    requireNonNull(video);
+
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+    final Dimension dimension = new Dimension(width, height);
+    dimensionCallback.attach(dimension);
+
+    if (audio == null) {
+      player.start(video);
+    } else {
+      player.start(video, audio);
+    }
+
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTaskLater(
       this.plugin,
       () -> {
-        final URLParseDump dump = source.dump;
-        final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
-        final AudioFilter filter = this.provider.constructFilter(audioType, dump, viewers);
-        final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
-        final Source video = source.video;
-        final Source audio = source.audio;
-        final VideoPlayerMultiplexer player = playerType.createPlayer();
-        this.manager.setPlayer(player);
-        requireNonNull(video);
-
-        final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-        videoCallback.attach(videoPipelineStep);
-
-        final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-        audioCallback.attach(audioPipelineStep);
-
-        final int width = resolution.getFirst();
-        final int height = resolution.getSecond();
-        final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-        final Dimension dimension = new Dimension(width, height);
-        dimensionCallback.attach(dimension);
-
-        if (audio == null) {
-          player.start(video);
-        } else {
-          player.start(video, audio);
-        }
-
         final Hologram existing = this.manager.getHologram();
         if (existing != null) {
           existing.kill();
@@ -271,7 +271,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         hologram.start();
         this.manager.setHologram(hologram);
       },
-      5L
+      1L
     );
   }
 
