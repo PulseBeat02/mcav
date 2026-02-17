@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -34,7 +32,12 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.openhft.hashing.LongHashFunction;
 
-@SuppressWarnings("all")
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * A DitherResultStep implementation that generates patch updates for map items based on quadrant hashing and tile analysis.
+ */
 public class CompressedMapResult implements DitherResultStep {
 
   private static final int MAP_PX = 128;
@@ -70,13 +73,22 @@ public class CompressedMapResult implements DitherResultStep {
   private final ArrayList<PatchUpdate> deferredUpdates;
   private final ArrayList<byte[]> patchPool;
 
-  private int maxBytesPerFrame;
+  private final int maxBytesPerFrame;
   private int sceneChangeFramesRemaining;
 
+  /**
+   * Constructs a CompressedMapResult with the given MapConfiguration and a default max bytes per frame.
+   * @param configuration the MapConfiguration defining the map layout and viewers
+   */
   public CompressedMapResult(final MapConfiguration configuration) {
     this(configuration, DEFAULT_MAX_BYTES_PER_FRAME);
   }
 
+  /**
+   * Constructs a CompressedMapResult with the given MapConfiguration and max bytes per frame.
+   * @param configuration the MapConfiguration defining the map layout and viewers
+   * @param maxBytesPerFrame the maximum number of bytes to send per frame for map updates
+   */
   public CompressedMapResult(final MapConfiguration configuration, final int maxBytesPerFrame) {
     this.mapConfiguration = configuration;
     this.maxBytesPerFrame = maxBytesPerFrame;
@@ -86,10 +98,6 @@ public class CompressedMapResult implements DitherResultStep {
     this.deferredUpdates = new ArrayList<>();
     this.patchPool = new ArrayList<>();
     this.sceneChangeFramesRemaining = 0;
-  }
-
-  public void setMaxBytesPerFrame(final int maxBytesPerFrame) {
-    this.maxBytesPerFrame = maxBytesPerFrame;
   }
 
   @Override
