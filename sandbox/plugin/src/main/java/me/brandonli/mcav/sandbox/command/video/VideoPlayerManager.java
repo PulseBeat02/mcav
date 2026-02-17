@@ -35,10 +35,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class VideoPlayerManager {
 
-  private @Nullable VideoPlayerMultiplexer player;
-  private @Nullable FunctionalVideoFilter filter;
-  private @Nullable Hologram hologram;
-  private @Nullable Location hologramLocation;
+  private volatile @Nullable VideoPlayerMultiplexer player;
+  private volatile @Nullable FunctionalVideoFilter filter;
+  private volatile @Nullable Hologram hologram;
+  private volatile @Nullable Location hologramLocation;
 
   private final MCAVSandbox plugin;
   private final MCAVApi api;
@@ -80,23 +80,29 @@ public final class VideoPlayerManager {
   }
 
   public void releaseVideoPlayer(final boolean disable) {
+    final VideoPlayerMultiplexer oldPlayer = this.player;
+    final FunctionalVideoFilter oldFilter = this.filter;
+    final Hologram oldHologram = this.hologram;
+
+    this.player = null;
+    this.filter = null;
+    this.hologram = null;
+
+    this.provider.releaseAudioFilter();
+
     final Runnable task = () -> {
-      if (this.player != null) {
+      if (oldPlayer != null) {
         try {
-          this.player.release();
-          this.provider.releaseAudioFilter();
-          if (this.filter != null) {
-            this.filter.release();
-            this.filter = null;
+          oldPlayer.release();
+          if (oldFilter != null) {
+            oldFilter.release();
           }
         } catch (final Exception e) {
           throw new AssertionError(e);
         }
-        this.player = null;
       }
-      if (this.hologram != null) {
-        this.hologram.kill();
-        this.hologram = null;
+      if (oldHologram != null) {
+        oldHologram.kill();
       }
     };
     if (disable) {

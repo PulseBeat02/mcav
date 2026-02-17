@@ -18,6 +18,8 @@
 package me.brandonli.mcav.jda;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.natives.ByteUtils;
@@ -35,10 +37,12 @@ public class DiscordPlayerImpl implements DiscordPlayer {
   private static final int TWENTY_MS_SIZE = (48000 * 2 * 2 * 20) / 1000;
 
   private final ByteBuffer buffer;
+  private final Lock bufferLock;
   private final JDA jda;
 
   DiscordPlayerImpl(final JDA jda) {
     this.buffer = ByteBuffer.allocate(1024 * 1024);
+    this.bufferLock = new ReentrantLock();
     this.jda = jda;
   }
 
@@ -47,7 +51,12 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    */
   @Override
   public boolean canProvide() {
-    return this.buffer.position() >= TWENTY_MS_SIZE;
+    this.bufferLock.lock();
+    try {
+      return this.buffer.position() >= TWENTY_MS_SIZE;
+    } finally {
+      this.bufferLock.unlock();
+    }
   }
 
   /**
@@ -55,16 +64,21 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    */
   @Override
   public ByteBuffer provide20MsAudio() {
-    if (!this.canProvide()) {
-      return ByteBuffer.allocate(0);
+    this.bufferLock.lock();
+    try {
+      if (this.buffer.position() < TWENTY_MS_SIZE) {
+        return ByteBuffer.allocate(0);
+      }
+
+      final byte[] audioChunk = new byte[TWENTY_MS_SIZE];
+      this.buffer.flip();
+      this.buffer.get(audioChunk, 0, TWENTY_MS_SIZE);
+      this.buffer.compact();
+
+      return ByteBuffer.wrap(audioChunk);
+    } finally {
+      this.bufferLock.unlock();
     }
-
-    final byte[] audioChunk = new byte[TWENTY_MS_SIZE];
-    this.buffer.flip();
-    this.buffer.get(audioChunk, 0, TWENTY_MS_SIZE);
-    this.buffer.compact();
-
-    return ByteBuffer.wrap(audioChunk);
   }
 
   /**
@@ -73,11 +87,16 @@ public class DiscordPlayerImpl implements DiscordPlayer {
   @Override
   public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     final ByteBuffer clamped = ByteUtils.clampNormalBufferToBigEndian(samples);
-    if (this.buffer.remaining() >= clamped.remaining()) {
-      this.buffer.put(clamped);
-    } else {
-      this.buffer.clear();
-      this.buffer.put(clamped);
+    this.bufferLock.lock();
+    try {
+      if (this.buffer.remaining() >= clamped.remaining()) {
+        this.buffer.put(clamped);
+      } else {
+        this.buffer.clear();
+        this.buffer.put(clamped);
+      }
+    } finally {
+      this.bufferLock.unlock();
     }
   }
 

@@ -47,7 +47,7 @@ public interface ExceptionHandler {
   static ExceptionHandler createDefault() {
     final Logger logger = LoggerFactory.getLogger(ExceptionHandler.class);
     return new ExceptionHandler() {
-      private BiConsumer<String, Throwable> exceptionHandler = logger::error;
+      private volatile BiConsumer<String, Throwable> exceptionHandler = logger::error;
 
       @Override
       public BiConsumer<String, Throwable> getExceptionHandler() {

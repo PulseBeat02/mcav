@@ -104,7 +104,7 @@ public class VNCPlayerImpl implements VNCPlayer {
 
   @Nullable private volatile VNCSource source;
 
-  private BiConsumer<String, Throwable> exceptionHandler;
+  private volatile BiConsumer<String, Throwable> exceptionHandler;
 
   VNCPlayerImpl() {
     this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
@@ -208,8 +208,7 @@ public class VNCPlayerImpl implements VNCPlayer {
       }
       staticImage.release();
     } catch (final Throwable e) {
-      final String msg = e.getMessage();
-      requireNonNull(msg);
+      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
       this.exceptionHandler.accept(msg, e);
     }
   }

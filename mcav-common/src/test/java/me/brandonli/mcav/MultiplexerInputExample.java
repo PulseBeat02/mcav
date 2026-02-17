@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
-import javax.swing.*;
-import javax.swing.border.LineBorder;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -37,6 +32,12 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
+
+import javax.swing.*;
+import javax.swing.border.LineBorder;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
 
 @SuppressWarnings("all")
 public final class MultiplexerInputExample {
@@ -78,7 +79,7 @@ public final class MultiplexerInputExample {
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
     multiplexer.setExceptionHandler((context, throwable) -> {
       System.err.println("Error occurred while processing media: " + context);
       throwable.printStackTrace();

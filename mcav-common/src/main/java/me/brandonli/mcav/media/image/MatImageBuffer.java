@@ -56,8 +56,11 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   public static final ExaminableProperty<Mat> MAT_PROPERTY = ExaminableProperty.property("mat", Mat.class);
 
-  private static final OpenCVFrameConverter.ToMat CONVERTER = new OpenCVFrameConverter.ToMat();
-  private static final Java2DFrameConverter IMAGE_CONVERTER = new Java2DFrameConverter();
+  @SuppressWarnings("all") // checker: ThreadLocal.withInitial guarantees non-null
+  private static final ThreadLocal<OpenCVFrameConverter.ToMat> CONVERTER = ThreadLocal.withInitial(OpenCVFrameConverter.ToMat::new);
+
+  @SuppressWarnings("all") // checker: ThreadLocal.withInitial guarantees non-null
+  private static final ThreadLocal<Java2DFrameConverter> IMAGE_CONVERTER = ThreadLocal.withInitial(Java2DFrameConverter::new);
 
   private @Nullable BytePointer pointer;
   private final Mat mat;
@@ -76,7 +79,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   }
 
   MatImageBuffer(final Frame frame) {
-    final Mat converted = CONVERTER.convert(frame);
+    final Mat converted = CONVERTER.get().convert(frame);
     this.mat = new Mat();
     opencv_imgproc.cvtColor(converted, this.mat, opencv_imgproc.COLOR_YUV2BGR_I420);
     this.assignMat(this.mat);
@@ -118,6 +121,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
 
     final Mat bgr = new Mat();
     opencv_imgproc.cvtColor(originalMat, bgr, COLOR_BGRA2BGR);
+    originalMat.release();
 
     this.mat = bgr;
     this.assignMat(this.mat);
@@ -190,8 +194,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public BufferedImage toBufferedImage() {
-    try (final Frame f = CONVERTER.convert(this.mat)) {
-      return IMAGE_CONVERTER.getBufferedImage(f);
+    try (final Frame f = CONVERTER.get().convert(this.mat)) {
+      return IMAGE_CONVERTER.get().getBufferedImage(f);
     }
   }
 
