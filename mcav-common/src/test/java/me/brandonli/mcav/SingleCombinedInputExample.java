@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
-import javax.swing.*;
-import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -33,6 +28,12 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
+
+import javax.swing.*;
+import javax.swing.border.LineBorder;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
@@ -59,7 +60,7 @@ public final class SingleCombinedInputExample {
     BufferedImage bufferedImage;
     ImageIcon icon;
     final UriSource source = UriSource.uri(
-      URI.create("http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_native_60fps_normal.mp4")
+      URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov")
     );
 
     final DirectAudioOutput output = new DirectAudioOutput();
