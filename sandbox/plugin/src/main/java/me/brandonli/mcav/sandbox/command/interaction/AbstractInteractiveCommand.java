@@ -21,7 +21,7 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
@@ -57,7 +57,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   protected static final PlainTextComponentSerializer PLAIN_TEXT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
-  protected @Nullable MapResult result;
+  protected @Nullable CompressedMapResult result;
   protected @Nullable T player;
 
   protected ExecutorService service;

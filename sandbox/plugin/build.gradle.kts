@@ -77,7 +77,7 @@ tasks {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
         minecraftVersion("1.21.11")
         downloadPlugins {
-            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/bNX2205a/voicechat-bukkit-2.5.35.jar")
+            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/FeJRj2X0/voicechat-bukkit-2.6.12.jar")
         }
     }
 }

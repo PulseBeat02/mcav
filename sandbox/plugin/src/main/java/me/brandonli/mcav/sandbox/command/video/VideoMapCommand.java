@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import java.util.Collection;
-import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.MapResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -44,6 +42,9 @@ import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
+
+import java.util.Collection;
+import java.util.UUID;
 
 public final class VideoMapCommand extends AbstractVideoCommand {
 

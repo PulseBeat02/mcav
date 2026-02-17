@@ -26,7 +26,7 @@ import java.util.UUID;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
-import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -151,7 +151,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       .viewers(players)
       .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
-    final MapResult result = new MapResult(configuration);
+    final CompressedMapResult result = new CompressedMapResult(configuration);
     final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final BrowserSource source = BrowserSource.uri(uri, quality, resolutionWidth, resolutionHeight, nth);

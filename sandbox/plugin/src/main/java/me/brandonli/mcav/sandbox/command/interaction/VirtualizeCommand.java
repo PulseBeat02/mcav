@@ -20,7 +20,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
-import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -156,7 +156,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       .viewers(players)
       .build();
     final DitherAlgorithm algorithm = ditheringAlgorithm.getAlgorithm();
-    final MapResult result = new MapResult(configuration);
+    final CompressedMapResult result = new CompressedMapResult(configuration);
     final VideoFilter filter = DitherFilter.dither(algorithm, result);
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VMConfiguration config = this.parseVMOptions(flags);
