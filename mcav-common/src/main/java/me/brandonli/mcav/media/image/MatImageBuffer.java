@@ -17,6 +17,19 @@
  */
 package me.brandonli.mcav.media.image;
 
+import static java.util.Objects.requireNonNull;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
+
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -32,19 +45,6 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.opencv.core.CvType;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -64,7 +64,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   private static final ThreadLocal<Java2DFrameConverter> IMAGE_CONVERTER = ThreadLocal.withInitial(Java2DFrameConverter::new);
 
   private @Nullable BytePointer pointer;
-  private final Mat mat;
+  private @Nullable ByteBuffer cachedBuffer;
+  private Mat mat;
 
   MatImageBuffer(final Mat mat) {
     this.mat = mat;
@@ -143,14 +144,14 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
         break;
       }
       case BufferedImage.TYPE_4BYTE_ABGR: {
-        final byte[] abgr = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        final byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
         mat = new Mat(height, width, CV_8UC4);
         final BytePointer ptr = mat.data();
-        for (int i = 0; i < abgr.length; i += 4) {
-          ptr.put(i + 0, abgr[i + 1]);
-          ptr.put(i + 1, abgr[i + 2]);
-          ptr.put(i + 2, abgr[i + 3]);
-          ptr.put(i + 3, abgr[i + 0]);
+        for (int i = 0; i < pixels.length; i += 4) {
+          ptr.put(i + 0, pixels[i + 1]);
+          ptr.put(i + 1, pixels[i + 2]);
+          ptr.put(i + 2, pixels[i + 3]);
+          ptr.put(i + 3, pixels[i + 0]);
         }
         this.mat = mat;
         this.assignMat(this.mat);
@@ -191,6 +192,39 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
     this.set(MAT_PROPERTY, mat);
   }
 
+  @Override
+  public void updateData(final ByteBuffer bytes, final int width, final int height) {
+    bytes.rewind();
+    final int totalBytes = bytes.remaining();
+    final int stride = totalBytes / height;
+    if (this.mat.cols() == width && this.mat.rows() == height && this.pointer != null) {
+      final byte[] arr = new byte[totalBytes];
+      bytes.get(arr);
+      final BytePointer ptr = requireNonNull(this.pointer);
+      ptr.position(0).put(arr);
+      this.cachedBuffer = null;
+    } else {
+      this.mat.release();
+      if (this.pointer != null) {
+        this.pointer.deallocate();
+      }
+      final BytePointer ptr = new BytePointer(bytes);
+      this.mat = new Mat(height, width, CV_8UC3, ptr, stride);
+      this.pointer = ptr;
+      this.cachedBuffer = null;
+      this.set(MAT_PROPERTY, this.mat);
+    }
+  }
+
+  private ByteBuffer getOrCreateBuffer() {
+    ByteBuffer buf = this.cachedBuffer;
+    if (buf == null) {
+      buf = this.mat.createBuffer();
+      this.cachedBuffer = buf;
+    }
+    return buf;
+  }
+
   /**
    * {@inheritDoc}
    */
@@ -208,7 +242,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public void setPixel(final int x, final int y, final double[] value) {
-    final ByteBuffer buf = this.mat.createBuffer();
+    final ByteBuffer buf = this.getOrCreateBuffer();
     final int channels = this.mat.channels();
     final int len = Math.min(value.length, channels);
     if (this.mat.isContinuous()) {
@@ -232,7 +266,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public double[] getPixel(final int x, final int y) {
-    final ByteBuffer buf = this.mat.createBuffer();
+    final ByteBuffer buf = this.getOrCreateBuffer();
     final int channels = this.mat.channels();
     final double[] values = new double[channels];
     if (this.mat.isContinuous()) {
@@ -326,11 +360,14 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
 
     final byte[] pixels = ((DataBufferByte) bgrImage.getRaster().getDataBuffer()).getData();
     final Mat newMat = new Mat(bgrImage.getHeight(), bgrImage.getWidth(), CvType.CV_8UC3);
-    newMat.data().put(pixels);
+    final BytePointer data = newMat.data();
+    data.put(pixels);
 
     this.mat.release();
     newMat.copyTo(this.mat);
     newMat.release();
+
+    this.cachedBuffer = null;
   }
 
   @SuppressWarnings("all") // fuck you checker for say observer can't be null

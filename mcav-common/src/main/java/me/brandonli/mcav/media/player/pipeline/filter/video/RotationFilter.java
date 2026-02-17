@@ -41,10 +41,7 @@ public class RotationFilter extends MatVideoFilter {
    */
   @Override
   void modifyMat(final Mat mat) {
-    final Mat rotatedMat = new Mat();
-    opencv_core.rotate(mat, rotatedMat, this.code);
-    rotatedMat.copyTo(mat);
-    rotatedMat.release();
+    opencv_core.rotate(mat, mat, this.code);
   }
 
   /**

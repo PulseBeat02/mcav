@@ -17,7 +17,15 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.sun.jna.Pointer;
+import java.nio.ByteBuffer;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
@@ -47,15 +55,6 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.
@@ -97,11 +96,16 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final ThreadPoolExecutor videoProcessingExecutor;
   private final ThreadPoolExecutor audioProcessingExecutor;
 
-  private @Nullable volatile ScheduledExecutorService syncExecutor;
-  private @Nullable volatile CallbackVideoSurface pinnedVideoSurface;
-  private @Nullable volatile BufferCallback pinnedBufferCallback;
-  private @Nullable volatile VideoCallback pinnedVideoCallback;
-  private @Nullable volatile AudioCallback pinnedAudioCallback;
+  @Nullable private volatile ScheduledExecutorService syncExecutor;
+
+  @Nullable private volatile CallbackVideoSurface pinnedVideoSurface;
+
+  @Nullable private volatile BufferCallback pinnedBufferCallback;
+
+  @Nullable private volatile VideoCallback pinnedVideoCallback;
+
+  @Nullable private volatile AudioCallback pinnedAudioCallback;
+
   private volatile boolean dualPlayerMode;
 
   private volatile BiConsumer<String, Throwable> exceptionHandler;
@@ -121,7 +125,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     this.audioPlayer = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
-    this.videoProcessingExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(2), new ThreadPoolExecutor.DiscardOldestPolicy());
+    this.videoProcessingExecutor = new ThreadPoolExecutor(
+      1,
+      1,
+      0,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<>(2),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
     this.audioProcessingExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
     this.args = args;
     this.dualPlayerMode = false;
@@ -212,7 +223,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       combined[this.args.length] = extra;
       return combined;
     }
-    return new String[]{extra};
+    return new String[] { extra };
   }
 
   private void prepareMedia(final EmbeddedMediaPlayer player, final String resource, final String extraArg) {
@@ -290,8 +301,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       } else {
         videoControls.setRate(RATE_NORMAL);
       }
-    } catch (final Throwable ignored) {
-    }
+    } catch (final Throwable ignored) {}
   }
 
   private void stopSyncTask() {

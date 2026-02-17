@@ -201,4 +201,16 @@ public interface ImageBuffer extends Image, Examinable {
    * @return a ByteBuffer containing the raw pixel data
    */
   ByteBuffer getData();
+
+  /**
+   * Updates the backing data of this image buffer in-place, reusing native allocations
+   * when the dimensions match. This avoids per-frame allocation overhead.
+   *
+   * @param data   the new image data
+   * @param width  the image width
+   * @param height the image height
+   */
+  default void updateData(final ByteBuffer data, final int width, final int height) {
+    throw new UnsupportedOperationException("updateData not supported by this ImageBuffer implementation");
+  }
 }

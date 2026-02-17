@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
+import javax.swing.*;
+import javax.swing.border.LineBorder;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
@@ -31,12 +36,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
-
-import javax.swing.*;
-import javax.swing.border.LineBorder;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
 
 @SuppressWarnings("all")
 public final class MultiplexerInputExample {
@@ -74,8 +73,8 @@ public final class MultiplexerInputExample {
 
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(output);
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-            .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
-            .build();
+      .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
+      .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     multiplexer.setExceptionHandler((context, throwable) -> {
@@ -96,12 +95,12 @@ public final class MultiplexerInputExample {
     multiplexer.start(videoFormat, audioFormat);
 
     Runtime.getRuntime()
-            .addShutdownHook(
-                    new Thread(() -> {
-                      output.release();
-                      multiplexer.release();
-                      api.release();
-                    })
-            );
+      .addShutdownHook(
+        new Thread(() -> {
+          output.release();
+          multiplexer.release();
+          api.release();
+        })
+      );
   }
 }

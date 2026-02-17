@@ -41,10 +41,7 @@ public class FlipFilter extends MatVideoFilter {
    */
   @Override
   void modifyMat(final Mat mat) {
-    final Mat flippedMat = new Mat();
-    opencv_core.flip(mat, flippedMat, this.flipCode);
-    flippedMat.copyTo(mat);
-    flippedMat.release();
+    opencv_core.flip(mat, mat, this.flipCode);
   }
 
   /**

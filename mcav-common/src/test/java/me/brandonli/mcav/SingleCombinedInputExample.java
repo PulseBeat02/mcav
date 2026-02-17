@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.net.URI;
+import javax.swing.*;
+import javax.swing.border.LineBorder;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -25,15 +30,12 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FlipFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.InvertFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
-
-import javax.swing.*;
-import javax.swing.border.LineBorder;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.net.URI;
 
 @SuppressWarnings("all") // checker
 public final class SingleCombinedInputExample {
@@ -69,6 +71,9 @@ public final class SingleCombinedInputExample {
     final AudioPipelineStep audioPipelineStep = PipelineBuilder.audio().then(output).build();
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
+      .then(new ResizeFilter(500, 500))
+      .then(new InvertFilter())
+      .then(new FlipFilter(FlipFilter.FlipDirection.HORIZONTAL))
       .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
       .build();
 
