@@ -5,8 +5,8 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp.exe",
-    "hash": "c070670e32cc7deaa5f3fcf51563b415ad9091323208f242fa6a3a3bab85bffd"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp.exe",
+    "hash": "78a3ac4cd1eeb681d65e55fc1761ee14c87de8d8699afb09140d1049c15ae006"
   },
   {
     "platform": {
@@ -14,8 +14,8 @@
       "arch": "X86",
       "bits": "BITS_32"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_x86.exe",
-    "hash": "70d29552ad07431eee0b5d3bd7aa4aa91dd5526776bbebcef79ec2d40fceba37"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp_x86.exe",
+    "hash": "436f03ca53605599ddc1ea47c3a23e9ae3f9bb7e7311c4b776f2a58d8e73eb2d"
   },
   {
     "platform": {
@@ -23,8 +23,8 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_linux",
-    "hash": "e2d5598b3936ff991d57099291be5bf60c5af2ef6ad4dd8d6800bb7b10ca50a7"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp_linux",
+    "hash": "051ed827a836f56772d662c38ebfabd8d613a21a39376737d56893184bcc53f8"
   },
   {
     "platform": {
@@ -32,8 +32,8 @@
       "arch": "ARM",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_linux_aarch64",
-    "hash": "01c5939db77fc65b06319bc837449c083011c313c8e7f4fcaef1344c394fdd6d"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp_linux_aarch64",
+    "hash": "6b83f090768a9d428456b7998a5b8fc1c628895647df2763f54f9552601b732e"
   },
   {
     "platform": {
@@ -41,8 +41,8 @@
       "arch": "ARM",
       "bits": "BITS_32"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_linux_armv7l",
-    "hash": "0a537d21d60cb02bd77cf7302af3d0bbe02be92bb71093f0cedf7873175de8e7"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.08.27/yt-dlp_linux_armv7l",
+    "hash": "4be10d05b2e19ff43ffd9b6906571f456713cc0833232cd4b231b959653ecf32"
   },
   {
     "platform": {
@@ -50,8 +50,8 @@
       "arch": "ARM",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_macos",
-    "hash": "e2273b717c09c87413fc8cc2bedea5ed436bdfd9b2cf62b5458d7301aa5e769b"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp_macos",
+    "hash": "e833b5aa657b2f2b8608442e9afac91374f147cb641301e8fb39a339e2fe3f71"
   },
   {
     "platform": {
@@ -59,7 +59,7 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_macos",
-    "hash": "e2273b717c09c87413fc8cc2bedea5ed436bdfd9b2cf62b5458d7301aa5e769b"
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.02.04/yt-dlp_macos",
+    "hash": "e833b5aa657b2f2b8608442e9afac91374f147cb641301e8fb39a339e2fe3f71"
   }
 ]

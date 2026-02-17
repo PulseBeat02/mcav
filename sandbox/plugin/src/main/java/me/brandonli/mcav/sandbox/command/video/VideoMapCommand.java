@@ -20,7 +20,7 @@ package me.brandonli.mcav.sandbox.command.video;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
-import me.brandonli.mcav.bukkit.media.result.MapResult;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
@@ -81,7 +81,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
   public VideoPipelineStep createVideoFilter(final Pair<Integer, Integer> resolution, final VideoConfigurationProvider configProvider) {
     final MapConfigurationData config = (MapConfigurationData) configProvider.buildConfiguration(resolution);
     final MapConfiguration mapConfig = config.mapConfiguration();
-    final MapResult result = new MapResult(mapConfig);
+    final CompressedMapResult result = new CompressedMapResult(mapConfig);
     final DitherAlgorithm algorithm = config.ditheringAlgorithm().getAlgorithm();
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
     final BukkitScheduler scheduler = Bukkit.getScheduler();

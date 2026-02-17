@@ -43,10 +43,7 @@ import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
-import uk.co.caprica.vlcj.player.base.AudioApi;
-import uk.co.caprica.vlcj.player.base.ControlsApi;
-import uk.co.caprica.vlcj.player.base.MediaApi;
-import uk.co.caprica.vlcj.player.base.MediaPlayer;
+import uk.co.caprica.vlcj.player.base.*;
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi;
@@ -72,9 +69,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private static final String NO_AUDIO_ARG = ":no-audio";
   private static final String NO_VIDEO_ARG = ":no-video";
 
-  private static final long DRIFT_THRESHOLD_MS = 30;
-  private static final long DRIFT_HARD_SEEK_MS = 500;
-  private static final long SYNC_INTERVAL_MS = 500;
+  private static final long DRIFT_THRESHOLD_MS = 100;
+  private static final long DRIFT_HARD_SEEK_MS = 2000;
+  private static final long SYNC_INTERVAL_MS = 50;
+
   private static final float RATE_NORMAL = 1.0f;
   private static final float RATE_SLOW = 0.97f;
   private static final float RATE_FAST = 1.03f;
@@ -189,6 +187,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
       this.addVideoCallbacks(combined);
       this.addAudioCallbacks(combined, this.videoPlayer);
+      this.sleep(1000L);
 
       final String resource = combined.getResource();
       final MediaApi mediaApi = this.videoPlayer.media();
@@ -199,6 +198,12 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       }
       return true;
     });
+  }
+
+  private void sleep(final long ms) {
+    try {
+      Thread.sleep(ms);
+    } catch (final InterruptedException ignored) {}
   }
 
   @Override
@@ -287,13 +292,19 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       return;
     }
     try {
-      final long audioTime = this.audioPlayer.status().time();
-      final long videoTime = this.videoPlayer.status().time();
+      final StatusApi audioStatus = this.audioPlayer.status();
+      final StatusApi videoStatus = this.videoPlayer.status();
+      if (!audioStatus.isPlaying() || !videoStatus.isPlaying()) {
+        return;
+      }
+
+      final long audioTime = audioStatus.time();
+      final long videoTime = videoStatus.time();
       final long drift = videoTime - audioTime;
       final long absDrift = Math.abs(drift);
       final ControlsApi videoControls = this.videoPlayer.controls();
       if (absDrift > DRIFT_HARD_SEEK_MS) {
-        videoControls.setTime(audioTime);
+        videoControls.setTime(audioTime + 50);
         videoControls.setRate(RATE_NORMAL);
       } else if (absDrift > DRIFT_THRESHOLD_MS) {
         final float correction = drift > 0 ? RATE_SLOW : RATE_FAST;
