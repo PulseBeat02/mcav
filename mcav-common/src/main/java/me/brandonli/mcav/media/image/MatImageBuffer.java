@@ -17,18 +17,6 @@
  */
 package me.brandonli.mcav.media.image;
 
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -44,6 +32,19 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.opencv.core.CvType;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -79,7 +80,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   }
 
   MatImageBuffer(final Frame frame) {
-    final Mat converted = CONVERTER.get().convert(frame);
+    final OpenCVFrameConverter.ToMat converter = CONVERTER.get();
+    final Mat converted = converter.convert(frame);
     this.mat = new Mat();
     opencv_imgproc.cvtColor(converted, this.mat, opencv_imgproc.COLOR_YUV2BGR_I420);
     this.assignMat(this.mat);
@@ -194,8 +196,10 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public BufferedImage toBufferedImage() {
-    try (final Frame f = CONVERTER.get().convert(this.mat)) {
-      return IMAGE_CONVERTER.get().getBufferedImage(f);
+    final OpenCVFrameConverter.ToMat converter = CONVERTER.get();
+    final Java2DFrameConverter imageConverter = IMAGE_CONVERTER.get();
+    try (final Frame f = converter.convert(this.mat)) {
+      return imageConverter.getBufferedImage(f);
     }
   }
 

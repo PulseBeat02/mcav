@@ -36,6 +36,7 @@ import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.AudioApi;
+import uk.co.caprica.vlcj.player.base.ControlsApi;
 import uk.co.caprica.vlcj.player.base.MediaApi;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
@@ -69,15 +70,26 @@ import static java.util.Objects.requireNonNull;
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final String[] LIBVLC_INIT_ARGS = {};
+  private static final String NO_AUDIO_ARG = ":no-audio";
+  private static final String NO_VIDEO_ARG = ":no-video";
+
   private static final long DRIFT_THRESHOLD_MS = 30;
   private static final long DRIFT_HARD_SEEK_MS = 500;
   private static final long SYNC_INTERVAL_MS = 500;
+  private static final float RATE_NORMAL = 1.0f;
+  private static final float RATE_SLOW = 0.97f;
+  private static final float RATE_FAST = 1.03f;
+
+  private static final String AUDIO_FORMAT = "S16N";
+  private static final int AUDIO_RATE = 48000;
+  private static final int AUDIO_CHANNELS = 2;
 
   private final DimensionAttachableCallback dimensionAttachableCallback;
   private final VideoAttachableCallback videoAttachableCallback;
   private final AudioAttachableCallback audioAttachableCallback;
   private final MediaPlayerFactory factory;
   private final EmbeddedMediaPlayer videoPlayer;
+  private final EmbeddedMediaPlayer audioPlayer;
   private final AtomicBoolean running;
   private final String[] args;
   private final Lock lock;
@@ -85,7 +97,6 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private final ThreadPoolExecutor videoProcessingExecutor;
   private final ThreadPoolExecutor audioProcessingExecutor;
 
-  private @Nullable volatile EmbeddedMediaPlayer audioPlayer;
   private @Nullable volatile ScheduledExecutorService syncExecutor;
   private @Nullable volatile CallbackVideoSurface pinnedVideoSurface;
   private @Nullable volatile BufferCallback pinnedBufferCallback;
@@ -107,6 +118,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     this.audioAttachableCallback = AudioAttachableCallback.create();
     this.factory = new MediaPlayerFactory(LIBVLC_INIT_ARGS);
     this.videoPlayer = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
+    this.audioPlayer = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.videoProcessingExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(2), new ThreadPoolExecutor.DiscardOldestPolicy());
@@ -141,24 +153,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.dualPlayerMode = true;
 
       this.addVideoCallbacks(video);
+      this.addAudioCallbacks(audio, this.audioPlayer);
 
-      // Video player — no audio decoding
-      final MediaApi videoMedia = this.videoPlayer.media();
       final String videoResource = video.getResource();
-      videoMedia.prepare(videoResource, this.appendArg(":no-audio"));
-
-      // Audio player — no video decoding, with audio callback
-      final EmbeddedMediaPlayer ap = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
-      this.audioPlayer = ap;
-      this.addAudioCallbacks(audio, ap);
       final String audioResource = audio.getResource();
-      ap.media().prepare(audioResource, this.appendArg(":no-video"));
+      this.prepareMedia(this.videoPlayer, videoResource, NO_AUDIO_ARG);
+      this.prepareMedia(this.audioPlayer, audioResource, NO_VIDEO_ARG);
 
-      // Start both together
-      this.videoPlayer.controls().play();
-      ap.controls().play();
-
-      // Start periodic sync (audio is master clock)
+      this.playBothPlayers();
       this.startSyncTask();
 
       return true;
@@ -177,8 +179,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.addVideoCallbacks(combined);
       this.addAudioCallbacks(combined, this.videoPlayer);
 
-      final MediaApi mediaApi = this.videoPlayer.media();
       final String resource = combined.getResource();
+      final MediaApi mediaApi = this.videoPlayer.media();
       if (this.args != null && this.args.length > 0) {
         mediaApi.play(resource, this.args);
       } else {
@@ -203,7 +205,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return this.dimensionAttachableCallback;
   }
 
-  private String[] appendArg(final String extra) {
+  private String[] appendArgument(final String extra) {
     if (this.args != null && this.args.length > 0) {
       final String[] combined = new String[this.args.length + 1];
       System.arraycopy(this.args, 0, combined, 0, this.args.length);
@@ -213,66 +215,83 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     return new String[]{extra};
   }
 
+  private void prepareMedia(final EmbeddedMediaPlayer player, final String resource, final String extraArg) {
+    final MediaApi mediaApi = player.media();
+    final String[] mediaArgs = this.appendArgument(extraArg);
+    mediaApi.prepare(resource, mediaArgs);
+  }
+
+  private void playBothPlayers() {
+    final ControlsApi videoControls = this.videoPlayer.controls();
+    final ControlsApi audioControls = this.audioPlayer.controls();
+    videoControls.play();
+    audioControls.play();
+  }
+
+  private void pauseBothPlayers() {
+    final ControlsApi videoControls = this.videoPlayer.controls();
+    final ControlsApi audioControls = this.audioPlayer.controls();
+    videoControls.pause();
+    audioControls.pause();
+  }
+
+  private void seekBothPlayers(final long time) {
+    final ControlsApi videoControls = this.videoPlayer.controls();
+    final ControlsApi audioControls = this.audioPlayer.controls();
+    videoControls.setTime(time);
+    audioControls.setTime(time);
+  }
+
   private void addVideoCallbacks(final Source video) {
     final OriginalVideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
     final VideoSurfaceApi surfaceApi = this.videoPlayer.videoSurface();
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi videoSurfaceApi = this.factory.videoSurfaces();
-
     final VideoPipelineStep videoPipeline = this.videoAttachableCallback.retrieve();
     this.pinnedBufferCallback = new BufferCallback(videoMetadata);
     this.pinnedVideoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.pinnedVideoSurface = videoSurfaceApi.newVideoSurface(
-            this.pinnedBufferCallback, this.pinnedVideoCallback, true
-    );
+    this.pinnedVideoSurface = videoSurfaceApi.newVideoSurface(this.pinnedBufferCallback, this.pinnedVideoCallback, true);
     surfaceApi.set(this.pinnedVideoSurface);
   }
 
   private void addAudioCallbacks(final Source audio, final EmbeddedMediaPlayer target) {
     final OriginalAudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
     final AudioApi audioApi = target.audio();
-
     final AudioPipelineStep audioPipeline = this.audioAttachableCallback.retrieve();
     this.pinnedAudioCallback = new AudioCallback(audioPipeline, audioMetadata);
-    audioApi.callback("S16N", 48000, 2, requireNonNull(this.pinnedAudioCallback));
+    audioApi.callback(AUDIO_FORMAT, AUDIO_RATE, AUDIO_CHANNELS, requireNonNull(this.pinnedAudioCallback));
   }
 
   private void startSyncTask() {
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
-      final Thread t = new Thread(r, "vlc-sync");
-      t.setDaemon(true);
-      return t;
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(task -> {
+      final Thread thread = new Thread(task, "vlc-sync");
+      thread.setDaemon(true);
+      return thread;
     });
     this.syncExecutor = executor;
-    executor.scheduleAtFixedRate(() -> {
-      if (!this.running.get()) {
-        return;
-      }
-      final EmbeddedMediaPlayer ap = this.audioPlayer;
-      if (ap == null) {
-        return;
-      }
-      try {
-        final long audioTime = ap.status().time();
-        final long videoTime = this.videoPlayer.status().time();
-        final long drift = videoTime - audioTime;
-        final long absDrift = Math.abs(drift);
+    executor.scheduleAtFixedRate(this::syncVideoToAudio, SYNC_INTERVAL_MS, SYNC_INTERVAL_MS, TimeUnit.MILLISECONDS);
+  }
 
-        if (absDrift > DRIFT_HARD_SEEK_MS) {
-          // Drift is too large to correct gradually, hard seek
-          this.videoPlayer.controls().setTime(audioTime);
-          this.videoPlayer.controls().setRate(1.0f);
-        } else if (absDrift > DRIFT_THRESHOLD_MS) {
-          // Video is ahead — slow it down. Video is behind — speed it up.
-          final float correction = drift > 0 ? 0.97f : 1.03f;
-          this.videoPlayer.controls().setRate(correction);
-        } else {
-          // Within tolerance, restore normal rate
-          this.videoPlayer.controls().setRate(1.0f);
-        }
-      } catch (final Throwable e) {
-        // Player may have been released, ignore
+  private void syncVideoToAudio() {
+    if (!this.running.get()) {
+      return;
+    }
+    try {
+      final long audioTime = this.audioPlayer.status().time();
+      final long videoTime = this.videoPlayer.status().time();
+      final long drift = videoTime - audioTime;
+      final long absDrift = Math.abs(drift);
+      final ControlsApi videoControls = this.videoPlayer.controls();
+      if (absDrift > DRIFT_HARD_SEEK_MS) {
+        videoControls.setTime(audioTime);
+        videoControls.setRate(RATE_NORMAL);
+      } else if (absDrift > DRIFT_THRESHOLD_MS) {
+        final float correction = drift > 0 ? RATE_SLOW : RATE_FAST;
+        videoControls.setRate(correction);
+      } else {
+        videoControls.setRate(RATE_NORMAL);
       }
-    }, SYNC_INTERVAL_MS, SYNC_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    } catch (final Throwable ignored) {
+    }
   }
 
   private void stopSyncTask() {
@@ -290,12 +309,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean pause() {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
-      this.videoPlayer.controls().pause();
       if (this.dualPlayerMode) {
-        final EmbeddedMediaPlayer ap = this.audioPlayer;
-        if (ap != null) {
-          ap.controls().pause();
-        }
+        this.pauseBothPlayers();
+      } else {
+        this.videoPlayer.controls().pause();
       }
       return true;
     });
@@ -308,15 +325,12 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean resume() {
     return LockUtils.executeWithLock(this.lock, () -> {
       if (this.dualPlayerMode) {
-        final EmbeddedMediaPlayer ap = this.audioPlayer;
-        if (ap != null) {
-          // Sync video to audio position before resuming
-          final long time = ap.status().time();
-          this.videoPlayer.controls().setTime(time);
-          ap.controls().start();
-        }
+        final long audioTime = this.audioPlayer.status().time();
+        this.videoPlayer.controls().setTime(audioTime);
+        this.playBothPlayers();
+      } else {
+        this.videoPlayer.controls().start();
       }
-      this.videoPlayer.controls().start();
       this.running.set(true);
       return true;
     });
@@ -329,12 +343,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   public boolean seek(final long time) {
     return LockUtils.executeWithLock(this.lock, () -> {
       this.running.set(false);
-      this.videoPlayer.controls().setTime(time);
       if (this.dualPlayerMode) {
-        final EmbeddedMediaPlayer ap = this.audioPlayer;
-        if (ap != null) {
-          ap.controls().setTime(time);
-        }
+        this.seekBothPlayers(time);
+      } else {
+        this.videoPlayer.controls().setTime(time);
       }
       this.running.set(true);
       return true;
@@ -351,11 +363,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.stopSyncTask();
       this.videoProcessingExecutor.shutdownNow();
       this.audioProcessingExecutor.shutdownNow();
-      final EmbeddedMediaPlayer ap = this.audioPlayer;
-      if (ap != null) {
-        ap.release();
-        this.audioPlayer = null;
-      }
+      this.audioPlayer.release();
       this.videoPlayer.release();
       this.factory.release();
       this.pinnedVideoSurface = null;

@@ -17,13 +17,27 @@
  */
 package me.brandonli.mcav.vnc;
 
-import static java.util.Objects.requireNonNull;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
+import me.brandonli.mcav.json.GsonProvider;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.CollectionUtils;
+import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.LockUtils;
+import me.brandonli.mcav.utils.interaction.MouseClick;
+import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -40,21 +54,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
-import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.utils.CollectionUtils;
-import me.brandonli.mcav.utils.ExecutorUtils;
-import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.LockUtils;
-import me.brandonli.mcav.utils.interaction.MouseClick;
-import org.checkerframework.checker.nullness.qual.KeyFor;
-import org.checkerframework.checker.nullness.qual.Nullable;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A VNCPlayer implementation that handles VNC connections and video frame processing.
@@ -208,7 +209,9 @@ public class VNCPlayerImpl implements VNCPlayer {
       }
       staticImage.release();
     } catch (final Throwable e) {
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }

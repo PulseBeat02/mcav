@@ -17,15 +17,6 @@
  */
 package me.brandonli.mcav.media.player.image;
 
-import static java.util.Objects.requireNonNull;
-
-import java.nio.IntBuffer;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -35,6 +26,16 @@ import me.brandonli.mcav.media.source.frame.FrameSource;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.LockUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.nio.IntBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A default implementation of the {@link ImagePlayer} interface.
@@ -113,7 +114,9 @@ public class ImagePlayerImpl implements ImagePlayer {
     } catch (final InterruptedException e) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }

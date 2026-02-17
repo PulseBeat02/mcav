@@ -17,20 +17,6 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
-import static java.util.Objects.requireNonNull;
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
-import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
-import static org.bytedeco.ffmpeg.global.swscale.SWS_POINT;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-import javax.sound.sampled.LineUnavailableException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -50,6 +36,21 @@ import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import javax.sound.sampled.LineUnavailableException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+
+import static java.util.Objects.requireNonNull;
+import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
+import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
+import static org.bytedeco.ffmpeg.global.swscale.SWS_POINT;
 
 /**
  * Abstract implementation of a video player that uses JavaCV for multimedia processing.
@@ -177,7 +178,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       try {
         audioGrabber = this.createAudioGrabber(audioSource);
       } catch (final Exception e) {
-        final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+        final String raw = e.getMessage();
+        final Class<?> clazz = e.getClass();
+        final String msg = raw != null ? raw : clazz.getName();
         this.exceptionHandler.accept(msg, e);
         separateAudioSource = false;
       }
@@ -219,7 +222,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         this.playbackCombinedSource(videoGrabber, videoMeta, audioMeta, audioExec, videoExec);
       }
     } catch (final FrameGrabber.Exception e) {
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     } finally {
       if (audioGrabber != null) {
@@ -253,7 +258,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
           }
         }
       } catch (final FrameGrabber.Exception e) {
-        final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+        final String raw = e.getMessage();
+        final Class<?> clazz = e.getClass();
+        final String msg = raw != null ? raw : clazz.getName();
         this.exceptionHandler.accept(msg, e);
       }
     });
@@ -341,7 +348,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         return true;
       } catch (final Throwable e) {
         this.stop();
-        final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+        final String raw = e.getMessage();
+        final Class<?> clazz = e.getClass();
+        final String msg = raw != null ? raw : clazz.getName();
         this.exceptionHandler.accept(msg, e);
         throw new PlayerException(msg, e);
       }
@@ -457,7 +466,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         }
       }
     } catch (final FrameGrabber.Exception e) {
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }
@@ -473,7 +484,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         step = step.next();
       }
     } catch (final Throwable e) {
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
   }
@@ -530,7 +543,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       }
       img.release();
     } catch (final Throwable e) {
-      final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+      final String raw = e.getMessage();
+      final Class<?> clazz = e.getClass();
+      final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
     return false;
@@ -621,7 +636,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
         grabber.stop();
         grabber.close();
       } catch (final FrameGrabber.Exception e) {
-        final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+        final String raw = e.getMessage();
+        final Class<?> clazz = e.getClass();
+        final String msg = raw != null ? raw : clazz.getName();
         this.exceptionHandler.accept(msg, e);
       }
       this.grabber = null;
