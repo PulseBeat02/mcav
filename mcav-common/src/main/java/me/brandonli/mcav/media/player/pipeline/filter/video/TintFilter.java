@@ -45,9 +45,10 @@ public class TintFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final Mat tintedMat = new Mat(mat.size(), mat.type(), this.tintColor);
     opencv_core.addWeighted(mat, 1.0 - this.alpha, tintedMat, this.alpha, 0.0, mat);
     tintedMat.release();
+    return true;
   }
 }

@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 
 /**
  * A video filter that blends the current frame with another frame using a specified alpha value.
@@ -45,9 +46,14 @@ public class BlendFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
-    if (mat.size().equals(this.otherMat.size())) {
-      opencv_core.addWeighted(mat, this.alpha, this.otherMat, 1.0 - this.alpha, 0.0, mat);
+  boolean modifyMat(final Mat mat) {
+    final Size first = mat.size();
+    final Size second = this.otherMat.size();
+    if (!first.equals(second)) {
+      return false;
     }
+
+    opencv_core.addWeighted(mat, this.alpha, this.otherMat, 1.0 - this.alpha, 0.0, mat);
+    return true;
   }
 }

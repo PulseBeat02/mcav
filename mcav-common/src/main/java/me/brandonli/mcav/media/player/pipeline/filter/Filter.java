@@ -32,6 +32,7 @@ public interface Filter<A, B> {
    *
    * @param samples  the data samples to be processed
    * @param metadata the metadata associated with the data samples, which may guide the filtering process
+   * @return true if the filter was successfully applied or false if the samples should be discarded
    */
-  void applyFilter(final A samples, final B metadata);
+  boolean applyFilter(final A samples, final B metadata);
 }

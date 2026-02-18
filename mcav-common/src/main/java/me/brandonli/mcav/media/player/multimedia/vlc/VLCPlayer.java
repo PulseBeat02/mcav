@@ -17,7 +17,15 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.sun.jna.Pointer;
+import java.nio.ByteBuffer;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
@@ -46,15 +54,6 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.

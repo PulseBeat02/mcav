@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class AudioProvider {
 
-  private static final AudioFilter NO_OP = (samples, metadata) -> {};
+  private static final AudioFilter NO_OP = (samples, metadata) -> false;
 
   private final PluginDataConfigurationMapper config;
   private final MCAVSandbox sandbox;

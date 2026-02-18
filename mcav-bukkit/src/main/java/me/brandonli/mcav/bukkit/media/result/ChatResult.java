@@ -51,7 +51,7 @@ public class ChatResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final int chatWidth = this.configuration.getChatWidth();
     final int chatHeight = this.configuration.getChatHeight();
     final String character = this.configuration.getCharacter();
@@ -62,6 +62,7 @@ public class ChatResult implements FunctionalVideoFilter {
     final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
     final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
     PacketUtils.sendPackets(viewers, packet);
+    return true;
   }
 
   /**

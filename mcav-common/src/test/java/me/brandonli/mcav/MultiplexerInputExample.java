@@ -73,7 +73,10 @@ public final class MultiplexerInputExample {
 
     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(output);
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
+      .then((samples, metadata) -> {
+        videoLabel.setIcon(new ImageIcon(samples.toBufferedImage()));
+        return true;
+      })
       .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();

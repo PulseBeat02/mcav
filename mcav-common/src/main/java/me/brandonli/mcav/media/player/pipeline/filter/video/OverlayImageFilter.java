@@ -52,14 +52,15 @@ public class OverlayImageFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final int width = Math.min(this.overlayWidth, mat.cols() - this.x);
     final int height = Math.min(this.overlayHeight, mat.rows() - this.y);
     if (width <= 0 || height <= 0) {
-      return;
+      return false;
     }
     final Mat submat = mat.adjustROI(this.x, this.y, width, height);
     final Mat overlaySubmat = this.overlayMat.apply(new Range(0, height), new Range(0, width));
     opencv_core.addWeighted(submat, 1.0, overlaySubmat, 1.0, 0.0, submat);
+    return true;
   }
 }

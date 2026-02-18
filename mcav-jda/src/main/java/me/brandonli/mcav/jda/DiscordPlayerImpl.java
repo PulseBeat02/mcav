@@ -85,7 +85,7 @@ public class DiscordPlayerImpl implements DiscordPlayer {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     final ByteBuffer clamped = ByteUtils.clampNormalBufferToBigEndian(samples);
     this.bufferLock.lock();
     try {
@@ -98,6 +98,7 @@ public class DiscordPlayerImpl implements DiscordPlayer {
     } finally {
       this.bufferLock.unlock();
     }
+    return true;
   }
 
   /**

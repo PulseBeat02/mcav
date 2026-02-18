@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
@@ -42,13 +44,22 @@ public class ResizeFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
-    if (mat.cols() == this.newSize.width() && mat.rows() == this.newSize.height()) {
-      return;
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
+    if (samples.getWidth() == this.newSize.width() && samples.getHeight() == this.newSize.height()) {
+      return false;
     }
+    return super.applyFilter(samples, metadata);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  boolean modifyMat(final Mat mat) {
     final Mat resizedMat = new Mat();
     opencv_imgproc.resize(mat, resizedMat, this.newSize, 0, 0, opencv_imgproc.INTER_NEAREST);
     resizedMat.copyTo(mat);
     resizedMat.release();
+    return true;
   }
 }

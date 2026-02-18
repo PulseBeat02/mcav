@@ -42,13 +42,14 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     if (this.line == null) {
       throw new PlayerException("Audio line is not open!");
     }
     final byte[] data = new byte[samples.remaining()];
     samples.get(data);
     this.line.write(data, 0, data.length);
+    return true;
   }
 
   /**

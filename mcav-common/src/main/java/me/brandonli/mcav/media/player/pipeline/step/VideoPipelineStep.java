@@ -52,5 +52,5 @@ public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVid
   /**
    * A no-operation (no-op) implementation of {@link VideoPipelineStep}.
    */
-  VideoPipelineStep NO_OP = new VideoPipelineStepImpl(null, (samples, metadata) -> {});
+  VideoPipelineStep NO_OP = new VideoPipelineStepImpl(null, (samples, metadata) -> false);
 }

@@ -43,9 +43,10 @@ public class CropFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final Mat croppedMat = new Mat(mat, this.rect);
     croppedMat.copyTo(mat);
     croppedMat.release();
+    return true;
   }
 }

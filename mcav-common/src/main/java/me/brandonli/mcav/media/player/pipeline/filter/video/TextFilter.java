@@ -56,7 +56,8 @@ public class TextFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.putText(mat, this.text, this.position, this.fontFace, this.fontScale, this.color);
+    return true;
   }
 }

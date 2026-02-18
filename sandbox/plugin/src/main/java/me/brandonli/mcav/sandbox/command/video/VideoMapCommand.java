@@ -22,7 +22,6 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
-import me.brandonli.mcav.media.player.pipeline.filter.video.FPSFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -32,6 +31,7 @@ import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
+import me.brandonli.mcav.sandbox.utils.filter.DebugFilter;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -87,7 +87,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTask(this.plugin, result::start);
     this.manager.setFilter(ditherFilter);
-    return PipelineBuilder.video().then(new FPSFilter()).then(ditherFilter).build();
+    return PipelineBuilder.video().then(new DebugFilter(this.plugin)).then(ditherFilter).build();
   }
 
   private MapConfigurationData constructMapConfiguration(

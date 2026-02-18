@@ -74,7 +74,10 @@ public final class SingleCombinedInputExample {
       .then(new ResizeFilter(500, 500))
       .then(new InvertFilter())
       .then(new FlipFilter(FlipFilter.FlipDirection.HORIZONTAL))
-      .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
+      .then((samples, metadata) -> {
+        videoLabel.setIcon(new ImageIcon(samples.toBufferedImage()));
+        return true;
+      })
       .build();
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();

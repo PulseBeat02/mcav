@@ -50,7 +50,8 @@ public class CircleFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.circle(mat, this.center, this.radius, this.color);
+    return true;
   }
 }

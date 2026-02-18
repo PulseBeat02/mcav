@@ -118,9 +118,9 @@ public class HttpResultImpl implements HttpResult {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     if (this.wsClients.isEmpty()) {
-      return;
+      return false;
     }
 
     final ByteBuffer clamped = samples.order(ByteOrder.BIG_ENDIAN);
@@ -130,6 +130,8 @@ public class HttpResultImpl implements HttpResult {
         session.sendMessage(message);
       } catch (final Exception ignored) {}
     }
+
+    return true;
   }
 
   /**

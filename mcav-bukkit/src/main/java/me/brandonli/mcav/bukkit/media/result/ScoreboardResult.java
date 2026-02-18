@@ -123,7 +123,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    */
   @Override
   @SuppressWarnings("deprecation")
-  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final String character = this.configuration.getCharacter();
     final int width = this.configuration.getWidth();
     final int lines = this.configuration.getLines();
@@ -135,5 +135,6 @@ public class ScoreboardResult implements FunctionalVideoFilter {
       final String suffix = ChatUtils.createRawLine(resizedData, character, width, i);
       team.setSuffix(suffix);
     }
+    return true;
   }
 }

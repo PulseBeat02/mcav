@@ -57,8 +57,9 @@ public class RegionScalarFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final Mat submat = mat.adjustROI(this.x, this.y, this.width, this.height);
     submat.setTo(this.scalar);
+    return true;
   }
 }

@@ -48,7 +48,8 @@ public class BilateralFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.bilateralFilter(mat, mat, this.diameter, this.sigmaColor, this.sigmaSpace);
+    return true;
   }
 }

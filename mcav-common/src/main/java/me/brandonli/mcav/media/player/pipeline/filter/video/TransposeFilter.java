@@ -36,7 +36,8 @@ public class TransposeFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_core.transpose(mat, mat);
+    return true;
   }
 }

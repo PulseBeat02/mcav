@@ -52,8 +52,9 @@ public final class DitherFilter implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     this.callback.process(samples, this.algorithm);
+    return true;
   }
 
   /**

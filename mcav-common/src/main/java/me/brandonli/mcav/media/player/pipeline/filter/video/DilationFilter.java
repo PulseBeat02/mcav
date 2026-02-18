@@ -41,7 +41,8 @@ public class DilationFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.dilate(mat, mat, this.kernel);
+    return true;
   }
 }

@@ -51,5 +51,5 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
   /**
    * A no-operation (no-op) implementation of {@link AudioPipelineStep}.
    */
-  AudioPipelineStep NO_OP = new AudioPipelineStepImpl(null, (samples, metadata) -> {});
+  AudioPipelineStep NO_OP = new AudioPipelineStepImpl(null, (samples, metadata) -> false);
 }

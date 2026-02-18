@@ -36,10 +36,11 @@ public class GrayscaleFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final Mat grayMat = new Mat();
     opencv_imgproc.cvtColor(mat, grayMat, opencv_imgproc.COLOR_BGR2GRAY);
     opencv_imgproc.cvtColor(grayMat, mat, opencv_imgproc.COLOR_GRAY2BGR);
     grayMat.release();
+    return true;
   }
 }

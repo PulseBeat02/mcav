@@ -63,7 +63,7 @@ public class EntityResult implements FunctionalVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final String character = this.entityConfiguration.getCharacter();
     final int entityWidth = this.entityConfiguration.getEntityWidth();
     final int entityHeight = this.entityConfiguration.getEntityHeight();
@@ -75,6 +75,7 @@ public class EntityResult implements FunctionalVideoFilter {
     final CraftTextDisplay craftEntity = (CraftTextDisplay) this.entity;
     final net.minecraft.world.entity.Display.TextDisplay frame = craftEntity.getHandle();
     frame.setText(prefix);
+    return true;
   }
 
   /**

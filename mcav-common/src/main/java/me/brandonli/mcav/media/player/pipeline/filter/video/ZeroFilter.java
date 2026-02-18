@@ -37,7 +37,8 @@ public class ZeroFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     mat.setTo(ZERO_MAT);
+    return true;
   }
 }

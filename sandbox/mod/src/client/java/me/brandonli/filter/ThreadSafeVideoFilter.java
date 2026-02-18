@@ -82,9 +82,9 @@ public class ThreadSafeVideoFilter implements FunctionalVideoFilter {
   }
 
   @Override
-  public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     if (!this.isStarted || samples == null) {
-      return;
+      return false;
     }
 
     final FrameData frameData = new FrameData(samples);
@@ -93,6 +93,7 @@ public class ThreadSafeVideoFilter implements FunctionalVideoFilter {
     if (this.isProcessing.compareAndSet(false, true)) {
       MinecraftClient.getInstance().execute(this::processQueuedFrames);
     }
+    return true;
   }
 
   private void processQueuedFrames() {

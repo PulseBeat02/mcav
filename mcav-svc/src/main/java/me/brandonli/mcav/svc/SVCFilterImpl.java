@@ -144,9 +144,9 @@ public final class SVCFilterImpl implements SVCFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
     if (!this.isRunning) {
-      return;
+      return false;
     }
 
     final VoicechatServerApi voiceChatApi = SVCModule.getVoiceChatApi();
@@ -185,5 +185,6 @@ public final class SVCFilterImpl implements SVCFilter {
     } catch (final IOException e) {
       throw new RuntimeException("Failed to convert audio format", e);
     }
+    return true;
   }
 }

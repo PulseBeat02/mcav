@@ -15,46 +15,43 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.media.player.pipeline.filter.video;
+package me.brandonli.mcav.sandbox.utils.filter;
 
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Point;
-import org.bytedeco.opencv.opencv_core.Scalar;
+import java.util.logging.Logger;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.sandbox.MCAVSandbox;
 
-/**
- * A filter that displays the current frame rate on the video.
- */
-public class FPSFilter extends MatVideoFilter {
+public final class DebugFilter implements VideoFilter {
 
-  private static final Scalar BLACK = new Scalar(0);
-  private static final Point POSITION = new Point(10, 20);
-
+  private final MCAVSandbox sandbox;
   private long lastFrameTime;
+  private long frame;
 
-  /**
-   * Creates a new FPSFilter instance.
-   */
-  public FPSFilter() {
+  public DebugFilter(final MCAVSandbox sandbox) {
     this.lastFrameTime = System.currentTimeMillis();
+    this.sandbox = sandbox;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  boolean modifyMat(final Mat mat) {
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     final long current = System.currentTimeMillis();
     final long elapsed = current - this.lastFrameTime;
     if (elapsed <= 0) {
-      return false;
+      return true;
     }
 
     final int frameRate = Math.toIntExact(1000 / elapsed);
-    final String text = String.valueOf(frameRate);
+    frame++;
     this.lastFrameTime = current;
+    if (frame % 10 != 0) {
+      return true;
+    }
 
-    opencv_imgproc.putText(mat, text, POSITION, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.25, BLACK);
+    final String text = String.valueOf(frameRate);
+    final Logger logger = this.sandbox.getLogger();
+    logger.info("Frame rate: " + text);
     return true;
   }
 }

@@ -42,7 +42,8 @@ public class LuminanceFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     mat.convertTo(mat, -1, this.alpha, this.beta);
+    return true;
   }
 }

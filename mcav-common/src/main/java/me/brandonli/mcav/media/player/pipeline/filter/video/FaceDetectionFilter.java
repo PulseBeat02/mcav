@@ -58,12 +58,13 @@ public class FaceDetectionFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     final RectVector faces = new RectVector();
     this.faceCascade.detectMultiScale(mat, faces);
     final Rect[] facesArray = faces.get();
     for (final Rect face : facesArray) {
       opencv_imgproc.rectangle(mat, face.tl(), face.br(), this.color);
     }
+    return true;
   }
 }

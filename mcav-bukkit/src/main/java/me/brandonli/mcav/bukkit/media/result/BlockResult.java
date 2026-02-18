@@ -64,7 +64,7 @@ public class BlockResult implements FunctionalVideoFilter {
    */
   @Override
   @SuppressWarnings("UnstableApiUsage")
-  public void applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
+  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     final int blockWidth = this.blockConfiguration.getBlockWidth();
     final int blockHeight = this.blockConfiguration.getBlockHeight();
     final ResizeFilter resize = new ResizeFilter(blockWidth, blockHeight);
@@ -97,6 +97,7 @@ public class BlockResult implements FunctionalVideoFilter {
       }
       player.sendBlockChanges(blockStates);
     }
+    return true;
   }
 
   /**

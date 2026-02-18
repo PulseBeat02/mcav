@@ -31,8 +31,9 @@ public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> 
    * Applies the filter to the provided video samples with default empty metadata.
    *
    * @param samples  the video samples to be processed
+   * @return true if the filter was successfully applied or false if the samples should be discarded
    */
-  default void applyFilter(final ImageBuffer samples) {
-    this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
+  default boolean applyFilter(final ImageBuffer samples) {
+    return this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
   }
 }

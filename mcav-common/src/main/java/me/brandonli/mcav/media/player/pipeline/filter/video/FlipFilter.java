@@ -40,8 +40,9 @@ public class FlipFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_core.flip(mat, mat, this.flipCode);
+    return true;
   }
 
   /**

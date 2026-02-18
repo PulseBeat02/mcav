@@ -51,7 +51,8 @@ public class RectangleFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color);
+    return true;
   }
 }

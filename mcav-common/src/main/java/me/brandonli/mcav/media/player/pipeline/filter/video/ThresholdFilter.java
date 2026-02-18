@@ -46,7 +46,8 @@ public class ThresholdFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_imgproc.threshold(mat, mat, this.thresh, this.maxVal, this.type);
+    return true;
   }
 }

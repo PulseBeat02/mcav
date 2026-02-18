@@ -40,8 +40,9 @@ public class RotationFilter extends MatVideoFilter {
    * {@inheritDoc}
    */
   @Override
-  void modifyMat(final Mat mat) {
+  boolean modifyMat(final Mat mat) {
     opencv_core.rotate(mat, mat, this.code);
+    return true;
   }
 
   /**

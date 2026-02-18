@@ -18,7 +18,6 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import java.awt.image.BufferedImage;
-import java.util.function.Consumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -34,14 +33,16 @@ abstract class MatVideoFilter implements VideoFilter {
    * {@inheritDoc}
    */
   @Override
-  public void applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    final Consumer<Mat> matOperation = this::modifyMat;
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     final Mat mat = this.getMat(samples);
-    matOperation.accept(mat);
+    final boolean modified = this.modifyMat(mat);
     if (this.mustApplyMat(samples)) {
-      this.applyMatResults(samples, mat);
+      if (modified) {
+        this.applyMatResults(samples, mat);
+      }
       mat.release();
     }
+    return modified;
   }
 
   /**
@@ -49,7 +50,7 @@ abstract class MatVideoFilter implements VideoFilter {
    *
    * @param mat the OpenCV Mat object to modify
    */
-  abstract void modifyMat(final Mat mat);
+  abstract boolean modifyMat(final Mat mat);
 
   /**
    * Retrieves the OpenCV Mat object from the given ImageBuffer.
