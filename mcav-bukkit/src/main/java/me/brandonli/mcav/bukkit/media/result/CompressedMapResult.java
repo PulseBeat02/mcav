@@ -31,9 +31,12 @@ import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.openhft.hashing.LongHashFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A DitherResultStep implementation that generates patch updates for map items based on quadrant hashing and tile analysis.
@@ -496,7 +499,7 @@ public class CompressedMapResult implements DitherResultStep {
         final int mapIdInt = layout.mapIdAt(mx, my);
         final int mapWallX = mx << 7;
         final int mapWallY = my << 7;
-        final MapState state = this.mapStates.get(mapIdInt);
+        final MapState state = requireNonNull(this.mapStates.get(mapIdInt));
 
         final TileAnalysisResult tileResult = this.analyzeTilesForMap(dithered, layout, state, mapWallX, mapWallY, qMask);
 
@@ -541,7 +544,6 @@ public class CompressedMapResult implements DitherResultStep {
         }
 
         final TileDirtyInfo info = this.analyzeTile(dithered, layout, state, mapWallX, mapWallY, tx, ty);
-
         if (info == null || !info.dirty) {
           continue;
         }
@@ -555,7 +557,7 @@ public class CompressedMapResult implements DitherResultStep {
     return new TileAnalysisResult(tileInfos, totalChanged);
   }
 
-  private TileDirtyInfo analyzeTile(
+  private @Nullable TileDirtyInfo analyzeTile(
     final byte[] dithered,
     final FrameLayout layout,
     final MapState state,

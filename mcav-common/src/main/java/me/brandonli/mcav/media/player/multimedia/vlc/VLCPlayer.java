@@ -31,8 +31,10 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.MetadataUtils;
+import me.brandonli.mcav.utils.audio.AudioResampler;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.natives.ByteUtils;
+import org.bytedeco.ffmpeg.global.avutil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.*;
@@ -78,7 +80,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   private static final float RATE_SLOW = 0.97f;
   private static final float RATE_FAST = 1.03f;
 
-  private static final String AUDIO_FORMAT = "S16N";
+  private static final int AUDIO_FORMAT = avutil.AV_SAMPLE_FMT_S16;
   private static final int AUDIO_RATE = 48000;
   private static final int AUDIO_CHANNELS = 2;
 
@@ -104,6 +106,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Nullable private volatile VideoCallback pinnedVideoCallback;
 
   @Nullable private volatile AudioCallback pinnedAudioCallback;
+
+  @Nullable private volatile AudioResampler audioResampler;
 
   private volatile boolean dualPlayerMode;
 
@@ -279,7 +283,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
     final AudioApi audioApi = target.audio();
     final AudioPipelineStep audioPipeline = this.audioAttachableCallback.retrieve();
     this.pinnedAudioCallback = new AudioCallback(audioPipeline, audioMetadata);
-    audioApi.callback(AUDIO_FORMAT, AUDIO_RATE, AUDIO_CHANNELS, requireNonNull(this.pinnedAudioCallback));
+    final int rate = audioMetadata.getAudioSampleRate();
+    final int channels = audioMetadata.getAudioChannels();
+    this.audioResampler = new AudioResampler(AUDIO_FORMAT, rate, AUDIO_CHANNELS, AUDIO_FORMAT, AUDIO_RATE, AUDIO_CHANNELS);
+    audioApi.callback("S16N", rate, AUDIO_CHANNELS, requireNonNull(this.pinnedAudioCallback));
   }
 
   private void startSyncTask() {
@@ -385,6 +392,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   @Override
   public boolean release() {
     return LockUtils.executeWithLock(this.lock, () -> {
+      final AudioResampler resampler = this.audioResampler;
       this.running.set(false);
       this.stopSyncTask();
       this.videoProcessingExecutor.shutdownNow();
@@ -396,6 +404,10 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       this.pinnedBufferCallback = null;
       this.pinnedVideoCallback = null;
       this.pinnedAudioCallback = null;
+      if (resampler != null) {
+        resampler.close();
+        this.audioResampler = null;
+      }
       this.dualPlayerMode = false;
       return true;
     });
@@ -449,9 +461,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       }
       final int bufferSize = sampleCount * BLOCK_SIZE;
       final byte[] bytes = samples.getByteArray(0, bufferSize);
+      final AudioResampler resampler = requireNonNull(VLCPlayer.this.audioResampler);
+      final byte[] resampled = resampler.resample(bytes);
       executor.submit(() -> {
         try {
-          final ByteBuffer buffer = ByteBuffer.wrap(bytes);
+          final ByteBuffer buffer = ByteBuffer.wrap(resampled);
           final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
           AudioPipelineStep current = this.step;
           while (current != null) {
