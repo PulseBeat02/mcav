@@ -59,8 +59,11 @@ public class MapResult implements DitherResultStep {
   public void process(final ImageBuffer samples, final DitherAlgorithm algorithm) {
     final int vidWidth = this.mapConfiguration.getMapWidthResolution();
     final int vidHeight = this.mapConfiguration.getMapHeightResolution();
-    final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
-    filter.applyFilter(samples);
+
+    if (this.mapConfiguration.shouldResize()) {
+      final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
+      filter.applyFilter(samples);
+    }
 
     final byte[] rgb = algorithm.ditherIntoBytes(samples);
     final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();

@@ -35,6 +35,7 @@ public class MapConfiguration {
   private final int mapBlockHeight;
   private final int mapWidthResolution;
   private final int mapHeightResolution;
+  private final boolean resize;
 
   private MapConfiguration(final Builder<?> builder) {
     this.mapIds = new ArrayList<>();
@@ -44,6 +45,16 @@ public class MapConfiguration {
     this.mapBlockHeight = builder.mapBlockHeight;
     this.mapWidthResolution = builder.mapWidthResolution;
     this.mapHeightResolution = builder.mapHeightResolution;
+    this.resize = builder.resize;
+  }
+
+  /**
+   * Checks if the media should be resized to fit the map screen.
+   *
+   * @return true if the media should be resized, false otherwise
+   */
+  public boolean shouldResize() {
+    return this.resize;
   }
 
   /**
@@ -146,12 +157,26 @@ public class MapConfiguration {
     private int mapBlockHeight;
     private int mapWidthResolution;
     private int mapHeightResolution;
+    private boolean resize;
 
     Builder() {
       // no-op
     }
 
     abstract T self();
+
+    /**
+     * Sets whether to resize the media to fit the map screen.
+     * @param resize true to resize the media, false to keep original dimensions
+     * @deprecated You should be using the media player to handle resizing
+     * @see me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback for resizing media using the player
+     * @return the builder instance for chaining
+     */
+    @Deprecated
+    public T resize(final boolean resize) {
+      this.resize = resize;
+      return this.self();
+    }
 
     /**
      * Sets the viewers of this map configuration.

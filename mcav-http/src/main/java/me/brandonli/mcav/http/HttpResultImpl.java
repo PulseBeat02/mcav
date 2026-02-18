@@ -64,8 +64,8 @@ public class HttpResultImpl implements HttpResult {
   private final int port;
   private final String directory;
 
-  private URLParseDump current;
-  private ConfigurableApplicationContext context;
+  private volatile URLParseDump current;
+  private volatile ConfigurableApplicationContext context;
 
   HttpResultImpl(final String domain, final int port) {
     this(domain, port, "static");

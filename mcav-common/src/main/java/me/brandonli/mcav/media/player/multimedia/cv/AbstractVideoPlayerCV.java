@@ -609,7 +609,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
   }
 
   private void awaitVideoQueueCapacity(final ThreadPoolExecutor videoExec) {
-    while (videoExec.getQueue().size() >= MAX_VIDEO_QUEUE_SIZE && this.running.get()) {
+    final BlockingQueue<Runnable> queue = videoExec.getQueue();
+    while (queue.size() >= MAX_VIDEO_QUEUE_SIZE && this.running.get()) {
       LockSupport.parkNanos(1_000_000L);
     }
   }
@@ -658,11 +659,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
     this.firstFramePtsUs = -1;
     this.playStartNs = -1;
 
-    if (this.reusableImageBuffer != null) {
-      this.reusableImageBuffer.release();
-      this.reusableImageBuffer = null;
-    }
-
     if (this.playerThread != null) {
       final ExecutorService playerThread = requireNonNull(this.playerThread);
       ExecutorUtils.shutdownExecutorGracefully(playerThread);
@@ -677,8 +673,14 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
 
     if (this.videoProcessor != null) {
       final ThreadPoolExecutor videoProcessor = requireNonNull(this.videoProcessor);
-      videoProcessor.shutdownNow();
+      ExecutorUtils.shutdownExecutorGracefully(videoProcessor);
       this.videoProcessor = null;
+    }
+
+    if (this.reusableImageBuffer != null) {
+      final ImageBuffer buffer = requireNonNull(this.reusableImageBuffer);
+      buffer.release();
+      this.reusableImageBuffer = null;
     }
 
     if (this.grabber != null) {

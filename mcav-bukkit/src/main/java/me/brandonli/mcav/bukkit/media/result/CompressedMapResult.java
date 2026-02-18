@@ -75,25 +75,14 @@ public class CompressedMapResult implements DitherResultStep {
   private final ArrayList<PatchUpdate> deferredUpdates;
   private final ArrayList<byte[]> patchPool;
 
-  private final int maxBytesPerFrame;
   private int sceneChangeFramesRemaining;
-
-  /**
-   * Constructs a CompressedMapResult with the given MapConfiguration and a default max bytes per frame.
-   * @param configuration the MapConfiguration defining the map layout and viewers
-   */
-  public CompressedMapResult(final MapConfiguration configuration) {
-    this(configuration, DEFAULT_MAX_BYTES_PER_FRAME);
-  }
 
   /**
    * Constructs a CompressedMapResult with the given MapConfiguration and max bytes per frame.
    * @param configuration the MapConfiguration defining the map layout and viewers
-   * @param maxBytesPerFrame the maximum number of bytes to send per frame for map updates
    */
-  public CompressedMapResult(final MapConfiguration configuration, final int maxBytesPerFrame) {
+  public CompressedMapResult(final MapConfiguration configuration) {
     this.mapConfiguration = configuration;
-    this.maxBytesPerFrame = maxBytesPerFrame;
     this.xxh3 = LongHashFunction.xx3(0L);
     this.quadScratch = new byte[QUAD * QUAD * 3];
     this.mapStates = new ConcurrentHashMap<>();
@@ -107,8 +96,10 @@ public class CompressedMapResult implements DitherResultStep {
     final int vidWidth = this.mapConfiguration.getMapWidthResolution();
     final int vidHeight = this.mapConfiguration.getMapHeightResolution();
 
-    final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
-    filter.applyFilter(samples);
+    if (mapConfiguration.shouldResize()) {
+      final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
+      filter.applyFilter(samples);
+    }
 
     final int[] rgbPixels = samples.getPixels();
     final int expectedLength = vidWidth * vidHeight;
@@ -851,15 +842,15 @@ public class CompressedMapResult implements DitherResultStep {
 
   private int computeEffectiveBudget(final boolean inRecovery) {
     if (inRecovery) {
-      return (int) (this.maxBytesPerFrame * SCENE_CHANGE_BUDGET_MULTIPLIER);
+      return (int) (DEFAULT_MAX_BYTES_PER_FRAME * SCENE_CHANGE_BUDGET_MULTIPLIER);
     }
-    return this.maxBytesPerFrame;
+    return DEFAULT_MAX_BYTES_PER_FRAME;
   }
 
   private SendResult sendAllTiers(final PriorityBuckets buckets, final int budget, final boolean inRecovery) {
     final SendResult result = new SendResult();
     final Collection<MapDecoration> emptyDecorations = List.of();
-    final int criticalCap = this.maxBytesPerFrame * 2;
+    final int criticalCap = DEFAULT_MAX_BYTES_PER_FRAME * 2;
     int totalBytes = 0;
 
     totalBytes = this.sendTier(buckets.critical, result, emptyDecorations, totalBytes, criticalCap);

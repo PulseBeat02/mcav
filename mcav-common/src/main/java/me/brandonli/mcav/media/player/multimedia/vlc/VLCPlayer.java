@@ -458,24 +458,32 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
       if (executor.isShutdown()) {
         return;
       }
+      // Read into a local; release() may null this field concurrently once the player stops.
+      final AudioResampler resampler = VLCPlayer.this.audioResampler;
+      if (resampler == null) {
+        return;
+      }
       final int bufferSize = sampleCount * BLOCK_SIZE;
       final byte[] bytes = samples.getByteArray(0, bufferSize);
-      final AudioResampler resampler = requireNonNull(VLCPlayer.this.audioResampler);
       final byte[] resampled = resampler.resample(bytes);
-      executor.submit(() -> {
-        try {
-          final ByteBuffer buffer = ByteBuffer.wrap(resampled);
-          final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
-          AudioPipelineStep current = this.step;
-          while (current != null) {
-            current.process(converted, this.metadata);
-            current = current.next();
+      try {
+        executor.submit(() -> {
+          try {
+            final ByteBuffer buffer = ByteBuffer.wrap(resampled);
+            final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
+            AudioPipelineStep current = this.step;
+            while (current != null) {
+              current.process(converted, this.metadata);
+              current = current.next();
+            }
+          } catch (final Throwable e) {
+            final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
+            VLCPlayer.this.exceptionHandler.accept(msg, e);
           }
-        } catch (final Throwable e) {
-          final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-          VLCPlayer.this.exceptionHandler.accept(msg, e);
-        }
-      });
+        });
+      } catch (final RejectedExecutionException ignored) {
+        // Executor was shut down concurrently; silently drop this audio frame.
+      }
     }
   }
 

@@ -40,8 +40,9 @@ public class ThreadSafeVideoFilter implements FunctionalVideoFilter {
 
   private final ConcurrentLinkedQueue<FrameData> frameQueue = new ConcurrentLinkedQueue<>();
   private final AtomicBoolean isProcessing = new AtomicBoolean(false);
-  private int glTextureId = -1;
-  private boolean isStarted = false;
+
+  private volatile int glTextureId = -1;
+  private volatile boolean isStarted = false;
 
   @Override
   public void start() {

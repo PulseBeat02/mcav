@@ -78,6 +78,7 @@ tasks {
         minecraftVersion("1.21.11")
         downloadPlugins {
             url("https://cdn.modrinth.com/data/9eGKb6K1/versions/FeJRj2X0/voicechat-bukkit-2.6.12.jar")
+            url("https://ci.lucko.me/job/spark/514/artifact/spark-bukkit/build/libs/spark-1.10.165-bukkit.jar")
         }
     }
 }
