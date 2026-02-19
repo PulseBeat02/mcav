@@ -20,15 +20,18 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.or
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.IntStream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ParallelDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
  * Implementation of Bayer Dithering algorithm using a predefined color palette and a pixel mapping matrix.
  */
-public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither {
+public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither, ParallelDitherAlgorithm {
 
   private final DitherPalette palette;
   private final float[][] precalc;
@@ -100,6 +103,43 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     final float adjustedValue = colorValue + normalizedThreshold;
     final int quantizedLevel = Math.round(adjustedValue / step);
     return Math.min(255, Math.max(0, Math.round(quantizedLevel * step)));
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Each row is independent (no error propagation), so rows are spread across the workers of
+   * the supplied {@link ForkJoinPool} via a parallel {@link IntStream}.
+   */
+  @Override
+  public byte[] ditherIntoBytes(final ImageBuffer image, final ForkJoinPool pool) {
+    final int[] buffer = image.getPixels();
+    final int width = image.getWidth();
+    final int length = buffer.length;
+    final int height = length / width;
+    final byte[] data = new byte[length];
+    pool
+      .submit(() ->
+        IntStream.range(0, height)
+          .parallel()
+          .forEach(y -> {
+            final int yIndex = y * width;
+            for (int x = 0; x < width; x++) {
+              final int index = yIndex + x;
+              final int color = buffer[index];
+              int r = (color >> 16) & 0xFF;
+              int g = (color >> 8) & 0xFF;
+              int b = color & 0xFF;
+              final float threshold = this.precalc[y % this.ydim][x % this.xdim];
+              r = this.adjustColorBasedOnThreshold(r, threshold);
+              g = this.adjustColorBasedOnThreshold(g, threshold);
+              b = this.adjustColorBasedOnThreshold(b, threshold);
+              data[index] = DitherUtils.getBestColor(this.palette, r, g, b);
+            }
+          })
+      )
+      .join();
+    return data;
   }
 
   /**

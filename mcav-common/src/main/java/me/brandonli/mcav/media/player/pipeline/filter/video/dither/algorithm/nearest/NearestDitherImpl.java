@@ -18,15 +18,18 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.IntStream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ParallelDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
  * A concrete implementation of the {@link AbstractDitherAlgorithm}.
  */
-public final class NearestDitherImpl extends AbstractDitherAlgorithm implements NearestDither {
+public final class NearestDitherImpl extends AbstractDitherAlgorithm implements NearestDither, ParallelDitherAlgorithm {
 
   /**
    * Constructs an instance of the {@code NearestDitherImpl} class using the specified {@code Palette}.
@@ -60,6 +63,35 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
       }
     }
     return data.array();
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Every pixel is a pure palette lookup with no inter-pixel dependencies, so the entire
+   * pixel array is partitioned across the workers of the supplied {@link ForkJoinPool} via a
+   * parallel {@link IntStream}.
+   */
+  @Override
+  public byte[] ditherIntoBytes(final ImageBuffer image, final ForkJoinPool pool) {
+    final DitherPalette palette = this.getPalette();
+    final int[] buffer = image.getPixels();
+    final int length = buffer.length;
+    final byte[] data = new byte[length];
+    pool
+      .submit(() ->
+        IntStream.range(0, length)
+          .parallel()
+          .forEach(i -> {
+            final int color = buffer[i];
+            final int r = (color >> 16) & 0xFF;
+            final int g = (color >> 8) & 0xFF;
+            final int b = color & 0xFF;
+            data[i] = DitherUtils.getBestColor(palette, r, g, b);
+          })
+      )
+      .join();
+    return data;
   }
 
   /**

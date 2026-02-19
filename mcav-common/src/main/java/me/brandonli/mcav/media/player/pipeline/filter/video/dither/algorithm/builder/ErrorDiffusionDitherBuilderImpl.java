@@ -28,16 +28,16 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
   private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
   private Algorithm algorithm = Algorithm.FILTER_LITE;
 
-  /**
-   * Constructs a new ErrorDiffusionDitherBuilderImpl with default settings.
-   */
+  private int temporalThreshold = TemporalDitherAlgorithm.DEFAULT_TEMPORAL_THRESHOLD;
+  private int errorThreshold = TemporalDitherAlgorithm.DEFAULT_ERROR_THRESHOLD;
+  private float errorStrength = TemporalDitherAlgorithm.DEFAULT_ERROR_STRENGTH;
+
+  /** Constructs a new {@link ErrorDiffusionDitherBuilderImpl} with default settings. */
   public ErrorDiffusionDitherBuilderImpl() {
     // no-op
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public ErrorDiffusionDither build() {
     return switch (this.algorithm) {
@@ -45,25 +45,45 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
       case BURKES -> new BurkesDither(this.palette);
       case FILTER_LITE -> new FilterLiteDither(this.palette);
       case FLOYD_STEINBERG -> new FloydDither(this.palette);
+      case TEMPORAL_FLOYD_STEINBERG -> new TemporalFloydSteinbergDither(
+        this.palette,
+        this.temporalThreshold,
+        this.errorThreshold,
+        this.errorStrength
+      );
       case JARVIS_JUDICE_NINKE -> new JarvisJudiceNinkeDither(this.palette);
       case STEVENSON_ARCE -> new StevensonArceDither(this.palette);
       case STUCKI -> new StuckiDither(this.palette);
     };
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public void setPalette(final DitherPalette palette) {
     this.palette = palette;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  /** {@inheritDoc} */
   @Override
   public void setAlgorithm(final Algorithm algorithm) {
     this.algorithm = algorithm;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void setTemporalThreshold(final int threshold) {
+    this.temporalThreshold = threshold;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void setErrorThreshold(final int threshold) {
+    this.errorThreshold = threshold;
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void setErrorStrength(final float strength) {
+    this.errorStrength = strength;
   }
 }

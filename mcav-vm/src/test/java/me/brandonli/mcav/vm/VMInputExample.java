@@ -124,6 +124,7 @@ public class VMInputExample {
         final BufferedImage bufferedImage = image.toBufferedImage();
         vmPanel.setImage(bufferedImage);
         this.currentImage.set(bufferedImage);
+        return true;
       })
       .build();
 

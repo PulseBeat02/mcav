@@ -20,6 +20,8 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.*;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalFloydSteinbergDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
@@ -98,5 +100,32 @@ public interface DitherAlgorithm {
    */
   static NearestDitherBuilder<NearestDither, NearestDitherBuilderImpl> nearest() {
     return new NearestDitherBuilderImpl();
+  }
+
+  /**
+   * Creates a temporally-coherent, strip-parallel Floyd-Steinberg dither with default settings.
+   *
+   * @return a new {@link TemporalFloydSteinbergDither}
+   */
+  static TemporalDitherAlgorithm temporalFloydSteinberg() {
+    return new TemporalFloydSteinbergDither();
+  }
+
+  /**
+   * Creates a temporally-coherent, strip-parallel Floyd-Steinberg dither with all parameters.
+   *
+   * @param palette            the colour palette to use for quantisation
+   * @param temporalThreshold  per-channel tolerance for reusing a previous palette index
+   * @param errorThreshold     minimum total error below which diffusion is skipped
+   * @param errorStrength      fraction of quantisation error to diffuse in [0.0, 1.0]
+   * @return a new {@link TemporalFloydSteinbergDither}
+   */
+  static TemporalDitherAlgorithm temporalFloydSteinberg(
+    final DitherPalette palette,
+    final int temporalThreshold,
+    final int errorThreshold,
+    final float errorStrength
+  ) {
+    return new TemporalFloydSteinbergDither(palette, temporalThreshold, errorThreshold, errorStrength);
   }
 }

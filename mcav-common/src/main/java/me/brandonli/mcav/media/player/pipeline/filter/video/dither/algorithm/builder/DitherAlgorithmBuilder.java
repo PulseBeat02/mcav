@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
@@ -56,4 +57,41 @@ public interface DitherAlgorithmBuilder<T extends DitherAlgorithm, B extends Dit
    *                If null, a default palette may be used depending on the implementation.
    */
   void setPalette(final DitherPalette palette);
+
+  /**
+   * Sets the per-channel temporal skip threshold. Only honoured by builders that support
+   * temporal coherence (e.g. {@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder}).
+   *
+   * @param threshold per-channel tolerance for reusing a previous palette index (≥ 0)
+   * @return this builder
+   */
+  @SuppressWarnings("unchecked")
+  default B withTemporalThreshold(final int threshold) {
+    return (B) this;
+  }
+
+  /**
+   * Sets the minimum total error below which diffusion is skipped. Only honoured by builders
+   * that support temporal coherence.
+   *
+   * @param threshold minimum {@code |ΔR|+|ΔG|+|ΔB|} to trigger diffusion (≥ 0)
+   * @return this builder
+   */
+  @SuppressWarnings("unchecked")
+  default B withErrorThreshold(final int threshold) {
+    return (B) this;
+  }
+
+  /**
+   * Sets the fraction of quantisation error to diffuse. Only honoured by builders that support
+   * temporal coherence.
+   *
+   * @param strength diffusion strength in [0.0, 1.0]; defaults to
+   *                 {@link TemporalDitherAlgorithm#DEFAULT_ERROR_STRENGTH}
+   * @return this builder
+   */
+  @SuppressWarnings("unchecked")
+  default B withErrorStrength(final float strength) {
+    return (B) this;
+  }
 }

@@ -60,7 +60,10 @@ public final class BrowserInputExample {
     ImageIcon icon;
     final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
       .then(new FPSFilter())
-      .then((samples, metadata) -> videoLabel.setIcon(new ImageIcon(samples.toBufferedImage())))
+      .then((samples, metadata) -> {
+        videoLabel.setIcon(new ImageIcon(samples.toBufferedImage()));
+        return true;
+      })
       .build();
 
     final BrowserPlayer browser = BrowserPlayer.selenium();

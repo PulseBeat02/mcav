@@ -27,39 +27,31 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
  */
 public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B extends ErrorDiffusionDitherBuilder<T, B>>
   extends DitherAlgorithmBuilder<T, B> {
-  /**
-   * Enum representing various error diffusion algorithms that can be used in error-diffusion dithering.
-   */
+  /** Error diffusion kernel variants. */
   enum Algorithm {
-    /** Atkinson **/
+    /** Atkinson */
     ATKINSON,
-
-    /** Burkes **/
+    /** Burkes */
     BURKES,
-
-    /** Filter Lite **/
+    /** Filter Lite */
     FILTER_LITE,
-
-    /** Floyd-Steinberg **/
+    /** Floyd-Steinberg */
     FLOYD_STEINBERG,
-
-    /** Jarvis-Judice-Ninke **/
+    /** Temporally-coherent, strip-parallel Floyd-Steinberg */
+    TEMPORAL_FLOYD_STEINBERG,
+    /** Jarvis-Judice-Ninke */
     JARVIS_JUDICE_NINKE,
-
-    /** Stevenson-Arce **/
+    /** Stevenson-Arce */
     STEVENSON_ARCE,
-
-    /** Stucki **/
+    /** Stucki */
     STUCKI,
   }
 
   /**
-   * Configures the builder with the specified error diffusion algorithm and returns the builder instance
-   * for method-chaining purposes.
+   * Sets the error diffusion kernel.
    *
-   * @param algorithm the error diffusion algorithm to be used, represented by an enum {@link Algorithm}.
-   *                  This determines the algorithm's behavior for distributing quantization errors.
-   * @return the builder instance after the algorithm has been set.
+   * @param algorithm the kernel to use
+   * @return this builder
    */
   @SuppressWarnings("unchecked")
   default B withAlgorithm(final Algorithm algorithm) {
@@ -68,12 +60,52 @@ public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B e
   }
 
   /**
-   * Configures the builder with a specific error diffusion algorithm to be used
-   * in the dithering process.
+   * Sets the per-channel temporal skip threshold (only used with {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
    *
-   * @param algorithm the error diffusion algorithm to use. Valid values are defined
-   *                  in the {@link Algorithm} enum, such as ATKINSON, FLOYD_STEINBERG,
-   *                  JARVIS_JUDICE_NINKE, and others.
+   * @param threshold per-channel tolerance for reusing a previous palette index (≥ 0)
+   * @return this builder
    */
+  @SuppressWarnings("unchecked")
+  default B withTemporalThreshold(final int threshold) {
+    this.setTemporalThreshold(threshold);
+    return (B) this;
+  }
+
+  /**
+   * Sets the minimum total error below which diffusion is skipped (only used with
+   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
+   *
+   * @param threshold minimum {@code |ΔR|+|ΔG|+|ΔB|} to trigger diffusion (≥ 0)
+   * @return this builder
+   */
+  @SuppressWarnings("unchecked")
+  default B withErrorThreshold(final int threshold) {
+    this.setErrorThreshold(threshold);
+    return (B) this;
+  }
+
+  /**
+   * Sets the fraction of quantisation error to diffuse (only used with
+   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
+   *
+   * @param strength diffusion strength in [0.0, 1.0]
+   * @return this builder
+   */
+  @SuppressWarnings("unchecked")
+  default B withErrorStrength(final float strength) {
+    this.setErrorStrength(strength);
+    return (B) this;
+  }
+
+  /** @param algorithm the kernel to use */
   void setAlgorithm(final Algorithm algorithm);
+
+  /** @param threshold per-channel temporal skip tolerance */
+  void setTemporalThreshold(final int threshold);
+
+  /** @param threshold minimum total error to trigger diffusion */
+  void setErrorThreshold(final int threshold);
+
+  /** @param strength diffusion strength in [0.0, 1.0] */
+  void setErrorStrength(final float strength);
 }

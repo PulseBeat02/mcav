@@ -108,6 +108,8 @@ public class BufferTest {
       if (offset < bufferedBytes.length) {
         audioBuffer.write(bufferedBytes, offset, bufferedBytes.length - offset);
       }
+
+      return true;
     });
 
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
