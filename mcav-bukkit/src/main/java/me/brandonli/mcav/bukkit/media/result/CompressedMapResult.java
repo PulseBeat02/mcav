@@ -21,12 +21,14 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ParallelDitherAlgorithm;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
@@ -74,6 +76,7 @@ public class CompressedMapResult implements DitherResultStep {
   private final Map<Integer, MapState> mapStates;
   private final ArrayList<PatchUpdate> deferredUpdates;
   private final ArrayList<byte[]> patchPool;
+  private final ForkJoinPool ditherPool;
 
   private int sceneChangeFramesRemaining;
 
@@ -82,12 +85,16 @@ public class CompressedMapResult implements DitherResultStep {
    * @param configuration the MapConfiguration defining the map layout and viewers
    */
   public CompressedMapResult(final MapConfiguration configuration) {
+    final Runtime runtime = Runtime.getRuntime();
+    final int availableProcessors = runtime.availableProcessors();
+    final int count = Math.max(1, availableProcessors - 1);
     this.mapConfiguration = configuration;
     this.xxh3 = LongHashFunction.xx3(0L);
     this.quadScratch = new byte[QUAD * QUAD * 3];
     this.mapStates = new ConcurrentHashMap<>();
     this.deferredUpdates = new ArrayList<>();
     this.patchPool = new ArrayList<>();
+    this.ditherPool = new ForkJoinPool(count);
     this.sceneChangeFramesRemaining = 0;
   }
 
@@ -96,7 +103,7 @@ public class CompressedMapResult implements DitherResultStep {
     final int vidWidth = this.mapConfiguration.getMapWidthResolution();
     final int vidHeight = this.mapConfiguration.getMapHeightResolution();
 
-    if (mapConfiguration.shouldResize()) {
+    if (this.mapConfiguration.shouldResize()) {
       final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
       filter.applyFilter(samples);
     }
@@ -117,7 +124,7 @@ public class CompressedMapResult implements DitherResultStep {
       return;
     }
 
-    final byte[] dithered = algorithm.ditherIntoBytes(samples);
+    final byte[] dithered = this.dither(samples, algorithm);
     final DirtyAnalysisResult analysisResult = this.analyzeAllMaps(dithered, layout, quadResult);
     final boolean isSceneChange = this.detectSceneChange(analysisResult);
     final ArrayList<PatchUpdate> allUpdates = this.collectAllUpdates(analysisResult.patches);
@@ -147,6 +154,7 @@ public class CompressedMapResult implements DitherResultStep {
     this.deferredUpdates.clear();
     this.patchPool.clear();
     this.sceneChangeFramesRemaining = 0;
+    this.ditherPool.shutdown();
     this.sendClearPackets();
   }
 
@@ -1012,8 +1020,15 @@ public class CompressedMapResult implements DitherResultStep {
     }
   }
 
+  private byte[] dither(final ImageBuffer samples, final DitherAlgorithm algorithm) {
+    if (algorithm instanceof final ParallelDitherAlgorithm parallel) {
+      return parallel.ditherIntoBytes(samples, this.ditherPool);
+    }
+    return algorithm.ditherIntoBytes(samples);
+  }
+
   private void sendFullFrame(final ImageBuffer samples, final DitherAlgorithm algorithm) {
-    final byte[] dithered = algorithm.ditherIntoBytes(samples);
+    final byte[] dithered = this.dither(samples, algorithm);
 
     final int vidWidth = this.mapConfiguration.getMapWidthResolution();
     final int vidHeight = this.mapConfiguration.getMapHeightResolution();

@@ -25,6 +25,9 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ord
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 
 public enum DitheringArgument {
+  // Temporal dithering options
+  FLOYD_STEINBERG_TEMPORAL(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.TEMPORAL_FLOYD_STEINBERG)),
+
   // Error diffusion dithering algorithms
   FILTER_LITE(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)),
   FLOYD_STEINBERG(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG)),

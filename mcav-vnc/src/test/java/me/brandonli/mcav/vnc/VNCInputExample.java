@@ -60,7 +60,12 @@ public class VNCInputExample {
     frame.setSize(1000, 800);
     frame.setVisible(true);
 
-    final VideoPipelineStep pipeline = PipelineBuilder.video().then((image, step) -> vncPanel.setImage(image.toBufferedImage())).build();
+    final VideoPipelineStep pipeline = PipelineBuilder.video()
+      .then((image, step) -> {
+        vncPanel.setImage(image.toBufferedImage());
+        return true;
+      })
+      .build();
     final VNCSource source = VNCSource.vnc().host("localhost").port(5900).screenWidth(800).screenHeight(600).targetFrameRate(30).build();
     final VNCPlayer player = VNCPlayer.vm();
 
