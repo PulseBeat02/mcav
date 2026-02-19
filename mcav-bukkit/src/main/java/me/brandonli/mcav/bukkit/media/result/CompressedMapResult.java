@@ -85,13 +85,16 @@ public class CompressedMapResult implements DitherResultStep {
    * @param configuration the MapConfiguration defining the map layout and viewers
    */
   public CompressedMapResult(final MapConfiguration configuration) {
+    final Runtime runtime = Runtime.getRuntime();
+    final int availableProcessors = runtime.availableProcessors();
+    final int count = Math.max(1, availableProcessors - 1);
     this.mapConfiguration = configuration;
     this.xxh3 = LongHashFunction.xx3(0L);
     this.quadScratch = new byte[QUAD * QUAD * 3];
     this.mapStates = new ConcurrentHashMap<>();
     this.deferredUpdates = new ArrayList<>();
     this.patchPool = new ArrayList<>();
-    this.ditherPool = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 1));
+    this.ditherPool = new ForkJoinPool(count);
     this.sceneChangeFramesRemaining = 0;
   }
 
@@ -100,7 +103,7 @@ public class CompressedMapResult implements DitherResultStep {
     final int vidWidth = this.mapConfiguration.getMapWidthResolution();
     final int vidHeight = this.mapConfiguration.getMapHeightResolution();
 
-    if (mapConfiguration.shouldResize()) {
+    if (this.mapConfiguration.shouldResize()) {
       final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
       filter.applyFilter(samples);
     }
