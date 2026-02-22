@@ -6,7 +6,7 @@ dependencies {
 
     // project dependencies
     api("uk.co.caprica:vlcj:4.12.1")
-    api("org.bytedeco:javacv-platform:1.5.11") {
+    api("org.bytedeco:javacv-platform:1.5.13") {
         exclude(group = "org.bytedeco", module = "flycapture")
         exclude(group = "org.bytedeco", module = "flycapture-platform")
         exclude(group = "org.bytedeco", module = "libdc1394")
