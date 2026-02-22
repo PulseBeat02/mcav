@@ -17,11 +17,12 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import java.util.function.Consumer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
+
+import java.util.function.Consumer;
 
 /**
  * A filter that applies various types of blur effects to video frames.
@@ -66,7 +67,7 @@ public class BlurFilter extends MatVideoFilter {
   }
 
   private void applyGaussianBlur(final Mat mat) {
-    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT);
+    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT, opencv_core.ALGO_HINT_APPROX);
   }
 
   private void applyStackBlur(final Mat mat) {
