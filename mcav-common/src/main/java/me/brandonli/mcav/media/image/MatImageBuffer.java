@@ -17,19 +17,6 @@
  */
 package me.brandonli.mcav.media.image;
 
-import static java.util.Objects.requireNonNull;
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -45,6 +32,20 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.opencv.core.CvType;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+
+import static java.util.Objects.requireNonNull;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -65,6 +66,8 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
 
   private @Nullable BytePointer pointer;
   private @Nullable ByteBuffer cachedBuffer;
+
+  private int @Nullable [] cachedPixels;
   private Mat mat;
 
   MatImageBuffer(final Mat mat) {
@@ -307,18 +310,23 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    */
   @Override
   public int[] getPixels() {
+    final int[] cached = this.cachedPixels;
+    if (cached != null) {
+      return cached;
+    }
+
     final int width = this.mat.cols();
     final int height = this.mat.rows();
     final int channels = this.mat.channels();
     final int total = width * height;
-    final int[] pixels = new int[total];
+    this.cachedPixels = new int[total];
     final ByteBuffer buf = this.mat.createBuffer();
 
     if (channels == 4 && this.mat.isContinuous()) {
       buf.order(ByteOrder.LITTLE_ENDIAN);
       final IntBuffer ib = buf.asIntBuffer();
-      ib.get(pixels);
-      return pixels;
+      ib.get(this.cachedPixels);
+      return this.cachedPixels;
     }
 
     final byte[] raw = new byte[total * channels];
@@ -330,25 +338,25 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
         final int g = raw[j++] & 0xFF;
         final int r = raw[j++] & 0xFF;
         final int a = raw[j++] & 0xFF;
-        pixels[i++] = (a << 24) | (r << 16) | (g << 8) | b;
+        this.cachedPixels[i++] = (a << 24) | (r << 16) | (g << 8) | b;
       }
     } else if (channels == 3) {
       while (i < total) {
         final int b = raw[j++] & 0xFF;
         final int g = raw[j++] & 0xFF;
         final int r = raw[j++] & 0xFF;
-        pixels[i++] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+        this.cachedPixels[i++] = (0xFF << 24) | (r << 16) | (g << 8) | b;
       }
     } else if (channels == 1) {
       while (i < total) {
         final int v = raw[j++] & 0xFF;
-        pixels[i++] = (0xFF << 24) | (v << 16) | (v << 8) | v;
+        this.cachedPixels[i++] = (0xFF << 24) | (v << 16) | (v << 8) | v;
       }
     } else {
       throw new IllegalStateException("Unsupported image format with " + channels + " channels");
     }
 
-    return pixels;
+    return this.cachedPixels;
   }
 
   /**

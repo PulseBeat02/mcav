@@ -17,11 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -37,7 +32,15 @@ import net.minecraft.world.level.saveddata.maps.MapDecoration;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.openhft.hashing.LongHashFunction;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A DitherResultStep implementation that generates patch updates for map items based on quadrant hashing and tile analysis.
@@ -82,20 +85,32 @@ public class CompressedMapResult implements DitherResultStep {
 
   /**
    * Constructs a CompressedMapResult with the given MapConfiguration and max bytes per frame.
+   *
    * @param configuration the MapConfiguration defining the map layout and viewers
    */
   public CompressedMapResult(final MapConfiguration configuration) {
-    final Runtime runtime = Runtime.getRuntime();
-    final int availableProcessors = runtime.availableProcessors();
-    final int count = Math.max(1, availableProcessors - 1);
     this.mapConfiguration = configuration;
     this.xxh3 = LongHashFunction.xx3(0L);
     this.quadScratch = new byte[QUAD * QUAD * 3];
     this.mapStates = new ConcurrentHashMap<>();
     this.deferredUpdates = new ArrayList<>();
     this.patchPool = new ArrayList<>();
-    this.ditherPool = new ForkJoinPool(count);
+    this.ditherPool = this.createCustomPool();
     this.sceneChangeFramesRemaining = 0;
+  }
+
+  // give server IO to breathe so it can send packets
+  @SuppressWarnings("all") // checker
+  private ForkJoinPool createCustomPool(@UnderInitialization CompressedMapResult this) {
+    final Runtime runtime = Runtime.getRuntime();
+    final int availableProcessors = runtime.availableProcessors();
+    final int count = Math.max(1, availableProcessors / 2 - 1);
+    return new ForkJoinPool(count, pool -> {
+      final ForkJoinWorkerThread thread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+      thread.setDaemon(true);
+      thread.setPriority(Thread.MIN_PRIORITY);
+      return thread;
+    }, null, false);
   }
 
   @Override
@@ -146,7 +161,8 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   @Override
-  public void start() {}
+  public void start() {
+  }
 
   @Override
   public void release() {
@@ -248,17 +264,7 @@ public class CompressedMapResult implements DitherResultStep {
     final int staleness;
     final int accumulated;
 
-    PatchUpdate(
-      final int mapIdInt,
-      final int x,
-      final int y,
-      final int w,
-      final int h,
-      final byte[] patchData,
-      final int changedPixels,
-      final int staleness,
-      final int accumulated
-    ) {
+    PatchUpdate(final int mapIdInt, final int x, final int y, final int w, final int h, final byte[] patchData, final int changedPixels, final int staleness, final int accumulated) {
       this.mapIdInt = mapIdInt;
       this.x = x;
       this.y = y;
@@ -419,13 +425,7 @@ public class CompressedMapResult implements DitherResultStep {
     return new QuadrantResult(masks, anyDirty);
   }
 
-  private int hashQuadrantsForMap(
-    final int[] pixels,
-    final FrameLayout layout,
-    final MapState state,
-    final int mapWallX,
-    final int mapWallY
-  ) {
+  private int hashQuadrantsForMap(final int[] pixels, final FrameLayout layout, final MapState state, final int mapWallX, final int mapWallY) {
     int mask = 0;
 
     for (int qy = 0; qy < QUADS_PER_ROW; qy++) {
@@ -433,8 +433,7 @@ public class CompressedMapResult implements DitherResultStep {
         final int qIdx = qy * QUADS_PER_ROW + qx;
         final int regionX = mapWallX + qx * QUAD;
         final int regionY = mapWallY + qy * QUAD;
-        final long hash =
-          this.hashRgbRegion(pixels, layout.vidWidth, layout.vidHeight, regionX, regionY, layout.xOff, layout.yOff, QUAD, QUAD);
+        final long hash = this.hashRgbRegion(pixels, layout.vidWidth, layout.vidHeight, regionX, regionY, layout.xOff, layout.yOff, QUAD, QUAD);
 
         if (hash != state.quadrantHashes[qIdx]) {
           state.quadrantHashes[qIdx] = hash;
@@ -446,17 +445,7 @@ public class CompressedMapResult implements DitherResultStep {
     return mask;
   }
 
-  private long hashRgbRegion(
-    final int[] pixels,
-    final int vidWidth,
-    final int vidHeight,
-    final int wallX,
-    final int wallY,
-    final int xOff,
-    final int yOff,
-    final int regionW,
-    final int regionH
-  ) {
+  private long hashRgbRegion(final int[] pixels, final int vidWidth, final int vidHeight, final int wallX, final int wallY, final int xOff, final int yOff, final int regionW, final int regionH) {
     int p = 0;
 
     for (int yy = 0; yy < regionH; yy++) {
@@ -509,8 +498,7 @@ public class CompressedMapResult implements DitherResultStep {
           majorChangeMaps++;
         }
 
-        final List<PatchUpdate> mapPatches =
-          this.mergeAndBuildPatches(tileResult.tileInfos, dithered, layout, mapWallX, mapWallY, mapIdInt, state);
+        final List<PatchUpdate> mapPatches = this.mergeAndBuildPatches(tileResult.tileInfos, dithered, layout, mapWallX, mapWallY, mapIdInt, state);
         patches.addAll(mapPatches);
       }
     }
@@ -518,14 +506,7 @@ public class CompressedMapResult implements DitherResultStep {
     return new DirtyAnalysisResult(patches, totalMaps, majorChangeMaps);
   }
 
-  private TileAnalysisResult analyzeTilesForMap(
-    final byte[] dithered,
-    final FrameLayout layout,
-    final MapState state,
-    final int mapWallX,
-    final int mapWallY,
-    final int qMask
-  ) {
+  private TileAnalysisResult analyzeTilesForMap(final byte[] dithered, final FrameLayout layout, final MapState state, final int mapWallX, final int mapWallY, final int qMask) {
     final TileDirtyInfo[] tileInfos = new TileDirtyInfo[TILE_COUNT];
     int totalChanged = 0;
 
@@ -555,15 +536,7 @@ public class CompressedMapResult implements DitherResultStep {
     return new TileAnalysisResult(tileInfos, totalChanged);
   }
 
-  private @Nullable TileDirtyInfo analyzeTile(
-    final byte[] dithered,
-    final FrameLayout layout,
-    final MapState state,
-    final int mapWallX,
-    final int mapWallY,
-    final int tileCol,
-    final int tileRow
-  ) {
+  private @Nullable TileDirtyInfo analyzeTile(final byte[] dithered, final FrameLayout layout, final MapState state, final int mapWallX, final int mapWallY, final int tileCol, final int tileRow) {
     final int tileBaseX = tileCol * TILE;
     final int tileBaseY = tileRow * TILE;
 
@@ -629,15 +602,7 @@ public class CompressedMapResult implements DitherResultStep {
     return 0;
   }
 
-  private List<PatchUpdate> mergeAndBuildPatches(
-    final TileDirtyInfo[] tileInfos,
-    final byte[] dithered,
-    final FrameLayout layout,
-    final int mapWallX,
-    final int mapWallY,
-    final int mapIdInt,
-    final MapState state
-  ) {
+  private List<PatchUpdate> mergeAndBuildPatches(final TileDirtyInfo[] tileInfos, final byte[] dithered, final FrameLayout layout, final int mapWallX, final int mapWallY, final int mapIdInt, final MapState state) {
     final boolean[] dirty = buildDirtyGrid(tileInfos);
     final List<TileRect> mergedRects = greedyMerge(dirty);
     final List<PatchUpdate> patches = new ArrayList<>(mergedRects.size());
@@ -650,17 +615,7 @@ public class CompressedMapResult implements DitherResultStep {
 
       final byte[] patchData = this.extractPatchBytes(dithered, layout, mapWallX, mapWallY, box.x, box.y, box.w, box.h);
 
-      final PatchUpdate patch = new PatchUpdate(
-        mapIdInt,
-        box.x,
-        box.y,
-        box.w,
-        box.h,
-        patchData,
-        box.changedPixels,
-        state.framesSinceLastSend,
-        state.accumulatedChanges
-      );
+      final PatchUpdate patch = new PatchUpdate(mapIdInt, box.x, box.y, box.w, box.h, patchData, box.changedPixels, state.framesSinceLastSend, state.accumulatedChanges);
       patches.add(patch);
     }
 
@@ -773,16 +728,7 @@ public class CompressedMapResult implements DitherResultStep {
     return new BoundingBox(unionMinX, unionMinY, width, height, totalChanged);
   }
 
-  private byte[] extractPatchBytes(
-    final byte[] dithered,
-    final FrameLayout layout,
-    final int mapWallX,
-    final int mapWallY,
-    final int patchX,
-    final int patchY,
-    final int patchW,
-    final int patchH
-  ) {
+  private byte[] extractPatchBytes(final byte[] dithered, final FrameLayout layout, final int mapWallX, final int mapWallY, final int patchX, final int patchY, final int patchW, final int patchH) {
     final int size = patchW * patchH;
     final byte[] patch = this.acquireBuffer(size);
     int p = 0;
@@ -875,13 +821,7 @@ public class CompressedMapResult implements DitherResultStep {
     return result;
   }
 
-  private int sendTier(
-    final List<PatchUpdate> tier,
-    final SendResult result,
-    final Collection<MapDecoration> emptyDecorations,
-    int totalBytes,
-    final int maxBytes
-  ) {
+  private int sendTier(final List<PatchUpdate> tier, final SendResult result, final Collection<MapDecoration> emptyDecorations, int totalBytes, final int maxBytes) {
     for (final PatchUpdate update : tier) {
       final int updateSize = update.dataSize();
       final boolean overBudget = totalBytes + updateSize > maxBytes;
@@ -918,17 +858,7 @@ public class CompressedMapResult implements DitherResultStep {
       state.accumulatedChanges += update.changedPixels;
     }
 
-    final PatchUpdate escalated = new PatchUpdate(
-      update.mapIdInt,
-      update.x,
-      update.y,
-      update.w,
-      update.h,
-      update.patchData,
-      update.changedPixels,
-      update.staleness + 1,
-      update.accumulated + update.changedPixels
-    );
+    final PatchUpdate escalated = new PatchUpdate(update.mapIdInt, update.x, update.y, update.w, update.h, update.patchData, update.changedPixels, update.staleness + 1, update.accumulated + update.changedPixels);
     this.deferredUpdates.add(escalated);
   }
 
@@ -1064,15 +994,7 @@ public class CompressedMapResult implements DitherResultStep {
     this.dispatchPackets(packets, viewers);
   }
 
-  private byte[] extractFullMapData(
-    final byte[] dithered,
-    final int vidWidth,
-    final int vidHeight,
-    final int mapWallX,
-    final int mapWallY,
-    final int xOff,
-    final int yOff
-  ) {
+  private byte[] extractFullMapData(final byte[] dithered, final int vidWidth, final int vidHeight, final int mapWallX, final int mapWallY, final int xOff, final int yOff) {
     final byte[] mapData = new byte[MAP_PX * MAP_PX];
 
     for (int ly = 0; ly < MAP_PX; ly++) {

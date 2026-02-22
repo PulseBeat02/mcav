@@ -17,22 +17,6 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
-import static java.util.Objects.requireNonNull;
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
-import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
-import static org.bytedeco.ffmpeg.global.swscale.SWS_POINT;
-
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-import javax.sound.sampled.LineUnavailableException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -52,6 +36,23 @@ import me.brandonli.mcav.utils.natives.ByteUtils;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import javax.sound.sampled.LineUnavailableException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+
+import static java.util.Objects.requireNonNull;
+import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
+import static org.bytedeco.ffmpeg.global.avutil.AV_SAMPLE_FMT_S16;
+import static org.bytedeco.ffmpeg.global.swscale.SWS_POINT;
 
 /**
  * Abstract implementation of a video player that uses JavaCV for multimedia processing.
@@ -572,6 +573,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerCV {
       final String msg = raw != null ? raw : clazz.getName();
       this.exceptionHandler.accept(msg, e);
     }
+    Thread.yield(); // allow others a chance to run, especially audio processing
+
     return false;
   }
 
