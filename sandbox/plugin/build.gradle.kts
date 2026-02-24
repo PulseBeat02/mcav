@@ -27,7 +27,7 @@ dependencies {
     runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.14")
 
     runtimeDownload("me.lucko:commodore:2.2")
-    runtimeDownload("org.bstats:bstats-bukkit:3.1.0")
+    runtimeDownload("org.bstats:bstats-bukkit:3.2.1")
     runtimeDownload("net.dv8tion:JDA:6.3.1")
     runtimeDownload("io.javalin:javalin:7.0.0")
 }
