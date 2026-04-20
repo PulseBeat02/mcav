@@ -12,11 +12,11 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fontsource/roboto": "^5.2.6",
-    "@mui/icons-material": "^7.2.0",
-    "@mui/material": "^7.2.0",
+    "@mui/icons-material": "^9.0.0",
+    "@mui/material": "^9.0.0",
     "@types/howler": "^2.2.12",
     "howler": "^2.2.4",
-    "next": "16.2.1",
+    "next": "16.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -27,8 +27,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^10.0.0",
-    "eslint-config-next": "16.2.1",
+    "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^6.0.0"
   }
 }

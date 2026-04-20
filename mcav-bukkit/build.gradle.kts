@@ -1,6 +1,6 @@
 plugins {
     id("maven-publish")
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.19"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
 }
 
 dependencies {
@@ -9,8 +9,8 @@ dependencies {
     paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
-    api("net.bytebuddy:byte-buddy:1.18.7")
-    api("net.bytebuddy:byte-buddy-agent:1.18.7")
+    api("net.bytebuddy:byte-buddy:1.18.8")
+    api("net.bytebuddy:byte-buddy-agent:1.18.8")
     api("net.openhft:zero-allocation-hashing:0.27ea1")
 
     // provided

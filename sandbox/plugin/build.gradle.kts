@@ -2,7 +2,7 @@ import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
-    id("com.gradleup.shadow") version "9.4.0"
+    id("com.gradleup.shadow") version "9.4.1"
     id("xyz.jpenilla.run-paper") version "3.0.2"
     id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.1"
     id("xyz.jpenilla.gremlin-gradle") version "0.0.9"
@@ -23,13 +23,13 @@ dependencies {
 
     runtimeDownload("org.incendo:cloud-core:2.0.0")
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
-    runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.14")
-    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.14")
+    runtimeDownload("org.incendo:cloud-paper:2.0.0-beta.15")
+    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0-beta.15")
 
     runtimeDownload("me.lucko:commodore:2.2")
     runtimeDownload("org.bstats:bstats-bukkit:3.2.1")
-    runtimeDownload("net.dv8tion:JDA:6.3.2")
-    runtimeDownload("io.javalin:javalin:7.1.0")
+    runtimeDownload("net.dv8tion:JDA:6.4.1")
+    runtimeDownload("io.javalin:javalin:7.2.0")
 }
 
 configurations.compileOnly {
