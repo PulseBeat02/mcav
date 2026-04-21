@@ -309,6 +309,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
    * {@inheritDoc}
    */
   @Override
+  @SuppressWarnings("all") // checker
   public int[] getPixels() {
     final int[] cached = this.cachedPixels;
     if (cached != null) {
