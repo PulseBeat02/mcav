@@ -17,6 +17,19 @@
  */
 package me.brandonli.mcav.media.image;
 
+import static java.util.Objects.requireNonNull;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
+
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.IOUtils;
@@ -32,20 +45,6 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.opencv.core.CvType;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-
-import static java.util.Objects.requireNonNull;
-import static org.bytedeco.opencv.global.opencv_core.*;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGRA2BGR;
 
 /**
  * A class that represents an image backed by an OpenCV Mat object. It provides various image
@@ -67,7 +66,7 @@ public class MatImageBuffer extends ExaminableObject implements ImageBuffer {
   private @Nullable BytePointer pointer;
   private @Nullable ByteBuffer cachedBuffer;
 
-  private int @Nullable [] cachedPixels;
+  private int@Nullable[] cachedPixels;
   private Mat mat;
 
   MatImageBuffer(final Mat mat) {
