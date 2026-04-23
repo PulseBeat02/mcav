@@ -17,7 +17,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     compileOnlyApi("io.netty:netty-all:4.1.97.Final")
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
-    compileOnlyApi("com.google.code.gson:gson:2.13.2")
+    compileOnlyApi("com.google.code.gson:gson:2.14.0")
     compileOnlyApi("net.java.dev.jna:jna:5.18.1")
 
     // testing

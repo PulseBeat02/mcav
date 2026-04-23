@@ -29,7 +29,7 @@ dependencies {
         exclude(group = "org.bytedeco", module = "tesseract-platform")
     }
     api("com.google.guava:guava:33.4.8-jre")
-    api("com.google.code.gson:gson:2.13.2")
+    api("com.google.code.gson:gson:2.14.0")
     api("net.java.dev.jna:jna:5.18.1")
     api("net.java.dev.jna:jna-platform:5.18.1")
 
