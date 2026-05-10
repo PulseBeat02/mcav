@@ -31,10 +31,6 @@ tasks {
         withJavadocJar()
     }
 
-    assemble {
-        dependsOn("reobfJar")
-    }
-
     withType<Javadoc>().configureEach {
         options.encoding = "UTF-8"
     }
@@ -61,10 +57,6 @@ publishing {
             groupId = "me.brandonli"
             artifactId = project.name
             version = rootProject.version.toString()
-            artifacts.removeIf { it.extension == "jar" && it.classifier == null }
-            artifact(tasks.named("reobfJar")) {
-                classifier = null
-            }
             suppressAllPomMetadataWarnings()
         }
     }

@@ -18,9 +18,6 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.channel.*;
-import org.bukkit.Bukkit;
-import org.bukkit.Server;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -28,6 +25,8 @@ import java.lang.invoke.VarHandle;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
 
 final class ReflectBukkitInjector {
 

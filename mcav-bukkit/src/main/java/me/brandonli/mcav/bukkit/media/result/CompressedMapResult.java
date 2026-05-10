@@ -17,6 +17,12 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -34,13 +40,6 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.openhft.hashing.LongHashFunction;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinWorkerThread;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A DitherResultStep implementation that generates patch updates for map items based on quadrant hashing and tile analysis.
@@ -1001,14 +1000,18 @@ public class CompressedMapResult implements DitherResultStep {
     }
   }
 
-  private void dispatchPackets(final List<Packet<? super ClientGamePacketListener>> packets, final Collection<UUID> viewers) {
+  // parameter is List<?> to avoid leaking NMS Packet type annotations into the published bytecode signature,
+  // which breaks downstream compilation when consumers don't have NMS classes on the classpath.
+  @SuppressWarnings("unchecked")
+  private void dispatchPackets(final List<?> packets, final Collection<UUID> viewers) {
     if (packets.isEmpty()) {
       return;
     }
 
-    for (int i = 0; i < packets.size(); i += BUNDLE_CHUNK) {
-      final int end = Math.min(i + BUNDLE_CHUNK, packets.size());
-      final List<Packet<? super ClientGamePacketListener>> chunk = packets.subList(i, end);
+    final List<Packet<? super ClientGamePacketListener>> typed = (List<Packet<? super ClientGamePacketListener>>) packets;
+    for (int i = 0; i < typed.size(); i += BUNDLE_CHUNK) {
+      final int end = Math.min(i + BUNDLE_CHUNK, typed.size());
+      final List<Packet<? super ClientGamePacketListener>> chunk = typed.subList(i, end);
       final ClientboundBundlePacket bundle = new ClientboundBundlePacket(chunk);
       PacketUtils.sendPackets(viewers, bundle);
     }

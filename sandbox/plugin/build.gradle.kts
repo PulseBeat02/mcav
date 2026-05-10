@@ -41,7 +41,7 @@ version = "1.0.0-v26.1.2"
 tasks.withType<AbstractRun>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
         vendor = JvmVendorSpec.JETBRAINS
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     })
     jvmArgs(
         "-Xms8192m",
@@ -77,8 +77,8 @@ tasks {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
         minecraftVersion("26.1.2")
         downloadPlugins {
-            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/FeJRj2X0/voicechat-bukkit-2.6.12.jar")
-            url("https://ci.lucko.me/job/spark/514/artifact/spark-bukkit/build/libs/spark-1.10.165-bukkit.jar")
+            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/Qnk9puxN/voicechat-bukkit-2.6.17.jar")
+            url("https://ci.lucko.me/job/spark/524/artifact/spark-bukkit/build/libs/spark-1.10.172-bukkit.jar")
         }
     }
 }
