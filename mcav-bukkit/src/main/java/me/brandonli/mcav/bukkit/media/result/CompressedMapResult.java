@@ -17,12 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinWorkerThread;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -40,6 +34,13 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.openhft.hashing.LongHashFunction;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A DitherResultStep implementation that generates patch updates for map items based on quadrant hashing and tile analysis.

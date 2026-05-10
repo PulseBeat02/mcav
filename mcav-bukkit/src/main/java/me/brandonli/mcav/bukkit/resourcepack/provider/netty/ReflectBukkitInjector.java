@@ -18,6 +18,9 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import io.netty.channel.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -25,9 +28,6 @@ import java.lang.invoke.VarHandle;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
-import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
-import org.bukkit.Bukkit;
-import org.bukkit.Server;
 
 final class ReflectBukkitInjector {
 
@@ -73,13 +73,13 @@ final class ReflectBukkitInjector {
     final String connectionName = "net.minecraft.server.network.ServerConnection";
     final Class<?> connectionClass = Class.forName(connectionName);
     final MethodType getConnectionType = MethodType.methodType(connectionClass);
-    final MethodHandle getConnectionHandle = lookup.findVirtual(dedicatedServerClass, "ah", getConnectionType);
+    final MethodHandle getConnectionHandle = lookup.findVirtual(dedicatedServerClass, "getConnection", getConnectionType);
     return getConnectionHandle.invoke(dedicatedServer);
   }
 
   private static MethodHandle getServerHandle() throws NoSuchMethodException, IllegalAccessException, ClassNotFoundException {
-    final String rev = ServerEnvironment.getNMSRevision();
-    final String craftServerClass = "org.bukkit.craftbukkit.%s.CraftServer".formatted(rev);
+    // final String rev = ServerEnvironment.getNMSRevision();
+    final String craftServerClass = "org.bukkit.craftbukkit.CraftServer";
     final Class<?> craftServerType = Class.forName(craftServerClass);
     final MethodHandles.Lookup lookup = MethodHandles.lookup();
     final String dedicatedServerClass = "net.minecraft.server.dedicated.DedicatedServer";

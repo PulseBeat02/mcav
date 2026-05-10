@@ -37,7 +37,7 @@ subprojects {
     apply(plugin = "com.github.node-gradle.node")
     apply(plugin = "com.diffplug.spotless")
 
-    val targetJavaVersion = 21
+    val targetJavaVersion = 25
     java {
         val javaVersion = JavaVersion.toVersion(targetJavaVersion)
         val language = JavaLanguageVersion.of(targetJavaVersion)

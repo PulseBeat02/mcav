@@ -8,7 +8,7 @@ labels:
 
 **Basic Information**
 MCAV Version: (Do not say LATEST, say an exact version)
-Minecraft Server Version: (Example: 1.21.11)
+Minecraft Server Version: (Example: 26.1.2.build.+)
 Server Type: (Example: Paper)
 
 **Describe the Bug**
