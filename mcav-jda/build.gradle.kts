@@ -12,7 +12,7 @@ dependencies {
     // testing
     testImplementation("net.dv8tion:JDA:6.4.1")
     testImplementation(project(":mcav-common"))
-    testImplementation("net.java.dev.jna:jna:5.18.1")
+    testImplementation("net.java.dev.jna:jna:5.19.0")
 }
 
 tasks {
