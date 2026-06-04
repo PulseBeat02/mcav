@@ -10,7 +10,7 @@ dependencies {
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
     api("net.bytebuddy:byte-buddy:1.18.10")
-    api("net.bytebuddy:byte-buddy-agent:1.18.9")
+    api("net.bytebuddy:byte-buddy-agent:1.18.10")
     api("net.openhft:zero-allocation-hashing:0.27ea1")
 
     // provided
@@ -18,7 +18,7 @@ dependencies {
     compileOnlyApi("io.netty:netty-all:4.1.97.Final")
     compileOnlyApi("com.google.guava:guava:33.4.8-jre")
     compileOnlyApi("com.google.code.gson:gson:2.14.0")
-    compileOnlyApi("net.java.dev.jna:jna:5.18.1")
+    compileOnlyApi("net.java.dev.jna:jna:5.19.0")
 
     // testing
     testImplementation(project(":mcav-common"))
