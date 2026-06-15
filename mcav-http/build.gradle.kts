@@ -5,11 +5,11 @@ plugins {
 dependencies {
 
     // project dependencies
-    api("org.springframework.boot:spring-boot-starter-web:4.0.6") {
+    api("org.springframework.boot:spring-boot-starter-web:4.1.0") {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
-    api("org.springframework.boot:spring-boot-starter-websocket:4.0.6") {
+    api("org.springframework.boot:spring-boot-starter-websocket:4.1.0") {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
