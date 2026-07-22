@@ -21,7 +21,7 @@ dependencies {
     runtimeDownload("me.brandonli:mcav-browser:1.0.0-SNAPSHOT")
     implementation("me.brandonli:mcav-svc:1.0.0-SNAPSHOT")
 
-    runtimeDownload("org.incendo:cloud-core:2.0.0")
+    runtimeDownload("org.incendo:cloud-core:2.1.0")
     runtimeDownload("org.incendo:cloud-annotations:2.0.0")
     runtimeDownload("org.incendo:cloud-paper:2.0.0")
     runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0")
