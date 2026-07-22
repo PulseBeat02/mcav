@@ -9,7 +9,7 @@ dependencies {
     paperweight.paperDevBundle("26.1.2.build.+")
     api("team.unnamed:creative-api:1.7.3")
     api("team.unnamed:creative-serializer-minecraft:1.7.3")
-    api("net.bytebuddy:byte-buddy:1.18.10")
+    api("net.bytebuddy:byte-buddy:1.18.11")
     api("net.bytebuddy:byte-buddy-agent:1.18.11")
     api("net.openhft:zero-allocation-hashing:0.27ea1")
 
