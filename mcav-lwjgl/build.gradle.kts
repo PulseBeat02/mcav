@@ -6,7 +6,7 @@ dependencies {
 
     // project dependencies
     api("org.lwjgl:lwjgl:3.4.1")
-    api("org.lwjgl:lwjgl-opengl:3.4.1")
+    api("org.lwjgl:lwjgl-opengl:3.4.2")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
