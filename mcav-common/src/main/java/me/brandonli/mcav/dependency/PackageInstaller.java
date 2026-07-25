@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.dependency;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -94,7 +96,7 @@ public final class PackageInstaller {
     final String raw = absolute.toString();
     final String[] args = new String[] { "chmod", "777", raw };
     final CommandTask task = new CommandTask(args, true);
-    final Process process = task.getProcess();
+    final Process process = requireNonNull(task.getProcess());
     try {
       process.waitFor();
     } catch (final InterruptedException e) {
@@ -109,7 +111,7 @@ public final class PackageInstaller {
     final String raw = absolute.toString();
     final String[] args = new String[] { raw, name };
     final CommandTask task = new CommandTask(args, true);
-    final Process process = task.getProcess();
+    final Process process = requireNonNull(task.getProcess());
     try {
       process.waitFor();
     } catch (final InterruptedException e) {
