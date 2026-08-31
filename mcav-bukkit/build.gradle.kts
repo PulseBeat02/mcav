@@ -1,6 +1,6 @@
 plugins {
     id("maven-publish")
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.22"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
 }
 
 dependencies {
