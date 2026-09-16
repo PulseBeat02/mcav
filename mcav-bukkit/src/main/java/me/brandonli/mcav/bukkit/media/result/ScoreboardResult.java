@@ -17,124 +17,62 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import static java.util.Objects.requireNonNull;
-
-import io.papermc.paper.scoreboard.numbers.NumberFormat;
-import java.util.Collection;
-import java.util.UUID;
-import me.brandonli.mcav.bukkit.BukkitModule;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
-import me.brandonli.mcav.bukkit.utils.ChatUtils;
+import me.brandonli.mcav.bukkit.media.render.ScoreboardRenderer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitScheduler;
-import org.bukkit.scoreboard.*;
 
 /**
- * Represents a frame displaying frames on a scoreboard.
+ * A video filter that displays every frame on the sidebar scoreboard of the viewers.
+ *
+ * <p>Call {@link #start()} before playback and {@link #release()} afterward. The scoreboard updates at most once
+ * per server tick. The filter may run on any thread.
  */
 public class ScoreboardResult implements FunctionalVideoFilter {
 
-  private final ScoreboardConfiguration configuration;
-  private final Team[] teamLines;
+  private final ScoreboardRenderer renderer;
 
   /**
-   * Constructs a new instance of the {@code ScoreboardResult} class using the provided
-   * {@code ScoreboardConfiguration}.
+   * Constructs a new {@code ScoreboardResult}.
    *
-   * @param configuration the configuration object that defines the properties of the
-   *                      scoreboard, including viewers, character, lines, and width.
+   * @param configuration the configuration describing the viewers, character, and size of the scoreboard image
    */
   public ScoreboardResult(final ScoreboardConfiguration configuration) {
-    this.configuration = configuration;
-    this.teamLines = new Team[configuration.getLines()];
+    Preconditions.checkNotNull(configuration, "Scoreboard configuration must not be null");
+    this.renderer = new ScoreboardRenderer(configuration);
   }
 
   /**
-   * {@inheritDoc}
+   * Creates the scoreboard and shows it to the viewers.
    */
   @Override
   public void start() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Plugin plugin = BukkitModule.getPlugin();
-    scheduler.runTask(plugin, this::start0);
-  }
-
-  private void start0() {
-    final int lines = this.configuration.getLines();
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
-    final Scoreboard scoreboard = scoreboardManager.getNewScoreboard();
-    final UUID randomUUID = UUID.randomUUID();
-    final String objectiveName = randomUUID.toString();
-    @SuppressWarnings("deprecation")
-    final Objective objective = scoreboard.registerNewObjective(objectiveName, "dummy", "");
-    objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-    objective.numberFormat(NumberFormat.blank());
-    for (int i = 0; i < lines; i++) {
-      final UUID random = UUID.randomUUID();
-      final String name = random.toString();
-      final Team team = scoreboard.registerNewTeam(name);
-      final String value = ChatUtils.getUniqueString(i);
-      team.addEntry(value);
-      final Score score = objective.getScore(value);
-      score.setScore(lines - i - 1);
-      this.teamLines[i] = team;
-    }
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.setScoreboard(scoreboard);
-    }
+    this.renderer.show();
   }
 
   /**
-   * {@inheritDoc}
+   * Converts the frame into colored scoreboard lines and queues them for the next server tick.
+   *
+   * @param data     the frame to display, which may be resized by the renderer
+   * @param metadata the metadata of the original video, which is not used
+   * @return always true, because the renderer may resize the frame
+   */
+  @Override
+  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
+    Preconditions.checkNotNull(data, "Frame must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    this.renderer.render(data);
+    return true;
+  }
+
+  /**
+   * Removes the scoreboard and restores the previous scoreboard of every viewer. Call this method on the main thread
+   * during shutdown, because a disabled plugin cannot schedule the restore anymore.
    */
   @Override
   public void release() {
-    for (final Team team : this.teamLines) {
-      if (team == null) {
-        continue;
-      }
-      team.unregister();
-    }
-    final ScoreboardManager scoreboardManager = requireNonNull(Bukkit.getScoreboardManager());
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      final Scoreboard fresh = scoreboardManager.getNewScoreboard();
-      player.setScoreboard(fresh);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  @SuppressWarnings("deprecation")
-  public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
-    final String character = this.configuration.getCharacter();
-    final int width = this.configuration.getWidth();
-    final int lines = this.configuration.getLines();
-    final ResizeFilter resize = new ResizeFilter(width, lines);
-    resize.applyFilter(data, metadata);
-    final int[] resizedData = data.getPixels();
-    for (int i = 0; i < lines; i++) {
-      final Team team = this.teamLines[i];
-      final String suffix = ChatUtils.createRawLine(resizedData, character, width, i);
-      team.setSuffix(suffix);
-    }
-    return true;
+    this.renderer.hide();
   }
 }

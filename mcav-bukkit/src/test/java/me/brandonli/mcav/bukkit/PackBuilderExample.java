@@ -21,17 +21,31 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
-import me.brandonli.mcav.bukkit.utils.resourcepack.SoundExtractorUtils;
 import me.brandonli.mcav.media.source.uri.UriSource;
+import me.brandonli.mcav.utils.ffmpeg.AudioExtractor;
 
+/**
+ * Builds a resource pack with the audio of a video as the sound {@code mcav:example}.
+ */
 public final class PackBuilderExample {
 
-  public static void main(final String[] args) throws IOException {
-    final UriSource audio = UriSource.uri(URI.create("http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"));
-    final Path ogg = SoundExtractorUtils.extractOggAudio(audio); // temporary path
+  private static final URI VIDEO = URI.create("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+
+  private PackBuilderExample() {
+    throw new UnsupportedOperationException("Example class cannot be instantiated");
+  }
+
+  /**
+   * Downloads the example video, extracts its audio, and writes the resource pack to {@code pack.zip}.
+   *
+   * @throws IOException if the audio cannot be extracted or the pack cannot be written
+   */
+  static void main() throws IOException {
+    final UriSource video = UriSource.uri(VIDEO);
+    final Path sound = AudioExtractor.extractOggVorbis(video);
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.sound("mcav:example", ogg);
-    final Path dest = Path.of("pack.zip");
-    pack.zip(dest);
+    pack.sound("mcav:example", sound);
+    final Path destination = Path.of("pack.zip");
+    pack.zip(destination);
   }
 }

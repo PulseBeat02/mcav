@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.hologram;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -35,144 +34,195 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a basic video hologram that displays metadata and a progress bar.
+ * A hologram that shows the title, the uploader, the upload date, and a progress bar of a video. The progress bar
+ * advances once per second until the duration of the video is reached.
  */
 public class StandardVideoHologram extends VideoHologram {
 
-  private static final DateTimeFormatter DATE_FORMATTER_FIRST = DateTimeFormatter.ofPattern("MMMM d");
-  private static final DateTimeFormatter DATE_FORMATTER_SECOND = DateTimeFormatter.ofPattern(", yyyy h:mm a");
-
+  private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("MMMM d");
+  private static final DateTimeFormatter YEAR_TIME_FORMATTER = DateTimeFormatter.ofPattern(", yyyy h:mm a");
   private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
-  private static final String METADATA_LINES =
-    """
-    <white>%%TITLE%%</white>
-    <gray>%%UPLOADER%% (%%UPLOAD_DATE%%)</gray>
-    """;
+  private static final String PROGRESS_FILLED = "<green>■</green>";
+  private static final String PROGRESS_EMPTY = "<gray>■</gray>";
 
-  private Component originalText;
+  private static final String UNKNOWN_TITLE = "Unknown title";
+  private static final String UNKNOWN_UPLOADER = "Unknown uploader";
+  private static final String UNKNOWN_DATE = "Unknown date";
+
+  private static final int PROGRESS_SEGMENTS = 20;
+  private static final long TICKS_PER_SECOND = 20L;
+
+  private Component metadataText;
   private int durationSeconds;
   private int currentSecond;
-  private int taskId;
+  private @Nullable BukkitTask task;
 
   StandardVideoHologram() {
-    this.taskId = -1;
+    this.metadataText = Component.empty();
   }
 
   /**
-   * {@inheritDoc}
+   * Spawns a text display at the location that shows the title, the uploader, and the upload date of the video.
+   * Missing metadata is replaced by placeholders, and MiniMessage tags in the metadata are shown literally. Calling
+   * this method again removes the previous display and stops its progress bar first.
+   *
+   * @param location the location to spawn the hologram at, which must have a world
+   * @param dump     the metadata of the video, as parsed by yt-dlp
+   * @throws NullPointerException     if the location or the metadata is null
+   * @throws IllegalArgumentException if the location has no world
    */
   @Override
   public void handleRequest(final Location location, final URLParseDump dump) {
-    final World world = requireNonNull(location.getWorld());
-    final String title = dump.title;
-    final String uploader = dump.uploader;
-    final String uploadDate = this.getFormattedDate(dump.timestamp);
-    final String minimessage = METADATA_LINES.replace("%%TITLE%%", title)
-      .replace("%%UPLOADER%%", uploader)
-      .replace("%%UPLOAD_DATE%%", uploadDate);
-    final Component component = MINI_MESSAGE.deserialize(minimessage);
-    final TextDisplay entity = world.spawn(location, TextDisplay.class, display -> {
-      display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.VERTICAL);
-      display.setVisibleByDefault(true);
-      display.setSeeThrough(false);
-      display.setBackgroundColor(Color.BLACK);
-      display.text(component);
-    });
+    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(dump, "Video metadata must not be null");
+    final World world = location.getWorld();
+    Preconditions.checkArgument(world != null, "Location must have a world");
+
+    this.kill();
+    final Component metadata = createMetadataText(dump);
+    final TextDisplay entity = world.spawn(location, TextDisplay.class, display -> configureDisplay(display, metadata));
     this.setDisplay(entity);
-    this.durationSeconds = dump.duration;
+    this.metadataText = metadata;
+
+    // yt-dlp can report a fraction of a second, which still has to be played, so the duration is rounded up
+    final double wholeSeconds = Math.ceil(dump.duration);
+    this.durationSeconds = Math.max(0, (int) wholeSeconds);
+    this.currentSecond = 0;
   }
 
-  private String getFormattedDate(final int timestamp) {
-    final Instant instant = Instant.ofEpochSecond(timestamp);
-    final ZonedDateTime dateTime = instant.atZone(ZoneId.systemDefault());
-    final int day = dateTime.getDayOfMonth();
-    final String ordinal;
-    if (day >= 11 && day <= 13) {
-      ordinal = "th";
-    } else {
-      ordinal = switch (day % 10) {
-        case 1 -> "st";
-        case 2 -> "nd";
-        case 3 -> "rd";
-        default -> "th";
-      };
+  private static void configureDisplay(final TextDisplay display, final Component text) {
+    display.setPersistent(false);
+    display.setAlignment(TextDisplay.TextAlignment.CENTER);
+    display.setBillboard(Display.Billboard.VERTICAL);
+    display.setVisibleByDefault(true);
+    display.setSeeThrough(false);
+    display.setBackgroundColor(Color.BLACK);
+    display.text(text);
+  }
+
+  private static Component createMetadataText(final URLParseDump dump) {
+    final String rawTitle = dump.title == null ? UNKNOWN_TITLE : dump.title;
+    final String rawUploader = dump.uploader == null ? UNKNOWN_UPLOADER : dump.uploader;
+    final String title = MINI_MESSAGE.escapeTags(rawTitle);
+    final String uploader = MINI_MESSAGE.escapeTags(rawUploader);
+    final String uploadDate = formatUploadDate(dump.timestamp);
+    final String miniMessage = "<white>%s</white>\n<gray>%s (%s)</gray>".formatted(title, uploader, uploadDate);
+    return MINI_MESSAGE.deserialize(miniMessage);
+  }
+
+  private static String formatUploadDate(final int timestamp) {
+    if (timestamp <= 0) {
+      return UNKNOWN_DATE;
     }
-    return dateTime.format(DATE_FORMATTER_FIRST) + ordinal + dateTime.format(DATE_FORMATTER_SECOND);
+    final Instant instant = Instant.ofEpochSecond(timestamp);
+    final ZoneId zone = ZoneId.systemDefault();
+    final ZonedDateTime dateTime = instant.atZone(zone);
+    final int day = dateTime.getDayOfMonth();
+    final String ordinal = getOrdinalSuffix(day);
+    final String monthDay = dateTime.format(MONTH_DAY_FORMATTER);
+    final String yearTime = dateTime.format(YEAR_TIME_FORMATTER);
+    return monthDay + ordinal + yearTime;
+  }
+
+  private static String getOrdinalSuffix(final int day) {
+    if (day >= 11 && day <= 13) {
+      return "th";
+    }
+    final int lastDigit = day % 10;
+    return switch (lastDigit) {
+      case 1 -> "st";
+      case 2 -> "nd";
+      case 3 -> "rd";
+      default -> "th";
+    };
   }
 
   /**
-   * {@inheritDoc}
+   * Starts the progress bar, which advances once per second until the duration of the video is reached or the
+   * display is removed. Has no effect before {@link #handleRequest(Location, URLParseDump)} was called or while the
+   * progress bar is already running.
    */
   @Override
   public void start() {
     final TextDisplay display = this.getDisplay();
-    if (display == null) {
+    if (display == null || this.task != null) {
       return;
     }
 
-    this.originalText = display.text();
     this.currentSecond = 0;
-
     final Plugin plugin = BukkitModule.getPlugin();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    this.taskId = scheduler.scheduleSyncRepeatingTask(plugin, () -> this.updateTask(scheduler, display), 0L, 20L);
+    this.task = scheduler.runTaskTimer(plugin, this::advanceProgress, 0L, TICKS_PER_SECOND);
   }
 
-  private void updateTask(final BukkitScheduler scheduler, final TextDisplay display) {
-    if (this.currentSecond >= this.durationSeconds) {
-      if (this.taskId != -1) {
-        scheduler.cancelTask(this.taskId);
-        this.taskId = -1;
-      }
+  private void advanceProgress() {
+    final TextDisplay display = this.getDisplay();
+    final boolean finished = this.currentSecond > this.durationSeconds;
+    if (display == null || !display.isValid() || finished) {
+      this.cancelTask();
       return;
     }
-    this.updateTimerDisplay(display);
+    final Component text = this.createProgressText();
+    display.text(text);
     this.currentSecond++;
   }
 
-  private void updateTimerDisplay(final TextDisplay display) {
-    final StringBuilder progressBar = new StringBuilder();
-    final int totalSquares = 20;
-    final int greenSquares = (int) Math.ceil(((double) this.currentSecond / this.durationSeconds) * totalSquares);
-    for (int i = 0; i < totalSquares; i++) {
-      if (i < greenSquares) {
-        progressBar.append("<green>■</green>");
-      } else {
-        progressBar.append("<gray>■</gray>");
-      }
-    }
+  private Component createProgressText() {
+    final String progressBar = this.createProgressBar();
+    final String currentTime = formatTime(this.currentSecond);
+    final String totalTime = formatTime(this.durationSeconds);
+    final String timerLine = "<gray>%s</gray> %s <gray>%s</gray>".formatted(currentTime, progressBar, totalTime);
+    final Component timer = MINI_MESSAGE.deserialize(timerLine);
 
-    final String currentTime = this.formatTime(this.currentSecond);
-    final String totalTime = this.formatTime(this.durationSeconds);
-    final String timerLine = String.format("<gray>%s</gray> %s <gray>%s</gray>", currentTime, progressBar, totalTime);
-    final Component newText = Component.empty()
-      .append(this.originalText)
-      .append(Component.newline())
-      .append(MINI_MESSAGE.deserialize(timerLine));
-
-    display.text(newText);
+    final Component newline = Component.newline();
+    final Component withNewline = this.metadataText.append(newline);
+    return withNewline.append(timer);
   }
 
-  private String formatTime(final int seconds) {
+  private String createProgressBar() {
+    final int filledSegments = this.countFilledSegments();
+    final int emptySegments = PROGRESS_SEGMENTS - filledSegments;
+    final String filled = PROGRESS_FILLED.repeat(filledSegments);
+    final String empty = PROGRESS_EMPTY.repeat(emptySegments);
+    return filled + empty;
+  }
+
+  private int countFilledSegments() {
+    if (this.durationSeconds == 0) {
+      return 0;
+    }
+    final double progress = (double) this.currentSecond / this.durationSeconds;
+    final double filledSegments = Math.ceil(progress * PROGRESS_SEGMENTS);
+    return (int) filledSegments;
+  }
+
+  private static String formatTime(final int seconds) {
     final int minutes = seconds / 60;
     final int remainingSeconds = seconds % 60;
-    return String.format("%02d:%02d", minutes, remainingSeconds);
+    return "%02d:%02d".formatted(minutes, remainingSeconds);
+  }
+
+  private void cancelTask() {
+    final BukkitTask current = this.task;
+    if (current == null) {
+      return;
+    }
+    current.cancel();
+    this.task = null;
   }
 
   /**
-   * {@inheritDoc}
+   * Stops the progress bar and removes the display entity from the world. Calling this method on a hologram that
+   * was never spawned has no effect.
    */
   @Override
   public void kill() {
-    if (this.taskId != -1) {
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.cancelTask(this.taskId);
-      this.taskId = -1;
-    }
+    this.cancelTask();
     super.kill();
   }
 }

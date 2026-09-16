@@ -21,29 +21,34 @@ import org.bukkit.entity.TextDisplay;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a video hologram that can be displayed in the game.
+ * The base class of holograms that are backed by a single text display entity. It owns the entity and removes it
+ * when the hologram is killed.
  */
 public abstract class VideoHologram implements Hologram {
 
   private @Nullable TextDisplay display;
 
   VideoHologram() {
-    // no-op
+    // only subclassed inside this package
   }
 
   /**
-   * {@inheritDoc}
+   * Removes the display entity from the world.
    */
   @Override
   public void kill() {
-    if (this.display != null) {
-      this.display.remove();
-      this.display = null;
+    final TextDisplay current = this.display;
+    if (current == null) {
+      return;
     }
+    current.remove();
+    this.display = null;
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the display entity of this hologram.
+   *
+   * @return the display entity, or null if the hologram is not spawned
    */
   @Override
   public @Nullable TextDisplay getDisplay() {
@@ -51,7 +56,9 @@ public abstract class VideoHologram implements Hologram {
   }
 
   /**
-   * {@inheritDoc}
+   * Replaces the display entity of this hologram. The previous entity is not removed.
+   *
+   * @param display the display entity, or null to detach the hologram from its entity
    */
   @Override
   public void setDisplay(final @Nullable TextDisplay display) {

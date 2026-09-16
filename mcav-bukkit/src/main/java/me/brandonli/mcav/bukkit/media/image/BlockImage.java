@@ -17,115 +17,42 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
-import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
-import me.brandonli.mcav.bukkit.media.result.LocationData;
+import me.brandonli.mcav.bukkit.media.render.BlockRenderer;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Player;
 
 /**
- * Represents a block-based image display implementation.
+ * Displays still images as a wall of colored blocks using fake block changes. The original blocks are shown again
+ * when the image is released.
  */
 public class BlockImage implements DisplayableImage {
 
-  private final BlockConfiguration blockConfiguration;
-  private final FilterLiteDither dither;
-
-  private LocationData[] locationCache;
+  private final BlockRenderer renderer;
 
   BlockImage(final BlockConfiguration configuration) {
-    this.blockConfiguration = configuration;
-    this.dither = BlockPaletteLookup.getDitheringImpl();
+    this.renderer = new BlockRenderer(configuration);
   }
 
   /**
-   * {@inheritDoc}
+   * Shows the wall if it is not shown yet, and draws the image onto it during the next server tick. May be called
+   * from any thread.
+   *
+   * @param image the image to show, which is resized to the wall in place
+   * @throws NullPointerException if the image is null
    */
-  @SuppressWarnings("UnstableApiUsage")
   @Override
   public void displayImage(final ImageBuffer image) {
-    final int blockWidth = this.blockConfiguration.getBlockWidth();
-    final int blockHeight = this.blockConfiguration.getBlockHeight();
-    final Location origin = this.blockConfiguration.getPosition();
-    this.locationCache = new LocationData[blockWidth * blockHeight];
-    for (int i = 0; i < this.locationCache.length; i++) {
-      final int x = i % blockWidth;
-      final int y = i / blockWidth;
-      final int adjustedX = x - (blockWidth / 2);
-      final int adjustedY = blockHeight - 1 - y;
-      final Location clone = origin.clone();
-      final Location adjusted = clone.add(adjustedX, adjustedY, 0);
-      final Block block = adjusted.getBlock();
-      final BlockState state = block.getState();
-      final BlockState copy = state.copy(adjusted);
-      final LocationData locationData = new LocationData(adjusted, copy);
-      this.locationCache[i] = locationData;
-    }
-
-    final ResizeFilter resizeFilter = new ResizeFilter(blockWidth, blockHeight);
-    resizeFilter.applyFilter(image);
-
-    final int[] resizedData = image.getPixels();
-    final int length = resizedData.length;
-    this.dither.dither(resizedData, blockWidth);
-
-    final Material[] materials = new Material[length];
-    for (int i = 0; i < materials.length; i++) {
-      materials[i] = BlockPaletteLookup.getMaterial(resizedData[i]);
-    }
-
-    final Collection<BlockState> blockStates = new HashSet<>();
-    for (int i = 0; i < materials.length; i++) {
-      final LocationData locationData = this.locationCache[i];
-      final Location location = locationData.getLocation();
-      final BlockData blockData = materials[i].createBlockData();
-      final BlockState blockState = blockData.createBlockState();
-      final BlockState copy = blockState.copy(location);
-      blockStates.add(copy);
-    }
-
-    final Collection<UUID> viewers = this.blockConfiguration.getViewers();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.sendBlockChanges(blockStates);
-    }
+    Preconditions.checkNotNull(image, "Image must not be null");
+    this.renderer.show();
+    this.renderer.render(image);
   }
 
   /**
-   * {@inheritDoc}
+   * Shows the original blocks to the viewers again. May be called from any thread.
    */
   @Override
   public void release() {
-    if (this.locationCache == null) {
-      return;
-    }
-
-    final Collection<BlockState> blockStates = Arrays.stream(this.locationCache)
-      .map(LocationData::getBlockState)
-      .collect(Collectors.toList());
-    final Collection<UUID> viewers = this.blockConfiguration.getViewers();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.sendBlockChanges(blockStates);
-    }
+    this.renderer.hide();
   }
 }

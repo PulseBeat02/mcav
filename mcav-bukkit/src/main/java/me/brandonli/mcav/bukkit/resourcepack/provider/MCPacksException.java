@@ -21,29 +21,35 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception thrown when there was an issue uploading to MCPacks.
+ * Thrown when a resource pack cannot be uploaded to mc-packs.net.
+ *
+ * <p>This is a plain {@link RuntimeException}: the upload depends on the network and on a remote service, so a
+ * failure is neither a programming error nor a state of the caller, and trying again later may succeed. It is not a
+ * {@link java.io.UncheckedIOException}, because a rejected upload is reported by the service without any
+ * {@link java.io.IOException} to wrap, and it is never an {@link Error}, so a plugin can catch it and fall back to
+ * another hosting.
  */
-public class MCPacksException extends AssertionError {
+public class MCPacksException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
-   * Constructs an exception with the specified detail message.
+   * Constructs a new exception with a detail message and no cause.
    *
-   * @param message the detail message explaining the reason for the exception,
+   * @param message the detail message, which says why the upload failed
    */
-  public MCPacksException(final @Nullable String message) {
+  MCPacksException(final @Nullable String message) {
     super(message);
   }
 
   /**
-   * Constructs an exception with the specified detail message and cause.
+   * Constructs a new exception with a detail message and the failure that caused it.
    *
-   * @param message the detail message explaining the reason for the exception,
-   * @param cause   the cause of the exception, which can be null
+   * @param message the detail message, which says why the upload failed
+   * @param cause   the failure that caused this exception, or null if it is unknown
    */
-  public MCPacksException(final @Nullable String message, final @Nullable Throwable cause) {
+  MCPacksException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);
   }
 }

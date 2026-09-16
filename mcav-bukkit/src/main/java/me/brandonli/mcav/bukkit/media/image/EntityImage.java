@@ -17,94 +17,43 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.Collection;
-import java.util.UUID;
-import me.brandonli.mcav.bukkit.BukkitModule;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
-import me.brandonli.mcav.bukkit.utils.ChatUtils;
+import me.brandonli.mcav.bukkit.media.render.EntityRenderer;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import net.minecraft.network.chat.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.craftbukkit.entity.CraftTextDisplay;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
-import org.bukkit.plugin.Plugin;
 
 /**
- * Represents an entity-based image display implementation. Uses a {@link TextDisplay} entity to display images in the world.
+ * Displays still images as colored text inside a {@link TextDisplay} entity. The entity is removed when the image
+ * is released.
  */
 public class EntityImage implements DisplayableImage {
 
-  private final EntityConfiguration entityConfiguration;
-
-  private TextDisplay entity;
+  private final EntityRenderer renderer;
 
   EntityImage(final EntityConfiguration configuration) {
-    this.entityConfiguration = configuration;
+    this.renderer = new EntityRenderer(configuration);
   }
 
   /**
-   * {@inheritDoc}
+   * Spawns the text display if it is not spawned yet, and draws the image into it during the next server tick. May
+   * be called from any thread.
+   *
+   * @param image the image to show, which is resized to the entity in place
+   * @throws NullPointerException if the image is null
    */
   @Override
-  @SuppressWarnings("deprecation")
-  public void displayImage(final ImageBuffer data) {
-    this.release();
-
-    final Location pos = this.entityConfiguration.getPosition();
-    final Location clone = pos.clone();
-    final Collection<UUID> viewers = this.entityConfiguration.getViewers();
-    final World world = requireNonNull(clone.getWorld());
-    final Plugin plugin = BukkitModule.getPlugin();
-    this.entity = world.spawn(clone, TextDisplay.class, display -> {
-      display.setInvulnerable(true);
-      display.setCustomNameVisible(false);
-      display.setSeeThrough(false);
-      display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.VERTICAL);
-      display.setVisibleByDefault(false);
-      display.setBackgroundColor(Color.BLACK);
-      display.setShadowed(false);
-      display.setText("");
-      display.setCustomName("");
-      display.setLineWidth(Integer.MAX_VALUE);
-    });
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.showEntity(plugin, this.entity);
-    }
-
-    final String character = this.entityConfiguration.getCharacter();
-    final int entityWidth = this.entityConfiguration.getEntityWidth();
-    final int entityHeight = this.entityConfiguration.getEntityHeight();
-    final ResizeFilter resize = new ResizeFilter(entityWidth, entityHeight);
-    resize.applyFilter(data);
-
-    final int[] resizedData = data.getPixels();
-    final Component prefix = ChatUtils.createChatComponent(resizedData, character, entityWidth, entityHeight);
-    final CraftTextDisplay craftEntity = (CraftTextDisplay) this.entity;
-    final net.minecraft.world.entity.Display.TextDisplay frame = craftEntity.getHandle();
-    frame.setText(prefix);
+  public void displayImage(final ImageBuffer image) {
+    Preconditions.checkNotNull(image, "Image must not be null");
+    this.renderer.show();
+    this.renderer.render(image);
   }
 
   /**
-   * {@inheritDoc}
+   * Removes the text display. May be called from any thread.
    */
   @Override
   public void release() {
-    if (this.entity == null) {
-      return;
-    }
-    this.entity.remove();
+    this.renderer.hide();
   }
 }

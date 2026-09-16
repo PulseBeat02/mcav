@@ -21,9 +21,18 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
- * Represents a configuration for an entity related prototypes.
+ * Describes an image drawn as colored text inside a text display entity, for use with the entity image and entity
+ * result.
+ *
+ * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
+ * one line of text. The entity always faces the viewer horizontally and is only visible to the viewers that were
+ * online when it was spawned.
+ *
+ * <p>The viewers collection is not copied, so a concurrent collection can be passed.
  */
 public class EntityConfiguration {
 
@@ -33,68 +42,74 @@ public class EntityConfiguration {
   private final int entityHeight;
   private final Location position;
 
-  private EntityConfiguration(final Builder<?> builder) {
-    this.viewers = builder.viewers;
-    this.character = builder.character;
+  private EntityConfiguration(final Builder<?> builder, final Collection<UUID> viewers, final String character, final Location position) {
+    this.viewers = viewers;
+    this.character = character;
     this.entityWidth = builder.entityWidth;
     this.entityHeight = builder.entityHeight;
-    this.position = builder.position;
+    this.position = position;
   }
 
   /**
-   * Gets the viewers of this entity configuration.
+   * Gets the players who see the entity.
    *
-   * @return the viewers
+   * @return the UUIDs of the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Gets the character string associated with this entity configuration.
+   * Gets the text drawn for every pixel, usually a single character such as {@code █}.
    *
-   * @return the character string, which may represent a specific
+   * @return the pixel text
+   * @see me.brandonli.mcav.bukkit.media.result.Characters
    */
   public String getCharacter() {
     return this.character;
   }
 
   /**
-   * Gets the width of the entity
+   * Gets the width of the image in characters.
    *
-   * @return the width of the entity
+   * @return the width in characters
    */
   public int getEntityWidth() {
     return this.entityWidth;
   }
 
   /**
-   * Retrieves the height of the entity.
+   * Gets the height of the image in lines.
    *
-   * @return the height of the entity
+   * @return the height in lines
    */
   public int getEntityHeight() {
     return this.entityHeight;
   }
 
   /**
-   * Retrieves the current position of the entity.
+   * Gets the position the entity is spawned at.
    *
-   * @return the current position
+   * @return the position of the entity
    */
   public Location getPosition() {
     return this.position;
   }
 
   /**
-   * Entity configuration builder abstraction.
+   * The builder returned by {@link #builder()}.
    */
   public static final class EntityResultBuilder extends Builder<EntityResultBuilder> {
 
     EntityResultBuilder() {
-      // no-op
+      // created through EntityConfiguration.builder()
     }
 
+    /**
+     * Returns this builder with its concrete type.
+     *
+     * @return this builder
+     */
     @Override
     protected EntityResultBuilder self() {
       return this;
@@ -102,60 +117,69 @@ public class EntityConfiguration {
   }
 
   /**
-   * Creates a new entity configuration builder.
+   * Creates a new builder for an entity configuration.
    *
-   * @return a new entity configuration builder
+   * @return a new builder
    */
   public static Builder<?> builder() {
     return new EntityResultBuilder();
   }
 
   /**
-   * Abstract builder for entity configurations.
+   * Builds entity configurations. Every value is required.
    *
    * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
 
-    private Collection<UUID> viewers;
-    private String character;
+    private @MonotonicNonNull Collection<UUID> viewers;
+    private @MonotonicNonNull String character;
     private int entityWidth;
     private int entityHeight;
-    private Location position;
+    private @MonotonicNonNull Location position;
 
     Builder() {
-      // no-op
+      // only subclassed inside this class
     }
 
+    /**
+     * Returns this builder with its concrete type, so the setters can be chained.
+     *
+     * @return this builder
+     */
     abstract T self();
 
     /**
-     * Sets the viewers of this entity configuration.
+     * Sets the players who see the entity. The collection is not copied, see {@link EntityConfiguration}.
      *
-     * @param viewers the viewers to set
-     * @return the builder instance for chaining
+     * @param viewers the UUIDs of the viewers
+     * @return this builder
+     * @throws NullPointerException if the viewers are null
      */
     public T viewers(final Collection<UUID> viewers) {
+      Preconditions.checkNotNull(viewers, "Viewers must not be null");
       this.viewers = viewers;
       return this.self();
     }
 
     /**
-     * Sets the character string of this entity configuration.
+     * Sets the text drawn for every pixel.
      *
-     * @param character the character value to be set
-     * @return the instance of the builder for method chaining
+     * @param character the pixel text, usually a single character such as {@code █}
+     * @return this builder
+     * @throws NullPointerException if the character is null
      */
     public T character(final String character) {
+      Preconditions.checkNotNull(character, "Character must not be null");
       this.character = character;
       return this.self();
     }
 
     /**
-     * Sets the width of the entity.
+     * Sets the width of the image in characters.
      *
-     * @param entityWidth the width of the entity to be set
-     * @return the builder instance for method chaining
+     * @param entityWidth the width in characters, which must be positive
+     * @return this builder
      */
     public T entityWidth(final int entityWidth) {
       this.entityWidth = entityWidth;
@@ -163,10 +187,10 @@ public class EntityConfiguration {
     }
 
     /**
-     * Sets the height of the entity.
+     * Sets the height of the image in lines.
      *
-     * @param entityHeight the height of the entity to be set
-     * @return the builder instance for method chaining
+     * @param entityHeight the height in lines, which must be positive
+     * @return this builder
      */
     public T entityHeight(final int entityHeight) {
       this.entityHeight = entityHeight;
@@ -174,12 +198,14 @@ public class EntityConfiguration {
     }
 
     /**
-     * Sets the position of the entity.
+     * Sets the position the entity is spawned at.
      *
-     * @param position the location to set as the entity's position
-     * @return the builder instance for method chaining
+     * @param position the position of the entity, which must have a world
+     * @return this builder
+     * @throws NullPointerException if the position is null
      */
     public T position(final Location position) {
+      Preconditions.checkNotNull(position, "Position must not be null");
       this.position = position;
       return this.self();
     }
@@ -187,15 +213,23 @@ public class EntityConfiguration {
     /**
      * Builds the entity configuration.
      *
-     * @return a new instance of EntityConfiguration
+     * @return the entity configuration
+     * @throws IllegalArgumentException if a size is not positive, the character is empty, or the position has no
+     *                                  world
+     * @throws NullPointerException     if the viewers, the character, or the position were not set
      */
     public EntityConfiguration build() {
-      Preconditions.checkNotNull(this.viewers);
-      Preconditions.checkNotNull(this.character);
-      Preconditions.checkNotNull(this.position);
+      final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set");
+      final String configuredCharacter = Preconditions.checkNotNull(this.character, "Character must be set");
+      final Location configuredPosition = Preconditions.checkNotNull(this.position, "Position must be set");
+
+      final World world = configuredPosition.getWorld();
+      Preconditions.checkArgument(world != null, "Position must have a world");
+      Preconditions.checkArgument(!configuredCharacter.isEmpty(), "Character must not be empty");
       Preconditions.checkArgument(this.entityWidth > 0, "Entity width must be positive");
       Preconditions.checkArgument(this.entityHeight > 0, "Entity height must be positive");
-      return new EntityConfiguration(this);
+
+      return new EntityConfiguration(this, configuredViewers, configuredCharacter, configuredPosition);
     }
   }
 }

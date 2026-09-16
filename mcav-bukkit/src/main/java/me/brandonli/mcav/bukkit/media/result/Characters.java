@@ -18,36 +18,47 @@
 package me.brandonli.mcav.bukkit.media.result;
 
 /**
- * Represents a collection of characters that can be used in scoreboard, chat, or
- * entity displays.
+ * Characters that work well as pixels in chat, scoreboard, and entity displays. {@link #FULL_CHARACTER} gives the
+ * most solid picture, while the other characters leave gaps between pixels for a stylized look.
  */
-public interface Characters {
+public final class Characters {
+
   /**
-   * Unicode character representing a full block
+   * A full block, which fills the entire character cell.
    */
-  String FULL_CHARACTER = "█";
+  public static final String FULL_CHARACTER = "█";
+
   /**
-   * Unicode character representing a white square
+   * An outlined square.
    */
-  String WHITE_SQUARE = "□";
+  public static final String WHITE_SQUARE = "□";
+
   /**
-   * Unicode character representing a black square
+   * A filled square.
    */
-  String BLACK_SQUARE = "■";
+  public static final String BLACK_SQUARE = "■";
+
   /**
-   * Unicode character representing a white circle
+   * An outlined circle.
    */
-  String WHITE_CIRCLE = "○";
+  public static final String WHITE_CIRCLE = "○";
+
   /**
-   * Unicode character representing a black circle
+   * A filled circle.
    */
-  String BLACK_CIRCLE = "●";
+  public static final String BLACK_CIRCLE = "●";
+
   /**
-   * Unicode character representing a small white square
+   * A small outlined square.
    */
-  String SMALL_WHITE_SQUARE = "▫";
+  public static final String SMALL_WHITE_SQUARE = "▫";
+
   /**
-   * Unicode character representing a small black square
+   * A small filled square.
    */
-  String SMALL_BLACK_SQUARE = "▪";
+  public static final String SMALL_BLACK_SQUARE = "▪";
+
+  private Characters() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
 }

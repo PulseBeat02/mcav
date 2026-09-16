@@ -17,108 +17,63 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.Collection;
-import java.util.UUID;
-import me.brandonli.mcav.bukkit.BukkitModule;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
-import me.brandonli.mcav.bukkit.utils.ChatUtils;
+import me.brandonli.mcav.bukkit.media.render.EntityRenderer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import net.minecraft.network.chat.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.craftbukkit.entity.CraftTextDisplay;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
-import org.bukkit.plugin.Plugin;
 
 /**
- * Represents a filter for displaying frames as a {@link TextDisplay} entity.
+ * A video filter that displays every frame as colored text inside a {@link TextDisplay} entity.
+ *
+ * <p>Call {@link #start()} before playback and {@link #release()} afterward. The entity updates at most once per
+ * server tick. The filter may run on any thread.
  */
 public class EntityResult implements FunctionalVideoFilter {
 
-  private final EntityConfiguration entityConfiguration;
-
-  private TextDisplay entity;
+  private final EntityRenderer renderer;
 
   /**
-   * Constructs an instance of {@code EntityResult} with the specified configuration.
+   * Constructs a new {@code EntityResult}.
    *
-   * @param configuration the {@code EntityConfiguration} object containing the configuration
-   *                      details for the entity, including its dimensions, position, associated viewers,
-   *                      and character. Must not be null.
+   * @param configuration the configuration describing the viewers, character, position, and size of the entity
    */
   public EntityResult(final EntityConfiguration configuration) {
-    this.entityConfiguration = configuration;
+    Preconditions.checkNotNull(configuration, "Entity configuration must not be null");
+    this.renderer = new EntityRenderer(configuration);
   }
 
   /**
-   * {@inheritDoc}
+   * Spawns the text display and shows it to the viewers.
+   */
+  @Override
+  public void start() {
+    this.renderer.show();
+  }
+
+  /**
+   * Converts the frame into colored text and queues it for the next server tick.
+   *
+   * @param data     the frame to display, which may be resized by the renderer
+   * @param metadata the metadata of the original video, which is not used
+   * @return always true, because the renderer may resize the frame
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
-    final String character = this.entityConfiguration.getCharacter();
-    final int entityWidth = this.entityConfiguration.getEntityWidth();
-    final int entityHeight = this.entityConfiguration.getEntityHeight();
-    final ResizeFilter resize = new ResizeFilter(entityWidth, entityHeight);
-    resize.applyFilter(data, metadata);
-
-    final int[] resizedData = data.getPixels();
-    final Component prefix = ChatUtils.createChatComponent(resizedData, character, entityWidth, entityHeight);
-    final CraftTextDisplay craftEntity = (CraftTextDisplay) this.entity;
-    final net.minecraft.world.entity.Display.TextDisplay frame = craftEntity.getHandle();
-    frame.setText(prefix);
+    Preconditions.checkNotNull(data, "Frame must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    this.renderer.render(data);
     return true;
   }
 
   /**
-   * {@inheritDoc}
-   */
-  @Override
-  @SuppressWarnings("deprecation")
-  public void start() {
-    final Location pos = this.entityConfiguration.getPosition();
-    final Location clone = pos.clone();
-    final Collection<UUID> viewers = this.entityConfiguration.getViewers();
-    final World world = requireNonNull(clone.getWorld());
-    final Plugin plugin = BukkitModule.getPlugin();
-    this.entity = world.spawn(clone, TextDisplay.class, display -> {
-      display.setInvulnerable(true);
-      display.setCustomNameVisible(false);
-      display.setSeeThrough(false);
-      display.setAlignment(TextDisplay.TextAlignment.CENTER);
-      display.setBillboard(Display.Billboard.VERTICAL);
-      display.setVisibleByDefault(false);
-      display.setBackgroundColor(Color.BLACK);
-      display.setShadowed(false);
-      display.setText("");
-      display.setCustomName("");
-      display.setLineWidth(Integer.MAX_VALUE);
-    });
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.showEntity(plugin, this.entity);
-    }
-  }
-
-  /**
-   * {@inheritDoc}
+   * Removes the text display. Call this method on the main thread during shutdown, because a disabled plugin cannot
+   * schedule the removal anymore.
    */
   @Override
   public void release() {
-    if (this.entity == null) {
-      return;
-    }
-    this.entity.remove();
+    this.renderer.hide();
   }
 }

@@ -21,29 +21,34 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception during HTTP server operations.
+ * Thrown when the dedicated resource pack HTTP server cannot be started, usually because its port is in use.
+ *
+ * <p>This is a plain {@link RuntimeException}: whether the port can be bound depends on the machine, for example on
+ * another program that already listens on it, not on the state of the hosting object or on a programming error. It is
+ * unchecked and never an {@link Error}, so a plugin can catch it, report the port, and disable itself or choose
+ * another port.
  */
-public class HttpServerException extends AssertionError {
+public class HttpServerException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = -6775463807604247034L;
 
   /**
-   * Constructs a new exception with the specified detail message.
+   * Constructs a new exception with a detail message and no cause.
    *
-   * @param message the detail message explaining the exception
+   * @param message the detail message, which names the port that cannot be bound
    */
-  public HttpServerException(final @Nullable String message) {
+  HttpServerException(final @Nullable String message) {
     super(message);
   }
 
   /**
-   * Constructs a new exception with the specified detail message and cause.
+   * Constructs a new exception with a detail message and the failure that caused it.
    *
-   * @param message the detail message explaining the exception
-   * @param cause   the cause of the exception
+   * @param message the detail message, which names the port that cannot be bound
+   * @param cause   the failure that caused this exception, such as the bind failure, or null if it is unknown
    */
-  public HttpServerException(final @Nullable String message, final @Nullable Throwable cause) {
+  HttpServerException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);
   }
 }

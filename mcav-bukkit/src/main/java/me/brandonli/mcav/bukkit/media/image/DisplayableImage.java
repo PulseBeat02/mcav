@@ -17,74 +17,96 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
-import me.brandonli.mcav.bukkit.media.config.*;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
+import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
+import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
+import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * Represents a DisplayableImage provider that can be used to display {@link ImageBuffer} images on command.
+ * Shows still images to players on one of the supported displays: maps, chat, text display entities, the sidebar
+ * scoreboard, or a wall of blocks.
+ *
+ * <p>Displaying an image resizes it to the size of the display, so the image buffer passed in is modified. Call
+ * {@link #release()} when the image is no longer needed to remove it and restore whatever was there before.
+ *
+ * <pre><code>
+ *   final DisplayableImage display = DisplayableImage.map(configuration, DitherAlgorithm.filterLite());
+ *   display.displayImage(image);
+ *   // later
+ *   display.release();
+ * </code></pre>
  */
 public interface DisplayableImage {
   /**
-   * Displays the given image on the configured display.
+   * Shows the image on the display, replacing the previous image. May be called from any thread.
    *
-   * @param image the image to display
+   * @param image the image to show, which is resized to the display in place
    */
   void displayImage(final ImageBuffer image);
 
   /**
-   * Releases any resources associated with this displayable image.
+   * Removes the image from the display and restores whatever was shown before. May be called from any thread.
    */
   void release();
 
   /**
-   * Creates a DisplayableImage for the given MapConfiguration.
+   * Creates a display that shows images on a grid of maps.
    *
-   * @param mapConfiguration the configuration for the map
-   * @param algorithm        the dithering algorithm to use
-   * @return a DisplayableImage instance for the map
+   * @param configuration the map configuration
+   * @param algorithm     the dithering algorithm used to reduce images to the map palette
+   * @return the map display
    */
-  static DisplayableImage map(final MapConfiguration mapConfiguration, final DitherAlgorithm algorithm) {
-    return new MapImage(mapConfiguration, algorithm);
+  static DisplayableImage map(final MapConfiguration configuration, final DitherAlgorithm algorithm) {
+    Preconditions.checkNotNull(configuration, "Map configuration must not be null");
+    Preconditions.checkNotNull(algorithm, "Dither algorithm must not be null");
+    return new MapImage(configuration, algorithm);
   }
 
   /**
-   * Creates a DisplayableImage for the given ChatConfiguration.
+   * Creates a display that shows images in the chat.
    *
-   * @param chatConfiguration the configuration for the chat
-   * @return a DisplayableImage instance for the chat
+   * @param configuration the chat configuration
+   * @return the chat display
    */
-  static DisplayableImage chat(final ChatConfiguration chatConfiguration) {
-    return new ChatImage(chatConfiguration);
+  static DisplayableImage chat(final ChatConfiguration configuration) {
+    Preconditions.checkNotNull(configuration, "Chat configuration must not be null");
+    return new ChatImage(configuration);
   }
 
   /**
-   * Creates a DisplayableImage for the given EntityConfiguration.
+   * Creates a display that shows images as colored text inside a text display entity.
    *
-   * @param entityConfiguration the configuration for the entity
-   * @return a DisplayableImage instance for the entity
+   * @param configuration the entity configuration
+   * @return the entity display
    */
-  static DisplayableImage entity(final EntityConfiguration entityConfiguration) {
-    return new EntityImage(entityConfiguration);
+  static DisplayableImage entity(final EntityConfiguration configuration) {
+    Preconditions.checkNotNull(configuration, "Entity configuration must not be null");
+    return new EntityImage(configuration);
   }
 
   /**
-   * Creates a DisplayableImage for the given ScoreboardConfiguration.
+   * Creates a display that shows images on the sidebar scoreboard.
    *
-   * @param scoreboardConfiguration the configuration for the scoreboard
-   * @return a DisplayableImage instance for the scoreboard
+   * @param configuration the scoreboard configuration
+   * @return the scoreboard display
    */
-  static DisplayableImage scoreboard(final ScoreboardConfiguration scoreboardConfiguration) {
-    return new ScoreboardImage(scoreboardConfiguration);
+  static DisplayableImage scoreboard(final ScoreboardConfiguration configuration) {
+    Preconditions.checkNotNull(configuration, "Scoreboard configuration must not be null");
+    return new ScoreboardImage(configuration);
   }
 
   /**
-   * Creates a DisplayableImage for the given BlockConfiguration.
+   * Creates a display that shows images as a wall of blocks.
    *
-   * @param blockConfiguration the configuration for the block
-   * @return a DisplayableImage instance for the block
+   * @param configuration the block configuration
+   * @return the block display
    */
-  static DisplayableImage block(final BlockConfiguration blockConfiguration) {
-    return new BlockImage(blockConfiguration);
+  static DisplayableImage block(final BlockConfiguration configuration) {
+    Preconditions.checkNotNull(configuration, "Block configuration must not be null");
+    return new BlockImage(configuration);
   }
 }

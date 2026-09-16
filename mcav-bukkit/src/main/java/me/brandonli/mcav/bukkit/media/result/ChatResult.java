@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
+import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
@@ -30,58 +31,63 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
 /**
- * Represents a filter for displaying frames as chat messages.
+ * A video filter that displays every frame as a chat message. Every frame is sent as a new message that pushes
+ * the previous frame up, so the chat height of the viewers should match the configured height. Packets are sent
+ * directly, so the filter may run on any thread.
  */
 public class ChatResult implements FunctionalVideoFilter {
 
   private final ChatConfiguration configuration;
 
   /**
-   * Constructs a new instance of {@code ChatResult} using the provided configuration.
+   * Constructs a new {@code ChatResult}.
    *
-   * @param configuration the {@link ChatConfiguration} object used to configure the chat result.
-   *                      This object contains parameters such as viewers, character, chat width,
-   *                      and chat height. Cannot be null.
+   * @param configuration the configuration describing the viewers, character, and size of the chat image
    */
   public ChatResult(final ChatConfiguration configuration) {
+    Preconditions.checkNotNull(configuration, "Chat configuration must not be null");
     this.configuration = configuration;
   }
 
   /**
-   * {@inheritDoc}
+   * Resizes the frame to the size of the chat and sends it to every connected viewer as one chat message.
+   *
+   * @param data     the frame to display, which is resized to the configured chat size
+   * @param metadata the metadata of the original video
+   * @return always true, because the frame is resized
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
-    final int chatWidth = this.configuration.getChatWidth();
-    final int chatHeight = this.configuration.getChatHeight();
-    final String character = this.configuration.getCharacter();
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    final ResizeFilter resize = new ResizeFilter(chatWidth, chatHeight);
+    Preconditions.checkNotNull(data, "Frame must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    final int width = this.configuration.getChatWidth();
+    final int height = this.configuration.getChatHeight();
+    final ResizeFilter resize = new ResizeFilter(width, height);
     resize.applyFilter(data, metadata);
-    final int[] resizedData = data.getPixels();
-    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
+
+    final int[] pixels = data.getPixels();
+    final String character = this.configuration.getCharacter();
+    final Component message = ChatUtils.createChatComponent(pixels, character, width, height);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+    final Collection<UUID> viewers = this.configuration.getViewers();
     PacketUtils.sendPackets(viewers, packet);
     return true;
   }
 
   /**
-   * {@inheritDoc}
+   * Clears the chat of every viewer, so the video starts on an empty chat.
    */
   @Override
   public void start() {
-    this.clearChatMessages();
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    ChatUtils.clearChat(viewers);
   }
 
   /**
-   * {@inheritDoc}
+   * Clears the chat of every viewer.
    */
   @Override
   public void release() {
-    this.clearChatMessages();
-  }
-
-  private void clearChatMessages() {
     final Collection<UUID> viewers = this.configuration.getViewers();
     ChatUtils.clearChat(viewers);
   }

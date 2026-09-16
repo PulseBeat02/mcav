@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.bukkit;
 
-import com.google.common.collect.Streams;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.awt.image.BufferedImage;
@@ -27,86 +26,99 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 import javax.imageio.ImageIO;
 
-@SuppressWarnings("all")
+/**
+ * Regenerates {@code blocks.json}, the average color of every block texture, from the textures in
+ * {@code src/test/resources/colored-blocks}. Run it from the root of the repository.
+ */
 public final class AverageColorCalculator {
 
-  public static void main(final String[] args) throws IOException {
-    final Path json = Path.of("mcav-bukkit/src/main/resources/blocks.json");
-    final Map<String, int[]> blockColors = getBlockColors();
-    final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    try (final BufferedWriter writer = Files.newBufferedWriter(json)) {
+  private static final Path TEXTURES = Path.of("mcav-bukkit/src/test/resources/colored-blocks");
+  private static final Path OUTPUT = Path.of("mcav-bukkit/src/main/resources/blocks.json");
+  private static final String PNG_EXTENSION = ".png";
+  private static final int RED_INDEX = 0;
+  private static final int GREEN_INDEX = 1;
+  private static final int BLUE_INDEX = 2;
+  private static final int COUNT_INDEX = 3;
+
+  private AverageColorCalculator() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Writes the average color of every block texture to {@code blocks.json}.
+   *
+   * @throws IOException if a texture cannot be read or the output cannot be written
+   */
+  static void main() throws IOException {
+    final Map<String, int[]> blockColors = calculateBlockColors();
+    final GsonBuilder builder = new GsonBuilder();
+    builder.setPrettyPrinting();
+    final Gson gson = builder.create();
+    try (final BufferedWriter writer = Files.newBufferedWriter(OUTPUT)) {
       gson.toJson(blockColors, writer);
+      writer.write('\n');
     }
   }
 
-  private static final Map<String, int[]> getBlockColors() throws IOException {
-    final Path directory = Path.of("mcav-bukkit/src/test/resources/colored-blocks");
-    final List<Path> pngFiles = new ArrayList<>();
-    try (final DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
-      return Streams.stream(stream)
-        .parallel()
-        .map(AverageColorCalculator::processImage)
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  private static Map<String, int[]> calculateBlockColors() throws IOException {
+    final Map<String, int[]> colors = new TreeMap<>();
+    try (final DirectoryStream<Path> textures = Files.newDirectoryStream(TEXTURES, "*" + PNG_EXTENSION)) {
+      for (final Path texture : textures) {
+        final Path fileNamePath = texture.getFileName();
+        final String fileName = String.valueOf(fileNamePath);
+        final int nameLength = fileName.length() - PNG_EXTENSION.length();
+        final String blockName = fileName.substring(0, nameLength);
+        final String materialName = blockName.toUpperCase(Locale.ROOT);
+        final File textureFile = texture.toFile();
+        final BufferedImage image = ImageIO.read(textureFile);
+        if (image == null) {
+          continue;
+        }
+        final int[] averageColor = calculateAverageColor(image);
+        colors.put(materialName, averageColor);
+      }
     }
-  }
-
-  private static Map.Entry<String, int[]> processImage(final Path pngFile) {
-    try {
-      final File file = pngFile.toFile();
-      final String fileName = file.getName();
-      final int length = fileName.length();
-      final String blockName = fileName.substring(0, length - 4);
-      final BufferedImage image = ImageIO.read(file);
-      final int[] averageColor = calculateAverageColor(image);
-      final String entry = blockName.toUpperCase(Locale.ROOT);
-      return Map.entry(entry, averageColor);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
+    return colors;
   }
 
   private static int[] calculateAverageColor(final BufferedImage image) {
-    long sumRed = 0;
-    long sumGreen = 0;
-    long sumBlue = 0;
-    int totalPixels = 0;
+    final long[] sums = sumOpaquePixels(image);
+    final long opaquePixels = sums[COUNT_INDEX];
+    if (opaquePixels == 0) {
+      return new int[] { 0, 0, 0 };
+    }
+
+    final int averageRed = (int) (sums[RED_INDEX] / opaquePixels);
+    final int averageGreen = (int) (sums[GREEN_INDEX] / opaquePixels);
+    final int averageBlue = (int) (sums[BLUE_INDEX] / opaquePixels);
+    return new int[] { averageRed, averageGreen, averageBlue };
+  }
+
+  /**
+   * Sums the red, green, and blue channels of every pixel that is not fully transparent, and counts those pixels.
+   */
+  private static long[] sumOpaquePixels(final BufferedImage image) {
+    final long[] sums = new long[4];
     final int width = image.getWidth();
     final int height = image.getHeight();
     for (int y = 0; y < height; y++) {
       for (int x = 0; x < width; x++) {
-        final int rgb = image.getRGB(x, y);
-        final int alpha = (rgb >> 24) & 0xFF;
+        final int argb = image.getRGB(x, y);
+        final int alpha = (argb >>> 24) & 0xFF;
         if (alpha == 0) {
           continue;
         }
-        final int red = (rgb >> 16) & 0xFF;
-        final int green = (rgb >> 8) & 0xFF;
-        final int blue = rgb & 0xFF;
-        sumRed += red;
-        sumGreen += green;
-        sumBlue += blue;
-        totalPixels++;
+        sums[RED_INDEX] += (argb >> 16) & 0xFF;
+        sums[GREEN_INDEX] += (argb >> 8) & 0xFF;
+        sums[BLUE_INDEX] += argb & 0xFF;
+        sums[COUNT_INDEX]++;
       }
     }
-    int avgRed = 0;
-    int avgGreen = 0;
-    int avgBlue = 0;
-    if (totalPixels > 0) {
-      avgRed = (int) (sumRed / totalPixels);
-      avgGreen = (int) (sumGreen / totalPixels);
-      avgBlue = (int) (sumBlue / totalPixels);
-    }
-    final int[] result = new int[3];
-    result[0] = avgRed;
-    result[1] = avgGreen;
-    result[2] = avgBlue;
-    return result;
+    return sums;
   }
 }

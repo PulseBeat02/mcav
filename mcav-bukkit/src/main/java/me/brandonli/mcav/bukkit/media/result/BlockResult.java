@@ -17,128 +17,63 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
-import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
+import me.brandonli.mcav.bukkit.media.render.BlockRenderer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Player;
 
 /**
- * Represents a filter for displaying frames as blocks.
+ * A video filter that displays every frame as a wall of colored blocks using fake block changes.
+ *
+ * <p>Call {@link #start()} before playback and {@link #release()} afterward. Blocks update at most once per server
+ * tick, and only blocks that changed are sent. The filter may run on any thread.
  */
 public class BlockResult implements FunctionalVideoFilter {
 
-  private final BlockConfiguration blockConfiguration;
-  private final FilterLiteDither dither;
-
-  private LocationData[] locationCache;
+  private final BlockRenderer renderer;
 
   /**
-   * Constructs a new instance of the {@code BlockResult} class using the provided
-   * {@code BlockConfiguration}.
+   * Constructs a new {@code BlockResult}.
    *
-   * @param configuration the configuration object that defines the properties of the
-   *                      block filter, including viewers, position, and block dimensions.
+   * @param configuration the configuration describing the viewers, position, and size of the block wall
    */
   public BlockResult(final BlockConfiguration configuration) {
-    this.blockConfiguration = configuration;
-    this.dither = BlockPaletteLookup.getDitheringImpl();
+    Preconditions.checkNotNull(configuration, "Block configuration must not be null");
+    this.renderer = new BlockRenderer(configuration);
   }
 
   /**
-   * {@inheritDoc}
+   * Remembers the blocks at the location of the wall, so they can be restored later.
    */
   @Override
-  @SuppressWarnings("UnstableApiUsage")
+  public void start() {
+    this.renderer.show();
+  }
+
+  /**
+   * Converts the frame into blocks and queues them for the next server tick. Only blocks that changed since the
+   * previous frame are sent to the viewers.
+   *
+   * @param data     the frame to display, which may be resized by the renderer
+   * @param metadata the metadata of the original video, which is not used
+   * @return always true, because the renderer may resize the frame
+   */
+  @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
-    final int blockWidth = this.blockConfiguration.getBlockWidth();
-    final int blockHeight = this.blockConfiguration.getBlockHeight();
-    final ResizeFilter resize = new ResizeFilter(blockWidth, blockHeight);
-    resize.applyFilter(data, metadata);
-
-    final int[] resizedData = data.getPixels();
-    final int length = resizedData.length;
-    this.dither.dither(resizedData, blockWidth);
-
-    final Material[] materials = new Material[length];
-    for (int i = 0; i < materials.length; i++) {
-      materials[i] = BlockPaletteLookup.getMaterial(resizedData[i]);
-    }
-
-    final Collection<BlockState> blockStates = new HashSet<>();
-    for (int i = 0; i < materials.length; i++) {
-      final LocationData locationData = this.locationCache[i];
-      final Location location = locationData.getLocation();
-      final BlockData blockData = materials[i].createBlockData();
-      final BlockState blockState = blockData.createBlockState();
-      final BlockState copy = blockState.copy(location);
-      blockStates.add(copy);
-    }
-
-    final Collection<UUID> viewers = this.blockConfiguration.getViewers();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.sendBlockChanges(blockStates);
-    }
+    Preconditions.checkNotNull(data, "Frame must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    this.renderer.render(data);
     return true;
   }
 
   /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void start() {
-    final int blockWidth = this.blockConfiguration.getBlockWidth();
-    final int blockHeight = this.blockConfiguration.getBlockHeight();
-    final Location origin = this.blockConfiguration.getPosition();
-    this.locationCache = new LocationData[blockWidth * blockHeight];
-    for (int i = 0; i < this.locationCache.length; i++) {
-      final int x = i % blockWidth;
-      final int y = i / blockWidth;
-      final int adjustedX = x - (blockWidth / 2);
-      final int adjustedY = blockHeight - 1 - y;
-      final Location clone = origin.clone();
-      final Location adjusted = clone.add(adjustedX, adjustedY, 0);
-      final Block block = adjusted.getBlock();
-      final BlockState state = block.getState();
-      final BlockState copy = state.copy(adjusted);
-      final LocationData locationData = new LocationData(adjusted, copy);
-      this.locationCache[i] = locationData;
-    }
-  }
-
-  /**
-   * {@inheritDoc}
+   * Shows the original blocks to the viewers again. Call this method on the main thread during shutdown, because a
+   * disabled plugin cannot schedule the restore anymore.
    */
   @Override
   public void release() {
-    final Collection<BlockState> blockStates = Arrays.stream(this.locationCache)
-      .map(LocationData::getBlockState)
-      .collect(Collectors.toList());
-    final Collection<UUID> viewers = this.blockConfiguration.getViewers();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
-        continue;
-      }
-      player.sendBlockChanges(blockStates);
-    }
+    this.renderer.hide();
   }
 }

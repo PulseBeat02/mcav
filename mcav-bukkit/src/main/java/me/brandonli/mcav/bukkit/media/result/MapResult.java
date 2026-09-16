@@ -17,128 +17,94 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
-import java.util.ArrayList;
+import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
-import me.brandonli.mcav.bukkit.utils.PacketUtils;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
+import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBundlePacket;
-import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
-import net.minecraft.world.level.saveddata.maps.MapDecoration;
-import net.minecraft.world.level.saveddata.maps.MapId;
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
- * Represents a filter displaying frames on maps.
+ * Displays video on a grid of maps by sending the complete picture in every frame.
+ *
+ * <p>This is the simplest way to display video on maps and every frame is shown exactly, but it uses a lot of
+ * bandwidth: 16 KB per map per frame. Prefer {@link CompressedMapResult}, which only sends what changed.
  */
 public class MapResult implements DitherResultStep {
 
-  private final MapConfiguration mapConfiguration;
+  private final MapConfiguration configuration;
 
   /**
-   * Constructs a new instance of {@code MapResult} using the specified configuration.
+   * Constructs a new {@code MapResult}.
    *
-   * @param configuration the {@link MapConfiguration} object containing the settings
-   *                      for the map result, such as map dimensions, resolution,
-   *                      viewers, and map ID
+   * @param configuration the configuration describing the map grid and the viewers
    */
   public MapResult(final MapConfiguration configuration) {
-    this.mapConfiguration = configuration;
+    Preconditions.checkNotNull(configuration, "Map configuration must not be null");
+    this.configuration = configuration;
   }
 
   /**
-   * {@inheritDoc}
+   * Resizes the frame if the configuration asks for it, dithers it, and sends every covered map completely to the
+   * viewers.
+   *
+   * @param samples   the frame, which is resized in place if resizing is configured
+   * @param algorithm the dithering algorithm that converts the frame into map colors
    */
   @Override
   public void process(final ImageBuffer samples, final DitherAlgorithm algorithm) {
-    final int vidWidth = this.mapConfiguration.getMapWidthResolution();
-    final int vidHeight = this.mapConfiguration.getMapHeightResolution();
+    Preconditions.checkNotNull(samples, "Samples must not be null");
+    Preconditions.checkNotNull(algorithm, "Dither algorithm must not be null");
+    this.resizeIfConfigured(samples);
 
-    if (this.mapConfiguration.shouldResize()) {
-      final ResizeFilter filter = new ResizeFilter(vidWidth, vidHeight);
-      filter.applyFilter(samples);
+    final byte[] dithered = algorithm.ditherIntoBytes(samples);
+    final int startMapId = this.configuration.getMap();
+    final int columns = this.configuration.getMapBlockWidth();
+    final int rows = this.configuration.getMapBlockHeight();
+    final int width = samples.getWidth();
+    final int height = samples.getHeight();
+    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final List<MapTilePatch> patches = layout.extractAll(dithered);
+
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    MapPacketFactory.send(viewers, patches);
+  }
+
+  private void resizeIfConfigured(final ImageBuffer samples) {
+    final boolean shouldResize = this.configuration.shouldResize();
+    if (!shouldResize) {
+      return;
     }
-
-    final byte[] rgb = algorithm.ditherIntoBytes(samples);
-    final int mapBlockWidth = this.mapConfiguration.getMapBlockWidth();
-    final int mapBlockHeight = this.mapConfiguration.getMapBlockHeight();
-    final int map = this.mapConfiguration.getMap();
-    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
-    final int pixW = mapBlockWidth << 7;
-    final int pixH = mapBlockHeight << 7;
-    final int xOff = (pixW - vidWidth) >> 1;
-    final int yOff = (pixH - vidHeight) >> 1;
-    final int negXOff = xOff + vidWidth;
-    final int negYOff = yOff + vidHeight;
-    final int xLoopMin = Math.max(0, xOff >> 7);
-    final int yLoopMin = Math.max(0, yOff >> 7);
-    final int xLoopMax = Math.min(mapBlockWidth, (int) Math.ceil(negXOff / 128.0));
-    final int yLoopMax = Math.min(mapBlockHeight, (int) Math.ceil(negYOff / 128.0));
-    final Collection<MapDecoration> empty = new ArrayList<>();
-    final Collection<Packet<? super ClientGamePacketListener>> packetArray = new ArrayList<>((xLoopMax - xLoopMin) * (yLoopMax - yLoopMin));
-    for (int y = yLoopMin; y < yLoopMax; y++) {
-      final int relY = y << 7;
-      final int topY = Math.max(0, yOff - relY);
-      final int yDiff = Math.min(128 - topY, negYOff - (relY + topY));
-      for (int x = xLoopMin; x < xLoopMax; x++) {
-        final int relX = x << 7;
-        final int topX = Math.max(0, xOff - relX);
-        final int xDiff = Math.min(128 - topX, negXOff - (relX + topX));
-        final int xPixMax = xDiff + topX;
-        final int yPixMax = yDiff + topY;
-        final byte[] mapData = new byte[xDiff * yDiff];
-        for (int iy = topY; iy < yPixMax; iy++) {
-          final int yPos = relY + iy;
-          final int indexY = (yPos - yOff) * vidWidth;
-          for (int ix = topX; ix < xPixMax; ix++) {
-            final int val = (iy - topY) * xDiff + ix - topX;
-            mapData[val] = rgb[indexY + relX + ix - xOff];
-          }
-        }
-        final int mapId = map + mapBlockWidth * y + x;
-        final MapId id = new MapId(mapId);
-        final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(topX, topY, xDiff, yDiff, mapData);
-        final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
-        packetArray.add(packet);
-      }
-    }
-
-    final ClientboundBundlePacket packet = new ClientboundBundlePacket(packetArray);
-    PacketUtils.sendPackets(viewers, packet);
+    final int targetWidth = this.configuration.getMapWidthResolution();
+    final int targetHeight = this.configuration.getMapHeightResolution();
+    final ResizeFilter filter = new ResizeFilter(targetWidth, targetHeight);
+    filter.applyFilter(samples);
   }
 
   /**
-   * {@inheritDoc}
+   * Does nothing, because every frame is sent completely and nothing needs to be prepared.
    */
   @Override
   public void start() {
-    // no-op
+    // nothing needs to be prepared, every frame is sent completely
   }
 
   /**
-   * {@inheritDoc}
+   * Clears the maps of every viewer.
    */
   @Override
   public void release() {
-    final int start = this.mapConfiguration.getMap();
-    final int mapWidth = this.mapConfiguration.getMapBlockWidth();
-    final int mapHeight = this.mapConfiguration.getMapBlockHeight();
-    final int end = start + (mapWidth * mapHeight);
-    final Collection<UUID> viewers = this.mapConfiguration.getViewers();
-    final Collection<MapDecoration> empty = new ArrayList<>();
-    final ClientboundMapItemDataPacket[] emptyPackets = new ClientboundMapItemDataPacket[end - start];
-    final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(0, 0, 128, 128, new byte[128 * 128]);
-    for (int i = start; i < end; i++) {
-      final MapId id = new MapId(i);
-      final ClientboundMapItemDataPacket packet = new ClientboundMapItemDataPacket(id, (byte) 0, false, empty, mapPatch);
-      emptyPackets[i - start] = packet;
-    }
-    PacketUtils.sendPackets(viewers, emptyPackets);
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final int startMapId = this.configuration.getMap();
+    final int columns = this.configuration.getMapBlockWidth();
+    final int rows = this.configuration.getMapBlockHeight();
+    final int mapCount = columns * rows;
+    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 }

@@ -21,9 +21,18 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import org.bukkit.Location;
+import org.bukkit.World;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
- * Represents a configuration for block related prototypes.
+ * Describes a wall of blocks that shows an image, for use with the block image and block result.
+ *
+ * <p>Every pixel becomes one block. The wall stands upright along the x axis, is centered horizontally on the
+ * configured position, and grows upward from it. Blocks are sent as fake block changes, so the world is never
+ * modified, and the original blocks are shown again when the display is released.
+ *
+ * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed
+ * to add or remove viewers while media is playing.
  */
 public class BlockConfiguration {
 
@@ -32,118 +41,132 @@ public class BlockConfiguration {
   private final int blockHeight;
   private final Location position;
 
-  private BlockConfiguration(final BlockConfiguration.Builder<?> builder) {
-    this.viewers = builder.viewers;
+  private BlockConfiguration(final Builder<?> builder, final Collection<UUID> viewers, final Location position) {
+    this.viewers = viewers;
     this.blockWidth = builder.blockWidth;
     this.blockHeight = builder.blockHeight;
-    this.position = builder.position;
+    this.position = position;
   }
 
   /**
-   * Gets the viewers of this block configuration.
+   * Gets the players who see the block wall.
    *
-   * @return the viewers
+   * @return the UUIDs of the viewers
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
   }
 
   /**
-   * Gets the width of the block in blocks.
+   * Gets the width of the wall in blocks.
    *
-   * @return the block width
+   * @return the width in blocks
    */
   public int getBlockWidth() {
     return this.blockWidth;
   }
 
   /**
-   * Gets the height of the block in blocks.
+   * Gets the height of the wall in blocks.
    *
-   * @return the block height
+   * @return the height in blocks
    */
   public int getBlockHeight() {
     return this.blockHeight;
   }
 
   /**
-   * Gets the position of the block.
+   * Gets the bottom center of the wall.
    *
-   * @return the position
+   * @return the position of the wall
    */
   public Location getPosition() {
     return this.position;
   }
 
   /**
-   * Block configuration builder abstraction.
+   * The builder returned by {@link #builder()}.
    */
-  public static final class BlockResultBuilder extends BlockConfiguration.Builder<BlockConfiguration.BlockResultBuilder> {
+  public static final class BlockResultBuilder extends Builder<BlockResultBuilder> {
 
     BlockResultBuilder() {
-      // no-op
+      // created through BlockConfiguration.builder()
     }
 
+    /**
+     * Returns this builder with its concrete type.
+     *
+     * @return this builder
+     */
     @Override
-    protected BlockConfiguration.BlockResultBuilder self() {
+    protected BlockResultBuilder self() {
       return this;
     }
   }
 
   /**
-   * Creates a new block configuration builder.
+   * Creates a new builder for a block configuration.
    *
-   * @return a new block configuration builder
+   * @return a new builder
    */
-  public static BlockConfiguration.Builder<?> builder() {
-    return new BlockConfiguration.BlockResultBuilder();
+  public static Builder<?> builder() {
+    return new BlockResultBuilder();
   }
 
   /**
-   * Abstract builder for block configurations.
+   * Builds block configurations. Every value is required.
    *
    * @param <T> the type of the builder
    */
-  public abstract static class Builder<T extends BlockConfiguration.Builder<T>> {
+  public abstract static class Builder<T extends Builder<T>> {
 
-    private Collection<UUID> viewers;
+    private @MonotonicNonNull Collection<UUID> viewers;
     private int blockWidth;
     private int blockHeight;
-    private Location position;
+    private @MonotonicNonNull Location position;
 
     Builder() {
-      // no-op
+      // only subclassed inside this class
     }
 
+    /**
+     * Returns this builder with its concrete type, so the setters can be chained.
+     *
+     * @return this builder
+     */
     abstract T self();
 
     /**
-     * Sets the viewers of this block configuration.
+     * Sets the players who see the block wall. The collection is not copied, see {@link BlockConfiguration}.
      *
-     * @param viewers the viewers to set
-     * @return the builder instance for chaining
+     * @param viewers the UUIDs of the viewers
+     * @return this builder
+     * @throws NullPointerException if the viewers are null
      */
     public T viewers(final Collection<UUID> viewers) {
+      Preconditions.checkNotNull(viewers, "Viewers must not be null");
       this.viewers = viewers;
       return this.self();
     }
 
     /**
-     * Sets the position of this block configuration.
+     * Sets the bottom center of the wall.
      *
-     * @param position the position to set
-     * @return the builder instance for chaining
+     * @param position the position of the wall, which must have a world
+     * @return this builder
+     * @throws NullPointerException if the position is null
      */
     public T position(final Location position) {
+      Preconditions.checkNotNull(position, "Position must not be null");
       this.position = position;
       return this.self();
     }
 
     /**
-     * Sets the width of the configuration in blocks.
+     * Sets the width of the wall in blocks.
      *
-     * @param blockWidth the block width to set
-     * @return the builder instance for chaining
+     * @param blockWidth the width in blocks, which must be positive
+     * @return this builder
      */
     public T blockWidth(final int blockWidth) {
       this.blockWidth = blockWidth;
@@ -151,10 +174,10 @@ public class BlockConfiguration {
     }
 
     /**
-     * Sets the height of the configuration in blocks.
+     * Sets the height of the wall in blocks.
      *
-     * @param blockHeight the block height to set
-     * @return the builder instance for chaining
+     * @param blockHeight the height in blocks, which must be positive
+     * @return this builder
      */
     public T blockHeight(final int blockHeight) {
       this.blockHeight = blockHeight;
@@ -164,14 +187,20 @@ public class BlockConfiguration {
     /**
      * Builds the block configuration.
      *
-     * @return a new instance of BlockConfiguration
+     * @return the block configuration
+     * @throws IllegalArgumentException if a size is not positive or the position has no world
+     * @throws NullPointerException     if the viewers or the position were not set
      */
     public BlockConfiguration build() {
-      Preconditions.checkArgument(this.blockWidth > 0, "Map block width must be positive");
-      Preconditions.checkArgument(this.blockHeight > 0, "Map block height must be positive");
-      Preconditions.checkNotNull(this.viewers);
-      Preconditions.checkNotNull(this.position);
-      return new BlockConfiguration(this);
+      final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set");
+      final Location configuredPosition = Preconditions.checkNotNull(this.position, "Position must be set");
+
+      final World world = configuredPosition.getWorld();
+      Preconditions.checkArgument(world != null, "Position must have a world");
+      Preconditions.checkArgument(this.blockWidth > 0, "Block width must be positive");
+      Preconditions.checkArgument(this.blockHeight > 0, "Block height must be positive");
+
+      return new BlockConfiguration(this, configuredViewers, configuredPosition);
     }
   }
 }

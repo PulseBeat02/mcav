@@ -17,88 +17,322 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack;
 
-import static net.kyori.adventure.key.Key.key;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import net.kyori.adventure.key.Key;
-import org.intellij.lang.annotations.Subst;
-import team.unnamed.creative.ResourcePack;
-import team.unnamed.creative.base.Writable;
-import team.unnamed.creative.serialize.minecraft.MinecraftResourcePackWriter;
-import team.unnamed.creative.sound.Sound;
-import team.unnamed.creative.sound.SoundEntry;
-import team.unnamed.creative.sound.SoundEvent;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a simple class for creating and managing resource packs.
+ * A minimal resource pack builder that packages custom sounds and arbitrary files into a resource pack zip.
+ *
+ * <p>Only the features MCAV needs are implemented, which keeps the builder free of any dependency on the
+ * Adventure version of the server. A typical use looks like this:
+ *
+ * <pre><code>
+ *   final SimpleResourcePack pack = SimpleResourcePack.pack();
+ *   pack.meta(packFormat, "MCAV audio");
+ *   pack.sound("mcav:audio", oggFile);
+ *   pack.zip(Path.of("pack.zip"));
+ * </code></pre>
+ *
+ * <p>Instances are not thread-safe.
  */
 public final class SimpleResourcePack {
 
-  private final ResourcePack resourcePack;
+  private static final Pattern KEY_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
+  private static final Pattern FILE_PATTERN = Pattern.compile("[a-zA-Z0-9_./-]+");
+  private static final Pattern RESERVED_PATTERN = Pattern.compile("pack\\.mcmeta|assets/[^/]+/sounds\\.json|assets/[^/]+/sounds/.+\\.ogg");
+  private static final Gson GSON = createGson();
+  private static final String PACK_META_ENTRY = "pack.mcmeta";
+  private static final String TEMP_PREFIX = "mcav-pack";
+  private static final String TEMP_SUFFIX = ".zip.part";
+  private static final String READABLE_PERMISSIONS = "rw-r--r--";
+
+  private final Map<String, Map<String, Path>> sounds;
+  private final Map<String, Path> files;
+
+  private int format;
+  private @Nullable String description;
 
   SimpleResourcePack() {
-    this.resourcePack = ResourcePack.resourcePack();
+    this.sounds = new LinkedHashMap<>();
+    this.files = new LinkedHashMap<>();
+    this.format = -1;
+  }
+
+  private static Gson createGson() {
+    final GsonBuilder builder = new GsonBuilder();
+    builder.setPrettyPrinting();
+    builder.disableHtmlEscaping();
+    return builder.create();
   }
 
   /**
-   * Creates a new instance of {@code SimpleResourcePack}.
+   * Creates a new, empty resource pack builder.
    *
-   * @return a new {@code SimpleResourcePack} instance
+   * @return a new {@code SimpleResourcePack}
    */
   public static SimpleResourcePack pack() {
     return new SimpleResourcePack();
   }
 
   /**
-   * Adds a sound to the resource pack using a raw key and a file path.
-   * The sound will be registered with the specified key and associated with the provided file path.
+   * Adds an OGG Vorbis sound to the resource pack and registers a sound event with the same key. The sound is
+   * marked as streamed, so the client plays long audio directly from disk instead of loading it into memory.
+   * Play the sound in-game using its key, for example {@code /playsound mcav:audio master @a}.
    *
-   * @param raw  the raw key for the sound
-   * @param path the path to the sound file
+   * @param key  the namespaced key of the sound, such as {@code mcav:audio}
+   * @param path the path to the OGG Vorbis sound file
+   * @throws IllegalArgumentException if the key is not a valid namespaced key or the file does not exist
    */
-  public void sound(@Subst("mcav:audio") final String raw, final Path path) {
-    Preconditions.checkNotNull(raw);
+  public void sound(final String key, final Path path) {
+    Preconditions.checkNotNull(key);
     Preconditions.checkNotNull(path);
-    final Key key = key(raw);
-    final Sound sound = Sound.sound(key, Writable.path(path));
-    final SoundEntry soundEntry = SoundEntry.soundEntry().type(SoundEntry.Type.FILE).key(key).build();
-    final SoundEvent soundEvent = SoundEvent.soundEvent().key(key).sounds(soundEntry).replace(false).build();
-    this.resourcePack.sound(sound);
-    this.resourcePack.soundEvent(soundEvent);
+    final Matcher keyMatcher = KEY_PATTERN.matcher(key);
+    final boolean validKey = keyMatcher.matches();
+    Preconditions.checkArgument(validKey, "Invalid sound key: %s", key);
+    final boolean exists = Files.isRegularFile(path);
+    Preconditions.checkArgument(exists, "Sound file does not exist: %s", path);
+
+    final int separator = key.indexOf(':');
+    final String namespace = key.substring(0, separator);
+    final String value = key.substring(separator + 1);
+    final Map<String, Path> namespaceSounds = this.sounds.computeIfAbsent(namespace, _ -> new LinkedHashMap<>());
+    namespaceSounds.put(value, path);
   }
 
   /**
-   * Adds an external file to the resource pack at the specified path.
-   * The file will be treated as an unknown file and added to the resource pack.
+   * Adds an arbitrary file to the resource pack at the specified location inside the zip.
    *
-   * @param path the path where the file will be added in the resource pack
-   * @param file the file to be added
+   * <p>The location is relative to the root of the pack, so it must not start or end with a slash. The entries this
+   * builder generates are reserved and cannot be replaced: {@code pack.mcmeta}, {@code assets/<namespace>/sounds.json},
+   * and every {@code .ogg} file below {@code assets/<namespace>/sounds/}. Use {@link #sound(String, Path)} to add
+   * sounds.
+   *
+   * @param path the location of the file inside the resource pack, such as {@code assets/mcav/texts/credits.txt}
+   * @param file the file to add
+   * @throws IllegalArgumentException if the location is invalid or reserved, or the file does not exist
    */
   public void external(final String path, final Path file) {
     Preconditions.checkNotNull(path);
     Preconditions.checkNotNull(file);
-    this.resourcePack.unknownFile(path, Writable.path(file));
+    final Matcher pathMatcher = FILE_PATTERN.matcher(path);
+    final boolean validPath = pathMatcher.matches() && !path.contains("..");
+    Preconditions.checkArgument(validPath, "Invalid pack path: %s", path);
+
+    final boolean relativeFile = !path.startsWith("/") && !path.endsWith("/") && !path.contains("//");
+    Preconditions.checkArgument(relativeFile, "Pack path must be relative to the pack root and name a file: %s", path);
+
+    final Matcher reservedMatcher = RESERVED_PATTERN.matcher(path);
+    final boolean reserved = reservedMatcher.matches();
+    Preconditions.checkArgument(!reserved, "Pack path is reserved for entries generated by the builder: %s", path);
+
+    final boolean exists = Files.isRegularFile(file);
+    Preconditions.checkArgument(exists, "File does not exist: %s", file);
+    this.files.put(path, file);
   }
 
   /**
-   * Adds the pack.mcmeta entry to the resource pack with the specified format and description.
+   * Sets the {@code pack.mcmeta} information of the resource pack. This must be called before zipping.
    *
-   * @param format      the metadata format
-   * @param description the description of the resource pack
+   * @param format      the resource pack format of the targeted Minecraft version
+   * @param description the description shown in the resource pack menu
+   * @throws IllegalArgumentException if the format is not positive
    */
   public void meta(final int format, final String description) {
+    Preconditions.checkArgument(format > 0, "Pack format must be positive");
     Preconditions.checkNotNull(description);
-    this.resourcePack.packMeta(format, description);
+    this.format = format;
+    this.description = description;
   }
 
   /**
-   * Creates a zipped representation of the resource pack and writes it to the specified destination path.
+   * Writes the resource pack as a zip to the specified destination. The zip is written to a temporary file first
+   * and moved into place afterward, atomically where the file system supports it, so readers never observe a
+   * partially written pack. On POSIX file systems the pack is readable by everyone ({@code rw-r--r--}), so a
+   * separate web server can serve it.
    *
-   * @param dest the destination path where the zipped resource pack will be written
+   * @param destination the destination path of the zipped resource pack
+   * @throws IllegalStateException    if {@link #meta(int, String)} was never called
+   * @throws IllegalArgumentException if the destination is a root directory
+   * @throws UncheckedIOException     if the pack could not be written
    */
-  public void zip(final Path dest) {
-    final MinecraftResourcePackWriter writer = MinecraftResourcePackWriter.minecraft();
-    writer.writeToZipFile(dest, this.resourcePack);
+  public void zip(final Path destination) {
+    Preconditions.checkNotNull(destination);
+    final String packDescription = this.description;
+    if (packDescription == null) {
+      throw new IllegalStateException("Pack metadata must be set using meta(format, description)");
+    }
+
+    final Path absolute = destination.toAbsolutePath();
+    final Path parent = absolute.getParent();
+    if (parent == null) {
+      throw new IllegalArgumentException("Destination must be a file, not a root directory");
+    }
+
+    try {
+      this.writeAtomically(parent, absolute, packDescription);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
+    }
+  }
+
+  private void writeAtomically(final Path parent, final Path target, final String packDescription) throws IOException {
+    Files.createDirectories(parent);
+    final Path temporaryFile = Files.createTempFile(parent, TEMP_PREFIX, TEMP_SUFFIX);
+    try {
+      final PosixFileAttributeView permissionView = Files.getFileAttributeView(temporaryFile, PosixFileAttributeView.class);
+      makeReadable(permissionView);
+      this.writeZip(temporaryFile, packDescription);
+      moveIntoPlace(temporaryFile, target, Files::move);
+    } finally {
+      Files.deleteIfExists(temporaryFile);
+    }
+  }
+
+  /**
+   * Makes a file readable by everyone. Temporary files are created readable by their owner only, and would keep
+   * that mode after they were moved into place.
+   *
+   * @param view the POSIX attributes of the file, or null if the file system does not support POSIX permissions,
+   *             like on Windows, in which case nothing is changed
+   * @throws IOException if the permissions cannot be changed
+   */
+  @VisibleForTesting
+  static void makeReadable(final @Nullable PosixFileAttributeView view) throws IOException {
+    if (view == null) {
+      return;
+    }
+    final Set<PosixFilePermission> permissions = PosixFilePermissions.fromString(READABLE_PERMISSIONS);
+    view.setPermissions(permissions);
+  }
+
+  /**
+   * Moves a file into place, replacing the target. The move is atomic where the file system supports it, and a
+   * regular move otherwise, for example on some network file systems.
+   *
+   * @param source the file to move
+   * @param target the destination
+   * @param mover  moves files, usually {@link Files#move(Path, Path, CopyOption...)}
+   * @throws IOException if the file cannot be moved
+   */
+  @VisibleForTesting
+  static void moveIntoPlace(final Path source, final Path target, final FileMover mover) throws IOException {
+    try {
+      mover.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    } catch (final AtomicMoveNotSupportedException exception) {
+      mover.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+  }
+
+  /**
+   * Moves files, like {@link Files#move(Path, Path, CopyOption...)}.
+   */
+  @FunctionalInterface
+  interface FileMover {
+    /**
+     * Moves a file.
+     *
+     * @param source  the file to move
+     * @param target  the destination
+     * @param options how the file is moved
+     * @throws IOException if the file cannot be moved
+     */
+    void move(Path source, Path target, CopyOption... options) throws IOException;
+  }
+
+  private void writeZip(final Path target, final String packDescription) throws IOException {
+    try (final OutputStream fileOutput = Files.newOutputStream(target); final ZipOutputStream zip = new ZipOutputStream(fileOutput)) {
+      final String packMeta = this.createPackMeta(packDescription);
+      writeEntry(zip, PACK_META_ENTRY, packMeta);
+      this.writeSounds(zip);
+      for (final Map.Entry<String, Path> entry : this.files.entrySet()) {
+        final String name = entry.getKey();
+        final Path file = entry.getValue();
+        writeFile(zip, name, file);
+      }
+    }
+  }
+
+  private String createPackMeta(final String packDescription) {
+    final JsonObject pack = new JsonObject();
+    pack.addProperty("description", packDescription);
+    pack.addProperty("pack_format", this.format);
+    pack.addProperty("min_format", this.format);
+    pack.addProperty("max_format", this.format);
+    final JsonObject root = new JsonObject();
+    root.add("pack", pack);
+    return GSON.toJson(root);
+  }
+
+  private void writeSounds(final ZipOutputStream zip) throws IOException {
+    for (final Map.Entry<String, Map<String, Path>> namespaceEntry : this.sounds.entrySet()) {
+      final String namespace = namespaceEntry.getKey();
+      final Map<String, Path> namespaceSounds = namespaceEntry.getValue();
+      final JsonObject events = new JsonObject();
+      for (final Map.Entry<String, Path> soundEntry : namespaceSounds.entrySet()) {
+        final String value = soundEntry.getKey();
+        final Path file = soundEntry.getValue();
+        final JsonObject event = createSoundEvent(namespace, value);
+        events.add(value, event);
+        final String entryName = "assets/%s/sounds/%s.ogg".formatted(namespace, value);
+        writeFile(zip, entryName, file);
+      }
+      final String soundsJson = GSON.toJson(events);
+      final String soundsEntryName = "assets/%s/sounds.json".formatted(namespace);
+      writeEntry(zip, soundsEntryName, soundsJson);
+    }
+  }
+
+  private static JsonObject createSoundEvent(final String namespace, final String value) {
+    final String soundName = "%s:%s".formatted(namespace, value);
+    final JsonObject sound = new JsonObject();
+    sound.addProperty("name", soundName);
+    sound.addProperty("type", "file");
+    sound.addProperty("stream", true);
+    final JsonArray soundList = new JsonArray();
+    soundList.add(sound);
+    final JsonObject event = new JsonObject();
+    event.addProperty("replace", false);
+    event.add("sounds", soundList);
+    return event;
+  }
+
+  private static void writeEntry(final ZipOutputStream zip, final String name, final String content) throws IOException {
+    final ZipEntry entry = new ZipEntry(name);
+    final byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    zip.putNextEntry(entry);
+    zip.write(bytes);
+    zip.closeEntry();
+  }
+
+  private static void writeFile(final ZipOutputStream zip, final String name, final Path file) throws IOException {
+    final ZipEntry entry = new ZipEntry(name);
+    zip.putNextEntry(entry);
+    Files.copy(file, zip);
+    zip.closeEntry();
   }
 }

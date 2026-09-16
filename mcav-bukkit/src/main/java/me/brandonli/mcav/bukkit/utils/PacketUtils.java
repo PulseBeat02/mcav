@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
@@ -30,90 +29,137 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Utility class for sending NMS packets to players in a Bukkit server.
+ * Sends packets directly to players.
+ *
+ * <p>Bukkit objects must only be used on the main thread, but video frames are produced on other threads. To
+ * send packets from any thread safely, the network connection of every online player is cached in a concurrent
+ * map when the player joins and removed when the player quits. Sending a packet then only touches the Netty
+ * connection, which is thread-safe.
+ *
+ * <p>Joins are handled as early as possible, with {@link EventPriority#LOWEST}, so other plugins can send media in
+ * their own join handlers, and quits as late as possible, with {@link EventPriority#MONITOR}, so they can still
+ * send packets in their quit handlers.
  */
 public final class PacketUtils {
 
   private static final Map<UUID, ServerGamePacketListenerImpl> PLAYER_CONNECTIONS = new ConcurrentHashMap<>();
 
-  /**
-   * Utility method only meant to be used by {@link BukkitModule} to initialize the packet listener. Do not
-   * use this method directly.
-   */
-  public static void init() {
-    final Plugin plugin = BukkitModule.getPlugin();
-    final PluginManager manager = Bukkit.getPluginManager();
-    final Listener listener = new EventInitializer();
-    manager.registerEvents(listener, plugin);
-  }
+  private static volatile @Nullable Listener LISTENER;
 
   private PacketUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Sends the specified packets to all players in the provided collection of UUIDs.
+   * Registers the connection tracking listener and caches the connections of every player that is already
+   * online. Only meant to be called by {@link BukkitModule}.
+   */
+  public static synchronized void init() {
+    shutdown();
+
+    final Plugin plugin = BukkitModule.getPlugin();
+    final Listener listener = new ConnectionListener();
+    final PluginManager pluginManager = Bukkit.getPluginManager();
+    final EventExecutor joinExecutor = (_, event) -> handleJoin(event);
+    final EventExecutor quitExecutor = (_, event) -> handleQuit(event);
+    pluginManager.registerEvent(PlayerJoinEvent.class, listener, EventPriority.LOWEST, joinExecutor, plugin);
+    pluginManager.registerEvent(PlayerQuitEvent.class, listener, EventPriority.MONITOR, quitExecutor, plugin);
+    LISTENER = listener;
+
+    final Collection<? extends Player> onlinePlayers = Bukkit.getOnlinePlayers();
+    for (final Player player : onlinePlayers) {
+      addPlayerConnection(player);
+    }
+  }
+
+  /**
+   * Unregisters the connection tracking listener and clears all cached connections. Only meant to be called by
+   * {@link BukkitModule}.
+   */
+  public static synchronized void shutdown() {
+    final Listener listener = LISTENER;
+    if (listener != null) {
+      HandlerList.unregisterAll(listener);
+      LISTENER = null;
+    }
+    PLAYER_CONNECTIONS.clear();
+  }
+
+  /**
+   * Checks whether the player with the specified UUID is online and able to receive packets. May be called from
+   * any thread.
    *
-   * @param viewers a collection of player UUIDs to whom the packets will be sent
-   * @param packets the packets to send
+   * @param player the UUID of the player
+   * @return true if packets can be sent to the player
+   */
+  public static boolean isConnected(final UUID player) {
+    Preconditions.checkNotNull(player, "Player must not be null");
+    return PLAYER_CONNECTIONS.containsKey(player);
+  }
+
+  /**
+   * Sends the specified packets to every online player in the collection of viewers. Offline viewers are
+   * skipped. May be called from any thread.
+   *
+   * @param viewers the UUIDs of the players to send the packets to
+   * @param packets the packets to send, in order
    */
   public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
+    Preconditions.checkNotNull(viewers, "Viewers must not be null");
+    Preconditions.checkNotNull(packets, "Packets must not be null");
     for (final UUID viewer : viewers) {
-      final ServerGamePacketListenerImpl conn = PLAYER_CONNECTIONS.get(viewer);
-      if (conn == null) {
+      final ServerGamePacketListenerImpl connection = PLAYER_CONNECTIONS.get(viewer);
+      if (connection == null) {
         continue;
       }
       for (final Packet<?> packet : packets) {
-        conn.send(packet);
+        connection.send(packet);
       }
     }
   }
 
-  private static void addPlayerConnection(final UUID uuid) {
-    final Player player = requireNonNull(Bukkit.getPlayer(uuid));
-    final CraftPlayer craftPlayer = (CraftPlayer) player;
-    final ServerPlayer nmsPlayer = craftPlayer.getHandle();
-    final ServerGamePacketListenerImpl conn = nmsPlayer.connection;
-    PLAYER_CONNECTIONS.put(uuid, conn);
+  private static void handleJoin(final Event event) {
+    if (event instanceof final PlayerJoinEvent joinEvent) {
+      final Player player = joinEvent.getPlayer();
+      addPlayerConnection(player);
+    }
   }
 
-  private static void removePlayerConnection(final UUID uuid) {
+  private static void handleQuit(final Event event) {
+    if (event instanceof final PlayerQuitEvent quitEvent) {
+      final Player player = quitEvent.getPlayer();
+      removePlayerConnection(player);
+    }
+  }
+
+  private static void addPlayerConnection(final Player player) {
+    final CraftPlayer craftPlayer = (CraftPlayer) player;
+    final ServerPlayer handle = craftPlayer.getHandle();
+    // online and joining players were placed into the world, which always assigns their connection first
+    final ServerGamePacketListenerImpl connection = handle.connection;
+    final UUID uuid = player.getUniqueId();
+    PLAYER_CONNECTIONS.put(uuid, connection);
+  }
+
+  private static void removePlayerConnection(final Player player) {
+    final UUID uuid = player.getUniqueId();
     PLAYER_CONNECTIONS.remove(uuid);
   }
 
-  private static class EventInitializer implements Listener {
-
-    /**
-     * Creates a new player connection when a player joins the server.
-     *
-     * @param event the PlayerJoinEvent triggered when a player joins
-     */
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerJoin(final PlayerJoinEvent event) {
-      final Player player = event.getPlayer();
-      final UUID uuid = player.getUniqueId();
-      addPlayerConnection(uuid);
-    }
-
-    /**
-     * Removes the player connection when a player quits the server.
-     *
-     * @param event the PlayerQuitEvent triggered when a player quits
-     */
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerQuit(final PlayerQuitEvent event) {
-      final Player player = event.getPlayer();
-      final UUID uuid = player.getUniqueId();
-      removePlayerConnection(uuid);
-    }
-  }
+  /**
+   * The owner of the connection tracking handlers, which {@link #shutdown()} unregisters all at once.
+   */
+  private static final class ConnectionListener implements Listener {}
 }

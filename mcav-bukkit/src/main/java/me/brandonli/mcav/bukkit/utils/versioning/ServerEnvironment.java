@@ -17,47 +17,74 @@
  */
 package me.brandonli.mcav.bukkit.utils.versioning;
 
-import java.util.Map;
+import com.google.common.base.Preconditions;
 import org.bukkit.Bukkit;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Utility class to determine the server environment and version.
+ * Describes the server environment the Bukkit module runs in.
+ *
+ * <p>The module is compiled against the internals of exactly one Minecraft version, so running it on any other
+ * version would fail in unpredictable ways, often long after startup. This class lets the module detect that
+ * situation up front and fail with a clear message instead.
  */
 public final class ServerEnvironment {
+
+  /**
+   * The only Minecraft version supported by the Bukkit module.
+   */
+  public static final String SUPPORTED_MINECRAFT_VERSION = "26.2";
+
+  private static final String PATCH_PREFIX = SUPPORTED_MINECRAFT_VERSION + ".";
 
   private ServerEnvironment() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static final Map<ServerVersion, String> VERSION_MAP = Map.of(ServerVersion.V_1_21_11, "v1_21_R7");
-
-  private static final @Nullable String MINECRAFT_PACKAGE = VERSION_MAP.get(getVersion());
-
-  private static ServerVersion getVersion() {
-    final String bukkitVersion = Bukkit.getBukkitVersion();
-    final ServerVersion fallbackVersion = ServerVersion.V_1_8_8;
-    if (bukkitVersion.contains("Unknown")) {
-      return fallbackVersion;
-    }
-
-    final ServerVersion[] reversed = ServerVersion.getReversed();
-    for (final ServerVersion version : reversed) {
-      final String versionName = version.getReleaseName();
-      if (bukkitVersion.contains(versionName)) {
-        return version;
-      }
-    }
-
-    return fallbackVersion;
+  /**
+   * Gets the Minecraft version of the running server, such as {@code 26.2}.
+   *
+   * @return the Minecraft version of the server
+   */
+  public static String getMinecraftVersion() {
+    return Bukkit.getMinecraftVersion();
   }
 
   /**
-   * Gets the server NMS version.
+   * Checks whether the running server is supported. Patch releases of the supported version, such as
+   * {@code 26.2.1}, are supported as well.
    *
-   * @return the server version
+   * @return true if the server version is supported, false otherwise
    */
-  public static String getNMSRevision() {
-    return MINECRAFT_PACKAGE != null ? MINECRAFT_PACKAGE : "v1_8_R3";
+  public static boolean isSupported() {
+    final String version = getMinecraftVersion();
+    return isSupported(version);
+  }
+
+  /**
+   * Checks whether the given Minecraft version is supported by the Bukkit module.
+   *
+   * @param version the Minecraft version to check, such as {@code 26.2.1}
+   * @return true if the version is supported, false otherwise
+   */
+  public static boolean isSupported(final String version) {
+    Preconditions.checkNotNull(version, "Version must not be null");
+    final boolean exactMatch = version.equals(SUPPORTED_MINECRAFT_VERSION);
+    final boolean patchRelease = version.startsWith(PATCH_PREFIX);
+    return exactMatch || patchRelease;
+  }
+
+  /**
+   * Ensures that the running server is supported.
+   *
+   * @throws UnsupportedServerVersionException if the server version is not supported
+   */
+  public static void checkSupported() {
+    final String version = getMinecraftVersion();
+    final boolean supported = isSupported(version);
+    if (supported) {
+      return;
+    }
+    final String message = "MCAV only supports Minecraft %s, but the server is running %s!".formatted(SUPPORTED_MINECRAFT_VERSION, version);
+    throw new UnsupportedServerVersionException(message);
   }
 }

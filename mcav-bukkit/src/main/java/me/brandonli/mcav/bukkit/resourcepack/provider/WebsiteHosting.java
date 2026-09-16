@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
 /**
- * Represents the hosting of a resource pack onto MCPack's website.
+ * Hosts a resource pack by uploading it to a public website, so no port has to be opened on the server. Create
+ * instances with {@link PackHosting#website(java.nio.file.Path)}.
  */
 public interface WebsiteHosting extends PackHosting {}

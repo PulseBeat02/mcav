@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
 /**
- * Represents a hosting interface for resource pack injectors.
+ * Hosts a resource pack on the port of the Minecraft server itself by inspecting new connections. Create
+ * instances with {@link PackHosting#injector(java.nio.file.Path)}.
  */
 public interface InjectorHosting extends PackHosting {}

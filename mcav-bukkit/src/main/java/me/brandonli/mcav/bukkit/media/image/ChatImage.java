@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.image;
 
+import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
@@ -28,7 +29,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 
 /**
- * Represents a chat-based image display implementation.
+ * Displays still images in the chat of the viewers. The chat is cleared before every image, so only the latest
+ * image is visible. Packets are sent directly, so images may be displayed from any thread.
  */
 public class ChatImage implements DisplayableImage {
 
@@ -39,25 +41,31 @@ public class ChatImage implements DisplayableImage {
   }
 
   /**
-   * {@inheritDoc}
+   * Clears the chat of every viewer and sends the image as one chat message. May be called from any thread.
+   *
+   * @param image the image to show, which is resized to the chat dimensions in place
+   * @throws NullPointerException if the image is null
    */
   @Override
-  public void displayImage(final ImageBuffer data) {
-    this.release();
-    final int chatWidth = this.configuration.getChatWidth();
-    final int chatHeight = this.configuration.getChatHeight();
+  public void displayImage(final ImageBuffer image) {
+    Preconditions.checkNotNull(image, "Image must not be null");
+    final int width = this.configuration.getChatWidth();
+    final int height = this.configuration.getChatHeight();
+    final ResizeFilter resize = new ResizeFilter(width, height);
+    resize.applyFilter(image);
+
+    final int[] pixels = image.getPixels();
     final String character = this.configuration.getCharacter();
+    final Component message = ChatUtils.createChatComponent(pixels, character, width, height);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+
     final Collection<UUID> viewers = this.configuration.getViewers();
-    final ResizeFilter resize = new ResizeFilter(chatWidth, chatHeight);
-    resize.applyFilter(data);
-    final int[] resizedData = data.getPixels();
-    final Component msg = ChatUtils.createChatComponent(resizedData, character, chatWidth, chatHeight);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(msg, false);
+    ChatUtils.clearChat(viewers);
     PacketUtils.sendPackets(viewers, packet);
   }
 
   /**
-   * {@inheritDoc}
+   * Clears the chat of every viewer.
    */
   @Override
   public void release() {

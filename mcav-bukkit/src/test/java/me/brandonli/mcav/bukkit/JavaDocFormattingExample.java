@@ -17,29 +17,48 @@
  */
 package me.brandonli.mcav.bukkit;
 
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.bukkit.media.result.Characters;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.source.file.FileSource;
 
-@SuppressWarnings("all")
-public class JavaDocFormattingExample {
+/**
+ * The scoreboard example from the documentation, kept here so it keeps compiling. It must run inside a server
+ * where the Bukkit module is installed.
+ */
+public final class JavaDocFormattingExample {
 
-  public static void main(final String[] args) {
-    final Collection<UUID> viewers = null;
-    final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
-      .character(Characters.FULL_CHARACTER)
-      .lines(16)
-      .width(16)
-      .viewers(viewers)
-      .build();
+  private JavaDocFormattingExample() {
+    throw new UnsupportedOperationException("Example class cannot be instantiated");
+  }
+
+  /**
+   * Shows an image on the scoreboard of a player.
+   *
+   * @param viewer the player who sees the image
+   * @param file   the image file
+   */
+  public static void showScoreboardImage(final UUID viewer, final Path file) {
+    final Collection<UUID> viewers = List.of(viewer);
+    final ScoreboardConfiguration.Builder<?> builder = ScoreboardConfiguration.builder();
+    builder.character(Characters.FULL_CHARACTER);
+    builder.lines(15);
+    builder.width(16);
+    builder.viewers(viewers);
+    final ScoreboardConfiguration configuration = builder.build();
+
     final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-    final ImageBuffer image = null;
-    display.displayImage(image);
-    // do some play back
+    final FileSource source = FileSource.path(file);
+    try (final ImageBuffer image = ImageBuffer.path(source)) {
+      display.displayImage(image);
+    }
+
+    // later, when the image is no longer shown
     display.release();
-    image.release();
   }
 }

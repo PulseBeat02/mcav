@@ -17,202 +17,339 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.http.NetworkUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The concrete implementation of {@link WebsiteHosting} for hosting resource packs on MCPacks.net. Periodically
- * caches the pack information to avoid excessive loads on the server.
+ * Hosts a resource pack by uploading it to <a href="https://mc-packs.net">mc-packs.net</a>.
+ *
+ * <p>This strategy needs no open port at all, which makes it the easiest option for servers behind a proxy or a
+ * strict firewall. Uploads are cached on disk by the SHA-1 hash of the pack, so an unchanged pack is uploaded
+ * only once even across server restarts. Before a cached download URL is reused, it is checked with a
+ * {@code HEAD} request, and the pack is uploaded again if the download is gone, for example because mc-packs.net
+ * deleted it. The check and the upload block for as long as the transfer takes, so call {@link #start()} off the
+ * main thread.
  */
 public class MCPackHosting implements WebsiteHosting {
 
-  private static final String WEBSITE_URL = "https://mc-packs.net";
-  private static final String DOWNLOAD_WEBSITE_URL = "https://download.mc-packs.net";
-  private static final String PACK_URL = "%s/pack/%s.zip";
-  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+  private static final Logger LOGGER = LoggerFactory.getLogger(MCPackHosting.class);
+  private static final URI UPLOAD_URI = URI.create("https://mc-packs.net");
+  private static final String DOWNLOAD_URL_FORMAT = "https://download.mc-packs.net/pack/%s.zip";
+  private static final String HASH_ALGORITHM = "SHA-1";
+  private static final String CACHE_FILE = "mc-packs-cache.json";
+  private static final Type CACHE_TYPE = createCacheType();
+  private static final Duration TIMEOUT = Duration.ofMinutes(5);
+  private static final int HTTP_OK = 200;
+  private static final Lock CACHE_LOCK = new ReentrantLock();
 
   private final Path zip;
-  private String url;
+  private final URI uploadUri;
+  private final String downloadUrlFormat;
+
+  private volatile @Nullable String url;
 
   /**
-   * Creates a new instance of {@code MCPackHosting} using the specified path to the resource pack ZIP file.
+   * Constructs a new {@code MCPackHosting}. Nothing is uploaded until {@link #start()} is called.
    *
-   * @param zip the path to the resource pack ZIP file to be managed and hosted
+   * @param zip the path to the resource pack zip to upload
    */
   public MCPackHosting(final Path zip) {
-    this.zip = zip;
+    this(zip, UPLOAD_URI, DOWNLOAD_URL_FORMAT);
   }
 
   /**
-   * {@inheritDoc}
+   * Constructs a new {@code MCPackHosting} that talks to another upload service.
+   *
+   * @param zip               the path to the resource pack zip to upload
+   * @param uploadUri         the URI the pack is posted to as a multipart form
+   * @param downloadUrlFormat the format of the download URL, with one placeholder for the SHA-1 hash of the pack
+   */
+  @VisibleForTesting
+  MCPackHosting(final Path zip, final URI uploadUri, final String downloadUrlFormat) {
+    Preconditions.checkNotNull(zip, "Resource pack path must not be null");
+    Preconditions.checkNotNull(uploadUri, "Upload URI must not be null");
+    Preconditions.checkNotNull(downloadUrlFormat, "Download URL format must not be null");
+    this.zip = zip;
+    this.uploadUri = uploadUri;
+    this.downloadUrlFormat = downloadUrlFormat;
+  }
+
+  private static Type createCacheType() {
+    final TypeToken<Map<String, String>> cacheToken = new TypeToken<>() {};
+    return cacheToken.getType();
+  }
+
+  /**
+   * Gets the download URL of the uploaded pack.
+   *
+   * @return the URL of the resource pack
+   * @throws IllegalStateException if the pack has not been uploaded yet
    */
   @Override
   public String getRawUrl() {
-    return this.url;
+    final String currentUrl = this.url;
+    if (currentUrl == null) {
+      throw new IllegalStateException("The resource pack has not been uploaded yet, call start() first");
+    }
+    return currentUrl;
   }
 
   /**
-   * {@inheritDoc}
+   * Uploads the resource pack unless an identical pack was uploaded before and is still available. Calling this
+   * method again after a successful upload has no effect. If the upload cache cannot be written, a warning is
+   * logged and the uploaded pack is used anyway.
+   *
+   * @throws MCPacksException if the pack cannot be read or the upload fails
    */
   @Override
   public void start() {
-    final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    final PackInfo info = this.checkFileUrl(lock);
-    final PackInfo info1 = Objects.requireNonNullElseGet(info, () -> this.createNewPackInfo(this.zip));
-    this.url = this.updateAndRetrievePackJSON(lock, info1);
+    if (this.url != null) {
+      return;
+    }
+
+    // the pack is read once, so the uploaded bytes always match the hash the download URL is derived from
+    final byte[] pack = this.readZip();
+    final String hash = hash(pack, HASH_ALGORITHM);
+
+    CACHE_LOCK.lock();
+    try {
+      this.url = this.findOrUpload(hash, pack);
+    } finally {
+      CACHE_LOCK.unlock();
+    }
   }
 
   /**
-   * {@inheritDoc}
+   * Hashes bytes and formats the hash as lowercase hexadecimal digits.
+   *
+   * @param bytes     the bytes to hash
+   * @param algorithm the name of the hash algorithm, such as {@code SHA-1}
+   * @return the hash in hexadecimal
+   * @throws IllegalStateException if the algorithm is not available
    */
-  @Override
-  public void shutdown() {}
+  @VisibleForTesting
+  static String hash(final byte[] bytes, final String algorithm) {
+    try {
+      final MessageDigest digest = MessageDigest.getInstance(algorithm);
+      final byte[] hash = digest.digest(bytes);
+      return IOUtils.bytesToHex(hash);
+    } catch (final NoSuchAlgorithmException exception) {
+      final String message = "Hash algorithm %s is not available".formatted(algorithm);
+      throw new IllegalStateException(message, exception);
+    }
+  }
 
   /**
-   * {@inheritDoc}
+   * Looks the pack up in the upload cache, uploading it only if it was never uploaded before or its download is
+   * no longer available.
+   *
+   * @param hash the SHA-1 hash of the pack
+   * @param pack the bytes of the pack
+   * @return the download URL of the pack
+   */
+  private String findOrUpload(final String hash, final byte[] pack) {
+    final Map<String, String> cache = readCache();
+    final String cachedUrl = cache.get(hash);
+    if (cachedUrl != null) {
+      final boolean available = isAvailable(cachedUrl);
+      if (available) {
+        return cachedUrl;
+      }
+    }
+
+    this.upload(pack);
+    final String uploadedUrl = this.downloadUrlFormat.formatted(hash);
+    cache.put(hash, uploadedUrl);
+    writeCache(cache);
+    return uploadedUrl;
+  }
+
+  // a cache entry that is not even a valid URI is as useless as a download that is gone
+  private static boolean isAvailable(final String url) {
+    final URI uri;
+    try {
+      uri = URI.create(url);
+    } catch (final IllegalArgumentException exception) {
+      return false;
+    }
+    return NetworkUtils.isReachable(uri);
+  }
+
+  /**
+   * Does nothing, because the pack stays available on mc-packs.net after it was uploaded.
+   */
+  @Override
+  public void shutdown() {
+    // the upload cannot be undone and stays available for other servers
+  }
+
+  /**
+   * Gets the resource pack zip that is uploaded to mc-packs.net.
+   *
+   * @return the path to the resource pack zip
    */
   @Override
   public Path getZip() {
     return this.zip;
   }
 
-  private PackInfo createNewPackInfo(final Path zip) {
+  private void upload(final byte[] pack) {
+    final UUID boundaryId = UUID.randomUUID();
+    final String boundary = "----mcav-" + boundaryId;
+    final HttpRequest request = this.createUploadRequest(boundary, pack);
+    final HttpClient.Builder clientBuilder = HttpClient.newBuilder();
+    clientBuilder.connectTimeout(TIMEOUT);
+    clientBuilder.followRedirects(HttpClient.Redirect.NORMAL);
+    try (final HttpClient client = clientBuilder.build()) {
+      send(client, request);
+    }
+  }
+
+  private HttpRequest createUploadRequest(final String boundary, final byte[] pack) {
+    final byte[] body = this.createMultipartBody(boundary, pack);
+    final HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofByteArray(body);
+    final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(this.uploadUri);
+    requestBuilder.timeout(TIMEOUT);
+    requestBuilder.header("Content-Type", "multipart/form-data; boundary=" + boundary);
+    requestBuilder.header("Accept", "*/*");
+    requestBuilder.header("User-Agent", "mcav");
+    requestBuilder.POST(publisher);
+    return requestBuilder.build();
+  }
+
+  private static void send(final HttpClient client, final HttpRequest request) {
+    final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
     try {
-      this.uploadPackPost(zip);
-      final String hash = IOUtils.getSHA1Hash(zip);
-      final String url = String.format(PACK_URL, DOWNLOAD_WEBSITE_URL, hash);
-      return new PackInfo(url, 0);
-    } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage(), e);
-    } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-      throw new MCPacksException(e.getMessage(), e);
-    }
-  }
-
-  private void uploadPackPost(final Path zip) throws IOException, InterruptedException {
-    final byte[] fileBytes = Files.readAllBytes(zip);
-    final HttpRequest.BodyPublisher bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(fileBytes);
-    final URI uri = URI.create(WEBSITE_URL);
-    final HttpRequest request = HttpRequest.newBuilder()
-      .uri(uri)
-      .header("Content-Type", "application/json")
-      .header("Accept", "*/*")
-      .header("Accept-Encoding", "gzip, deflate, br, zstd")
-      .header("Accept-Language", "en-US,en;q=0.9")
-      .POST(bodyPublisher)
-      .build();
-    final HttpResponse.BodyHandler<String> bodyHandlers = HttpResponse.BodyHandlers.ofString();
-    final HttpResponse<String> response = HTTP_CLIENT.send(request, bodyHandlers);
-    final int status = response.statusCode();
-    if (status != 200) {
-      throw new MCPacksException("Failed to upload file to MC-Packs.net!");
-    }
-  }
-
-  private String updateAndRetrievePackJSON(final ReentrantReadWriteLock lock, final PackInfo info) {
-    final Lock write = lock.writeLock();
-    final Path path = this.getCachedFilePath();
-    try (final Writer writer = Files.newBufferedWriter(path)) {
-      final int loads = info.loads + 1;
-      final PackInfo updated = new PackInfo(info.url, loads);
-      final Gson gson = GsonProvider.getSimple();
-      write.lock();
-      gson.toJson(updated, writer);
-      return updated.url;
-    } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage(), e);
-    } finally {
-      write.unlock();
-    }
-  }
-
-  private @Nullable PackInfo checkFileUrl(final ReentrantReadWriteLock lock) {
-    final Path path = this.getCachedFilePath();
-    if (IOUtils.createFileIfNotExists(path)) {
-      return null;
-    }
-    final Lock read = lock.readLock();
-    read.lock();
-
-    try (final Reader reader = Files.newBufferedReader(path)) {
-      final Gson gson = GsonProvider.getSimple();
-      final PackInfo info = gson.fromJson(reader, PackInfo.class);
-      return info == null ? null : (info.loads > 10 ? null : info);
-    } catch (final IOException e) {
-      throw new MCPacksException(e.getMessage(), e);
-    } finally {
-      read.unlock();
-    }
-  }
-
-  private Path getCachedFilePath() {
-    final Path data = IOUtils.getCachedFolder();
-    return data.resolve("cached-packs.json");
-  }
-
-  static final class PackInfo {
-
-    private final String url;
-    private final int loads;
-
-    PackInfo(final String url, final int loads) {
-      this.url = url;
-      this.loads = loads;
-    }
-
-    String getUrl() {
-      return this.url;
-    }
-
-    int getLoads() {
-      return this.loads;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean equals(final @Nullable Object o) {
-      if (this == o) {
-        return true;
+      final HttpResponse<String> response = client.send(request, bodyHandler);
+      final int status = response.statusCode();
+      if (status != HTTP_OK) {
+        final String message = "mc-packs.net rejected the upload with status %d".formatted(status);
+        throw new MCPacksException(message);
       }
-      if (o == null || this.getClass() != o.getClass()) {
-        return false;
-      }
-      final PackInfo packInfo = (PackInfo) o;
-      return this.loads == packInfo.loads && this.url.equals(packInfo.url);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new MCPacksException(message, exception);
+    } catch (final InterruptedException exception) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+      throw new MCPacksException("Interrupted while uploading the resource pack", exception);
     }
+  }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int hashCode() {
-      return Objects.hash(this.url, this.loads);
+  private byte[] createMultipartBody(final String boundary, final byte[] pack) {
+    final String headText = this.createMultipartHead(boundary);
+    final String tailText = "\r\n--" + boundary + "--\r\n";
+    final byte[] headBytes = headText.getBytes(StandardCharsets.UTF_8);
+    final byte[] tailBytes = tailText.getBytes(StandardCharsets.UTF_8);
+    return concatenate(headBytes, pack, tailBytes);
+  }
+
+  private byte[] readZip() {
+    try {
+      return Files.readAllBytes(this.zip);
+    } catch (final IOException exception) {
+      final String message = "Resource pack cannot be read: %s".formatted(this.zip);
+      throw new MCPacksException(message, exception);
     }
+  }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String toString() {
-      return "PackInfo{" + "url='" + this.url + '\'' + ", loads=" + this.loads + '}';
+  private String createMultipartHead(final String boundary) {
+    // the pack was read as a regular file, and the path of a regular file always ends with a file name
+    final Path zipFileName = this.zip.getFileName();
+    final Path fileNamePath = Objects.requireNonNull(zipFileName, "The resource pack has no file name");
+    final String fileName = fileNamePath.toString();
+    final String safeFileName = fileName.replace("\"", "");
+    return (
+      "--" +
+      boundary +
+      "\r\n" +
+      "Content-Disposition: form-data; name=\"file\"; filename=\"" +
+      safeFileName +
+      "\"\r\n" +
+      "Content-Type: application/zip\r\n\r\n"
+    );
+  }
+
+  private static byte[] concatenate(final byte[]... parts) {
+    int totalLength = 0;
+    for (final byte[] part : parts) {
+      totalLength += part.length;
+    }
+    final byte[] joined = new byte[totalLength];
+    int offset = 0;
+    for (final byte[] part : parts) {
+      System.arraycopy(part, 0, joined, offset, part.length);
+      offset += part.length;
+    }
+    return joined;
+  }
+
+  private static Path getCacheFile() {
+    final Path cacheFolder = IOUtils.getCachedFolder();
+    return cacheFolder.resolve(CACHE_FILE);
+  }
+
+  private static Map<String, String> readCache() {
+    final Path cacheFile = getCacheFile();
+    final boolean exists = Files.isRegularFile(cacheFile);
+    if (!exists) {
+      return new HashMap<>();
+    }
+    final Gson gson = GsonProvider.getSimple();
+    try (final Reader reader = Files.newBufferedReader(cacheFile)) {
+      final Map<String, String> cache = gson.fromJson(reader, CACHE_TYPE);
+      return copyCache(cache);
+    } catch (final IOException | JsonSyntaxException exception) {
+      // a corrupt cache only costs one extra upload
+      return new HashMap<>();
+    }
+  }
+
+  // an empty cache file parses as null
+  private static Map<String, String> copyCache(final @Nullable Map<String, String> cache) {
+    if (cache == null) {
+      return new HashMap<>();
+    }
+    return new HashMap<>(cache);
+  }
+
+  private static void writeCache(final Map<String, String> cache) {
+    final Path cacheFile = getCacheFile();
+    final Gson gson = GsonProvider.getSimple();
+    try (final Writer writer = Files.newBufferedWriter(cacheFile)) {
+      gson.toJson(cache, CACHE_TYPE, writer);
+    } catch (final IOException exception) {
+      // the upload itself succeeded, a missing cache entry only costs one extra upload on the next start
+      LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time", cacheFile, exception);
     }
   }
 }

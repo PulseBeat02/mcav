@@ -23,47 +23,62 @@ import org.bukkit.entity.TextDisplay;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a hologram for video playback information.
+ * A floating text display that shows information about the video that is playing, such as its title, uploader,
+ * and a progress bar.
+ *
+ * <p>A hologram goes through three steps: {@link #handleRequest(Location, URLParseDump)} spawns the display with
+ * the metadata of the video, {@link #start()} starts the progress bar, and {@link #kill()} removes the display
+ * again. All methods must be called on the main thread.
+ *
+ * <pre><code>
+ *   final Hologram hologram = Hologram.basic();
+ *   hologram.handleRequest(location, dump);
+ *   hologram.start();
+ *   // when playback ends
+ *   hologram.kill();
+ * </code></pre>
  */
 public interface Hologram {
   /**
-   * Creates a basic hologram instance.
+   * Creates a hologram that shows the title, the uploader, the upload date, and a progress bar of the video.
    *
-   * @return A new instance of a standard video hologram.
+   * @return a new hologram
    */
   static Hologram basic() {
     return new StandardVideoHologram();
   }
 
   /**
-   * Handles a request to create or update the hologram at the specified location with the provided video metadata.
+   * Spawns the hologram at the location and fills it with the metadata of the video. Calling this method again
+   * removes the previous display first.
    *
-   * @param location The location where the hologram should be displayed.
-   * @param dump The video metadata containing information such as title, uploader, and upload date.
+   * @param location the location to spawn the hologram at, which must have a world
+   * @param dump     the metadata of the video, as parsed by yt-dlp
    */
   void handleRequest(final Location location, final URLParseDump dump);
 
   /**
-   * Starts the hologram, making it visible in the game world.
+   * Starts the progress bar. Has no effect before {@link #handleRequest(Location, URLParseDump)} was called.
    */
   void start();
 
   /**
-   * Kills the hologram, removing it from the game world.
+   * Removes the hologram from the world and stops the progress bar. Calling this method on a hologram that was
+   * never spawned has no effect.
    */
   void kill();
 
   /**
-   * Gets the display entity associated with this hologram.
+   * Gets the display entity of this hologram.
    *
-   * @return The TextDisplay entity, or null if it has not been set.
+   * @return the display entity, or null if the hologram is not spawned
    */
   @Nullable TextDisplay getDisplay();
 
   /**
-   * Sets the display entity for this hologram.
+   * Replaces the display entity of this hologram. The previous entity is not removed.
    *
-   * @param display The TextDisplay entity to set, or null to remove the current display.
+   * @param display the display entity, or null to detach the hologram from its entity
    */
   void setDisplay(@Nullable TextDisplay display);
 }
