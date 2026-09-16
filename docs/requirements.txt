@@ -1,10 +1,5 @@
-jupyter-book
+# the site uses the Sphinx-based Jupyter Book 1 (_config.yml and _toc.yml); Jupyter Book 2 is a different tool
+jupyter-book>=1.0.4,<2
 matplotlib
 numpy
-sphinx-inline-tabs
-sphinx-examples
-sphinx-proof
-sphinx-panels
-sphinx-tabs
-sphinx-hoverxref
 sphinx-design

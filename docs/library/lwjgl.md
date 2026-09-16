@@ -1,7 +1,7 @@
 # LWJGL Module
 
-MCAV provides a [LWJGL](https://www.lwjgl.org/) module called `mcav-lwjgl`. To use the LWJGL player, you must import the MCAV
-module. 
+MCAV provides an [LWJGL](https://www.lwjgl.org/) module called `mcav-lwjgl` that streams video into OpenGL textures,
+for example to render a video inside a game or a mod.
 
 ```kotlin
 dependencies {
@@ -9,24 +9,35 @@ dependencies {
 }
 ```
 
-The LWJGL module provides a class called `GLTextureFilter` which takes incoming video frames and applies them onto a
-GL texture. You can then get the texture ID and use it in your OpenGL context.
+OpenGL may only be called from the thread that owns the context, but filters run on the thread of the player. The
+`GLTextureFilter` therefore only copies each frame into a staging buffer, and the render thread uploads the newest
+frame by calling `upload()` once per rendered frame. `start()` and `release()` must be called on the render thread as
+well.
 
 ```java
-final GLTextureFilter glTextureFilter = new GLTextureFilter();
-glTextureFilter.start();
+  // call on the render thread, with the OpenGL context current
+  public static void renderVideo(final Source source, final BooleanSupplier keepRendering) {
+    final GLTextureFilter texture = new GLTextureFilter();
+    texture.start();
 
-final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(glTextureFilter);
-final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
-callback.attach(videoPipelineStep);
+    final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(texture);
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    final VideoAttachableCallback callback = player.getVideoAttachableCallback();
+    callback.attach(videoPipelineStep);
+    player.start(source);
 
-final VideoPlayerMultiplexer player = VideoPlayer.vlc();
-player.start(...);
+    while (keepRendering.getAsBoolean()) {
+      texture.upload();
+      final int textureId = texture.getTextureId();
+      GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+      // draw a textured quad of texture.getWidth() by texture.getHeight() pixels
+    }
 
-// do some playback...
-
-player.release();
-glTextureFilter.release();
+    player.release();
+    texture.release();
+  }
 ```
 
-This is useful for many scenarios, some for example if you want to render a video into a mod.
+Frames are uploaded in `GL_BGR` order, the pixel layout of the pipeline, so no conversion is needed. To stream into a
+texture you created yourself, pass its name to `new GLTextureFilter(textureId)`; the filter then leaves deleting it to
+you.

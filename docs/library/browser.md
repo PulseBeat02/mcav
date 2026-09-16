@@ -1,7 +1,7 @@
 # Browser Module
 
-MCAV provides a browser in a separate module called `mcav-browser`. To use the browser player, you must import the MCAV
-browser module, which uses [Selenium](https://www.selenium.dev/).
+MCAV streams web pages in a separate module called `mcav-browser`. Add the module and install it when you create the
+library instance.
 
 ```kotlin
 dependencies {
@@ -9,33 +9,44 @@ dependencies {
 }
 ```
 
-The browser module provides two browser implementations. The `SeleniumPlayer` and the `PlaywrightPlayer`. The `SeleniumPlayer`
-uses the [Selenium WebDriver](https://www.selenium.dev/documentation/webdriver/) to control a web browser, while the
-`PlaywrightPlayer` uses the [Playwright](https://playwright.dev/) library to control a web browser.
-
-```{warning}
-Playwright isn't supported on all platforms. Unfortuantely, there isn't a good way to determine if Playwright is
-supported on your platform or not. Therefore, the Playwright browser service is not started by default. If you would
-like to use it, run the `PlaywrightServiceProvider.init()` method to start the Playwright service. MCAV will automatically
-shut it down upon release.
+```java
+  final MCAVApi api = MCAV.api();
+  api.install(BrowserModule.class);
 ```
 
-Each browser player has its own advantages. Unfortunately, audio is not supported in both players due to limitations in the
-Chrome WebDriver. To use either browser, you must have a `BrowserSource` that specifies the URL of the web
-page to connect to.
+The module provides two backends, both created from `BrowserPlayer`:
+
+| Factory                        | Browser                                                                                   |
+|--------------------------------|-------------------------------------------------------------------------------------------|
+| `BrowserPlayer.selenium()`     | The Chrome installed on the machine, driven by [Selenium](https://www.selenium.dev/). The matching ChromeDriver is downloaded automatically. |
+| `BrowserPlayer.playwright()`   | A headless Chromium downloaded by [Playwright](https://playwright.dev/) on first use. No Chrome installation is needed; on Linux the system libraries Chromium needs must be present. |
+
+Both stream the page with the Chrome DevTools screencast, so frames arrive whenever the page changes. Audio is not
+captured. Describe the page with a `BrowserSource`: the address, the JPEG quality of the frames, their size, and how
+many browser frames are skipped between streamed frames.
+
+The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
+release the returned browser when you are done with the page.
 
 ```java
-  final VideoPipelineStep videoPipelineStep = ...;
-  final BrowserSource browserSource = BrowserSource.uri(URI.create("https://www.google.com"), 100, 1920, 1080, 1);
-  final BrowserPlayer player = BrowserPlayer.selenium(); // starts Selenium WebDriver with default arguments
-  final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
-  callback.attach(videoPipelineStep);
+  public static BrowserPlayer searchWikipedia(final VideoFilter display) {
+    final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
+    final URI address = URI.create("https://www.wikipedia.org");
+    final BrowserSource source = BrowserSource.uri(address, 80, 1280, 720, 1);
+    final BrowserPlayer browser = BrowserPlayer.selenium();
+    final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
+    callback.attach(videoPipelineStep);
 
-  player.start(browserSource);
-  // ... do something with the player
-  player.release();
+    browser.start(source); // throws a PlayerException if the browser cannot be started
+    browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
+    browser.sendKeyEvent("hello");
+    browser.sendKeyEvent("Enter");
+    return browser;
+  }
 ```
 
-To interact with the browser, you can use methods like the `sendMouseEvent` to send a mouse click or the `sendKeyEvent`
-to send keyboard input into the browser. The `sendMouseEvent` provides an enum `MouseClick` to specify the type of mouse
-click you want to use. For sending keys, you must use 
+Input coordinates are in the coordinate system of the streamed frames and are translated to the page. `sendKeyEvent`
+presses a key when given the name of a
+[KeyboardEvent key](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values), such as
+`Enter`, `Backspace`, or `ArrowLeft`, and types any other text character by character. When the page opens a new tab,
+the stream follows it.

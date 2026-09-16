@@ -9,6 +9,7 @@ parts:
       - file: plugin/plugin.md
       - file: plugin/tutorial.md
       - file: plugin/commands.md
+      - file: plugin/config.md
       - file: plugin/faq.md
   - caption: Common Library + Core Modules 🚀
     chapters:
@@ -29,6 +30,7 @@ parts:
       - file: library/yt-dlp.md
       - file: library/installer.md
       - file: library/ffmpeg.md
+      - file: library/utilities.md
       - file: library/extension.md
       - file: library/examples.md
       - file: library/compile.md

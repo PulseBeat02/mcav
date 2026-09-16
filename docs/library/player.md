@@ -1,119 +1,142 @@
 # Introduction to Players
 
-MCAV provides a variety of players that you can choose to play your media from. In general, all players follow a
-similar logic, where frames are supplied via some source, and the result is processed.
+MCAV provides a variety of players. All of them follow the same idea: frames and samples come from a source, run
+through the pipelines you attach, and the result is shown or sent by your filters.
 
 ```{warning}
-Note that for every video player, you **must** release the video player after you are done using it. This is done by
-calling the `release()` method on the player. Failing to do so will result in memory leaks and potentially crashes. Not
-all players need to be released, so check the documentation for the specific player you are using.
+Release every player when you are done with it by calling `release()`. Players own threads, native resources, and
+network connections that are only freed on release.
 ```
 
 # Video Players
 
-There are several different types of video players. There are multiplexer video players, which are able to play
-from different audio and video inputs at once. For example, the `VLCPlayer` is a multiplexer video player that can play
-from a separated audio and video input at the same time. It automatically synchronizes the audio and video streams to
-ensure that they are in sync.
+Create a video player with one of the factories of `VideoPlayer`:
 
-All video players will automatically have a wrapper callback (called `VideoAttachableCallback` for video and
-`AudioAttachableCallback` for audio) that allows you to attach a `VideoPipelineStep` or `AudioPipelineStep` to the player
-for callbacks. They wrap the respective pipeline callbacks.
+| Factory                | Backend                                                         | Audio |
+|------------------------|-----------------------------------------------------------------|-------|
+| `VideoPlayer.ffmpeg()` | The FFmpeg libraries bundled with MCAV; the recommended default | Yes   |
+| `VideoPlayer.vlc()`    | VLC, which must be installed or installable (see capabilities)  | Yes   |
+| `VideoPlayer.opencv()` | The OpenCV video reader; the bundled Linux build cannot read video files, so use `ffmpeg()` there | No    |
+| `VideoPlayer.device()` | Cameras and capture cards, played from a `DeviceSource`         | No    |
 
 ```{note}
-As an implementation note. All image and audio samples follow a standard format throughout the pipeline and should
-always maintain this same type at all times. The image frames are always encoded in **BGR24** format with 8-bits of
-padding. The audio samples are always encoded in **Signed PCM 16-bit Little-Endian** format, with 48kHz sample rate and
-2 channels.
+VLC is prepared in the background after `install` returned (see the [installation lifecycle](instance.md#installation-lifecycle)).
+When the machine has no VLC, the first start downloads it into the MCAV cache folder, which can take several minutes.
+Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException` that says VLC is still being prepared; if the
+preparation found that VLC is not available on this system, the exception says so instead. Wait for
+`api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the meantime.
 ```
 
-```java
-  final AudioPipelineStep audioPipelineStep = ...;
-  final VideoPipelineStep videoPipelineStep = ...;
-  final FileSource videoSource = ...;
-  final FileSource audioSource = ...;
-  final VideoPlayerMultiplexer multiplexer = VideoPlayer.vlc();
-  
-  // audioPipelineStep and videoPipelineStep from above
-  final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
-  videoCallback.attach(videoPipelineStep);
+Every video player has three slots: a `VideoAttachableCallback` for the video pipeline, an `AudioAttachableCallback`
+for the audio pipeline, and a `DimensionAttachableCallback` for the size frames are scaled to. Pipelines can be
+attached before starting and swapped while playing.
 
-  final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
-  audioCallback.attach(audioPipelineStep);
-  
-  multiplexer.start(videoSource, audioSource);
-  // ... do something with the player
-  multiplexer.release();
+```{note}
+Frames always reach the pipeline as 8-bit BGR images with three channels, and audio always as signed 16-bit
+little-endian PCM at 48 kHz with two interleaved channels, whatever the source format is.
+```
+
+The example below plays a file with its audio on the speakers of the computer. The `display` filter is yours and
+shows the frames, for example in a window.
+
+```java
+  public static void playVideoFile(final Path videoFile, final VideoFilter display) {
+    final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
+    final DirectAudioOutput speakers = new DirectAudioOutput();
+    speakers.start(); // throws a PlayerException on a machine without a sound device
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+    final Dimension resolution = Dimension.of(640, 360);
+    dimensionCallback.attach(resolution);
+
+    final FileSource source = FileSource.path(videoFile);
+    player.start(source);
+    player.pause();
+    player.resume();
+    player.seek(30_000); // milliseconds
+    player.release();
+    speakers.release();
+  }
+```
+
+`start`, `pause`, `resume`, and `seek` return whether they did anything. Once the media has played to its end,
+`resume()` returns `false` and does not restart it; call `start` with the source again to play it once more.
+
+Every video player is a multiplexer: besides a single source with video and audio, it can play video and audio from
+two different sources and keep them in sync. This is how the separate streams yt-dlp resolves for high-quality
+YouTube videos are played.
+
+```java
+  public static boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
+    final UriSource videoSource = UriSource.uri(videoUri);
+    final UriSource audioSource = UriSource.uri(audioUri);
+    return player.start(videoSource, audioSource);
+  }
 ```
 
 ```{warning}
-The ImageBuffer provided in a VideoPipelineStep is always released after the frame is processed. If you would like to
-store the frame, you must copy the frame to a new ImageBuffer object.
+The `ImageBuffer` passed to a video pipeline is reused for the next frame. Copy it with `copy()` if you want to keep
+it.
 ```
 
-All multiplexer players support single input video and audio sources. For example, you're able to play a video file like
-so.
-
-```java
-  final AudioPipelineStep audioPipelineStep = ...;
-  final VideoPipelineStep videoPipelineStep = ...;
-  final FileSource source = ...;
-  final VideoPlayerMultiplexer player = VideoPlayer.vlc();
-  
-  // audioPipelineStep and videoPipelineStep from above
-  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-  videoCallback.attach(videoPipelineStep);
-
-  final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-  audioCallback.attach(audioPipelineStep);
-  
-  player.start(source);
-  // ... do something with the player
-  player.release();
-```
-
-The `VLCPlayer`, `FFmpegPlayer`, `VideoInputPlayer`, and `OpenCVPlayer` are all multiplexer video players.
-
-```{note}
-Note that the `VideoInputPlayer`, however, requires an integer device input, so you must use the `DeviceSource` to 
-specify a device identifier. Otherwise, the `VideoInputPlayer` will not work.
-```
+Failures on the player threads, such as a broken network stream, are reported to the exception handler, which logs
+them by default. Set your own with `player.setExceptionHandler((message, error) -> ...)`.
 
 # Image Players
 
-For any other image-based video players, MCAV provides an `ImagePlayer`, which is a video player that plays a series of
-images given a `FrameSource`. This is incredibly useful for other miscellaneous tasks, such as taking the input from a
-JFreeChart chart and displaying it.
+The `ImagePlayer` plays frames generated by your code through a video pipeline, at the frame rate of the source. This
+is useful for charts, screen captures, or anything else you can draw.
+
+The `chartSupplier` returns the next 640 by 360 frame as a `BufferedImage` and is called once per frame; release the
+returned player when the chart should stop.
 
 ```java
-  final VideoPipelineStep videoPipelineStep = ...;
-  final FrameSource frameSource = FrameSource.image(...); // provide your frames in a supplier
-  final ImagePlayer player = ImagePlayer.player();
+  public static ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
+    final FrameSource frameSource = FrameSource.image(chartSupplier, 640, 360);
+    final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
+    final ImagePlayer player = ImagePlayer.player();
 
-  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-  videoCallback.attach(videoPipelineStep);
-  
-  player.start(frameSource);
-  // ... do something with the player
-  player.release();
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(videoPipelineStep);
+
+    player.start(frameSource);
+    return player;
+  }
 ```
 
-If you want to play a GIF image, you can use the `RepeatingFrameSource` which accepts any `DynamicImageBuffer`. You can pass
-this into `ImagePlayer` directly.
+To play an animated GIF, decode it into a `DynamicImageBuffer` and wrap it in a `RepeatingFrameSource`, which plays
+the animation at its own frame rate. The source hands the same shared pixel arrays to the pipeline in every loop, so
+filters must not write into `getPixels()` (see [reading pixels](image.md#reading-pixels)).
+
+The animation must stay open while it plays, so the example below plays it for a fixed time, releases the player,
+and only then closes the animation:
 
 ```java
-  final VideoPipelineStep videoPipelineStep = ...;
-  final DynamicImageBuffer gif = DynamicImageBuffer.path(FileSource.path(Path.of("example.gif"))); // provide your gif image
-  final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // provide your gif frames in a supplier
-  final ImagePlayer player = ImagePlayer.player();
-  
-  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-  videoCallback.attach(videoPipelineStep);
-  
-  player.start(videoPipelineStep, frameSource);
-  // ... do something with the player
-  player.release();
+  public static void playGif(final Path gifFile, final VideoFilter display, final Duration playTime)
+    throws IOException, InterruptedException {
+    final FileSource file = FileSource.path(gifFile);
+    try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
+      final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // loops forever
+      final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
+      final ImagePlayer player = ImagePlayer.player();
+
+      final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+      videoCallback.attach(videoPipelineStep);
+
+      player.start(frameSource);
+      try {
+        Thread.sleep(playTime);
+      } finally {
+        player.release();
+      }
+    }
+  }
 ```
 
-This will play the GIF indefinitely until you stop the player. You're also welcome to play the GIF in the
-`FFmpegPlayer`, as it's able to play GIFs as well.
+The FFmpeg player can play GIFs as well.

@@ -4,6 +4,7 @@
 
 title: MCAV Documentation
 author: PulseBeat_02
+copyright: "2026"
 logo: images/logo.png
 
 # Force re-execution of notebooks on each build.
@@ -24,11 +25,12 @@ bibtex_bibfiles:
 repository:
   url: https://github.com/PulseBeat02/mcav  # Online location of your book
   path_to_book: docs  # Optional path to your book, relative to the repository root
-  branch: main  # Which branch of the repository should be used when creating links (optional)
+  branch: master  # Which branch of the repository should be used when creating links (optional)
 
 # Add GitHub buttons to your book
 # See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
 html:
+  favicon: images/favicon.ico
   use_issues_button: true
   use_repository_button: true
 
@@ -53,11 +55,7 @@ sphinx:
       sd:
         - "https://sphinx-design.readthedocs.io/en/latest"
         - null
-      sphinxproof:
-        - "https://sphinx-proof.readthedocs.io/en/latest/"
-        - null
-    hoverxref_intersphinx:
-      - "sphinxproof"
+    myst_heading_anchors: 3
     mathjax3_config:
       tex:
         macros:
@@ -68,10 +66,4 @@ sphinx:
 
   extra_extensions:
     - sphinx.ext.intersphinx
-    - sphinx_inline_tabs
-    - sphinx_proof
-    - sphinx_examples
-    - hoverxref.extension
-    - sphinx_panels
-    - sphinx_tabs.tabs
     - sphinx_design

@@ -14,22 +14,22 @@ which will tab-complete the permission for you.
 
 | **Command**                       | `/mcav help`                                                                                                                               |
 |-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                         | `/mcav help [command]`                                                                                                                     |
+| **Usage**                         | `/mcav help [query]`                                                                                                                       |
 | **Permission**                    | `mcav.command.help`                                                                                                                        |
 | **Description**                   | This command will show you a tree of all the commands available to you. It also shows some basic information about what each command does. |
 | **Arguments**                     |                                                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`command` | (optional): The command you want to get help for. If not provided, it will show the entire command tree.                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`query`   | (optional): The command you want to get help for. If not provided, it will show the entire command tree.                                   |
 
 ---
 
-| **Command**                               | `/mcav screen <blockDimensions> <mapID> <material> <location>`                                      |
+| **Command**                               | `/mcav screen <blockDimensions> <mapId> <material> <location>`                                      |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav screen <blockDimensions> <mapID> <material> <location>`                                      |
+| **Usage**                                 | `/mcav screen <blockDimensions> <mapId> <material> <location>`                                      |
 | **Permission**                            | `mcav.command.screen`                                                                               |
 | **Description**                           | Brings up a menu to build a new map screen. Use the block width and height to construct the screen. |
 | **Arguments**                             |                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions` | The dimensions of the map blocks (e.g., 3x2)                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapID`           | The ID of the map to use                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`           | The ID of the map to use                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`material`        | The material to use for the screen frame                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to build the screen                                                       |
 
@@ -318,7 +318,7 @@ You must have QEMU installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the image                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution`    | A resolution in width×height format (example, 640x640)                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set int `/mcav screen` to create the map screen       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use FILTER_LITE for best results                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image                                                          |
 
@@ -334,4 +334,3 @@ You must have QEMU installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in the scoreboard                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                              |
-

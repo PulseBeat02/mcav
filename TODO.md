@@ -6,6 +6,3 @@
 
 **MCAV VM**
 - Add support for receiving audio from virtual machine
-
-**MCAV Sandbox Mod**
-- Haven't even started this yet properly

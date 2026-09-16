@@ -1,28 +1,35 @@
 # Displaying Images
 
-Displaying images is incredibly simple. To start, you need to create a configuration based on the way you want to
-display
-your image in-game. This could be a `MapConfiguration`, `ScoreboardConfiguration` or more.
+To show a still image, create the configuration of the display you want, such as a `MapConfiguration` or a
+`ScoreboardConfiguration`, and turn it into a `DisplayableImage`.
 
 ```{note}
-When using the `MapConfiguration`, you have to pass in a `DitherAlgorithm` implementation in order for the image to be
-properly dithered in advance before displaying it.
+Map images are dithered, so `DisplayableImage.map` also takes a `DitherAlgorithm`.
 ```
 
-You must call the `release()` method on the `DisplayableImage` instance when you are done with it. This will properly
-dispose of any displays and clean up everything.
+Displaying an image resizes the `ImageBuffer` to the size of the display in place. The scoreboard reads the image
+before `displayImage` returns, so the method below releases the buffer right away. Call `release()` on the returned
+`DisplayableImage` when the image should disappear.
 
 ```java
-  final Collection<UUID> viewers = null;
-  final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
-    .character(Characters.BLACK_SQUARE)
-    .lines(16).width(16)
-    .viewers(viewers)
-    .build();
-  final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-  final ImageBuffer image = null;
-  display.displayImage(image);
-  // do some playback
-  display.release();
-  image.release();
+  public static DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
+    final ScoreboardConfiguration.Builder<?> builder = ScoreboardConfiguration.builder();
+    builder.character(Characters.BLACK_SQUARE);
+    builder.lines(15);
+    builder.width(16);
+    builder.viewers(viewers);
+    final ScoreboardConfiguration configuration = builder.build();
+
+    final DisplayableImage display = DisplayableImage.scoreboard(configuration);
+    final FileSource file = FileSource.path(imageFile);
+    try (final ImageBuffer image = ImageBuffer.path(file)) {
+      display.displayImage(image);
+    }
+    return display;
+  }
 ```
+
+The other factories are `DisplayableImage.map(configuration, algorithm)`, `DisplayableImage.block(configuration)`,
+`DisplayableImage.entity(configuration)`, and `DisplayableImage.chat(configuration)`. `displayImage` and `release`
+may be called from any thread; during shutdown, release displays on the main thread, for example in `onDisable`, so
+the original state is restored right away.

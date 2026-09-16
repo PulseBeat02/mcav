@@ -1,39 +1,40 @@
 # Other Ways to Display Videos
 
-There are other ways besides maps to display frames, such as scoreboards, chat, or entities. You may use their proper
-builders to create them. Unlike the map, these builders directly build into a VideoFilter and do not require an extra
-step to convert them into a VideoFilter. Unlike the `MapResult`, you don't need to pass it into a `DitherFilter` because
-dithering is only applied for maps.
+Besides maps, frames can be shown as colored blocks, as text display entities, on the scoreboard, or in chat. Each
+display has a configuration builder and a result filter that you put at the end of the video pipeline. Unlike maps,
+these displays are not dithered, so the filter is used directly.
 
-The following example constructs a `ChatResult` filter that sends the video frames to the chat of the viewers.
+| Display    | Configuration             | Filter             |
+|------------|---------------------------|--------------------|
+| Blocks     | `BlockConfiguration`      | `BlockResult`      |
+| Entities   | `EntityConfiguration`     | `EntityResult`     |
+| Scoreboard | `ScoreboardConfiguration` | `ScoreboardResult` |
+| Chat       | `ChatConfiguration`       | `ChatResult`       |
+
+Every result is a `FunctionalVideoFilter`: call `start()` on the main thread before the video starts, and `release()`
+when it is over, which removes the blocks, entities, or scoreboard it created.
+
+The method below attaches a chat display to a player before it starts; call `release()` on the returned filter when
+the video is over.
 
 ```java
-  final Collection<UUID> viewers = ...;
-  final ChatConfiguration configuration = ChatConfiguration.builder()
-    .character(Characters.BLACK_SQUARE)
-    .chatWidth(16).chatHeight(16)
-    .viewers(viewers)
-    .build();
-  final VideoFilter chatResult = new ChatResult(configuration);
-```
+  // call on the main thread
+  public static FunctionalVideoFilter showVideoInChat(final Collection<UUID> viewers, final VideoPlayerMultiplexer player) {
+    final ChatConfiguration.Builder<?> builder = ChatConfiguration.builder();
+    builder.character(Characters.BLACK_SQUARE);
+    builder.chatWidth(16);
+    builder.chatHeight(16);
+    builder.viewers(viewers);
+    final ChatConfiguration configuration = builder.build();
 
-Now just append the filter directly to the video pipeline as you would with any other filter, and it will send the video
-frames to the viewers chat.
-
-```{note}
-For certain players that fall under the `FunctionalPlayer`, like the `EntityPlayer` and the `ScoreboardPlayer`. You 
-**must** call the `start()` method to prepare the player, and the `release()` method to release the player.
-```java
-    final Collection<UUID> viewers = ...;
-    final ScoreboardConfiguration configuration = ScoreboardConfiguration.builder()
-            .character(Characters.BLACK_SQUARE)
-            .lines(16).width(16)
-            .viewers(viewers)
-            .build();
-    final FunctionalVideoFilter chatResult = new ScoreboardResult(configuration);
+    final FunctionalVideoFilter chatResult = new ChatResult(configuration);
     chatResult.start();
-    // do some play back
-    chatResult.release();
+    final VideoPipelineStep pipeline = VideoPipelineStep.of(chatResult);
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(pipeline);
+    return chatResult;
+  }
 ```
 
-```
+Frames are applied on the main thread, one tick at a time, so the frame rate of these displays is limited to 20 frames
+per second.

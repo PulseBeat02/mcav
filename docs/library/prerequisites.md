@@ -1,13 +1,10 @@
 # Library Prerequisites
 
-MCAV is a Java library that can be used in any project. To get started, you need to add the MCAV core dependency to your
-project. You must use a build system that supports Maven repositories, such as Gradle or Maven.
-
-QEMU is not installed by default. MCAV can run out of the box for all Windows, MacOS, and all Debian/Debian-based
-Linux distributions that are x86_64 or aarch64. Otherwise, you have to install some libraries manually.
+MCAV is a Java library that can be used in any project. To get started, add the MCAV core dependency to your project
+with a build system that supports Maven repositories, such as Gradle or Maven.
 
 ```{note}
-All of MCAV's modules require at least Java 21 in order to work.
+All of MCAV's modules require Java 25 or newer.
 ```
 
 ```kotlin
@@ -22,17 +19,29 @@ dependencies {
 }
 ```
 
-## Installation
+## Supported Platforms
 
-MCAV can run out of the box for all Windows and MacOS, but for Debian/Debian-based Linux distributions, you need to supply
-an additional command line argument when running the server. Please add the folowing argument to your server's startup script:
+MCAV runs out of the box on the following platforms. No administrator rights, package manager, or extra JVM
+arguments are needed: everything MCAV downloads is stored in the cache folder of the current user.
+
+| Operating System | Architectures             | Notes                                                              |
+|------------------|---------------------------|--------------------------------------------------------------------|
+| Windows          | x86-64                    | VLC and yt-dlp are downloaded automatically when missing.          |
+| macOS            | x86-64, ARM64 (Apple)     | VLC is downloaded and mounted without administrator rights.        |
+| Linux            | x86-64, ARM64             | VLC is used from the system, or downloaded as an AppImage on x86-64. |
+
+FFmpeg and OpenCV are bundled with the library for every platform above, so the FFmpeg and OpenCV players always
+work. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
+unavailable, which you can check with [capabilities](instance.md#capabilities).
+
+QEMU is never installed by MCAV. To use the [virtual machine module](vm.md), install QEMU yourself and make sure it is
+on the `PATH`.
+
+## Native Access Warnings
+
+Java 24 and newer print a warning the first time a library loads native code. The warning is harmless. To hide it,
+start the JVM with the following argument:
 
 ```bash
--Djava.library.path=$HOME/.apt/usr/lib/*:${java.library.path}
+--enable-native-access=ALL-UNNAMED
 ```
-
-Why? Because MCAV uses a script to automatically install libraries on Linux using `apt`, but without severe JVM hacking,
-you can't supply these native libraries at runtime. So we need to add a search path for the JVM to find these custom
-installed libraries.
-
-If you are using a server hosting provider, you may need to ask them to add this argument for you.

@@ -1,11 +1,13 @@
 # Virtualization Module
 
 ```{warning}
-You must have QEMU installed in order to use virtual machine player. I do not have plans of bundling QEMU inside of mcav or automatically installing it for users. Unlike VLC and FFmpeg, QEMU comes in many static binaries for each architecture, which would be a nightmare to statically compile. As a result, you must follow the steps [here](https://www.qemu.org/download/) to download and install QEMU into your PATH.
+You must install QEMU yourself to use the virtual machine player; MCAV never installs it. Install it from your
+package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
+programs are on the `PATH`.
 ```
 
-One of the most unique features of MCAV is the ability to capture virtual machines. To do this, you must import the
-`mcav-vm` module, which will give you access to the virtual machine players.
+One of the most unique features of MCAV is streaming virtual machines. Add the `mcav-vm` module, which depends on the
+`mcav-vnc` module, and install both modules when you create the library instance.
 
 ```kotlin
 dependencies {
@@ -13,24 +15,50 @@ dependencies {
 }
 ```
 
-The virtual machine module takes advantage of [QEMU](https://www.qemu.org/download/) to virtualize. Virtual machines are
-incredibly complex, and QEMU supplies many options. MCAV allows you to build these options in a `VMConfiguration`. You
-must also create a `VMSettings` to specify other non-QEMU related options.
-
 ```java
-  final VideoPipelineStep pipeline = ...;
-  final VMConfiguration config = VMConfiguration.builder().cdrom(isoPath).memory(2048);
-  final VMSettings settings = VMSettings.of(600, 800, 120);
-  final VMPlayer player = VMPlayer.vm();
-  final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-  videoCallback.attach(pipeline);
-  
-  this.vmPlayer.start(pipeline, settings, VMPlayer.Architecture.X86_64, config);
-  // ... do some play back
-  player.release();
+  final MCAVApi api = MCAV.api();
+  api.install(VNCModule.class, VMModule.class);
+  final VMModule vmModule = api.getModule(VMModule.class);
+  if (!vmModule.isQemuInstalled()) {
+    // QEMU is missing, virtual machines cannot be started
+  }
 ```
 
-Behind the scenes, it starts a QEMU slave process with VNC enabled. By using the `mcav-vnc` module and the VNC players,
-it connects to the virtual machine and provides frames for you. **You are on your own for making sure that the virtual
-machine is properly configured.** MCAV will make no attempt to contain or fix any virtual machine errors for whatever
-arguments you pass into QEMU.
+The QEMU command line is built with a `VMConfiguration`, and a `VMSettings` describes how the machine is streamed:
+the size frames are scaled to and the frame rate requested from QEMU. The player adds the display, VNC, and pointer
+options itself, and picks the fastest accelerator of the machine (KVM, WHPX, or HVF), falling back to software
+emulation when the accelerator is unavailable.
+
+The example boots an ISO image and presses a key in its boot menu. The `display` filter is yours and shows the frames;
+release the returned player to stop the machine.
+
+```java
+  public static VMPlayer bootIsoImage(final Path isoFile, final VideoFilter display) {
+    final VideoPipelineStep pipeline = VideoPipelineStep.of(display);
+
+    final String isoPath = isoFile.toString();
+    final VMConfiguration configuration = VMConfiguration.builder();
+    configuration.cdrom(isoPath);
+    configuration.memory(2048);
+    configuration.cores(2);
+
+    final VMSettings settings = VMSettings.of(1024, 768, 30);
+    final VMPlayer player = VMPlayer.create();
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(pipeline);
+
+    player.start(settings, VMPlayer.Architecture.X86_64, configuration);
+    player.sendMouseEvent(MouseClick.LEFT, 512, 384);
+    player.sendKeyEvent("Return");
+    return player;
+  }
+```
+
+Options that QEMU accepts more than once, such as `-drive` or `-device`, are added with `drive(...)`, `device(...)`, or
+`repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
+`ExecutableNotInPathException` when the QEMU program of the architecture is not installed, and a `PlayerException`
+with the output of QEMU when the machine fails to start.
+
+Behind the scenes, the player starts QEMU with a VNC display bound to the local machine and connects the `mcav-vnc`
+player to it. **You are responsible for giving QEMU a valid configuration**; MCAV reports QEMU's errors but does not
+try to fix them.

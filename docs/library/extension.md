@@ -1,17 +1,18 @@
 # Creating an Extension
 
-By default, most of MCAV's modules (except for the `mcav-installer` module) uses the super lightweight module system provided by [PL4J](https://github.com/pf4j/pf4j).
+Every feature module of MCAV, such as `mcav-bukkit` or `mcav-http`, plugs into the library through a small module
+system: a module is a class that implements `MCAVModule`, which the library creates and starts during `install` and
+stops during `release`. You can write your own modules the same way.
 
-To start, import the module as an `api` dependency.
+Add the core library as an `api` dependency of your module:
 
-```java
+```kotlin
 dependencies {
     api("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
 }
 ```
 
-Now, create your module by implementing the `MCAVModule` interface. To use your new module, pass `ExampleModule.class`
-when you call the `install` method on the `MCAVApi` class.
+Then implement `MCAVModule`. The class needs a no-argument constructor, which the library calls.
 
 ```java
 import me.brandonli.mcav.module.MCAVModule;
@@ -19,17 +20,17 @@ import me.brandonli.mcav.module.MCAVModule;
 public final class ExampleModule implements MCAVModule {
 
   public ExampleModule() {
-    // no-op
+    // called by the library during install
   }
 
   @Override
   public void start() {
-    // startup logic here
+    // prepare lookup tables, start services, ...
   }
 
   @Override
   public void stop() {
-    // shutdown logic here
+    // release everything start() created
   }
 
   @Override
@@ -37,8 +38,16 @@ public final class ExampleModule implements MCAVModule {
     return "example";
   }
 }
-
 ```
 
+Pass the class to `install` and look the instance up with `getModule`:
 
-This is useful for creating, for example, look-up tables or classes that require additional handling. Or injecting other fields, like in the `mcav-bukkit` module when we inject the `Plugin` instance.
+```java
+  final MCAVApi api = MCAV.api();
+  api.install(ExampleModule.class);
+  final ExampleModule exampleModule = api.getModule(ExampleModule.class);
+```
+
+Modules are started in the order they are passed to `install` and stopped in reverse order. They are a good place for
+expensive shared state, such as lookup tables, and for objects the rest of your code needs, such as the plugin
+instance the Bukkit module receives through `inject`.

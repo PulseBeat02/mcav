@@ -29,13 +29,19 @@ even virtual machines using [QEMU](https://www.qemu.org/). All of this is suppor
 
 The plugin is an example demonstrating the power of the library. For media playback, it supports several thousands of
 websites that can be listed [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), some of which include
-YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local files, stream from IP cameras, screen-share 
+YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local files, stream from IP cameras, screen-share
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to, [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or a Discord bot to play audio in voice channels.
 
-QEMU is not installed by default. MCAV can run out of the box for all Windows and MacOS. MCAV is also supported on most
-Debian/Debian-based Linux distributions alongside a **command-line argument** you must pass to the JVM to allow installed
-libraries to be found. Please check the [documentation](https://mcav.readthedocs.io/en/latest/intro.html) for more information.
+MCAV requires Java 25, and the plugin runs on Paper 26.2 only. MCAV runs out of the box on Windows (x86-64), macOS
+(x86-64 and Apple silicon), and Linux (x86-64 and ARM64), also on headless servers without a display or sound device,
+and needs neither administrator rights (no `sudo`) nor extra JVM arguments. FFmpeg and OpenCV are bundled and their
+JavaCV natives are extracted into the JavaCPP cache of the user, and yt-dlp and VLC are downloaded into the cache folder
+of the user when they are missing; on Linux, VLC is downloaded on x86-64 only and is otherwise used from the system.
+Other Unix systems, such as FreeBSD, are detected as well: MCAV downloads nothing there and uses the VLC installed on
+the system, but the bundled FFmpeg and OpenCV natives only exist for the platforms above. QEMU for the virtual machine
+module and Google Chrome for the Selenium backend of the browser module must already be installed. Please check the
+[documentation](https://mcav.readthedocs.io/en/latest/intro.html) for more information.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
 
@@ -49,8 +55,7 @@ Here is a list of all the modules that are included in MCAV
 
 | Module           | Description                                                                                                                                                  |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox:plugin` | A Paper plugin for Minecraft servers that utilizes all the features of MCAV.                                                                                 |
-| `sandbox:mod`    | A Fabric mod for Minecraft servers that utilizes all the features of MCAV (in heavy development).                                                            |
+| `sandbox:plugin` | A Paper 26.2 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
 | `mcav-common`    | The core library for multimedia functionality.                                                                                                               |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                                              |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
@@ -70,7 +75,6 @@ MCAV is looking for contributors to help improve the library and plugin. We need
 - Web Developers (Typescript, React, NextJS) to help improve the front-end of the HTTP module.
 - Back-end Developers (Java, Spring Boot) to help improve the back-end of the HTTP module.
 - Java Developers to help improve the core library.
-- Fabric Developers to help improve the Fabric mod.
 - Bukkit Developers to help improve the Bukkit module and the sandbox plugin.
 - Writers to help improve the documentation and tutorials.
 - Testers to help test the library and plugin.
@@ -93,7 +97,7 @@ incorporated into the project. The following table lists the libraries used in M
 | [OpenCV/OpenCV](https://github.com/opencv/opencv)      | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [caprica/vlcj](https://github.com/caprica/vlcj)        | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
 | [bytedeco/javacv](https://github.com/bytedeco/javacv)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
-| [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp)      | [Unlicense](https://opensource.org/license/unlicense)       | 
+| [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp)      | [Unlicense](https://opensource.org/license/unlicense)       |
 | [rkalla/imgscalr](https://github.com/rkalla/imgscalr)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
 

@@ -13,10 +13,11 @@ incorporated into the project. The following table lists the libraries used in M
 | [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp)      | [Unlicense](https://opensource.org/license/unlicense)       |
 | [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
 
+The yt-dlp source code is released under the Unlicense, but the standalone yt-dlp executables that MCAV downloads are
+built with PyInstaller and include GPLv3+ code, so each of them is licensed under the GPLv3 or later as a whole.
+
 As a result of this, the MCAV library is licensed under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
-license. The Apache 2 License is
-compatible
-with the GPLv3 license, but not the GPVl2 license. You should license your project under the GPLv3 license or any other
-license that is compatible with the GPLv3 license.
+license. The Apache 2 license is compatible with the GPLv3 license, but not with the GPLv2 license. License your
+project under the GPLv3 license or another license that is compatible with it.
 
 Respect all the licenses of the libraries used in MCAV, and ensure that your project complies with their terms!
