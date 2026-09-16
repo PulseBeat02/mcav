@@ -21,27 +21,30 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An exception that is thrown when a module encounters an error.
+ * Thrown when a module cannot be created, started, or found. The failure is recoverable, for example by fixing the
+ * configuration and installing again, so this is an unchecked exception rather than an error.
  */
-public class ModuleException extends AssertionError {
+public class ModuleException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = -2431307065385281467L;
 
   /**
-   * Constructs a new ModuleException with the specified detail message.
-   * @param message the detail message, which is saved for later retrieval by the {@link #getMessage()} method.
+   * Constructs a new exception.
+   *
+   * @param message the detail message
    */
-  public ModuleException(final String message) {
+  public ModuleException(final @Nullable String message) {
     super(message);
   }
 
   /**
-   * Constructs a new ModuleException with the specified detail message and cause.
-   * @param message the detail message, which is saved for later retrieval by the {@link #getMessage()} method.
-   * @param cause the cause of the exception, which is saved for later retrieval by the {@link #getCause()} method.
+   * Constructs a new exception.
+   *
+   * @param message the detail message
+   * @param cause   the cause
    */
-  public ModuleException(final @Nullable String message, final Throwable cause) {
+  public ModuleException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);
   }
 }

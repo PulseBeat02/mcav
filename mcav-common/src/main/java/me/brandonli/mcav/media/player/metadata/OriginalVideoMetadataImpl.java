@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.media.player.metadata;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * Implementation of the {@link OriginalVideoMetadata} interface.
+ * The default {@link OriginalVideoMetadata}.
  */
 public final class OriginalVideoMetadataImpl implements OriginalVideoMetadata {
 
@@ -34,35 +36,57 @@ public final class OriginalVideoMetadataImpl implements OriginalVideoMetadata {
     this.videoFrameRate = videoFrameRate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getVideoWidth() {
     return this.videoWidth;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getVideoHeight() {
     return this.videoHeight;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getVideoBitrate() {
     return this.videoBitrate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public float getVideoFrameRate() {
     return this.videoFrameRate;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final OriginalVideoMetadataImpl metadata)) {
+      return false;
+    }
+    final int frameRateComparison = Float.compare(this.videoFrameRate, metadata.videoFrameRate);
+    return (
+      this.videoWidth == metadata.videoWidth &&
+      this.videoHeight == metadata.videoHeight &&
+      this.videoBitrate == metadata.videoBitrate &&
+      frameRateComparison == 0
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    final int frameRateHash = Float.hashCode(this.videoFrameRate);
+    int result = this.videoWidth;
+    result = result * 31 + this.videoHeight;
+    result = result * 31 + this.videoBitrate;
+    result = result * 31 + frameRateHash;
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return (
+      "VideoMetadata[" + this.videoWidth + "x" + this.videoHeight + ", " + this.videoFrameRate + " fps, " + this.videoBitrate + " bps]"
+    );
   }
 }

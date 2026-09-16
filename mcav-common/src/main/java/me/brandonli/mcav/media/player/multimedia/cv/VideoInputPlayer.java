@@ -17,33 +17,43 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
-import static java.util.Objects.requireNonNull;
-
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import org.bytedeco.javacv.FrameGrabber;
-import org.bytedeco.javacv.VideoInputFrameGrabber;
+import org.bytedeco.javacv.OpenCVFrameGrabber;
 
 /**
- * Represents a video player that uses a device input (like a webcam) for frame grabbing.
+ * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default
+ * webcam. Devices are opened through OpenCV, which uses the native capture API of every operating system. Create
+ * instances with {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#device()} and start them with a
+ * {@link me.brandonli.mcav.media.source.device.DeviceSource}.
  */
 public class VideoInputPlayer extends AbstractVideoPlayerCV {
 
   /**
-   * Constructs a new VideoInputPlayer instance.
+   * Constructs a new capture device player.
    */
   public VideoInputPlayer() {
-    // no-op
+    // configured by the base class
   }
 
   /**
-   * {@inheritDoc}
+   * Creates an OpenCV grabber for the capture device with the given index, which the player configures and starts.
+   *
+   * @param resource the index of the device as text, such as {@code "0"} for the default webcam
+   * @return a new, unstarted OpenCV grabber of the device
+   * @throws NullPointerException     if the resource is null
+   * @throws IllegalArgumentException if the resource is not a non-negative number
    */
   @Override
-  public FrameGrabber getFrameGrabber(final String uri) {
-    final Integer device = Ints.tryParse(uri);
-    Preconditions.checkNotNull(device);
-    requireNonNull(device); // checker
-    return new VideoInputFrameGrabber(device);
+  protected FrameGrabber createFrameGrabber(final String resource) {
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    final Integer parsedIndex = Ints.tryParse(resource);
+    if (parsedIndex == null || parsedIndex < 0) {
+      throw new IllegalArgumentException("Device index must be a non-negative number but was " + resource);
+    }
+
+    final int deviceIndex = parsedIndex;
+    return new OpenCVFrameGrabber(deviceIndex);
   }
 }

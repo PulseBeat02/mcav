@@ -17,13 +17,14 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a concrete implementation of the {@link VideoPipelineStep} interface.
+ * The default {@link VideoPipelineStep}.
  */
 public final class VideoPipelineStepImpl implements VideoPipelineStep {
 
@@ -36,7 +37,9 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the step that follows this one.
+   *
+   * @return the next step, or null if this is the last step
    */
   @Override
   public @Nullable VideoPipelineStep next() {
@@ -44,10 +47,26 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the filter this step applies.
+   *
+   * @return the filter
+   */
+  @Override
+  public VideoFilter getFilter() {
+    return this.filter;
+  }
+
+  /**
+   * Applies the filter of this step to the frame. Whatever the filter returns, the frame is passed on.
+   *
+   * @param buffer   the frame
+   * @param metadata the metadata of the original video
+   * @throws NullPointerException if the frame or the metadata is null
    */
   @Override
   public void process(final ImageBuffer buffer, final OriginalVideoMetadata metadata) {
+    Preconditions.checkNotNull(buffer, "Buffer must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
     this.filter.applyFilter(buffer, metadata);
   }
 }

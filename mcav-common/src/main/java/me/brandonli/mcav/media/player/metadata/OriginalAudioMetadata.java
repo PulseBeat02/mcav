@@ -17,56 +17,28 @@
  */
 package me.brandonli.mcav.media.player.metadata;
 
+import com.google.common.base.Preconditions;
+
 /**
- * Represents metadata specific to audio files or streams.
+ * Properties of an audio stream as decoded. Note that the audio pipeline always receives samples converted to
+ * the format described by {@link me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter}; this metadata
+ * describes the source.
  */
 public interface OriginalAudioMetadata extends OriginalMetadata {
   /**
-   * Retrieves the audio bitrate of the audio file or stream in raw bits per second.
-   *
-   * @return the audio bitrate as an integer value in raw bits per second.
+   * The value of a property the source does not report.
    */
-  int getAudioBitrate();
+  int UNKNOWN = -1;
 
   /**
-   * Retrieves the audio sample rate in hertz (Hz).
+   * Creates metadata.
    *
-   * @return the audio sample rate in Hz
-   */
-  int getAudioSampleRate();
-
-  /**
-   * Retrieves the number of audio channels in the audio metadata.
-   *
-   * @return the number of audio channels, where a value of 1 represents mono,
-   * 2 represents stereo, and higher values indicate the presence of
-   * multiple channels.
-   */
-  int getAudioChannels();
-
-  /**
-   * Retrieves the audio codec used for encoding the audio data.
-   *
-   * @return the audio codec as a string
-   */
-  String getAudioCodec();
-
-  /**
-   * Retrieves the sampling format of the audio data.
-   *
-   * @return the sampling format as an integer value
-   */
-  int getSamplingFormat();
-
-  /**
-   * Creates a new instance of {@code AudioMetadata} with the specified audio properties.
-   *
-   * @param codec           the audio codec used for encoding the audio data
-   * @param audioBitrate    the audio bitrate in bits per second
-   * @param audioSampleRate the audio sample rate in hertz
-   * @param audioChannels   the number of audio channels
-   * @param samplingFormat  the sampling format of the audio data
-   * @return a new {@code AudioMetadata} instance containing the specified audio properties
+   * @param codec           the name of the codec, such as {@code aac}
+   * @param audioBitrate    the bitrate in bits per second, or {@link #UNKNOWN}
+   * @param audioSampleRate the sample rate in hertz
+   * @param audioChannels   the number of channels
+   * @param samplingFormat  the FFmpeg sample format identifier, or {@link #UNKNOWN}
+   * @return the metadata
    */
   static OriginalAudioMetadata of(
     final String codec,
@@ -75,6 +47,44 @@ public interface OriginalAudioMetadata extends OriginalMetadata {
     final int audioChannels,
     final int samplingFormat
   ) {
+    Preconditions.checkNotNull(codec, "Codec must not be null");
+    Preconditions.checkArgument(audioSampleRate > 0, "Sample rate must be positive but was %s", audioSampleRate);
+    Preconditions.checkArgument(audioChannels > 0, "Channel count must be positive but was %s", audioChannels);
     return new OriginalAudioMetadataImpl(codec, audioBitrate, audioSampleRate, audioChannels, samplingFormat);
   }
+
+  /**
+   * Gets the bitrate of the audio stream.
+   *
+   * @return the bitrate in bits per second, or {@link #UNKNOWN}
+   */
+  int getAudioBitrate();
+
+  /**
+   * Gets the sample rate of the audio stream.
+   *
+   * @return the sample rate in hertz
+   */
+  int getAudioSampleRate();
+
+  /**
+   * Gets the number of channels of the audio stream.
+   *
+   * @return the channel count
+   */
+  int getAudioChannels();
+
+  /**
+   * Gets the name of the codec of the audio stream.
+   *
+   * @return the codec name
+   */
+  String getAudioCodec();
+
+  /**
+   * Gets the FFmpeg sample format identifier of the audio stream.
+   *
+   * @return the sample format, or {@link #UNKNOWN}
+   */
+  int getSamplingFormat();
 }

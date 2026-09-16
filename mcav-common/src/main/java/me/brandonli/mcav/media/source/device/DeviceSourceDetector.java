@@ -17,41 +17,36 @@
  */
 package me.brandonli.mcav.media.source.device;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import me.brandonli.mcav.media.source.SourceDetector;
 
 /**
- * Detects device sources. Must be a single integer value for the device identifier.
+ * Detects non-negative whole numbers as capture device indices.
  */
 public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
 
   /**
-   * Constructs a new {@link DeviceSourceDetector}.
+   * Constructs a new detector.
    */
   public DeviceSourceDetector() {
-    // no-op
+    // stateless
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isDetectedSource(final String raw) {
-    return Ints.tryParse(raw) != null;
+    Preconditions.checkNotNull(raw, "Raw must not be null");
+    final Integer parsed = Ints.tryParse(raw);
+    return parsed != null && parsed >= 0;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public DeviceSource createSource(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     final int deviceId = Integer.parseInt(raw);
     return DeviceSource.device(deviceId);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getPriority() {
     return SourceDetector.HIGH_PRIORITY;

@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.source.file;
 import java.nio.file.Path;
 
 /**
- * An implementation of the {@link Writable} interface that represents a writable resource
+ * The default {@link Writable}.
  */
 public final class WritableImpl implements Writable {
 
@@ -30,9 +30,6 @@ public final class WritableImpl implements Writable {
     this.path = path;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Path getPath() {
     return this.path;

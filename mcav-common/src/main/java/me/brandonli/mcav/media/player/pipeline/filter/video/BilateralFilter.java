@@ -17,11 +17,18 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
- * A video filter that applies a bilateral filter to smooth the image while preserving edges.
+ * Smooths frames while keeping edges sharp, using a bilateral filter. Bilateral filtering is expensive; a
+ * diameter of 5 to 9 is a reasonable range for real-time video.
+ *
+ * <p>OpenCV cannot filter bilaterally in place, so the result is written into the spare matrix of the frame, see
+ * {@link MatImageBuffer#transformMat(java.util.function.BiConsumer)}, which allocates and copies nothing per frame. The
+ * filter keeps no state of its own, so one filter may be attached to several pipelines at once.
  */
 public class BilateralFilter extends MatVideoFilter {
 
@@ -30,26 +37,50 @@ public class BilateralFilter extends MatVideoFilter {
   private final double sigmaSpace;
 
   /**
-   * Constructs a BilateralFilter with the specified parameters.
+   * Constructs a new bilateral filter.
    *
-   * @param diameter    the diameter of the pixel neighborhood used during filtering
-   * @param sigmaColor  the filter sigma in color space; a larger value means that farther colors will
-   *                    be mixed together, resulting in larger areas of semi-equal color
-   * @param sigmaSpace  the filter sigma in coordinate space; a larger value means that farther pixels
-   *                    will influence each other as long as their colors are close enough
+   * @param diameter   the diameter of the pixel neighborhood used for filtering, which must be positive
+   * @param sigmaColor how far apart colors may be to still be mixed; larger values blur more
+   * @param sigmaSpace how far apart pixels may be to still influence each other; larger values blur more
    */
   public BilateralFilter(final int diameter, final double sigmaColor, final double sigmaSpace) {
+    Preconditions.checkArgument(diameter > 0, "Diameter must be positive");
+    Preconditions.checkArgument(sigmaColor > 0, "Sigma color must be positive");
+    Preconditions.checkArgument(sigmaSpace > 0, "Sigma space must be positive");
     this.diameter = diameter;
     this.sigmaColor = sigmaColor;
     this.sigmaSpace = sigmaSpace;
   }
 
   /**
-   * {@inheritDoc}
+   * Smooths the frame into its spare matrix, which then becomes the matrix of the frame.
+   *
+   * @param image the frame to smooth
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    opencv_imgproc.bilateralFilter(mat, mat, this.diameter, this.sigmaColor, this.sigmaSpace);
+  protected boolean modifyImage(final MatImageBuffer image) {
+    image.transformMat(this::smooth);
     return true;
+  }
+
+  /**
+   * Smooths a matrix in place through a temporary matrix, for subclasses and callers that only have a matrix; frames
+   * go through {@link #modifyImage(MatImageBuffer)} instead, which needs no temporary matrix.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
+   */
+  @Override
+  protected boolean modifyMat(final Mat mat) {
+    try (final Mat filtered = new Mat()) {
+      this.smooth(mat, filtered);
+      filtered.copyTo(mat);
+    }
+    return true;
+  }
+
+  private void smooth(final Mat source, final Mat target) {
+    opencv_imgproc.bilateralFilter(source, target, this.diameter, this.sigmaColor, this.sigmaSpace);
   }
 }

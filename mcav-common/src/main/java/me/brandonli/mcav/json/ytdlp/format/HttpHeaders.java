@@ -18,27 +18,30 @@
 package me.brandonli.mcav.json.ytdlp.format;
 
 import com.google.gson.annotations.SerializedName;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** HttpHeaders **/
+/**
+ * The HTTP headers yt-dlp used to fetch a stream, which a player has to send as well.
+ */
 public class HttpHeaders {
 
   HttpHeaders() {
-    // no-op
+    // populated by Gson
   }
 
-  /** userAgent **/
+  /** The {@code User-Agent} header, which names the browser yt-dlp pretended to be. */
   @SerializedName("User-Agent")
-  public String userAgent;
+  public @Nullable String userAgent;
 
-  /** accept **/
+  /** The {@code Accept} header, which lists the content types the request accepts. */
   @SerializedName("Accept")
-  public String accept;
+  public @Nullable String accept;
 
-  /** acceptLanguage **/
+  /** The {@code Accept-Language} header, which lists the preferred languages. */
   @SerializedName("Accept-Language")
-  public String acceptLanguage;
+  public @Nullable String acceptLanguage;
 
-  /** secFetchMode **/
+  /** The {@code Sec-Fetch-Mode} header, which some sites check to tell browsers from other clients. */
   @SerializedName("Sec-Fetch-Mode")
-  public String secFetchMode;
+  public @Nullable String secFetchMode;
 }

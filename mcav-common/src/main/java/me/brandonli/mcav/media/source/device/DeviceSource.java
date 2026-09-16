@@ -17,42 +17,40 @@
  */
 package me.brandonli.mcav.media.source.device;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * Represents a source that has a device ID.
+ * A camera or capture card, identified by its index; {@code 0} is usually the default webcam. Play device sources
+ * with {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#device()}.
  */
 public interface DeviceSource extends DynamicSource {
   /**
-   * Retrieves the device id (integer) associated with this source.
+   * Creates a source for a capture device.
    *
-   * @return the device ID as an integer.
+   * @param deviceId the index of the device, starting at 0
+   * @return the source
+   */
+  static DeviceSource device(final int deviceId) {
+    Preconditions.checkArgument(deviceId >= 0, "Device index must not be negative");
+    return new DeviceSourceImpl(deviceId);
+  }
+
+  /**
+   * Gets the index of the device.
+   *
+   * @return the device index
    */
   int getDeviceId();
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getResource() {
-    return String.valueOf(this.getDeviceId());
+    final int deviceId = this.getDeviceId();
+    return String.valueOf(deviceId);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getName() {
     return "device";
-  }
-
-  /**
-   * Creates a new {@link DeviceSource} instance with the specified device ID.
-   *
-   * @param deviceId the device ID to associate with the source.
-   * @return a new instance of {@link DeviceSource}.
-   */
-  static DeviceSource device(final int deviceId) {
-    return new DeviceSourceImpl(deviceId);
   }
 }

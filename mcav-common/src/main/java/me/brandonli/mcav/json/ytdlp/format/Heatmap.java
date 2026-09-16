@@ -17,17 +17,19 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
-/** Heatmap **/
+/**
+ * One entry of the replay heat map of a video, as listed by yt-dlp.
+ */
 public class Heatmap {
 
   Heatmap() {
-    // no-op
+    // populated by Gson
   }
 
-  /** start_time **/
+  /** Where the entry starts, in seconds from the start of the video. */
   public double start_time;
-  /** end_time **/
+  /** Where the entry ends, in seconds from the start of the video. */
   public double end_time;
-  /** value **/
+  /** How often this part of the video was replayed, relative to the most replayed part, from 0 to 1. */
   public double value;
 }

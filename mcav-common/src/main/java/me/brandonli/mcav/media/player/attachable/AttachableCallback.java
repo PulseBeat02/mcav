@@ -18,31 +18,36 @@
 package me.brandonli.mcav.media.player.attachable;
 
 /**
- * Represents a callback interface for audio and video that can be attached to a player.
+ * A slot on a player that holds one value, such as a pipeline or a target size, which can be attached, replaced,
+ * and detached at any time, including while the player is playing. A detached slot holds a harmless default so
+ * players never have to check for null.
  *
- * @param <T> The type of pipeline the callback is associated with.
+ * @param <T> the type of value the slot holds
  */
 public interface AttachableCallback<T> {
   /**
-   * Attaches the given object to the callback.
-   * @param obj the object to attach
+   * Puts a value into the slot, replacing the previous one.
+   *
+   * @param value the value
    */
-  void attach(final T obj);
+  void attach(final T value);
 
   /**
-   * Detaches the currently attached object from the callback.
+   * Empties the slot, restoring its default.
    */
   void detach();
 
   /**
-   * Checks if an object is currently attached to the callback.
-   * @return true if an object is attached, false otherwise
+   * Checks whether a value other than the default is attached.
+   *
+   * @return true if a value is attached
    */
   boolean isAttached();
 
   /**
-   * Gets the currently attached object.
-   * @return the currently attached object
+   * Gets the attached value, or the default when nothing is attached.
+   *
+   * @return the value
    */
   T retrieve();
 }

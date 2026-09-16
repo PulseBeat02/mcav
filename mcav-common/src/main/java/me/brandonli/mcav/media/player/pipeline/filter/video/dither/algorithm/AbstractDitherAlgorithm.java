@@ -17,41 +17,62 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPalette;
 
 /**
- * An abstract base class representing a general implementation of a dithering
- * algorithm.
+ * The base class of dithering algorithms, which holds the palette and validates inputs.
  */
 public abstract class AbstractDitherAlgorithm implements DitherAlgorithm {
 
   private final DitherPalette palette;
 
   /**
-   * Constructs an instance of the {@code AbstractDitherAlgorithm} class with the given palette.
+   * Constructs a new algorithm for the specified palette.
    *
-   * @param palette the {@code Palette} object representing the color palette to be used
-   *                during the dithering process. This palette provides the color set
-   *                against which pixel colors will be approximated.
+   * @param palette the palette to reduce images to
    */
-  public AbstractDitherAlgorithm(final DitherPalette palette) {
+  protected AbstractDitherAlgorithm(final DitherPalette palette) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     this.palette = palette;
   }
 
   /**
-   * Constructs an instance of {@code AbstractDitherAlgorithm} using a default color
-   * palette.
+   * Constructs a new algorithm for the Minecraft map palette.
    */
-  public AbstractDitherAlgorithm() {
-    this(new MapPalette());
+  protected AbstractDitherAlgorithm() {
+    this(DitherPalette.DEFAULT_MAP_PALETTE);
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the palette the algorithm reduces images to.
+   *
+   * @return the palette
    */
   @Override
   public DitherPalette getPalette() {
     return this.palette;
+  }
+
+  /**
+   * Validates the arguments of {@link #dither(int[], int)}.
+   *
+   * @param buffer the pixels
+   * @param width  the width of the image
+   */
+  protected static void checkBuffer(final int[] buffer, final int width) {
+    Preconditions.checkNotNull(buffer, "Buffer must not be null");
+    Preconditions.checkArgument(width > 0, "Width must be positive");
+    Preconditions.checkArgument(buffer.length % width == 0, "Buffer length %s is not a multiple of width %s", buffer.length, width);
+  }
+
+  /**
+   * Validates the argument of {@link #ditherIntoBytes(ImageBuffer)}.
+   *
+   * @param image the image
+   */
+  protected static void checkImage(final ImageBuffer image) {
+    Preconditions.checkNotNull(image, "Image must not be null");
   }
 }

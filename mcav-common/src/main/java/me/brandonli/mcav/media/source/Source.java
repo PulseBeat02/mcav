@@ -18,35 +18,41 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Represents a general abstraction of a resource.
+ * Something a player can play: a file, a URL, a capture device, a raw FFmpeg input, or frames supplied by code.
+ *
+ * <p>Sources are small immutable descriptions; they do not open anything themselves. Players receive the
+ * {@link #getResource() resource string} and open it with their own backend. Create sources with the static
+ * factories of the subtypes, such as {@link me.brandonli.mcav.media.source.file.FileSource#path(java.nio.file.Path)}
+ * or {@link me.brandonli.mcav.media.source.uri.UriSource#uri(java.net.URI)}, or detect the right type from a
+ * string with {@link SourceDetectionHelper}.
  */
 public interface Source {
   /**
-   * Retrieves the resource associated with the source.
+   * Gets the string a player opens, such as a file path, a URL, or a device index.
    *
-   * @return the resource as a string, representing its location or identifier.
+   * @return the resource string
    */
   String getResource();
 
   /**
-   * Retrieves the name of the source.
+   * Gets a short name of the source type, such as {@code file} or {@code uri}, for log messages.
    *
-   * @return the name of the source as a {@code String}.
+   * @return the type name
    */
   String getName();
 
   /**
-   * Determines if the source is static.
+   * Checks whether the source is a fixed piece of media whose length is known, as opposed to a live stream,
+   * a device, or generated frames.
    *
-   * @return {@code true} if the source is static; {@code false} otherwise.
+   * @return true for files and similar finite media
    */
   boolean isStatic();
 
   /**
-   * Determines whether the source is dynamic. A dynamic source is the opposite of
-   * a static source, meaning that its state or content can change over time.
+   * Checks whether the source is a live or endless stream, the opposite of {@link #isStatic()}.
    *
-   * @return {@code true} if the source is dynamic; {@code false} otherwise.
+   * @return true for streams, devices, and generated frames
    */
   default boolean isDynamic() {
     return !this.isStatic();

@@ -17,10 +17,9 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered;
 
-import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Set;
+import com.google.common.base.Preconditions;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.stream.IntStream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
@@ -29,146 +28,156 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Par
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Implementation of Bayer Dithering algorithm using a predefined color palette and a pixel mapping matrix.
+ * Ordered dithering, which adds a tiled threshold pattern to every pixel before picking the closest palette
+ * color.
+ *
+ * <p>Ordered dithering is fully parallel and needs no state, so it is fast and perfectly stable between frames,
+ * at the cost of a visible regular pattern. The pattern offsets are scaled to the average distance between
+ * neighboring palette colors, so a strength of one spans exactly one color step.
  */
 public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither, ParallelDitherAlgorithm {
 
-  private final DitherPalette palette;
-  private final float[][] precalc;
-  private final int avgLevel;
-  private final int xdim;
-  private final int ydim;
+  private static final int MIN_ROWS_PER_TASK = 16;
+
+  private final int[][] offsets;
+  private final int patternWidth;
+  private final int patternHeight;
 
   /**
-   * Constructs an OrderedDither instance with the specified color palette and pixel mapping matrix.
+   * Constructs a new ordered dithering algorithm.
    *
-   * @param palette the color palette to be used for dithering. If null, a default palette is used.
-   * @param mapper  the pixel mapper
+   * @param palette the palette to reduce images to
+   * @param mapper  the threshold pattern
    */
   public OrderedDither(final DitherPalette palette, final PixelMapper mapper) {
-    this.palette = palette == null ? DitherPalette.DEFAULT_MAP_PALETTE : palette;
-    this.precalc = mapper.getMatrix();
-    this.ydim = this.precalc.length;
-    this.xdim = this.precalc[0].length;
-    this.avgLevel = this.calculateAverageLevel(this.palette);
+    super(palette);
+    Preconditions.checkNotNull(mapper, "Pixel mapper must not be null");
+
+    final float[][] matrix = mapper.getMatrix();
+    final int size = palette.getSize();
+    final int reservedIndices = palette.getReservedIndices();
+    final int levels = size - reservedIndices;
+    final float spread = computeSpread(levels);
+    this.patternHeight = matrix.length;
+    this.patternWidth = matrix[0].length;
+    this.offsets = new int[this.patternHeight][this.patternWidth];
+    for (int y = 0; y < this.patternHeight; y++) {
+      for (int x = 0; x < this.patternWidth; x++) {
+        this.offsets[y][x] = Math.round(matrix[y][x] * spread);
+      }
+    }
   }
 
-  private int calculateAverageLevel(final DitherPalette palette) {
-    final int[] colors = palette.getPalette();
-    final Set<Integer> redValues = new HashSet<>();
-    final Set<Integer> greenValues = new HashSet<>();
-    final Set<Integer> blueValues = new HashSet<>();
-    for (final int color : colors) {
-      redValues.add((color >> 16) & 0xFF);
-      greenValues.add((color >> 8) & 0xFF);
-      blueValues.add(color & 0xFF);
-    }
-    final int redLevels = redValues.size();
-    final int greenLevels = greenValues.size();
-    final int blueLevels = blueValues.size();
-    return Math.max(2, (redLevels + greenLevels + blueLevels) / 3);
+  // the average step between palette colors per channel, assuming the colors fill the RGB cube evenly
+  private static float computeSpread(final int levels) {
+    final double colorsPerAxis = Math.cbrt(Math.max(1, levels));
+    return (float) (256.0 / colorsPerAxis);
   }
 
   /**
-   * {@inheritDoc}
+   * Dithers an image into palette indices by adding the tiled threshold pattern before picking the closest color.
+   * The image is not modified.
+   *
+   * @param image the image to dither
+   * @return the palette index of every pixel, laid out row by row
    */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image) {
-    final int[] buffer = image.getPixels();
-    final int width = image.getWidth();
-    final int length = buffer.length;
-    final int height = length / width;
-    final ByteBuffer data = ByteBuffer.allocate(length);
-    for (int y = 0; y < height; y++) {
-      final int yIndex = y * width;
-      for (int x = 0; x < width; x++) {
-        final int index = yIndex + x;
-        final int color = buffer[index];
-        int r = (color >> 16) & 0xFF;
-        int g = (color >> 8) & 0xFF;
-        int b = color & 0xFF;
-        final float threshold = this.precalc[y % this.ydim][x % this.xdim];
-        r = this.adjustColorBasedOnThreshold(r, threshold);
-        g = this.adjustColorBasedOnThreshold(g, threshold);
-        b = this.adjustColorBasedOnThreshold(b, threshold);
-        data.put(DitherUtils.getBestColor(this.palette, r, g, b));
-      }
-    }
-    return data.array();
-  }
+    checkImage(image);
 
-  private int adjustColorBasedOnThreshold(final int colorValue, final float threshold) {
-    final float step = 255.0f / (this.avgLevel - 1);
-    final float normalizedThreshold = (threshold / 255.0f) * step;
-    final float adjustedValue = colorValue + normalizedThreshold;
-    final int quantizedLevel = Math.round(adjustedValue / step);
-    return Math.min(255, Math.max(0, Math.round(quantizedLevel * step)));
+    final int width = image.getWidth();
+    final int[] pixels = image.getPixels();
+    final int height = pixels.length / width;
+    final byte[] indices = new byte[pixels.length];
+    this.ditherRows(pixels, width, 0, height, indices);
+    return indices;
   }
 
   /**
-   * {@inheritDoc}
+   * Dithers an image into palette indices, splitting it into bands of at least 16 rows that the threads of the pool
+   * dither. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
    *
-   * <p>Each row is independent (no error propagation), so rows are spread across the workers of
-   * the supplied {@link ForkJoinPool} via a parallel {@link IntStream}.
+   * @param image the image to dither, which must not be modified while the method runs
+   * @param pool  the pool that runs the work
+   * @return the palette index of every pixel, laid out row by row
    */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image, final ForkJoinPool pool) {
-    final int[] buffer = image.getPixels();
+    checkImage(image);
+    Preconditions.checkNotNull(pool, "Pool must not be null");
+
     final int width = image.getWidth();
-    final int length = buffer.length;
-    final int height = length / width;
-    final byte[] data = new byte[length];
-    pool
-      .submit(() ->
-        IntStream.range(0, height)
-          .parallel()
-          .forEach(y -> {
-            final int yIndex = y * width;
-            for (int x = 0; x < width; x++) {
-              final int index = yIndex + x;
-              final int color = buffer[index];
-              int r = (color >> 16) & 0xFF;
-              int g = (color >> 8) & 0xFF;
-              int b = color & 0xFF;
-              final float threshold = this.precalc[y % this.ydim][x % this.xdim];
-              r = this.adjustColorBasedOnThreshold(r, threshold);
-              g = this.adjustColorBasedOnThreshold(g, threshold);
-              b = this.adjustColorBasedOnThreshold(b, threshold);
-              data[index] = DitherUtils.getBestColor(this.palette, r, g, b);
-            }
-          })
-      )
-      .join();
-    return data;
+    final int[] pixels = image.getPixels();
+    final int height = pixels.length / width;
+    final byte[] indices = new byte[pixels.length];
+    final int parallelism = pool.getParallelism();
+    final int rowLimitedTasks = height / MIN_ROWS_PER_TASK;
+    final int taskCount = Math.clamp(rowLimitedTasks, 1, parallelism * 2);
+    this.ditherInParallel(pixels, width, indices, pool, taskCount);
+    return indices;
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void dither(final int[] buffer, final int width) {
-    final int height = buffer.length / width;
-    for (int y = 0; y < height; y++) {
-      final int yIndex = y * width;
+  private void ditherInParallel(final int[] pixels, final int width, final byte[] indices, final ForkJoinPool pool, final int taskCount) {
+    final int height = pixels.length / width;
+    final int rowsPerTask = (height + taskCount - 1) / taskCount;
+    final ForkJoinTask<?> task = pool.submit(() -> {
+      final IntStream tasks = IntStream.range(0, taskCount);
+      final IntStream parallelTasks = tasks.parallel();
+      parallelTasks.forEach(taskIndex -> {
+        final int startY = taskIndex * rowsPerTask;
+        final int endY = Math.min(startY + rowsPerTask, height);
+        this.ditherRows(pixels, width, startY, endY, indices);
+      });
+    });
+    task.join();
+  }
+
+  private void ditherRows(final int[] pixels, final int width, final int startY, final int endY, final byte[] indices) {
+    final DitherPalette palette = this.getPalette();
+    final byte[] colorMap = palette.getColorMap();
+    for (int y = startY; y < endY; y++) {
+      final int[] patternRow = this.offsets[y % this.patternHeight];
+      final int rowStart = y * width;
       for (int x = 0; x < width; x++) {
-        final int index = yIndex + x;
-        final int color = buffer[index];
-        int r = (color >> 16) & 0xFF;
-        int g = (color >> 8) & 0xFF;
-        int b = color & 0xFF;
-        r = (r += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(r, 0);
-        g = (g += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(g, 0);
-        b = (b += (int) this.precalc[y % this.ydim][x % this.xdim]) > 255 ? 255 : Math.max(b, 0);
-        buffer[index] = DitherUtils.getBestColorNormal(this.palette, r, g, b);
+        final int index = rowStart + x;
+        final int offset = patternRow[x % this.patternWidth];
+        final int argb = pixels[index];
+        final int red = DitherUtils.clamp(((argb >> 16) & 0xFF) + offset);
+        final int green = DitherUtils.clamp(((argb >> 8) & 0xFF) + offset);
+        final int blue = DitherUtils.clamp((argb & 0xFF) + offset);
+        final int lookup = DitherUtils.getLookupIndex(red, green, blue);
+        indices[index] = colorMap[lookup];
       }
     }
   }
 
   /**
-   * {@inheritDoc}
+   * Dithers pixels in place by adding the tiled threshold pattern and replacing every pixel with the closest palette
+   * color.
+   *
+   * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
+   * @param width  the width of the image, which must divide the length of the buffer
    */
   @Override
-  public DitherPalette getPalette() {
-    return this.palette;
+  public void dither(final int[] buffer, final int width) {
+    checkBuffer(buffer, width);
+
+    final DitherPalette palette = this.getPalette();
+    final int[] fullColorMap = palette.getFullColorMap();
+    final int height = buffer.length / width;
+    for (int y = 0; y < height; y++) {
+      final int[] patternRow = this.offsets[y % this.patternHeight];
+      final int rowStart = y * width;
+      for (int x = 0; x < width; x++) {
+        final int index = rowStart + x;
+        final int offset = patternRow[x % this.patternWidth];
+        final int argb = buffer[index];
+        final int red = DitherUtils.clamp(((argb >> 16) & 0xFF) + offset);
+        final int green = DitherUtils.clamp(((argb >> 8) & 0xFF) + offset);
+        final int blue = DitherUtils.clamp((argb & 0xFF) + offset);
+        final int lookup = DitherUtils.getLookupIndex(red, green, blue);
+        buffer[index] = fullColorMap[lookup];
+      }
+    }
   }
 }

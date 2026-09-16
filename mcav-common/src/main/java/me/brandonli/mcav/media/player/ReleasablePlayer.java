@@ -17,41 +17,42 @@
  */
 package me.brandonli.mcav.media.player;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 /**
- * Represents a player that can release its resources.
+ * A player that owns threads, native handles, or network connections which must be released when the player is
+ * no longer needed. Releasing stops playback; a released player cannot be started again.
  */
 @FunctionalInterface
 public interface ReleasablePlayer {
   /**
-   * Releases all resources associated with the current instance.
+   * Stops playback and releases every resource of the player. Calling it again has no effect.
    *
-   * @return true if the resources were successfully released, false otherwise
+   * @return true if the player was released, false if it was already released
    */
   boolean release();
 
   /**
-   * Asynchronously releases all resources associated with the current instance.
+   * Releases the player on the common pool.
    *
-   * @return a {@link CompletableFuture} that resolves to {@code true} if the resources
-   * were successfully released, or {@code false} otherwise
+   * @return a future that completes with the result of {@link #release()}
    */
   default CompletableFuture<Boolean> releaseAsync() {
-    return this.releaseAsync(ForkJoinPool.commonPool());
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.releaseAsync(pool);
   }
 
   /**
-   * Asynchronously releases all resources associated with the current instance
-   * using the provided {@link ExecutorService}.
+   * Releases the player on an executor.
    *
-   * @param executor the {@link ExecutorService} to execute the release operation asynchronously
-   * @return a {@link CompletableFuture} that resolves to {@code true} if the resources
-   * were successfully released, or {@code false} otherwise
+   * @param executor the executor that runs the release
+   * @return a future that completes with the result of {@link #release()}
    */
   default CompletableFuture<Boolean> releaseAsync(final ExecutorService executor) {
+    Preconditions.checkNotNull(executor, "Executor must not be null");
     return CompletableFuture.supplyAsync(this::release, executor);
   }
 }

@@ -17,78 +17,142 @@
  */
 package me.brandonli.mcav.utils;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.function.Function;
+import java.util.Locale;
+import java.util.Set;
+import me.brandonli.mcav.json.ytdlp.YTDLPParseException;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
-import me.brandonli.mcav.utils.immutable.Pair;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Utility class providing helper methods for working with resource sources.
+ * Helpers for classifying strings and sources: whether a string is a path or a URL, whether a URL points at a
+ * media file, and whether a source is an animated GIF.
  */
 public final class SourceUtils {
+
+  private static final Set<String> MEDIA_EXTENSIONS = Set.of(
+    // video containers
+    "mp4",
+    "m4v",
+    "mkv",
+    "webm",
+    "mov",
+    "avi",
+    "wmv",
+    "asf",
+    "flv",
+    "f4v",
+    "ts",
+    "mts",
+    "m2ts",
+    "mpg",
+    "mpeg",
+    "m2v",
+    "vob",
+    "mxf",
+    "ogv",
+    "3gp",
+    "3g2",
+    // streaming manifests
+    "m3u8",
+    "mpd",
+    // audio
+    "ogg",
+    "oga",
+    "mka",
+    "weba",
+    "mp3",
+    "m4a",
+    "aac",
+    "ac3",
+    "wav",
+    "aif",
+    "aiff",
+    "flac",
+    "opus",
+    "wma",
+    "amr",
+    // images
+    "gif",
+    "png",
+    "apng",
+    "jpg",
+    "jpeg",
+    "bmp",
+    "webp",
+    "avif",
+    "tif",
+    "tiff"
+  );
 
   private SourceUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static final List<Pair<Function<String, Boolean>, Class<? extends Source>>> SOURCE_CONSTRUCTORS = List.of(
-    Pair.pair(SourceUtils::isPath, FileSource.class),
-    Pair.pair(SourceUtils::isUri, FileSource.class)
-  );
-
   /**
-   * Checks if the provided source is a GIF image.
+   * Checks whether a source points at a GIF, judging by the file extension of its path or URL.
    *
-   * @param source the source to check
-   * @return true if the source is a GIF image, false otherwise
+   * @param source the source
+   * @return true if the path or URL ends with {@code .gif}
    */
   public static boolean isImageGif(final Source source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    final String resource;
     if (source instanceof final FileSource fileSource) {
       final Path path = fileSource.getPath();
-      final String rawPath = path.toString();
-      final String lower = rawPath.toLowerCase();
-      return lower.endsWith(".gif");
+      resource = path.toString();
     } else if (source instanceof final UriSource uriSource) {
       final URI uri = uriSource.getUri();
-      final String rawPath = uri.toString();
-      final String lower = rawPath.toLowerCase();
-      return lower.endsWith(".gif");
+      resource = uri.getPath();
+    } else {
+      return false;
     }
-    return false;
+    if (resource == null) {
+      return false;
+    }
+    final String extension = getExtension(resource);
+    return "gif".equals(extension);
   }
 
   /**
-   * Determines whether the provided string is a valid URI with both a scheme and a host.
+   * Checks whether a string is a URL with both a scheme and a host, such as {@code https://example.com/a.mp4}.
    *
-   * @param raw the string to evaluate as a URI
-   * @return true if the given string represents a valid URI with a scheme and a host, false otherwise
+   * @param raw the string
+   * @return true if the string is such a URL
    */
   public static boolean isUri(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     try {
       final URI uri = URI.create(raw);
-      return uri.getScheme() != null && uri.getHost() != null;
-    } catch (final Exception e) {
+      final String scheme = uri.getScheme();
+      final String host = uri.getHost();
+      return scheme != null && host != null;
+    } catch (final IllegalArgumentException exception) {
       return false;
     }
   }
 
   /**
-   * Determines if a given URL represents a direct video file based on its format.
-   * This method checks if the URL contains a valid path with a file extension.
+   * Checks whether a URL points directly at a media file, judging by a well-known media extension at the end of
+   * its path. URLs of web pages such as YouTube videos are not direct and have to be resolved with yt-dlp.
    *
-   * @param url the URL string to check. It should be a valid URI string.
-   * @return true if the URL corresponds to a direct video file, false otherwise
+   * <p>Unlike the other methods of this class, this one accepts null, because it is typically asked about an optional
+   * URL, such as one a source may or may not have. Null, empty, and malformed URLs are never direct.
+   *
+   * @param url the URL, or null
+   * @return true if the path of the URL ends with a media extension, false for null, empty, or malformed URLs
    */
-  public static boolean isDirectVideo(final String url) {
+  public static boolean isDirectVideo(final @Nullable String url) {
     if (url == null || url.isEmpty()) {
       return false;
     }
@@ -98,60 +162,74 @@ public final class SourceUtils {
       if (path == null || path.isEmpty()) {
         return false;
       }
-      final int lastSlashIndex = path.lastIndexOf('/');
-      final int lastDotIndex = path.lastIndexOf('.');
-      return lastDotIndex > lastSlashIndex && lastDotIndex < path.length() - 1;
-    } catch (final Exception e) {
+      final String extension = getExtension(path);
+      return extension != null && MEDIA_EXTENSIONS.contains(extension);
+    } catch (final IllegalArgumentException exception) {
       return false;
     }
   }
 
   /**
-   * Determines if a given raw string represents a valid file path on the system.
+   * Checks whether a string is the path of an existing file or directory.
    *
-   * @param raw the string to be validated as a path
-   * @return {@code true} if the string is a valid path and the file or directory exists, {@code false} otherwise
+   * @param raw the string
+   * @return true if the path exists
    */
   public static boolean isPath(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     try {
       final Path path = Path.of(raw);
       return Files.exists(path);
-    } catch (final Exception e) {
+    } catch (final InvalidPathException exception) {
       return false;
     }
   }
 
   /**
-   * Returns the source class for a given resource string.
-   * @param resource the resource string to check
-   * @return the class of the source if it matches any known source type, or null if no match is found
-   */
-  public static @Nullable Class<?> getSource(final String resource) {
-    for (final Pair<Function<String, Boolean>, Class<? extends Source>> pair : SOURCE_CONSTRUCTORS) {
-      final Function<String, Boolean> function = pair.getFirst();
-      final boolean result = function.apply(resource);
-      if (!result) {
-        continue;
-      }
-      return pair.getSecond();
-    }
-    return null;
-  }
-
-  /**
-   * Checks if the provided URL is a dynamic stream (live stream).
+   * Asks yt-dlp whether a URL is a live stream. This runs yt-dlp and may take a few seconds.
    *
-   * @param url the URL to check
-   * @return true if the URL is a dynamic stream, false otherwise
+   * @param url the URL of a web page or stream
+   * @return true if yt-dlp reports the URL as live, false if it does not or if yt-dlp fails
+   * @throws IllegalStateException if the library is still preparing yt-dlp in the background, so the answer is not
+   *                               known yet
    */
   public static boolean isDynamicStream(final String url) {
+    Preconditions.checkNotNull(url, "URL must not be null");
+    final YTDLPParser parser = YTDLPParser.simple();
+    return isDynamicStream(url, parser);
+  }
+
+  /**
+   * Asks a parser whether a URL is a live stream.
+   *
+   * @param url    the URL of a web page or stream
+   * @param parser the parser that resolves the URL
+   * @return true if the parser reports the URL as live, false if it does not, if the URL is invalid, or if the
+   * parser fails
+   */
+  @VisibleForTesting
+  static boolean isDynamicStream(final String url, final YTDLPParser parser) {
     try {
-      final YTDLPParser parser = YTDLPParser.simple();
-      final UriSource source = UriSource.uri(URI.create(url));
+      final URI uri = URI.create(url);
+      final UriSource source = UriSource.uri(uri);
       final URLParseDump dump = parser.parse(source);
       return dump.is_live;
-    } catch (final IOException e) {
+    } catch (final IOException | IllegalArgumentException | YTDLPParseException exception) {
       return false;
     }
+  }
+
+  private static @Nullable String getExtension(final String path) {
+    final int lastSlash = path.lastIndexOf('/');
+    final int lastBackslash = path.lastIndexOf('\\');
+    final int lastSeparator = Math.max(lastSlash, lastBackslash);
+    final int lastDot = path.lastIndexOf('.');
+    final int lastIndex = path.length() - 1;
+    final boolean hasExtension = lastDot > lastSeparator && lastDot < lastIndex;
+    if (!hasExtension) {
+      return null;
+    }
+    final String extension = path.substring(lastDot + 1);
+    return extension.toLowerCase(Locale.ROOT);
   }
 }

@@ -17,31 +17,38 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A video filter that applies a dilation operation to the input video frames.
+ * Grows the bright regions of frames with a rectangular structuring element, which thickens light features and
+ * closes small dark gaps.
  */
 public class DilationFilter extends MatVideoFilter {
 
   private final Mat kernel;
 
   /**
-   * Creates a new DilationFilter with the specified kernel size.
-   * @param kernelSize the size of the square kernel to use for dilation
+   * Constructs a new dilation filter.
+   *
+   * @param kernelSize the size of the structuring element in pixels, which must be positive
    */
   public DilationFilter(final int kernelSize) {
+    Preconditions.checkArgument(kernelSize > 0, "Kernel size must be positive");
     final Size size = new Size(kernelSize, kernelSize);
     this.kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
   }
 
   /**
-   * {@inheritDoc}
+   * Dilates the frame in place with the structuring element.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat mat) {
     opencv_imgproc.dilate(mat, mat, this.kernel);
     return true;
   }

@@ -17,187 +17,215 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
-import java.io.IOException;
+import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * Represents a command to be executed using FFmpeg.
+ * An FFmpeg command line, built with {@link #builder()} and run through the task of {@link #createTask()}.
+ *
+ * <pre><code>
+ *   final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+ *   builder.addInput("input.mp4");
+ *   builder.addAudioCodec("libvorbis");
+ *   builder.addOverwrite();
+ *   builder.addOutput("output.ogg");
+ *   final FFmpegCommand command = builder.build();
+ *   final CommandTask task = command.createTask();
+ *   final int exitCode = task.run();
+ * </code></pre>
  */
 public final class FFmpegCommand {
 
   private final List<String> arguments;
-  private final Path executable;
 
-  private FFmpegCommand(final List<String> arguments) {
-    this.arguments = arguments;
-    this.executable = FFmpegExecutableProvider.getFFmpegPath();
+  FFmpegCommand(final List<String> arguments) {
+    this.arguments = List.copyOf(arguments);
   }
 
   /**
-   * Retrieves the list of arguments associated with this FFmpeg command.
+   * Creates a builder for a command.
    *
-   * @return a list of strings containing the arguments for the FFmpeg command
-   */
-  public List<String> getArguments() {
-    return new ArrayList<>(this.arguments);
-  }
-
-  /**
-   * Retrieves the path to the executable associated with this FFmpegCommand instance.
-   *
-   * @return the path to the FFmpeg executable as a {@code Path} object
-   */
-  public Path getExecutable() {
-    return this.executable;
-  }
-
-  /**
-   * Converts the executable path and its associated arguments into an array of strings
-   * representing the full command to be executed.
-   *
-   * @return an array of strings where the first element is the executable path
-   * and the subsequent elements are the command arguments
-   */
-  public String[] toCommandArray() {
-    final List<String> command = new ArrayList<>();
-    command.add(this.executable.toString());
-    command.addAll(this.arguments);
-    return command.toArray(new String[0]);
-  }
-
-  /**
-   * Executes the command represented by this instance and creates a {@link CommandTask}.
-   *
-   * @return a {@link CommandTask} instance representing the execution of the command
-   * @throws IOException if an I/O error occurs during the initialization or execution of the command
-   */
-  public CommandTask execute() throws IOException {
-    final String[] args = this.toCommandArray();
-    return new CommandTask(args, true);
-  }
-
-  /**
-   * Creates and returns a new instance of the {@code Builder} class for constructing an {@code FFmpegCommand}.
-   *
-   * @return a new {@code Builder} instance for creating an {@code FFmpegCommand}
+   * @return the builder
    */
   public static Builder builder() {
     return new Builder();
   }
 
   /**
-   * A builder class for constructing an {@code FFmpegCommand} with various options and arguments.
+   * Gets the arguments after the executable.
+   *
+   * @return the arguments, which cannot be modified
+   */
+  public List<String> getArguments() {
+    return this.arguments;
+  }
+
+  /**
+   * Gets the FFmpeg executable the command runs with.
+   *
+   * @return the path of the executable
+   */
+  public Path getExecutable() {
+    return FFmpegExecutableProvider.getFFmpegPath();
+  }
+
+  /**
+   * Gets the complete command line, starting with the executable.
+   *
+   * @return the command line as separate arguments
+   */
+  public String[] toCommandArray() {
+    final Path executable = this.getExecutable();
+    final String executablePath = executable.toString();
+    final int argumentCount = this.arguments.size();
+    final List<String> command = new ArrayList<>(argumentCount + 1);
+    command.add(executablePath);
+    command.addAll(this.arguments);
+    return command.toArray(new String[0]);
+  }
+
+  /**
+   * Creates a task for the command without starting it. Call {@link CommandTask#run()} or
+   * {@link CommandTask#run(java.time.Duration)} to run it and wait for the exit code.
+   *
+   * @return the task, which has not been run yet
+   */
+  public CommandTask createTask() {
+    final String[] command = this.toCommandArray();
+    return new CommandTask(command);
+  }
+
+  @Override
+  public String toString() {
+    final String[] command = this.toCommandArray();
+    return String.join(" ", command);
+  }
+
+  /**
+   * Collects the arguments of an {@link FFmpegCommand}. Arguments are emitted in the order they are added, which
+   * matters to FFmpeg: options apply to the next input or output file. Every method returns this builder.
    */
   public static final class Builder {
 
-    private final List<String> arguments = new ArrayList<>();
+    private final List<String> arguments;
 
-    private Builder() {}
+    Builder() {
+      this.arguments = new ArrayList<>();
+    }
 
     /**
-     * Adds an input file to the FFmpeg command.
+     * Adds an input file or URL ({@code -i}).
      *
-     * @param input the path to the input file to be added
-     * @return the {@code Builder} instance to allow method chaining
+     * @param input the input
+     * @return this builder
      */
     public Builder addInput(final String input) {
+      Preconditions.checkNotNull(input, "Input must not be null");
       this.arguments.add("-i");
       this.arguments.add(input);
       return this;
     }
 
     /**
-     * Adds an output file path to the argument list for the FFmpeg command.
+     * Adds an output file. Output options must be added before the output they apply to.
      *
-     * @param output the path to the output file
-     * @return this builder instance for chaining additional method calls
+     * @param output the output path
+     * @return this builder
      */
     public Builder addOutput(final String output) {
+      Preconditions.checkNotNull(output, "Output must not be null");
       this.arguments.add(output);
       return this;
     }
 
     /**
-     * Adds a video codec argument to the FFmpeg command.
+     * Sets the video codec ({@code -c:v}).
      *
-     * @param codec the video codec to use (e.g., "libx264", "copy", etc.)
-     * @return the current {@code Builder} instance for chaining further method calls
+     * @param codec the codec name, or {@code copy} to keep the stream
+     * @return this builder
      */
     public Builder addVideoCodec(final String codec) {
+      Preconditions.checkNotNull(codec, "Codec must not be null");
       this.arguments.add("-c:v");
       this.arguments.add(codec);
       return this;
     }
 
     /**
-     * Adds an audio codec to the FFmpeg command.
+     * Sets the audio codec ({@code -c:a}).
      *
-     * @param codec the name of the audio codec to be used (e.g., "aac", "mp3")
-     * @return the current {@code Builder} instance for method chaining
+     * @param codec the codec name, or {@code copy} to keep the stream
+     * @return this builder
      */
     public Builder addAudioCodec(final String codec) {
+      Preconditions.checkNotNull(codec, "Codec must not be null");
       this.arguments.add("-c:a");
       this.arguments.add(codec);
       return this;
     }
 
     /**
-     * Adds the specified video bitrate option to the FFmpeg command.
+     * Sets the video bitrate ({@code -b:v}).
      *
-     * @param bitrate the video bitrate to be added, e.g., "1000k" for 1000 kilobits per second
-     * @return the {@code Builder} instance for method chaining
+     * @param bitrate the bitrate, such as {@code 1000k}
+     * @return this builder
      */
     public Builder addBitrate(final String bitrate) {
+      Preconditions.checkNotNull(bitrate, "Bitrate must not be null");
       this.arguments.add("-b:v");
       this.arguments.add(bitrate);
       return this;
     }
 
     /**
-     * Adds an audio bitrate setting to the FFmpeg command being constructed.
+     * Sets the audio bitrate ({@code -b:a}).
      *
-     * @param bitrate the desired audio bitrate, specified as a string (e.g., "128k" for 128 kbps)
-     * @return the {@code Builder} instance, allowing for method chaining
+     * @param bitrate the bitrate, such as {@code 128k}
+     * @return this builder
      */
     public Builder addAudioBitrate(final String bitrate) {
+      Preconditions.checkNotNull(bitrate, "Bitrate must not be null");
       this.arguments.add("-b:a");
       this.arguments.add(bitrate);
       return this;
     }
 
     /**
-     * Adds a framerate option to the FFmpeg command being built.
+     * Sets the frame rate ({@code -r}).
      *
-     * @param framerate the desired framerate for the video (e.g., 24, 30, 60)
-     * @return the current Builder instance for method chaining
+     * @param framerate the frame rate in frames per second
+     * @return this builder
      */
     public Builder addFramerate(final int framerate) {
+      Preconditions.checkArgument(framerate > 0, "Frame rate must be positive but was %s", framerate);
       this.arguments.add("-r");
-      this.arguments.add(String.valueOf(framerate));
+      final String value = String.valueOf(framerate);
+      this.arguments.add(value);
       return this;
     }
 
     /**
-     * Adds a resolution argument to the FFmpeg command being built.
+     * Sets the frame size ({@code -s}).
      *
-     * @param width  the width of the resolution in pixels
-     * @param height the height of the resolution in pixels
-     * @return the {@code Builder} instance with the resolution argument added
+     * @param width  the width in pixels
+     * @param height the height in pixels
+     * @return this builder
      */
     public Builder addResolution(final int width, final int height) {
+      Preconditions.checkArgument(width > 0 && height > 0, "Resolution must be positive but was %sx%s", width, height);
       this.arguments.add("-s");
-      this.arguments.add(width + "x" + height);
+      final String size = width + "x" + height;
+      this.arguments.add(size);
       return this;
     }
 
     /**
-     * Adds the overwrite option to allow overwriting an existing output file without prompting.
-     *
-     * @return the Builder instance with the overwrite option included
+     * Allows FFmpeg to overwrite an existing output file ({@code -y}). Without it FFmpeg waits for confirmation
+     * on the console and the task hangs.
+     * @return this builder
      */
     public Builder addOverwrite() {
       this.arguments.add("-y");
@@ -205,44 +233,49 @@ public final class FFmpegCommand {
     }
 
     /**
-     * Adds a complex filter to the FFmpeg command being constructed.
+     * Adds a filter graph ({@code -filter_complex}).
      *
-     * @param filter the complex filter expression to be added to the FFmpeg command
-     * @return the current Builder instance for method chaining
+     * @param filter the filter graph
+     * @return this builder
      */
     public Builder addFilter(final String filter) {
+      Preconditions.checkNotNull(filter, "Filter must not be null");
       this.arguments.add("-filter_complex");
       this.arguments.add(filter);
       return this;
     }
 
     /**
-     * Adds a custom argument to the FFmpeg command.
+     * Adds a raw argument.
      *
-     * @param argument the custom argument to be added to the FFmpeg command
-     * @return the current instance of the Builder for method chaining
+     * @param argument the argument
+     * @return this builder
      */
     public Builder addArgument(final String argument) {
+      Preconditions.checkNotNull(argument, "Argument must not be null");
       this.arguments.add(argument);
       return this;
     }
 
     /**
-     * Adds multiple arguments to the FFmpeg command being constructed.
+     * Adds raw arguments.
      *
-     * @param args an array of strings representing the arguments to be added to the FFmpeg command
-     * @return the current {@code Builder} instance for method chaining
+     * @param rawArguments the arguments in order
+     * @return this builder
      */
-    public Builder addArguments(final String... args) {
-      this.arguments.addAll(Arrays.asList(args));
+    public Builder addArguments(final String... rawArguments) {
+      Preconditions.checkNotNull(rawArguments, "Arguments must not be null");
+      for (final String argument : rawArguments) {
+        Preconditions.checkNotNull(argument, "Argument must not be null");
+        this.arguments.add(argument);
+      }
       return this;
     }
 
     /**
-     * Constructs and returns a new {@code FFmpegCommand} instance using the arguments
-     * that have been configured in the {@code Builder}.
+     * Builds the command.
      *
-     * @return a fully constructed {@code FFmpegCommand} instance containing the configured arguments
+     * @return the command
      */
     public FFmpegCommand build() {
       return new FFmpegCommand(this.arguments);

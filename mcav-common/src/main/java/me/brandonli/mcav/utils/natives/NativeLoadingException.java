@@ -21,29 +21,34 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Exception thrown to indicate errors during the loading of native libraries.
+ * Thrown when a native library cannot be extracted or loaded.
+ *
+ * <p>This is an {@link IllegalStateException}: the environment of the library is not in a state that lets it work,
+ * because the natives for this platform are missing or cannot be linked. The caller did nothing wrong, and retrying
+ * the same call in the same environment fails again. It is unchecked, unlike the {@link LinkageError} it usually
+ * wraps, so a missing native disables one feature without being mistaken for a fatal error of the virtual machine.
  */
-public class NativeLoadingException extends AssertionError {
+public class NativeLoadingException extends IllegalStateException {
 
   @Serial
   private static final long serialVersionUID = -1718334825313639127L;
 
   /**
-   * Constructs a new NativeLoadingException with the specified detail message.
+   * Constructs a new exception with a detail message and no cause.
    *
-   * @param msg the detail message
+   * @param message the detail message, which names the library that could not be loaded
    */
-  public NativeLoadingException(final @Nullable String msg) {
-    super(msg);
+  public NativeLoadingException(final @Nullable String message) {
+    super(message);
   }
 
   /**
-   * Constructs a new NativeLoadingException with the specified detail message and cause.
+   * Constructs a new exception with a detail message and the failure that caused it.
    *
-   * @param msg   the detail message
-   * @param cause the cause of the exception
+   * @param message the detail message, which names the library that could not be loaded
+   * @param cause   the underlying failure, usually a {@link LinkageError}, or null if it is unknown
    */
-  public NativeLoadingException(final @Nullable String msg, final @Nullable Throwable cause) {
-    super(msg, cause);
+  public NativeLoadingException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
   }
 }

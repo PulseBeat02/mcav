@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.media.source.device;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * An implementation of the {@link DeviceSource} interface that represents a source
- * associated with a specific device ID.
+ * The default {@link DeviceSource}.
  */
 public final class DeviceSourceImpl implements DeviceSource {
 
@@ -29,11 +30,29 @@ public final class DeviceSourceImpl implements DeviceSource {
     this.deviceId = deviceId;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getDeviceId() {
     return this.deviceId;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final DeviceSourceImpl source)) {
+      return false;
+    }
+    return this.deviceId == source.deviceId;
+  }
+
+  @Override
+  public int hashCode() {
+    return Integer.hashCode(this.deviceId);
+  }
+
+  @Override
+  public String toString() {
+    return "DeviceSource[" + this.deviceId + "]";
   }
 }

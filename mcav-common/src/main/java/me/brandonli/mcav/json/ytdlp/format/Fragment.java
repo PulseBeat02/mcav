@@ -17,15 +17,19 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
-/** Fragment **/
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/**
+ * One fragment of a segmented stream, as listed by yt-dlp.
+ */
 public class Fragment {
 
   Fragment() {
-    // no-op
+    // populated by Gson
   }
 
-  /** url **/
-  public String url;
-  /** duration **/
+  /** The URL of the fragment, or null if yt-dlp did not report one. */
+  public @Nullable String url;
+  /** The length of the fragment in seconds. */
   public double duration;
 }

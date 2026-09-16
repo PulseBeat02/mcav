@@ -21,21 +21,21 @@ import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.capability.installer.vlc.ReleasePackageManager;
 import me.brandonli.mcav.utils.os.Platform;
 
+/**
+ * Prints the VLC downloads the installer knows about.
+ */
 public final class VLCDownloadExample {
 
-  public static void main(final String[] args) {
+  static void main() {
     final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");
     for (final Download download : downloads) {
-      System.out.println("Platform: " + getPlatformString(download.getPlatform()));
-      System.out.println("URL: " + download.getUrl());
-      System.out.println("Hash: " + download.getHash());
+      final Platform platform = download.getPlatform();
+      final String url = download.getUrl();
+      final String hash = download.getHash();
+      System.out.println("Platform: " + platform);
+      System.out.println("URL: " + url);
+      System.out.println("Hash: " + hash);
       System.out.println();
     }
-  }
-
-  private static String getPlatformString(final Platform platform) {
-    return (
-      platform.getOS().name().toLowerCase() + "-" + platform.getArch().name().toLowerCase() + "-" + platform.getBits().name().toLowerCase()
-    );
   }
 }

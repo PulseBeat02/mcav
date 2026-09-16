@@ -17,76 +17,122 @@
  */
 package me.brandonli.mcav.utils;
 
+import com.google.common.base.Preconditions;
+import java.util.Objects;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.source.Source;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
+import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * Utility class providing methods for parsing and retrieving metadata from media sources.
+ * Reads the properties of media with FFmpeg without playing it.
  */
 public final class MetadataUtils {
+
+  private static final int PROBE_FRAMES = 30;
 
   private MetadataUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Extracts video metadata from the provided source by analyzing the associated resource.
-   * Metadata includes information such as width, height, bitrate, and frame rate.
+   * Reads the size, bitrate, and frame rate of the video track of a source. A few frames are decoded when the
+   * container does not declare them, which takes a moment for network sources.
    *
-   * @param source the source representing the video resource to be parsed
-   * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
-   * @throws AssertionError if an error occurs while processing the video resource
+   * @param source the source
+   * @return the video metadata
+   * @throws InputMetadataException if the source cannot be opened or has no video track
+   * @throws NullPointerException   if the source is null
    */
   public static OriginalVideoMetadata parseVideoMetadata(final Source source) {
-    final String resource = source.getResource();
-    try {
-      final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
-      grabber.start();
-      int count = 0;
-      while (grabber.grabFrame() != null && count < 30) {
-        count++; // ensure right frame data
-      }
-      final int width = grabber.getImageWidth();
-      final int height = grabber.getImageHeight();
-      final int bitrate = grabber.getVideoBitrate();
-      final float frameRate = (float) grabber.getFrameRate();
+    Preconditions.checkNotNull(source, "Source must not be null");
 
-      grabber.close();
-      return OriginalVideoMetadata.of(width, height, bitrate, frameRate);
-    } catch (final FrameGrabber.Exception e) {
-      throw new InputMetadataException(e.getMessage(), e);
+    final String resource = source.getResource();
+    try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
+      grabber.start();
+      return readVideoMetadata(grabber, resource);
+    } catch (final FrameGrabber.Exception exception) {
+      final String message = exception.getMessage();
+      throw new InputMetadataException("Failed to read video metadata of " + resource + ": " + message, exception);
     }
   }
 
+  private static OriginalVideoMetadata readVideoMetadata(final FFmpegFrameGrabber grabber, final String resource)
+    throws FrameGrabber.Exception {
+    final int declaredWidth = grabber.getImageWidth();
+    final double declaredFrameRate = grabber.getFrameRate();
+    final boolean declared = bothPositive(declaredWidth, declaredFrameRate);
+    if (!declared) {
+      probe(grabber);
+    }
+
+    final int width = grabber.getImageWidth();
+    final int height = grabber.getImageHeight();
+    final int bitrate = grabber.getVideoBitrate();
+    final double frameRate = grabber.getFrameRate();
+    final boolean hasVideo = bothPositive(width, height);
+    if (!hasVideo) {
+      throw new InputMetadataException("Source " + resource + " has no video track");
+    }
+    return OriginalVideoMetadata.of(width, height, bitrate, (float) frameRate);
+  }
+
   /**
-   * Extracts video metadata from the provided source by analyzing the associated resource.
-   * Metadata includes information such as width, height, bitrate, and frame rate.
+   * Reads the codec, bitrate, sample rate, channel count, and sample format of the audio track of a source.
    *
-   * @param source the source representing the video resource to be parsed
-   * @return a {@code VideoMetadata} instance containing the parsed video metadata, including width, height, bitrate, and frame rate
-   * @throws AssertionError if an error occurs while processing the video resource
+   * @param source the source
+   * @return the audio metadata
+   * @throws InputMetadataException if the source cannot be opened or has no audio track
+   * @throws NullPointerException   if the source is null
    */
   public static OriginalAudioMetadata parseAudioMetadata(final Source source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+
     final String resource = source.getResource();
-    try {
-      final FrameGrabber grabber = new FFmpegFrameGrabber(resource);
+    try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
       grabber.start();
-      int count = 0;
-      while (grabber.grabFrame() != null && count < 30) {
-        count++; // ensure right frame data
+      return readAudioMetadata(grabber, resource);
+    } catch (final FrameGrabber.Exception exception) {
+      final String message = exception.getMessage();
+      throw new InputMetadataException("Failed to read audio metadata of " + resource + ": " + message, exception);
+    }
+  }
+
+  private static OriginalAudioMetadata readAudioMetadata(final FFmpegFrameGrabber grabber, final String resource)
+    throws FrameGrabber.Exception {
+    final int declaredSampleRate = grabber.getSampleRate();
+    final int declaredChannels = grabber.getAudioChannels();
+    final boolean declared = bothPositive(declaredSampleRate, declaredChannels);
+    if (!declared) {
+      probe(grabber);
+    }
+
+    final String codec = grabber.getAudioCodecName();
+    final int bitrate = grabber.getAudioBitrate();
+    final int sampleRate = grabber.getSampleRate();
+    final int channels = grabber.getAudioChannels();
+    final int format = grabber.getSampleFormat();
+    final boolean hasAudio = bothPositive(sampleRate, channels);
+    if (!hasAudio) {
+      throw new InputMetadataException("Source " + resource + " has no audio track");
+    }
+    final String codecName = Objects.requireNonNullElse(codec, "unknown");
+    return OriginalAudioMetadata.of(codecName, bitrate, sampleRate, channels, format);
+  }
+
+  private static boolean bothPositive(final double first, final double second) {
+    final double smaller = Math.min(first, second);
+    return smaller > 0;
+  }
+
+  private static void probe(final FFmpegFrameGrabber grabber) throws FrameGrabber.Exception {
+    for (int frameIndex = 0; frameIndex < PROBE_FRAMES; frameIndex++) {
+      final Frame frame = grabber.grabFrame();
+      if (frame == null) {
+        return;
       }
-      final String codec = grabber.getAudioCodecName();
-      final int bitrate = grabber.getAudioBitrate();
-      final int sampleRate = grabber.getSampleRate();
-      final int channels = grabber.getAudioChannels();
-      final int format = grabber.getSampleFormat();
-      grabber.close();
-      return OriginalAudioMetadata.of(codec, bitrate, sampleRate, channels, format);
-    } catch (final FrameGrabber.Exception e) {
-      throw new InputMetadataException(e.getMessage(), e);
     }
   }
 }

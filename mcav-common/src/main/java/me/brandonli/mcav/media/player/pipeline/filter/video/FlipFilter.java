@@ -17,50 +17,55 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
- * A filter that flips video frames in a specified direction.
+ * Mirrors frames horizontally, vertically, or both.
  */
 public class FlipFilter extends MatVideoFilter {
 
   private final int flipCode;
 
   /**
-   * Constructs a FlipFilter with the specified flip direction.
+   * Constructs a new flip filter.
    *
-   * @param direction the direction to flip the video frames
+   * @param direction the direction to mirror in
    */
   public FlipFilter(final FlipDirection direction) {
-    this.flipCode = direction.code;
+    Preconditions.checkNotNull(direction, "Direction must not be null");
+    this.flipCode = direction.getCode();
   }
 
   /**
-   * {@inheritDoc}
+   * Mirrors the frame in place in the direction of this filter.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat mat) {
     opencv_core.flip(mat, mat, this.flipCode);
     return true;
   }
 
   /**
-   * Enum representing the possible flip directions for the video frames.
+   * The directions {@link FlipFilter} can mirror in.
    */
   public enum FlipDirection {
     /**
-     * Horizontal flip.
+     * Mirrors left and right.
      */
     HORIZONTAL(1),
 
     /**
-     * Vertical flip.
+     * Mirrors top and bottom.
      */
     VERTICAL(0),
 
     /**
-     * Both horizontal and vertical flip.
+     * Mirrors in both directions, which equals a rotation by 180 degrees.
      */
     BOTH(-1);
 
@@ -68,6 +73,15 @@ public class FlipFilter extends MatVideoFilter {
 
     FlipDirection(final int code) {
       this.code = code;
+    }
+
+    /**
+     * Gets the OpenCV flip code of this direction.
+     *
+     * @return the flip code
+     */
+    public int getCode() {
+      return this.code;
     }
   }
 }

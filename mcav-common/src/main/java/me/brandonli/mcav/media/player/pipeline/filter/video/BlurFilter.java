@@ -17,92 +17,117 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import java.util.function.Consumer;
+import com.google.common.base.Preconditions;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A filter that applies various types of blur effects to video frames.
+ * Blurs frames with one of several blur algorithms; larger kernels blur more. The box blur of
+ * {@link BlurType#NORMAL} accepts any positive kernel size, while the median, Gaussian, and stack blurs need odd
+ * sizes, as OpenCV does.
  */
 public class BlurFilter extends MatVideoFilter {
 
+  private final BlurType type;
   private final Size size;
   private final int kernelSize;
   private final double sigmaX;
   private final double sigmaY;
 
-  private final Consumer<Mat> blurFunction;
-
   /**
-   * Creates a new BlurFilter with the specified parameters.
-   * @param type the type of blur to apply (NORMAL, MEDIAN, GAUSSIAN, STACK)
-   * @param kernelSize the size of the kernel to use for the blur effect
-   * @param sigmaX the standard deviation in the X direction for Gaussian blur
-   * @param sigmaY the standard deviation in the Y direction for Gaussian blur
+   * Constructs a new blur filter.
+   *
+   * @param type       the blur algorithm
+   * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but
+   *                   {@link BlurType#NORMAL}
+   * @param sigmaX     the horizontal standard deviation, only used by {@link BlurType#GAUSSIAN}; 0 derives it
+   *                   from the kernel size
+   * @param sigmaY     the vertical standard deviation, only used by {@link BlurType#GAUSSIAN}; 0 uses the
+   *                   horizontal value
    */
-  @SuppressWarnings("all") // checker
   public BlurFilter(final BlurType type, final int kernelSize, final double sigmaX, final double sigmaY) {
+    Preconditions.checkNotNull(type, "Blur type must not be null");
+    Preconditions.checkArgument(kernelSize > 0, "Kernel size must be positive but was %s", kernelSize);
+    final boolean odd = kernelSize % 2 == 1;
+    Preconditions.checkArgument(odd || type == BlurType.NORMAL, "Kernel size of a %s blur must be odd but was %s", type, kernelSize);
+    Preconditions.checkArgument(sigmaX >= 0 && sigmaY >= 0, "Sigma values must not be negative");
+    this.type = type;
     this.size = new Size(kernelSize, kernelSize);
     this.kernelSize = kernelSize;
     this.sigmaX = sigmaX;
     this.sigmaY = sigmaY;
-    switch (type) {
-      case NORMAL -> this.blurFunction = this::applyNormalBlur;
-      case MEDIAN -> this.blurFunction = this::applyMedianBlur;
-      case GAUSSIAN -> this.blurFunction = this::applyGaussianBlur;
-      case STACK -> this.blurFunction = this::applyStackBlur;
-      default -> throw new IllegalArgumentException("Unsupported blur type: " + type);
-    }
-  }
-
-  private void applyNormalBlur(final Mat mat) {
-    opencv_imgproc.blur(mat, mat, this.size);
-  }
-
-  private void applyMedianBlur(final Mat mat) {
-    opencv_imgproc.medianBlur(mat, mat, this.kernelSize);
-  }
-
-  private void applyGaussianBlur(final Mat mat) {
-    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT, opencv_core.ALGO_HINT_APPROX);
-  }
-
-  private void applyStackBlur(final Mat mat) {
-    opencv_imgproc.stackBlur(mat, mat, this.size);
   }
 
   /**
-   * {@inheritDoc}
+   * Constructs a new blur filter with derived Gaussian parameters.
+   *
+   * @param type       the blur algorithm
+   * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but
+   *                   {@link BlurType#NORMAL}
+   */
+  public BlurFilter(final BlurType type, final int kernelSize) {
+    this(type, kernelSize, 0, 0);
+  }
+
+  /**
+   * Blurs the frame in place with the algorithm of this filter.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    this.blurFunction.accept(mat);
+  protected boolean modifyMat(final Mat mat) {
+    return switch (this.type) {
+      case NORMAL -> this.normalBlur(mat);
+      case MEDIAN -> this.medianBlur(mat);
+      case GAUSSIAN -> this.gaussianBlur(mat);
+      case STACK -> this.stackBlur(mat);
+    };
+  }
+
+  private boolean normalBlur(final Mat mat) {
+    opencv_imgproc.blur(mat, mat, this.size);
+    return true;
+  }
+
+  private boolean medianBlur(final Mat mat) {
+    opencv_imgproc.medianBlur(mat, mat, this.kernelSize);
+    return true;
+  }
+
+  private boolean gaussianBlur(final Mat mat) {
+    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT, opencv_core.ALGO_HINT_DEFAULT);
+    return true;
+  }
+
+  private boolean stackBlur(final Mat mat) {
+    opencv_imgproc.stackBlur(mat, mat, this.size);
     return true;
   }
 
   /**
-   * Enum representing the different types of blur effects that can be applied.
+   * The blur algorithms supported by {@link BlurFilter}.
    */
   public enum BlurType {
     /**
-     * Normal blur effect.
+     * Averages the pixels of the kernel. The fastest algorithm.
      */
     NORMAL,
 
     /**
-     * Median blur effect.
+     * Uses the median of the kernel, which removes noise while keeping edges.
      */
     MEDIAN,
 
     /**
-     * Gaussian blur effect.
+     * Weights pixels by a Gaussian curve, which gives the most natural blur.
      */
     GAUSSIAN,
 
     /**
-     * Stack blur effect.
+     * Approximates a Gaussian blur at a fraction of the cost for large kernels.
      */
     STACK,
   }

@@ -17,10 +17,13 @@
  */
 package me.brandonli.mcav.media.source.ffmpeg;
 
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * Implementation of {@link FFmpegDirectSource} that provides the MRL and format.
+ * The default {@link FFmpegDirectSource}.
  */
-public class FFmpegDirectSourceImpl implements FFmpegDirectSource {
+public final class FFmpegDirectSourceImpl implements FFmpegDirectSource {
 
   private final String mrl;
   private final String format;
@@ -30,19 +33,34 @@ public class FFmpegDirectSourceImpl implements FFmpegDirectSource {
     this.format = format;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getFormat() {
     return this.format;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getMrl() {
     return this.mrl;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final FFmpegDirectSourceImpl source)) {
+      return false;
+    }
+    return this.mrl.equals(source.mrl) && this.format.equals(source.format);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.mrl, this.format);
+  }
+
+  @Override
+  public String toString() {
+    return "FFmpegDirectSource[" + this.format + "||" + this.mrl + "]";
   }
 }

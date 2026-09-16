@@ -21,24 +21,25 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * Represents an interface used to handle the result of a dithering operation.
+ * A display that shows dithered frames, such as a wall of maps. Result steps receive the raw frame and the
+ * algorithm, so they can decide how to dither, for example in parallel or with a byte budget per frame.
  */
 public interface DitherResultStep {
   /**
-   * Processes the dithered video output and its associated metadata.
+   * Dithers and displays a frame. Called on the video render thread of the player for every frame.
    *
-   * @param samples  the {@link ImageBuffer} containing the original image samples
-   * @param algorithm the {@link DitherAlgorithm} used for dithering
+   * @param samples   the frame, which may be modified
+   * @param algorithm the dithering algorithm to use
    */
   void process(final ImageBuffer samples, final DitherAlgorithm algorithm);
 
   /**
-   * Starts the dithering result process.
+   * Prepares the display. Called once before the first frame.
    */
   void start();
 
   /**
-   * Releases any resources associated with this step.
+   * Removes the display and releases its resources. Called once after the last frame.
    */
   void release();
 }

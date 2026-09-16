@@ -17,36 +17,33 @@
  */
 package me.brandonli.mcav.media.player.pipeline.builder;
 
-import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-
 /**
- * A utility interface for creating pipeline builders for different data processing contexts.
+ * Entry point for building pipelines. Filters run in the order they are added.
+ *
+ * <pre><code>
+ *   final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+ *   builder.then(resize);
+ *   builder.then(dither);
+ *   builder.then(display);
+ *   final VideoPipelineStep pipeline = builder.build();
+ * </code></pre>
  */
 public interface PipelineBuilder {
   /**
-   * Creates a pipeline step builder specifically designed for constructing audio processing pipelines.
+   * Starts an audio pipeline.
    *
-   * @return an instance of {@link AbstractPipelineStepBuilder} configured for audio processing, allowing
-   * chaining of {@link AudioFilter}s to build a custom {@link AudioPipelineStep}.
+   * @return a new builder
    */
-  static AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep> audio() {
+  static AudioPipelineStepBuilder audio() {
     return new AudioPipelineStepBuilderImpl();
   }
 
   /**
-   * Creates and returns a builder for constructing a video processing pipeline.
+   * Starts a video pipeline.
    *
-   * @return a new instance of a video pipeline step builder for configuring and creating
-   * a video processing pipeline.
+   * @return a new builder
    */
-  static AbstractPipelineStepBuilder<ImageBuffer, OriginalVideoMetadata, VideoFilter, VideoPipelineStep> video() {
+  static VideoPipelineStepBuilder video() {
     return new VideoPipelineStepBuilderImpl();
   }
 }

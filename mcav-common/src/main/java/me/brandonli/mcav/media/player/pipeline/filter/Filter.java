@@ -18,21 +18,21 @@
 package me.brandonli.mcav.media.player.pipeline.filter;
 
 /**
- * Represents a functional interface for applying transformations or processing logic
- * to input data of type A, with optional metadata of type B.
+ * A processing step that is applied to every sample of a media stream.
  *
- * @param <A> the type of data samples to be processed
- * @param <B> the type of metadata associated with the data samples
+ * @param <A> the type of sample, such as a video frame or a buffer of audio samples
+ * @param <B> the type of metadata describing the original stream
  */
 @FunctionalInterface
 public interface Filter<A, B> {
   /**
-   * Applies a filter to the provided data samples, potentially transforming or processing
-   * them based on the provided metadata.
+   * Processes one sample, usually by modifying it in place. Pipelines pass the sample on to their next step whatever
+   * this method returns; they never discard samples.
    *
-   * @param samples  the data samples to be processed
-   * @param metadata the metadata associated with the data samples, which may guide the filtering process
-   * @return true if the filter was successfully applied or false if the samples should be discarded
+   * @param samples  the sample to process
+   * @param metadata the metadata of the original stream the sample belongs to
+   * @return true if the filter changed the sample or may have changed it, false if it left the sample untouched;
+   * filters that work on a copy of a sample use this to skip copying unchanged samples back
    */
   boolean applyFilter(final A samples, final B metadata);
 }

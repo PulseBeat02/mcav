@@ -20,19 +20,22 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ra
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * Interface representing the Random Dithering algorithm.
+ * A dithering algorithm that adds random noise before picking the closest palette color. Create instances with
+ * {@link DitherAlgorithm#random()}.
  */
 public interface RandomDither extends DitherAlgorithm {
   /**
-   * Represents the light weight for the dithering algorithm.
+   * A subtle noise level of 32 per channel.
    */
   int LIGHT_WEIGHT = 32;
+
   /**
-   * Represents the normal weight value used in the random dithering algorithm.
+   * The default noise level of 64 per channel.
    */
   int NORMAL_WEIGHT = 64;
+
   /**
-   * Represents the predefined weight value for a "heavy" dithering effect.
+   * A strong noise level of 128 per channel.
    */
   int HEAVY_WEIGHT = 128;
 }

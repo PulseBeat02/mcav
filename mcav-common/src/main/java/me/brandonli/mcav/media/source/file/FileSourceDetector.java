@@ -17,42 +17,36 @@
  */
 package me.brandonli.mcav.media.source.file;
 
+import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import me.brandonli.mcav.media.source.SourceDetector;
 import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * A source detector for file sources.
+ * Detects paths of existing files.
  */
 public class FileSourceDetector implements SourceDetector<FileSource> {
 
   /**
-   * Constructs a new {@link FileSourceDetector}.
+   * Constructs a new detector.
    */
   public FileSourceDetector() {
-    // no-op
+    // stateless
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isDetectedSource(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     return SourceUtils.isPath(raw);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public FileSource createSource(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     final Path path = Path.of(raw);
     return FileSource.path(path);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getPriority() {
     return SourceDetector.HIGH_PRIORITY;

@@ -17,31 +17,38 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A filter that applies erosion to a video frame.
+ * Shrinks the bright regions of frames with a rectangular structuring element, which thins light features and
+ * removes small bright specks.
  */
 public class ErosionFilter extends MatVideoFilter {
 
   private final Mat kernel;
 
   /**
-   * Creates an instance of the ErosionFilter with a specified kernel size.
-   * @param kernelSize the size of the kernel to be used for erosion, must be an odd integer.
+   * Constructs a new erosion filter.
+   *
+   * @param kernelSize the size of the structuring element in pixels, which must be positive
    */
   public ErosionFilter(final int kernelSize) {
+    Preconditions.checkArgument(kernelSize > 0, "Kernel size must be positive");
     final Size size = new Size(kernelSize, kernelSize);
     this.kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
   }
 
   /**
-   * {@inheritDoc}
+   * Erodes the frame in place with the structuring element.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat mat) {
     opencv_imgproc.erode(mat, mat, this.kernel);
     return true;
   }

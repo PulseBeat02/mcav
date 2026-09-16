@@ -17,81 +17,148 @@
  */
 package me.brandonli.mcav.capability.installer.vlc;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.Properties;
-import me.brandonli.mcav.capability.installer.vlc.discovery.LinuxNativeDiscoveryStrategy;
-import me.brandonli.mcav.capability.installer.vlc.discovery.OsxNativeDiscoveryStrategy;
-import me.brandonli.mcav.capability.installer.vlc.discovery.WindowsNativeDiscoveryStrategy;
-import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
+import me.brandonli.mcav.capability.installer.Installer;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * VLC Installation manager.
+ * Makes the VLC native libraries available to vlcj.
+ *
+ * <p>The kit looks for VLC in this order, and uses the first one it finds:
+ * <ol>
+ *   <li>a VLC installation on the system, in the well-known installation directories of every operating system;
+ *   <li>the private copy an earlier run installed with {@link VLCInstaller}, which needs no network at all;
+ *   <li>a new private copy, downloaded with {@link VLCInstaller}.
+ * </ol>
+ * The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
+ * vlcj's own configuration files. Either way, vlcj is ready to create media players once {@link #start()} returns.
+ *
+ * <pre><code>
+ *   final VLCInstallationKit kit = VLCInstallationKit.create();
+ *   final Optional&lt;Path&gt; libraryDirectory = kit.start();
+ * </code></pre>
  */
 public final class VLCInstallationKit {
 
-  private static final Path CONFIG_DIRECTORY = Path.of(System.getProperty("user.home"), ".config", "vlcj");
-  private static final Path CONFIG_FILE = CONFIG_DIRECTORY.resolve("vlcj.config");
+  private static final Logger LOGGER = LoggerFactory.getLogger(VLCInstallationKit.class);
+  private static final VLCLoadState SHARED_LOAD_STATE = new VLCLoadState();
 
-  VLCInstallationKit() {
-    // hidden
-  }
+  private final Installer installer;
+  private final VLCDiscovery discovery;
+  private final VLCLoadState loadState;
 
   /**
-   * Attempts to search for the VLC binary in common installation paths. If a library has been found
-   * and loaded successfully, it will be available to be used by VLCJ. Otherwise, if a library could
-   * not be found, it will download the respective binary for the user operating system and load
-   * that libvlc that way.
+   * Constructs a new kit.
    *
-   * @return Optional containing path if found, otherwise empty
-   * @throws IOException if an issue occurred during installation
+   * @param installer the installer used when the system has no VLC
+   * @param discovery finds and loads the VLC libraries
+   * @param loadState remembers whether libvlc was loaded
    */
-  public Optional<Path> start() throws IOException {
-    return this.installBinary(true);
-  }
-
-  private Optional<Path> installBinary(final boolean chmod) throws IOException {
-    final VLCInstaller installer = VLCInstaller.create();
-    final Path download = installer.download(chmod);
-    Files.createDirectories(CONFIG_DIRECTORY);
-
-    final Path absolute = download.toAbsolutePath();
-    final String value = absolute.toString();
-
-    final Properties properties = new Properties();
-    properties.setProperty("nativeDirectory", value);
-
-    try (final OutputStream stream = Files.newOutputStream(CONFIG_FILE)) {
-      properties.store(stream, "VLC native directory configuration");
-    }
-
-    // needed for ServiceLoader issues
-    final LinuxNativeDiscoveryStrategy linuxNativeDiscoveryStrategy = new LinuxNativeDiscoveryStrategy();
-    final OsxNativeDiscoveryStrategy osxNativeDiscoveryStrategy = new OsxNativeDiscoveryStrategy();
-    final WindowsNativeDiscoveryStrategy windowsNativeDiscoveryStrategy = new WindowsNativeDiscoveryStrategy();
-    final NativeDiscovery discovery = new NativeDiscovery(
-      linuxNativeDiscoveryStrategy,
-      osxNativeDiscoveryStrategy,
-      windowsNativeDiscoveryStrategy
-    );
-    final NativeDiscovery defaultDiscovery = new NativeDiscovery();
-    if (!discovery.discover() && !defaultDiscovery.discover()) {
-      throw new UnsupportedOperatingSystemException("Failed to discover VLC native libraries.");
-    }
-
-    return Optional.of(absolute);
+  @VisibleForTesting
+  VLCInstallationKit(final Installer installer, final VLCDiscovery discovery, final VLCLoadState loadState) {
+    this.installer = installer;
+    this.discovery = discovery;
+    this.loadState = loadState;
   }
 
   /**
-   * Constructs a new VLCInstallationKit with default parameters for downloading/loading libvlc into
-   * the runtime.
+   * Creates a kit that installs VLC into the cache folder of the library when no system installation exists.
    *
-   * @return a new VLCInstallationKit
+   * @return the kit
    */
   public static VLCInstallationKit create() {
-    return new VLCInstallationKit();
+    final VLCInstaller installer = VLCInstaller.create();
+    return create(installer);
+  }
+
+  /**
+   * Creates a kit that uses the specified installer when no system installation exists.
+   *
+   * @param installer the installer used to download VLC
+   * @return the kit
+   */
+  public static VLCInstallationKit create(final VLCInstaller installer) {
+    Preconditions.checkNotNull(installer, "Installer must not be null");
+    final NativeVLCDiscovery discovery = new NativeVLCDiscovery();
+    return new VLCInstallationKit(installer, discovery, SHARED_LOAD_STATE);
+  }
+
+  /**
+   * Gets the installer this kit uses when the system has no VLC.
+   *
+   * @return the installer
+   */
+  @VisibleForTesting
+  Installer getInstaller() {
+    return this.installer;
+  }
+
+  /**
+   * Gets the state that remembers whether libvlc was loaded, which kits created by the factory methods share.
+   *
+   * @return the load state
+   */
+  @VisibleForTesting
+  VLCLoadState getLoadState() {
+    return this.loadState;
+  }
+
+  /**
+   * Finds or installs VLC and loads its native libraries into vlcj. This method blocks while VLC is downloaded,
+   * which only happens once per machine. libvlc can only be loaded once per JVM, so after the first successful call
+   * every call returns the same result immediately.
+   *
+   * @return the directory the native libraries were loaded from, or empty if vlcj had already loaded them without
+   * reporting a location
+   * @throws IOException                          if VLC has to be downloaded and the download fails
+   * @throws UnsupportedOperatingSystemException if VLC cannot be found and cannot be installed on this system
+   */
+  public Optional<Path> start() throws IOException {
+    return this.loadState.loadOnce(this::discoverOrInstall);
+  }
+
+  private Optional<Path> discoverOrInstall() throws IOException {
+    final boolean found = this.discovery.discoverSystemInstallation();
+    if (found) {
+      final Path systemPath = this.discovery.getDiscoveredPath();
+      logSystemInstallation(systemPath);
+      return Optional.ofNullable(systemPath);
+    }
+    // an earlier private installation is used before anything asks the network whether VLC can be downloaded, so a
+    // machine keeps working offline, and GitHub is not asked on every start
+    final Optional<Path> existing = this.installer.findInstallation();
+    if (existing.isPresent()) {
+      final Path existingDirectory = existing.get();
+      return this.loadPrivateInstallation(existingDirectory);
+    }
+    final boolean supported = this.installer.isSupported();
+    if (!supported) {
+      throw new UnsupportedOperatingSystemException("VLC is not installed and cannot be installed automatically on this system");
+    }
+    final Path libraryDirectory = this.installer.download(true);
+    return this.loadPrivateInstallation(libraryDirectory);
+  }
+
+  private Optional<Path> loadPrivateInstallation(final Path libraryDirectory) {
+    final boolean loaded = this.discovery.loadInstalledLibraries(libraryDirectory);
+    if (!loaded) {
+      throw new UnsupportedOperatingSystemException("VLC was installed to " + libraryDirectory + " but its libraries could not be loaded");
+    }
+    LOGGER.info("Using the VLC installation of the library at {}", libraryDirectory);
+    return Optional.of(libraryDirectory);
+  }
+
+  private static void logSystemInstallation(final @Nullable Path systemPath) {
+    if (systemPath == null) {
+      LOGGER.info("Using the VLC libraries vlcj loaded earlier in this JVM");
+      return;
+    }
+    LOGGER.info("Using the VLC installation of the system at {}", systemPath);
   }
 }

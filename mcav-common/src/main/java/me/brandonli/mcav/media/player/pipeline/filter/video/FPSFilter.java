@@ -23,38 +23,72 @@ import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
 /**
- * A filter that displays the current frame rate on the video.
+ * Draws the current frame rate of the pipeline into the top left corner of every frame, which is useful while
+ * tuning a pipeline. The rate is smoothed over the last second, so it does not flicker.
  */
 public class FPSFilter extends MatVideoFilter {
 
-  private static final Scalar BLACK = new Scalar(0);
-  private static final Point POSITION = new Point(10, 20);
+  private static final Scalar WHITE = new Scalar(255, 255, 255, 0);
+  private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
+  private static final Point POSITION = new Point(10, 24);
+  private static final double FONT_SCALE = 0.6;
+  private static final int OUTLINE_THICKNESS = 3;
+  private static final int TEXT_THICKNESS = 1;
+  private static final long WINDOW_NANOS = 1_000_000_000L;
 
-  private long lastFrameTime;
+  private long windowStart;
+  private int framesInWindow;
+  private int displayedFrameRate;
 
   /**
-   * Creates a new FPSFilter instance.
+   * Constructs a new frame rate filter.
    */
   public FPSFilter() {
-    this.lastFrameTime = System.currentTimeMillis();
+    this.windowStart = System.nanoTime();
   }
 
   /**
-   * {@inheritDoc}
+   * Counts the frame and draws the smoothed frame rate onto it in place, as white text with a black outline.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the text is drawn onto every frame
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    final long current = System.currentTimeMillis();
-    final long elapsed = current - this.lastFrameTime;
-    if (elapsed <= 0) {
-      return false;
-    }
-
-    final int frameRate = Math.toIntExact(1000 / elapsed);
-    final String text = String.valueOf(frameRate);
-    this.lastFrameTime = current;
-
-    opencv_imgproc.putText(mat, text, POSITION, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.25, BLACK);
+  protected boolean modifyMat(final Mat mat) {
+    this.countFrame();
+    final String text = this.displayedFrameRate + " fps";
+    drawText(mat, text, BLACK, OUTLINE_THICKNESS);
+    drawText(mat, text, WHITE, TEXT_THICKNESS);
     return true;
+  }
+
+  /**
+   * Counts a frame and recomputes the displayed frame rate once per measuring window.
+   */
+  private void countFrame() {
+    final long now = System.nanoTime();
+    this.framesInWindow++;
+    final long elapsed = now - this.windowStart;
+    if (elapsed < WINDOW_NANOS) {
+      return;
+    }
+    final double seconds = elapsed / (double) WINDOW_NANOS;
+    this.displayedFrameRate = (int) Math.round(this.framesInWindow / seconds);
+    this.framesInWindow = 0;
+    this.windowStart = now;
+  }
+
+  private static void drawText(final Mat mat, final String text, final Scalar color, final int thickness) {
+    opencv_imgproc.putText(
+      mat,
+      text,
+      POSITION,
+      opencv_imgproc.FONT_HERSHEY_SIMPLEX,
+      FONT_SCALE,
+      color,
+      thickness,
+      opencv_imgproc.LINE_AA,
+      false
+    );
   }
 }

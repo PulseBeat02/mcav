@@ -18,24 +18,24 @@
 package me.brandonli.mcav.media.source.uri;
 
 import java.net.URI;
+import java.util.Objects;
 import me.brandonli.mcav.utils.SourceUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An implementation of the {@link UriSource} interface.
+ * The default {@link UriSource}.
  */
-public class UriSourceImpl implements UriSource {
+public final class UriSourceImpl implements UriSource {
 
   private final URI uri;
   private final boolean direct;
 
   UriSourceImpl(final URI uri) {
     this.uri = uri;
-    this.direct = SourceUtils.isDirectVideo(uri.toString());
+    final String raw = uri.toString();
+    this.direct = SourceUtils.isDirectVideo(raw);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public URI getUri() {
     return this.uri;
@@ -44,5 +44,26 @@ public class UriSourceImpl implements UriSource {
   @Override
   public boolean isDirect() {
     return this.direct;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final UriSourceImpl source)) {
+      return false;
+    }
+    return this.uri.equals(source.uri);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.uri);
+  }
+
+  @Override
+  public String toString() {
+    return "UriSource[" + this.uri + "]";
   }
 }

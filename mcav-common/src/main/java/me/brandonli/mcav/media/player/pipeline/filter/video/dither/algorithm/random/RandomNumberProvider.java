@@ -18,32 +18,32 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random;
 
 /**
- * Provides methods to generate random values of various types.
+ * A source of random numbers for {@link RandomDither}. Implementations are called for every channel of every
+ * pixel, so they must be fast, and they are not required to be thread-safe.
  */
 public interface RandomNumberProvider {
   /**
-   * Generates a random integer within the given range, inclusive of the minimum value and
-   * exclusive of the maximum value.
+   * Gets a random integer in a range.
    *
-   * @param min the minimum value (inclusive) for the range.
-   * @param max the maximum value (exclusive) for the range. Must be greater than min.
-   * @return a randomly generated integer between min (inclusive) and max (exclusive).
+   * @param min the smallest value, inclusive
+   * @param max the largest value, exclusive
+   * @return a random value from {@code min} to {@code max - 1}
    */
-  int nextInt(int min, int max);
+  int nextInt(final int min, final int max);
 
   /**
-   * Generates a random double value within the specified range.
+   * Gets a random floating point number in a range.
    *
-   * @param min the lower bound (inclusive) of the range
-   * @param max the upper bound (exclusive) of the range
-   * @return a random double value greater than or equal to {@code min} and less than {@code max}
+   * @param min the smallest value, inclusive
+   * @param max the largest value, exclusive
+   * @return a random value from {@code min} to {@code max}
    */
-  double nextDouble(double min, double max);
+  double nextDouble(final double min, final double max);
 
   /**
-   * Generates a random boolean value.
+   * Gets a random boolean.
    *
-   * @return a randomly generated boolean value, either true or false
+   * @return true or false with equal probability
    */
   boolean nextBoolean();
 }

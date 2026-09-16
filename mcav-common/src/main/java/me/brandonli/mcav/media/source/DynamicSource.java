@@ -18,12 +18,9 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Represents a type of {@link Source} that is dynamically resolved.
+ * A source without a fixed length, such as a live stream, a capture device, or generated frames.
  */
 public interface DynamicSource extends Source {
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default boolean isStatic() {
     return false;

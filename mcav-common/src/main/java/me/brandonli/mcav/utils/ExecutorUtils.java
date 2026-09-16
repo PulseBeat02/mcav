@@ -17,48 +17,68 @@
  */
 package me.brandonli.mcav.utils;
 
+import com.google.common.base.Preconditions;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A utility class for managing {@link ExecutorService} operations.
+ * Helpers for shutting down executors.
  */
 public final class ExecutorUtils {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorUtils.class);
+  private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   private ExecutorUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Attempts to shut down the given {@link ExecutorService} gracefully by waiting for ongoing tasks to complete.
+   * Shuts down the executor, waiting up to five seconds for running tasks to finish before interrupting them. This
+   * method never throws, so it is safe to call from cleanup code.
    *
-   * @param service the {@link ExecutorService} instance to be shut down
-   * @return {@code true} if the shutdown was completed successfully with no unresolved tasks; {@code false} otherwise
-   * @throws AssertionError if unresolved tasks remain after a forced shutdown or the thread is interrupted
+   * @param service the executor to shut down
+   * @return true if every task finished in time, false if tasks had to be interrupted or the wait was interrupted
+   * @throws NullPointerException if the executor is null
    */
   public static boolean shutdownExecutorGracefully(final ExecutorService service) {
-    service.shutdown();
-    try {
-      final boolean await = service.awaitTermination(5, TimeUnit.SECONDS);
-      if (!await) {
-        final List<Runnable> tasks = service.shutdownNow();
-        if (tasks.isEmpty()) {
-          return true;
-        }
-        final String msg = createExecutorShutdownErrorMessage(tasks);
-        throw new CriticalTaskException(msg);
-      }
-    } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt(); // yeah... we're fucked
-      throw new CriticalTaskException(e.getMessage(), e);
-    }
-    return false;
+    Preconditions.checkNotNull(service, "Executor must not be null");
+    return shutdownExecutorGracefully(service, DEFAULT_TIMEOUT);
   }
 
-  private static String createExecutorShutdownErrorMessage(final List<Runnable> tasks) {
-    final int count = tasks.size();
-    return String.format("%s tasks uncompleted!", count);
+  /**
+   * Shuts down the executor, waiting up to the timeout for running tasks to finish before interrupting them. This
+   * method never throws, so it is safe to call from cleanup code.
+   *
+   * @param service the executor to shut down
+   * @param timeout how long to wait for running tasks
+   * @return true if every task finished in time, false if tasks had to be interrupted or the wait was interrupted
+   * @throws NullPointerException if the executor or the timeout is null
+   */
+  public static boolean shutdownExecutorGracefully(final ExecutorService service, final Duration timeout) {
+    Preconditions.checkNotNull(service, "Executor must not be null");
+    Preconditions.checkNotNull(timeout, "Timeout must not be null");
+
+    service.shutdown();
+    try {
+      final long millis = timeout.toMillis();
+      final boolean terminated = service.awaitTermination(millis, TimeUnit.MILLISECONDS);
+      if (terminated) {
+        return true;
+      }
+      final List<Runnable> unfinished = service.shutdownNow();
+      final int unfinishedCount = unfinished.size();
+      LOGGER.warn("Executor did not finish in {} ms, interrupted {} pending tasks", millis, unfinishedCount);
+      return false;
+    } catch (final InterruptedException exception) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+      service.shutdownNow();
+      return false;
+    }
   }
 }

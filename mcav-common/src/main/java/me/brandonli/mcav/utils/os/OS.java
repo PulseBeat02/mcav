@@ -18,23 +18,28 @@
 package me.brandonli.mcav.utils.os;
 
 /**
- * Represents the operating system of a system.
+ * The operating system family of a machine.
  */
 public enum OS {
   /**
-   * Represents a Microsoft Windows-based operating system.
+   * Microsoft Windows.
    */
   WINDOWS,
   /**
-   * Represents a macOS system.
+   * Apple macOS.
    */
   MAC,
   /**
-   * Represents a Linux-based operating system.
+   * Linux distributions.
    */
   LINUX,
   /**
-   * Represents a system running the FreeBSD operating system.
+   * FreeBSD.
    */
   FREEBSD,
+  /**
+   * Any other operating system, such as OpenBSD, NetBSD, Solaris or AIX. The library never downloads programs for
+   * it, because none of the builds it knows can run there.
+   */
+  OTHER,
 }

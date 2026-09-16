@@ -17,33 +17,48 @@
  */
 package me.brandonli.mcav.media.player.pipeline.builder;
 
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Concrete implementation of a pipeline step builder for video processing.
+ * The default {@link VideoPipelineStepBuilder}.
  */
-public final class VideoPipelineStepBuilderImpl
-  extends AbstractPipelineStepBuilder<ImageBuffer, OriginalVideoMetadata, VideoFilter, VideoPipelineStep> {
+public final class VideoPipelineStepBuilderImpl extends VideoPipelineStepBuilder {
 
-  VideoPipelineStepBuilderImpl() {}
+  VideoPipelineStepBuilderImpl() {
+    // nothing else to set up
+  }
 
   /**
-   * {@inheritDoc}
+   * Creates a video step that applies a filter and continues with the next step.
+   *
+   * @param next   the step that follows, or null for the last step
+   * @param filter the filter of the step
+   * @return the step
    */
   @Override
-  public VideoPipelineStep build() {
-    VideoPipelineStep chain = null;
-    for (int i = this.filters.size() - 1; i >= 0; i--) {
-      final VideoFilter filter = this.filters.get(i);
-      if (chain == null) {
-        chain = VideoPipelineStep.of(filter);
-      } else {
-        chain = VideoPipelineStep.of(chain, filter);
-      }
-    }
-    return chain == null ? VideoPipelineStep.NO_OP : chain;
+  protected VideoPipelineStep createStep(final @Nullable VideoPipelineStep next, final VideoFilter filter) {
+    return VideoPipelineStep.of(next, filter);
+  }
+
+  /**
+   * Gets {@link VideoPipelineStep#NO_OP}, the video step built when no filter was added.
+   *
+   * @return the no-op video step
+   */
+  @Override
+  protected VideoPipelineStep createEmptyStep() {
+    return VideoPipelineStep.NO_OP;
+  }
+
+  /**
+   * Gets this builder typed as a video builder.
+   *
+   * @return this builder
+   */
+  @Override
+  protected VideoPipelineStepBuilder self() {
+    return this;
   }
 }

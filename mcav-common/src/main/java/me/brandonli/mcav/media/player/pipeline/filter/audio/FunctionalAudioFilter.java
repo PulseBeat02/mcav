@@ -18,19 +18,19 @@
 package me.brandonli.mcav.media.player.pipeline.filter.audio;
 
 /**
- * Represents a functional audio filter that can be started and released. Extends the
- * {@link AudioFilter} interface to provide additional functionality for managing the lifecycle of the filter.
+ * An audio filter that owns resources, such as an audio device or a voice connection.
+ *
+ * <p>Call {@link #start()} before the first samples are processed and {@link #release()} after the last ones. The
+ * pipeline steps do not call these methods automatically, because a filter may be shared between pipelines.
  */
 public interface FunctionalAudioFilter extends AudioFilter {
   /**
-   * Starts the audio filter, initializing any necessary resources or processes.
-   * This method should be called before applying the filter to the pipeline.
+   * Acquires the resources of the filter. Must be called before samples are processed.
    */
   void start();
 
   /**
-   * Releases any resources or processes associated with the audio filter.
-   * This method should be called when the filter is no longer needed to prevent memory leaks.
+   * Releases the resources of the filter. The filter must not be used afterward unless it is started again.
    */
   void release();
 }

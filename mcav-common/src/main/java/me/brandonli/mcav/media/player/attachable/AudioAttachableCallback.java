@@ -20,13 +20,13 @@ package me.brandonli.mcav.media.player.attachable;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
- * Represents a callback interface for audio that can be attached to a player.
+ * The slot of a player that holds its audio pipeline. While nothing is attached, audio is decoded and dropped.
  */
 public interface AudioAttachableCallback extends AttachableCallback<AudioPipelineStep> {
   /**
-   * Creates a new instance of {@link AudioAttachableCallback}.
+   * Creates an empty slot.
    *
-   * @return a new {@link AudioAttachableCallback} instance.
+   * @return the slot
    */
   static AudioAttachableCallback create() {
     return new AudioAttachableCallbackImpl();

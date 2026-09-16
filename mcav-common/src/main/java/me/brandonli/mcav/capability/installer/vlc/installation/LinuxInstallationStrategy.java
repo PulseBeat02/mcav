@@ -17,99 +17,94 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.runtime.CommandTask;
+import me.brandonli.mcav.utils.IOUtils;
 
 /**
- * LinuxInstallationStrategy is a concrete implementation of the InstallationStrategy interface for Linux platforms.
+ * Installs VLC on Linux by extracting an AppImage.
+ *
+ * <p>The AppImage is extracted with its built-in {@code --appimage-extract} option, which needs no FUSE support
+ * and writes a {@code squashfs-root} directory next to the AppImage. That directory is moved to the installation
+ * directory, and the directory containing {@code libvlccore.so} inside it is returned.
  */
 public final class LinuxInstallationStrategy extends ManualInstallationStrategy {
 
+  private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.so(?:\\.\\d+)*");
+  private static final String EXTRACTED_DIRECTORY = "squashfs-root";
+  private static final String EXTRACT_OPTION = "--appimage-extract";
+
   /**
-   * Constructs a new LinuxInstallationStrategy with the specified VLCInstaller.
+   * Constructs a new strategy for the installer.
    *
-   * @param installer the VLCInstaller to use for this strategy
+   * @param installer the installer whose installation directory is used
    */
   public LinuxInstallationStrategy(final VLCInstaller installer) {
     super(installer);
   }
 
   /**
-   * This method checks for the existence of VLC binaries in the expected directories. It first checks if the ".junest"
-   * directory exists, and if not, it checks the "usr/lib/i386-linux-gnu" directory. Otherwise, it checks the "usr/lib"
-   * directory.
+   * Constructs a new strategy that runs the AppImage through the specified runner.
+   *
+   * @param installer     the installer whose installation directory is used
+   * @param processRunner runs the AppImage extraction
    */
-  @Override
-  public Optional<Path> getInstalledPath() {
-    final VLCInstaller installer = this.getInstaller();
-    final Path path = installer.getPath();
-    final Path junest = path.resolve(".junest");
-    if (Files.notExists(junest)) {
-      final Path usr = path.resolve("usr");
-      final Path lib = usr.resolve("lib");
-      final Path folder = lib.resolve("i386-linux-gnu");
-      return Files.exists(folder) ? Optional.of(folder) : Optional.empty();
-    } else {
-      final Path usr = junest.resolve("usr");
-      final Path folder = usr.resolve("lib");
-      return Files.exists(folder) ? Optional.of(folder) : Optional.empty();
-    }
+  LinuxInstallationStrategy(final VLCInstaller installer, final ProcessRunner processRunner) {
+    super(installer, processRunner);
   }
 
   /**
-   * This method executes the installation process for VLC binaries on Linux platforms. It extracts the AppImage, copies
-   * the necessary files, and loads the required libraries.
+   * Looks for {@code libvlccore.so} inside the installation directory.
+   *
+   * @return the directory that contains the library, or empty if VLC has not been installed
+   * @throws IOException if the installation directory cannot be searched
    */
   @Override
-  public Path execute() throws IOException {
-    final VLCInstaller installer = this.getInstaller();
-    final Path appImage = installer.getPath();
-    final Path parent = requireNonNull(appImage.getParent());
-    final Path folder = parent.resolve("vlc-junest");
-    Files.createDirectories(folder);
-
-    final String rawAppImage = appImage.toString();
-    final String rawFolder = folder.toString();
-    this.runNativeProcess("chmod", "+x", rawAppImage);
-    this.runNativeProcess(rawAppImage, "--appimage-extract");
-    this.runNativeProcess("cp", "-a", "squashfs-root/.", rawFolder);
-    this.runNativeProcess("rm", "-rf", "squashfs-root");
-    this.runNativeProcess("rm", "-rf", rawAppImage);
-
-    final Path junest = folder.resolve(".junest");
-    if (Files.notExists(junest)) {
-      final Path usr = folder.resolve("usr");
-      final Path lib = usr.resolve("lib");
-      final Path i386 = lib.resolve("i386-linux-gnu");
-      final Path core = i386.resolve("libvlccore.so.9.0.1");
-      final String raw = core.toString();
-      System.load(raw);
-      return i386;
-    } else {
-      final Path usr = junest.resolve("usr");
-      final Path lib = usr.resolve("lib");
-      final Path core = lib.resolve("libvlccore.so.9.0.1");
-      final String raw = core.toString();
-      System.load(raw);
-      return usr.resolve("lib");
-    }
+  public Optional<Path> getInstalledPath() throws IOException {
+    final Path installDirectory = this.getInstallDirectory();
+    return findLibraryDirectory(installDirectory, CORE_LIBRARY);
   }
 
-  private void runNativeProcess(final String... arguments) throws IOException {
-    final CommandTask task = new CommandTask(arguments, true);
-    final Process process = task.getProcess();
-    try {
-      process.waitFor();
-    } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-      throw new AssertionError(e);
+  /**
+   * Extracts the AppImage, moves the extracted tree to the installation directory, and deletes the AppImage.
+   *
+   * @param archive the downloaded AppImage
+   * @return the directory that contains {@code libvlccore.so}
+   * @throws IOException if the AppImage cannot be extracted or does not contain the library
+   */
+  @Override
+  public Path execute(final Path archive) throws IOException {
+    Preconditions.checkNotNull(archive, "Archive must not be null");
+    final Path absoluteArchive = archive.toAbsolutePath();
+    final Path parentOrNull = absoluteArchive.getParent();
+    final Path workingDirectory = Objects.requireNonNull(parentOrNull, "A downloaded file lies in a directory");
+    final Path extracted = workingDirectory.resolve(EXTRACTED_DIRECTORY);
+    final Path installDirectory = this.getInstallDirectory();
+    deleteRecursively(extracted);
+    deleteRecursively(installDirectory);
+    this.extractAppImage(absoluteArchive, workingDirectory, extracted);
+    Files.move(extracted, installDirectory);
+    Files.deleteIfExists(absoluteArchive);
+    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, CORE_LIBRARY);
+    if (libraryDirectory.isEmpty()) {
+      throw new IOException("The extracted VLC AppImage does not contain libvlccore.so");
+    }
+    return libraryDirectory.get();
+  }
+
+  private void extractAppImage(final Path archive, final Path workingDirectory, final Path extracted) throws IOException {
+    IOUtils.markExecutable(archive);
+    final String rawArchive = archive.toString();
+    this.runProcess(workingDirectory, rawArchive, EXTRACT_OPTION);
+    final boolean extractedExists = Files.isDirectory(extracted);
+    if (!extractedExists) {
+      throw new IOException("Extracting the VLC AppImage did not produce " + extracted);
     }
   }
 }

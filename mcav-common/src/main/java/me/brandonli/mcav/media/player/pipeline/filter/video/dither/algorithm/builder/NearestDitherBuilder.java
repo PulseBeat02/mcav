@@ -20,11 +20,9 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 
 /**
- * Builder for creating instances of {@code NearestDither} algorithms.
+ * Builds nearest color algorithms, which have no settings besides the palette.
  *
- * @param <T> the type parameter representing an implementation of {@code NearestDither}
- *            to be built.
- * @param <B> the type parameter representing the concrete builder implementation
- *            extending {@code SimpleDiffusionDitherBuilder}.
+ * @param <T> the type of algorithm the builder creates
+ * @param <B> the type of the builder itself, for method chaining
  */
 public interface NearestDitherBuilder<T extends NearestDither, B extends NearestDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {}

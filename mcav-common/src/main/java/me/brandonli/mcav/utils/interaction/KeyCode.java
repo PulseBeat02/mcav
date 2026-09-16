@@ -17,11 +17,14 @@
  */
 package me.brandonli.mcav.utils.interaction;
 
-import java.util.OptionalInt;
-import java.util.stream.IntStream;
+import com.google.common.base.Preconditions;
+import java.util.Locale;
+import java.util.Optional;
 
 /**
- * Represents a key code used in keyboard interactions.
+ * Special keys that interactive players can type, such as {@link #ENTER} or {@link #ARROW_LEFT}. Each key is
+ * represented by a character from the private use area of Unicode, the same convention WebDriver uses, so the
+ * characters can be mixed into ordinary text; see {@link KeyUtils}.
  */
 public enum KeyCode {
   /** Represents a null or undefined key. */
@@ -159,37 +162,61 @@ public enum KeyCode {
   /** Represents the Zenkaku/Hankaku key used in Japanese keyboards. */
   ZENKAKU_HANKAKU('\uE040');
 
-  private final char keyCode;
-  private final int codePoint;
+  private static final KeyCode[] VALUES = values();
 
-  KeyCode(final KeyCode key) {
-    this(key.charAt(0));
+  private final char keyChar;
+
+  KeyCode(final KeyCode alias) {
+    this(alias.keyChar);
   }
 
-  KeyCode(final char keyCode) {
-    final String keyString = String.valueOf(keyCode);
-    final IntStream codePoints = keyString.codePoints();
-    final OptionalInt first = codePoints.findFirst();
-    this.keyCode = keyCode;
-    this.codePoint = first.orElseThrow();
+  KeyCode(final char keyChar) {
+    this.keyChar = keyChar;
   }
 
   /**
-   * Returns the character representation of this key code.
+   * Finds a key by its name, ignoring case, such as {@code enter} or {@code ARROW_LEFT}.
    *
-   * @param index the index of the character to retrieve, typically 0 for single-character key codes.
-   * @return the character representation of this key code, or '\0' if the index is not 0.
+   * @param name the name of the key
+   * @return the key, or empty if no key has that name
    */
-  public char charAt(final int index) {
-    return (index == 0) ? this.keyCode : '\0';
+  public static Optional<KeyCode> fromName(final String name) {
+    Preconditions.checkNotNull(name, "Name must not be null");
+    final String upper = name.toUpperCase(Locale.ROOT);
+    for (final KeyCode key : VALUES) {
+      final String keyName = key.name();
+      if (keyName.equals(upper)) {
+        return Optional.of(key);
+      }
+    }
+    return Optional.empty();
   }
 
   /**
-   * Returns the code point of this key code.
+   * Gets the character that represents this key. The characters are taken from the private use area of Unicode
+   * and are understood by WebDriver-based browsers.
    *
-   * @return the code point of this key code.
+   * @return the key character
+   */
+  public char getKeyChar() {
+    return this.keyChar;
+  }
+
+  /**
+   * Gets the code point of {@link #getKeyChar()}.
+   *
+   * @return the code point
    */
   public int getCodePoint() {
-    return this.codePoint;
+    return this.keyChar;
+  }
+
+  /**
+   * Gets the key as a one-character string, for example to pass to a keyboard API.
+   *
+   * @return the key character as a string
+   */
+  public String asString() {
+    return String.valueOf(this.keyChar);
   }
 }

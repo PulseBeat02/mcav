@@ -17,8 +17,11 @@
  */
 package me.brandonli.mcav.media.player.metadata;
 
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * A concrete implementation of the {@code AudioMetadata} interface.
+ * The default {@link OriginalAudioMetadata}.
  */
 public final class OriginalAudioMetadataImpl implements OriginalAudioMetadata {
 
@@ -42,43 +45,57 @@ public final class OriginalAudioMetadataImpl implements OriginalAudioMetadata {
     this.samplingFormat = samplingFormat;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getAudioCodec() {
     return this.codec;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getSamplingFormat() {
     return this.samplingFormat;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getAudioBitrate() {
     return this.audioBitrate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getAudioSampleRate() {
     return this.audioSampleRate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getAudioChannels() {
     return this.audioChannels;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final OriginalAudioMetadataImpl metadata)) {
+      return false;
+    }
+    return (
+      this.codec.equals(metadata.codec) &&
+      this.audioBitrate == metadata.audioBitrate &&
+      this.audioSampleRate == metadata.audioSampleRate &&
+      this.audioChannels == metadata.audioChannels &&
+      this.samplingFormat == metadata.samplingFormat
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.codec, this.audioBitrate, this.audioSampleRate, this.audioChannels, this.samplingFormat);
+  }
+
+  @Override
+  public String toString() {
+    return (
+      "AudioMetadata[" + this.codec + ", " + this.audioSampleRate + " Hz, " + this.audioChannels + " ch, " + this.audioBitrate + " bps]"
+    );
   }
 }

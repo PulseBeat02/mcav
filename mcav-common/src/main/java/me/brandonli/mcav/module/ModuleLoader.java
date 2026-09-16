@@ -17,73 +17,176 @@
  */
 package me.brandonli.mcav.module;
 
+import com.google.common.base.Preconditions;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import me.brandonli.mcav.utils.ThrowableUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Loads and manages MCAV modules.
+ * Creates, starts, and stops the modules of the library.
+ *
+ * <p>Modules are created through their no-argument constructor, which may be package-private, so module classes
+ * can hide their constructor from library users. Modules are started in the order they were requested and stopped
+ * in reverse order.
  */
 public final class ModuleLoader {
 
-  private final Map<Class<?>, MCAVModule> modules;
+  private static final Logger LOGGER = LoggerFactory.getLogger(ModuleLoader.class);
 
-  ModuleLoader() {
-    this.modules = new HashMap<>();
+  private final Map<Class<?>, MCAVModule> modules;
+  private final List<MCAVModule> startOrder;
+
+  /**
+   * Constructs a new loader without any modules. {@link me.brandonli.mcav.MCAV} creates one for you.
+   */
+  public ModuleLoader() {
+    this.modules = new ConcurrentHashMap<>();
+    this.startOrder = new ArrayList<>();
   }
 
   /**
-   * Internal implementation
-   * @param moduleClass the class of the module to retrieve
-   * @return the module instance of the specified class
-   * @param <T> the type of the module, which extends {@link MCAVModule}
+   * Gets a started module.
+   *
+   * @param moduleClass the class of the module
+   * @param <T>         the type of the module
+   * @return the module
+   * @throws ModuleException if no module of that class was started
    */
   public <T extends MCAVModule> T getModule(final Class<T> moduleClass) {
+    Preconditions.checkNotNull(moduleClass, "Module class must not be null");
     final MCAVModule module = this.modules.get(moduleClass);
     if (module == null) {
       final String name = moduleClass.getSimpleName();
-      final String msg = "Module %s does not exist or is not loaded!".formatted(name);
-      throw new ModuleException(msg);
+      final String message = "Module %s is not installed".formatted(name);
+      throw new ModuleException(message);
     }
     return moduleClass.cast(module);
   }
 
   /**
-   * Internal implementation
-   * @param plugins the classes of the plugins to load
+   * Creates and starts the specified modules. Every class is checked before the first module is created, so an
+   * invalid class never leaves some of the modules started. Classes whose module was started before are skipped.
+   *
+   * <p>A module that fails to start is stopped again right away, so it can release whatever it acquired before
+   * failing. If a module cannot be created or fails to start, the modules started before it stay started; stop them
+   * with {@link #shutdownModules()}.
+   *
+   * @param moduleClasses the module classes, which must implement {@link MCAVModule}
+   * @throws ModuleException if a class is not a module, cannot be created, or fails to start
    */
-  public void loadPlugins(final Class<?>... plugins) {
-    final MethodType type = MethodType.methodType(void.class);
-    final MethodHandles.Lookup originalLookup = MethodHandles.lookup();
-    for (final Class<?> plugin : plugins) {
-      if (!MCAVModule.class.isAssignableFrom(plugin)) {
-        final String name = plugin.getSimpleName();
-        final String msg = "Plugin %s is not a valid MCAV plugin!".formatted(name);
-        throw new ModuleException(msg);
+  public synchronized void loadModules(final Class<?>... moduleClasses) {
+    Preconditions.checkNotNull(moduleClasses, "Module classes must not be null");
+    for (final Class<?> moduleClass : moduleClasses) {
+      Preconditions.checkNotNull(moduleClass, "Module class must not be null");
+      final boolean isModule = MCAVModule.class.isAssignableFrom(moduleClass);
+      if (!isModule) {
+        final String name = moduleClass.getSimpleName();
+        final String message = "%s does not implement MCAVModule".formatted(name);
+        throw new ModuleException(message);
       }
-      final MCAVModule module = this.tryPluginLoad(plugin, originalLookup, type);
-      final Class<?> moduleClass = module.getClass();
+    }
+    final MethodType constructorType = MethodType.methodType(void.class);
+    final MethodHandles.Lookup lookup = MethodHandles.lookup();
+    for (final Class<?> moduleClass : moduleClasses) {
+      final boolean alreadyLoaded = this.modules.containsKey(moduleClass);
+      if (alreadyLoaded) {
+        continue;
+      }
+      final MCAVModule module = createModule(moduleClass, lookup, constructorType);
+      startModule(module);
       this.modules.put(moduleClass, module);
-      module.start();
+      this.startOrder.add(module);
     }
   }
 
-  private MCAVModule tryPluginLoad(final Class<?> plugin, final MethodHandles.Lookup originalLookup, final MethodType type) {
+  private static void startModule(final MCAVModule module) {
+    final String moduleName = module.getModuleName();
+    LOGGER.info("Starting module {}", moduleName);
     try {
-      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(plugin, originalLookup);
-      final MethodHandle constructor = lookup.findConstructor(plugin, type);
-      return (MCAVModule) constructor.invoke();
-    } catch (final Throwable e) {
-      throw new ModuleException(e.getMessage(), e);
+      module.start();
+    } catch (final ModuleException exception) {
+      stopAfterFailedStart(module, exception);
+      throw exception;
+    } catch (final RuntimeException exception) {
+      final String reason = exception.getMessage();
+      final String message = "Module %s failed to start: %s".formatted(moduleName, reason);
+      final ModuleException failure = new ModuleException(message, exception);
+      stopAfterFailedStart(module, failure);
+      throw failure;
     }
   }
 
   /**
-   * Internal implementation
+   * Stops a module whose start failed, so whatever it acquired before failing is released. A failure to stop is
+   * logged and attached to the start failure instead of replacing it.
    */
-  public void shutdownPlugins() {
-    this.modules.values().forEach(MCAVModule::stop);
+  private static void stopAfterFailedStart(final MCAVModule module, final ModuleException startFailure) {
+    try {
+      module.stop();
+    } catch (final RuntimeException | Error stopFailure) {
+      // a module is foreign code, so a failed stop must not replace the start failure; only a virtual machine error,
+      // which no module can cause or recover from, is too severe to be attached
+      ThrowableUtils.throwIfFatal(stopFailure);
+      final String moduleName = module.getModuleName();
+      LOGGER.error("Module {} failed to stop after it failed to start", moduleName, stopFailure);
+      startFailure.addSuppressed(stopFailure);
+    }
+  }
+
+  private static MCAVModule createModule(final Class<?> moduleClass, final MethodHandles.Lookup lookup, final MethodType constructorType) {
+    try {
+      final MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(moduleClass, lookup);
+      final MethodHandle constructor = privateLookup.findConstructor(moduleClass, constructorType);
+      final Object instance = constructor.invoke();
+      return (MCAVModule) instance;
+    } catch (final Throwable throwable) {
+      // invoking a method handle throws Throwable, so everything a constructor throws becomes a module failure except a
+      // virtual machine error, which must reach the caller unwrapped
+      ThrowableUtils.throwIfFatal(throwable);
+      final String name = moduleClass.getSimpleName();
+      final String reason = throwable.getMessage();
+      final String message = "Module %s could not be created: %s".formatted(name, reason);
+      throw new ModuleException(message, throwable);
+    }
+  }
+
+  /**
+   * Stops every started module in reverse start order. A module that fails to stop is logged and the remaining
+   * modules are still stopped.
+   */
+  public synchronized void shutdownModules() {
+    final List<MCAVModule> reversed = new ArrayList<>(this.startOrder);
+    Collections.reverse(reversed);
+    for (final MCAVModule module : reversed) {
+      final String moduleName = module.getModuleName();
+      try {
+        module.stop();
+      } catch (final RuntimeException | Error exception) {
+        // one broken module, even one failing an assertion or a native call, must not keep the others running; only a
+        // virtual machine error stops the shutdown, because nothing can be released reliably after it
+        ThrowableUtils.throwIfFatal(exception);
+        LOGGER.error("Module {} failed to stop", moduleName, exception);
+      }
+    }
+    this.startOrder.clear();
+    this.modules.clear();
+  }
+
+  /**
+   * Gets every started module.
+   *
+   * @return the started modules in start order
+   */
+  public synchronized Collection<MCAVModule> getModules() {
+    return List.copyOf(this.startOrder);
   }
 }

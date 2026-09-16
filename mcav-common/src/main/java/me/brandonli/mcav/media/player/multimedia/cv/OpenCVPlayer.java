@@ -17,26 +17,34 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 
 /**
- * Represents a video player that uses OpenCV for frame grabbing.
+ * A player that decodes media with the video capture module of OpenCV, which supports files and cameras but no
+ * audio. Prefer {@link FFmpegPlayer} unless a capture backend of OpenCV is needed. Create instances with
+ * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#opencv()}.
  */
 public final class OpenCVPlayer extends AbstractVideoPlayerCV {
 
   /**
-   * Constructs a new OpenCVPlayer instance.
+   * Constructs a new OpenCV player.
    */
   public OpenCVPlayer() {
-    // no-op
+    // configured by the base class
   }
 
   /**
-   * {@inheritDoc}
+   * Creates an OpenCV grabber for a resource, which the player configures and starts.
+   *
+   * @param resource the resource to decode, such as a file path or a URL
+   * @return a new, unstarted OpenCV grabber
+   * @throws NullPointerException if the resource is null
    */
   @Override
-  public FrameGrabber getFrameGrabber(final String uri) {
-    return new OpenCVFrameGrabber(uri);
+  protected FrameGrabber createFrameGrabber(final String resource) {
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    return new OpenCVFrameGrabber(resource);
   }
 }

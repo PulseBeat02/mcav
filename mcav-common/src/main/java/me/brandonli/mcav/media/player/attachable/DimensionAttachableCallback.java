@@ -20,13 +20,14 @@ package me.brandonli.mcav.media.player.attachable;
 import me.brandonli.mcav.utils.immutable.Dimension;
 
 /**
- * Represents a callback for attaching a custom dimension to a media player.
+ * The slot of a player that holds the size frames are scaled to. While nothing is attached, frames keep their
+ * original size.
  */
 public interface DimensionAttachableCallback extends AttachableCallback<Dimension> {
   /**
-   * Creates a new instance of {@link DimensionAttachableCallback}.
+   * Creates an empty slot.
    *
-   * @return a new instance of {@link DimensionAttachableCallback}
+   * @return the slot
    */
   static DimensionAttachableCallback create() {
     return new DimensionAttachableCallbackImpl();

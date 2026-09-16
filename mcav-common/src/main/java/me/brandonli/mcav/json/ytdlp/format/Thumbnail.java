@@ -17,23 +17,27 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
-/** Thumbnail **/
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/**
+ * One thumbnail of a video, as listed by yt-dlp.
+ */
 public class Thumbnail {
 
   Thumbnail() {
-    // no-op
+    // populated by Gson
   }
 
-  /** url **/
-  public String url;
-  /** preference **/
+  /** The URL of the image. */
+  public @Nullable String url;
+  /** How strongly yt-dlp prefers the thumbnail over the others, where higher is better. */
   public int preference;
-  /** id **/
-  public String id;
-  /** height **/
+  /** The identifier of the thumbnail among the thumbnails of the video. */
+  public @Nullable String id;
+  /** The height of the image in pixels, or zero if unknown. */
   public int height;
-  /** width **/
+  /** The width of the image in pixels, or zero if unknown. */
   public int width;
-  /** resolution **/
-  public String resolution;
+  /** The resolution of the image as text, such as {@code 1920x1080}, or null if unknown. */
+  public @Nullable String resolution;
 }

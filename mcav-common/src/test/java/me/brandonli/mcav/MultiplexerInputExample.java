@@ -17,12 +17,10 @@
  */
 package me.brandonli.mcav;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URI;
-import javax.swing.*;
-import javax.swing.border.LineBorder;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
+import me.brandonli.mcav.json.ytdlp.format.Format;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
@@ -31,79 +29,63 @@ import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
-import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.DirectAudioOutput;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.uri.UriSource;
+import me.brandonli.mcav.utils.immutable.Dimension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("all")
+/**
+ * Resolves a YouTube video with yt-dlp into its best separate video and audio streams and plays both in sync.
+ */
 public final class MultiplexerInputExample {
 
-  public static void main(final String[] args) throws Exception {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
+
+  static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     api.install();
 
-    final JFrame video = new JFrame("Video Player");
-    video.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    video.setSize(1920, 1080);
-    video.getContentPane().setBackground(Color.GREEN);
-
-    final JLabel videoLabel = new JLabel();
-    videoLabel.setPreferredSize(new Dimension(1800, 1000));
-    videoLabel.setHorizontalAlignment(JLabel.CENTER);
-    videoLabel.setVerticalAlignment(JLabel.CENTER);
-    videoLabel.setBorder(new LineBorder(Color.BLACK, 3));
-
-    video.setLayout(new BorderLayout());
-    video.add(videoLabel, BorderLayout.CENTER);
-    video.setVisible(true);
-
-    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8"));
+    final URI uri = URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8");
+    final UriSource page = UriSource.uri(uri);
     final YTDLPParser parser = YTDLPParser.simple();
-    final URLParseDump dump = parser.parse(source);
+    final URLParseDump dump = parser.parse(page);
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
-    final UriSource videoFormat = selector.getVideoSource(dump).toUriSource();
-    final UriSource audioFormat = selector.getAudioSource(dump).toUriSource();
+    final Format videoFormat = selector.getVideoSource(dump);
+    final Format audioFormat = selector.getAudioSource(dump);
+    final UriSource videoSource = videoFormat.toUriSource();
+    final UriSource audioSource = audioFormat.toUriSource();
 
-    BufferedImage bufferedImage;
-    ImageIcon icon;
-    final DirectAudioOutput output = new DirectAudioOutput();
-    output.start();
+    final SwingVideoWindow window = new SwingVideoWindow("YouTube", 1280, 720);
+    final DirectAudioOutput speakers = new DirectAudioOutput();
+    speakers.start();
 
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(output);
-    final VideoPipelineStep videoPipelineStep = PipelineBuilder.video()
-      .then((samples, metadata) -> {
-        videoLabel.setIcon(new ImageIcon(samples.toBufferedImage()));
-        return true;
-      })
-      .build();
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
+    final VideoFilter display = window.asFilter();
+    final VideoPipelineStep videoPipeline = VideoPipelineStep.of(display);
 
-    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
-    multiplexer.setExceptionHandler((context, throwable) -> {
-      System.err.println("Error occurred while processing media: " + context);
-      throwable.printStackTrace();
-    });
-
-    final VideoAttachableCallback videoCallback = multiplexer.getVideoAttachableCallback();
-    videoCallback.attach(videoPipelineStep);
-
-    final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
-    audioCallback.attach(audioPipelineStep);
-
-    final DimensionAttachableCallback dimensionCallback = multiplexer.getDimensionAttachableCallback();
-    final me.brandonli.mcav.utils.immutable.Dimension dimension = new me.brandonli.mcav.utils.immutable.Dimension(1800, 1000);
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback failed in {}", context, throwable));
+    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+    videoCallback.attach(videoPipeline);
+    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+    audioCallback.attach(audioPipeline);
+    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+    final Dimension dimension = new Dimension(1280, 720);
     dimensionCallback.attach(dimension);
 
-    multiplexer.start(videoFormat, audioFormat);
+    player.start(videoSource, audioSource);
 
-    Runtime.getRuntime()
-      .addShutdownHook(
-        new Thread(() -> {
-          output.release();
-          multiplexer.release();
-          api.release();
-        })
-      );
+    final Runtime runtime = Runtime.getRuntime();
+    runtime.addShutdownHook(
+      new Thread(() -> {
+        player.release();
+        speakers.release();
+        api.release();
+      })
+    );
   }
 }

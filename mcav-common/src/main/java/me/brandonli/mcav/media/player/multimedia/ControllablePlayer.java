@@ -17,68 +17,68 @@
  */
 package me.brandonli.mcav.media.player.multimedia;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 /**
- * An interface for media players that can be controlled to pause and resume playback.
+ * A player whose playback can be paused and resumed.
  */
 public interface ControllablePlayer {
   /**
-   * Pauses media playback if it is currently playing.
+   * Pauses playback, keeping the current position.
    *
-   * @return true if the media playback is successfully paused; false otherwise.
+   * @return true if playback was paused, false if nothing is playing or it was already paused
    */
   boolean pause();
 
   /**
-   * Asynchronously pauses media playback using the default {@link ForkJoinPool#commonPool()} executor.
+   * Pauses playback on the common pool.
    *
-   * @return a {@code CompletableFuture} representing the asynchronous operation, which completes
-   * with {@code true} if the media playback is successfully paused, or {@code false} otherwise.
+   * @return a future that completes with the result of {@link #pause()}
    */
   default CompletableFuture<Boolean> pauseAsync() {
-    return this.pauseAsync(ForkJoinPool.commonPool());
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.pauseAsync(pool);
   }
 
   /**
-   * Pauses media playback asynchronously using the provided {@link ExecutorService}..
+   * Pauses playback on an executor.
    *
-   * @param executor the {@link ExecutorService} to be used for executing the asynchronous operation
-   * @return a {@code CompletableFuture} that completes with {@code true} if the media playback
-   * is successfully paused, or {@code false} otherwise
+   * @param executor the executor that runs the call
+   * @return a future that completes with the result of {@link #pause()}
    */
   default CompletableFuture<Boolean> pauseAsync(final ExecutorService executor) {
+    Preconditions.checkNotNull(executor, "Executor must not be null");
     return CompletableFuture.supplyAsync(this::pause, executor);
   }
 
   /**
-   * Resumes the playback of the media from the current timestamp.
+   * Resumes playback after {@link #pause()}.
    *
-   * @return {@code true} if the playback was successfully resumed, {@code false} otherwise.
+   * @return true if playback was resumed, false if nothing is playing or it was not paused
    */
   boolean resume();
 
   /**
-   * Resumes playback of the media asynchronously using a default thread pool.
+   * Resumes playback on the common pool.
    *
-   * @return a {@code CompletableFuture} representing the asynchronous operation,
-   * which completes with {@code true} if the playback resumes successfully,
-   * or {@code false} otherwise.
+   * @return a future that completes with the result of {@link #resume()}
    */
   default CompletableFuture<Boolean> resumeAsync() {
-    return this.resumeAsync(ForkJoinPool.commonPool());
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.resumeAsync(pool);
   }
 
   /**
-   * Asynchronously resumes playback of media using a provided {@link ExecutorService}.
+   * Resumes playback on an executor.
    *
-   * @param executor the {@link ExecutorService} to be used for executing the asynchronous operation
-   * @return a {@link CompletableFuture} that completes with {@code true} if playback was successfully resumed,
-   * or {@code false} if it failed
+   * @param executor the executor that runs the call
+   * @return a future that completes with the result of {@link #resume()}
    */
   default CompletableFuture<Boolean> resumeAsync(final ExecutorService executor) {
+    Preconditions.checkNotNull(executor, "Executor must not be null");
     return CompletableFuture.supplyAsync(this::resume, executor);
   }
 }

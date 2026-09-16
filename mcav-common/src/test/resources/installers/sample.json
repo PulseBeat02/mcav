@@ -1,0 +1,11 @@
+[
+  {
+    "platform": { "os": "LINUX", "arch": "X86", "bits": "BITS_64" },
+    "url": "https://example.com/tool-linux",
+    "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "platform": { "os": "WINDOWS", "arch": "X86", "bits": "BITS_64" },
+    "url": "https://example.com/tool.exe"
+  }
+]

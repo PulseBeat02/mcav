@@ -17,11 +17,15 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import org.bytedeco.opencv.global.opencv_core;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.utils.opencv.ImageUtils;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 /**
- * A video filter that modifies a specified rectangular region of a video frame to a given scalar value.
+ * Fills a rectangle of every frame with a solid color. Parts of the rectangle that extend past the edge of the
+ * frame are ignored.
  */
 public class RegionScalarFilter extends MatVideoFilter {
 
@@ -29,37 +33,46 @@ public class RegionScalarFilter extends MatVideoFilter {
   private final int y;
   private final int width;
   private final int height;
-  private final Mat scalar;
+  private final Scalar color;
 
   /**
-   * Constructs a RegionScalarFilter with the specified region and scalar value.
+   * Constructs a new region fill filter.
    *
-   * @param x           the x-coordinate of the top-left corner of the region
-   * @param y           the y-coordinate of the top-left corner of the region
-   * @param width       the width of the region
-   * @param height      the height of the region
-   * @param scalarValue an array representing the scalar value to set in the region (should be of length 3 for RGB)
+   * @param x      the x coordinate of the top left corner
+   * @param y      the y coordinate of the top left corner
+   * @param width  the width of the rectangle, which must be positive
+   * @param height the height of the rectangle, which must be positive
+   * @param color  the blue, green, and red components of the color, from 0 to 255
    */
-  public RegionScalarFilter(final int x, final int y, final int width, final int height, final double[] scalarValue) {
+  public RegionScalarFilter(final int x, final int y, final int width, final int height, final double[] color) {
+    Preconditions.checkArgument(x >= 0 && y >= 0, "Region origin must not be negative");
+    Preconditions.checkArgument(width > 0 && height > 0, "Region size must be positive");
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
-    this.scalar = new Mat(1, 3, opencv_core.CV_8U);
-    final byte[] byteValues = new byte[scalarValue.length];
-    for (int i = 0; i < scalarValue.length; i++) {
-      byteValues[i] = (byte) scalarValue[i];
-    }
-    this.scalar.data().put(byteValues);
+    this.color = ImageUtils.toScalar(color);
   }
 
   /**
-   * {@inheritDoc}
+   * Fills the part of the rectangle that lies inside the frame with the color, in place.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true if part of the rectangle was filled, false if the rectangle lies outside of the frame and the frame
+   *     was left untouched
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    final Mat submat = mat.adjustROI(this.x, this.y, this.width, this.height);
-    submat.setTo(this.scalar);
+  protected boolean modifyMat(final Mat mat) {
+    final int frameWidth = mat.cols();
+    final int frameHeight = mat.rows();
+    final int clampedWidth = Math.min(this.width, frameWidth - this.x);
+    final int clampedHeight = Math.min(this.height, frameHeight - this.y);
+    if (clampedWidth <= 0 || clampedHeight <= 0) {
+      return false;
+    }
+    try (final Rect bounds = new Rect(this.x, this.y, clampedWidth, clampedHeight); final Mat region = new Mat(mat, bounds)) {
+      region.put(this.color);
+    }
     return true;
   }
 }

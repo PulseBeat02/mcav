@@ -17,92 +17,135 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
- * OSXInstallationStrategy is a concrete implementation of the InstallationStrategy interface for macOS platforms.
+ * Installs VLC on macOS by copying {@code VLC.app} out of the downloaded disk image.
+ *
+ * <p>The disk image is attached read-only at a private mount point, so it never shows up in Finder, the
+ * application bundle is copied into the installation directory with {@code cp -R} to preserve its symbolic links,
+ * and the image is detached and deleted afterward. The returned directory is {@code VLC.app/Contents/MacOS/lib},
+ * which contains {@code libvlc.dylib}.
  */
 public final class OSXInstallationStrategy extends ManualInstallationStrategy {
 
+  private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dylib");
   private static final String VLC_APP = "VLC.app";
+  private static final String MOUNT_DIRECTORY = "vlc-mount";
 
   /**
-   * Constructs a new OSXInstallationStrategy with the specified VLCInstaller.
+   * Constructs a new strategy for the installer.
    *
-   * @param installer the VLCInstaller to use for this strategy
+   * @param installer the installer whose installation directory is used
    */
   public OSXInstallationStrategy(final VLCInstaller installer) {
     super(installer);
   }
 
   /**
-   * {@inheritDoc}
-   * <p>
-   * This method checks for the existence of VLC binaries in the expected directories. It first checks if the "VLC.app"
-   * directory exists, and if not, it checks the "Contents/MacOS/lib" directory.
+   * Constructs a new strategy that runs {@code hdiutil} and {@code cp} through the specified runner.
+   *
+   * @param installer     the installer whose installation directory is used
+   * @param processRunner runs the disk image tools
    */
-  @Override
-  public Optional<Path> getInstalledPath() {
-    final VLCInstaller installer = this.getInstaller();
-    final Path path = installer.getPath();
-    final Path parent = requireNonNull(path.getParent());
-    final Path app = parent.resolve(VLC_APP);
-    final Path contents = app.resolve("Contents");
-    final Path macos = contents.resolve("MacOS");
-    final Path lib = macos.resolve("lib");
-    return Files.exists(lib) ? Optional.of(lib) : Optional.empty();
+  OSXInstallationStrategy(final VLCInstaller installer, final ProcessRunner processRunner) {
+    super(installer, processRunner);
   }
 
   /**
-   * {@inheritDoc}
-   * <p>
-   * This method installs VLC binaries by mounting the DMG file, copying the VLC application, setting permissions, and
-   * unmounting the disk image.
+   * Looks for {@code libvlc.dylib} inside the installation directory.
    *
-   * @throws IOException if an I/O error occurs during installation
+   * @return the directory that contains the library, or empty if VLC has not been installed
+   * @throws IOException if the installation directory cannot be searched
    */
   @Override
-  public Path execute() throws IOException {
-    final VLCInstaller installer = this.getInstaller();
-    final Path disk = Path.of("/Volumes/VLC media player");
-    final String raw = disk.toString();
-
-    final Path appFolder = installer.getPath();
-    final String appFolderRaw = appFolder.toString();
-
-    final Path parent = requireNonNull(appFolder.getParent());
-    final Path app = parent.resolve(VLC_APP);
-    final String appRaw = app.toString();
-
-    final Path dmg = installer.getPath();
-    final String dmgRaw = dmg.toString();
-
-    final Path src = disk.resolve(VLC_APP);
-    final String srcRaw = src + "/";
-    IOUtils.createDirectoryIfNotExists(app);
-
-    this.runNativeProcess("hdiutil", "attach", dmgRaw);
-    this.runNativeProcess("mkdir", "-p", appRaw);
-    this.runNativeProcess("cp", "-R", srcRaw, appRaw);
-    this.runNativeProcess("chmod", "-R", "755", appRaw);
-    this.runNativeProcess("diskutil", "unmount", raw);
-    this.runNativeProcess("rm", "-rf", appFolderRaw);
-    installer.writePathToConfig(app);
-
-    final Path contents = app.resolve("Contents");
-    final Path macos = contents.resolve("MacOS");
-    return macos.resolve("lib");
+  public Optional<Path> getInstalledPath() throws IOException {
+    final Path installDirectory = this.getInstallDirectory();
+    return findLibraryDirectory(installDirectory, LIBRARY);
   }
 
-  private void runNativeProcess(final String... arguments) throws IOException {
-    new CommandTask(arguments, true);
+  /**
+   * Copies {@code VLC.app} out of the disk image into the installation directory and deletes the disk image.
+   *
+   * @param archive the downloaded disk image
+   * @return the directory that contains {@code libvlc.dylib}
+   * @throws IOException if the disk image cannot be mounted or copied, or does not contain the library
+   */
+  @Override
+  public Path execute(final Path archive) throws IOException {
+    Preconditions.checkNotNull(archive, "Archive must not be null");
+    final Path installDirectory = this.getInstallDirectory();
+    final Path parentOrNull = installDirectory.getParent();
+    final Path parent = Objects.requireNonNull(parentOrNull, "The installation directory lies in the installer folder");
+    final Path mountPoint = parent.resolve(MOUNT_DIRECTORY);
+    deleteRecursively(installDirectory);
+    Files.createDirectories(installDirectory);
+    Files.createDirectories(mountPoint);
+    this.copyFromDiskImage(archive, mountPoint, installDirectory);
+    Files.deleteIfExists(archive);
+    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY);
+    if (libraryDirectory.isEmpty()) {
+      throw new IOException("The VLC disk image does not contain libvlc.dylib");
+    }
+    return libraryDirectory.get();
+  }
+
+  /**
+   * Mounts the disk image read-only, copies {@code VLC.app} out of it, and unmounts it again. When the copy fails,
+   * the image is still detached, and a failure to detach is attached to the copy failure instead of hiding it.
+   */
+  private void copyFromDiskImage(final Path archive, final Path mountPoint, final Path installDirectory) throws IOException {
+    final String rawArchive = archive.toString();
+    final String rawMountPoint = mountPoint.toString();
+    final String rawInstallDirectory = installDirectory.toString();
+    this.runProcess(null, "hdiutil", "attach", "-nobrowse", "-readonly", "-mountpoint", rawMountPoint, rawArchive);
+    try {
+      final Path mountedApp = mountPoint.resolve(VLC_APP);
+      final String rawMountedApp = mountedApp.toString();
+      this.runProcess(null, "cp", "-R", rawMountedApp, rawInstallDirectory);
+    } catch (final IOException copyFailure) {
+      this.detachAfterFailure(mountPoint, copyFailure);
+      throw copyFailure;
+    }
+    this.detach(mountPoint);
+  }
+
+  private void detachAfterFailure(final Path mountPoint, final IOException copyFailure) {
+    try {
+      this.detach(mountPoint);
+    } catch (final IOException detachFailure) {
+      copyFailure.addSuppressed(detachFailure);
+    }
+  }
+
+  /**
+   * Detaches the disk image, forcing it when a regular detach fails, for example because a process still has a file
+   * of the image open. The mount point is only deleted once the image is detached, because deleting it while mounted
+   * would reach into the image.
+   */
+  private void detach(final Path mountPoint) throws IOException {
+    final String rawMountPoint = mountPoint.toString();
+    try {
+      this.runProcess(null, "hdiutil", "detach", rawMountPoint);
+    } catch (final IOException detachFailure) {
+      this.forceDetach(rawMountPoint, detachFailure);
+    }
+    deleteRecursively(mountPoint);
+  }
+
+  private void forceDetach(final String rawMountPoint, final IOException detachFailure) throws IOException {
+    try {
+      this.runProcess(null, "hdiutil", "detach", "-force", rawMountPoint);
+    } catch (final IOException forcedFailure) {
+      detachFailure.addSuppressed(forcedFailure);
+      throw detachFailure;
+    }
   }
 }

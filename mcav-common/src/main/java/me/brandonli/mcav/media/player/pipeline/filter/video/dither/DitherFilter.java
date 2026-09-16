@@ -17,59 +17,95 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * A filter that applies a dithering effect to video frames using a specified dithering algorithm
- * and a result-processing callback.
+ * A video filter that hands every frame together with a dithering algorithm to a {@link DitherResultStep}, which
+ * dithers the frame and displays the result. This is how frames reach map displays.
+ *
+ * <pre><code>
+ *   final DitherAlgorithm algorithm = DitherAlgorithm.filterLite();
+ *   final DitherResultStep maps = new CompressedMapResult(configuration);
+ *   final FunctionalVideoFilter display = DitherFilter.dither(algorithm, maps);
+ *   final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+ *   builder.then(display);
+ *   final VideoPipelineStep pipeline = builder.build();
+ * </code></pre>
  */
 public final class DitherFilter implements FunctionalVideoFilter {
 
   private final DitherAlgorithm algorithm;
-  private final DitherResultStep callback;
+  private final DitherResultStep result;
 
-  DitherFilter(final DitherAlgorithm algorithm, final DitherResultStep callback) {
+  DitherFilter(final DitherAlgorithm algorithm, final DitherResultStep result) {
     this.algorithm = algorithm;
-    this.callback = callback;
+    this.result = result;
   }
 
   /**
-   * A factory method for creating a {@link FunctionalVideoFilter} that applies a dithering effect to video frames.
+   * Creates a filter that dithers frames with the algorithm and passes them to the result step.
    *
-   * @param algorithm the dithering algorithm to be used for the transformation of video frames
-   * @param callback  the callback to handle the dithered video output and its associated metadata
-   * @return a {@link VideoFilter} instance that applies the specified dithering algorithm and uses the callback for result processing
+   * @param algorithm the dithering algorithm
+   * @param result    the step that receives the frames
+   * @return the filter
    */
-  public static FunctionalVideoFilter dither(final DitherAlgorithm algorithm, final DitherResultStep callback) {
-    return new DitherFilter(algorithm, callback);
+  public static FunctionalVideoFilter dither(final DitherAlgorithm algorithm, final DitherResultStep result) {
+    Preconditions.checkNotNull(algorithm, "Algorithm must not be null");
+    Preconditions.checkNotNull(result, "Result step must not be null");
+    return new DitherFilter(algorithm, result);
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the dithering algorithm.
+   *
+   * @return the algorithm
+   */
+  public DitherAlgorithm getAlgorithm() {
+    return this.algorithm;
+  }
+
+  /**
+   * Gets the step that receives the frames.
+   *
+   * @return the result step
+   */
+  public DitherResultStep getResult() {
+    return this.result;
+  }
+
+  /**
+   * Hands a frame to the result step.
+   *
+   * @param samples  the frame
+   * @param metadata the metadata of the original video
+   * @return true, because the result step may modify the frame
    */
   @Override
   public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    this.callback.process(samples, this.algorithm);
+    Preconditions.checkNotNull(samples, "Samples must not be null");
+    this.result.process(samples, this.algorithm);
     return true;
   }
 
   /**
-   * {@inheritDoc}
+   * Prepares the result step, which for example creates the maps of the display. Pipelines call this once before
+   * the first frame.
    */
   @Override
   public void start() {
-    this.callback.start();
+    this.result.start();
   }
 
   /**
-   * {@inheritDoc}
+   * Releases the result step, which for example removes the maps of the display. Pipelines call this once after the
+   * last frame.
    */
   @Override
   public void release() {
-    this.callback.release();
+    this.result.release();
   }
 }

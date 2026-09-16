@@ -22,27 +22,39 @@ import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.javacpp.Loader;
 
 /**
- * Provides the path to the FFmpeg executable required for executing FFmpeg-related commands.
+ * Locates the FFmpeg command-line executable bundled with JavaCV. The executable is extracted from the platform
+ * jar the first time it is requested, so the first call may take a moment.
  */
 public final class FFmpegExecutableProvider {
-
-  private static final Path FFMPEG_PATH;
-
-  static {
-    final String path = Loader.load(ffmpeg.class);
-    FFMPEG_PATH = Path.of(path);
-  }
 
   private FFmpegExecutableProvider() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Returns the path to the FFmpeg executable.
+   * Gets the path of the FFmpeg executable, extracting it on first use.
    *
-   * @return the path to the FFmpeg executable as a {@code Path} object
+   * @return the path of the executable
+   * @throws UnsatisfiedLinkError if JavaCV does not ship FFmpeg for this platform
    */
   public static Path getFFmpegPath() {
-    return FFMPEG_PATH;
+    return ExecutableHolder.EXECUTABLE;
+  }
+
+  /**
+   * Extracts the executable the first time it is needed; the JVM guarantees that this happens exactly once.
+   */
+  private static final class ExecutableHolder {
+
+    private static final Path EXECUTABLE = extract();
+
+    private ExecutableHolder() {
+      throw new UnsupportedOperationException("Holder class cannot be instantiated");
+    }
+
+    private static Path extract() {
+      final String location = Loader.load(ffmpeg.class);
+      return Path.of(location);
+    }
   }
 }

@@ -17,39 +17,47 @@
  */
 package me.brandonli.mcav.media.source.frame;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.image.DynamicImageBuffer;
 
 /**
- * Represents a source of frames that can be repeated a specified number of times.
+ * Plays the frames of an animated image, such as a GIF, in a loop.
+ *
+ * <p>The supplier of the source hands out the pixels of the animation frames themselves, so looping copies nothing:
+ * the returned arrays are shared and read-only, and the same arrays come back in every loop, see
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()}. Use
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} for pixels you may modify and
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#getReadOnlyPixels()} for a view you can hand to other code.
  */
 public interface RepeatingFrameSource extends FrameSource {
   /**
-   * Returns the number of times the frame should be repeated.
+   * Creates a source that loops an animation a fixed number of times, then keeps showing its last frame.
    *
-   * @return the repeat count
+   * @param animation   the decoded animation, which must stay open while the source is played
+   * @param repeatCount how often the animation is played, at least 1
+   * @return the source
+   */
+  static RepeatingFrameSource repeating(final DynamicImageBuffer animation, final int repeatCount) {
+    Preconditions.checkNotNull(animation, "Animation must not be null");
+    Preconditions.checkArgument(repeatCount > 0, "Repeat count must be positive");
+    return new RepeatingFrameSourceImpl(animation, repeatCount);
+  }
+
+  /**
+   * Creates a source that loops an animation forever.
+   *
+   * @param animation the decoded animation, which must stay open while the source is played
+   * @return the source
+   */
+  static RepeatingFrameSource repeating(final DynamicImageBuffer animation) {
+    Preconditions.checkNotNull(animation, "Animation must not be null");
+    return new RepeatingFrameSourceImpl(animation, Integer.MAX_VALUE);
+  }
+
+  /**
+   * Gets how often the animation is played.
+   *
+   * @return the repeat count, or {@link Integer#MAX_VALUE} for endless looping
    */
   int getRepeatCount();
-
-  /**
-   * Creates a new {@link RepeatingFrameSource} instance, which repeats the frames
-   * of a given {@link DynamicImageBuffer} for the specified number of times.
-   *
-   * @param source the dynamic image whose frames will be repeated
-   * @param repeatCount the number of times each frame is repeated; must be positive, or -1 for infinite repetition
-   * @return a new instance of {@link RepeatingFrameSource} configured with the provided source and repeat count
-   */
-  static RepeatingFrameSource repeating(final DynamicImageBuffer source, final int repeatCount) {
-    return new RepeatingFrameSourceImpl(source, repeatCount);
-  }
-
-  /**
-   * Creates a new {@link RepeatingFrameSource} instance, which repeats the frames
-   * of a given {@link DynamicImageBuffer} indefinitely.
-   *
-   * @param source the dynamic image whose frames will be repeated
-   * @return a new instance of {@link RepeatingFrameSource} configured with the provided source for infinite repetition
-   */
-  static RepeatingFrameSource repeating(final DynamicImageBuffer source) {
-    return new RepeatingFrameSourceImpl(source, Integer.MAX_VALUE);
-  }
 }

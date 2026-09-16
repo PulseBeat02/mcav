@@ -18,47 +18,39 @@
 package me.brandonli.mcav.media.source.frame;
 
 /**
- * A concrete implementation of the {@link FrameSource} interface.
+ * The default {@link FrameSource}.
  */
-public class FrameSourceImpl implements FrameSource {
+public final class FrameSourceImpl implements FrameSource {
 
-  private final SampleSupplier frameSamplesSupplier;
+  private final SampleSupplier supplier;
   private final int width;
   private final int height;
+  private final float frameRate;
 
-  FrameSourceImpl(final SampleSupplier supplier, final int width, final int height) {
-    this.frameSamplesSupplier = supplier;
+  FrameSourceImpl(final SampleSupplier supplier, final int width, final int height, final float frameRate) {
+    this.supplier = supplier;
     this.width = width;
     this.height = height;
+    this.frameRate = frameRate;
   }
 
-  FrameSourceImpl(final ImageSupplier supplier, final int width, final int height) {
-    this.frameSamplesSupplier = supplier.toSampleSupplier();
-    this.width = width;
-    this.height = height;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public SampleSupplier supplyFrameSamples() {
-    return this.frameSamplesSupplier;
+    return this.supplier;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getFrameWidth() {
     return this.width;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getFrameHeight() {
     return this.height;
+  }
+
+  @Override
+  public float getFrameRate() {
+    return this.frameRate;
   }
 }

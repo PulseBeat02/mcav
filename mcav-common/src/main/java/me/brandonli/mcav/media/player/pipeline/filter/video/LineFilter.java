@@ -24,7 +24,7 @@ import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
 /**
- * A filter that draws a line on a video frame from a specified start point to an end point with a given color.
+ * Draws a straight line onto every frame.
  */
 public class LineFilter extends MatVideoFilter {
 
@@ -33,25 +33,28 @@ public class LineFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a LineFilter with specified start and end points and color.
+   * Constructs a new line filter.
    *
-   * @param startX      the x-coordinate of the start point
-   * @param startY      the y-coordinate of the start point
-   * @param endX        the x-coordinate of the end point
-   * @param endY        the y-coordinate of the end point
-   * @param colorScalar an array representing the color in BGR format
+   * @param startX the x coordinate of the start of the line
+   * @param startY the y coordinate of the start of the line
+   * @param endX   the x coordinate of the end of the line
+   * @param endY   the y coordinate of the end of the line
+   * @param color  the blue, green, and red components of the color, from 0 to 255
    */
-  public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] colorScalar) {
+  public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] color) {
     this.start = new Point(startX, startY);
     this.end = new Point(endX, endY);
-    this.color = ImageUtils.toScalar(colorScalar);
+    this.color = ImageUtils.toScalar(color);
   }
 
   /**
-   * {@inheritDoc}
+   * Draws the line onto the frame in place. Parts of the line outside of the frame are cut off.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat mat) {
     opencv_imgproc.line(mat, this.start, this.end, this.color);
     return true;
   }

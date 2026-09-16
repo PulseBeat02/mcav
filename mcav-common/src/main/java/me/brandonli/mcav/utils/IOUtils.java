@@ -17,384 +17,651 @@
  */
 package me.brandonli.mcav.utils;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.InterruptedIOException;
+import java.io.OutputStream;
+import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.URI;
-import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.CopyOption;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.media.source.uri.UriSource;
+import me.brandonli.mcav.utils.http.HttpDownloader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Utility class providing various input/output operations and utilities, primarily focusing
- * on file, networking, and compression tasks.
+ * File, hashing, network, and archive helpers used throughout the library.
+ *
+ * <p>Methods that fail throw {@link UncheckedIOException}, so callers that cannot recover from I/O errors do not
+ * have to handle checked exceptions.
  */
 public final class IOUtils {
 
-  private static final long MAX_FILE_SIZE = 100 * 1024 * 1024L;
-  private static final long MAX_TOTAL_SIZE = 500 * 1024 * 1024L;
+  private static final String INSTALLER_RESOURCE_FOLDER = "installers/";
+  private static final long MAX_ZIP_ENTRY_SIZE = 512L * 1024L * 1024L;
+  private static final long MAX_ZIP_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
+  private static final int COPY_BUFFER_SIZE = 64 * 1024;
+  private static final int FIRST_VNC_PORT = 5900;
+  private static final int LAST_PORT = 65535;
+  private static final Set<PosixFilePermission> EXECUTABLE_PERMISSIONS = PosixFilePermissions.fromString("rwxr-xr-x");
+  private static final int MOVE_ATTEMPTS = 3;
+  private static final Duration MOVE_RETRY_DELAY = Duration.ofMillis(100);
+  private static final int ZIP_SIGNATURE_LENGTH = 4;
+  private static final byte[] ZIP_LOCAL_FILE_HEADER = { 0x50, 0x4B, 0x03, 0x04 };
+  private static final byte[] ZIP_END_OF_CENTRAL_DIRECTORY = { 0x50, 0x4B, 0x05, 0x06 };
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Extracts the file name from a given URL.
-   * The method parses the URL, retrieves its path, and extracts the file name from it.
+   * Extracts the file name from the path of a URL.
    *
-   * @param url the URL from which to extract the file name. Must not be null.
-   * @return the file name as a {@link String}. If the URL does not contain a valid file name,
-   *         it returns an empty string.
-   * @throws NullPointerException if the provided URL is null.
+   * @param url the URL, such as {@code https://example.com/files/video.mp4}
+   * @return the last segment of the path, such as {@code video.mp4}, or an empty string if the path is empty
+   * @throws IllegalArgumentException if the URL is not a valid URI
    */
   public static String getFileNameFromUrl(final String url) {
+    Preconditions.checkNotNull(url, "URL must not be null");
     final URI uri = URI.create(url);
     final String uriPath = uri.getPath();
-    final Path path = Paths.get(uriPath);
-    return getName(path);
+    if (uriPath == null || uriPath.isEmpty()) {
+      return "";
+    }
+    final int lastSlash = uriPath.lastIndexOf('/');
+    return uriPath.substring(lastSlash + 1);
   }
 
   /**
-   * Gets the next available free VNC port on the local machine.
-   * This method tries to bind to ports starting from 5900 (standard VNC port)
-   * and returns the first available port in the VNC port range.
+   * Finds a free TCP port, starting at the standard VNC port 5900.
    *
-   * @return the port number of the next available free VNC port
-   * @throws UncheckedIOException if no free port is available in the VNC port range
+   * @return the first free port at or above 5900
+   * @throws UncheckedIOException if no port is free
    */
   public static int getNextFreeVNCPort() {
-    int port = 5900;
-    final int maxPort = 65535;
-    while (port <= maxPort) {
-      try (final ServerSocket socket = new ServerSocket(port)) {
-        return port;
-      } catch (final IOException e) {
-        port++;
-      }
-    }
-    throw new UncheckedIOException("No free VNC ports available in range 5900-65535", new IOException("Failed to find free port"));
+    return findFreePort(FIRST_VNC_PORT, LAST_PORT);
   }
 
   /**
-   * Creates a directory at the specified path if it does not already exist.
-   * If the directory is created successfully, its parent directories are also created.
+   * Finds the first port in a range that nothing is listening on.
    *
-   * @param path the {@link Path} specifying the directory to be created. Must not be {@code null}.
-   * @return {@code true} if the directory was created successfully, {@code false} if the directory already exists.
-   * @throws NullPointerException if the specified path or its parent is {@code null}.
-   * @throws UncheckedIOException if an I/O error occurs while attempting to create the directory.
+   * @param firstPort the first port to try
+   * @param lastPort  the last port to try
+   * @return the free port
+   * @throws UncheckedIOException if every port in the range is in use
+   */
+  @VisibleForTesting
+  static int findFreePort(final int firstPort, final int lastPort) {
+    for (int port = firstPort; port <= lastPort; port++) {
+      try (final ServerSocket socket = new ServerSocket(port)) {
+        return socket.getLocalPort();
+      } catch (final IOException exception) {
+        // the port is in use, try the next one
+      }
+    }
+    final String message = "No free port available in range %d-%d".formatted(firstPort, lastPort);
+    final BindException noFreePort = new BindException(message);
+    throw new UncheckedIOException(message, noFreePort);
+  }
+
+  /**
+   * Creates a directory and all of its missing parent directories.
+   *
+   * @param path the directory to create
+   * @return true if the directory was created, false if it already existed
+   * @throws UncheckedIOException if the directory cannot be created, for example because a file of the same name
+   *                              exists
    */
   public static boolean createDirectoryIfNotExists(final Path path) {
-    try {
-      if (Files.notExists(path)) {
-        final Path parent = requireNonNull(path.getParent());
-        Files.createDirectories(parent);
-        Files.createDirectory(path);
-        return true;
-      }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+    Preconditions.checkNotNull(path, "Path must not be null");
+    final boolean exists = Files.isDirectory(path);
+    if (exists) {
+      return false;
     }
-    return false;
+    try {
+      Files.createDirectories(path);
+      return true;
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
+    }
   }
 
   /**
-   * Creates a new file at the specified path if it does not already exist.
+   * Creates an empty file and all of its missing parent directories.
    *
-   * @param path the path of the file to create if it does not exist
-   * @return true if the file was successfully created, false if the file already exists
-   * @throws AssertionError if an I/O error occurs while creating the file
+   * @param path the file to create
+   * @return true if the file was created, false if it already existed
+   * @throws UncheckedIOException if the file cannot be created
    */
   public static boolean createFileIfNotExists(final Path path) {
+    Preconditions.checkNotNull(path, "Path must not be null");
+    final boolean exists = Files.exists(path);
+    if (exists) {
+      return false;
+    }
     try {
-      if (Files.notExists(path)) {
-        final Path parent = requireNonNull(path.getParent());
+      final Path parent = path.getParent();
+      if (parent != null) {
         Files.createDirectories(parent);
-        Files.createFile(path);
-        return true;
       }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+      Files.createFile(path);
+      return true;
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
     }
-    return false;
   }
 
   /**
-   * Generates the SHA-256 hash of the content retrieved from the given URL.
-   * The method reads the content from the specified URL, computes its SHA-256 hash,
-   * and returns the hash as a hexadecimal string.
+   * Marks a file as executable for its owner and readable for everyone, without giving other users write access.
+   * Does nothing on file systems without POSIX permissions, such as Windows.
    *
-   * @param url the URL pointing to the resource whose content needs to be hashed. Must not be null.
-   * @return a hexadecimal string representation of the SHA-256 hash of the content.
-   * @throws NullPointerException if the provided URL is null.
-   * @throws UncheckedIOException if an I/O error occurs while reading the content from the URL.
+   * @param file the file to mark
+   * @throws UncheckedIOException if the permissions cannot be changed
    */
-  public static String getSHA256Hash(final String url) {
+  public static void markExecutable(final Path file) {
+    Preconditions.checkNotNull(file, "File must not be null");
+    final FileSystem fileSystem = file.getFileSystem();
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean posix = views.contains("posix");
+    if (!posix) {
+      return;
+    }
     try {
-      final HashFunction function = Hashing.sha256();
-      final URI uri = URI.create(url);
-      final URL urlObj = uri.toURL();
-      try (final InputStream stream = urlObj.openStream()) {
-        final byte[] bytes = stream.readAllBytes();
-        final HashCode code = function.hashBytes(bytes);
-        final byte[] hash = code.asBytes();
-        return bytesToHex(hash);
-      }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+      Files.setPosixFilePermissions(file, EXECUTABLE_PERMISSIONS);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
     }
   }
 
   /**
-   * Generates the SHA-256 hash of the file located at the specified path.
-   * The method reads the entire content of the file and computes its SHA-1 hash.
+   * Deletes a file or a directory tree. Missing paths are ignored, and symbolic links are deleted without following
+   * them, including links whose target no longer exists. Like {@link #moveReplacing(Path, Path)}, this method throws the
+   * checked {@link IOException}, because its callers are installers that report every failure that way.
    *
-   * @param path the {@link Path} of the file for which the SHA-256 hash needs to be computed
-   * @return a hexadecimal {@link String} representation of the SHA-256 hash of the file
-   * @throws AssertionError if an {@link IOException} occurs while reading the file
+   * @param path the file or directory to delete
+   * @throws IOException if a file cannot be deleted
+   */
+  public static void deleteRecursively(final Path path) throws IOException {
+    Preconditions.checkNotNull(path, "Path must not be null");
+    // a link whose target is gone does not exist when followed, but still has to be deleted
+    final boolean exists = Files.exists(path, LinkOption.NOFOLLOW_LINKS);
+    if (!exists) {
+      return;
+    }
+    try (final Stream<Path> files = Files.walk(path)) {
+      final Comparator<Path> deepestFirst = Comparator.reverseOrder();
+      final Stream<Path> sorted = files.sorted(deepestFirst);
+      final List<Path> ordered = sorted.toList();
+      for (final Path file : ordered) {
+        Files.deleteIfExists(file);
+      }
+    }
+  }
+
+  /**
+   * Moves a file into place, replacing an existing file. The move is atomic where the file system supports it, so
+   * readers see either the old or the new file; file systems without atomic moves replace the file with a regular
+   * move instead. Unlike most methods of this class, this one throws the checked {@link IOException}, because its
+   * callers already handle it.
+   *
+   * <p>A move that is denied access is tried up to three times in total, 100 and 200 milliseconds apart, because on
+   * Windows another process such as a virus scanner or the search indexer may hold a freshly written file for a
+   * moment. A move that is still denied after that, such as one that lacks the permission for good, fails with the
+   * last {@link AccessDeniedException}. Moves of the same target from several threads are not coordinated here; the
+   * callers that need that, such as {@link HttpDownloader}, serialize their moves themselves.
+   *
+   * @param source the file to move
+   * @param target the destination, which is replaced if it exists
+   * @throws IOException if the file cannot be moved
+   */
+  public static void moveReplacing(final Path source, final Path target) throws IOException {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(target, "Target must not be null");
+    moveReplacing(source, target, Files::move, MOVE_RETRY_DELAY);
+  }
+
+  /**
+   * Moves a file with the specified mover, falling back to a regular move when the atomic move is not supported and
+   * trying a move that is denied access again after a delay.
+   *
+   * @param source     the file to move
+   * @param target     the destination, which is replaced if it exists
+   * @param mover      performs the move
+   * @param retryDelay the delay before the second attempt; the third attempt waits twice as long
+   * @throws IOException if the file cannot be moved
+   */
+  @VisibleForTesting
+  static void moveReplacing(final Path source, final Path target, final FileMover mover, final Duration retryDelay) throws IOException {
+    for (int attempt = 1;; attempt++) {
+      try {
+        moveOnce(source, target, mover);
+        return;
+      } catch (final AccessDeniedException exception) {
+        if (attempt == MOVE_ATTEMPTS) {
+          throw exception;
+        }
+        sleepBeforeMoveRetry(retryDelay, attempt, exception);
+      }
+    }
+  }
+
+  private static void moveOnce(final Path source, final Path target, final FileMover mover) throws IOException {
+    try {
+      mover.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    } catch (final AtomicMoveNotSupportedException exception) {
+      mover.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+  }
+
+  private static void sleepBeforeMoveRetry(final Duration retryDelay, final int attempt, final AccessDeniedException failure)
+    throws IOException {
+    try {
+      final Duration delay = retryDelay.multipliedBy(attempt);
+      Thread.sleep(delay);
+    } catch (final InterruptedException exception) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+      final InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting to retry a denied move");
+      interrupted.initCause(failure);
+      throw interrupted;
+    }
+  }
+
+  /**
+   * Moves a file, like {@link Files#move(Path, Path, CopyOption...)}.
+   */
+  @FunctionalInterface
+  @VisibleForTesting
+  interface FileMover {
+    /**
+     * Moves the file.
+     *
+     * @param source  the file to move
+     * @param target  the destination
+     * @param options how the file is moved
+     * @throws IOException if the file cannot be moved
+     */
+    void move(Path source, Path target, CopyOption... options) throws IOException;
+  }
+
+  /**
+   * Computes the SHA-256 hash of a file. The file is streamed, so it is never held in memory completely.
+   *
+   * @param path the file to hash
+   * @return the hash as lowercase hexadecimal
+   * @throws UncheckedIOException if the file cannot be read
    */
   public static String getSHA256Hash(final Path path) {
-    try {
-      final HashFunction function = Hashing.sha256();
-      try (final InputStream stream = Files.newInputStream(path)) {
-        final byte[] bytes = stream.readAllBytes();
-        final HashCode code = function.hashBytes(bytes);
-        final byte[] hash = code.asBytes();
-        return bytesToHex(hash);
-      }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
-    }
+    Preconditions.checkNotNull(path, "Path must not be null");
+    return hashFile(path, "SHA-256");
   }
 
   /**
-   * Generates the SHA-1 hash of the file located at the specified path.
-   * The method reads the entire content of the file and computes its SHA-1 hash.
+   * Computes the SHA-1 hash of a file. The file is streamed, so it is never held in memory completely. SHA-1 is
+   * only suitable for identifying files, not for security purposes.
    *
-   * @param path the {@link Path} of the file for which the SHA-1 hash needs to be computed
-   * @return a hexadecimal {@link String} representation of the SHA-1 hash of the file
-   * @throws AssertionError if an {@link IOException} occurs while reading the file
+   * @param path the file to hash
+   * @return the hash as lowercase hexadecimal
+   * @throws UncheckedIOException if the file cannot be read
    */
   public static String getSHA1Hash(final Path path) {
-    try {
-      @SuppressWarnings("deprecation")
-      final HashFunction function = Hashing.sha1();
-      try (final InputStream stream = Files.newInputStream(path)) {
-        final byte[] bytes = stream.readAllBytes();
-        final HashCode code = function.hashBytes(bytes);
-        final byte[] hash = code.asBytes();
-        return bytesToHex(hash);
+    Preconditions.checkNotNull(path, "Path must not be null");
+    return hashFile(path, "SHA-1");
+  }
+
+  private static String hashFile(final Path path, final String algorithm) {
+    final MessageDigest digest = createDigest(algorithm);
+    try (final InputStream stream = Files.newInputStream(path)) {
+      final byte[] buffer = new byte[COPY_BUFFER_SIZE];
+      int read = stream.read(buffer);
+      while (read != -1) {
+        digest.update(buffer, 0, read);
+        read = stream.read(buffer);
       }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
+    }
+    final byte[] hash = digest.digest();
+    final HexFormat hex = HexFormat.of();
+    return hex.formatHex(hash);
+  }
+
+  @VisibleForTesting
+  static MessageDigest createDigest(final String algorithm) {
+    try {
+      return MessageDigest.getInstance(algorithm);
+    } catch (final NoSuchAlgorithmException exception) {
+      // every Java runtime is required to provide SHA-1 and SHA-256, so only a wrong name gets here
+      throw new IllegalStateException("The Java runtime does not provide " + algorithm, exception);
     }
   }
 
   /**
-   * Converts an array of bytes into a hexadecimal string representation.
-   * Each byte in the array is represented as a two-character hexadecimal string,
-   * with leading zeros added if necessary to ensure two characters per byte.
+   * Converts bytes into lowercase hexadecimal, two characters per byte.
    *
-   * @param bytes the byte array to be converted to a hexadecimal string. Must not be null.
-   * @return a string representing the hexadecimal encoding of the input byte array.
-   * Returns an empty string if the input array is empty.
+   * @param bytes the bytes to convert
+   * @return the hexadecimal string, which is empty for an empty array
    */
   public static String bytesToHex(final byte[] bytes) {
-    final int size = bytes.length;
-    final StringBuilder hexString = new StringBuilder(2 * size);
-    for (final byte b : bytes) {
-      final String hex = Integer.toHexString(0xff & b);
-      if (hex.length() == 1) {
-        hexString.append('0');
+    Preconditions.checkNotNull(bytes, "Bytes must not be null");
+    final StringBuilder hex = new StringBuilder(bytes.length * 2);
+    for (final byte value : bytes) {
+      final int unsigned = value & 0xFF;
+      final String digits = Integer.toHexString(unsigned);
+      if (digits.length() == 1) {
+        hex.append('0');
       }
-      hexString.append(hex);
+      hex.append(digits);
     }
-    return hexString.toString();
+    return hex.toString();
   }
 
   /**
-   * Retrieves the name of the file or directory referenced by the specified path.
+   * Gets the name of the file or directory a path points to.
    *
-   * @param path the {@code Path} object representing the file or directory
-   *             for which the name is to be retrieved. Must not be {@code null}.
-   * @return the name of the file or directory as a {@code String}.
-   * @throws NullPointerException if the provided path is {@code null}.
+   * @param path the path
+   * @return the last element of the path
+   * @throws IllegalArgumentException if the path has no elements, such as a root directory
    */
   public static String getName(final Path path) {
-    final Path fileName = requireNonNull(path.getFileName());
+    Preconditions.checkNotNull(path, "Path must not be null");
+    final Path fileName = path.getFileName();
+    if (fileName == null) {
+      throw new IllegalArgumentException("Path has no file name: " + path);
+    }
     return fileName.toString();
   }
 
   /**
-   * Downloads an image from the specified URI source and stores it in the cache folder.
-   * If the image already exists in the cache folder, it returns the existing cached file.
-   * A default filename is generated if the resource URL does not contain a valid file name.
+   * Downloads an image into the cache folder. The file name is derived from the URL, so downloading the same URL
+   * again overwrites the cached copy.
    *
-   * @param source the URI source containing the resource URL from which the image will be downloaded.
-   *               Must not be null and should produce a valid URI.
-   * @return the {@link Path} to the downloaded image file in the cache folder.
+   * @param source the URL of the image
+   * @return the path to the downloaded image
+   * @throws UncheckedIOException if the image cannot be downloaded
    */
   public static Path downloadImage(final UriSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
     final String url = source.getResource();
-    final byte[] bytes = url.getBytes();
-    final UUID uuid = UUID.nameUUIDFromBytes(bytes);
-    final String name = uuid.toString();
+    final byte[] urlBytes = url.getBytes(StandardCharsets.UTF_8);
+    final UUID id = UUID.nameUUIDFromBytes(urlBytes);
+    final String fileName = id.toString();
     final Path cache = getCachedFolder();
-    final Path destination = cache.resolve(name);
+    final Path destination = cache.resolve(fileName);
     final URI uri = URI.create(url);
     try {
-      final URL urlObj = uri.toURL();
-      try (final InputStream in = urlObj.openStream()) {
-        Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
-      }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+      HttpDownloader.download(uri, destination);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
     }
     return destination;
   }
 
   /**
-   * Retrieves the path to the cached folder used by the application.
-   * If the required directory does not exist, it will be created.
+   * Gets the cache folder of the library, which is {@code ~/.mcav/cache}. The folder is created if it does not
+   * exist.
    *
-   * @return the {@code Path} object representing the cache folder
-   * @throws AssertionError if the directory cannot be created due to an I/O error
+   * @return the absolute path of the cache folder
+   * @throws UncheckedIOException if the folder cannot be created
    */
   public static Path getCachedFolder() {
     final String home = System.getProperty("user.home");
-    final Path cacheDir = Path.of(home, ".mcav", "cache");
-    if (Files.notExists(cacheDir)) {
-      try {
-        Files.createDirectories(cacheDir);
-      } catch (final IOException e) {
-        throw new UncheckedIOException(e.getMessage(), e);
-      }
-    }
-    return cacheDir.toAbsolutePath();
+    final Path cacheDirectory = Path.of(home, ".mcav", "cache");
+    createDirectoryIfNotExists(cacheDirectory);
+    return cacheDirectory.toAbsolutePath();
   }
 
   /**
-   * Reads Download array from a JSON resource in the classpath.
+   * Reads the download list of an installer from the {@code installers} resource folder.
    *
-   * @param resourcePath path to the JSON resource
-   * @return array of Download objects
-   * @throws JsonSyntaxException if the JSON is invalid
+   * @param resourcePath the name of the JSON resource, such as {@code yt-dlp.json}
+   * @return the downloads described by the resource
+   * @throws UncheckedIOException if the resource is missing or not valid JSON
    */
   public static Download[] readDownloadsFromJsonResource(final String resourcePath) {
-    final String installerJson = String.format("installers/%s", resourcePath);
+    Preconditions.checkNotNull(resourcePath, "Resource path must not be null");
+    final String installerJson = INSTALLER_RESOURCE_FOLDER + resourcePath;
+    final Download[] downloads;
     try (final Reader reader = getResourceAsStreamReader(installerJson)) {
-      final Gson gson = new Gson();
-      final Type downloadArrayType = new TypeToken<Download[]>() {}.getType();
+      downloads = parseDownloads(reader);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
+    }
+    if (downloads == null) {
+      return new Download[0];
+    }
+    return downloads;
+  }
+
+  /**
+   * Parses a download list. Malformed JSON is reported as an {@link IOException}, because a resource that cannot be
+   * parsed is an I/O failure of that resource, and {@link UncheckedIOException} can only wrap an {@link IOException}.
+   */
+  private static Download@Nullable[] parseDownloads(final Reader reader) throws IOException {
+    final Gson gson = new Gson();
+    final TypeToken<Download[]> typeToken = new TypeToken<>() {};
+    final Type downloadArrayType = typeToken.getType();
+    try {
       return gson.fromJson(reader, downloadArrayType);
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+    } catch (final JsonSyntaxException exception) {
+      final String message = exception.getMessage();
+      throw new IOException(message, exception);
     }
   }
 
   /**
-   * Retrieves a resource as an InputStreamReader from the classpath.
+   * Opens a classpath resource of the library as a UTF-8 reader.
    *
-   * @param resource the path to the resource to be loaded; must not be null
-   * @return an InputStreamReader for the specified resource
-   * @throws NullPointerException if the resource path is null or if the resource cannot be found
+   * @param resource the path of the resource, relative to the classpath root
+   * @return a reader for the resource, which the caller must close
+   * @throws UncheckedIOException if the resource does not exist
+   * @throws NullPointerException if the resource is null
    */
   public static Reader getResourceAsStreamReader(final String resource) {
-    Preconditions.checkNotNull(resource);
-    return new InputStreamReader(getResourceAsInputStream(resource));
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    final InputStream stream = getResourceAsInputStream(resource);
+    return new InputStreamReader(stream, StandardCharsets.UTF_8);
   }
 
   /**
-   * Retrieves a resource as an InputStream from the classpath.
+   * Opens a classpath resource of the library.
    *
-   * @param resource the path to the resource to be loaded; must not be null
-   * @return an InputStream for the specified resource
-   * @throws NullPointerException if the resource path is null or if the resource cannot be found
+   * @param resource the path of the resource, relative to the classpath root
+   * @return an input stream for the resource, which the caller must close
+   * @throws UncheckedIOException if the resource does not exist
+   * @throws NullPointerException if the resource is null
    */
   public static InputStream getResourceAsInputStream(final String resource) {
-    Preconditions.checkNotNull(resource);
-    final ClassLoader classLoader = requireNonNull(IOUtils.class.getClassLoader());
-    return requireNonNull(classLoader.getResourceAsStream(resource));
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    return getResourceAsInputStream(resource, IOUtils.class);
   }
 
   /**
-   * Retrieves a resource as an InputStream from the classpath.
+   * Opens a classpath resource using the class loader of the specified class.
    *
-   * @param resource the path to the resource to be loaded; must not be null
-   * @param clazz the class whose classloader will be used to load the resource; must not be null
-   * @return an InputStream for the specified resource
-   * @throws NullPointerException if the resource path is null or if the resource cannot be found
+   * @param resource    the path of the resource, relative to the classpath root
+   * @param loaderClass the class whose class loader is used to find the resource
+   * @return an input stream for the resource, which the caller must close
+   * @throws UncheckedIOException if the resource does not exist, or the class has no class loader to find it with
+   * @throws NullPointerException if the resource or the class is null
    */
-  public static InputStream getResourceAsInputStream(final String resource, final Class<?> clazz) {
-    Preconditions.checkNotNull(resource);
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    return requireNonNull(classLoader.getResourceAsStream(resource));
-  }
-
-  /**
-   * Extracts the contents of a ZIP file from the specified source path to the destination directory.
-   * Ensures the security and integrity of the extraction process by validating paths and checking size limits.
-   *
-   * @param src  the path to the source ZIP file to be extracted
-   * @param dest the destination directory where the contents of the ZIP file will be extracted
-   */
-  public static void unzip(final Path src, final Path dest) {
-    long totalSize = 0;
-    try (final InputStream fis = Files.newInputStream(src); final ZipInputStream zis = new ZipInputStream(fis)) {
-      ZipEntry entry;
-      while ((entry = zis.getNextEntry()) != null) {
-        final String name = entry.getName();
-        final Path path = dest.resolve(name);
-        final Path resolvedPath = path.normalize();
-        if (!resolvedPath.startsWith(dest)) {
-          final String msg = String.format("Invalid Entry %s", name);
-          throw new ZipEntryIntegrityException(msg);
-        }
-        if (entry.isDirectory()) {
-          Files.createDirectories(resolvedPath);
-        } else {
-          final Path parent = resolvedPath.getParent();
-          if (parent != null && Files.notExists(parent)) {
-            Files.createDirectories(parent);
-          }
-          try (final OutputStream os = Files.newOutputStream(resolvedPath)) {
-            final byte[] buffer = new byte[8192];
-            int bytesRead;
-            long fileSize = 0;
-            while ((bytesRead = zis.read(buffer)) != -1) {
-              fileSize += bytesRead;
-              totalSize += bytesRead;
-              if (fileSize > MAX_FILE_SIZE) {
-                final String msg = String.format("File exceeds maximum size: %s", name);
-                throw new ZipEntryIntegrityException(msg);
-              }
-              if (totalSize > MAX_TOTAL_SIZE) {
-                final String msg = "Total extracted size exceeds limit";
-                throw new ZipEntryIntegrityException(msg);
-              }
-              os.write(buffer, 0, bytesRead);
-            }
-          }
-        }
-        zis.closeEntry();
-      }
-    } catch (final IOException e) {
-      throw new UncheckedIOException(e.getMessage(), e);
+  public static InputStream getResourceAsInputStream(final String resource, final Class<?> loaderClass) {
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    Preconditions.checkNotNull(loaderClass, "Class must not be null");
+    final ClassLoader classLoader = loaderClass.getClassLoader();
+    final InputStream stream = classLoader == null ? null : classLoader.getResourceAsStream(resource);
+    if (stream == null) {
+      final String message = "Resource does not exist: " + resource;
+      final FileNotFoundException missingResource = new FileNotFoundException(message);
+      throw new UncheckedIOException(message, missingResource);
     }
+    return stream;
+  }
+
+  /**
+   * Extracts a zip archive into a directory.
+   *
+   * <p>Entries that would escape the destination directory are rejected, and single entries larger than 512 MB or
+   * archives larger than 2 GB in total are rejected as well, to protect against malicious archives.
+   *
+   * @param archive     the zip archive
+   * @param destination the directory to extract into, which is created if it does not exist
+   * @throws UncheckedIOException        if the file is not a zip archive, cannot be read, or the files cannot be
+   *                                     written
+   * @throws ZipEntryIntegrityException if the archive contains an entry that is not safe to extract
+   * @throws NullPointerException        if the archive or the destination is null
+   */
+  public static void unzip(final Path archive, final Path destination) {
+    Preconditions.checkNotNull(archive, "Archive must not be null");
+    Preconditions.checkNotNull(destination, "Destination must not be null");
+    unzip(archive, destination, MAX_ZIP_ENTRY_SIZE, MAX_ZIP_TOTAL_SIZE);
+  }
+
+  /**
+   * Extracts a zip archive into a directory with custom size limits.
+   *
+   * @param archive      the zip archive
+   * @param destination  the directory to extract into, which is created if it does not exist
+   * @param maxEntrySize the largest number of bytes a single entry may extract to
+   * @param maxTotalSize the largest number of bytes the whole archive may extract to
+   */
+  @VisibleForTesting
+  static void unzip(final Path archive, final Path destination, final long maxEntrySize, final long maxTotalSize) {
+    Preconditions.checkNotNull(archive, "Archive must not be null");
+    Preconditions.checkNotNull(destination, "Destination must not be null");
+
+    final Path absoluteDestination = destination.toAbsolutePath();
+    final Path normalizedDestination = absoluteDestination.normalize();
+    createDirectoryIfNotExists(normalizedDestination);
+    try {
+      requireZipArchive(archive);
+      extractArchive(archive, normalizedDestination, maxEntrySize, maxTotalSize);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new UncheckedIOException(message, exception);
+    }
+  }
+
+  /**
+   * Fails unless a file starts like a zip archive. {@link ZipInputStream} reads any other file as an archive without
+   * entries, which would let a truncated or wrong download pass as an empty archive.
+   */
+  private static void requireZipArchive(final Path archive) throws IOException {
+    final byte[] signature = new byte[ZIP_SIGNATURE_LENGTH];
+    try (final InputStream stream = Files.newInputStream(archive)) {
+      stream.readNBytes(signature, 0, ZIP_SIGNATURE_LENGTH);
+    }
+    final boolean hasEntries = Arrays.equals(signature, ZIP_LOCAL_FILE_HEADER);
+    final boolean empty = Arrays.equals(signature, ZIP_END_OF_CENTRAL_DIRECTORY);
+    if (!hasEntries && !empty) {
+      throw new ZipException("Not a zip archive: " + archive);
+    }
+  }
+
+  private static void extractArchive(final Path archive, final Path destination, final long maxEntrySize, final long maxTotalSize)
+    throws IOException {
+    try (final InputStream fileStream = Files.newInputStream(archive); final ZipInputStream zip = new ZipInputStream(fileStream)) {
+      extractEntries(zip, destination, maxEntrySize, maxTotalSize);
+    }
+  }
+
+  private static void extractEntries(final ZipInputStream zip, final Path destination, final long maxEntrySize, final long maxTotalSize)
+    throws IOException {
+    long totalSize = 0;
+    ZipEntry entry = zip.getNextEntry();
+    while (entry != null) {
+      final long written = extractEntry(zip, entry, destination, maxEntrySize);
+      totalSize += written;
+      if (totalSize > maxTotalSize) {
+        throw new ZipEntryIntegrityException("Total extracted size exceeds the limit");
+      }
+      zip.closeEntry();
+      entry = zip.getNextEntry();
+    }
+  }
+
+  private static long extractEntry(final ZipInputStream zip, final ZipEntry entry, final Path destination, final long maxEntrySize)
+    throws IOException {
+    final String name = entry.getName();
+    final Path target = resolveInside(destination, name);
+    if (entry.isDirectory()) {
+      Files.createDirectories(target);
+      return 0;
+    }
+    final Path parentOrNull = target.getParent();
+    final Path parent = Objects.requireNonNull(parentOrNull, "An entry inside the destination always has a parent");
+    Files.createDirectories(parent);
+    return writeZipEntry(zip, target, name, maxEntrySize);
+  }
+
+  private static Path resolveInside(final Path destination, final String name) {
+    final Path resolved = destination.resolve(name);
+    final Path target = resolved.normalize();
+    final boolean insideDestination = target.startsWith(destination);
+    if (!insideDestination) {
+      final String message = "Zip entry escapes the destination directory: %s".formatted(name);
+      throw new ZipEntryIntegrityException(message);
+    }
+    return target;
+  }
+
+  private static long writeZipEntry(final ZipInputStream zip, final Path target, final String name, final long maxEntrySize)
+    throws IOException {
+    long entrySize = 0;
+    try (final OutputStream output = Files.newOutputStream(target)) {
+      final byte[] buffer = new byte[COPY_BUFFER_SIZE];
+      int read = zip.read(buffer);
+      while (read != -1) {
+        entrySize += read;
+        if (entrySize > maxEntrySize) {
+          final String message = "Zip entry exceeds the maximum size: %s".formatted(name);
+          throw new ZipEntryIntegrityException(message);
+        }
+        output.write(buffer, 0, read);
+        read = zip.read(buffer);
+      }
+    }
+    return entrySize;
   }
 }

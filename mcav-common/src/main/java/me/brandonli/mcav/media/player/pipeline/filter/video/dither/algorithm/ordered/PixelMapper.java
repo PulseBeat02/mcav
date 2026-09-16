@@ -20,44 +20,96 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.or
 import com.google.common.base.Preconditions;
 
 /**
- * An interface representing a pixel mapping strategy.
+ * A threshold pattern for ordered dithering, normalized to the range from -0.5 to 0.5 and scaled by a strength.
+ * The pattern is tiled across the image, and the value under each pixel is added to its color before the closest
+ * palette color is chosen.
  */
 public interface PixelMapper {
   /**
-   * Minimum strength
+   * A subtle strength that only slightly breaks up color bands.
    */
   float MIN_STRENGTH = 0.5f;
 
   /**
-   * Normal strength
+   * The normal strength, which spans the distance between neighboring palette colors.
    */
   float NORMAL_STRENGTH = 1.0f;
 
   /**
-   * Maximum strength
+   * A strong strength that produces a clearly visible pattern.
    */
   float MAX_STRENGTH = 2.0f;
 
   /**
-   * Retrieves a two-dimensional float matrix that defines a mapping or transformation
-   * strategy for pixel data. The matrix encapsulates the algorithm used for pixel mapping.
+   * Gets the normalized threshold pattern, indexed by row and then column.
    *
-   * @return a two-dimensional array of floats representing the pixel mapping or transformation matrix
+   * @return the pattern, which must not be modified
    */
   float[][] getMatrix();
 
   /**
-   * Creates a new instance of {@link PixelMapper} using the provided pixel mapping matrix,
-   * maximum value, and strength factor.
+   * Gets the strength the pattern was scaled by.
    *
-   * @param matrix   the two-dimensional integer array representing the pixel mapping matrix
-   * @param max      the maximum value for the pixel mapping
-   * @param strength the strength factor for the pixel mapping
-   * @return a new instance of {@link PixelMapper}
+   * @return the strength
+   */
+  float getStrength();
+
+  /**
+   * Creates a mapper from a threshold matrix, such as the matrices of {@link BayerDither}.
+   *
+   * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
+   * @param max      the number of levels of the matrix, such as {@link BayerDither#NORMAL_2X2_MAX}; kept for
+   *                 compatibility, the levels are derived from the matrix itself
+   * @param strength the strength, see {@link #NORMAL_STRENGTH}
+   * @return the mapper
+   * @throws NullPointerException     if the matrix is null
+   * @throws IllegalArgumentException if the number of levels or the strength is not positive
+   */
+  static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final int max, final float strength) {
+    Preconditions.checkNotNull(matrix, "Matrix must not be null");
+    final int[][] entries = matrix.toArray();
+    return ofPixelMapper(entries, max, strength);
+  }
+
+  /**
+   * Creates a mapper from a threshold matrix, such as the matrices of {@link BayerDither}.
+   *
+   * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
+   * @param strength the strength, see {@link #NORMAL_STRENGTH}
+   * @return the mapper
+   * @throws NullPointerException     if the matrix is null
+   * @throws IllegalArgumentException if the strength is not positive
+   */
+  static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final float strength) {
+    Preconditions.checkNotNull(matrix, "Matrix must not be null");
+    final int[][] entries = matrix.toArray();
+    return ofPixelMapper(entries, strength);
+  }
+
+  /**
+   * Creates a mapper from an integer threshold matrix.
+   *
+   * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
+   * @param max      the number of levels of the matrix; kept for compatibility, the levels are derived from the
+   *                 matrix itself
+   * @param strength the strength, see {@link #NORMAL_STRENGTH}
+   * @return the mapper
    */
   static PixelMapper ofPixelMapper(final int[][] matrix, final int max, final float strength) {
-    Preconditions.checkNotNull(matrix, "Matrix cannot be null");
-    Preconditions.checkArgument(matrix.length > 0, "Matrix must have at least one row");
-    return new OrderedPixelMapper(matrix, max, strength);
+    Preconditions.checkNotNull(matrix, "Matrix must not be null");
+    Preconditions.checkArgument(max > 0, "Max must be positive");
+    return new OrderedPixelMapper(matrix, strength);
+  }
+
+  /**
+   * Creates a mapper from an integer threshold matrix.
+   *
+   * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
+   * @param strength the strength, see {@link #NORMAL_STRENGTH}
+   * @return the mapper
+   */
+  static PixelMapper ofPixelMapper(final int[][] matrix, final float strength) {
+    Preconditions.checkNotNull(matrix, "Matrix must not be null");
+    return new OrderedPixelMapper(matrix, strength);
   }
 }

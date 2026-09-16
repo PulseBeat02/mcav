@@ -20,31 +20,18 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 
 /**
- * Builder interface for creating instances of {@link RandomDither}.
+ * Builds random dithering algorithms.
  *
- * @param <T> the type parameter representing an implementation of RandomDither to be built.
- * @param <B> the type parameter representing the concrete builder implementation extending RandomDitherBuilder.
+ * @param <T> the type of algorithm the builder creates
+ * @param <B> the type of the builder itself, for method chaining
  */
 public interface RandomDitherBuilder<T extends RandomDither, B extends RandomDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
   /**
-   * Configures the builder with a specific weight for the randomness factor
-   * in the dithering process and returns the builder instance for method-chaining purposes.
+   * Sets the largest noise value added to or subtracted from a channel. Defaults to
+   * {@link RandomDither#NORMAL_WEIGHT}.
    *
-   * @param weight the degree of randomness to be applied in the dithering algorithm. A higher value
-   *               represents a greater degree of randomness, influencing the output of the dithering process.
-   * @return the builder instance after the randomness weight has been set.
+   * @param weight the weight from 0 to 255
+   * @return this builder
    */
-  @SuppressWarnings("unchecked")
-  default B withWeight(final int weight) {
-    this.setWeight(weight);
-    return (B) this;
-  }
-
-  /**
-   * Sets the weight parameter used to configure the degree of randomness in the dithering algorithm.
-   *
-   * @param weight the degree of randomness to be applied in the dithering process.
-   *               Higher values generally result in a more pronounced randomization effect.
-   */
-  void setWeight(int weight);
+  B withWeight(final int weight);
 }

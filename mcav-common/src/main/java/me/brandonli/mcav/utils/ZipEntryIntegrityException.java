@@ -20,13 +20,24 @@ package me.brandonli.mcav.utils;
 import java.io.Serial;
 
 /**
- * Exception thrown when a zip entry's integrity check fails.
+ * Thrown when a zip archive contains an entry that is not safe to extract, such as one that escapes the target
+ * directory or exceeds the size limits.
+ *
+ * <p>This is a plain {@link RuntimeException}: the archive itself is unsafe, which is neither a state of the caller
+ * nor an I/O failure that retrying could fix. It deliberately does not extend {@link java.io.UncheckedIOException}, so a
+ * rejected archive can be told apart from one that merely could not be read, and both can be caught in one
+ * multi-catch clause.
  */
-public class ZipEntryIntegrityException extends AssertionError {
+public class ZipEntryIntegrityException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = -949105092892572153L;
 
+  /**
+   * Constructs a new exception with a detail message and no cause.
+   *
+   * @param message the detail message, which names the rejected entry or the exceeded limit
+   */
   ZipEntryIntegrityException(final String message) {
     super(message);
   }

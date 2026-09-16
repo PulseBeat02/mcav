@@ -1,0 +1,7 @@
+package uk.co.caprica.vlcj.factory.discovery.strategy;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+interface NativeDiscoveryStrategy {
+  @Nullable String discover();
+}

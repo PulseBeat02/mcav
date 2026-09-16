@@ -17,76 +17,98 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.ZipEntryIntegrityException;
 
 /**
- * WinInstallationStrategy is a concrete implementation of the InstallationStrategy interface for Windows platforms.
+ * Installs VLC on Windows by extracting the portable zip.
+ *
+ * <p>The zip contains a single {@code vlc-<version>} directory with {@code libvlc.dll} at its root. The zip is
+ * extracted into a temporary directory, that inner directory is moved to the installation directory, and the
+ * temporary directory and the zip are deleted. The temporary directory is also deleted when the extraction fails.
  */
 public final class WinInstallationStrategy extends ManualInstallationStrategy {
 
-  private static final String VLC_TEMP = "temp-vlc";
-  private static final String VLC_APP = "vlc";
+  private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dll");
+  private static final String TEMP_DIRECTORY = "vlc-extract";
 
   /**
-   * Constructs a new WinInstallationStrategy with the specified VLCInstaller.
+   * Constructs a new strategy for the installer.
    *
-   * @param installer the VLCInstaller to use for this strategy
+   * @param installer the installer whose installation directory is used
    */
   public WinInstallationStrategy(final VLCInstaller installer) {
     super(installer);
   }
 
   /**
-   * {@inheritDoc}
+   * Looks for {@code libvlc.dll} inside the installation directory.
    *
-   * <p>
-   * This method checks for the existence of VLC binaries in the expected directories. It first checks if the "vlc" directory
-   * exists, and if not, it returns something empty.
+   * @return the directory that contains the library, or empty if VLC has not been installed
+   * @throws IOException if the installation directory cannot be searched
    */
   @Override
-  public Optional<Path> getInstalledPath() {
-    final VLCInstaller installer = this.getInstaller();
-    final Path path = installer.getPath();
-    final Path parent = requireNonNull(path.getParent());
-    final Path vlc = parent.resolve(VLC_APP);
-    return Files.exists(vlc) ? Optional.of(vlc) : Optional.empty();
+  public Optional<Path> getInstalledPath() throws IOException {
+    final Path installDirectory = this.getInstallDirectory();
+    return findLibraryDirectory(installDirectory, LIBRARY);
   }
 
   /**
-   * {@inheritDoc}
+   * Extracts the zip, moves the directory that contains {@code libvlc.dll} to the installation directory, and
+   * deletes the zip.
    *
-   * <p>
-   * This method installs VLC binaries by extracting the zip file, deleting the original zip file, and moving the extracted
-   * files to the target directory.
-   *
-   * @throws IOException if an I/O error occurs during installation
+   * @param archive the downloaded zip
+   * @return the installation directory, which contains {@code libvlc.dll}
+   * @throws IOException if the zip cannot be extracted or does not contain the library
    */
   @Override
-  public Path execute() throws IOException {
-    final VLCInstaller installer = this.getInstaller();
-    final Path zip = installer.getPath();
-    final Path parent = requireNonNull(zip.getParent());
-    final Path temp = parent.resolve(VLC_TEMP);
-    final Path path = parent.resolve(VLC_APP);
-    IOUtils.unzip(zip, temp);
-
-    this.deleteFile(zip);
-    this.moveFiles(temp, path);
-    this.deleteFile(temp);
-
-    return path;
+  public Path execute(final Path archive) throws IOException {
+    Preconditions.checkNotNull(archive, "Archive must not be null");
+    final Path installDirectory = this.getInstallDirectory();
+    final Path parentOrNull = installDirectory.getParent();
+    final Path parent = Objects.requireNonNull(parentOrNull, "The installation directory lies in the installer folder");
+    final Path temporary = parent.resolve(TEMP_DIRECTORY);
+    deleteRecursively(temporary);
+    deleteRecursively(installDirectory);
+    try {
+      extractInto(archive, temporary, installDirectory);
+    } finally {
+      deleteRecursively(temporary);
+    }
+    Files.deleteIfExists(archive);
+    return installDirectory;
   }
 
-  private void moveFiles(final Path temp, final Path dest) throws IOException {
-    final String name = "vlc-" + VLCInstaller.VERSION;
-    final Path resolve = temp.resolve(name);
-    Files.move(resolve, dest);
+  private static void extractInto(final Path archive, final Path temporary, final Path installDirectory) throws IOException {
+    unzip(archive, temporary);
+    final Optional<Path> extractedLibraryDirectory = findLibraryDirectory(temporary, LIBRARY);
+    if (extractedLibraryDirectory.isEmpty()) {
+      throw new IOException("The VLC zip does not contain libvlc.dll");
+    }
+    final Path extractedRoot = extractedLibraryDirectory.get();
+    Files.move(extractedRoot, installDirectory);
+  }
+
+  /**
+   * Extracts the zip. {@link IOUtils#unzip(Path, Path)} reports failures unchecked, as an {@link UncheckedIOException}
+   * for an archive that cannot be read and as a {@link ZipEntryIntegrityException} for an archive that is unsafe, but an
+   * installation must fail with an {@link IOException} like every other installation failure.
+   */
+  private static void unzip(final Path archive, final Path temporary) throws IOException {
+    try {
+      IOUtils.unzip(archive, temporary);
+    } catch (final UncheckedIOException | ZipEntryIntegrityException exception) {
+      final String reason = exception.getMessage();
+      throw new IOException("The VLC zip cannot be extracted: " + reason, exception);
+    }
   }
 }

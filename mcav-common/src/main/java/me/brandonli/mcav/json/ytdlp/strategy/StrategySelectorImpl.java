@@ -17,11 +17,13 @@
  */
 package me.brandonli.mcav.json.ytdlp.strategy;
 
+import com.google.common.base.Preconditions;
+import java.util.Optional;
 import me.brandonli.mcav.json.ytdlp.format.Format;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 
 /**
- * Represents the default implementation of the {@link StrategySelector} interface.
+ * The default {@link StrategySelector}.
  */
 public final class StrategySelectorImpl implements StrategySelector {
 
@@ -33,35 +35,47 @@ public final class StrategySelectorImpl implements StrategySelector {
     this.video = video;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public FormatStrategy getAudioStrategy() {
     return this.audio;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public FormatStrategy getVideoStrategy() {
     return this.video;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Format getAudioSource(final URLParseDump dump) {
-    return this.audio.select(dump).orElseThrow();
+    Preconditions.checkNotNull(dump, "Dump must not be null");
+    final Optional<Format> selected = this.audio.select(dump);
+    if (selected.isEmpty()) {
+      final String description = describe(dump);
+      throw new NoMatchingFormatException("No audio stream matches the strategy for " + description);
+    }
+    return selected.get();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Format getVideoSource(final URLParseDump dump) {
-    return this.video.select(dump).orElseThrow();
+    Preconditions.checkNotNull(dump, "Dump must not be null");
+    final Optional<Format> selected = this.video.select(dump);
+    if (selected.isEmpty()) {
+      final String description = describe(dump);
+      throw new NoMatchingFormatException("No video stream matches the strategy for " + description);
+    }
+    return selected.get();
+  }
+
+  private static String describe(final URLParseDump dump) {
+    final String title = dump.title;
+    final String url = dump.webpage_url;
+    if (title != null) {
+      return title;
+    }
+    if (url != null) {
+      return url;
+    }
+    return "the media";
   }
 }

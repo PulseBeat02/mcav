@@ -17,13 +17,15 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
-/** DownloaderOptions **/
+/**
+ * Download hints yt-dlp reports for a stream.
+ */
 public class DownloaderOptions {
 
   DownloaderOptions() {
-    // no-op
+    // populated by Gson
   }
 
-  /** http_chunk_size **/
+  /** The size in bytes of the chunks yt-dlp requests the stream in, which avoids the throttling of some sites, or zero if the stream is requested at once. */
   public int http_chunk_size;
 }

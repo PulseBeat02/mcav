@@ -17,47 +17,84 @@
  */
 package me.brandonli.mcav.utils.interaction;
 
+import com.google.common.base.Preconditions;
+import java.util.Optional;
+
 /**
- * Utility class for handling key codes and their replacements in strings.
+ * Helpers for typing text that contains special keys.
+ *
+ * <p>Users write special keys by name, such as {@code Hello{ENTER}}, and {@link #replaceKeysWithKeyCodes(String)}
+ * turns every {@code {NAME}} into the character of the corresponding {@link KeyCode}. A literal
+ * <code>&#123;</code> is written as <code>&#123;&#123;</code>.
  */
 public final class KeyUtils {
+
+  private static final char OPEN = '{';
+  private static final char CLOSE = '}';
 
   private KeyUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Replaces key names in the input string with their corresponding key codes.
+   * Replaces every {@code {NAME}} in the text with the character of the {@link KeyCode} of that name. Names that
+   * do not match a key are left untouched, and <code>&#123;&#123;</code> produces a single <code>&#123;</code>.
    *
-   * @param input the input string containing key names
-   * @return the modified string with key names replaced by key codes
+   * @param input the text with key names
+   * @return the text with key characters
    */
   public static String replaceKeysWithKeyCodes(final String input) {
-    String output = input;
-    for (final KeyCode key : KeyCode.values()) {
-      final String keyName = key.name();
-      final String keyCode = String.valueOf(key.charAt(0));
-      int idx = 0;
-      final StringBuilder result = new StringBuilder();
-      while (idx < output.length()) {
-        final int found = output.indexOf(keyName, idx);
-        if (found == -1) {
-          result.append(output.substring(idx));
-          break;
-        }
-        if (found > 0 && output.charAt(found - 1) == '\\') {
-          result.append(output, idx, found - 1).append(keyName);
-        } else {
-          result.append(output, idx, found).append(keyCode);
-        }
-        idx = found + keyName.length();
-      }
-      output = result.toString();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    final int length = input.length();
+    final StringBuilder output = new StringBuilder(length);
+    int index = 0;
+    while (index < length) {
+      index = appendNext(input, index, output);
     }
-    for (final KeyCode key : KeyCode.values()) {
-      final String escaped = "\\" + key.name();
-      output = output.replace(escaped, key.name());
+    return output.toString();
+  }
+
+  /**
+   * Appends the character, escaped brace or key character that starts at the index to the output.
+   *
+   * @return the index just past what was consumed
+   */
+  private static int appendNext(final String input, final int index, final StringBuilder output) {
+    final char current = input.charAt(index);
+    if (current != OPEN) {
+      output.append(current);
+      return index + 1;
     }
-    return output;
+    final int next = index + 1;
+    final boolean escaped = next < input.length() && input.charAt(next) == OPEN;
+    if (escaped) {
+      output.append(OPEN);
+      return index + 2;
+    }
+    return appendKey(input, index, output);
+  }
+
+  /**
+   * Appends the character of the key whose name is enclosed in braces at the index, or the opening brace itself
+   * if the braces do not enclose the name of a key.
+   *
+   * @return the index just past what was consumed
+   */
+  private static int appendKey(final String input, final int index, final StringBuilder output) {
+    final int close = input.indexOf(CLOSE, index + 1);
+    if (close < 0) {
+      output.append(OPEN);
+      return index + 1;
+    }
+    final String name = input.substring(index + 1, close);
+    final Optional<KeyCode> key = KeyCode.fromName(name);
+    if (key.isEmpty()) {
+      output.append(OPEN);
+      return index + 1;
+    }
+    final KeyCode code = key.get();
+    final char character = code.getKeyChar();
+    output.append(character);
+    return close + 1;
   }
 }

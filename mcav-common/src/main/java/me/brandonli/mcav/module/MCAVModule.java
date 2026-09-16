@@ -18,23 +18,27 @@
 package me.brandonli.mcav.module;
 
 /**
- * An interface representing a module in the MCAV library.
+ * An optional part of the library that is started and stopped together with it, such as the Bukkit, Discord, or
+ * HTTP integrations.
+ *
+ * <p>Modules are created by {@link ModuleLoader} through a no-argument constructor, which may be package-private,
+ * and are passed to {@link me.brandonli.mcav.MCAVApi#install(Class[])} by class.
  */
 public interface MCAVModule {
   /**
-   * Initializes the module.
+   * Starts the module. Called once while the library is installed.
    *
-   * @throws ModuleException if the module fails to initialize.
+   * @throws ModuleException if the module cannot start
    */
   void start();
 
   /**
-   * Stops the module and releases any resources it holds.
+   * Stops the module and releases every resource it holds. Called once while the library is released.
    */
   void stop();
 
   /**
-   * Returns the name of the module.
+   * Gets a short, unique name of the module for log messages, such as {@code bukkit}.
    *
    * @return the name of the module
    */

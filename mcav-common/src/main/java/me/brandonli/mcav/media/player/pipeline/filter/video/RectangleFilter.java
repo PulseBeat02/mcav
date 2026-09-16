@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.utils.opencv.ImageUtils;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -24,7 +25,7 @@ import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
 /**
- * A video filter that draws a rectangle on the video frame.
+ * Draws a rectangle outline onto every frame.
  */
 public class RectangleFilter extends MatVideoFilter {
 
@@ -33,25 +34,30 @@ public class RectangleFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a RectangleFilter with specified coordinates and color.
+   * Constructs a new rectangle filter.
    *
-   * @param x          The x-coordinate of the top-left corner of the rectangle.
-   * @param y          The y-coordinate of the top-left corner of the rectangle.
-   * @param width      The width of the rectangle.
-   * @param height     The height of the rectangle.
-   * @param colorScalar An array representing the color in BGR format, e.g., {255, 0, 0} for blue.
+   * @param x      the x coordinate of the top left corner
+   * @param y      the y coordinate of the top left corner
+   * @param width  the width of the rectangle, which must be positive
+   * @param height the height of the rectangle, which must be positive
+   * @param color  the blue, green, and red components of the color, from 0 to 255
    */
-  public RectangleFilter(final int x, final int y, final int width, final int height, final double[] colorScalar) {
+  public RectangleFilter(final int x, final int y, final int width, final int height, final double[] color) {
+    Preconditions.checkArgument(width > 0 && height > 0, "Rectangle size must be positive");
     this.topLeft = new Point(x, y);
-    this.bottomRight = new Point(x + width, y + height);
-    this.color = ImageUtils.toScalar(colorScalar);
+    // OpenCV draws both corners, so the opposite corner is the last pixel inside the rectangle
+    this.bottomRight = new Point(x + width - 1, y + height - 1);
+    this.color = ImageUtils.toScalar(color);
   }
 
   /**
-   * {@inheritDoc}
+   * Draws the rectangle outline onto the frame in place. Parts of the rectangle outside of the frame are cut off.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat mat) {
     opencv_imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color);
     return true;
   }

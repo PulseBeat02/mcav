@@ -18,45 +18,48 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Interface for detecting the type of media source based on raw input.
+ * Recognizes one kind of source in a user-supplied string, such as a file path or a URL, and creates it. Detectors
+ * are consulted by {@link SourceDetectionHelper}; when several detectors accept a string, the one with the highest
+ * priority wins.
  *
- * @param <T> the type of source that this detector can handle.
+ * @param <T> the type of source the detector creates
  */
 public interface SourceDetector<T extends Source> {
   /**
-   * Normal priority for source detectors that should be checked in a standard order.
+   * The priority of ordinary detectors.
    */
   int NORMAL_PRIORITY = 0;
 
   /**
-   * High priority for source detectors that should be checked first.
+   * The priority of detectors that recognize very specific strings and should win over others.
    */
   int HIGH_PRIORITY = 100;
 
   /**
-   * Low priority for source detectors that should be checked last.
+   * The priority of fallback detectors that accept almost anything.
    */
   int LOW_PRIORITY = -100;
 
   /**
-   * Detects the source type based on the provided raw input.
+   * Checks whether the string describes a source of this kind.
    *
-   * @param raw the raw input to detect the source from.
-   * @return true if the source type is detected, otherwise false.
+   * @param raw the string entered by a user
+   * @return true if {@link #createSource(String)} can create a source from it
    */
   boolean isDetectedSource(final String raw);
 
   /**
-   * Creates a source instance based on the provided raw input.
+   * Creates the source described by the string, which was accepted by {@link #isDetectedSource(String)}.
    *
-   * @param raw the raw input to create the source from.
-   * @return a new instance of the source type, or null if the source cannot be created.
+   * @param raw the string entered by a user
+   * @return the source
    */
   T createSource(final String raw);
 
   /**
-   * Gets the priority of this source detector.
-   * @return the priority of this source detector, where a higher value indicates a higher priority.
+   * Gets the priority of this detector.
+   *
+   * @return the priority, higher wins
    */
   int getPriority();
 }

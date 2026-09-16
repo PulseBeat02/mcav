@@ -21,14 +21,19 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An exception thrown when the MCAV library fails to load.
+ * Thrown when the library cannot be installed, or when it is used before it was installed. The failure is
+ * recoverable: a failed installation can be retried, so this is an unchecked exception rather than an error.
  */
-public class MCAVLoadingException extends AssertionError {
+public class MCAVLoadingException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = 5512824472714665790L;
 
   MCAVLoadingException(final @Nullable String message) {
     super(message);
+  }
+
+  MCAVLoadingException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
   }
 }

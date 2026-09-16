@@ -17,131 +17,313 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
-import static java.util.Objects.requireNonNull;
-
-import com.sun.jna.Pointer;
-import java.nio.ByteBuffer;
-import java.util.concurrent.*;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
-import me.brandonli.mcav.utils.LockUtils;
-import me.brandonli.mcav.utils.MetadataUtils;
-import me.brandonli.mcav.utils.audio.AudioResampler;
-import me.brandonli.mcav.utils.immutable.Dimension;
-import me.brandonli.mcav.utils.natives.ByteUtils;
-import org.bytedeco.ffmpeg.global.avutil;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
-import uk.co.caprica.vlcj.player.base.*;
-import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
-import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
-import uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi;
-import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;
-import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
-import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallbackAdapter;
-import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallbackAdapter;
-import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
 
 /**
- * A VLCJ-based video player that implements the {@link VideoPlayerMultiplexer} interface.
- * <p>
- * When separate video and audio sources are provided, two independent media players are used
- * to avoid VLC pipeline reconfiguration issues with the slave API. The video player runs with
- * {@code :no-audio} and the audio player runs with {@code :no-video}. A periodic sync task
- * keeps the video player aligned to the audio player, which serves as the master clock.
- * <p>
- * When a single combined source is provided, only one media player is used.
+ * A player that decodes media with VLC through vlcj.
+ *
+ * <p>VLC handles the widest range of formats and streams, including DVDs, HLS, and YouTube-style playlists, and
+ * keeps audio and video in sync on its own. Frames are rendered into a memory surface and copied out on VLC's
+ * decoding thread, then handed to a dedicated rendering thread that runs the video pipeline; only the latest
+ * frame is kept, so a slow pipeline lowers the frame rate instead of piling up work. Audio is requested from VLC
+ * as 16-bit stereo at 48 kHz, so no resampling is needed, and is run through the audio pipeline on its own thread.
+ *
+ * <p>VLC opens media asynchronously. Starting waits up to five seconds for VLC to open the media, so a source that
+ * cannot be opened makes {@link #start(Source)} return false; errors that happen later, while the media plays, are
+ * reported to the exception handler.
+ *
+ * <p>When separate video and audio sources are given, two VLC media players are used and kept in sync by nudging
+ * the playback rate of the video, or seeking when they drift far apart. All VLC instances share one native
+ * VLC engine, see {@link SharedMediaPlayerFactory}.
+ *
+ * <p>Requires VLC to be available, see {@link me.brandonli.mcav.capability.Capability#VLC}.
  */
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
-  private static final String[] LIBVLC_INIT_ARGS = {};
-  private static final String NO_AUDIO_ARG = ":no-audio";
-  private static final String NO_VIDEO_ARG = ":no-video";
+  private static final long OPEN_TIMEOUT_MILLIS = 5_000L;
 
-  private static final long DRIFT_THRESHOLD_MS = 100;
-  private static final long DRIFT_HARD_SEEK_MS = 2000;
-  private static final long SYNC_INTERVAL_MS = 50;
-
-  private static final float RATE_NORMAL = 1.0f;
-  private static final float RATE_SLOW = 0.97f;
-  private static final float RATE_FAST = 1.03f;
-
-  private static final int AUDIO_FORMAT = avutil.AV_SAMPLE_FMT_S16;
-  private static final int AUDIO_RATE = 48000;
-  private static final int AUDIO_CHANNELS = 2;
-
-  private final DimensionAttachableCallback dimensionAttachableCallback;
-  private final VideoAttachableCallback videoAttachableCallback;
-  private final AudioAttachableCallback audioAttachableCallback;
-  private final MediaPlayerFactory factory;
-  private final EmbeddedMediaPlayer videoPlayer;
-  private final EmbeddedMediaPlayer audioPlayer;
-  private final AtomicBoolean running;
-  private final String[] args;
+  private final SharedMediaPlayerFactory sharedFactory;
+  private final long openTimeoutMillis;
+  private final VideoAttachableCallback videoCallback;
+  private final AudioAttachableCallback audioCallback;
+  private final DimensionAttachableCallback dimensionCallback;
+  private final String[] mediaOptions;
   private final Lock lock;
-
-  private final ThreadPoolExecutor videoProcessingExecutor;
-  private final ThreadPoolExecutor audioProcessingExecutor;
-
-  @Nullable private volatile ScheduledExecutorService syncExecutor;
-
-  @Nullable private volatile CallbackVideoSurface pinnedVideoSurface;
-
-  @Nullable private volatile BufferCallback pinnedBufferCallback;
-
-  @Nullable private volatile VideoCallback pinnedVideoCallback;
-
-  @Nullable private volatile AudioCallback pinnedAudioCallback;
-
-  @Nullable private volatile AudioResampler audioResampler;
-
-  private volatile boolean dualPlayerMode;
+  private final AtomicBoolean released;
 
   private volatile BiConsumer<String, Throwable> exceptionHandler;
+  private @Nullable VLCPlayback playback;
 
   /**
-   * Constructs a new VLCPlayer instance with the specified command-line arguments.
+   * Constructs a new VLC player. Create instances with
+   * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#vlc(String...)}.
    *
-   * @param args the command-line arguments to pass to the VLC player
+   * <p>The player is refused while the library still prepares VLC in the background, and when that preparation found
+   * that VLC is not available on this system; wait for
+   * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(Capability)} with {@link Capability#VLC} first.
+   *
+   * @param mediaOptions VLC media options applied to every source, such as {@code :network-caching=1000}
+   * @throws IllegalStateException if VLC is still being prepared, or is not available on this system; the message
+   *                               says which
    */
-  public VLCPlayer(final String[] args) {
-    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
-    this.dimensionAttachableCallback = DimensionAttachableCallback.create();
-    this.videoAttachableCallback = VideoAttachableCallback.create();
-    this.audioAttachableCallback = AudioAttachableCallback.create();
-    this.factory = new MediaPlayerFactory(LIBVLC_INIT_ARGS);
-    this.videoPlayer = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
-    this.audioPlayer = this.factory.mediaPlayers().newEmbeddedMediaPlayer();
-    this.lock = new ReentrantLock();
-    this.running = new AtomicBoolean(false);
-    this.videoProcessingExecutor = new ThreadPoolExecutor(
-      1,
-      1,
-      0,
-      TimeUnit.MILLISECONDS,
-      new LinkedBlockingQueue<>(2),
-      new ThreadPoolExecutor.DiscardOldestPolicy()
-    );
-    this.audioProcessingExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-    this.args = args;
-    this.dualPlayerMode = false;
+  public VLCPlayer(final String... mediaOptions) {
+    final CapabilityGuard guard = CapabilityGuard.shared();
+    guard.checkUsable(Capability.VLC);
+    final SharedMediaPlayerFactory sharedFactory = SharedMediaPlayerFactory.getInstance();
+    this(sharedFactory, OPEN_TIMEOUT_MILLIS, mediaOptions);
   }
 
   /**
-   * {@inheritDoc}
+   * Constructs a new VLC player with its own VLC instance and open timeout.
+   *
+   * @param sharedFactory     provides the VLC instance
+   * @param openTimeoutMillis how long starting waits at most for VLC to open the media, in milliseconds
+   * @param mediaOptions      VLC media options applied to every source
+   */
+  @VisibleForTesting
+  VLCPlayer(final SharedMediaPlayerFactory sharedFactory, final long openTimeoutMillis, final String... mediaOptions) {
+    Preconditions.checkNotNull(sharedFactory, "Shared factory must not be null");
+    Preconditions.checkArgument(openTimeoutMillis >= 0, "Open timeout must not be negative but was %s", openTimeoutMillis);
+    Preconditions.checkNotNull(mediaOptions, "Media options must not be null");
+    for (final String option : mediaOptions) {
+      Preconditions.checkNotNull(option, "Media options must not contain null");
+    }
+    final ExceptionHandler defaultHandler = ExceptionHandler.createDefault();
+    this.sharedFactory = sharedFactory;
+    this.openTimeoutMillis = openTimeoutMillis;
+    this.videoCallback = VideoAttachableCallback.create();
+    this.audioCallback = AudioAttachableCallback.create();
+    this.dimensionCallback = DimensionAttachableCallback.create();
+    this.mediaOptions = mediaOptions.clone();
+    this.lock = new ReentrantLock();
+    this.released = new AtomicBoolean(false);
+    this.exceptionHandler = defaultHandler.getExceptionHandler();
+  }
+
+  /**
+   * Starts playing a source that contains both video and audio, replacing the current playback. Waits until VLC has
+   * opened the media. The current playback keeps playing if VLC cannot even be set up for the new source.
+   *
+   * @param combined the source
+   * @return true if playback started, false if the player is released or the source cannot be opened, which is
+   * reported to the exception handler
+   */
+  @Override
+  public boolean start(final Source combined) {
+    Preconditions.checkNotNull(combined, "Source must not be null");
+    return this.startPlayback(combined, null);
+  }
+
+  /**
+   * Starts playing video from one source and audio from another, replacing the current playback. Equal sources are
+   * played as one combined source. Waits until VLC has opened both sources, which it does at the same time, so
+   * starting waits at most the open timeout. The current playback keeps playing if VLC cannot even be set up.
+   *
+   * @param video the video source
+   * @param audio the audio source
+   * @return true if playback started, false if the player is released or a source cannot be opened, which is
+   * reported to the exception handler
+   */
+  @Override
+  public boolean start(final Source video, final Source audio) {
+    Preconditions.checkNotNull(video, "Video source must not be null");
+    Preconditions.checkNotNull(audio, "Audio source must not be null");
+    final boolean sameSource = video.equals(audio);
+    if (sameSource) {
+      return this.startPlayback(video, null);
+    }
+    return this.startPlayback(video, audio);
+  }
+
+  private boolean startPlayback(final Source video, final @Nullable Source audio) {
+    this.lock.lock();
+    try {
+      if (this.released.get()) {
+        return false;
+      }
+      return this.startNewPlayback(video, audio);
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private boolean startNewPlayback(final Source video, final @Nullable Source audio) {
+    final VLCPlayback created;
+    try {
+      created = VLCPlayback.create(this, video, audio);
+    } catch (final RuntimeException | LinkageError exception) {
+      // VLC throws linkage errors when its native libraries are missing
+      this.reportStartFailure(video, exception);
+      return false;
+    }
+    // the new playback holds the shared VLC instance before the old one lets go of it, so restarting keeps the
+    // instance instead of shutting it down and loading it again
+    this.stopPlayback();
+    return this.startCreatedPlayback(created, video);
+  }
+
+  private boolean startCreatedPlayback(final VLCPlayback created, final Source video) {
+    try {
+      final boolean started = created.start();
+      if (started) {
+        this.playback = created;
+        return true;
+      }
+    } catch (final RuntimeException exception) {
+      this.reportStartFailure(video, exception);
+    }
+    created.stop();
+    return false;
+  }
+
+  private void reportStartFailure(final Source video, final Throwable exception) {
+    final String resource = video.getResource();
+    this.exceptionHandler.accept("Failed to start VLC playback of " + resource, exception);
+  }
+
+  /**
+   * Pauses playback, keeping the current position.
+   *
+   * @return true if playback was paused, false if nothing is playing or it was already paused
+   */
+  @Override
+  public boolean pause() {
+    this.lock.lock();
+    try {
+      final VLCPlayback current = this.playback;
+      if (current == null) {
+        return false;
+      }
+      return current.pause();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Resumes playback after {@link #pause()}.
+   *
+   * @return true if playback was resumed, false if nothing is playing or it was not paused
+   */
+  @Override
+  public boolean resume() {
+    this.lock.lock();
+    try {
+      final VLCPlayback current = this.playback;
+      if (current == null) {
+        return false;
+      }
+      return current.resume();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Jumps to a position. A paused player stays paused.
+   *
+   * @param time the position in milliseconds from the start of the media, not negative
+   * @return true if the player seeked, false if nothing is playing or the source cannot be seeked
+   */
+  @Override
+  public boolean seek(final long time) {
+    Preconditions.checkArgument(time >= 0, "Seek time must not be negative");
+    this.lock.lock();
+    try {
+      final VLCPlayback current = this.playback;
+      if (current == null) {
+        return false;
+      }
+      return current.seek(time);
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Stops playback and releases the VLC resources of the player. No pipeline runs after this method returns, unless
+   * it is called from a pipeline. A released player cannot be started again.
+   *
+   * @return true if the player was released, false if it had already been released
+   */
+  @Override
+  public boolean release() {
+    this.lock.lock();
+    try {
+      final boolean first = this.released.compareAndSet(false, true);
+      if (!first) {
+        return false;
+      }
+      this.stopPlayback();
+      return true;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void stopPlayback() {
+    final VLCPlayback current = this.playback;
+    if (current == null) {
+      return;
+    }
+    this.playback = null;
+    current.stop();
+  }
+
+  /**
+   * Gets the slot of the video pipeline. The render thread looks the pipeline up for every frame, so a pipeline
+   * attached while the player plays takes effect with the next frame.
+   *
+   * @return the video slot, the same instance for the whole life of the player
+   */
+  @Override
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoCallback;
+  }
+
+  /**
+   * Gets the slot of the audio pipeline. The render thread looks the pipeline up for every chunk of samples, so a
+   * pipeline attached while the player plays takes effect with the next chunk.
+   *
+   * @return the audio slot, the same instance for the whole life of the player
+   */
+  @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    return this.audioCallback;
+  }
+
+  /**
+   * Gets the slot of the size frames are scaled to. A size attached before VLC chooses its buffer, which it does once
+   * it knows the format of the video, makes VLC render at that size; a size attached or changed later is applied by
+   * resizing each frame on the render thread.
+   *
+   * @return the size slot, the same instance for the whole life of the player
+   */
+  @Override
+  public DimensionAttachableCallback getDimensionAttachableCallback() {
+    return this.dimensionCallback;
+  }
+
+  /**
+   * Gets the handler that receives failures, such as media that cannot be opened or a filter that throws.
+   *
+   * @return the exception handler, which receives a description of the failure and its cause
    */
   @Override
   public BiConsumer<String, Throwable> getExceptionHandler() {
@@ -149,394 +331,48 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the handler that receives failures. It is called on VLC's threads and on the render threads, so it must be
+   * thread safe and should return quickly.
+   *
+   * @param exceptionHandler the exception handler, which receives a description of the failure and its cause
    */
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");
     this.exceptionHandler = exceptionHandler;
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the VLC instance the playbacks of this player use.
+   *
+   * @return the shared factory
    */
-  @Override
-  public boolean start(final Source video, final Source audio) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(true);
-      this.dualPlayerMode = true;
-
-      this.addVideoCallbacks(video);
-      this.addAudioCallbacks(audio, this.audioPlayer);
-
-      final String videoResource = video.getResource();
-      final String audioResource = audio.getResource();
-      this.prepareMedia(this.videoPlayer, videoResource, NO_AUDIO_ARG);
-      this.prepareMedia(this.audioPlayer, audioResource, NO_VIDEO_ARG);
-
-      this.playBothPlayers();
-      this.startSyncTask();
-
-      return true;
-    });
+  SharedMediaPlayerFactory getSharedFactory() {
+    return this.sharedFactory;
   }
 
   /**
-   * {@inheritDoc}
+   * Gets how long starting waits at most for VLC to open the media.
+   *
+   * @return the timeout in milliseconds
    */
-  @Override
-  public boolean start(final Source combined) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(true);
-      this.dualPlayerMode = false;
-
-      this.addVideoCallbacks(combined);
-      this.addAudioCallbacks(combined, this.videoPlayer);
-      this.sleep(1000L);
-
-      final String resource = combined.getResource();
-      final MediaApi mediaApi = this.videoPlayer.media();
-      if (this.args != null && this.args.length > 0) {
-        mediaApi.play(resource, this.args);
-      } else {
-        mediaApi.play(resource);
-      }
-      return true;
-    });
-  }
-
-  private void sleep(final long ms) {
-    try {
-      Thread.sleep(ms);
-    } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-      throw new AssertionError(e);
-    }
-  }
-
-  @Override
-  public VideoAttachableCallback getVideoAttachableCallback() {
-    return this.videoAttachableCallback;
-  }
-
-  @Override
-  public AudioAttachableCallback getAudioAttachableCallback() {
-    return this.audioAttachableCallback;
-  }
-
-  @Override
-  public DimensionAttachableCallback getDimensionAttachableCallback() {
-    return this.dimensionAttachableCallback;
-  }
-
-  private String[] appendArgument(final String extra) {
-    if (this.args != null && this.args.length > 0) {
-      final String[] combined = new String[this.args.length + 1];
-      System.arraycopy(this.args, 0, combined, 0, this.args.length);
-      combined[this.args.length] = extra;
-      return combined;
-    }
-    return new String[] { extra };
-  }
-
-  private void prepareMedia(final EmbeddedMediaPlayer player, final String resource, final String extraArg) {
-    final MediaApi mediaApi = player.media();
-    final String[] mediaArgs = this.appendArgument(extraArg);
-    mediaApi.prepare(resource, mediaArgs);
-  }
-
-  private void playBothPlayers() {
-    final ControlsApi videoControls = this.videoPlayer.controls();
-    final ControlsApi audioControls = this.audioPlayer.controls();
-    videoControls.play();
-    audioControls.play();
-  }
-
-  private void pauseBothPlayers() {
-    final ControlsApi videoControls = this.videoPlayer.controls();
-    final ControlsApi audioControls = this.audioPlayer.controls();
-    videoControls.pause();
-    audioControls.pause();
-  }
-
-  private void seekBothPlayers(final long time) {
-    final ControlsApi videoControls = this.videoPlayer.controls();
-    final ControlsApi audioControls = this.audioPlayer.controls();
-    videoControls.setTime(time);
-    audioControls.setTime(time);
-  }
-
-  private void addVideoCallbacks(final Source video) {
-    final OriginalVideoMetadata videoMetadata = MetadataUtils.parseVideoMetadata(video);
-    final VideoSurfaceApi surfaceApi = this.videoPlayer.videoSurface();
-    final uk.co.caprica.vlcj.factory.VideoSurfaceApi videoSurfaceApi = this.factory.videoSurfaces();
-    final VideoPipelineStep videoPipeline = this.videoAttachableCallback.retrieve();
-    this.pinnedBufferCallback = new BufferCallback(videoMetadata);
-    this.pinnedVideoCallback = new VideoCallback(videoPipeline, videoMetadata);
-    this.pinnedVideoSurface = videoSurfaceApi.newVideoSurface(this.pinnedBufferCallback, this.pinnedVideoCallback, true);
-    surfaceApi.set(this.pinnedVideoSurface);
-  }
-
-  private void addAudioCallbacks(final Source audio, final EmbeddedMediaPlayer target) {
-    final OriginalAudioMetadata audioMetadata = MetadataUtils.parseAudioMetadata(audio);
-    final AudioApi audioApi = target.audio();
-    final AudioPipelineStep audioPipeline = this.audioAttachableCallback.retrieve();
-    this.pinnedAudioCallback = new AudioCallback(audioPipeline, audioMetadata);
-    final int rate = audioMetadata.getAudioSampleRate();
-    final int channels = audioMetadata.getAudioChannels();
-    this.audioResampler = new AudioResampler(AUDIO_FORMAT, rate, AUDIO_CHANNELS, AUDIO_FORMAT, AUDIO_RATE, AUDIO_CHANNELS);
-    audioApi.callback("S16N", rate, AUDIO_CHANNELS, requireNonNull(this.pinnedAudioCallback));
-  }
-
-  private void startSyncTask() {
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(task -> {
-      final Thread thread = new Thread(task, "vlc-sync");
-      thread.setDaemon(true);
-      return thread;
-    });
-    this.syncExecutor = executor;
-    executor.scheduleAtFixedRate(this::syncVideoToAudio, SYNC_INTERVAL_MS, SYNC_INTERVAL_MS, TimeUnit.MILLISECONDS);
-  }
-
-  private void syncVideoToAudio() {
-    if (!this.running.get()) {
-      return;
-    }
-    try {
-      final StatusApi audioStatus = this.audioPlayer.status();
-      final StatusApi videoStatus = this.videoPlayer.status();
-      if (!audioStatus.isPlaying() || !videoStatus.isPlaying()) {
-        return;
-      }
-
-      final long audioTime = audioStatus.time();
-      final long videoTime = videoStatus.time();
-      final long drift = videoTime - audioTime;
-      final long absDrift = Math.abs(drift);
-      final ControlsApi videoControls = this.videoPlayer.controls();
-      if (absDrift > DRIFT_HARD_SEEK_MS) {
-        videoControls.setTime(audioTime + 50);
-        videoControls.setRate(RATE_NORMAL);
-      } else if (absDrift > DRIFT_THRESHOLD_MS) {
-        final float correction = drift > 0 ? RATE_SLOW : RATE_FAST;
-        videoControls.setRate(correction);
-      } else {
-        videoControls.setRate(RATE_NORMAL);
-      }
-    } catch (final Throwable ignored) {}
-  }
-
-  private void stopSyncTask() {
-    final ScheduledExecutorService executor = this.syncExecutor;
-    if (executor != null) {
-      executor.shutdownNow();
-      this.syncExecutor = null;
-    }
+  long getOpenTimeoutMillis() {
+    return this.openTimeoutMillis;
   }
 
   /**
-   * {@inheritDoc}
+   * Creates the media options for one VLC media player: the options of this player, followed by an extra option.
+   *
+   * @param extra the extra option, or {@code null} for none
+   * @return a new array of options
    */
-  @Override
-  public boolean pause() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(false);
-      if (this.dualPlayerMode) {
-        this.pauseBothPlayers();
-      } else {
-        this.videoPlayer.controls().pause();
-      }
-      return true;
-    });
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean resume() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      if (this.dualPlayerMode) {
-        final long audioTime = this.audioPlayer.status().time();
-        this.videoPlayer.controls().setTime(audioTime);
-        this.playBothPlayers();
-      } else {
-        this.videoPlayer.controls().start();
-      }
-      this.running.set(true);
-      return true;
-    });
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean seek(final long time) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(false);
-      if (this.dualPlayerMode) {
-        this.seekBothPlayers(time);
-      } else {
-        this.videoPlayer.controls().setTime(time);
-      }
-      this.running.set(true);
-      return true;
-    });
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean release() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      final AudioResampler resampler = this.audioResampler;
-      this.running.set(false);
-      this.stopSyncTask();
-      this.videoProcessingExecutor.shutdownNow();
-      this.audioProcessingExecutor.shutdownNow();
-      this.audioPlayer.release();
-      this.videoPlayer.release();
-      this.factory.release();
-      this.pinnedVideoSurface = null;
-      this.pinnedBufferCallback = null;
-      this.pinnedVideoCallback = null;
-      this.pinnedAudioCallback = null;
-      if (resampler != null) {
-        resampler.close();
-        this.audioResampler = null;
-      }
-      this.dualPlayerMode = false;
-      return true;
-    });
-  }
-
-  private final class BufferCallback extends BufferFormatCallbackAdapter {
-
-    private final RV32BufferFormat format;
-
-    BufferCallback(final OriginalVideoMetadata metadata) {
-      final Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
-      if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
-        this.format = new RV32BufferFormat(dimension.getWidth(), dimension.getHeight());
-        return;
-      }
-      this.format = new RV32BufferFormat(metadata.getVideoWidth(), metadata.getVideoHeight());
+  String[] createMediaOptions(final @Nullable String extra) {
+    if (extra == null) {
+      return this.mediaOptions.clone();
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
-      return this.format;
-    }
-  }
-
-  private final class AudioCallback extends AudioCallbackAdapter {
-
-    private static final int BLOCK_SIZE = 4;
-
-    private final AudioPipelineStep step;
-    private final OriginalAudioMetadata metadata;
-
-    AudioCallback(final AudioPipelineStep step, final OriginalAudioMetadata metadata) {
-      this.step = step;
-      this.metadata = metadata;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
-      if (!VLCPlayer.this.running.get()) {
-        return;
-      }
-      final ThreadPoolExecutor executor = VLCPlayer.this.audioProcessingExecutor;
-      if (executor.isShutdown()) {
-        return;
-      }
-      // Read into a local; release() may null this field concurrently once the player stops.
-      final AudioResampler resampler = VLCPlayer.this.audioResampler;
-      if (resampler == null) {
-        return;
-      }
-      final int bufferSize = sampleCount * BLOCK_SIZE;
-      final byte[] bytes = samples.getByteArray(0, bufferSize);
-      final byte[] resampled = resampler.resample(bytes);
-      try {
-        executor.submit(() -> {
-          try {
-            final ByteBuffer buffer = ByteBuffer.wrap(resampled);
-            final ByteBuffer converted = ByteUtils.clampNativeBufferToLittleEndian(buffer);
-            AudioPipelineStep current = this.step;
-            while (current != null) {
-              current.process(converted, this.metadata);
-              current = current.next();
-            }
-          } catch (final Throwable e) {
-            final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-            VLCPlayer.this.exceptionHandler.accept(msg, e);
-          }
-        });
-      } catch (final RejectedExecutionException ignored) {
-        // Executor was shut down concurrently; silently drop this audio frame.
-      }
-    }
-  }
-
-  private final class VideoCallback extends RenderCallbackAdapter {
-
-    private final VideoPipelineStep step;
-    private final OriginalVideoMetadata metadata;
-    private final int width;
-    private final int height;
-
-    VideoCallback(final VideoPipelineStep step, final OriginalVideoMetadata metadata) {
-      final Dimension dimension = VLCPlayer.this.dimensionAttachableCallback.retrieve();
-      if (VLCPlayer.this.dimensionAttachableCallback.isAttached()) {
-        this.width = dimension.getWidth();
-        this.height = dimension.getHeight();
-      } else {
-        this.width = metadata.getVideoWidth();
-        this.height = metadata.getVideoHeight();
-      }
-      final int[] buffer = new int[this.width * this.height];
-      this.step = step;
-      this.metadata = metadata;
-      this.setBuffer(buffer);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void onDisplay(final MediaPlayer mediaPlayer, final int[] buffer) {
-      if (!VLCPlayer.this.running.get()) {
-        return;
-      }
-      final ThreadPoolExecutor executor = VLCPlayer.this.videoProcessingExecutor;
-      if (executor.isShutdown() || executor.getQueue().size() >= 2) {
-        return;
-      }
-      final int[] copy = buffer.clone();
-      executor.submit(() -> {
-        try {
-          final ImageBuffer image = ImageBuffer.buffer(copy, this.width, this.height);
-          VideoPipelineStep current = this.step;
-          while (current != null) {
-            current.process(image, this.metadata);
-            current = current.next();
-          }
-          image.release();
-        } catch (final Throwable e) {
-          final String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getName();
-          VLCPlayer.this.exceptionHandler.accept(msg, e);
-        }
-      });
-      Thread.yield(); // allow others a chance to run, especially audio processing
-    }
+    final List<String> configured = List.of(this.mediaOptions);
+    final List<String> options = new ArrayList<>(configured);
+    options.add(extra);
+    return options.toArray(new String[0]);
   }
 }

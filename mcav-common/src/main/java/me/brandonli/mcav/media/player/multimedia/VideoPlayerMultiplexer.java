@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.multimedia;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -24,43 +25,45 @@ import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.source.Source;
 
 /**
- * A multiplexer interface for video players that combines functionalities of many video player interfaces.
+ * A full-featured player that can play, pause, resume, seek, and release, and that can take its video and audio
+ * from two different sources. Every backend created by the factories of {@link VideoPlayer} is a multiplexer.
  */
 public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer, SeekablePlayer, ReleasablePlayer {
   /**
-   * Starts the video player multiplexer with the provided audio and video processing pipelines,
-   * as well as the corresponding audio and video sources.
+   * Starts playing video from one source and audio from another, keeping them in sync. This is how
+   * separate video and audio streams, as resolved by yt-dlp for high-quality YouTube videos, are played together.
    *
-   * @param video         the video source to be played; must not be null
-   * @param audio         the audio source to be played; must not be null
-   * @return true if the player started successfully, false otherwise
+   * @param video the source of the video
+   * @param audio the source of the audio
+   * @return true if playback started, false if it could not start, for example because a source cannot be opened;
+   * the reason is passed to the exception handler of the player
    */
   boolean start(final Source video, final Source audio);
 
   /**
-   * Initiates the video player multiplexer asynchronously using the specified audio and video
-   * processing pipelines, audio and video sources, and an executor service to handle the
-   * asynchronous execution.
+   * Starts playback from two sources on an executor.
    *
-   * @param video         the video source to be played; must not be null
-   * @param audio         the audio source to be played; must not be null
-   * @param service       the executor service used to run the asynchronous operation; must not be null
-   * @return a {@code CompletableFuture} that resolves to {@code true} if the player started successfully, or to {@code false} otherwise
+   * @param video    the source of the video
+   * @param audio    the source of the audio
+   * @param executor the executor that opens the sources
+   * @return a future that completes with the result of {@link #start(Source, Source)}
    */
-  default CompletableFuture<Boolean> startAsync(final Source video, final Source audio, final ExecutorService service) {
-    return CompletableFuture.supplyAsync(() -> this.start(video, audio), service);
+  default CompletableFuture<Boolean> startAsync(final Source video, final Source audio, final ExecutorService executor) {
+    Preconditions.checkNotNull(video, "Video source must not be null");
+    Preconditions.checkNotNull(audio, "Audio source must not be null");
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.start(video, audio), executor);
   }
 
   /**
-   * Initiates asynchronous playback of audio and video using the specified processing pipelines
-   * and sources. The method uses a common pool of threads for executing the asynchronous task.
+   * Starts playback from two sources on the common pool.
    *
-   * @param video         the video source to be played; must not be null
-   * @param audio         the audio source to be played; must not be null
-   * @return a CompletableFuture that resolves to true if the player starts successfully,
-   * or false if it fails
+   * @param video the source of the video
+   * @param audio the source of the audio
+   * @return a future that completes with the result of {@link #start(Source, Source)}
    */
   default CompletableFuture<Boolean> startAsync(final Source video, final Source audio) {
-    return this.startAsync(video, audio, ForkJoinPool.commonPool());
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.startAsync(video, audio, pool);
   }
 }

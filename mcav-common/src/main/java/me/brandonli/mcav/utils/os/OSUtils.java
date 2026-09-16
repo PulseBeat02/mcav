@@ -17,93 +17,117 @@
  */
 package me.brandonli.mcav.utils.os;
 
-import static java.util.Objects.requireNonNull;
-import static me.brandonli.mcav.utils.os.Bits.BITS_32;
-import static me.brandonli.mcav.utils.os.Bits.BITS_64;
-import static me.brandonli.mcav.utils.os.OS.*;
-
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Locale;
 
 /**
- * Utility class for operating system and architecture detection.
+ * Detects the operating system and CPU architecture of the running JVM.
+ *
+ * <p>The values describe the JVM, not the machine: a 64-bit x86 JVM running under emulation on an ARM machine is
+ * reported as 64-bit x86, which is what matters for loading native libraries.
  */
 public final class OSUtils {
 
-  private static final String OS_NAME = "os.name";
-  private static final String PROCESSOR_ARCHITECTURE = "PROCESSOR_ARCHITECTURE";
-  private static final String PROCESSOR_ARCHITEW6432 = "PROCESSOR_ARCHITEW6432";
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String OS_ARCH_PROPERTY = "os.arch";
+  private static final String DATA_MODEL_PROPERTY = "sun.arch.data.model";
 
-  private static final String OS_ARCH;
-  private static final OS CURRENT;
-  private static final Bits BITS;
-  private static final Arch ARM;
+  private static final OS CURRENT_OS;
+  private static final Arch CURRENT_ARCH;
+  private static final Bits CURRENT_BITS;
 
   static {
-    OS_ARCH = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
-    CURRENT = getOperatingSystem0();
-    BITS = is64Bits0();
-    ARM = isArm0();
+    final String osName = getProperty(OS_NAME_PROPERTY);
+    final String osArch = getProperty(OS_ARCH_PROPERTY);
+    final String dataModel = getProperty(DATA_MODEL_PROPERTY);
+    CURRENT_OS = detectOS(osName);
+    CURRENT_ARCH = detectArch(osArch);
+    CURRENT_BITS = detectBits(osArch, dataModel);
   }
 
   private OSUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static OS getOperatingSystem0() {
-    final String os = requireNonNull(System.getProperty(OS_NAME));
-    final String lower = os.toLowerCase();
-    if (lower.contains("win")) {
-      return WINDOWS;
-    } else if (lower.contains("mac")) {
-      return MAC;
-    } else if (lower.contains("freebsd")) {
-      return FREEBSD;
-    } else {
-      return LINUX;
+  @VisibleForTesting
+  static String getProperty(final String key) {
+    final String value = System.getProperty(key);
+    if (value == null) {
+      return "";
     }
+    return value.toLowerCase(Locale.ROOT);
   }
 
-  private static Bits is64Bits0() {
-    if (CURRENT == WINDOWS) {
-      final String arch = System.getenv(PROCESSOR_ARCHITECTURE);
-      final String wow64Arch = System.getenv(PROCESSOR_ARCHITEW6432);
-      final boolean first = arch != null && arch.endsWith("64");
-      final boolean second = wow64Arch != null && wow64Arch.endsWith("64");
-      final boolean is64bit = first || second;
-      return is64bit ? BITS_64 : BITS_32;
-    } else {
-      return OS_ARCH.contains("64") ? BITS_64 : BITS_32;
+  static OS detectOS(final String osName) {
+    // "darwin" contains "win", so macOS has to be recognized before Windows
+    if (osName.contains("mac") || osName.contains("darwin")) {
+      return OS.MAC;
     }
+    if (osName.contains("win")) {
+      return OS.WINDOWS;
+    }
+    if (osName.contains("freebsd")) {
+      return OS.FREEBSD;
+    }
+    if (osName.contains("linux")) {
+      return OS.LINUX;
+    }
+    // OpenBSD, NetBSD, Solaris, AIX and the like: Linux binaries do not run there
+    return OS.OTHER;
   }
 
-  private static Arch isArm0() {
-    return OS_ARCH.contains("arm") ? Arch.ARM : Arch.X86;
+  static Arch detectArch(final String osArch) {
+    final boolean arm = osArch.contains("arm") || osArch.contains("aarch");
+    if (arm) {
+      return Arch.ARM;
+    }
+    // x86, i386 to i686, x86_64 and amd64
+    final boolean x86 = osArch.contains("86") || osArch.equals("amd64");
+    if (x86) {
+      return Arch.X86;
+    }
+    // riscv64, ppc64le, s390x, loongarch64 and the like: x86 binaries do not run there
+    return Arch.OTHER;
+  }
+
+  static Bits detectBits(final String osArch, final String dataModel) {
+    if (dataModel.equals("64")) {
+      return Bits.BITS_64;
+    }
+    if (dataModel.equals("32")) {
+      return Bits.BITS_32;
+    }
+    final boolean sixtyFour = osArch.contains("64");
+    if (sixtyFour) {
+      return Bits.BITS_64;
+    }
+    return Bits.BITS_32;
   }
 
   /**
-   * Retrieves the current operating system of the runtime environment.
+   * Gets the operating system of the JVM.
    *
-   * @return the current operating system as an {@link OS} enum value
+   * @return the operating system
    */
   public static OS getOS() {
-    return CURRENT;
+    return CURRENT_OS;
   }
 
   /**
-   * Retrieves the bitness of the system's CPU architecture.
+   * Gets the bitness of the JVM.
    *
-   * @return the bitness of the CPU architecture, represented as a {@code Bits} enum value
+   * @return 32-bit or 64-bit
    */
   public static Bits getBits() {
-    return BITS;
+    return CURRENT_BITS;
   }
 
   /**
-   * Retrieves the CPU architecture of the system.
+   * Gets the CPU architecture family of the JVM.
    *
-   * @return the CPU architecture of the current system as an {@link Arch} instance
+   * @return x86, ARM, or {@link Arch#OTHER} for processor families the installers do not know
    */
   public static Arch getArch() {
-    return ARM;
+    return CURRENT_ARCH;
   }
 }

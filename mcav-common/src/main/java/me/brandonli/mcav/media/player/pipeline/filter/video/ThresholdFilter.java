@@ -17,37 +17,44 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
- * A video filter that applies a thresholding operation to the video frames.
+ * Applies a fixed threshold to every channel of every frame, for example to turn frames into pure black and
+ * white with {@link opencv_imgproc#THRESH_BINARY}.
  */
 public class ThresholdFilter extends MatVideoFilter {
 
-  private final double thresh;
-  private final double maxVal;
+  private final double threshold;
+  private final double maxValue;
   private final int type;
 
   /**
-   * Constructs a new ThresholdFilter with the specified threshold, maximum value, and type.
+   * Constructs a new threshold filter.
    *
-   * @param thresh  the threshold value to use for the filter.
-   * @param maxVal  the maximum value to use for the filter.
-   * @param type    the type of thresholding to apply (e.g., THRESH_BINARY, THRESH_BINARY_INV).
+   * @param threshold the threshold value, from 0 to 255
+   * @param maxValue  the value assigned to channels that pass the threshold, from 0 to 255
+   * @param type      the threshold type, one of the {@code THRESH_} constants of {@link opencv_imgproc}
    */
-  public ThresholdFilter(final double thresh, final double maxVal, final int type) {
-    this.thresh = thresh;
-    this.maxVal = maxVal;
+  public ThresholdFilter(final double threshold, final double maxValue, final int type) {
+    Preconditions.checkArgument(threshold >= 0 && threshold <= 255, "Threshold must be between 0 and 255");
+    Preconditions.checkArgument(maxValue >= 0 && maxValue <= 255, "Max value must be between 0 and 255");
+    this.threshold = threshold;
+    this.maxValue = maxValue;
     this.type = type;
   }
 
   /**
-   * {@inheritDoc}
+   * Applies the threshold to every channel of the frame in place.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have changed
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    opencv_imgproc.threshold(mat, mat, this.thresh, this.maxVal, this.type);
+  protected boolean modifyMat(final Mat mat) {
+    opencv_imgproc.threshold(mat, mat, this.threshold, this.maxValue, this.type);
     return true;
   }
 }

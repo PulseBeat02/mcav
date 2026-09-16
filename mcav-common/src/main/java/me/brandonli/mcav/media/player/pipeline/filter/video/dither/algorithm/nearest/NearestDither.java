@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ne
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 
 /**
- * The NearestDither interface represents a dithering algorithm that selects
- * the nearest color from a specified palette for each pixel in an image.
+ * A dithering algorithm that maps every pixel to its closest palette color without dithering. Create instances
+ * with {@link DitherAlgorithm#nearest()} or {@link DitherAlgorithm#nearestColor()}.
  */
 public interface NearestDither extends DitherAlgorithm {}

@@ -17,50 +17,62 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import me.brandonli.mcav.media.image.MatImageBuffer;
-import org.bytedeco.opencv.global.opencv_core;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Range;
+import org.bytedeco.opencv.opencv_core.Rect;
 
 /**
- * A video filter that overlays an image on top of the video frame at a specified position.
+ * Draws a fixed image on top of every frame at a fixed position. Parts of the image that extend past the edge of
+ * the frame are cut off. The image is copied when the filter is created, so it may be released afterward.
  */
 public class OverlayImageFilter extends MatVideoFilter {
 
+  private final Mat overlay;
   private final int x;
   private final int y;
-  private final Mat overlayMat;
-  private final int overlayWidth;
-  private final int overlayHeight;
 
   /**
-   * Constructs an OverlayImageFilter with the specified overlay image and position.
+   * Constructs a new overlay filter.
    *
-   * @param overlay The MatImageBuffer containing the overlay image.
-   * @param x       The x-coordinate where the overlay will be placed.
-   * @param y       The y-coordinate where the overlay will be placed.
+   * @param overlay the image to draw
+   * @param x       the x coordinate of the top left corner of the image inside the frame
+   * @param y       the y coordinate of the top left corner of the image inside the frame
    */
-  public OverlayImageFilter(final MatImageBuffer overlay, final int x, final int y) {
+  public OverlayImageFilter(final ImageBuffer overlay, final int x, final int y) {
+    Preconditions.checkNotNull(overlay, "Overlay must not be null");
+    Preconditions.checkArgument(x >= 0 && y >= 0, "Overlay position must not be negative");
+    this.overlay = copyToMat(overlay);
     this.x = x;
     this.y = y;
-    this.overlayMat = overlay.getOrThrow(MatImageBuffer.MAT_PROPERTY);
-    this.overlayWidth = this.overlayMat.cols();
-    this.overlayHeight = this.overlayMat.rows();
   }
 
   /**
-   * {@inheritDoc}
+   * Copies the visible part of the image into the frame in place.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true if part of the image was drawn, false if the position lies outside of the frame and the frame was
+   *     left untouched
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    final int width = Math.min(this.overlayWidth, mat.cols() - this.x);
-    final int height = Math.min(this.overlayHeight, mat.rows() - this.y);
+  protected boolean modifyMat(final Mat mat) {
+    final int overlayWidth = this.overlay.cols();
+    final int overlayHeight = this.overlay.rows();
+    final int frameWidth = mat.cols();
+    final int frameHeight = mat.rows();
+    final int width = Math.min(overlayWidth, frameWidth - this.x);
+    final int height = Math.min(overlayHeight, frameHeight - this.y);
     if (width <= 0 || height <= 0) {
       return false;
     }
-    final Mat submat = mat.adjustROI(this.x, this.y, width, height);
-    final Mat overlaySubmat = this.overlayMat.apply(new Range(0, height), new Range(0, width));
-    opencv_core.addWeighted(submat, 1.0, overlaySubmat, 1.0, 0.0, submat);
+    try (
+      final Rect targetRect = new Rect(this.x, this.y, width, height);
+      final Rect sourceRect = new Rect(0, 0, width, height);
+      final Mat target = new Mat(mat, targetRect);
+      final Mat source = new Mat(this.overlay, sourceRect)
+    ) {
+      source.copyTo(target);
+    }
     return true;
   }
 }

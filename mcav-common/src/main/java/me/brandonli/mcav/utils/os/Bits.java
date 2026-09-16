@@ -18,16 +18,16 @@
 package me.brandonli.mcav.utils.os;
 
 /**
- * Represents if the current CPU architecture is 32-bit or 64-bit.
+ * The word size of the Java runtime, which decides whether 32-bit or 64-bit binaries are needed.
  */
 public enum Bits {
   /**
-   * 32-bit CPU architecture.
+   * A 32-bit runtime.
    */
   BITS_32,
 
   /**
-   * 64-bit CPU architecture.
+   * A 64-bit runtime.
    */
   BITS_64,
 }

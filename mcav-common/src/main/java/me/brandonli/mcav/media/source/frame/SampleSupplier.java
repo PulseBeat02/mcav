@@ -18,14 +18,22 @@
 package me.brandonli.mcav.media.source.frame;
 
 /**
- * A functional interface that provides a method to supply pixel data for a frame.
+ * Supplies frames as packed ARGB pixels to a {@link FrameSource}. Called once per frame on the player thread.
+ *
+ * <p>The {@link me.brandonli.mcav.media.player.image.ImagePlayer} copies the pixels into its frame before it runs the
+ * pipeline and never modifies or keeps the returned array, so a supplier may hand out the same array every time, such
+ * as the shared pixels of an image, see {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()}.
  */
 @FunctionalInterface
 public interface SampleSupplier {
   /**
-   * Supplies an array of integers representing the pixel data of a frame.
+   * Gets the next frame.
    *
-   * @return an array of integers representing the pixel data of a frame
+   * @return the pixels of the frame laid out row by row, or an empty array if no frame is available yet. The array
+   *     may be shared and is read-only, as the pixels of
+   *     {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()} are; copy it before modifying it, as
+   *     {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} does, or hand it on as a read-only view, as
+   *     {@link me.brandonli.mcav.media.image.ImageBuffer#getReadOnlyPixels()} does
    */
   int[] getFrameSamples();
 }

@@ -26,51 +26,50 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 
 /**
- * Defines a contract for objects that support reading and writing operations tied to a specific path.
+ * A file that can be read from and written to, for example to save a downloaded stream.
  */
 public interface Writable {
   /**
-   * Retrieves the file path associated with this source.
+   * Creates a handle for a file. The file does not have to exist yet.
    *
-   * @return the {@code Path} representing the location of the file.
+   * @param path the path of the file
+   * @return the handle
+   */
+  static Writable path(final Path path) {
+    Preconditions.checkNotNull(path, "Path must not be null");
+    return new WritableImpl(path);
+  }
+
+  /**
+   * Gets the path of the file.
+   *
+   * @return the path
    */
   Path getPath();
 
   /**
-   * Creates a new {@link InputStream} for reading from the path associated with this {@code Writable}
-   * instance. The method uses the specified open options to configure the file read behavior.
+   * Opens the file for reading.
    *
-   * @param options the options specifying how the file is opened. These may include standard open
-   *                options such as {@code READ} or {@code APPEND}, among others.
-   * @return a new {@link InputStream} to read data from the associated path.
-   * @throws IOException if an I/O error occurs during the creation of the {@link InputStream}.
+   * @param options the open options, see {@link Files#newInputStream(Path, OpenOption...)}
+   * @return the stream, which the caller must close
+   * @throws IOException if the file cannot be opened
    */
   default InputStream newInputStream(final OpenOption... options) throws IOException {
-    return Files.newInputStream(this.getPath(), options);
+    Preconditions.checkNotNull(options, "Options must not be null");
+    final Path path = this.getPath();
+    return Files.newInputStream(path, options);
   }
 
   /**
-   * Creates a new {@link OutputStream} for writing to the path associated with this {@link Writable}.
-   * The stream is opened with the defined {@link OpenOption}s, which control how the file is opened or created.
+   * Opens the file for writing.
    *
-   * @param options the options specifying how the file is opened. For example, {@link java.nio.file.StandardOpenOption#CREATE}
-   *                to create a new file if it does not exist or {@link java.nio.file.StandardOpenOption#APPEND} to append to a file.
-   * @return a new {@link OutputStream} for writing to the file.
-   * @throws IOException if an I/O error occurs when opening or creating the output stream.
+   * @param options the open options, see {@link Files#newOutputStream(Path, OpenOption...)}
+   * @return the stream, which the caller must close
+   * @throws IOException if the file cannot be opened
    */
   default OutputStream newOutputStream(final OpenOption... options) throws IOException {
-    return Files.newOutputStream(this.getPath(), options);
-  }
-
-  /**
-   * Creates a new {@link Writable} instance associated with the specified file path.
-   *
-   * @param path the {@link Path} representing the file location. Must not be null.
-   * @return a new {@link Writable} instance associated with the specified file path.
-   * @throws NullPointerException if the specified path is null.
-   */
-  static Writable path(final Path path) {
-    Preconditions.checkNotNull(path);
-    return new WritableImpl(path);
+    Preconditions.checkNotNull(options, "Options must not be null");
+    final Path path = this.getPath();
+    return Files.newOutputStream(path, options);
   }
 }

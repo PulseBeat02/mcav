@@ -17,52 +17,61 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.OrderedDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Implementation of the {@link OrderedDitherBuilder} interface for constructing instances
- * of {@link OrderedDither}.
+ * The default {@link OrderedDitherBuilder}.
  */
 public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDither, OrderedDitherBuilderImpl> {
 
-  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
-  private PixelMapper ditherMatrix = PixelMapper.ofPixelMapper(
-    BayerDither.NORMAL_2X2,
-    BayerDither.NORMAL_2X2_MAX,
-    PixelMapper.NORMAL_STRENGTH
-  );
+  private DitherPalette palette;
+  private PixelMapper mapper;
 
   /**
-   * Default constructor for {@link OrderedDitherBuilderImpl}.
+   * Constructs a builder that creates a 2x2 Bayer dither on the Minecraft map palette.
    */
   public OrderedDitherBuilderImpl() {
-    // no-op
+    this.palette = DitherPalette.DEFAULT_MAP_PALETTE;
+    this.mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAX, PixelMapper.NORMAL_STRENGTH);
   }
 
   /**
-   * {@inheritDoc}
+   * Creates an ordered dithering algorithm with the chosen palette and threshold pattern.
+   *
+   * @return the algorithm, which is stateless and can be shared
    */
   @Override
   public OrderedDither build() {
-    return new OrderedDither(this.palette, this.ditherMatrix);
+    return new OrderedDither(this.palette, this.mapper);
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the palette the algorithm reduces images to. Defaults to the Minecraft map palette.
+   *
+   * @param palette the palette
+   * @return this builder
    */
   @Override
-  public void setPalette(final DitherPalette palette) {
+  public OrderedDitherBuilderImpl withPalette(final DitherPalette palette) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     this.palette = palette;
+    return this;
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the threshold pattern. Defaults to a 2x2 Bayer matrix at normal strength.
+   *
+   * @param mapper the threshold pattern
+   * @return this builder
    */
   @Override
-  public void setDitherMatrix(final PixelMapper matrix) {
-    this.ditherMatrix = matrix;
+  public OrderedDitherBuilderImpl withDitherMatrix(final PixelMapper mapper) {
+    Preconditions.checkNotNull(mapper, "Pixel mapper must not be null");
+    this.mapper = mapper;
+    return this;
   }
 }

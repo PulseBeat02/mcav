@@ -17,46 +17,30 @@
  */
 package me.brandonli.mcav;
 
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.util.List;
+import java.io.IOException;
 import javax.imageio.ImageIO;
-import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPaletteLoader;
 
+/**
+ * Renders the Minecraft map palette as a 16 by 16 image, one pixel per color, for documentation.
+ */
 public final class PaletteGenerator {
 
-  private static final String INPUT = "palette.json";
   private static final String OUTPUT = "palette.png";
 
-  public static void main(final String[] args) throws Exception {
-    final Type t = new TypeToken<List<List<Integer>>>() {}.getType();
-    final Gson gson = GsonProvider.getSimple();
-    final List<List<Integer>> colors;
-    try (final Reader reader = IOUtils.getResourceAsStreamReader(INPUT)) {
-      colors = gson.fromJson(reader, t);
-      if (colors == null) {
-        throw new AssertionError("Invalid palette data");
-      }
+  static void main() throws IOException {
+    final int[] colors = MapPaletteLoader.getColors();
+    final int count = Math.min(colors.length, 256);
+    final BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+    for (int index = 0; index < count; index++) {
+      final int x = index & 15;
+      final int y = index >> 4;
+      final int color = colors[index];
+      image.setRGB(x, y, color);
     }
-
-    final BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-    for (int i = 0; i < 256; i++) {
-      final List<Integer> c = colors.get(i);
-      final int r = c.get(0);
-      final int g = c.get(1);
-      final int b = c.get(2);
-      final int x = i & 15;
-      final int y = i >> 4;
-      final int argb = (0xFF << 24) | (r << 16) | (g << 8) | b;
-      img.setRGB(x, y, argb);
-    }
-
     final File file = new File(OUTPUT);
-    ImageIO.write(img, "png", file);
+    ImageIO.write(image, "png", file);
   }
 }

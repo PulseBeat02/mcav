@@ -17,67 +17,70 @@
  */
 package me.brandonli.mcav.media.image;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.List;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
- * Represents a dynamic image, which is a sequence of static images (frames) that can be displayed
- * in a specific order.
- * <p>
- * This interface provides methods to retrieve the frames, frame rate, and the total number of frames
- * in the dynamic image.
+ * An animated image, such as a GIF, decoded into its individual frames.
+ *
+ * <p>All frames are decoded up front and kept in memory, which makes animations easy to play in a loop but
+ * unsuitable for long videos; use a video player for those. The frames are owned by the animation and released
+ * together with it.
  */
 public interface DynamicImageBuffer extends Image {
   /**
-   * Retrieves the frames of the dynamic image.
+   * Gets every frame of the animation in playback order.
    *
-   * @return a list of static images representing the frames
+   * @return the frames, which must not be released individually
    */
   List<ImageBuffer> getFrames();
 
   /**
-   * Retrieves the frame rate of the dynamic image.
+   * Gets the playback speed of the animation.
    *
    * @return the frame rate in frames per second
    */
   float getFrameRate();
 
   /**
-   * Retrieves a specific frame from the dynamic image.
+   * Gets one frame of the animation.
    *
-   * @param index the index of the frame to retrieve
-   * @return the static image at the specified index
+   * @param index the index of the frame, from 0 to {@code getFrameCount() - 1}
+   * @return the frame, which must not be released individually
    */
-  ImageBuffer getFrame(int index);
+  ImageBuffer getFrame(final int index);
 
   /**
-   * Retrieves the total number of frames in the dynamic image.
+   * Gets the number of frames of the animation.
    *
-   * @return the total number of frames
+   * @return the frame count
    */
   int getFrameCount();
 
   /**
-   * Creates a new instance of {@link DynamicImageBuffer} from a {@link FileSource}.
+   * Decodes an animated image file.
    *
-   * @param source the file source to create the dynamic image from
-   * @return a new instance of {@link DynamicImageBuffer}
-   * @throws IOException if an I/O error occurs
+   * @param source the image file
+   * @return the decoded animation
+   * @throws IOException if the file cannot be decoded
    */
   static DynamicImageBuffer path(final FileSource source) throws IOException {
+    Preconditions.checkNotNull(source, "Source must not be null");
     return new DynamicImageBufferImpl(source);
   }
 
   /**
-   * Creates a new instance of {@link DynamicImageBuffer} from a {@link UriSource}.
+   * Downloads and decodes an animated image.
    *
-   * @param source the URI source to create the dynamic image from
-   * @return a new instance of {@link DynamicImageBuffer}
-   * @throws IOException if an I/O error occurs
+   * @param source the URL of the image
+   * @return the decoded animation
+   * @throws IOException if the image cannot be downloaded or decoded
    */
   static DynamicImageBuffer uri(final UriSource source) throws IOException {
+    Preconditions.checkNotNull(source, "Source must not be null");
     return new DynamicImageBufferImpl(source);
   }
 }

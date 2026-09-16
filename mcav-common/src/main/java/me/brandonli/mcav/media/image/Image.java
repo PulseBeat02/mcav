@@ -18,6 +18,16 @@
 package me.brandonli.mcav.media.image;
 
 /**
- * Represents an image entity that provides methods to access and manipulate image data.
+ * The base type of images that hold native memory. Images are closed with {@link #close()}, which never throws,
+ * so they can be used in try-with-resources statements without handling exceptions.
+ *
+ * @see ImageBuffer
+ * @see DynamicImageBuffer
  */
-public interface Image extends AutoCloseable {}
+public interface Image extends AutoCloseable {
+  /**
+   * Releases the native memory of the image. Calling this method more than once has no effect.
+   */
+  @Override
+  void close();
+}

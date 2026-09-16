@@ -17,103 +17,169 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPaletteLoader;
 
 /**
- * Utility class for dithering-related operations.
+ * Fast palette lookups shared by the dithering algorithms. All lookups are constant time table reads, and every
+ * method is safe to call from any thread.
+ *
+ * <p>{@link #getLookupIndex(int, int, int)} and {@link #clamp(int)} run for every channel of every pixel, so they
+ * leave their arguments unchecked; the dithering algorithms only pass them values they have already clamped. The
+ * other methods check their arguments.
  */
 public final class DitherUtils {
+
+  private static final int CHANNEL_MASK = 0xFF;
 
   private DitherUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Retrieves the nearest matching color index from a given palette for a specified RGB color.
+   * Computes the index into the palette lookup tables for an RGB color. The components are not checked, because
+   * this method runs for every pixel; values outside the range from 0 to 255 produce an index outside the tables.
    *
-   * @param palette the palette containing the color map used for matching
-   * @param r       the red component of the color, in the range 0-255
-   * @param g       the green component of the color, in the range 0-255
-   * @param b       the blue component of the color, in the range 0-255
-   * @return the index of the closest matching color in the palette as a byte
+   * @param red   the red component from 0 to 255
+   * @param green the green component from 0 to 255
+   * @param blue  the blue component from 0 to 255
+   * @return the table index
    */
-  public static byte getBestColor(final DitherPalette palette, final int r, final int g, final int b) {
-    final byte[] colors = palette.getColorMap();
-    return colors[((r >> 1) << 14) | ((g >> 1) << 7) | (b >> 1)];
+  public static int getLookupIndex(final int red, final int green, final int blue) {
+    return ((red >> 1) << 14) | ((green >> 1) << 7) | (blue >> 1);
   }
 
   /**
-   * Determines and retrieves the best full color value from the palette for the given RGB components.
+   * Finds the palette index of the color closest to an RGB color.
    *
-   * @param palette the color palette containing the precomputed full color map
-   * @param red     the red component of the desired color (0-255)
-   * @param green   the green component of the desired color (0-255)
-   * @param blue    the blue component of the desired color (0-255)
-   * @return the best matching full color value from the palette, as an integer
+   * @param palette the palette
+   * @param red     the red component from 0 to 255
+   * @param green   the green component from 0 to 255
+   * @param blue    the blue component from 0 to 255
+   * @return the palette index
+   * @throws IllegalArgumentException if a component is outside the range from 0 to 255
+   */
+  public static byte getBestColor(final DitherPalette palette, final int red, final int green, final int blue) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
+    checkChannels(red, green, blue);
+
+    final byte[] colorMap = palette.getColorMap();
+    final int index = getLookupIndex(red, green, blue);
+    return colorMap[index];
+  }
+
+  /**
+   * Finds the palette color closest to an RGB color.
+   *
+   * @param palette the palette
+   * @param red     the red component from 0 to 255
+   * @param green   the green component from 0 to 255
+   * @param blue    the blue component from 0 to 255
+   * @return the closest palette color as opaque ARGB
+   * @throws IllegalArgumentException if a component is outside the range from 0 to 255
    */
   public static int getBestFullColor(final DitherPalette palette, final int red, final int green, final int blue) {
-    final int[] colors = palette.getFullColorMap();
-    return colors[((red >> 1) << 14) | ((green >> 1) << 7) | (blue >> 1)];
+    Preconditions.checkNotNull(palette, "Palette must not be null");
+    checkChannels(red, green, blue);
+
+    final int[] fullColorMap = palette.getFullColorMap();
+    final int index = getLookupIndex(red, green, blue);
+    return fullColorMap[index];
+  }
+
+  private static void checkChannels(final int red, final int green, final int blue) {
+    final int combined = red | green | blue;
+    final boolean inRange = (combined & ~CHANNEL_MASK) == 0;
+    Preconditions.checkArgument(inRange, "Color components must be between 0 and 255, got %s, %s and %s", red, green, blue);
   }
 
   /**
-   * Determines the best matching color in the given palette for the specified RGB values,
-   * and returns its corresponding RGB integer value.
+   * Finds the palette color closest to an RGB color. This method is an alias of
+   * {@link #getBestFullColor(DitherPalette, int, int, int)}.
    *
-   * @param palette the palette containing the available colors
-   * @param r       the red component of the color (0-255)
-   * @param g       the green component of the color (0-255)
-   * @param b       the blue component of the color (0-255)
-   * @return the RGB value of the best matching color from the palette
+   * @param palette the palette
+   * @param red     the red component from 0 to 255
+   * @param green   the green component from 0 to 255
+   * @param blue    the blue component from 0 to 255
+   * @return the closest palette color as opaque ARGB
+   * @throws IllegalArgumentException if a component is outside the range from 0 to 255
    */
-  public static int getBestColorNormal(final DitherPalette palette, final int r, final int g, final int b) {
-    return MapPaletteLoader.getColor(getBestColor(palette, r, g, b)).getRGB();
+  public static int getBestColorNormal(final DitherPalette palette, final int red, final int green, final int blue) {
+    return getBestFullColor(palette, red, green, blue);
   }
 
   /**
-   * Retrieves a color from a given Minecraft-compatible palette based on a specified value.
+   * Gets the color of a palette index.
    *
-   * @param palette the Palette instance containing the Minecraft-compatible color palette
-   * @param val     the byte value used to index into the palette, adjusted within the range [0, 255]
-   * @return the color at the adjusted index within the palette as an integer (ARGB format)
+   * @param palette the palette
+   * @param index   the palette index, as stored in map data; negative bytes are treated as unsigned
+   * @return the color as opaque ARGB, or zero for a reserved transparent index
+   * @throws IndexOutOfBoundsException if the palette has no color at the index
    */
-  public static int getColorFromMinecraftPalette(final DitherPalette palette, final byte val) {
+  public static int getColorFromMinecraftPalette(final DitherPalette palette, final byte index) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     final int[] colors = palette.getPalette();
-    return colors[(val + 256) % 256];
+    final int unsigned = index & CHANNEL_MASK;
+    Preconditions.checkElementIndex(unsigned, colors.length, "Palette index");
+    return colors[unsigned];
   }
 
   /**
-   * Determines the best matching color index for a given RGB value, considering transparency.
+   * Finds the palette index of the color closest to an ARGB color, mapping fully transparent colors to the first
+   * reserved index of the palette.
    *
-   * @param palette the palette used to compute the best color index
-   * @param rgb     the packed integer RGB value, where the alpha channel is in the highest 8 bits
-   * @return the best matching color index as a byte, or 0 if the input RGB value is fully transparent
+   * @param palette the palette
+   * @param argb    the color
+   * @return the palette index, or zero if the color is fully transparent
    */
-  public static byte getBestColorIncludingTransparent(final DitherPalette palette, final int rgb) {
-    final int r = (rgb >> 16) & 0xFF;
-    final int g = (rgb >> 8) & 0xFF;
-    final int b = rgb & 0xFF;
-    return ((rgb >>> 24) & 0xFF) == 0 ? 0 : getBestColor(palette, r, g, b);
-  }
-
-  /**
-   * Simplifies an integer RGB buffer into a byte-based representation using a provided color palette.
-   *
-   * @param palette the color palette to be used for determining the best match for each RGB value
-   * @param buffer  an array of integer RGB values to simplify
-   * @return a byte array where each element represents the index of the best matching color from the palette
-   */
-  public static byte[] simplify(final DitherPalette palette, final int[] buffer) {
-    final byte[] map = new byte[buffer.length];
-    for (int index = 0; index < buffer.length; index++) {
-      final int rgb = buffer[index];
-      final int red = (rgb >> 16) & 0xFF;
-      final int green = (rgb >> 8) & 0xFF;
-      final int blue = rgb & 0xFF;
-      final byte ptr = DitherUtils.getBestColor(palette, red, green, blue);
-      map[index] = ptr;
+  public static byte getBestColorIncludingTransparent(final DitherPalette palette, final int argb) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
+    final int alpha = argb >>> 24;
+    if (alpha == 0) {
+      return 0;
     }
-    return map;
+
+    final int red = (argb >> 16) & CHANNEL_MASK;
+    final int green = (argb >> 8) & CHANNEL_MASK;
+    final int blue = argb & CHANNEL_MASK;
+    return getBestColor(palette, red, green, blue);
+  }
+
+  /**
+   * Maps every pixel to its closest palette index without dithering.
+   *
+   * @param palette the palette
+   * @param pixels  the pixels as ARGB
+   * @return the palette index of every pixel
+   */
+  public static byte[] simplify(final DitherPalette palette, final int[] pixels) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
+    Preconditions.checkNotNull(pixels, "Pixels must not be null");
+
+    final byte[] colorMap = palette.getColorMap();
+    final byte[] indices = new byte[pixels.length];
+    for (int pixelIndex = 0; pixelIndex < pixels.length; pixelIndex++) {
+      final int argb = pixels[pixelIndex];
+      final int red = (argb >> 16) & CHANNEL_MASK;
+      final int green = (argb >> 8) & CHANNEL_MASK;
+      final int blue = argb & CHANNEL_MASK;
+      final int lookup = getLookupIndex(red, green, blue);
+      indices[pixelIndex] = colorMap[lookup];
+    }
+    return indices;
+  }
+
+  /**
+   * Clamps a channel value to the range 0 to 255. This method runs for every channel of every pixel, and accepts
+   * any value.
+   *
+   * @param value the value
+   * @return the clamped value
+   */
+  public static int clamp(final int value) {
+    if ((value & ~0xFF) == 0) {
+      return value;
+    }
+    return value < 0 ? 0 : 255;
   }
 }

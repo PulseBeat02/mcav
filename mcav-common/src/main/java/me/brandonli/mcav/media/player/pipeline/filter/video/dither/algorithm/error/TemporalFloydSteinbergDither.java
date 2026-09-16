@@ -18,37 +18,37 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error;
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPalette;
 
 /**
- * Temporally-coherent, strip-parallel Floyd-Steinberg error-diffusion dither. Serpentine
- * scanning (even rows L→R, odd rows R→L) reduces left-biased streaking; the kernel is mirrored
- * on backward rows. Residual error at temporal-skip sites is propagated to avoid banding at
- * static/moving region boundaries.
+ * Floyd-Steinberg error diffusion that stays stable between video frames, see {@link TemporalDitherAlgorithm}.
+ * This is the recommended algorithm for video on maps, especially together with delta encoding.
  */
 public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm {
 
-  /** Constructs with the default {@link MapPalette} and default thresholds. */
+  /**
+   * Constructs a new algorithm for the Minecraft map palette with default settings.
+   */
   public TemporalFloydSteinbergDither() {
-    super(new MapPalette());
+    this(DitherPalette.DEFAULT_MAP_PALETTE);
   }
 
   /**
-   * Constructs with the specified palette and default thresholds.
+   * Constructs a new algorithm with default settings.
    *
-   * @param palette the colour palette to use for quantisation
+   * @param palette the palette to reduce images to
    */
   public TemporalFloydSteinbergDither(final DitherPalette palette) {
-    super(palette);
+    super(palette, DiffusionKernel.FLOYD_STEINBERG);
   }
 
   /**
-   * Constructs with all parameters specified.
+   * Constructs a new algorithm.
    *
-   * @param palette            the colour palette to use for quantisation
-   * @param temporalThreshold  per-channel tolerance for reusing a previous palette index (≥ 0)
-   * @param errorThreshold     minimum total error below which error is not diffused (≥ 0)
-   * @param errorStrength      fraction of quantisation error to diffuse, in [0.0, 1.0]
+   * @param palette           the palette to reduce images to
+   * @param temporalThreshold how far a pixel may drift per channel, from 0 to 255, before its color is
+   *                          recomputed
+   * @param errorThreshold    the total error below which no error is diffused
+   * @param errorStrength     the fraction of the error that is diffused, from 0 to 1
    */
   public TemporalFloydSteinbergDither(
     final DitherPalette palette,
@@ -56,65 +56,6 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
     final int errorThreshold,
     final float errorStrength
   ) {
-    super(palette, temporalThreshold, errorThreshold, errorStrength);
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  protected void diffuseError(
-    final int x,
-    final int width,
-    final int[] current,
-    final int[] next,
-    final boolean hasNextY,
-    final boolean forward,
-    final int dR,
-    final int dG,
-    final int dB
-  ) {
-    final int bufIdx = x * 3;
-    if (forward) {
-      if (x < width - 1) {
-        current[bufIdx + 3] += (dR * 7) >> 4;
-        current[bufIdx + 4] += (dG * 7) >> 4;
-        current[bufIdx + 5] += (dB * 7) >> 4;
-      }
-      if (hasNextY) {
-        if (x > 0) {
-          next[bufIdx - 3] += (dR * 3) >> 4;
-          next[bufIdx - 2] += (dG * 3) >> 4;
-          next[bufIdx - 1] += (dB * 3) >> 4;
-        }
-        next[bufIdx] += (dR * 5) >> 4;
-        next[bufIdx + 1] += (dG * 5) >> 4;
-        next[bufIdx + 2] += (dB * 5) >> 4;
-        if (x < width - 1) {
-          next[bufIdx + 3] += dR >> 4;
-          next[bufIdx + 4] += dG >> 4;
-          next[bufIdx + 5] += dB >> 4;
-        }
-      }
-    } else {
-      if (x > 0) {
-        current[bufIdx - 3] += (dR * 7) >> 4;
-        current[bufIdx - 2] += (dG * 7) >> 4;
-        current[bufIdx - 1] += (dB * 7) >> 4;
-      }
-      if (hasNextY) {
-        if (x < width - 1) {
-          next[bufIdx + 3] += (dR * 3) >> 4;
-          next[bufIdx + 4] += (dG * 3) >> 4;
-          next[bufIdx + 5] += (dB * 3) >> 4;
-        }
-        next[bufIdx] += (dR * 5) >> 4;
-        next[bufIdx + 1] += (dG * 5) >> 4;
-        next[bufIdx + 2] += (dB * 5) >> 4;
-        if (x > 0) {
-          next[bufIdx - 3] += dR >> 4;
-          next[bufIdx - 2] += dG >> 4;
-          next[bufIdx - 1] += dB >> 4;
-        }
-      }
-    }
+    super(palette, DiffusionKernel.FLOYD_STEINBERG, temporalThreshold, errorThreshold, errorStrength);
   }
 }

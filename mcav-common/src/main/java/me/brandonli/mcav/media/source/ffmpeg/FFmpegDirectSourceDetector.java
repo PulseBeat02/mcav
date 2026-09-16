@@ -17,46 +17,49 @@
  */
 package me.brandonli.mcav.media.source.ffmpeg;
 
+import com.google.common.base.Preconditions;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.media.source.SourceDetector;
 
 /**
- * A source detector for FFmpeg direct sources, separated by two pipes ("||").
+ * Detects raw FFmpeg inputs written as {@code format||input}, such as {@code gdigrab||desktop}.
  */
 public class FFmpegDirectSourceDetector implements SourceDetector<FFmpegDirectSource> {
 
-  private static final String SPLIT_PATTERN = Pattern.quote("||");
+  private static final Pattern SEPARATOR = Pattern.compile(Pattern.quote("||"));
 
   /**
-   * Constructs a new {@link FFmpegDirectSourceDetector}.
+   * Constructs a new detector.
    */
   public FFmpegDirectSourceDetector() {
-    // no-op
+    // stateless
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isDetectedSource(final String raw) {
-    final String[] split = raw.split(SPLIT_PATTERN);
-    return split.length == 2;
+    Preconditions.checkNotNull(raw, "Raw must not be null");
+    final String[] parts = SEPARATOR.split(raw, -1);
+    if (parts.length != 2) {
+      return false;
+    }
+
+    final String format = parts[0];
+    final String mrl = parts[1];
+    final boolean formatBlank = format.isBlank();
+    final boolean mrlBlank = mrl.isBlank();
+    return !formatBlank && !mrlBlank;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public FFmpegDirectSource createSource(final String raw) {
-    final String[] split = raw.split(SPLIT_PATTERN);
-    final String format = split[0];
-    final String mrl = split[1];
+    Preconditions.checkNotNull(raw, "Raw must not be null");
+    final String[] parts = SEPARATOR.split(raw, -1);
+    Preconditions.checkArgument(parts.length == 2, "Expected format||input but got %s", raw);
+    final String format = parts[0];
+    final String mrl = parts[1];
     return FFmpegDirectSource.mrl(mrl, format);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getPriority() {
     return SourceDetector.HIGH_PRIORITY;

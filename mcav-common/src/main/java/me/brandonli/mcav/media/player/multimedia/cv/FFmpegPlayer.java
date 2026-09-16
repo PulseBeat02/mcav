@@ -17,26 +17,34 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
+import com.google.common.base.Preconditions;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * Represents a video player that uses FFmpeg for frame grabbing.
+ * A player that decodes media with the bundled FFmpeg, which is always available and handles files, HTTP
+ * streams, RTSP cameras, and raw device input. Create instances with
+ * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()}.
  */
 public class FFmpegPlayer extends AbstractVideoPlayerCV {
 
   /**
-   * Constructs a new FFmpegPlayer instance.
+   * Constructs a new FFmpeg player.
    */
   public FFmpegPlayer() {
-    // no-op
+    // configured by the base class
   }
 
   /**
-   * {@inheritDoc}
+   * Creates an FFmpeg grabber for a resource, which the player configures and starts.
+   *
+   * @param resource the resource to decode, such as a file path, a URL, or a device path with an FFmpeg format
+   * @return a new, unstarted FFmpeg grabber
+   * @throws NullPointerException if the resource is null
    */
   @Override
-  public FrameGrabber getFrameGrabber(final String uri) {
-    return new FFmpegFrameGrabber(uri);
+  protected FrameGrabber createFrameGrabber(final String resource) {
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    return new FFmpegFrameGrabber(resource);
   }
 }

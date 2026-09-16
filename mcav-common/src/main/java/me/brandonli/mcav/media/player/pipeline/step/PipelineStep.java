@@ -17,40 +17,78 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
+import com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a generic processing step in a data pipeline.
+ * One link of a pipeline: a filter plus a pointer to the next link. Players walk the chain with
+ * {@link #processAll(Object, Object)} for every frame or sample chunk. Build chains with
+ * {@link me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder}.
  *
- * @param <A> the type of the input data to be processed by this pipeline step
- * @param <B> the type of the metadata associated with the input data
- * @param <C> the type of the next pipeline step
+ * @param <T> the type of data that flows through the pipeline
+ * @param <M> the type of metadata that accompanies the data
+ * @param <S> the type of the steps of this pipeline
  */
-public interface PipelineStep<A, B, C> {
+public interface PipelineStep<T, M, S extends PipelineStep<T, M, S>> {
   /**
-   * Retrieves the next step in the pipeline if present.
+   * Gets the step that follows this one.
    *
-   * @return the next step in the pipeline, or null if this is the last step
+   * @return the next step, or null if this is the last step
    */
-  @Nullable C next();
+  @Nullable S next();
 
   /**
-   * Determines whether this is the last step in the pipeline.
+   * Checks whether this is the last step of the chain.
    *
-   * @return {@code true} if there is no subsequent step in the pipeline,
-   * {@code false} otherwise
+   * @return true if no step follows
    */
   default boolean isLast() {
-    return this.next() == null;
+    final S next = this.next();
+    return next == null;
   }
 
   /**
-   * Processes the input data and associated metadata for this pipeline step.
+   * Checks whether this step is the empty pipeline, the {@code NO_OP} step of {@link AudioPipelineStep} or
+   * {@link VideoPipelineStep}, which does nothing. Players skip preparing frames and samples for the empty pipeline,
+   * because no filter would read them.
    *
-   * @param buffer   the input data to be processed. The type of this parameter
-   *                 is determined by the generic type {@code A}.
-   * @param metadata the metadata associated with the input data. The type of
-   *                 this parameter is determined by the generic type {@code B}.
+   * @return true only for the empty pipeline
    */
-  void process(final A buffer, final B metadata);
+  default boolean isNoOp() {
+    return false;
+  }
+
+  /**
+   * Applies the filter of this step only.
+   *
+   * @param buffer   the data
+   * @param metadata the metadata of the data
+   * @throws NullPointerException if the data or the metadata is null
+   */
+  void process(final T buffer, final M metadata);
+
+  /**
+   * Applies the filter of this step and of every step that follows, in order. Every filter runs, whatever the
+   * filters before it returned.
+   *
+   * @param buffer   the data
+   * @param metadata the metadata of the data
+   * @throws NullPointerException if the data or the metadata is null
+   */
+  default void processAll(final T buffer, final M metadata) {
+    Preconditions.checkNotNull(buffer, "Buffer must not be null");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    S step = this.self();
+    while (step != null) {
+      step.process(buffer, metadata);
+      step = step.next();
+    }
+  }
+
+  /**
+   * Gets this step typed as the step type of the pipeline.
+   *
+   * @return this step
+   */
+  S self();
 }

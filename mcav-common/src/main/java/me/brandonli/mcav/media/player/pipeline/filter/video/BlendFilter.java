@@ -17,43 +17,51 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
-import me.brandonli.mcav.media.image.MatImageBuffer;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A video filter that blends the current frame with another frame using a specified alpha value.
+ * Blends every frame with a fixed image of the same size. Frames whose size differs from the image are left
+ * untouched. The image is copied when the filter is created, so it may be released afterward.
  */
 public class BlendFilter extends MatVideoFilter {
 
   private final double alpha;
-  private final Mat otherMat;
+  private final Mat other;
 
   /**
-   * Constructs a BlendFilter that blends the current frame with another frame.
+   * Constructs a new blend filter.
    *
-   * @param other the MatImageBuffer containing the other frame to blend with
-   * @param alpha the blending factor, where 0.0 means only the other frame is visible,
-   *              and 1.0 means only the current frame is visible
+   * @param other the image to blend with
+   * @param alpha the weight of the frame from 0 to 1; the image gets the remaining weight
    */
-  public BlendFilter(final MatImageBuffer other, final double alpha) {
+  public BlendFilter(final ImageBuffer other, final double alpha) {
+    Preconditions.checkNotNull(other, "Other image must not be null");
+    Preconditions.checkArgument(alpha >= 0 && alpha <= 1, "Alpha must be between 0 and 1");
     this.alpha = alpha;
-    this.otherMat = other.getOrThrow(MatImageBuffer.MAT_PROPERTY);
+    this.other = copyToMat(other);
   }
 
   /**
-   * {@inheritDoc}
+   * Blends the frame in place with the image, if both have the same size.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true if the frame was blended, false if its size differs from the image and it was left untouched
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    final Size first = mat.size();
-    final Size second = this.otherMat.size();
-    if (!first.equals(second)) {
+  protected boolean modifyMat(final Mat mat) {
+    final int frameWidth = mat.cols();
+    final int frameHeight = mat.rows();
+    final int otherWidth = this.other.cols();
+    final int otherHeight = this.other.rows();
+    final boolean sameSize = frameWidth == otherWidth && frameHeight == otherHeight;
+    if (!sameSize) {
       return false;
     }
-
-    opencv_core.addWeighted(mat, this.alpha, this.otherMat, 1.0 - this.alpha, 0.0, mat);
+    final double otherWeight = 1.0 - this.alpha;
+    opencv_core.addWeighted(mat, this.alpha, this.other, otherWeight, 0.0, mat);
     return true;
   }
 }

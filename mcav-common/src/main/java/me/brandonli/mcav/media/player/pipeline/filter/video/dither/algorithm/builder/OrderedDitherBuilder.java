@@ -21,32 +21,17 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ord
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
 
 /**
- * Defines a builder interface for the construction of {@code OrderedDither}.
+ * Builds ordered dithering algorithms.
  *
- * @param <T> the type of {@link BayerDither} that this builder will produce.
- * @param <B> the type of the builder itself, allowing for method chaining.
+ * @param <T> the type of algorithm the builder creates
+ * @param <B> the type of the builder itself, for method chaining
  */
 public interface OrderedDitherBuilder<T extends BayerDither, B extends OrderedDitherBuilder<T, B>> extends DitherAlgorithmBuilder<T, B> {
   /**
-   * Configures the builder with a specific {@link PixelMapper} representing a dither matrix
-   * and returns the builder instance for method-chaining purposes.
+   * Sets the threshold pattern. Defaults to a 2x2 Bayer matrix at normal strength.
    *
-   * @param matrix the {@link PixelMapper} instance defining the dither matrix to be applied.
-   *               This matrix determines how pixel data is transformed during the dithering process.
-   * @return the builder instance after the dither matrix has been set.
+   * @param mapper the threshold pattern
+   * @return this builder
    */
-  @SuppressWarnings("unchecked")
-  default B withDitherMatrix(final PixelMapper matrix) {
-    this.setDitherMatrix(matrix);
-    return (B) this;
-  }
-
-  /**
-   * Sets the dither matrix to be used for ordered dithering.
-   *
-   * @param matrix the {@link PixelMapper} representing the dither matrix.
-   *               The provided matrix defines how pixel values are transformed
-   *               during the dithering process. It must not be null.
-   */
-  void setDitherMatrix(final PixelMapper matrix);
+  B withDitherMatrix(final PixelMapper mapper);
 }

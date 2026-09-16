@@ -1,3 +1,5 @@
+import info.solidsoft.gradle.pitest.PitestPluginExtension
+
 plugins {
     id("maven-publish")
 }
@@ -33,11 +35,15 @@ dependencies {
     api("net.java.dev.jna:jna:5.19.1")
     api("net.java.dev.jna:jna-platform:5.19.1")
 
-    // compile only
-    compileOnlyApi("org.slf4j:slf4j-simple:2.1.0-alpha1")
+    // logging: the library logs through the SLF4J API and leaves the binding to the application
+    api("org.slf4j:slf4j-api:2.0.17")
+
+    // JavaCPP declares these annotations as provided; without them javac cannot read its package-info
+    compileOnly("org.osgi:osgi.annotation:8.1.0")
 
     // test dependencies
-    testImplementation("org.slf4j:slf4j-simple:2.1.0-alpha1")
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
+    testImplementation("com.google.jimfs:jimfs:1.3.0")
 }
 
 tasks {
@@ -49,6 +55,13 @@ tasks {
     withType<Javadoc>().configureEach {
         options.encoding = "UTF-8"
     }
+}
+
+// PIT mutates the deterministic part of the library. The players are left out: their tests drive a real VLC, FFmpeg
+// and OpenCV, so a mutant that breaks playback makes every test of its batch hang until PIT's timeout, which takes
+// hours without finding anything the fast tests do not already cover.
+extensions.configure<PitestPluginExtension> {
+    excludedClasses = setOf("me.brandonli.mcav.media.player.multimedia.*")
 }
 
 publishing {

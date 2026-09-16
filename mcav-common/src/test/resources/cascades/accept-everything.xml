@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- A Haar cascade whose only weak classifier always votes 1, which clears the stage threshold of -1, so every
+     window is accepted. Used to test code that reacts to detections without needing a real face image. -->
+<opencv_storage>
+<cascade type_id="opencv-cascade-classifier"><stageType>BOOST</stageType>
+  <featureType>HAAR</featureType>
+  <height>8</height>
+  <width>8</width>
+  <stageParams>
+    <maxWeakCount>1</maxWeakCount></stageParams>
+  <featureParams>
+    <maxCatCount>0</maxCatCount></featureParams>
+  <stageNum>1</stageNum>
+  <stages>
+    <_>
+      <maxWeakCount>1</maxWeakCount>
+      <stageThreshold>-1.</stageThreshold>
+      <weakClassifiers>
+        <_>
+          <internalNodes>
+            0 -1 0 0.</internalNodes>
+          <leafValues>
+            1. 1.</leafValues></_></weakClassifiers></_></stages>
+  <features>
+    <_>
+      <rects>
+        <_>
+          0 0 8 8 -1.</_>
+        <_>
+          0 0 4 8 2.</_></rects></_></features></cascade>
+</opencv_storage>

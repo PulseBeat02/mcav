@@ -17,27 +17,47 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.*;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.AtkinsonDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.BurkesDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FloydDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.JarvisJudiceNinkeDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StevensonArceDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StuckiDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalFloydSteinbergDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Implementation of the {@link ErrorDiffusionDitherBuilder} interface.
+ * The default {@link ErrorDiffusionDitherBuilder}.
  */
 public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuilder<ErrorDiffusionDither, ErrorDiffusionDitherBuilderImpl> {
 
-  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
-  private Algorithm algorithm = Algorithm.FILTER_LITE;
+  private DitherPalette palette;
+  private Algorithm algorithm;
+  private int temporalThreshold;
+  private int errorThreshold;
+  private float errorStrength;
 
-  private int temporalThreshold = TemporalDitherAlgorithm.DEFAULT_TEMPORAL_THRESHOLD;
-  private int errorThreshold = TemporalDitherAlgorithm.DEFAULT_ERROR_THRESHOLD;
-  private float errorStrength = TemporalDitherAlgorithm.DEFAULT_ERROR_STRENGTH;
-
-  /** Constructs a new {@link ErrorDiffusionDitherBuilderImpl} with default settings. */
+  /**
+   * Constructs a builder that creates Filter Lite on the Minecraft map palette.
+   */
   public ErrorDiffusionDitherBuilderImpl() {
-    // no-op
+    this.palette = DitherPalette.DEFAULT_MAP_PALETTE;
+    this.algorithm = Algorithm.FILTER_LITE;
+    this.temporalThreshold = TemporalDitherAlgorithm.DEFAULT_TEMPORAL_THRESHOLD;
+    this.errorThreshold = TemporalDitherAlgorithm.DEFAULT_ERROR_THRESHOLD;
+    this.errorStrength = TemporalDitherAlgorithm.DEFAULT_ERROR_STRENGTH;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Creates the chosen error diffusion algorithm. Every call creates a new algorithm, so a temporal algorithm built
+   * here can be given to exactly one player.
+   *
+   * @return the algorithm
+   */
   @Override
   public ErrorDiffusionDither build() {
     return switch (this.algorithm) {
@@ -57,33 +77,74 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
     };
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Sets the palette the algorithm reduces images to. Defaults to the Minecraft map palette.
+   *
+   * @param palette the palette
+   * @return this builder
+   */
   @Override
-  public void setPalette(final DitherPalette palette) {
+  public ErrorDiffusionDitherBuilderImpl withPalette(final DitherPalette palette) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     this.palette = palette;
+    return this;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Sets the error diffusion algorithm. Defaults to {@link Algorithm#FILTER_LITE}.
+   *
+   * @param algorithm the algorithm
+   * @return this builder
+   */
   @Override
-  public void setAlgorithm(final Algorithm algorithm) {
+  public ErrorDiffusionDitherBuilderImpl withAlgorithm(final Algorithm algorithm) {
+    Preconditions.checkNotNull(algorithm, "Algorithm must not be null");
     this.algorithm = algorithm;
+    return this;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Sets how far a pixel may drift per channel before its color is recomputed. Only used by
+   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}. Defaults to {@link TemporalDitherAlgorithm#DEFAULT_TEMPORAL_THRESHOLD}.
+   *
+   * @param threshold the threshold from 0 to 255
+   * @return this builder
+   * @throws IllegalArgumentException if the threshold is outside the range from 0 to 255
+   */
   @Override
-  public void setTemporalThreshold(final int threshold) {
+  public ErrorDiffusionDitherBuilderImpl withTemporalThreshold(final int threshold) {
+    Preconditions.checkArgument(threshold >= 0 && threshold <= 255, "Temporal threshold must be between 0 and 255");
     this.temporalThreshold = threshold;
+    return this;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Sets the total error below which nothing is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
+   * Defaults to {@link TemporalDitherAlgorithm#DEFAULT_ERROR_THRESHOLD}.
+   *
+   * @param threshold the threshold, which must not be negative
+   * @return this builder
+   * @throws IllegalArgumentException if the threshold is negative
+   */
   @Override
-  public void setErrorThreshold(final int threshold) {
+  public ErrorDiffusionDitherBuilderImpl withErrorThreshold(final int threshold) {
+    Preconditions.checkArgument(threshold >= 0, "Error threshold must not be negative");
     this.errorThreshold = threshold;
+    return this;
   }
 
-  /** {@inheritDoc} */
+  /**
+   * Sets the fraction of the error that is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
+   * Defaults to {@link TemporalDitherAlgorithm#DEFAULT_ERROR_STRENGTH}.
+   *
+   * @param strength the strength from 0 to 1
+   * @return this builder
+   * @throws IllegalArgumentException if the strength is outside the range from 0 to 1
+   */
   @Override
-  public void setErrorStrength(final float strength) {
+  public ErrorDiffusionDitherBuilderImpl withErrorStrength(final float strength) {
+    Preconditions.checkArgument(strength >= 0 && strength <= 1, "Error strength must be between 0 and 1");
     this.errorStrength = strength;
+    return this;
   }
 }

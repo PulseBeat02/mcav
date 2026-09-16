@@ -22,52 +22,44 @@ import java.net.URI;
 import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * Represents a type of {@link DynamicSource} that is associated with a specific URI.
+ * Media behind a URL, such as an HTTP stream, an RTSP camera, or a web page that has to be resolved with yt-dlp
+ * first.
  */
 public interface UriSource extends DynamicSource {
   /**
-   * Retrieves the URI associated with this source.
+   * Creates a source for a URL.
    *
-   * @return the {@link URI} representing the location of the resource.
+   * @param uri the URL
+   * @return the source
+   */
+  static UriSource uri(final URI uri) {
+    Preconditions.checkNotNull(uri, "URI must not be null");
+    return new UriSourceImpl(uri);
+  }
+
+  /**
+   * Gets the URL.
+   *
+   * @return the URL
    */
   URI getUri();
 
   /**
-   * Retrieves the default name associated with this source.
+   * Checks whether the URL points directly at a media file, judging by its file extension, rather than at a web
+   * page that has to be resolved first.
    *
-   * @return the default name of the source as a {@code String}, which is "uri".
+   * @return true if the URL looks like a direct media link
    */
+  boolean isDirect();
+
   @Override
   default String getName() {
     return "uri";
   }
 
-  /**
-   * Retrieves the resource associated with this URI source as a string.
-   * The resource is derived from the URI represented by this source.
-   *
-   * @return the resource as a string, which is the string representation of the associated URI.
-   */
   @Override
   default String getResource() {
-    return this.getUri().toString();
-  }
-
-  /**
-   * Indicates whether this source is a direct source to a file.
-   * @return {@code false} by default, indicating that this source is not a direct file source.
-   */
-  boolean isDirect();
-
-  /**
-   * Creates a new {@link UriSource} instance for the specified URI.
-   *
-   * @param uri the {@link URI} representing the resource location. Must not be null.
-   * @return a new {@link UriSource} instance associated with the specified URI.
-   * @throws NullPointerException if the specified URI is null.
-   */
-  static UriSource uri(final URI uri) {
-    Preconditions.checkNotNull(uri);
-    return new UriSourceImpl(uri);
+    final URI uri = this.getUri();
+    return uri.toString();
   }
 }

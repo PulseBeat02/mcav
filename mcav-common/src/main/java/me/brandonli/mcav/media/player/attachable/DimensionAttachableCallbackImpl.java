@@ -17,52 +17,23 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.concurrent.atomic.AtomicReference;
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.utils.immutable.Dimension;
 
 /**
- * Implementation of {@link DimensionAttachableCallback}.
+ * The default {@link DimensionAttachableCallback}.
  */
-public class DimensionAttachableCallbackImpl implements DimensionAttachableCallback {
-
-  private final AtomicReference<Dimension> dimension;
+public final class DimensionAttachableCallbackImpl extends AbstractAttachableCallback<Dimension> implements DimensionAttachableCallback {
 
   DimensionAttachableCallbackImpl() {
-    this.dimension = new AtomicReference<>(Dimension.NONE);
+    super(Dimension.NONE);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public void attach(final Dimension pipeline) {
-    requireNonNull(pipeline);
-    this.dimension.set(pipeline);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void detach() {
-    this.dimension.set(Dimension.NONE);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean isAttached() {
-    return this.dimension.get() != Dimension.NONE;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public Dimension retrieve() {
-    return this.dimension.get();
+  public void attach(final Dimension value) {
+    Preconditions.checkNotNull(value, "Dimension must not be null");
+    final boolean empty = value.isEmpty();
+    Preconditions.checkArgument(!empty, "Dimension must not be empty but was %s", value);
+    super.attach(value);
   }
 }

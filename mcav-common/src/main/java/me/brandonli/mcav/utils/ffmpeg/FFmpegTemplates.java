@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
+import com.google.common.base.Preconditions;
+
 /**
- * Utility class providing FFmpeg command templates.
+ * Ready-made FFmpeg commands for common jobs. Every template returns a command that overwrites its output file.
  */
 public final class FFmpegTemplates {
 
@@ -27,95 +29,138 @@ public final class FFmpegTemplates {
   }
 
   /**
-   * Extracts the audio from a video file using the specified audio codec and saves it to the output file.
+   * Extracts the audio track of a media file. Experimental encoders of the bundled FFmpeg, such as its built-in
+   * {@code vorbis} encoder, are enabled.
    *
-   * @param input  the path to the input video file from which audio should be extracted
-   * @param codec  the audio codec to be used for the extracted audio (e.g., "aac", "mp3")
-   * @param output the path to the output file where the extracted audio will be saved
-   * @return an {@code FFmpegCommand} object representing the audio extraction command
+   * @param input  the path or URL of the input
+   * @param codec  the audio codec to encode with, such as {@code vorbis}, {@code aac}, or {@code libmp3lame}
+   * @param output the path of the output file
+   * @return the command
    */
   public static FFmpegCommand extractAudio(final String input, final String codec, final String output) {
-    return FFmpegCommand.builder()
-      .addInput(input)
-      .addArgument("-vn")
-      .addArguments("-strict", "-2")
-      .addAudioCodec(codec)
-      .addOverwrite()
-      .addOutput(output)
-      .build();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(codec, "Codec must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addInput(input);
+    builder.addArgument("-vn");
+    builder.addArguments("-strict", "-2");
+    builder.addAudioCodec(codec);
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
   }
 
   /**
-   * Creates and returns an FFmpegCommand to compress a video file using specified
-   * video and audio bitrates. The output video will use the H.264 codec
-   * and the audio will use the AAC codec.
+   * Extracts the audio track of a media file as stereo Ogg Vorbis, the format Minecraft resource packs need.
+   * The built-in Vorbis encoder of the bundled FFmpeg only encodes stereo, so mono and surround inputs are
+   * mixed to two channels.
    *
-   * @param input        the path to the input video file
-   * @param output       the path to save the compressed output video file
-   * @param videoBitrate the desired video bitrate for compression (e.g., "1000k")
-   * @param audioBitrate the desired audio bitrate for compression (e.g., "128k")
-   * @return an FFmpegCommand instance configured for compressing the video with the specified options
+   * @param input  the path or URL of the input
+   * @param output the path of the {@code .ogg} output file
+   * @return the command
+   */
+  public static FFmpegCommand extractOggVorbis(final String input, final String output) {
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addInput(input);
+    builder.addArgument("-vn");
+    builder.addArguments("-strict", "-2");
+    builder.addAudioCodec("vorbis");
+    builder.addArguments("-ac", "2");
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
+  }
+
+  /**
+   * Re-encodes a video with H.264 video and AAC audio at the specified bitrates.
+   *
+   * @param input        the path or URL of the input
+   * @param output       the path of the output file
+   * @param videoBitrate the video bitrate, such as {@code 1000k}
+   * @param audioBitrate the audio bitrate, such as {@code 128k}
+   * @return the command
    */
   public static FFmpegCommand compressVideo(final String input, final String output, final String videoBitrate, final String audioBitrate) {
-    return FFmpegCommand.builder()
-      .addInput(input)
-      .addVideoCodec("libx264")
-      .addBitrate(videoBitrate)
-      .addAudioCodec("aac")
-      .addAudioBitrate(audioBitrate)
-      .addOverwrite()
-      .addOutput(output)
-      .build();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    Preconditions.checkNotNull(videoBitrate, "Video bitrate must not be null");
+    Preconditions.checkNotNull(audioBitrate, "Audio bitrate must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addInput(input);
+    builder.addVideoCodec("libx264");
+    builder.addBitrate(videoBitrate);
+    builder.addAudioCodec("aac");
+    builder.addAudioBitrate(audioBitrate);
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
   }
 
   /**
-   * Creates an FFmpeg command to extract a specific clip from a video file.
+   * Cuts a clip out of a media file without re-encoding it.
    *
-   * @param input     The path to the input video file.
-   * @param output    The path where the extracted clip will be saved.
-   * @param startTime The start time of the clip to extract, specified in the format HH:mm:ss or seconds.
-   * @param duration  The duration of the clip to extract, specified in the format HH:mm:ss or seconds.
-   * @return An FFmpegCommand configured to extract the specified video clip.
+   * @param input     the path or URL of the input
+   * @param output    the path of the output file
+   * @param startTime where the clip starts, as seconds or {@code HH:mm:ss}
+   * @param duration  how long the clip is, as seconds or {@code HH:mm:ss}
+   * @return the command
    */
   public static FFmpegCommand extractClip(final String input, final String output, final String startTime, final String duration) {
-    return FFmpegCommand.builder()
-      .addArguments("-ss", startTime)
-      .addInput(input)
-      .addArguments("-t", duration)
-      .addVideoCodec("copy")
-      .addAudioCodec("copy")
-      .addOverwrite()
-      .addOutput(output)
-      .build();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    Preconditions.checkNotNull(startTime, "Start time must not be null");
+    Preconditions.checkNotNull(duration, "Duration must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addArguments("-ss", startTime);
+    builder.addInput(input);
+    builder.addArguments("-t", duration);
+    builder.addVideoCodec("copy");
+    builder.addAudioCodec("copy");
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
   }
 
   /**
-   * Creates an FFmpeg command to generate a thumbnail from a video file at a specific time position.
+   * Saves a single frame of a video as an image.
    *
-   * @param input        the path to the input video file
-   * @param output       the path to the output thumbnail image file
-   * @param timePosition the timestamp within the video where the thumbnail should be captured, specified in the format "hh:mm:ss"
-   * @return an FFmpegCommand object configured to create the thumbnail
+   * @param input        the path or URL of the input
+   * @param output       the path of the image, whose extension picks the format
+   * @param timePosition the position of the frame, as seconds or {@code HH:mm:ss}
+   * @return the command
    */
   public static FFmpegCommand createThumbnail(final String input, final String output, final String timePosition) {
-    return FFmpegCommand.builder()
-      .addArguments("-ss", timePosition)
-      .addInput(input)
-      .addArguments("-frames:v", "1")
-      .addOverwrite()
-      .addOutput(output)
-      .build();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    Preconditions.checkNotNull(timePosition, "Time position must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addArguments("-ss", timePosition);
+    builder.addInput(input);
+    builder.addArguments("-frames:v", "1");
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
   }
 
   /**
-   * Creates an FFmpeg command for remuxing a video file (repackaging the input
-   * without re-encoding or altering the video and audio streams).
+   * Copies the streams of a media file into another container without re-encoding them.
    *
-   * @param input  the path to the input video file to be remuxed
-   * @param output the path to the output video file after remuxing
-   * @return an instance of FFmpegCommand configured to remux the input video
+   * @param input  the path or URL of the input
+   * @param output the path of the output file, whose extension picks the container
+   * @return the command
    */
   public static FFmpegCommand remuxVideo(final String input, final String output) {
-    return FFmpegCommand.builder().addInput(input).addVideoCodec("copy").addAudioCodec("copy").addOverwrite().addOutput(output).build();
+    Preconditions.checkNotNull(input, "Input must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    builder.addInput(input);
+    builder.addVideoCodec("copy");
+    builder.addAudioCodec("copy");
+    builder.addOverwrite();
+    builder.addOutput(output);
+    return builder.build();
   }
 }

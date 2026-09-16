@@ -17,51 +17,52 @@
  */
 package me.brandonli.mcav.media.source.ffmpeg;
 
-import me.brandonli.mcav.media.source.StaticSource;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * Represents a direct FFmpeg source with a format and resource locator.
+ * A raw FFmpeg input with an explicit input format, for inputs FFmpeg cannot probe on its own, such as screen
+ * capture ({@code gdigrab} on Windows, {@code x11grab} on Linux, {@code avfoundation} on macOS) or raw pipes.
+ * Only {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()} understands these sources. Such inputs
+ * are live and have no fixed length, so the source is dynamic.
  */
-public interface FFmpegDirectSource extends StaticSource {
+public interface FFmpegDirectSource extends DynamicSource {
   /**
-   * Retrieves the Media Resource Locator (MRL) associated with the source.
+   * Creates a raw FFmpeg source.
    *
-   * @return the MRL as a String, representing the resource location or identifier.
+   * @param mrl    the input FFmpeg opens, such as {@code desktop} for {@code gdigrab}
+   * @param format the FFmpeg input format, such as {@code gdigrab}
+   * @return the source
+   */
+  static FFmpegDirectSource mrl(final String mrl, final String format) {
+    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(format, "Format must not be null");
+    final boolean blank = format.isBlank();
+    Preconditions.checkArgument(!blank, "Format must not be blank");
+    return new FFmpegDirectSourceImpl(mrl, format);
+  }
+
+  /**
+   * Gets the input FFmpeg opens.
+   *
+   * @return the media resource locator
    */
   String getMrl();
 
   /**
-   * Retrieves the format associated with this source.
+   * Gets the FFmpeg input format.
    *
-   * @return the format as a String, which typically describes the type or structure of the resource.
+   * @return the format name
    */
   String getFormat();
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getName() {
     return "ffmpeg";
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getResource() {
     return this.getMrl();
-  }
-
-  /**
-   * Creates a new {@link FFmpegDirectSource} instance using the specified Media Resource Locator (MRL)
-   * and format details.
-   *
-   * @param mrl    the Media Resource Locator (MRL) as a string, representing the resource's location or identifier.
-   * @param format the format of the resource as a string, typically describing its type or structure.
-   * @return a new {@link FFmpegDirectSource} instance initialized with the given MRL and format.
-   */
-  static FFmpegDirectSource mrl(final String mrl, final String format) {
-    return new FFmpegDirectSourceImpl(mrl, format);
   }
 }

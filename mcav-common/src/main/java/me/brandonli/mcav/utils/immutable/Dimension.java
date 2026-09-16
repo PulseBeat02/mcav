@@ -17,45 +17,91 @@
  */
 package me.brandonli.mcav.utils.immutable;
 
+import com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * A class representing the width and height dimensions.
+ * An immutable width and height in pixels.
  */
 public final class Dimension {
+
+  /**
+   * The dimension with zero width and height, used where no size is set.
+   */
+  public static final Dimension NONE = new Dimension(0, 0);
 
   private final int width;
   private final int height;
 
   /**
-   * A constant representing no dimension.
-   */
-  public static final Dimension NONE = new Dimension(0, 0);
-
-  /**
-   * Creates a new Dimension with the specified width and height.
+   * Constructs a dimension.
    *
-   * @param width  the width dimension
-   * @param height the height dimension
+   * @param width  the width in pixels, not negative
+   * @param height the height in pixels, not negative
    */
   public Dimension(final int width, final int height) {
+    Preconditions.checkArgument(width >= 0, "Width must not be negative but was %s", width);
+    Preconditions.checkArgument(height >= 0, "Height must not be negative but was %s", height);
     this.width = width;
     this.height = height;
   }
 
   /**
-   * Gets the width dimension.
+   * Creates a dimension.
    *
-   * @return the width
+   * @param width  the width in pixels, not negative
+   * @param height the height in pixels, not negative
+   * @return the dimension
+   */
+  public static Dimension of(final int width, final int height) {
+    return new Dimension(width, height);
+  }
+
+  /**
+   * Gets the width.
+   *
+   * @return the width in pixels
    */
   public int getWidth() {
     return this.width;
   }
 
   /**
-   * Gets the height dimension.
+   * Gets the height.
    *
-   * @return the height
+   * @return the height in pixels
    */
   public int getHeight() {
     return this.height;
+  }
+
+  /**
+   * Checks whether either side is zero.
+   *
+   * @return true if the dimension covers no pixels
+   */
+  public boolean isEmpty() {
+    return this.width == 0 || this.height == 0;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final Dimension dimension)) {
+      return false;
+    }
+    return this.width == dimension.width && this.height == dimension.height;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.width * 31 + this.height;
+  }
+
+  @Override
+  public String toString() {
+    return this.width + "x" + this.height;
   }
 }

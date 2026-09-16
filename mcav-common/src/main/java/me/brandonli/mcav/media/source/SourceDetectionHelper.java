@@ -17,69 +17,80 @@
  */
 package me.brandonli.mcav.media.source;
 
+import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import me.brandonli.mcav.media.source.device.DeviceSourceDetector;
 import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSourceDetector;
 import me.brandonli.mcav.media.source.file.FileSourceDetector;
 import me.brandonli.mcav.media.source.uri.UriSourceDetector;
 
 /**
- * A helper class for detecting sources based on the provided resource string.
+ * Turns strings entered by users into sources by asking a set of {@link SourceDetector}s.
+ *
+ * <p>The default detectors recognize existing file paths, URLs with a scheme and host, plain numbers as capture
+ * device indices, and {@code format||input} pairs as raw FFmpeg inputs.
+ *
+ * <pre><code>
+ *   final SourceDetectionHelper helper = new SourceDetectionHelper();
+ *   final Optional&lt;Source&gt; source = helper.detectSource("videos/intro.mp4");
+ * </code></pre>
  */
 public class SourceDetectionHelper {
 
-  private static final Collection<SourceDetector<? extends Source>> DEFAULT_DETECTORS = Set.of(
+  private static final Collection<SourceDetector<? extends Source>> DEFAULT_DETECTORS = List.of(
     new DeviceSourceDetector(),
     new FFmpegDirectSourceDetector(),
     new FileSourceDetector(),
     new UriSourceDetector()
   );
 
-  private final Collection<SourceDetector<?>> detectors;
+  private final Collection<SourceDetector<? extends Source>> detectors;
 
   /**
-   * Constructs a new {@link SourceDetectionHelper} with the specified detectors.
+   * Constructs a helper with custom detectors.
    *
-   * @param detectors the collection of source detectors to use
+   * @param detectors the detectors to consult
    */
-  public SourceDetectionHelper(final Collection<SourceDetector<?>> detectors) {
-    this.detectors = detectors;
+  public SourceDetectionHelper(final Collection<SourceDetector<? extends Source>> detectors) {
+    Preconditions.checkNotNull(detectors, "Detectors must not be null");
+    this.detectors = List.copyOf(detectors);
   }
 
   /**
-   * Constructs a new {@link SourceDetectionHelper} with the default detectors.
+   * Constructs a helper with the default detectors.
    */
   public SourceDetectionHelper() {
     this(DEFAULT_DETECTORS);
   }
 
   /**
-   * Detects the source based on the provided resource string.
+   * Detects the source described by a string.
    *
-   * @param resource the resource string to detect the source from
-   * @return an {@link Optional} containing the detected source, or empty if no source was detected
+   * @param resource the string entered by a user
+   * @return the source created by the accepting detector with the highest priority, or empty if no detector
+   * accepts the string
    */
   public Optional<Source> detectSource(final String resource) {
-    int priority = Integer.MIN_VALUE;
-    SourceDetector<? extends Source> type = null;
+    Preconditions.checkNotNull(resource, "Resource must not be null");
+    SourceDetector<? extends Source> best = null;
+    int bestPriority = Integer.MIN_VALUE;
     for (final SourceDetector<? extends Source> detector : this.detectors) {
-      final boolean successful = detector.isDetectedSource(resource);
-      if (!successful) {
+      final boolean accepted = detector.isDetectedSource(resource);
+      if (!accepted) {
         continue;
       }
-      final int priorityValue = detector.getPriority();
-      if (priorityValue > priority) {
-        priority = priorityValue;
-        type = detector;
+      final int priority = detector.getPriority();
+      if (priority > bestPriority) {
+        bestPriority = priority;
+        best = detector;
       }
     }
-
-    if (type == null) {
+    if (best == null) {
       return Optional.empty();
     }
-
-    return Optional.of(type.createSource(resource));
+    final Source source = best.createSource(resource);
+    return Optional.of(source);
   }
 }

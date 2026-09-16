@@ -21,18 +21,18 @@ import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.image.ImageBuffer;
 
 /**
- * A {@link DitherAlgorithm} whose per-pixel computations are mutually independent and can
- * therefore be executed in parallel across many threads.
- *
- * <p>Callers that hold a pre-warmed {@link ForkJoinPool}.
+ * A dithering algorithm that can split an image into independent parts and dither them on several threads.
+ * Displays that own a thread pool, such as {@code CompressedMapResult}, use this interface to dither large map
+ * walls faster.
  */
 public interface ParallelDitherAlgorithm extends DitherAlgorithm {
   /**
-   * Converts the given image buffer into palette-index bytes using parallel computation.
+   * Dithers an image into palette indices using the threads of a pool. The result is identical, or nearly
+   * identical, to {@link #ditherIntoBytes(ImageBuffer)}.
    *
-   * @param buffer the image to dither; must remain unmodified during the call
-   * @param pool   the {@link ForkJoinPool} to use for parallel work
-   * @return a byte array of palette indices, one per pixel, in row-major order
+   * @param buffer the image to dither, which must not be modified while the method runs
+   * @param pool   the pool that runs the work
+   * @return the palette index of every pixel, laid out row by row
    */
-  byte[] ditherIntoBytes(ImageBuffer buffer, ForkJoinPool pool);
+  byte[] ditherIntoBytes(final ImageBuffer buffer, final ForkJoinPool pool);
 }

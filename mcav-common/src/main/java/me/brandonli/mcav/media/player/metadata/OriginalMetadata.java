@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.metadata;
 
 /**
- * Represents a general-purpose metadata interface.
+ * Properties of the media as it was decoded, before any filter changed it. Filters receive metadata alongside
+ * every frame or sample chunk so they can, for example, compute aspect ratios or timing.
  */
 public interface OriginalMetadata {}

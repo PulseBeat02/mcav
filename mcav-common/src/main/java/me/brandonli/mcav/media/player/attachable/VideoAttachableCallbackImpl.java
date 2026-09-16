@@ -17,52 +17,14 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
 /**
- * Implementation of {@link VideoAttachableCallback}.
+ * The default {@link VideoAttachableCallback}.
  */
-public class VideoAttachableCallbackImpl implements VideoAttachableCallback {
-
-  private final AtomicReference<VideoPipelineStep> pipeline;
+public final class VideoAttachableCallbackImpl extends AbstractAttachableCallback<VideoPipelineStep> implements VideoAttachableCallback {
 
   VideoAttachableCallbackImpl() {
-    this.pipeline = new AtomicReference<>(VideoPipelineStep.NO_OP);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void attach(final VideoPipelineStep pipeline) {
-    requireNonNull(pipeline);
-    this.pipeline.set(pipeline);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void detach() {
-    this.pipeline.set(VideoPipelineStep.NO_OP);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean isAttached() {
-    return this.pipeline.get() != VideoPipelineStep.NO_OP;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public VideoPipelineStep retrieve() {
-    return this.pipeline.get();
+    super(VideoPipelineStep.NO_OP);
   }
 }

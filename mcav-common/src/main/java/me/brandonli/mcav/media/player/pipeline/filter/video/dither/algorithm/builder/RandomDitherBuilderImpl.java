@@ -17,27 +17,32 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDitherImpl;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Implementation of the {@link RandomDitherBuilder} interface for constructing instances.
+ * The default {@link RandomDitherBuilder}.
  */
 public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither, RandomDitherBuilderImpl> {
 
-  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
-  private int weight = RandomDither.NORMAL_WEIGHT;
+  private DitherPalette palette;
+  private int weight;
 
   /**
-   * Default constructor for {@link RandomDitherBuilderImpl}.
+   * Constructs a builder that creates a normal-weight random dither on the Minecraft map palette.
    */
   public RandomDitherBuilderImpl() {
-    // no-op
+    this.palette = DitherPalette.DEFAULT_MAP_PALETTE;
+    this.weight = RandomDither.NORMAL_WEIGHT;
   }
 
   /**
-   * {@inheritDoc}
+   * Creates a random dithering algorithm with the chosen palette and weight. The algorithm gives every thread its own
+   * random number generator, so it can be shared.
+   *
+   * @return the algorithm
    */
   @Override
   public RandomDither build() {
@@ -45,18 +50,30 @@ public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the palette the algorithm reduces images to. Defaults to the Minecraft map palette.
+   *
+   * @param palette the palette
+   * @return this builder
    */
   @Override
-  public void setPalette(final DitherPalette palette) {
+  public RandomDitherBuilderImpl withPalette(final DitherPalette palette) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     this.palette = palette;
+    return this;
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the largest noise value added to or subtracted from a channel. Defaults to
+   * {@link RandomDither#NORMAL_WEIGHT}.
+   *
+   * @param weight the weight from 0 to 255
+   * @return this builder
+   * @throws IllegalArgumentException if the weight is outside the range from 0 to 255
    */
   @Override
-  public void setWeight(final int weight) {
+  public RandomDitherBuilderImpl withWeight(final int weight) {
+    Preconditions.checkArgument(weight >= 0 && weight <= 255, "Weight must be between 0 and 255");
     this.weight = weight;
+    return this;
   }
 }

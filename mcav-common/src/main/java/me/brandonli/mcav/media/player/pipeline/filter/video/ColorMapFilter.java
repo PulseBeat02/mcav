@@ -21,26 +21,32 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
- * A filter that applies a color map to a video frame.
+ * Recolors frames with one of the OpenCV color maps, such as {@link opencv_imgproc#COLORMAP_JET} or
+ * {@link opencv_imgproc#COLORMAP_HOT}. The frame is converted to grayscale first, so the color map replaces the
+ * original colors completely.
  */
 public class ColorMapFilter extends MatVideoFilter {
 
-  private final int colorMapType;
+  private final int colorMap;
 
   /**
-   * Creates a new ColorMapFilter with the specified color map type.
-   * @param colorMapType the type of color map to apply, such as
+   * Constructs a new color map filter.
+   *
+   * @param colorMap the color map, one of the {@code COLORMAP_} constants of {@link opencv_imgproc}
    */
-  public ColorMapFilter(final int colorMapType) {
-    this.colorMapType = colorMapType;
+  public ColorMapFilter(final int colorMap) {
+    this.colorMap = colorMap;
   }
 
   /**
-   * {@inheritDoc}
+   * Replaces the colors of the frame with the color map in place.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because every frame is recolored
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    opencv_imgproc.applyColorMap(mat, mat, this.colorMapType);
+  protected boolean modifyMat(final Mat mat) {
+    opencv_imgproc.applyColorMap(mat, mat, this.colorMap);
     return true;
   }
 }

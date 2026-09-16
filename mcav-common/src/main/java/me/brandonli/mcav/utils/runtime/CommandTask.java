@@ -17,164 +17,283 @@
  */
 package me.brandonli.mcav.utils.runtime;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Stream;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A specialized CommandTask which executes native commands from the Runtime. The class is used for
- * easier command execution as well as an easier way to "hold" onto commands and wait before
- * execution.
+ * Runs an external program and captures its output.
+ *
+ * <p>The standard output and the standard error of the program are drained on separate threads while the program
+ * runs, so a program that prints a lot of text can never block. Both streams are available as strings after the
+ * program finished. Nothing is printed to the console of the JVM.
+ *
+ * <pre><code>
+ *   final CommandTask task = new CommandTask("ffmpeg", "-version");
+ *   final int exitCode = task.run();
+ *   final String output = task.getOutput();
+ * </code></pre>
+ *
+ * <p>{@link #run(Duration)} limits how long the program may run and kills it, together with the processes it started,
+ * when it takes longer. A task can be run only once. Instances are not thread-safe.
  */
-public class CommandTask {
+public final class CommandTask {
 
-  private final String[] command;
-  private Process process;
-  private String errorOutput;
+  private static final Logger LOGGER = LoggerFactory.getLogger(CommandTask.class);
+  private static final int NOT_RUN = Integer.MIN_VALUE;
+
+  private final List<String> command;
+  private final @Nullable Path workingDirectory;
+
+  private @Nullable Process process;
   private String output;
+  private String errorOutput;
+  private int exitCode;
 
   /**
-   * Instantiates a CommandTask.
+   * Creates a task that runs the command in the working directory of the JVM.
    *
-   * @param command       command
-   * @param runOnCreation whether it should be run instantly
-   * @throws IOException if the command isn't valid (when ran instantly)
-   */
-  public CommandTask(final String[] command, final boolean runOnCreation) throws IOException {
-    Preconditions.checkNotNull(command);
-    this.command = command;
-    if (runOnCreation) {
-      this.run(command);
-    }
-  }
-
-  /**
-   * Instantiates a CommandTask.
-   *
-   * @param command command
+   * @param command the program followed by its arguments
    */
   public CommandTask(final String... command) {
-    Preconditions.checkNotNull(command);
-    this.command = command;
+    this(null, command);
   }
 
   /**
-   * Executes the specified command using the system runtime and processes its output.
+   * Creates a task that runs the command in the specified working directory.
    *
-   * @param command an array of strings representing the command and its arguments to be executed
-   * @throws IOException if an I/O error occurs during command execution or while reading the output
+   * @param workingDirectory the working directory of the program, or null for the working directory of the JVM
+   * @param command          the program followed by its arguments
    */
-  public void run(@UnderInitialization CommandTask this, final String[] command) throws IOException {
-    final Runtime runtime = Runtime.getRuntime();
-    this.process = runtime.exec(command);
-    this.readOutput(this.process);
+  public CommandTask(final @Nullable Path workingDirectory, final String... command) {
+    Preconditions.checkNotNull(command, "Command must not be null");
+    Preconditions.checkArgument(command.length > 0, "Command must not be empty");
+    this.command = List.of(command);
+    this.workingDirectory = workingDirectory;
+    this.output = "";
+    this.errorOutput = "";
+    this.exitCode = NOT_RUN;
   }
 
   /**
-   * Reads the output from the process once
+   * Creates a task and optionally runs it immediately.
    *
-   * @throws IOException if the output cannot be read
+   * @param command       the program followed by its arguments
+   * @param runOnCreation true to run the command before the constructor returns
+   * @throws IOException if the program cannot be started
    */
-  private void readOutput(@UnderInitialization CommandTask this, final Process process) throws IOException {
-    if (this.output == null && process != null) {
-      final StringBuilder outputBuilder = new StringBuilder();
-      final StringBuilder errorOutputBuilder = new StringBuilder();
-      final Thread stdoutThread = this.createStdOutReader(process, outputBuilder);
-      final Thread stderrThread = this.createStdErrReader(process, errorOutputBuilder);
-      stdoutThread.start();
-      stderrThread.start();
-      try {
-        process.waitFor();
-        stdoutThread.join();
-        stderrThread.join();
-      } catch (final InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Process interrupted", e);
-      }
-      this.output = outputBuilder.toString();
-      this.errorOutput = errorOutputBuilder.toString();
+  public CommandTask(final String[] command, final boolean runOnCreation) throws IOException {
+    this(null, command);
+    if (runOnCreation) {
+      this.run();
     }
   }
 
-  private Thread createStdOutReader(@UnderInitialization CommandTask this, final Process process, final StringBuilder outputBuilder) {
-    return new Thread(() -> {
-      try (final BufferedReader reader = this.getStdBufferedReader(process)) {
-        String str;
-        while ((str = reader.readLine()) != null) {
-          outputBuilder.append(str).append(System.lineSeparator());
-          System.out.println(str);
-        }
-      } catch (final IOException e) {
-        throw new ProcessException(e.getMessage(), e);
-      }
-    });
-  }
-
-  private Thread createStdErrReader(@UnderInitialization CommandTask this, final Process process, final StringBuilder outputBuilder) {
-    return new Thread(() -> {
-      try (final BufferedReader reader = this.getStdErrBufferedReader(process)) {
-        String str;
-        while ((str = reader.readLine()) != null) {
-          outputBuilder.append(str).append(System.lineSeparator());
-          System.err.println(str);
-        }
-      } catch (final IOException e) {
-        throw new ProcessException(e.getMessage(), e);
-      }
-    });
+  /**
+   * Runs the program and waits until it exits, however long that takes. Prefer {@link #run(Duration)} for programs
+   * that may hang, such as programs that talk to a network.
+   *
+   * @return the exit code of the program
+   * @throws IOException           if the program cannot be started or its output cannot be read
+   * @throws IllegalStateException if the task was already run
+   */
+  public int run() throws IOException {
+    return this.runWithTimeout(null);
   }
 
   /**
-   * Gets the output for the command
+   * Runs the program and waits at most the timeout for it to exit. A program that is still running when the timeout
+   * passes is killed together with the processes it started, and the method fails.
    *
-   * @return the command output
-   * @throws IOException if the process hasn't been started
+   * @param timeout how long to wait for the program, which must be positive
+   * @return the exit code of the program
+   * @throws IOException           if the program cannot be started, its output cannot be read, or it does not exit
+   *                               in time
+   * @throws IllegalStateException if the task was already run
    */
-  public String getOutput() throws IOException {
-    if (this.process == null) {
-      throw new IOException("Process has not been started");
+  public int run(final Duration timeout) throws IOException {
+    checkTimeout(timeout);
+    return this.runWithTimeout(timeout);
+  }
+
+  private static void checkTimeout(final Duration timeout) {
+    Preconditions.checkNotNull(timeout, "Timeout must not be null");
+    final boolean positive = !timeout.isNegative() && !timeout.isZero();
+    Preconditions.checkArgument(positive, "Timeout must be positive but was %s", timeout);
+  }
+
+  private int runWithTimeout(final @Nullable Duration timeout) throws IOException {
+    Preconditions.checkState(this.process == null, "Command has already been run");
+    final Process started = this.startProcess();
+    this.process = started;
+    final InputStream standardOutput = started.getInputStream();
+    final InputStream standardError = started.getErrorStream();
+    // both streams are drained on their own threads, so a process that fills one pipe never blocks on it; a shared
+    // pool could run the readers one after another and deadlock exactly like that
+    try (final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
+      final Future<String> outputFuture = readers.submit(() -> readFully(standardOutput));
+      final Future<String> errorFuture = readers.submit(() -> readFully(standardError));
+      this.awaitCompletion(started, outputFuture, errorFuture, timeout);
     }
-    return this.output != null ? this.output : "";
+    LOGGER.debug("Command {} exited with code {}", this.command, this.exitCode);
+    return this.exitCode;
   }
 
   /**
-   * Gets the error output for the command
+   * Runs the program, waits until it exits, and fails if the exit code is not zero.
    *
-   * @return the command error output
-   * @throws IOException if the process hasn't been started
+   * @throws IOException      if the program cannot be started or its output cannot be read
+   * @throws ProcessException if the program exits with a non-zero exit code
    */
-  public String getErrorOutput() throws IOException {
-    if (this.process == null) {
-      throw new IOException("Process has not been started");
+  public void runChecked() throws IOException {
+    final int code = this.run();
+    this.checkExitCode(code);
+  }
+
+  /**
+   * Runs the program, waits at most the timeout for it to exit, and fails if the exit code is not zero. A program
+   * that is still running when the timeout passes is killed together with the processes it started.
+   *
+   * @param timeout how long to wait for the program, which must be positive
+   * @throws IOException      if the program cannot be started, its output cannot be read, or it does not exit in
+   *                          time
+   * @throws ProcessException if the program exits with a non-zero exit code
+   */
+  public void runChecked(final Duration timeout) throws IOException {
+    final int code = this.run(timeout);
+    this.checkExitCode(code);
+  }
+
+  private void checkExitCode(final int code) {
+    if (code == 0) {
+      return;
     }
-    return this.errorOutput != null ? this.errorOutput : "";
+    final String strippedError = this.errorOutput.strip();
+    final String message = "Command %s exited with code %d: %s".formatted(this.command, code, strippedError);
+    throw new ProcessException(message);
   }
 
-  private BufferedReader getStdErrBufferedReader(@UnderInitialization CommandTask this, final Process process) {
-    return new BufferedReader(new InputStreamReader(process.getErrorStream()));
+  private Process startProcess() throws IOException {
+    final ProcessBuilder builder = new ProcessBuilder(this.command);
+    final Path directory = this.workingDirectory;
+    if (directory != null) {
+      final File directoryFile = directory.toFile();
+      builder.directory(directoryFile);
+    }
+    LOGGER.debug("Running command {}", this.command);
+    return builder.start();
   }
 
-  private BufferedReader getStdBufferedReader(@UnderInitialization CommandTask this, final Process process) {
-    return new BufferedReader(new InputStreamReader(process.getInputStream()));
+  @VisibleForTesting
+  void awaitCompletion(
+    final Process started,
+    final Future<String> outputFuture,
+    final Future<String> errorFuture,
+    final @Nullable Duration timeout
+  ) throws IOException {
+    try {
+      this.exitCode = this.waitForExit(started, timeout);
+      this.output = outputFuture.get();
+      this.errorOutput = errorFuture.get();
+    } catch (final InterruptedException exception) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+      destroyProcessTree(started);
+      throw new IOException("Interrupted while waiting for command " + this.command, exception);
+    } catch (final ExecutionException exception) {
+      final Throwable cause = exception.getCause();
+      throw new IOException("Failed to read the output of command " + this.command, cause);
+    }
+  }
+
+  private int waitForExit(final Process started, final @Nullable Duration timeout) throws InterruptedException, IOException {
+    if (timeout == null) {
+      return started.waitFor();
+    }
+    final boolean exited = started.waitFor(timeout);
+    if (exited) {
+      return started.exitValue();
+    }
+    // the pipes only close once every process holding them is gone, so the children are killed as well
+    destroyProcessTree(started);
+    throw new IOException("Command %s did not finish within %s and was killed".formatted(this.command, timeout));
+  }
+
+  private static void destroyProcessTree(final Process started) {
+    final Stream<ProcessHandle> descendants = started.descendants();
+    descendants.forEach(ProcessHandle::destroyForcibly);
+    started.destroyForcibly();
+  }
+
+  @VisibleForTesting
+  static String readFully(final InputStream stream) {
+    try (stream) {
+      final byte[] bytes = stream.readAllBytes();
+      return new String(bytes, StandardCharsets.UTF_8);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new ProcessException(message, exception);
+    }
   }
 
   /**
-   * Gets the command.
+   * Gets the standard output of the program.
    *
-   * @return array of command arguments
+   * @return the standard output, or an empty string if the task has not been run
    */
-  public String[] getCommand() {
+  public String getOutput() {
+    return this.output;
+  }
+
+  /**
+   * Gets the standard error of the program.
+   *
+   * @return the standard error, or an empty string if the task has not been run
+   */
+  public String getErrorOutput() {
+    return this.errorOutput;
+  }
+
+  /**
+   * Gets the exit code of the program.
+   *
+   * @return the exit code
+   * @throws IllegalStateException if the task has not been run
+   */
+  public int getExitCode() {
+    Preconditions.checkState(this.exitCode != NOT_RUN, "Command has not been run");
+    return this.exitCode;
+  }
+
+  /**
+   * Gets the program and its arguments.
+   *
+   * @return the command as an unmodifiable list
+   */
+  public List<String> getCommand() {
     return this.command;
   }
 
   /**
-   * Gets the process with this specific command.
+   * Gets the process of the program.
    *
-   * @return the process
+   * @return the process, or null if the task has not been run
    */
-  public Process getProcess() {
+  public @Nullable Process getProcess() {
     return this.process;
   }
 }

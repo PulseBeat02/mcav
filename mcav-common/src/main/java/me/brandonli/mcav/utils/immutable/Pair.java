@@ -18,12 +18,14 @@
 package me.brandonli.mcav.utils.immutable;
 
 import com.google.common.base.Preconditions;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A generic immutable tuple that holds two values of possibly different types.
+ * An immutable pair of two non-null values.
  *
- * @param <A> the type of the first element in the pair
- * @param <B> the type of the second element in the pair
+ * @param <A> the type of the first value
+ * @param <B> the type of the second value
  */
 public final class Pair<A, B> {
 
@@ -36,37 +38,56 @@ public final class Pair<A, B> {
   }
 
   /**
-   * Creates a new {@code Pair} instance with the specified first and second elements.
-   * Both elements must be non-null.
+   * Creates a pair.
    *
-   * @param <C>    the type of the first element in the pair
-   * @param <D>    the type of the second element in the pair
-   * @param first  the first element of the pair, must not be null
-   * @param second the second element of the pair, must not be null
-   * @return a new {@code Pair} instance containing the specified elements
-   * @throws NullPointerException if either {@code first} or {@code second} is null
+   * @param <C>    the type of the first value
+   * @param <D>    the type of the second value
+   * @param first  the first value
+   * @param second the second value
+   * @return the pair
    */
   public static <C, D> Pair<C, D> pair(final C first, final D second) {
-    Preconditions.checkNotNull(first);
-    Preconditions.checkNotNull(second);
+    Preconditions.checkNotNull(first, "First value must not be null");
+    Preconditions.checkNotNull(second, "Second value must not be null");
     return new Pair<>(first, second);
   }
 
   /**
-   * Retrieves the first element of the pair.
+   * Gets the first value.
    *
-   * @return the first element of this pair, which is of type {@code A}
+   * @return the first value
    */
   public A getFirst() {
     return this.first;
   }
 
   /**
-   * Retrieves the second element stored in the pair.
+   * Gets the second value.
    *
-   * @return the second element of type {@code B} contained in the pair
+   * @return the second value
    */
   public B getSecond() {
     return this.second;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final Pair<?, ?> pair)) {
+      return false;
+    }
+    return Objects.equals(this.first, pair.first) && Objects.equals(this.second, pair.second);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.first, this.second);
+  }
+
+  @Override
+  public String toString() {
+    return "Pair[" + this.first + ", " + this.second + "]";
   }
 }

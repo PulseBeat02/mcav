@@ -17,47 +17,44 @@
  */
 package me.brandonli.mcav.media.player.multimedia;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 
 /**
- * The {@code SeekablePlayer} interface provides functionality for seeking media playback
- * to a specific point in time.
+ * A player that can jump to a position in its media. Seeking only works for sources with a known length, such
+ * as files; live streams ignore it.
  */
 public interface SeekablePlayer {
   /**
-   * Seeks the media to the specified timestamp in milliseconds.
+   * Jumps to a position.
    *
-   * @param time the position in milliseconds to seek to. This value must be a non-negative
-   *             long and within the valid duration of the media.
-   * @return true if the seek operation was successful; false otherwise.
+   * @param time the position in milliseconds from the start of the media, not negative
+   * @return true if the player seeked, false if nothing is playing or the source cannot be seeked
    */
   boolean seek(final long time);
 
   /**
-   * Asynchronously seeks the media to the specified timestamp in milliseconds.
+   * Seeks on the common pool.
    *
-   * @param time the position in milliseconds to seek to. This value must be a non-negative
-   *             long and within the valid duration of the media.
-   * @return a {@code CompletableFuture} that completes with {@code true} if the seek operation
-   * was successful, or {@code false} otherwise.
+   * @param time the position in milliseconds from the start of the media, not negative
+   * @return a future that completes with the result of {@link #seek(long)}
    */
   default CompletableFuture<Boolean> seekAsync(final long time) {
-    return this.seekAsync(ForkJoinPool.commonPool(), time);
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.seekAsync(pool, time);
   }
 
   /**
-   * Asynchronously seeks the media to the specified timestamp in milliseconds using the provided
-   * {@link ExecutorService}.
+   * Seeks on an executor.
    *
-   * @param service the {@code ExecutorService} used to manage the thread executing the asynchronous seek operation
-   * @param time    the position in milliseconds to seek to. Must be a non-negative value and within the valid duration of the media
-   * @return a {@code CompletableFuture<Boolean>} representing the result of the asynchronous seek operation.
-   * The returned future will complete with {@code true} if the seek operation was successful,
-   * or {@code false} if it failed.
+   * @param executor the executor that runs the call
+   * @param time     the position in milliseconds from the start of the media, not negative
+   * @return a future that completes with the result of {@link #seek(long)}
    */
-  default CompletableFuture<Boolean> seekAsync(final ExecutorService service, final long time) {
-    return CompletableFuture.supplyAsync(() -> this.seek(time), service);
+  default CompletableFuture<Boolean> seekAsync(final ExecutorService executor, final long time) {
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.seek(time), executor);
   }
 }

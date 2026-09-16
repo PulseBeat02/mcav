@@ -36,32 +36,53 @@ package me.brandonli.mcav.capability.installer.vlc.discovery;
  * Copyright 2009-2025 Caprica Software Limited.
  */
 
-import uk.co.caprica.vlcj.binding.lib.LibC;
+import java.util.List;
 import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 
 /**
- * Default implementation of a native discovery strategy that searches directories on the Windows operating system.
+ * Finds {@code libvlc.dll} and {@code libvlccore.dll} in the installation directory of VLC on Windows and the other
+ * directories vlcj knows about.
  */
 public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.dll", "libvlccore\\.dll" };
-
   private static final String[] PLUGIN_PATH_FORMATS = new String[] { "%s\\plugins", "%s\\vlc\\plugins" };
 
   /**
-   * Creates a new discovery strategy that searches for VLC native libraries in the Windows operating system.
+   * Constructs a strategy that searches vlcj's directories and publishes the plugin path with {@code _putenv}.
    */
   public WindowsNativeDiscoveryStrategy() {
-    super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS);
+    final EnvironmentSetter windowsSetter = nativeSetter();
+    super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS, windowsSetter);
   }
 
+  /**
+   * Creates the setter that publishes variables with {@code _putenv} of the C runtime of this process.
+   *
+   * @return the setter
+   */
+  static EnvironmentSetter nativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+    return variables::setWindowsVariable;
+  }
+
+  /**
+   * Constructs a strategy with custom directories and a custom way of publishing the plugin path.
+   *
+   * @param searchProviders   the providers of the directories to search
+   * @param environmentSetter sets the plugin path variable
+   */
+  WindowsNativeDiscoveryStrategy(final List<SearchProvider> searchProviders, final EnvironmentSetter environmentSetter) {
+    super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS, searchProviders, environmentSetter);
+  }
+
+  /**
+   * Checks whether the system is Windows.
+   *
+   * @return true on Windows
+   */
   @Override
   public boolean supported() {
     return RuntimeUtil.isWindows();
-  }
-
-  @Override
-  protected boolean setPluginPath(final String pluginPath) {
-    return LibC.INSTANCE._putenv(String.format("%s=%s", PLUGIN_ENV_NAME, pluginPath)) == 0;
   }
 }

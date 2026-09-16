@@ -17,40 +17,36 @@
  */
 package me.brandonli.mcav.media.source.uri;
 
+import com.google.common.base.Preconditions;
 import java.net.URI;
 import me.brandonli.mcav.media.source.SourceDetector;
 import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * A source detector that identifies if a given raw input is a URI source.
- * It implements the {@link SourceDetector} interface for {@link UriSource}.
+ * Detects URLs with a scheme and a host.
  */
 public class UriSourceDetector implements SourceDetector<UriSource> {
 
   /**
-   * Constructs a new {@link UriSourceDetector}.
+   * Constructs a new detector.
    */
   public UriSourceDetector() {
-    // no-op
+    // stateless
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean isDetectedSource(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     return SourceUtils.isUri(raw);
   }
 
   @Override
   public UriSource createSource(final String raw) {
+    Preconditions.checkNotNull(raw, "Raw must not be null");
     final URI uri = URI.create(raw);
     return UriSource.uri(uri);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getPriority() {
     return SourceDetector.NORMAL_PRIORITY;

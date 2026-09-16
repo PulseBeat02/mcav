@@ -18,19 +18,19 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 /**
- * Represents a functional video filter that can be started and released. Extends the
- * {@link VideoFilter} interface to provide additional functionality for managing the lifecycle of the filter.
+ * A video filter that owns resources, such as a window, a texture, or a network connection.
+ *
+ * <p>Call {@link #start()} before the first frame is processed and {@link #release()} after the last one. The
+ * pipeline steps do not call these methods automatically, because a filter may be shared between pipelines.
  */
 public interface FunctionalVideoFilter extends VideoFilter {
   /**
-   * Starts the video filter, initializing any necessary resources or processes.
-   * This method should be called before applying the filter to the pipeline.
+   * Acquires the resources of the filter. Must be called before frames are processed.
    */
   void start();
 
   /**
-   * Releases any resources or processes associated with the video filter.
-   * This method should be called when the filter is no longer needed to prevent memory leaks.
+   * Releases the resources of the filter. The filter must not be used afterward unless it is started again.
    */
   void release();
 }

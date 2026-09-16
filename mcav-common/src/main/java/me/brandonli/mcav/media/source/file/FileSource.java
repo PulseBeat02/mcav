@@ -22,50 +22,45 @@ import java.nio.file.Path;
 import me.brandonli.mcav.media.source.StaticSource;
 
 /**
- * Represents a source that is backed by a file on the filesystem.
+ * A media file on the local file system.
  */
 public interface FileSource extends StaticSource {
   /**
-   * Retrieves the associated file path of this source.
+   * Creates a source for a file. The file does not have to exist yet.
    *
-   * @return the {@code Path} representing the file location.
+   * @param path the path of the file
+   * @return the source
+   */
+  static FileSource path(final Path path) {
+    Preconditions.checkNotNull(path, "Path must not be null");
+    return new FileSourceImpl(path);
+  }
+
+  /**
+   * Gets the path of the file.
+   *
+   * @return the path
    */
   Path getPath();
 
   /**
-   * Creates a new {@link Writable} instance for this file source.
+   * Creates a handle for reading from and writing to the file.
    *
-   * @return a new {@link Writable} instance associated with this file source.
+   * @return the writable handle
    */
   default Writable createWritable() {
-    return new WritableImpl(this.getPath());
+    final Path path = this.getPath();
+    return new WritableImpl(path);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getName() {
     return "file";
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default String getResource() {
-    return this.getPath().toString();
-  }
-
-  /**
-   * Creates a new {@link FileSource} instance for the specified file path.
-   *
-   * @param path the {@link Path} representing the file location. Must not be null.
-   * @return a new {@link FileSource} instance associated with the specified file path.
-   * @throws NullPointerException if the specified path is null.
-   */
-  static FileSource path(final Path path) {
-    Preconditions.checkNotNull(path);
-    return new FileSourceImpl(path);
+    final Path path = this.getPath();
+    return path.toString();
   }
 }

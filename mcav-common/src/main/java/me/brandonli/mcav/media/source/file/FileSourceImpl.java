@@ -18,23 +18,43 @@
 package me.brandonli.mcav.media.source.file;
 
 import java.nio.file.Path;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Implementation of {@link FileSource} that provides the file path.
+ * The default {@link FileSource}.
  */
 public final class FileSourceImpl implements FileSource {
 
-  final Path path;
+  private final Path path;
 
   FileSourceImpl(final Path path) {
     this.path = path;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public Path getPath() {
     return this.path;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final FileSourceImpl source)) {
+      return false;
+    }
+    return this.path.equals(source.path);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.path);
+  }
+
+  @Override
+  public String toString() {
+    return "FileSource[" + this.path + "]";
   }
 }

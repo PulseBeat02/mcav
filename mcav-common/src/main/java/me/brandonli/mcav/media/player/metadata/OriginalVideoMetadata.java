@@ -17,84 +17,85 @@
  */
 package me.brandonli.mcav.media.player.metadata;
 
+import com.google.common.base.Preconditions;
+
 /**
- * Represents metadata for video-specific properties.
+ * Size, bitrate, and frame rate of a video stream as decoded. Bitrate and frame rate are {@link #UNKNOWN} when
+ * the source does not report them.
  */
 public interface OriginalVideoMetadata extends OriginalMetadata {
   /**
-   * A constant value indicating that an operation or parameter is not applicable or is undefined
-   * in the current context.
+   * The value of a property the source does not report.
    */
-  int NO_OP = -1;
+  int UNKNOWN = -1;
 
   /**
-   * An empty instance of {@code VideoMetadata} with all properties set to {@link #NO_OP}.
+   * Metadata with every property unknown.
    */
-  OriginalVideoMetadata EMPTY = new OriginalVideoMetadataImpl(NO_OP, NO_OP, NO_OP, NO_OP);
+  OriginalVideoMetadata EMPTY = new OriginalVideoMetadataImpl(UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN);
 
   /**
-   * Retrieves the width of the video in pixels.
+   * Creates metadata with every property.
    *
-   * @return the width of the video as an integer value, measured in pixels
-   */
-  int getVideoWidth();
-
-  /**
-   * Retrieves the video height in pixels.
-   *
-   * @return the height of the video as an integer value in pixels
-   */
-  int getVideoHeight();
-
-  /**
-   * Retrieves the bitrate of the video in bits per second (bps).
-   *
-   * @return the video bitrate as an integer value in bits per second (bps)
-   */
-  int getVideoBitrate();
-
-  /**
-   * Retrieves the frame rate of the video in frames per second (fps).
-   *
-   * @return the video frame rate as a floating-point value in frames per second
-   */
-  float getVideoFrameRate();
-
-  /**
-   * Creates a new instance of {@code VideoMetadata} with the specified video properties.
-   *
-   * @param videoWidth     the width of the video in pixels
-   * @param videoHeight    the height of the video in pixels
-   * @param videoBitrate   the bitrate of the video in kilobits per second (kbps)
-   * @param videoFrameRate the frame rate of the video in frames per second (fps)
-   * @return a new {@code VideoMetadata} instance containing the specified video properties
+   * @param videoWidth     the width in pixels
+   * @param videoHeight    the height in pixels
+   * @param videoBitrate   the bitrate in bits per second, or {@link #UNKNOWN}
+   * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
+   * @return the metadata
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
+    Preconditions.checkArgument(videoWidth > 0 && videoHeight > 0, "Video size must be positive but was %sx%s", videoWidth, videoHeight);
     return new OriginalVideoMetadataImpl(videoWidth, videoHeight, videoBitrate, videoFrameRate);
   }
 
   /**
-   * Creates a new instance of {@code VideoMetadata} with the specified video properties.
+   * Creates metadata with a size and frame rate.
    *
-   * @param videoWidth     the width of the video in pixels
-   * @param videoHeight    the height of the video in pixels
-   * @param videoFrameRate the frame rate of the video in frames per second (fps)
-   * @return a new {@code VideoMetadata} instance containing the specified video properties
+   * @param videoWidth     the width in pixels
+   * @param videoHeight    the height in pixels
+   * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
+   * @return the metadata
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
-    return new OriginalVideoMetadataImpl(videoWidth, videoHeight, NO_OP, videoFrameRate);
+    return of(videoWidth, videoHeight, UNKNOWN, videoFrameRate);
   }
 
   /**
-   * Creates a new instance of {@code VideoMetadata} with the specified width and height.
-   * This method sets the bitrate to a default value and the frame rate to a no-operation value.
+   * Creates metadata with a size only.
    *
-   * @param width  the width of the video in pixels
-   * @param height the height of the video in pixels
-   * @return a new {@code VideoMetadata} instance containing the specified width and height,
-   * along with default values for bitrate and frame rate
+   * @param width  the width in pixels
+   * @param height the height in pixels
+   * @return the metadata
    */
   static OriginalVideoMetadata of(final int width, final int height) {
-    return new OriginalVideoMetadataImpl(width, height, NO_OP, NO_OP);
+    return of(width, height, UNKNOWN, UNKNOWN);
   }
+
+  /**
+   * Gets the width of the decoded frames.
+   *
+   * @return the width in pixels
+   */
+  int getVideoWidth();
+
+  /**
+   * Gets the height of the decoded frames.
+   *
+   * @return the height in pixels
+   */
+  int getVideoHeight();
+
+  /**
+   * Gets the bitrate of the video stream.
+   *
+   * @return the bitrate in bits per second, or {@link #UNKNOWN}
+   */
+  int getVideoBitrate();
+
+  /**
+   * Gets the frame rate of the video stream.
+   *
+   * @return the frame rate in frames per second, or {@link #UNKNOWN}
+   */
+  float getVideoFrameRate();
 }

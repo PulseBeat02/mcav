@@ -18,80 +18,34 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * DitherAlgorithmBuilder serves as a generic interface for constructing instances of
- * classes that implement the DitherAlgorithm interface.
+ * The base of the fluent builders that create dithering algorithms.
  *
- * @param <T> the type of DitherAlgorithm to be constructed.
- * @param <B> the type of the builder interface extending DitherAlgorithmBuilder.
+ * <pre><code>
+ *   final ErrorDiffusionDitherBuilder&lt;ErrorDiffusionDither, ErrorDiffusionDitherBuilderImpl&gt; builder = DitherAlgorithm.errorDiffusion();
+ *   builder.withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
+ *   builder.withPalette(DitherPalette.DEFAULT_MAP_PALETTE);
+ *   final ErrorDiffusionDither algorithm = builder.build();
+ * </code></pre>
+ *
+ * @param <T> the type of algorithm the builder creates
+ * @param <B> the type of the builder itself, for method chaining
  */
 public interface DitherAlgorithmBuilder<T extends DitherAlgorithm, B extends DitherAlgorithmBuilder<T, B>> {
   /**
-   * Constructs and returns an instance of the dither algorithm with the configured parameters.
+   * Creates the algorithm.
    *
-   * @return an instance of the dither algorithm corresponding to the parameters specified in the builder
+   * @return the algorithm
    */
   T build();
 
   /**
-   * Sets the specified {@link DitherPalette} for this builder and returns the builder instance
-   * for method-chaining purposes.
+   * Sets the palette the algorithm reduces images to. Defaults to the Minecraft map palette.
    *
-   * @param palette the {@link DitherPalette} to be used by the builder. This determines the set of colors
-   *                to be utilized by the constructed dithering algorithm.
-   * @return the builder instance after the palette has been set.
-   */
-  @SuppressWarnings("unchecked")
-  default B withPalette(final DitherPalette palette) {
-    this.setPalette(palette);
-    return (B) this;
-  }
-
-  /**
-   * Configures the builder with a specific palette.
-   *
-   * @param palette the Palette instance representing the set of colors to be used.
-   *                If null, a default palette may be used depending on the implementation.
-   */
-  void setPalette(final DitherPalette palette);
-
-  /**
-   * Sets the per-channel temporal skip threshold. Only honoured by builders that support
-   * temporal coherence (e.g. {@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder}).
-   *
-   * @param threshold per-channel tolerance for reusing a previous palette index (≥ 0)
+   * @param palette the palette
    * @return this builder
    */
-  @SuppressWarnings("unchecked")
-  default B withTemporalThreshold(final int threshold) {
-    return (B) this;
-  }
-
-  /**
-   * Sets the minimum total error below which diffusion is skipped. Only honoured by builders
-   * that support temporal coherence.
-   *
-   * @param threshold minimum {@code |ΔR|+|ΔG|+|ΔB|} to trigger diffusion (≥ 0)
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withErrorThreshold(final int threshold) {
-    return (B) this;
-  }
-
-  /**
-   * Sets the fraction of quantisation error to diffuse. Only honoured by builders that support
-   * temporal coherence.
-   *
-   * @param strength diffusion strength in [0.0, 1.0]; defaults to
-   *                 {@link TemporalDitherAlgorithm#DEFAULT_ERROR_STRENGTH}
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withErrorStrength(final float strength) {
-    return (B) this;
-  }
+  B withPalette(final DitherPalette palette);
 }

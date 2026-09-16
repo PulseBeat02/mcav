@@ -17,53 +17,101 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered;
 
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import com.google.common.base.Preconditions;
 
 /**
- * Implementation of the {@link PixelMapper} interface that uses an ordered
- * dithering algorithm to generate a matrix of precalculated float values based on the
- * input matrix, a maximum threshold value, and a strength factor.
+ * The default {@link PixelMapper}, which normalizes an integer threshold matrix.
+ *
+ * <p>Every entry is mapped to the range from -0.5 to 0.5 based on its rank in the matrix, and multiplied by the
+ * strength. The minimum and maximum of the matrix are taken from the matrix itself, so matrices that count from
+ * zero and matrices that count from one both work.
  */
 public final class OrderedPixelMapper implements PixelMapper {
 
   private final float[][] matrix;
+  private final float strength;
 
-  OrderedPixelMapper(final int[][] matrix, final int max, final float strength) {
-    this.matrix = this.calculateMatrixArray(matrix, max, strength);
+  OrderedPixelMapper(final int[][] thresholds, final float strength) {
+    Preconditions.checkNotNull(thresholds, "Thresholds must not be null");
+    Preconditions.checkArgument(thresholds.length > 0, "Threshold matrix must have at least one row");
+    Preconditions.checkArgument(strength >= 0, "Strength must not be negative");
+    this.strength = strength;
+    this.matrix = normalize(thresholds, strength);
   }
 
-  private float convertThresholdToAddition(
-    @UnderInitialization OrderedPixelMapper this,
-    final float scale,
-    final int value,
-    final int max
-  ) {
-    return (float) (scale * ((value + 1.0) / max - 0.50000006));
-  }
+  private static float[][] normalize(final int[][] thresholds, final float strength) {
+    final int columns = checkRectangular(thresholds);
+    final int minimum = findMinimum(thresholds);
+    final int maximum = findMaximum(thresholds);
+    final int levels = maximum - minimum + 1;
 
-  private float[][] calculateMatrixArray(
-    @UnderInitialization OrderedPixelMapper this,
-    final int[][] matrix,
-    final int max,
-    final float strength
-  ) {
-    final int ydim = matrix.length;
-    final int xdim = matrix[0].length;
-    final float scale = 65535.0f * strength;
-    final float[][] precalc = new float[ydim][xdim];
-    for (int i = 0; i < ydim; i++) {
-      for (int j = 0; j < xdim; j++) {
-        precalc[i][j] = this.convertThresholdToAddition(scale, matrix[i][j], max);
+    final float[][] normalized = new float[thresholds.length][columns];
+    for (int y = 0; y < thresholds.length; y++) {
+      for (int x = 0; x < columns; x++) {
+        final int rank = thresholds[y][x] - minimum;
+        final float centered = (rank + 0.5f) / levels - 0.5f;
+        normalized[y][x] = centered * strength;
       }
     }
-    return precalc;
+    return normalized;
   }
 
   /**
-   * {@inheritDoc}
+   * Checks that every row of a matrix exists and has the same, positive number of columns.
+   *
+   * @param thresholds the matrix, which has at least one row
+   * @return the number of columns
+   */
+  private static int checkRectangular(final int[][] thresholds) {
+    final int[] firstRow = thresholds[0];
+    Preconditions.checkNotNull(firstRow, "Threshold matrix rows must not be null");
+    final int columns = firstRow.length;
+    Preconditions.checkArgument(columns > 0, "Threshold matrix must have at least one column");
+    for (final int[] row : thresholds) {
+      Preconditions.checkNotNull(row, "Threshold matrix rows must not be null");
+      Preconditions.checkArgument(row.length == columns, "Threshold matrix rows must have the same length");
+    }
+    return columns;
+  }
+
+  private static int findMinimum(final int[][] thresholds) {
+    int minimum = Integer.MAX_VALUE;
+    for (final int[] row : thresholds) {
+      for (final int value : row) {
+        minimum = Math.min(minimum, value);
+      }
+    }
+    return minimum;
+  }
+
+  private static int findMaximum(final int[][] thresholds) {
+    int maximum = Integer.MIN_VALUE;
+    for (final int[] row : thresholds) {
+      for (final int value : row) {
+        maximum = Math.max(maximum, value);
+      }
+    }
+    return maximum;
+  }
+
+  /**
+   * Gets the normalized threshold pattern, indexed by row and then column, with every entry from -0.5 to 0.5 times
+   * the strength.
+   *
+   * @return the pattern, which is shared and must not be modified
    */
   @Override
   public float[][] getMatrix() {
     return this.matrix;
+  }
+
+  /**
+   * Gets the strength the pattern was scaled by.
+   *
+   * @return the strength
+   */
+  @Override
+  public float getStrength() {
+    return this.strength;
   }
 }

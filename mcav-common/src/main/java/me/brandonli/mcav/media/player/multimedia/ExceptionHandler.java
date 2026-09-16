@@ -18,46 +18,40 @@
 package me.brandonli.mcav.media.player.multimedia;
 
 import java.util.function.BiConsumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * An interface for handling exceptions that occur during media playback.
+ * A player that reports failures on its background threads to a handler instead of dying silently. The handler
+ * receives a short description of what failed and the exception; the default handler logs both.
+ *
+ * <pre><code>
+ *   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+ *   final Logger logger = plugin.getLogger();
+ *   player.setExceptionHandler((message, error) -&gt; logger.log(Level.SEVERE, message, error));
+ * </code></pre>
  */
 public interface ExceptionHandler {
   /**
-   * Handles an exception that occurs during media playback.
+   * Gets the handler that receives failures.
    *
-   * @return a predicate that determines whether the exception should be handled.
+   * @return the handler
    */
   BiConsumer<String, Throwable> getExceptionHandler();
 
   /**
-   * Sets a custom exception handler.
+   * Sets the handler that receives failures. The handler is called on the thread that failed, so it must be fast
+   * and must not throw.
    *
-   * @param exceptionHandler a BiConsumer that takes a String (the media identifier) and a Throwable (the exception).
+   * @param exceptionHandler the handler
    */
   void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler);
 
   /**
-   * Creates a default ExceptionHandler that logs exceptions using SLF4J.
+   * Creates a standalone handler holder that logs failures with SLF4J until another handler is set. Players use
+   * it to implement this interface by delegation.
    *
-   * @return a default ExceptionHandler instance.
+   * @return a new handler holder
    */
   static ExceptionHandler createDefault() {
-    final Logger logger = LoggerFactory.getLogger(ExceptionHandler.class);
-    return new ExceptionHandler() {
-      private volatile BiConsumer<String, Throwable> exceptionHandler = logger::error;
-
-      @Override
-      public BiConsumer<String, Throwable> getExceptionHandler() {
-        return this.exceptionHandler;
-      }
-
-      @Override
-      public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-        this.exceptionHandler = exceptionHandler;
-      }
-    };
+    return new DefaultExceptionHandler();
   }
 }

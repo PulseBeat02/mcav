@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.utils.immutable;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
- * Represents a two-dimensional point with immutable coordinates.
+ * An immutable point in two dimensions.
  */
 public final class Point {
 
@@ -31,31 +33,56 @@ public final class Point {
   }
 
   /**
-   * Creates a new {@code Point} instance with the specified x and y coordinates.
+   * Creates a point.
    *
-   * @param x the x-coordinate of the point
-   * @param y the y-coordinate of the point
-   * @return a new {@code Point} instance with the given coordinates
+   * @param x the x coordinate
+   * @param y the y coordinate
+   * @return the point
    */
   public static Point point(final double x, final double y) {
     return new Point(x, y);
   }
 
   /**
-   * Retrieves the x-coordinate of this point.
+   * Gets the x coordinate.
    *
-   * @return the x-coordinate of this point
+   * @return the x coordinate
    */
   public double getX() {
     return this.x;
   }
 
   /**
-   * Retrieves the y-coordinate of this point.
+   * Gets the y coordinate.
    *
-   * @return the y-coordinate of this point
+   * @return the y coordinate
    */
   public double getY() {
     return this.y;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final Point point)) {
+      return false;
+    }
+    final int xComparison = Double.compare(this.x, point.x);
+    final int yComparison = Double.compare(this.y, point.y);
+    return xComparison == 0 && yComparison == 0;
+  }
+
+  @Override
+  public int hashCode() {
+    final long xBits = Double.doubleToLongBits(this.x);
+    final long yBits = Double.doubleToLongBits(this.y);
+    return Long.hashCode(xBits) * 31 + Long.hashCode(yBits);
+  }
+
+  @Override
+  public String toString() {
+    return "Point[" + this.x + ", " + this.y + "]";
   }
 }

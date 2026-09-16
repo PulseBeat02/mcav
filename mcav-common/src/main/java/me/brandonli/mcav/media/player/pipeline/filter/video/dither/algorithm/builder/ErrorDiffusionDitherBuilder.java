@@ -20,92 +20,91 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.bu
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
 
 /**
- * Defines a builder for constructing error diffusion dithering algorithms.
+ * Builds error diffusion algorithms. Every call of {@code build()} creates a new algorithm. The temporal algorithm
+ * remembers the previous frame of the video it dithers and must not be shared between players, so build one for
+ * every player; the other algorithms are stateless and can be shared.
  *
- * @param <T> the concrete type of the {@link ErrorDiffusionDither} being built.
- * @param <B> the concrete type of the builder implementing this interface.
+ * @param <T> the type of algorithm the builder creates
+ * @param <B> the type of the builder itself, for method chaining
  */
 public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B extends ErrorDiffusionDitherBuilder<T, B>>
   extends DitherAlgorithmBuilder<T, B> {
-  /** Error diffusion kernel variants. */
+  /**
+   * Sets the error diffusion algorithm. Defaults to {@link Algorithm#FILTER_LITE}.
+   *
+   * @param algorithm the algorithm
+   * @return this builder
+   */
+  B withAlgorithm(final Algorithm algorithm);
+
+  /**
+   * Sets how far a pixel may drift per channel before its color is recomputed. Only used by
+   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
+   *
+   * @param threshold the threshold from 0 to 255
+   * @return this builder
+   */
+  B withTemporalThreshold(final int threshold);
+
+  /**
+   * Sets the total error below which nothing is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
+   *
+   * @param threshold the threshold
+   * @return this builder
+   */
+  B withErrorThreshold(final int threshold);
+
+  /**
+   * Sets the fraction of the error that is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
+   *
+   * @param strength the strength from 0 to 1
+   * @return this builder
+   */
+  B withErrorStrength(final float strength);
+
+  /**
+   * The error diffusion algorithms that can be built.
+   */
   enum Algorithm {
-    /** Atkinson */
+    /**
+     * High-contrast diffusion that only spreads three quarters of the error.
+     */
     ATKINSON,
-    /** Burkes */
+
+    /**
+     * Seven taps over two rows.
+     */
     BURKES,
-    /** Filter Lite */
+
+    /**
+     * Three taps, the fastest algorithm and a good default.
+     */
     FILTER_LITE,
-    /** Floyd-Steinberg */
+
+    /**
+     * The classic four-tap algorithm.
+     */
     FLOYD_STEINBERG,
-    /** Temporally-coherent, strip-parallel Floyd-Steinberg */
+
+    /**
+     * Floyd-Steinberg that stays stable between video frames. The algorithm holds the state of one video, so every
+     * player needs its own.
+     */
     TEMPORAL_FLOYD_STEINBERG,
-    /** Jarvis-Judice-Ninke */
+
+    /**
+     * Twelve taps over three rows, very smooth.
+     */
     JARVIS_JUDICE_NINKE,
-    /** Stevenson-Arce */
+
+    /**
+     * Twelve taps on a hexagonal pattern over four rows.
+     */
     STEVENSON_ARCE,
-    /** Stucki */
+
+    /**
+     * Twelve taps over three rows, sharper than Jarvis, Judice, and Ninke.
+     */
     STUCKI,
   }
-
-  /**
-   * Sets the error diffusion kernel.
-   *
-   * @param algorithm the kernel to use
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withAlgorithm(final Algorithm algorithm) {
-    this.setAlgorithm(algorithm);
-    return (B) this;
-  }
-
-  /**
-   * Sets the per-channel temporal skip threshold (only used with {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
-   *
-   * @param threshold per-channel tolerance for reusing a previous palette index (≥ 0)
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withTemporalThreshold(final int threshold) {
-    this.setTemporalThreshold(threshold);
-    return (B) this;
-  }
-
-  /**
-   * Sets the minimum total error below which diffusion is skipped (only used with
-   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
-   *
-   * @param threshold minimum {@code |ΔR|+|ΔG|+|ΔB|} to trigger diffusion (≥ 0)
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withErrorThreshold(final int threshold) {
-    this.setErrorThreshold(threshold);
-    return (B) this;
-  }
-
-  /**
-   * Sets the fraction of quantisation error to diffuse (only used with
-   * {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}).
-   *
-   * @param strength diffusion strength in [0.0, 1.0]
-   * @return this builder
-   */
-  @SuppressWarnings("unchecked")
-  default B withErrorStrength(final float strength) {
-    this.setErrorStrength(strength);
-    return (B) this;
-  }
-
-  /** @param algorithm the kernel to use */
-  void setAlgorithm(final Algorithm algorithm);
-
-  /** @param threshold per-channel temporal skip tolerance */
-  void setTemporalThreshold(final int threshold);
-
-  /** @param threshold minimum total error to trigger diffusion */
-  void setErrorThreshold(final int threshold);
-
-  /** @param strength diffusion strength in [0.0, 1.0] */
-  void setErrorStrength(final float strength);
 }

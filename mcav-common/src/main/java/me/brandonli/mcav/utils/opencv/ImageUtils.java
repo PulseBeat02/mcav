@@ -17,78 +17,63 @@
  */
 package me.brandonli.mcav.utils.opencv;
 
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
+import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import org.bytedeco.opencv.opencv_core.Scalar;
-import org.bytedeco.opencv.opencv_core.Size;
 
 /**
- * A utility class for performing image-related operations.
+ * Helpers for working with OpenCV values and packed pixel arrays.
  */
-public class ImageUtils {
+public final class ImageUtils {
+
+  private static final int SCALAR_COMPONENTS = 4;
 
   private ImageUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Converts a double array to an OpenCV Scalar object.
-   * The first four elements of the array are used to set the values of the Scalar.
-   * If the array has fewer than four elements, the missing values are set to 0.
+   * Converts up to four channel values into an OpenCV scalar. Missing components are set to zero, and extra
+   * components are ignored.
    *
-   * @param scalar the double array to convert
-   * @return a Scalar object representing the values in the array
+   * @param components the channel values in the order OpenCV expects, which is blue, green, red, and alpha
+   * @return the scalar
    */
-  public static Scalar toScalar(final double[] scalar) {
-    final double v0 = scalar.length > 0 ? scalar[0] : 0;
-    final double v1 = scalar.length > 1 ? scalar[1] : 0;
-    final double v2 = scalar.length > 2 ? scalar[2] : 0;
-    final double v3 = scalar.length > 3 ? scalar[3] : 0;
-    return new Scalar(v0, v1, v2, v3);
+  public static Scalar toScalar(final double[] components) {
+    Preconditions.checkNotNull(components, "Components must not be null");
+    final double[] values = new double[SCALAR_COMPONENTS];
+    final int count = Math.min(components.length, SCALAR_COMPONENTS);
+    System.arraycopy(components, 0, values, 0, count);
+    return new Scalar(values[0], values[1], values[2], values[3]);
   }
 
   /**
-   * Resizes an image represented as a one-dimensional integer array.
-   * Each pixel in the input array is assumed to be a 32-bit ARGB color value.
+   * Resizes an image given as packed ARGB pixels. The result has the same layout, with every pixel fully opaque.
    *
-   * @param originalData   the original image data represented as a one-dimensional integer array
-   * @param originalWidth  the width of the original image
-   * @param originalHeight the height of the original image
+   * @param pixels         the pixels of the image, laid out row by row
+   * @param originalWidth  the width of the image
+   * @param originalHeight the height of the image
    * @param newWidth       the width of the resized image
    * @param newHeight      the height of the resized image
-   * @return the resized image data as a one-dimensional integer array where each pixel is a 32-bit ARGB color value
+   * @return the pixels of the resized image, laid out row by row
    */
   public static int[] resizeIntArrayImage(
-    final int[] originalData,
+    final int[] pixels,
     final int originalWidth,
     final int originalHeight,
     final int newWidth,
     final int newHeight
   ) {
-    final Mat originalMat = new Mat(originalHeight, originalWidth, opencv_core.CV_8UC4);
-    final byte[] byteData = new byte[originalData.length * 4];
-    for (int i = 0; i < originalData.length; i++) {
-      final int pixel = originalData[i];
-      final int idx = i * 4;
-      byteData[idx] = (byte) (pixel & 0xFF);
-      byteData[idx + 1] = (byte) ((pixel >> 8) & 0xFF);
-      byteData[idx + 2] = (byte) ((pixel >> 16) & 0xFF);
-      byteData[idx + 3] = (byte) 0xFF;
+    Preconditions.checkNotNull(pixels, "Pixels must not be null");
+    Preconditions.checkArgument(originalWidth > 0 && originalHeight > 0, "Original size must be positive");
+    Preconditions.checkArgument(newWidth > 0 && newHeight > 0, "New size must be positive");
+    Preconditions.checkArgument(pixels.length == originalWidth * originalHeight, "Pixel count does not match the original size");
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, originalWidth, originalHeight)) {
+      final ResizeFilter resize = new ResizeFilter(newWidth, newHeight);
+      resize.applyFilter(image);
+      final int[] resized = image.getPixels();
+      return resized.clone();
     }
-    originalMat.data().put(byteData);
-    final Mat resizedMat = new Mat();
-    opencv_imgproc.resize(originalMat, resizedMat, new Size(newWidth, newHeight));
-    final int[] resizedData = new int[newWidth * newHeight];
-    final byte[] resizedByteData = new byte[resizedData.length * 4];
-    resizedMat.data().put(resizedByteData);
-    for (int i = 0; i < resizedData.length; i++) {
-      final int idx = i * 4;
-      final int b = resizedByteData[idx] & 0xFF;
-      final int g = resizedByteData[idx + 1] & 0xFF;
-      final int r = resizedByteData[idx + 2] & 0xFF;
-      resizedData[i] = (r << 16) | (g << 8) | b;
-    }
-    return resizedData;
   }
 }

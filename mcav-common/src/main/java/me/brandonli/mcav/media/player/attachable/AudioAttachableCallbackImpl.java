@@ -17,52 +17,14 @@
  */
 package me.brandonli.mcav.media.player.attachable;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 
 /**
- * Implementation of {@link AudioAttachableCallback}.
+ * The default {@link AudioAttachableCallback}.
  */
-public class AudioAttachableCallbackImpl implements AudioAttachableCallback {
-
-  private final AtomicReference<AudioPipelineStep> pipeline;
+public final class AudioAttachableCallbackImpl extends AbstractAttachableCallback<AudioPipelineStep> implements AudioAttachableCallback {
 
   AudioAttachableCallbackImpl() {
-    this.pipeline = new AtomicReference<>(AudioPipelineStep.NO_OP);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void attach(final AudioPipelineStep pipeline) {
-    requireNonNull(pipeline);
-    this.pipeline.set(pipeline);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void detach() {
-    this.pipeline.set(AudioPipelineStep.NO_OP);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean isAttached() {
-    return this.pipeline.get() != AudioPipelineStep.NO_OP;
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public AudioPipelineStep retrieve() {
-    return this.pipeline.get();
+    super(AudioPipelineStep.NO_OP);
   }
 }

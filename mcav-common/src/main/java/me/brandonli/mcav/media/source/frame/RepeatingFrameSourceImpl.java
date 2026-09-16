@@ -19,85 +19,81 @@ package me.brandonli.mcav.media.source.frame;
 
 import com.google.common.base.Preconditions;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.media.image.DynamicImageBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 
 /**
- * Implementation of the {@link RepeatingFrameSource} interface.
+ * The default {@link RepeatingFrameSource}. The player paces the frames using {@link #getFrameRate()}, so the
+ * supplier simply hands out the next frame every time it is asked.
+ *
+ * <p>The supplier returns the shared, read-only pixels of the frames without copying them, see
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()},
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} and
+ * {@link me.brandonli.mcav.media.image.ImageBuffer#getReadOnlyPixels()}.
  */
-public class RepeatingFrameSourceImpl implements RepeatingFrameSource {
+public final class RepeatingFrameSourceImpl implements RepeatingFrameSource {
 
-  private final int repeats;
-  private final List<ImageBuffer> images;
+  private final List<ImageBuffer> frames;
+  private final int repeatCount;
   private final int width;
   private final int height;
+  private final float frameRate;
 
-  private final AtomicInteger counter;
-  private final AtomicInteger imageIndex;
-  private final long sleepTimeMs;
+  private int nextFrame;
+  private int completedLoops;
 
-  RepeatingFrameSourceImpl(final DynamicImageBuffer source, final int repeats) {
-    this.images = source.getFrames();
-    Preconditions.checkArgument(!this.images.isEmpty());
-    final ImageBuffer firstImage = this.images.getFirst();
-    this.repeats = repeats;
-    this.width = firstImage.getWidth();
-    this.height = firstImage.getHeight();
-    this.counter = new AtomicInteger(0);
-    this.imageIndex = new AtomicInteger(0);
-    this.sleepTimeMs = (long) (1000.0 / source.getFrameRate());
+  RepeatingFrameSourceImpl(final DynamicImageBuffer animation, final int repeatCount) {
+    final List<ImageBuffer> animationFrames = animation.getFrames();
+    final boolean empty = animationFrames.isEmpty();
+    Preconditions.checkArgument(!empty, "Animation has no frames");
+    final ImageBuffer first = animationFrames.getFirst();
+    this.frames = animationFrames;
+    this.repeatCount = repeatCount;
+    this.width = first.getWidth();
+    this.height = first.getHeight();
+    this.frameRate = animation.getFrameRate();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getRepeatCount() {
-    return this.repeats;
+    return this.repeatCount;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public SampleSupplier supplyFrameSamples() {
-    if (this.counter.get() >= RepeatingFrameSourceImpl.this.repeats && RepeatingFrameSourceImpl.this.repeats != -1) {
-      return () -> new int[this.width * this.height];
-    }
-    try {
-      Thread.sleep(this.sleepTimeMs);
-    } catch (final InterruptedException e) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-    }
-    int index = this.imageIndex.getAndIncrement();
-    if (index >= this.images.size()) {
-      this.counter.incrementAndGet();
-      this.imageIndex.set(0);
-      index = 0;
-      if (this.counter.get() >= RepeatingFrameSourceImpl.this.repeats && RepeatingFrameSourceImpl.this.repeats != -1) {
-        return () -> new int[this.width * this.height];
-      }
-    }
-    final ImageBuffer image = this.images.get(index);
-    final int[] frameSamples = image.getPixels();
-    return () -> frameSamples;
+    return this::nextSamples;
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  private synchronized int[] nextSamples() {
+    final int frameCount = this.frames.size();
+    final boolean finished = this.completedLoops >= this.repeatCount;
+    if (finished) {
+      final ImageBuffer last = this.frames.get(frameCount - 1);
+      return last.getPixels();
+    }
+    final ImageBuffer frame = this.frames.get(this.nextFrame);
+    this.nextFrame++;
+    if (this.nextFrame >= frameCount) {
+      this.nextFrame = 0;
+      if (this.repeatCount != Integer.MAX_VALUE) {
+        this.completedLoops++;
+      }
+    }
+    return frame.getPixels();
+  }
+
   @Override
   public int getFrameWidth() {
     return this.width;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getFrameHeight() {
     return this.height;
+  }
+
+  @Override
+  public float getFrameRate() {
+    return this.frameRate;
   }
 }

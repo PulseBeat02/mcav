@@ -17,26 +17,29 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDitherImpl;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
 /**
- * Implementation of the {@link NearestDitherBuilder} interface.
+ * The default {@link NearestDitherBuilder}.
  */
 public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDither, NearestDitherBuilderImpl> {
 
-  private DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
+  private DitherPalette palette;
 
   /**
-   * Default constructor for {@link NearestDitherBuilderImpl}.
+   * Constructs a builder that creates a nearest color algorithm on the Minecraft map palette.
    */
   public NearestDitherBuilderImpl() {
-    // no-op
+    this.palette = DitherPalette.DEFAULT_MAP_PALETTE;
   }
 
   /**
-   * {@inheritDoc}
+   * Creates a nearest color algorithm for the chosen palette.
+   *
+   * @return the algorithm, which is stateless and can be shared
    */
   @Override
   public NearestDither build() {
@@ -44,10 +47,15 @@ public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDit
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the palette the algorithm reduces images to. Defaults to the Minecraft map palette.
+   *
+   * @param palette the palette
+   * @return this builder
    */
   @Override
-  public void setPalette(final DitherPalette palette) {
+  public NearestDitherBuilderImpl withPalette(final DitherPalette palette) {
+    Preconditions.checkNotNull(palette, "Palette must not be null");
     this.palette = palette;
+    return this;
   }
 }

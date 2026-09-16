@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.multimedia;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -30,117 +31,134 @@ import me.brandonli.mcav.media.player.multimedia.vlc.VLCPlayer;
 import me.brandonli.mcav.media.source.Source;
 
 /**
- * Represents a video player interface for processing and playing video streams.
+ * Plays video and audio from a {@link Source} through the attached pipelines.
+ *
+ * <p>Pick a backend with one of the static factories, attach a video pipeline, an audio pipeline, and optionally
+ * a target size, then start the player:
+ *
+ * <pre><code>
+ *   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(videoPipeline);
+ *   final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+ *   audio.attach(audioPipeline);
+ *   final Path movie = Path.of("movie.mp4");
+ *   final FileSource source = FileSource.path(movie);
+ *   player.start(source);
+ * </code></pre>
+ *
+ * <p>Frames are delivered on the player's own threads; the pipelines must not block for long.
  */
 public interface VideoPlayer extends ExceptionHandler {
   /**
-   * Starts the video playback process using the specified audio and video pipeline steps
-   * and a combined source for media playback.
+   * Creates a player backed by VLC. VLC must be installed or installable; see
+   * {@link me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit}. VLC handles the widest range of
+   * formats and streams.
    *
-   * @param combined      the source providing the combined media data for playback
-   * @return {@code true} if the playback starts successfully, {@code false} otherwise
-   */
-  boolean start(final Source combined);
-
-  /**
-   * Starts the video playback process asynchronously using the specified audio and video pipeline steps,
-   * a combined source, and an executor service for managing asynchronous execution.
+   * <p>{@link me.brandonli.mcav.MCAVApi#install(Class[])} prepares VLC in the background, which can take several
+   * minutes when VLC has to be downloaded first. Wait for
+   * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(me.brandonli.mcav.capability.Capability)} with
+   * {@link me.brandonli.mcav.capability.Capability#VLC} before creating the player, or use {@link #ffmpeg()}, which
+   * needs no installation.
    *
-   * @param combined      the source that provides combined audio and video media data
-   * @param service       the executor service used to execute the asynchronous playback operation
-   * @return a {@link CompletableFuture} that completes with {@code true} if the playback starts successfully
-   * or {@code false} if the start operation fails
-   */
-  default CompletableFuture<Boolean> startAsync(final Source combined, final ExecutorService service) {
-    return CompletableFuture.supplyAsync(() -> this.start(combined), service);
-  }
-
-  /**
-   * Asynchronously starts the video playback process using the specified audio and video
-   * pipeline steps along with a combined source for media playback.
-   *
-   * @param combined      the source providing the combined media data for playback
-   * @return a {@link CompletableFuture} that completes with {@code true} if the playback
-   * starts successfully, or {@code false} otherwise
-   */
-  default CompletableFuture<Boolean> startAsync(final Source combined) {
-    return this.startAsync(combined, ForkJoinPool.commonPool());
-  }
-
-  /**
-   * Gets the video-attachable callback associated with this player.
-   *
-   * @return The video-attachable callback.
-   */
-  VideoAttachableCallback getVideoAttachableCallback();
-
-  /**
-   * Gets the audio-attachable callback associated with this player.
-   *
-   * @return The audio-attachable callback.
-   */
-  AudioAttachableCallback getAudioAttachableCallback();
-
-  /**
-   * Gets the dimension-attachable callback associated with this player.
-   *
-   * @return The dimension-attachable callback.
-   */
-  DimensionAttachableCallback getDimensionAttachableCallback();
-
-  /**
-   * Creates an instance of a VLC-based VideoPlayerMultiplexer using the provided arguments.
-   *
-   * @param args the arguments to configure the VLC player, such as configuration flags or playback options
-   * @return an instance of VideoPlayerMultiplexer configured to use the VLC player
+   * @param args VLC media options applied to every source, such as {@code :network-caching=1000}
+   * @return the player
+   * @throws IllegalStateException if VLC is still being prepared in the background, or its preparation found that VLC
+   *                               is not available on this system; the message says which
    */
   static VideoPlayerMultiplexer vlc(final String... args) {
+    Preconditions.checkNotNull(args, "Arguments must not be null");
     return new VLCPlayer(args);
   }
 
   /**
-   * Creates a new instance of {@link FFmpegPlayer}, which utilizes FFmpeg for processing
-   * video and audio frames.
+   * Creates a player backed by the FFmpeg libraries bundled with JavaCV. No installation is needed; this is the
+   * recommended default.
    *
-   * @return a {@link VideoPlayerMultiplexer} implementation backed by FFmpeg technology,
-   * enabling robust playback and multimedia pipeline integration.
+   * @return the player
    */
   static VideoPlayerMultiplexer ffmpeg() {
     return new FFmpegPlayer();
   }
 
   /**
-   * Creates a new instance of the OpenCV-based video player.
-   * This method provides an implementation of the {@link VideoPlayerMultiplexer}
-   * using the OpenCV library for video playback functionality.
+   * Creates a player backed by the video reader of OpenCV. It decodes video only, without audio, through the video
+   * backends of the OpenCV build bundled with JavaCV. The Windows build reads files and streams through FFmpeg and
+   * Media Foundation, but the Linux build only captures from cameras through V4L2 and cannot open files or streams at
+   * all, so there the player reports the failure and does not start. Prefer {@link #ffmpeg()}, which decodes
+   * everything on every system.
    *
-   * @return an instance of {@link VideoPlayerMultiplexer} backed by the OpenCVPlayer.
+   * @return the player
    */
   static VideoPlayerMultiplexer opencv() {
     return new OpenCVPlayer();
   }
 
   /**
-   * Returns an instance of the {@link VideoInputPlayer}, which is a concrete implementation
-   * of the {@link VideoPlayerMultiplexer}. The VideoInputPlayer is used to handle video input
-   * from a device and provides functionality for processing frames from the video device.
+   * Creates a player for cameras and capture cards. Start it with a
+   * {@link me.brandonli.mcav.media.source.device.DeviceSource}.
    *
-   * @return a new instance of {@link VideoInputPlayer} configured for video input handling.
+   * @return the player
    */
   static VideoPlayerMultiplexer device() {
     return new VideoInputPlayer();
   }
 
   /**
-   * Returns an instance of a deprecated video player implementation using the JCodec library.
-   * This method is marked as {@code @Deprecated} and will throw an
-   * {@link UnsupportedOperationException} when invoked.
+   * Starts playing a source that contains both video and audio. Starting a player that is already playing stops
+   * the current playback and plays the new source instead.
    *
-   * @return nothing, as this method always throws an {@link UnsupportedOperationException}.
-   * @throws UnsupportedOperationException as the video player implementation is deprecated and unsupported.
+   * @param combined the source
+   * @return true if playback started, false if it could not start, for example because the source cannot be opened;
+   * the reason is passed to the exception handler of the player
    */
-  @Deprecated
-  static VideoPlayer jcodec() {
-    throw new UnsupportedOperationException("Deprecated Video Player");
+  boolean start(final Source combined);
+
+  /**
+   * Starts playback on an executor.
+   *
+   * @param combined the source
+   * @param executor the executor that opens the source
+   * @return a future that completes with the result of {@link #start(Source)}
+   */
+  default CompletableFuture<Boolean> startAsync(final Source combined, final ExecutorService executor) {
+    Preconditions.checkNotNull(combined, "Source must not be null");
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.start(combined), executor);
   }
+
+  /**
+   * Starts playback on the common pool.
+   *
+   * @param combined the source
+   * @return a future that completes with the result of {@link #start(Source)}
+   */
+  default CompletableFuture<Boolean> startAsync(final Source combined) {
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.startAsync(combined, pool);
+  }
+
+  /**
+   * Gets the slot that holds the video pipeline. Attach a pipeline before starting; it can be swapped while
+   * playing.
+   *
+   * @return the video pipeline slot
+   */
+  VideoAttachableCallback getVideoAttachableCallback();
+
+  /**
+   * Gets the slot that holds the audio pipeline. Attach a pipeline before starting; it can be swapped while
+   * playing.
+   *
+   * @return the audio pipeline slot
+   */
+  AudioAttachableCallback getAudioAttachableCallback();
+
+  /**
+   * Gets the slot that holds the size frames are scaled to before they reach the video pipeline. Leave it
+   * detached to receive frames at their original size.
+   *
+   * @return the target size slot
+   */
+  DimensionAttachableCallback getDimensionAttachableCallback();
 }

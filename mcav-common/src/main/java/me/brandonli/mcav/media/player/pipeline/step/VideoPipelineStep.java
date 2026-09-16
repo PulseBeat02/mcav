@@ -17,40 +17,113 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a processing step in a video processing pipeline.
+ * A link of a video pipeline. Each frame passes through the filters of the chain in order; filters may modify
+ * the frame in place for the filters that follow.
  */
 public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVideoMetadata, VideoPipelineStep> {
   /**
-   * Creates a new instance of {@code VideoPipelineStep} with the specified
-   * next step and video filter.
-   *
-   * @param next   the next step in the pipeline. Can be null if this is the last step.
-   * @param filter the video filter to be applied in this pipeline step.
-   *
-   * @return a new {@code VideoPipelineStep} instance that applies the given filter.
+   * A pipeline that does nothing, attached while no pipeline is set. It is the only video step whose
+   * {@link #isNoOp()} returns true.
    */
-  static VideoPipelineStep of(final VideoPipelineStep next, final VideoFilter filter) {
+  VideoPipelineStep NO_OP = new NoOperationStep();
+
+  /**
+   * Creates a step that applies a filter and continues with another step.
+   *
+   * @param next   the step that follows, or null to end the chain
+   * @param filter the filter of the step
+   * @return the step
+   */
+  static VideoPipelineStep of(final @Nullable VideoPipelineStep next, final VideoFilter filter) {
+    Preconditions.checkNotNull(filter, "Filter must not be null");
     return new VideoPipelineStepImpl(next, filter);
   }
 
   /**
-   * Creates a {@code VideoPipelineStep} with a specified {@code VideoFilter}.
+   * Creates a single-step pipeline.
    *
-   * @param filter the video filter to be applied in this pipeline step.
-   *               Must not be null.
-   * @return a new {@code VideoPipelineStep} instance that applies the given filter.
+   * @param filter the filter of the step
+   * @return the step
    */
   static VideoPipelineStep of(final VideoFilter filter) {
+    Preconditions.checkNotNull(filter, "Filter must not be null");
     return new VideoPipelineStepImpl(null, filter);
   }
 
   /**
-   * A no-operation (no-op) implementation of {@link VideoPipelineStep}.
+   * Gets the filter of this step.
+   *
+   * @return the filter
    */
-  VideoPipelineStep NO_OP = new VideoPipelineStepImpl(null, (samples, metadata) -> false);
+  VideoFilter getFilter();
+
+  /**
+   * Gets this step typed as a video step.
+   *
+   * @return this step
+   */
+  @Override
+  default VideoPipelineStep self() {
+    return this;
+  }
+
+  /**
+   * The step behind {@link #NO_OP}. Its constructor is private, so {@link #NO_OP} is its only instance, and the class
+   * can only be initialized together with this interface, which rules out a deadlock between the initialization of the
+   * two classes.
+   */
+  final class NoOperationStep implements VideoPipelineStep {
+
+    private NoOperationStep() {}
+
+    /**
+     * Gets the step that follows this one, which is none.
+     *
+     * @return null
+     */
+    @Override
+    public @Nullable VideoPipelineStep next() {
+      return null;
+    }
+
+    /**
+     * Gets the filter of this step, which does nothing.
+     *
+     * @return {@link VideoFilter#NO_OP}
+     */
+    @Override
+    public VideoFilter getFilter() {
+      return VideoFilter.NO_OP;
+    }
+
+    /**
+     * Leaves the frame untouched.
+     *
+     * @param buffer   the frame
+     * @param metadata the metadata of the original video stream
+     * @throws NullPointerException if the frame or the metadata is null
+     */
+    @Override
+    public void process(final ImageBuffer buffer, final OriginalVideoMetadata metadata) {
+      Preconditions.checkNotNull(buffer, "Buffer must not be null");
+      Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    }
+
+    /**
+     * Checks whether this step is the empty pipeline, which it is.
+     *
+     * @return true
+     */
+    @Override
+    public boolean isNoOp() {
+      return true;
+    }
+  }
 }

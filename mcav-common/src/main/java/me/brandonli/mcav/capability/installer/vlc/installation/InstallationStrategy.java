@@ -22,8 +22,8 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Represents a strategy for installing and setting up VLC media player binaries. Each strategy has its own unique
- * implementation per platform to properly load all binaries and libraries in place.
+ * Extracts a downloaded VLC archive into a usable installation. Every operating system ships VLC in a different
+ * archive format, so each has its own strategy.
  *
  * @see LinuxInstallationStrategy
  * @see WinInstallationStrategy
@@ -31,18 +31,19 @@ import java.util.Optional;
  */
 public interface InstallationStrategy {
   /**
-   * Attempts to locate any pre-existing VLC binaries. This will check the directory to see if the binaries have been
-   * installed.
+   * Looks for an installation created by a previous run.
    *
-   * @return an Optional containing the path to the installed VLC binaries if found, otherwise empty
+   * @return the directory that contains the VLC libraries, or empty if VLC has not been installed
+   * @throws IOException if the installation directory cannot be searched
    */
-  Optional<Path> getInstalledPath();
+  Optional<Path> getInstalledPath() throws IOException;
 
   /**
-   * Attempts to download and install VLC binaries for the current platform. This method will also set up any paths.
+   * Extracts the downloaded archive into the installation directory and deletes the archive.
    *
-   * @return the path to the installed VLC binaries
-   * @throws IOException if an error occurs during the installation process
+   * @param archive the downloaded archive
+   * @return the directory that contains the VLC libraries
+   * @throws IOException if the archive cannot be extracted
    */
-  Path execute() throws IOException;
+  Path execute(final Path archive) throws IOException;
 }

@@ -18,27 +18,31 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 /**
- * A video filter that sets the output Mat to zero, effectively clearing it.
+ * Turns every frame black.
  */
 public class ZeroFilter extends MatVideoFilter {
 
-  private static final Mat ZERO_MAT = new Mat(1, 1, 0);
+  private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
 
   /**
-   * Constructs a new ZeroFilter.
+   * Constructs a new zero filter.
    */
   public ZeroFilter() {
-    // no-op
+    // stateless
   }
 
   /**
-   * {@inheritDoc}
+   * Sets every pixel of the frame to black in place.
+   *
+   * @param mat the 8-bit BGR matrix of the frame
+   * @return true, because the frame may have had other colors before
    */
   @Override
-  boolean modifyMat(final Mat mat) {
-    mat.setTo(ZERO_MAT);
+  protected boolean modifyMat(final Mat mat) {
+    mat.put(BLACK);
     return true;
   }
 }

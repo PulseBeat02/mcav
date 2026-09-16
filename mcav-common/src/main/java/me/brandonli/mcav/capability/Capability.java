@@ -18,13 +18,50 @@
 package me.brandonli.mcav.capability;
 
 /**
- * Represents a capability of the library.
+ * An optional feature of the library that depends on an external program or on native libraries that not every
+ * system can load. Check availability with {@link me.brandonli.mcav.MCAVApi#hasCapability(Capability)} before using
+ * the feature, or wait for it with {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(Capability)}.
+ *
+ * <p>{@link #FFMPEG} and {@link #FACE_DETECTION} are decided while {@link me.brandonli.mcav.MCAVApi#install(Class[])}
+ * runs. {@link #VLC} and {@link #YT_DLP} are external programs that may have to be downloaded first, so they are
+ * prepared in the background after {@code install} returned.
  */
 public enum Capability {
-  /** VLC **/
-  VLC,
-  /** FFMPEG **/
-  FFMPEG,
-  /** YT-DLP **/
-  YT_DLP,
+  /**
+   * Playback through the VLC media player, which supports the widest range of formats and streams. Prepared in the
+   * background, because VLC may have to be downloaded first.
+   */
+  VLC("VLC"),
+
+  /**
+   * Playback through FFmpeg, which is bundled with the library and always available.
+   */
+  FFMPEG("FFmpeg"),
+
+  /**
+   * Resolving stream URLs of websites such as YouTube through yt-dlp. Prepared in the background, because yt-dlp may
+   * have to be downloaded first.
+   */
+  YT_DLP("yt-dlp"),
+
+  /**
+   * Face detection with the object detection module of OpenCV. Its native libraries link OpenCV's GUI module, which
+   * needs GTK 2 on Linux, so the feature is missing on many headless servers.
+   */
+  FACE_DETECTION("Face detection");
+
+  private final String displayName;
+
+  Capability(final String displayName) {
+    this.displayName = displayName;
+  }
+
+  /**
+   * Gets the name of the capability as it is written in log and error messages, such as {@code yt-dlp}.
+   *
+   * @return the display name
+   */
+  public String getDisplayName() {
+    return this.displayName;
+  }
 }

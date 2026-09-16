@@ -17,23 +17,43 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.Filter;
 
 /**
- * Represents a functional interface for applying transformations or filters
- * to video data.
+ * A step of a video pipeline that inspects or modifies a frame.
+ *
+ * <p>Filters run on the video render thread of the player, one after another, for every frame. A filter that needs
+ * a long time therefore lowers the frame rate of the whole pipeline, so expensive work should be handed off to
+ * another thread. Filters modify the frame in place. Once the last filter ran, the player reuses the frame for a
+ * later picture or releases it, so filters that keep a frame must {@link ImageBuffer#copy() copy} it.
+ *
+ * <pre><code>
+ *   final VideoFilter watermark = new TextFilter("MCAV", 10, 20, TextFilter.DEFAULT_FONT, 0.5, new double[] { 255, 255, 255 });
+ *   final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+ *   builder.then(watermark);
+ *   builder.then(display);
+ *   final VideoPipelineStep pipeline = builder.build();
+ * </code></pre>
  */
 @FunctionalInterface
 public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> {
   /**
-   * Applies the filter to the provided video samples with default empty metadata.
+   * A filter that leaves every frame untouched.
+   */
+  VideoFilter NO_OP = (_, _) -> false;
+
+  /**
+   * Applies the filter to a frame without metadata about the original video, passing
+   * {@link OriginalVideoMetadata#EMPTY} as the metadata.
    *
-   * @param samples  the video samples to be processed
-   * @return true if the filter was successfully applied or false if the samples should be discarded
+   * @param samples the frame to process
+   * @return true if the filter changed the frame or may have changed it, false if it left the frame untouched
    */
   default boolean applyFilter(final ImageBuffer samples) {
+    Preconditions.checkNotNull(samples, "Samples must not be null");
     return this.applyFilter(samples, OriginalVideoMetadata.EMPTY);
   }
 }

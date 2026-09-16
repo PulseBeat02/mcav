@@ -17,19 +17,23 @@
  */
 package me.brandonli.mcav.json.ytdlp.format;
 
-/** Version **/
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/**
+ * The version of yt-dlp that produced the metadata.
+ */
 public class Version {
 
   Version() {
-    // no-op
+    // populated by Gson
   }
 
-  /** version **/
-  public String version;
-  /** current_git_head **/
-  public Object current_git_head;
-  /** release_git_head **/
-  public String release_git_head;
-  /** repository **/
-  public String repository;
+  /** The version of yt-dlp, such as {@code 2025.09.05}. */
+  public @Nullable String version;
+  /** The Git commit the running yt-dlp was built from, or null for a release build. */
+  public @Nullable Object current_git_head;
+  /** The Git commit of the release. */
+  public @Nullable String release_git_head;
+  /** The repository the build came from, such as {@code yt-dlp/yt-dlp}. */
+  public @Nullable String repository;
 }

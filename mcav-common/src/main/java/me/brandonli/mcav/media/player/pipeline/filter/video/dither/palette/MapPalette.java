@@ -17,34 +17,23 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * DefaultPalette is a specialized implementation of the ColorPalette class.
+ * The color palette of Minecraft maps, as loaded by {@link MapPaletteLoader}. The first four indices of the map
+ * palette are transparent and are therefore reserved. Use {@link DitherPalette#DEFAULT_MAP_PALETTE} instead of
+ * creating instances, because every instance builds its own lookup tables.
  */
 public final class MapPalette extends ColorPalette {
 
   /**
-   * Constructs a DefaultPalette instance initialized with a predefined set of ~128 colors.
+   * The number of leading map colors that are transparent.
+   */
+  public static final int TRANSPARENT_INDICES = 4;
+
+  /**
+   * Constructs a new map palette and builds its lookup tables, which takes about a second.
    */
   public MapPalette() {
-    super(getPaletteColors());
-  }
-
-  private static List<Integer> getPaletteColors() {
-    final List<Integer> colors = new ArrayList<>();
-    for (int i = 0; i < 256; ++i) {
-      try {
-        final byte index = (byte) i;
-        final Color color = MapPaletteLoader.getColor(index);
-        final int rgb = color.getRGB();
-        colors.add(rgb);
-      } catch (final IndexOutOfBoundsException e) {
-        break;
-      }
-    }
-    return colors;
+    final int[] colors = MapPaletteLoader.getColors();
+    super(colors, TRANSPARENT_INDICES);
   }
 }

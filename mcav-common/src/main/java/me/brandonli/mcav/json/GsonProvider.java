@@ -20,10 +20,8 @@ package me.brandonli.mcav.json;
 import com.google.gson.Gson;
 
 /**
- * A provider for Gson instances.
- * <p>
- * This class provides a static method to get a simple Gson instance.
- * </p>
+ * Shares one thread-safe {@link Gson} instance across the library so that every module parses and writes JSON
+ * the same way.
  */
 public final class GsonProvider {
 
@@ -34,9 +32,9 @@ public final class GsonProvider {
   }
 
   /**
-   * Get a simple Gson instance.
+   * Gets the shared instance, configured with the Gson defaults.
    *
-   * @return a simple Gson instance
+   * @return the shared instance
    */
   public static Gson getSimple() {
     return GSON;

@@ -17,25 +17,36 @@
  */
 package me.brandonli.mcav;
 
+import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.SourceDetectionHelper;
 
-public class SourceExamples {
+/**
+ * Shows which source type {@link SourceDetectionHelper} picks for a few strings.
+ */
+public final class SourceExamples {
 
-  public static void main(final String[] args) {
+  static void main() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Consumer<String> determine = source -> {
-      final Optional<Source> detectedSource = helper.detectSource(source);
-      final String name = detectedSource.isPresent() ? detectedSource.get().getName() : "unknown";
-      System.out.println(name);
-    };
-    determine.accept("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-    determine.accept("2");
-    determine.accept("C:\\rickroll.mp4");
-    determine.accept("https://github.com/mediaelement/mediaelement-files/blob/master/echo-hereweare.mp4");
-    determine.accept("dshow||video=OBS Virtual Camera");
-    determine.accept("daibsdahsbdashvb");
+    final List<String> inputs = List.of(
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "2",
+      "C:\\rickroll.mp4",
+      "https://github.com/mediaelement/mediaelement-files/blob/master/echo-hereweare.mp4",
+      "dshow||video=OBS Virtual Camera",
+      "daibsdahsbdashvb"
+    );
+    for (final String input : inputs) {
+      final Optional<Source> detected = helper.detectSource(input);
+      final String name;
+      if (detected.isPresent()) {
+        final Source source = detected.get();
+        name = source.getName();
+      } else {
+        name = "unknown";
+      }
+      System.out.println(input + " -> " + name);
+    }
   }
 }

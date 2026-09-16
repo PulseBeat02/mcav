@@ -17,72 +17,107 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * The Palette interface defines the structure for managing and retrieving a set of colors.
+ * A fixed set of at most 256 colors that images are reduced to, together with lookup tables that find the closest
+ * palette color for any RGB color in constant time.
+ *
+ * <p>The lookup tables use 7 bits per channel, so they hold two million entries and take about a second to build.
+ * Palettes are therefore built once and shared; use {@link #DEFAULT_MAP_PALETTE} for Minecraft maps rather than
+ * creating new instances. Palettes are immutable and thread-safe.
+ *
+ * <p>Colors are packed as opaque ARGB integers, {@code 0xFFRRGGBB}. A palette may reserve its first indices for
+ * transparency; those indices are never returned by the lookup tables.
  */
 public interface DitherPalette {
   /**
-   * Represents a default palette used for mapping colors in video processing (map palette).
+   * The Minecraft map palette, whose first four indices are transparent.
    */
   DitherPalette DEFAULT_MAP_PALETTE = new MapPalette();
 
   /**
-   * Represents a predefined 8-bit color palette
+   * A palette of eight basic colors: red, green, blue, white, black, yellow, cyan, and purple.
    */
-  DitherPalette EIGHT_BIT_PALETTE = colors(-65536, -16721606, -13158436, -1, -16777216, -1710797, -10691627, -5092136);
+  DitherPalette EIGHT_BIT_PALETTE = colors(0xFFFF0000, 0xFF00D93A, 0xFF3737DC, 0xFFFFFFFF, 0xFF000000, 0xFFE5E533, 0xFF5CDBD5, 0xFFB24CD8);
 
   /**
-   * Initializes the palette system.
+   * Builds the default map palette ahead of time, so the first dithering operation does not pay for it.
    */
   static void init() {
-    // init
+    // touching the palette forces the class initialization that builds its lookup tables
+    Objects.requireNonNull(DEFAULT_MAP_PALETTE, "Map palette");
   }
 
   /**
-   * Creates a new Palette instance using the provided array of colors.
+   * Creates a palette from RGB colors. The alpha channel of the colors is ignored, and no index is reserved for
+   * transparency.
    *
-   * @param colors an array of integers where each integer represents a
-   *               color, typically encoded as an RGB value.
-   * @return a Palette object initialized with the specified colors.
+   * @param colors the colors, at most 256
+   * @return the palette
    */
   static DitherPalette colors(final int... colors) {
-    return new ColorPalette(colors);
+    Preconditions.checkNotNull(colors, "Colors must not be null");
+    return new ColorPalette(colors, 0);
   }
 
   /**
-   * Creates a new {@code Palette} from a list of colors.
+   * Creates a palette from RGB colors. The alpha channel of the colors is ignored, and no index is reserved for
+   * transparency.
    *
-   * @param colors a list of integers where each integer represents an RGB color.
-   *               The list is used to define the set of colors included in the palette.
-   * @return a {@code Palette} instance containing the specified list of colors.
+   * @param colors the colors, at most 256, none of them null
+   * @return the palette
    */
   static DitherPalette colors(final List<Integer> colors) {
-    return new ColorPalette(colors);
+    Preconditions.checkNotNull(colors, "Colors must not be null");
+
+    final int size = colors.size();
+    final int[] array = new int[size];
+    for (int index = 0; index < size; index++) {
+      final Integer color = colors.get(index);
+      Preconditions.checkNotNull(color, "Color %s must not be null", index);
+      array[index] = color;
+    }
+    return new ColorPalette(array, 0);
   }
 
   /**
-   * Retrieves the palette consisting of an array of colors.
+   * Gets the colors of the palette as opaque ARGB integers, indexed by palette index. Reserved transparent
+   * indices hold zero.
    *
-   * @return an array of integers representing the colors in the palette,
+   * @return the colors, which must not be modified
    */
   int[] getPalette();
 
   /**
-   * Returns the lookup table mapping 7-bit RGB values to their corresponding
-   * palette indices, which can then be used to efficiently retrieve the colors
-   * from the palette.
+   * Gets the number of colors, including reserved indices.
    *
-   * @return a byte array where each index corresponds to a 7-bit RGB value,
+   * @return the palette size
+   */
+  int getSize();
+
+  /**
+   * Gets the number of leading indices that are reserved for transparency and never returned by the lookup tables.
+   *
+   * @return the reserved index count
+   */
+  int getReservedIndices();
+
+  /**
+   * Gets the lookup table from 7-bit RGB colors to palette indices. The table is indexed with
+   * {@code ((r >> 1) << 14) | ((g >> 1) << 7) | (b >> 1)}.
+   *
+   * @return the index lookup table, which must not be modified
    */
   byte[] getColorMap();
 
   /**
-   * Retrieves the full color mapping table, which provides a detailed mapping
-   * of color indices to their respective RGB color values.
+   * Gets the lookup table from 7-bit RGB colors to the closest palette color as opaque ARGB. The table is indexed
+   * like {@link #getColorMap()}.
    *
-   * @return an array of integers where each index corresponds to a color in the palette,
+   * @return the color lookup table, which must not be modified
    */
   int[] getFullColorMap();
 }

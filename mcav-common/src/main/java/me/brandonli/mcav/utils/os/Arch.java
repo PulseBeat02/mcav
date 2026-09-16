@@ -18,15 +18,20 @@
 package me.brandonli.mcav.utils.os;
 
 /**
- * Represents the CPU architecture of a system.
+ * The processor family of a machine, as far as the installers care: which binaries to download.
  */
 public enum Arch {
   /**
-   * x86-based CPU architecture
+   * Intel and AMD processors, 32-bit or 64-bit.
    */
   X86,
   /**
-   * ARM-based CPU architecture
+   * ARM processors such as Apple silicon and Raspberry Pi, 32-bit or 64-bit.
    */
   ARM,
+  /**
+   * Any other processor family, such as RISC-V, POWER ({@code ppc64le}), IBM Z ({@code s390x}) or LoongArch. The
+   * library never downloads programs for it, because none of the builds it knows can run there.
+   */
+  OTHER,
 }

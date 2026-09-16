@@ -20,12 +20,13 @@ package me.brandonli.mcav.media.player.attachable;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
 /**
- * Represents a callback interface for video that can be attached to a player.
+ * The slot of a player that holds its video pipeline. While nothing is attached, frames are decoded and dropped.
  */
 public interface VideoAttachableCallback extends AttachableCallback<VideoPipelineStep> {
   /**
-   * Creates a new instance of {@link VideoAttachableCallback}.
-   * @return a new instance of {@link VideoAttachableCallback}
+   * Creates an empty slot.
+   *
+   * @return the slot
    */
   static VideoAttachableCallback create() {
     return new VideoAttachableCallbackImpl();

@@ -20,8 +20,8 @@ package me.brandonli.mcav;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.Arrays;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
+import me.brandonli.mcav.json.ytdlp.format.Format;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
@@ -30,25 +30,33 @@ import me.brandonli.mcav.utils.ffmpeg.FFmpegCommand;
 import me.brandonli.mcav.utils.ffmpeg.FFmpegTemplates;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
+/**
+ * Downloads the audio of a YouTube video as Ogg Vorbis with the bundled FFmpeg executable.
+ */
 public final class FFmpegExtractorExample {
 
-  public static void main(final String[] args) throws IOException, InterruptedException {
-    final UriSource source = UriSource.uri(URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+  static void main() throws IOException {
+    final MCAVApi api = MCAV.api();
+    api.install();
+
+    final URI uri = URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    final UriSource page = UriSource.uri(uri);
     final YTDLPParser parser = YTDLPParser.simple();
-    final URLParseDump dump = parser.parse(source);
+    final URLParseDump dump = parser.parse(page);
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
-    final UriSource audioFormat = selector.getAudioSource(dump).toUriSource();
-    final String raw = audioFormat.getResource();
+    final Format audioFormat = selector.getAudioSource(dump);
+    final UriSource audioSource = audioFormat.toUriSource();
+    final String input = audioSource.getResource();
 
-    final Path ogg = Path.of("output.ogg");
-    final Path absolute = ogg.toAbsolutePath();
-    final String path = absolute.toString();
-    final FFmpegCommand command = FFmpegTemplates.extractAudio(raw, "vorbis", path);
-    final CommandTask task = command.execute();
-    System.out.println(Arrays.stream(task.getCommand()).reduce("", (a, b) -> a + " " + b));
-    final Process process = task.getProcess();
+    final Path output = Path.of("output.ogg");
+    final Path absolute = output.toAbsolutePath();
+    final String outputPath = absolute.toString();
+    final FFmpegCommand command = FFmpegTemplates.extractOggVorbis(input, outputPath);
+    System.out.println(command);
 
-    process.waitFor();
-    System.out.println(task.getOutput());
+    final CommandTask task = command.createTask();
+    task.runChecked();
+    System.out.println("Wrote " + absolute);
+    api.release();
   }
 }

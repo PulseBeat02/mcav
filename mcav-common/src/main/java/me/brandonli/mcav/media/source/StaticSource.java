@@ -18,12 +18,9 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Represents a source identified as being static.
+ * A source with a fixed length, such as a file, which can be seeked and played to its end.
  */
 public interface StaticSource extends Source {
-  /**
-   * {@inheritDoc}
-   */
   @Override
   default boolean isStatic() {
     return true;

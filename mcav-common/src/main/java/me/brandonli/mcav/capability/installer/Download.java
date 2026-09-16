@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
@@ -24,7 +25,11 @@ import me.brandonli.mcav.utils.os.Platform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents a download link for a specific platform.
+ * A downloadable file for one platform, optionally protected by a SHA-256 hash.
+ *
+ * <p>Installers are given a list of downloads and pick the one whose platform matches the machine they run on.
+ * Downloads are usually read from the JSON resources in the {@code installers} folder, but can be created by hand
+ * as well. Instances are immutable.
  */
 public final class Download {
 
@@ -33,57 +38,60 @@ public final class Download {
   private final @Nullable String hash;
 
   /**
-   * Constructs a new Download object with the specified platform, URL, and hash.
+   * Constructs a new download.
    *
-   * @param platform the platform for the download
-   * @param url      the URL for the download
-   * @param hash     the expected hash of the file (SHA-256)
+   * @param platform the platform the file is built for
+   * @param url      the URL of the file
+   * @param hash     the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
    */
   public Download(final Platform platform, final String url, final @Nullable String hash) {
+    Preconditions.checkNotNull(platform, "Platform must not be null");
+    Preconditions.checkNotNull(url, "URL must not be null");
+    Preconditions.checkArgument(!url.isBlank(), "URL must not be blank");
     this.platform = platform;
     this.url = url;
     this.hash = hash;
   }
 
   /**
-   * Constructs a new Download object with the specified platform and URL.
-   * No hash verification will be performed.
+   * Constructs a new download without hash verification.
    *
-   * @param platform the platform for the download
-   * @param url      the URL for the download
+   * @param platform the platform the file is built for
+   * @param url      the URL of the file
    */
   public Download(final Platform platform, final String url) {
     this(platform, url, null);
   }
 
   /**
-   * Constructs a new Download object with the specified OS, architecture, bits, URL, and hash.
+   * Constructs a new download.
    *
-   * @param os   the operating system
-   * @param arch the architecture
-   * @param bits the bits (32 or 64)
-   * @param url  the URL for the download
-   * @param hash the expected hash of the file (SHA-256)
+   * @param operatingSystem the operating system the file is built for
+   * @param architecture    the CPU architecture the file is built for
+   * @param bits            the bitness the file is built for
+   * @param url             the URL of the file
+   * @param hash            the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
    */
-  public Download(final OS os, final Arch arch, final Bits bits, final String url, final String hash) {
-    this(Platform.ofPlatform(os, arch, bits), url, hash);
+  public Download(final OS operatingSystem, final Arch architecture, final Bits bits, final String url, final @Nullable String hash) {
+    final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);
+    this(platform, url, hash);
   }
 
   /**
-   * Constructs a new Download object with the specified OS, architecture, bits, and URL.
-   * No hash verification will be performed.
+   * Constructs a new download without hash verification.
    *
-   * @param os   the operating system
-   * @param arch the architecture
-   * @param bits the bits (32 or 64)
-   * @param url  the URL for the download
+   * @param operatingSystem the operating system the file is built for
+   * @param architecture    the CPU architecture the file is built for
+   * @param bits            the bitness the file is built for
+   * @param url             the URL of the file
    */
-  public Download(final OS os, final Arch arch, final Bits bits, final String url) {
-    this(Platform.ofPlatform(os, arch, bits), url, null);
+  public Download(final OS operatingSystem, final Arch architecture, final Bits bits, final String url) {
+    final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);
+    this(platform, url, null);
   }
 
   /**
-   * Gets the platform for this download.
+   * Gets the platform the file is built for.
    *
    * @return the platform
    */
@@ -92,7 +100,7 @@ public final class Download {
   }
 
   /**
-   * Gets the URL for this download.
+   * Gets the URL of the file.
    *
    * @return the URL
    */
@@ -101,9 +109,9 @@ public final class Download {
   }
 
   /**
-   * Gets the expected hash for this download.
+   * Gets the expected SHA-256 hash of the file.
    *
-   * @return the hash, or null if no hash verification is required
+   * @return the hash in hexadecimal, or null if the file is not verified
    */
   public @Nullable String getHash() {
     return this.hash;

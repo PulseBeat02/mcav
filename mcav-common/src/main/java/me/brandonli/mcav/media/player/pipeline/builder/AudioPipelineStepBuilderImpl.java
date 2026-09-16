@@ -17,33 +17,48 @@
  */
 package me.brandonli.mcav.media.player.pipeline.builder;
 
-import java.nio.ByteBuffer;
-import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A concrete implementation of {@link AbstractPipelineStepBuilder} for constructing audio processing pipelines.
+ * The default {@link AudioPipelineStepBuilder}.
  */
-public final class AudioPipelineStepBuilderImpl
-  extends AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep> {
+public final class AudioPipelineStepBuilderImpl extends AudioPipelineStepBuilder {
 
-  AudioPipelineStepBuilderImpl() {}
+  AudioPipelineStepBuilderImpl() {
+    // nothing else to set up
+  }
 
   /**
-   * {@inheritDoc}
+   * Creates an audio step that applies a filter and continues with the next step.
+   *
+   * @param next   the step that follows, or null for the last step
+   * @param filter the filter of the step
+   * @return the step
    */
   @Override
-  public AudioPipelineStep build() {
-    AudioPipelineStep chain = null;
-    for (int i = this.filters.size() - 1; i >= 0; i--) {
-      final AudioFilter filter = this.filters.get(i);
-      if (chain == null) {
-        chain = AudioPipelineStep.of(filter);
-      } else {
-        chain = AudioPipelineStep.of(chain, filter);
-      }
-    }
-    return chain == null ? AudioPipelineStep.NO_OP : chain;
+  protected AudioPipelineStep createStep(final @Nullable AudioPipelineStep next, final AudioFilter filter) {
+    return AudioPipelineStep.of(next, filter);
+  }
+
+  /**
+   * Gets {@link AudioPipelineStep#NO_OP}, the audio step built when no filter was added.
+   *
+   * @return the no-op audio step
+   */
+  @Override
+  protected AudioPipelineStep createEmptyStep() {
+    return AudioPipelineStep.NO_OP;
+  }
+
+  /**
+   * Gets this builder typed as an audio builder.
+   *
+   * @return this builder
+   */
+  @Override
+  protected AudioPipelineStepBuilder self() {
+    return this;
   }
 }
