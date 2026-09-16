@@ -17,17 +17,17 @@
  */
 package me.brandonli.mcav.sandbox.listener;
 
+import com.google.common.base.Preconditions;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.utils.IOUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Registry;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -38,82 +38,108 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginManager;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Boots a virtual machine when a player puts a renamed music disc into a jukebox: the disc's name selects an ISO
+ * image from the plugin's {@code iso} folder, and the machine is shown to the player on map 0.
+ */
 public final class JukeBoxListener implements Listener {
 
-  private static final PlainTextComponentSerializer PLAIN_TEXT_COMPONENT_SERIALIZER = PlainTextComponentSerializer.plainText();
-
-  private static final Set<Material> MUSIC_DISCS = Registry.MATERIAL.stream()
-    .filter(material -> material.name().startsWith("MUSIC_DISC_"))
-    .collect(Collectors.toSet());
+  private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
+  private static final Pattern BRACKETS = Pattern.compile("[\\[\\]]");
+  private static final Pattern ILLEGAL_FILE_NAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|]");
+  private static final String MUSIC_DISC_PREFIX = "MUSIC_DISC_";
 
   private final MCAVSandbox sandbox;
-  private final Path isoPath;
+  private final Path isoFolder;
 
+  /**
+   * Constructs the listener and creates the {@code iso} folder.
+   *
+   * @param sandbox the plugin
+   */
   public JukeBoxListener(final MCAVSandbox sandbox) {
-    this.isoPath = this.createFolder(sandbox);
+    Preconditions.checkNotNull(sandbox, "Sandbox must not be null");
     this.sandbox = sandbox;
+    final Path dataFolder = sandbox.getDataPath();
+    this.isoFolder = dataFolder.resolve("iso");
+    IOUtils.createDirectoryIfNotExists(this.isoFolder);
   }
 
-  public void shutdown() {
-    HandlerList.unregisterAll(this);
-  }
-
+  /**
+   * Registers the listener.
+   */
   public void start() {
     final Server server = Bukkit.getServer();
     final PluginManager pluginManager = server.getPluginManager();
     pluginManager.registerEvents(this, this.sandbox);
   }
 
-  private Path createFolder(@UnderInitialization JukeBoxListener this, final MCAVSandbox sandbox) {
-    final Path path = sandbox.getDataPath();
-    final Path iso = path.resolve("iso");
-    IOUtils.createDirectoryIfNotExists(iso);
-    return iso;
+  /**
+   * Unregisters the listener.
+   */
+  public void shutdown() {
+    HandlerList.unregisterAll(this);
   }
 
+  /**
+   * Boots the virtual machine of the disc a player puts into a jukebox, if the ISO folder has an image named like
+   * the disc. The disc is kept.
+   *
+   * @param event the interaction
+   */
   @EventHandler
   public void onJukeboxInteract(final PlayerInteractEvent event) {
-    final Action action = event.getAction();
-    if (action != Action.RIGHT_CLICK_BLOCK) {
+    Preconditions.checkNotNull(event, "Event must not be null");
+    final ItemStack item = event.getItem();
+    if (item == null || !isDiscOnJukebox(event, item)) {
       return;
     }
-
-    final Block clickedBlock = event.getClickedBlock();
-    if (clickedBlock == null) {
-      return;
-    }
-
-    final Material blockType = clickedBlock.getType();
-    if (blockType != Material.JUKEBOX) {
-      return;
-    }
-
-    final ItemStack itemInHand = event.getItem();
-    if (itemInHand == null) {
-      return;
-    }
-
-    final Material itemType = itemInHand.getType();
-    if (!MUSIC_DISCS.contains(itemType)) {
-      return;
-    }
-
-    final Component name = itemInHand.displayName();
-    final String displayName = PLAIN_TEXT_COMPONENT_SERIALIZER.serialize(name);
-    final String sanitizedName = displayName.replaceAll("[\\\\/:*?\"<>|]", "_");
-    final String noBrackets = sanitizedName.replaceAll("[\\[\\]]", "");
-    final Path path = this.isoPath.resolve(noBrackets);
-    if (Files.notExists(path)) {
+    final Path image = this.findDiskImage(item);
+    if (image == null) {
       return;
     }
     event.setCancelled(true);
-
-    final Path absolute = path.toAbsolutePath();
-    final String raw = absolute.toString();
-    final String cmd = "mcav vm create PulseBeat_02 640x640 100 5x5 0 filter_lite x86_64 -cdrom %s -m 2048M".formatted(raw);
     final Player player = event.getPlayer();
-    player.performCommand(cmd);
+    final String playerName = player.getName();
+    final Path absolute = image.toAbsolutePath();
+    final String command = "mcav vm create %s 640x640 30 5x5 0 FILTER_LITE X86_64 -cdrom \"%s\" -m 2048M".formatted(playerName, absolute);
+    player.performCommand(command);
+  }
+
+  private static boolean isDiscOnJukebox(final PlayerInteractEvent event, final ItemStack item) {
+    final Action action = event.getAction();
+    final Block block = event.getClickedBlock();
+    if (action != Action.RIGHT_CLICK_BLOCK || block == null) {
+      return false;
+    }
+    final Material blockType = block.getType();
+    final Material itemType = item.getType();
+    final String itemName = itemType.name();
+    return blockType == Material.JUKEBOX && itemName.startsWith(MUSIC_DISC_PREFIX);
+  }
+
+  /**
+   * Finds the disk image in the ISO folder that is named like the disc, such as {@code alpine.iso} for a disc
+   * renamed to "alpine.iso" in an anvil.
+   *
+   * @return the disk image, or {@code null} if there is none or the name would leave the ISO folder
+   */
+  private @Nullable Path findDiskImage(final ItemStack item) {
+    final Component name = item.displayName();
+    final String displayName = PLAIN_TEXT.serialize(name);
+    final Matcher bracketMatcher = BRACKETS.matcher(displayName);
+    final String withoutBrackets = bracketMatcher.replaceAll("");
+    final Matcher illegalMatcher = ILLEGAL_FILE_NAME_CHARACTERS.matcher(withoutBrackets);
+    final String fileName = illegalMatcher.replaceAll("_");
+    final Path image = this.isoFolder.resolve(fileName);
+    final Path normalized = image.normalize();
+    final boolean inside = normalized.startsWith(this.isoFolder);
+    final boolean exists = Files.isRegularFile(normalized);
+    if (!inside || !exists) {
+      return null;
+    }
+    return normalized;
   }
 }

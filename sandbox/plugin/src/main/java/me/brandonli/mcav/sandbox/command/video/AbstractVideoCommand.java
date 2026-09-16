@@ -17,17 +17,20 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
+import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
+import me.brandonli.mcav.json.ytdlp.format.Format;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy;
 import me.brandonli.mcav.json.ytdlp.strategy.StrategySelector;
@@ -53,37 +56,72 @@ import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
-import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The common flow of the video commands: validate the arguments, resolve the media on the worker thread, start
+ * the player with the display type of the subclass, and report the outcome to the sender.
+ */
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
-  protected MCAVSandbox plugin;
-  protected AudioProvider provider;
-  protected VideoPlayerManager manager;
+  private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
 
-  @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
+  /**
+   * The plugin.
+   */
+  protected final MCAVSandbox plugin;
+
+  /**
+   * The provider of audio outputs.
+   */
+  protected final AudioProvider provider;
+
+  /**
+   * The manager of the running video player.
+   */
+  protected final VideoPlayerManager manager;
+
+  /**
+   * Constructs the command.
+   *
+   * @param plugin the plugin, whose video player manager and audio provider must be available
+   */
+  protected AbstractVideoCommand(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null");
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
     this.provider = plugin.getAudioProvider();
   }
 
+  /**
+   * Plays a video, replacing the video played before.
+   *
+   * <p>The resolution, the player backend, and the audio output are checked first; any problem is reported to the
+   * sender and nothing starts. Only one video can start at a time. The viewers are then told that the video is
+   * loading, and the media is resolved and started on the worker thread of the video player manager.
+   *
+   * @param configurationProvider creates the display configuration for the parsed resolution
+   * @param sender                who ran the command
+   * @param selector              the players who watch
+   * @param playerType            the player backend
+   * @param audioType             the audio output
+   * @param videoResolution       the resolution argument, such as {@code 640x640}
+   * @param mrl                   the path, URL, device index, or FFmpeg input
+   * @param flags                 the optional flags, may be empty
+   */
   public void playVideo(
-    final VideoConfigurationProvider configProvider,
-    final CommandSender player,
+    final VideoConfigurationProvider configurationProvider,
+    final CommandSender sender,
     final MultiplePlayerSelector selector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
@@ -91,248 +129,549 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final String mrl,
     final String flags
   ) {
-    if (!this.sanitizeArguments(player, playerType, audioType, videoResolution)) {
-      return;
-    }
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(selector, "Player selector must not be null");
+    Preconditions.checkNotNull(playerType, "Player type must not be null");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null");
+    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null");
+    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(flags, "Flags must not be null");
 
-    final Collection<Player> players = selector.values();
-    final Player[] viewers = players.toArray(new Player[0]);
-
-    for (final Player watcher : players) {
-      watcher.sendMessage(Message.LOAD_VIDEO.build());
-    }
-
-    final Pair<Integer, Integer> resolution = requireNonNull(this.sanitizeResolution(videoResolution));
-    final AtomicBoolean initializing = this.manager.getStatus();
-    final ExecutorService service = this.manager.getService();
-    final VideoFlagsParser flagsParser = new VideoFlagsParser();
-    final String[] arguments = flagsParser.parseYTDLPFlags(flags);
-    final Runnable command = () ->
-      this.synchronizePlayer(playerType, audioType, mrl, arguments, player, resolution, configProvider, viewers);
-    CompletableFuture.runAsync(command, service)
-      .thenRun(() -> initializing.set(false))
-      .thenRun(() -> this.sendArgumentUrl(audioType, selector))
-      .thenRun(TaskUtils.handleAsyncTask(this.plugin, () -> player.sendMessage(Message.START_VIDEO.build())))
-      .exceptionally(this::handleException);
-  }
-
-  private @Nullable Void handleException(final Throwable throwable) {
-    final Logger logger = LoggerFactory.getLogger("MCAV Video");
-    logger.error("An exception occurred while playing a video", throwable);
-    return null;
-  }
-
-  private void sendArgumentUrl(final AudioArgument audioType, final MultiplePlayerSelector selector) {
-    final Collection<Player> players = selector.values();
-    final Component msg =
-      switch (audioType) {
-        case DISCORD_BOT -> {
-          final String url = this.provider.constructVoiceChannelUrl();
-          yield Message.AUDIO_DISCORD.build(url);
-        }
-        case HTTP_SERVER -> {
-          final String url = this.provider.constructHttpUrl();
-          yield Message.AUDIO_HTTP.build(url);
-        }
-        default -> null;
-      };
-
-    if (msg == null) {
-      return;
-    }
-
-    for (final Player player : players) {
-      player.sendMessage(msg);
-    }
-  }
-
-  private boolean sanitizeArguments(
-    final Audience audience,
-    final PlayerArgument playerType,
-    final AudioArgument argument,
-    final String videoResolution
-  ) {
-    if (argument == AudioArgument.DISCORD_BOT && !this.provider.isDiscordBotEnabled()) {
-      audience.sendMessage(Message.UNSUPPORTED_AUDIO.build());
-      return false;
-    }
-
-    if (argument == AudioArgument.HTTP_SERVER && !this.provider.isHttpEnabled()) {
-      audience.sendMessage(Message.UNSUPPORTED_AUDIO.build());
-      return false;
-    }
-
-    final Pair<Integer, Integer> resolution = this.sanitizeResolution(videoResolution);
+    final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
     if (resolution == null) {
-      audience.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
-      return false;
+      return;
+    }
+    final boolean ready = this.checkBackends(sender, playerType, audioType, mrl);
+    if (!ready || !this.claim(sender)) {
+      return;
     }
 
-    if (playerType == PlayerArgument.VLC && !this.manager.isVLCSupported()) {
-      audience.sendMessage(Message.UNSUPPORTED_PLAYER.build());
-      return false;
-    }
-
-    final AtomicBoolean initializing = this.manager.getStatus();
-    if (initializing.get()) {
-      audience.sendMessage(Message.PLAYER_ERROR.build());
-      return false;
-    }
-    initializing.set(true);
-
-    return true;
+    final Player[] viewers = collectViewers(selector);
+    notifyLoading(viewers);
+    final String[] ytdlpArguments = parseFlags(flags);
+    final PlaybackRequest request = new PlaybackRequest(
+      playerType,
+      audioType,
+      mrl,
+      ytdlpArguments,
+      resolution,
+      configurationProvider,
+      viewers
+    );
+    this.launch(sender, request);
   }
 
-  private @Nullable Pair<Integer, Integer> sanitizeResolution(final String videoResolution) {
+  /**
+   * Parses a size such as {@code 640x360}, telling the sender when it is not valid.
+   *
+   * @param sender who ran the command
+   * @param text   the size as entered
+   * @return the width and height, or {@code null} if the text is not a valid size
+   */
+  protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null");
     try {
-      return ArgumentUtils.parseDimensions(videoResolution);
-    } catch (final IllegalArgumentException e) {
+      return ArgumentUtils.parseDimensions(text);
+    } catch (final IllegalArgumentException exception) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
       return null;
     }
   }
 
-  private synchronized void synchronizePlayer(
-    final PlayerArgument playerType,
-    final AudioArgument audioType,
-    final String mrl,
-    final String[] arguments,
-    final Audience audience,
-    final Pair<Integer, Integer> resolution,
-    final VideoConfigurationProvider configProvider,
-    final Player[] viewers
-  ) {
-    final RetrievalResult sources = this.retrievePair(playerType, mrl, arguments);
-    if (sources.audio == null && sources.video == null) {
-      audience.sendMessage(Message.UNSUPPORTED_MRL.build());
-      return;
+  /**
+   * Claims the right to start a video, which only one command may do at a time.
+   *
+   * @return true if claimed, false if another video is still starting
+   */
+  private boolean claim(final CommandSender sender) {
+    final AtomicBoolean initializing = this.manager.getStatus();
+    final boolean claimed = initializing.compareAndSet(false, true);
+    if (!claimed) {
+      final Component message = Message.PLAYER_ERROR.build();
+      sender.sendMessage(message);
     }
-    this.manager.releaseVideoPlayer(false);
-
-    this.startPlayer(playerType, audioType, resolution, sources, configProvider, viewers);
+    return claimed;
   }
 
-  private void startPlayer(
+  private static Player[] collectViewers(final MultiplePlayerSelector selector) {
+    final Collection<Player> players = selector.values();
+    return players.toArray(new Player[0]);
+  }
+
+  private static void notifyLoading(final Player[] viewers) {
+    final Component loading = Message.LOAD_VIDEO.build();
+    for (final Player viewer : viewers) {
+      viewer.sendMessage(loading);
+    }
+  }
+
+  private static String[] parseFlags(final String flags) {
+    final VideoFlagsParser flagsParser = new VideoFlagsParser();
+    return flagsParser.parseYTDLPFlags(flags);
+  }
+
+  /**
+   * Starts the video on the worker thread and reports the outcome to the sender on the main thread. The claim of
+   * {@link #claim(CommandSender)} is given up once the worker is done, or at once if it refuses the video.
+   */
+  private void launch(final CommandSender sender, final PlaybackRequest request) {
+    final AtomicBoolean initializing = this.manager.getStatus();
+    final ExecutorService service = this.manager.getService();
+    final CompletableFuture<Boolean> start;
+    try {
+      start = CompletableFuture.supplyAsync(() -> this.startPlayer(request), service);
+    } catch (final RejectedExecutionException exception) {
+      initializing.set(false);
+      LOGGER.error("The video worker refused to start a video", exception);
+      final Component message = Message.VIDEO_START_ERROR.build();
+      sender.sendMessage(message);
+      return;
+    }
+
+    final AudioArgument audioType = request.getAudioType();
+    final Player[] viewers = request.getViewers();
+    TaskUtils.whenComplete(start, (started, error) -> {
+      initializing.set(false);
+      TaskUtils.runOnMainThread(this.plugin, () -> this.report(sender, audioType, viewers, started, error));
+    });
+  }
+
+  private void report(
+    final CommandSender sender,
+    final AudioArgument audioType,
+    final Player[] viewers,
+    final @Nullable Boolean started,
+    final @Nullable Throwable error
+  ) {
+    if (error != null) {
+      LOGGER.error("Failed to play a video", error);
+      final Component message = Message.VIDEO_START_ERROR.build();
+      sender.sendMessage(message);
+      return;
+    }
+
+    // without an error the worker always reports whether the video started
+    final boolean playing = Boolean.TRUE.equals(started);
+    if (!playing) {
+      final Component message = Message.UNSUPPORTED_MRL.build();
+      sender.sendMessage(message);
+      return;
+    }
+
+    this.sendAudioLink(audioType, viewers);
+    final Component message = Message.START_VIDEO.build();
+    sender.sendMessage(message);
+  }
+
+  private void sendAudioLink(final AudioArgument audioType, final Player[] viewers) {
+    final Component audioLink = this.createAudioLink(audioType);
+    if (audioLink == null) {
+      return;
+    }
+    for (final Player viewer : viewers) {
+      viewer.sendMessage(audioLink);
+    }
+  }
+
+  private @Nullable Component createAudioLink(final AudioArgument audioType) {
+    return switch (audioType) {
+      case DISCORD_BOT -> {
+        final String url = this.provider.constructVoiceChannelUrl();
+        yield Message.AUDIO_DISCORD.build(url);
+      }
+      case HTTP_SERVER -> {
+        final String url = this.provider.constructHttpUrl();
+        yield Message.AUDIO_HTTP.build(url);
+      }
+      default -> null;
+    };
+  }
+
+  private boolean checkBackends(
+    final CommandSender sender,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    final Pair<Integer, Integer> resolution,
-    final RetrievalResult source,
-    final VideoConfigurationProvider configProvider,
-    final Player[] viewers
+    final String mrl
   ) {
-    final URLParseDump dump = source.dump;
-    final VideoPipelineStep videoPipelineStep = this.createVideoFilter(resolution, configProvider);
-    final AudioFilter filter = this.provider.constructFilter(audioType, dump, viewers);
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(filter);
-    final Source video = source.video;
-    final Source audio = source.audio;
+    final Component problem = this.findProblem(playerType, audioType, mrl);
+    if (problem == null) {
+      return true;
+    }
+    sender.sendMessage(problem);
+    return false;
+  }
+
+  /**
+   * Finds the first reason the video cannot play now: the audio output, then the player backend, then yt-dlp.
+   *
+   * @return the message that explains the problem, or {@code null} if the video can play
+   */
+  private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
+    final Component audioProblem = this.findAudioProblem(audioType);
+    if (audioProblem != null) {
+      return audioProblem;
+    }
+    final Component playerProblem = this.findPlayerProblem(playerType);
+    if (playerProblem != null) {
+      return playerProblem;
+    }
+    return this.findYtdlpProblem(mrl);
+  }
+
+  /**
+   * Checks whether the player backend can play now. VLC is prepared in the background when the plugin is enabled, so
+   * it may still be downloading, or it may have turned out to be unavailable.
+   *
+   * @return the message that explains why the backend cannot play, or {@code null} if it can
+   */
+  private @Nullable Component findPlayerProblem(final PlayerArgument playerType) {
+    if (playerType != PlayerArgument.VLC) {
+      return null;
+    }
+    final boolean preparing = this.manager.isPreparing(Capability.VLC);
+    if (preparing) {
+      return Message.VLC_PREPARING.build();
+    }
+    final boolean supported = this.manager.isVLCSupported();
+    if (!supported) {
+      return Message.UNSUPPORTED_PLAYER.build();
+    }
+    return null;
+  }
+
+  /**
+   * Checks whether the media can be resolved now. A web page, such as a YouTube video, is resolved with yt-dlp, which
+   * is prepared in the background when the plugin is enabled and may still be downloading. Files, devices, FFmpeg
+   * inputs and direct links to media need no yt-dlp.
+   *
+   * @return the message that explains why the media cannot be resolved yet, or {@code null} if it can
+   */
+  private @Nullable Component findYtdlpProblem(final String mrl) {
+    final boolean url = SourceUtils.isUri(mrl);
+    final boolean direct = SourceUtils.isDirectVideo(mrl);
+    if (!url || direct) {
+      return null;
+    }
+    final boolean preparing = this.manager.isPreparing(Capability.YT_DLP);
+    return preparing ? Message.YTDLP_PREPARING.build() : null;
+  }
+
+  /**
+   * Checks whether the audio output can play now. The Discord bot and the web page start in the background when
+   * the plugin is enabled, so they are only usable once they are ready.
+   *
+   * @return the message that explains why the output cannot play, or {@code null} if it can
+   */
+  private @Nullable Component findAudioProblem(final AudioArgument audioType) {
+    return switch (audioType) {
+      case DISCORD_BOT -> {
+        final boolean enabled = this.provider.isDiscordBotEnabled();
+        final boolean ready = this.provider.isDiscordBotReady();
+        yield describeAudioProblem(enabled, ready);
+      }
+      case HTTP_SERVER -> {
+        final boolean enabled = this.provider.isHttpEnabled();
+        final boolean ready = this.provider.isHttpReady();
+        yield describeAudioProblem(enabled, ready);
+      }
+      case NONE, SIMPLE_VOICE_CHAT -> null;
+    };
+  }
+
+  private static @Nullable Component describeAudioProblem(final boolean enabled, final boolean ready) {
+    if (!enabled) {
+      return Message.UNSUPPORTED_AUDIO.build();
+    }
+    if (!ready) {
+      return Message.AUDIO_NOT_READY.build();
+    }
+    return null;
+  }
+
+  // runs on the worker thread
+  private boolean startPlayer(final PlaybackRequest request) {
+    final String mrl = request.getMrl();
+    final String[] ytdlpArguments = request.getYtdlpArguments();
+    final SourceSelection selection = selectSources(mrl, ytdlpArguments);
+    if (selection == null) {
+      return false;
+    }
+
+    this.manager.releaseVideoPlayer();
+    final URLParseDump dump = selection.getDump();
+    final VideoPlayerMultiplexer player = this.createPlayer(request, dump);
+    final boolean playing = this.startPlayback(player, selection);
+    if (!playing) {
+      return false;
+    }
+
+    TaskUtils.runOnMainThread(this.plugin, () -> this.showHologram(dump));
+    return true;
+  }
+
+  /**
+   * Creates the player of the request, makes it the running one, and attaches the video, audio, and dimension
+   * outputs to it.
+   *
+   * @return the player, which has not started yet
+   */
+  private VideoPlayerMultiplexer createPlayer(final PlaybackRequest request, final URLParseDump dump) {
+    final Pair<Integer, Integer> resolution = request.getResolution();
+    final VideoConfigurationProvider configurationProvider = request.getConfigurationProvider();
+    final VideoPipelineStep videoPipeline = this.createVideoFilter(resolution, configurationProvider);
+
+    final AudioArgument audioType = request.getAudioType();
+    final Player[] viewers = request.getViewers();
+    final AudioFilter audioFilter = this.provider.constructFilter(audioType, dump, viewers);
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(audioFilter);
+
+    final PlayerArgument playerType = request.getPlayerType();
     final VideoPlayerMultiplexer player = playerType.createPlayer();
     this.manager.setPlayer(player);
-    requireNonNull(video);
+    attachPipelines(player, videoPipeline, audioPipeline, resolution);
+    return player;
+  }
 
+  private static void attachPipelines(
+    final VideoPlayerMultiplexer player,
+    final VideoPipelineStep videoPipeline,
+    final AudioPipelineStep audioPipeline,
+    final Pair<Integer, Integer> resolution
+  ) {
     final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(videoPipelineStep);
-
+    videoCallback.attach(videoPipeline);
     final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(audioPipelineStep);
+    audioCallback.attach(audioPipeline);
 
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
-    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
     final Dimension dimension = new Dimension(width, height);
+    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
     dimensionCallback.attach(dimension);
-
-    if (audio == null) {
-      player.start(video);
-    } else {
-      player.start(video, audio);
-    }
-
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTaskLater(
-      this.plugin,
-      () -> {
-        final Hologram existing = this.manager.getHologram();
-        if (existing != null) {
-          existing.kill();
-          this.manager.setHologram(null);
-        }
-
-        final Location location = this.manager.getHologramLocation();
-        if (location == null) {
-          return;
-        }
-
-        if (dump == null) {
-          return;
-        }
-
-        final Hologram hologram = Hologram.basic();
-        hologram.handleRequest(location, dump);
-        hologram.start();
-        this.manager.setHologram(hologram);
-      },
-      1L
-    );
   }
 
-  public abstract VideoPipelineStep createVideoFilter(Pair<Integer, Integer> resolution, VideoConfigurationProvider configProvider);
-
-  private RetrievalResult retrievePair(final PlayerArgument argument, final String mrl, final String[] arguments) {
-    final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Optional<Source> optional = helper.detectSource(mrl);
-    URLParseDump dump = new URLParseDump();
-    if (optional.isEmpty()) {
-      return new RetrievalResult(null, null, dump);
-    }
-
-    Source source = optional.get();
-    Source audio = null;
-    switch (source) {
-      case final FFmpegDirectSource ffmpegSource -> {
-        dump.title = ffmpegSource.getMrl();
-        dump.description = "FFmpeg Format %s".formatted(ffmpegSource.getFormat());
-      }
-      case final UriSource uri -> {
-        if (uri.isDirect()) {
-          dump.title = IOUtils.getFileNameFromUrl(mrl);
-          dump.description = "Video from URL";
-        } else {
-          final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
-          dump = this.getUrlParseDump(uri, arguments);
-          source = selector.getVideoSource(dump).toUriSource();
-          audio = selector.getAudioSource(dump).toUriSource();
-        }
-      }
-      case final DeviceSource device -> {
-        final int id = device.getDeviceId();
-        dump.title = "Device Input %s".formatted(id);
-        dump.description = "Video from Device";
-      }
-      case final FileSource file -> {
-        final Path path = file.getPath();
-        dump.title = IOUtils.getName(path);
-        dump.description = "Video from File";
-      }
-      default -> {
-        return new RetrievalResult(null, null, dump);
-      }
-    }
-
-    return new RetrievalResult(source, audio, dump);
-  }
-
-  private record RetrievalResult(@Nullable Source video, @Nullable Source audio, URLParseDump dump) {}
-
-  private URLParseDump getUrlParseDump(final UriSource uri, final String[] arguments) {
-    final YTDLPParser parser = YTDLPParser.simple();
+  /**
+   * Starts the player. When it fails to start, the player and its outputs are released at once, so nothing is
+   * left on the screens of the viewers.
+   *
+   * @return true if the player started, false if it refused to start
+   */
+  private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
+    final Source video = selection.getVideo();
+    final Source audio = selection.getAudio();
+    final boolean playing;
     try {
-      return parser.parse(uri, arguments);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
+      playing = audio == null ? player.start(video) : player.start(video, audio);
+    } catch (final RuntimeException exception) {
+      this.manager.releaseVideoPlayer();
+      throw exception;
+    }
+
+    if (!playing) {
+      this.manager.releaseVideoPlayer();
+    }
+    return playing;
+  }
+
+  private void showHologram(final URLParseDump dump) {
+    final Hologram existing = this.manager.getHologram();
+    if (existing != null) {
+      existing.kill();
+      this.manager.setHologram(null);
+    }
+
+    final Location location = this.manager.getHologramLocation();
+    if (location == null) {
+      return;
+    }
+
+    final Hologram hologram = Hologram.basic();
+    hologram.handleRequest(location, dump);
+    hologram.start();
+    this.manager.setHologram(hologram);
+  }
+
+  /**
+   * Creates the video pipeline that shows the frames. Called on the worker thread, once for every video that
+   * starts.
+   *
+   * @param resolution            the parsed resolution
+   * @param configurationProvider the provider passed to {@link #playVideo}
+   * @return the pipeline
+   */
+  public abstract VideoPipelineStep createVideoFilter(
+    final Pair<Integer, Integer> resolution,
+    final VideoConfigurationProvider configurationProvider
+  );
+
+  private static @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
+    final SourceDetectionHelper helper = new SourceDetectionHelper();
+    final Optional<Source> detected = helper.detectSource(mrl);
+    if (detected.isEmpty()) {
+      return null;
+    }
+
+    final Source source = detected.get();
+    if (source instanceof final UriSource page && !page.isDirect()) {
+      return resolveWithYtdlp(page, ytdlpArguments);
+    }
+    final URLParseDump dump = describeDirectSource(source, mrl);
+    return new SourceSelection(source, null, dump);
+  }
+
+  /**
+   * Describes a source that can be played as it is, without asking yt-dlp: an FFmpeg input, a capture device, a
+   * file, or a URL that points directly at a media file.
+   *
+   * @return the description
+   */
+  private static URLParseDump describeDirectSource(final Source source, final String mrl) {
+    if (source instanceof final FFmpegDirectSource ffmpegSource) {
+      final String input = ffmpegSource.getMrl();
+      final String format = ffmpegSource.getFormat();
+      return createDump(input, "FFmpeg input " + format);
+    }
+    if (source instanceof final DeviceSource device) {
+      final int deviceId = device.getDeviceId();
+      return createDump("Device " + deviceId, "Video from a capture device");
+    }
+    if (source instanceof final FileSource file) {
+      final Path path = file.getPath();
+      final String fileName = IOUtils.getName(path);
+      return createDump(fileName, "Video from a file");
+    }
+    final String fileName = IOUtils.getFileNameFromUrl(mrl);
+    return createDump(fileName, "Video from a URL");
+  }
+
+  private static URLParseDump createDump(final String title, final String description) {
+    final URLParseDump dump = new URLParseDump();
+    dump.title = title;
+    dump.description = description;
+    return dump;
+  }
+
+  private static SourceSelection resolveWithYtdlp(final UriSource page, final String[] ytdlpArguments) {
+    final YTDLPParser parser = YTDLPParser.simple();
+    final URLParseDump dump;
+    try {
+      dump = parser.parse(page, ytdlpArguments);
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      final URI uri = page.getUri();
+      throw new IllegalStateException("yt-dlp could not resolve " + uri + ": " + message, exception);
+    }
+
+    final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
+    final Format videoFormat = selector.getVideoSource(dump);
+    final Format audioFormat = selector.getAudioSource(dump);
+    final UriSource video = videoFormat.toUriSource();
+    final UriSource audio = audioFormat.toUriSource();
+    return new SourceSelection(video, audio, dump);
+  }
+
+  /**
+   * The video source, the optional separate audio source, and the information shown about the media.
+   */
+  private static final class SourceSelection {
+
+    private final Source video;
+    private final @Nullable Source audio;
+    private final URLParseDump dump;
+
+    SourceSelection(final Source video, final @Nullable Source audio, final URLParseDump dump) {
+      this.video = video;
+      this.audio = audio;
+      this.dump = dump;
+    }
+
+    Source getVideo() {
+      return this.video;
+    }
+
+    @Nullable Source getAudio() {
+      return this.audio;
+    }
+
+    URLParseDump getDump() {
+      return this.dump;
     }
   }
 
+  /**
+   * Creates the display configuration of a video command for a resolution.
+   */
+  @FunctionalInterface
   public interface VideoConfigurationProvider {
-    Object buildConfiguration(Pair<Integer, Integer> resolution);
+    /**
+     * Creates the configuration.
+     *
+     * @param resolution the parsed resolution
+     * @return the configuration object the subclass expects
+     */
+    Object buildConfiguration(final Pair<Integer, Integer> resolution);
+  }
+
+  /**
+   * Everything the worker thread needs to start a video, as entered by the command sender.
+   */
+  private static final class PlaybackRequest {
+
+    private final PlayerArgument playerType;
+    private final AudioArgument audioType;
+    private final String mrl;
+    private final String[] ytdlpArguments;
+    private final Pair<Integer, Integer> resolution;
+    private final VideoConfigurationProvider configurationProvider;
+    private final Player[] viewers;
+
+    PlaybackRequest(
+      final PlayerArgument playerType,
+      final AudioArgument audioType,
+      final String mrl,
+      final String[] ytdlpArguments,
+      final Pair<Integer, Integer> resolution,
+      final VideoConfigurationProvider configurationProvider,
+      final Player[] viewers
+    ) {
+      this.playerType = playerType;
+      this.audioType = audioType;
+      this.mrl = mrl;
+      this.ytdlpArguments = ytdlpArguments;
+      this.resolution = resolution;
+      this.configurationProvider = configurationProvider;
+      this.viewers = viewers;
+    }
+
+    PlayerArgument getPlayerType() {
+      return this.playerType;
+    }
+
+    AudioArgument getAudioType() {
+      return this.audioType;
+    }
+
+    String getMrl() {
+      return this.mrl;
+    }
+
+    String[] getYtdlpArguments() {
+      return this.ytdlpArguments;
+    }
+
+    Pair<Integer, Integer> getResolution() {
+      return this.resolution;
+    }
+
+    VideoConfigurationProvider getConfigurationProvider() {
+      return this.configurationProvider;
+    }
+
+    Player[] getViewers() {
+      return this.viewers;
+    }
   }
 }

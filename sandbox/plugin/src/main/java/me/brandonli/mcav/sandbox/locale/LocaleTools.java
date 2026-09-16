@@ -20,63 +20,209 @@ package me.brandonli.mcav.sandbox.locale;
 import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.Component.translatable;
 
+import com.google.common.base.Preconditions;
 import java.util.function.Function;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TranslatableComponent;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Builds the messages of the plugin from the keys of the message file of the configured language.
+ *
+ * <p>Every message the plugin sends is declared once, in {@link Message}, with one of the {@code direct} methods.
+ * The methods do not look the message up right away: they return a small builder whose {@code build} method renders
+ * the message, with its arguments, each time it is sent. The message text is MiniMessage, such as
+ * {@code <gold>Image loaded!</gold>}, and arguments appear in it as {@code <arg:0>}, {@code <arg:1>} and so on, or as
+ * the special placeholder {@code $URL$} inside click events.
+ */
 public interface LocaleTools {
+  /**
+   * The messages of the language set by the {@code language} option of {@code config.yml}. They are loaded from the
+   * data folder of the plugin the first time a message is built, so the configuration must be read before that;
+   * changes to the message file take effect after a restart.
+   */
   TranslationManager MANAGER = new TranslationManager();
 
-  static NullComponent<Sender> direct(final String key) {
-    return () -> MANAGER.render(translatable(key));
+  /**
+   * Declares a message without arguments.
+   *
+   * @param key the key of the message in the message file, such as {@code mcav.command.image.load}
+   * @return a builder that renders the message each time it is called
+   * @throws NullPointerException if the key is {@code null}
+   */
+  static NullComponent direct(final String key) {
+    Preconditions.checkNotNull(key, "Key must not be null");
+    return () -> {
+      final TranslatableComponent component = translatable(key);
+      return MANAGER.render(component);
+    };
   }
 
-  static <T> UniComponent<Sender, T> direct(final String key, final @Nullable Function<T, String> function) {
-    return arg -> MANAGER.render(translatable(key, createFinalText(arg, function)));
+  /**
+   * Declares a message with one argument, inserted where the message has {@code <arg:0>}.
+   *
+   * @param key      the key of the message in the message file
+   * @param function turns the argument into the inserted text, or {@code null} to use its {@code toString()}
+   * @param <T>      the type of the argument
+   * @return a builder that renders the message with an argument each time it is called
+   * @throws NullPointerException if the key is {@code null}
+   */
+  static <T> UniComponent<T> direct(final String key, final @Nullable Function<T, String> function) {
+    Preconditions.checkNotNull(key, "Key must not be null");
+    return argument -> {
+      final Component text = createFinalText(argument, function);
+      final TranslatableComponent component = translatable(key, text);
+      return MANAGER.render(component);
+    };
   }
 
-  static <T, U> BiComponent<Sender, T, U> direct(
+  /**
+   * Declares a message with two arguments, inserted where the message has {@code <arg:0>} and {@code <arg:1>}.
+   *
+   * @param key            the key of the message in the message file
+   * @param firstFunction  turns the first argument into the inserted text, or {@code null} to use its
+   *                       {@code toString()}
+   * @param secondFunction turns the second argument into the inserted text, or {@code null} to use its
+   *                       {@code toString()}
+   * @param <T>            the type of the first argument
+   * @param <U>            the type of the second argument
+   * @return a builder that renders the message with two arguments each time it is called
+   * @throws NullPointerException if the key is {@code null}
+   */
+  static <T, U> BiComponent<T, U> direct(
     final String key,
-    final @Nullable Function<T, String> function1,
-    final @Nullable Function<U, String> function2
+    final @Nullable Function<T, String> firstFunction,
+    final @Nullable Function<U, String> secondFunction
   ) {
-    return (arg1, arg2) -> MANAGER.render(translatable(key, createFinalText(arg1, function1), createFinalText(arg2, function2)));
+    Preconditions.checkNotNull(key, "Key must not be null");
+    return (firstArgument, secondArgument) -> {
+      final Component firstText = createFinalText(firstArgument, firstFunction);
+      final Component secondText = createFinalText(secondArgument, secondFunction);
+      final TranslatableComponent component = translatable(key, firstText, secondText);
+      return MANAGER.render(component);
+    };
   }
 
-  static <T, U, V> TriComponent<Sender, T, U, V> direct(
+  /**
+   * Declares a message with three arguments, inserted where the message has {@code <arg:0>}, {@code <arg:1>}, and
+   * {@code <arg:2>}.
+   *
+   * @param key            the key of the message in the message file
+   * @param firstFunction  turns the first argument into the inserted text, or {@code null} to use its
+   *                       {@code toString()}
+   * @param secondFunction turns the second argument into the inserted text, or {@code null} to use its
+   *                       {@code toString()}
+   * @param thirdFunction  turns the third argument into the inserted text, or {@code null} to use its
+   *                       {@code toString()}
+   * @param <T>            the type of the first argument
+   * @param <U>            the type of the second argument
+   * @param <V>            the type of the third argument
+   * @return a builder that renders the message with three arguments each time it is called
+   * @throws NullPointerException if the key is {@code null}
+   */
+  static <T, U, V> TriComponent<T, U, V> direct(
     final String key,
-    final @Nullable Function<T, String> function1,
-    final @Nullable Function<U, String> function2,
-    final @Nullable Function<V, String> function3
+    final @Nullable Function<T, String> firstFunction,
+    final @Nullable Function<U, String> secondFunction,
+    final @Nullable Function<V, String> thirdFunction
   ) {
-    return (arg1, arg2, arg3) ->
-      MANAGER.render(
-        translatable(key, createFinalText(arg1, function1), createFinalText(arg2, function2), createFinalText(arg3, function3))
-      );
+    Preconditions.checkNotNull(key, "Key must not be null");
+    return (firstArgument, secondArgument, thirdArgument) -> {
+      final Component firstText = createFinalText(firstArgument, firstFunction);
+      final Component secondText = createFinalText(secondArgument, secondFunction);
+      final Component thirdText = createFinalText(thirdArgument, thirdFunction);
+      final TranslatableComponent component = translatable(key, firstText, secondText, thirdText);
+      return MANAGER.render(component);
+    };
   }
 
+  /**
+   * Turns a message argument into the plain text inserted into the message.
+   *
+   * @param argument the argument, which may be {@code null}
+   * @param function turns the argument into text, and then receives {@code null} arguments too; or {@code null}
+   *                 to use the {@code toString()} of the argument, with empty text for a {@code null} argument
+   * @param <T>      the type of the argument
+   * @return the text component, without any style of its own so it takes the style of the surrounding message
+   */
   static <T> Component createFinalText(final T argument, final @Nullable Function<T, String> function) {
-    final String text = argument == null ? "" : argument.toString();
-    return text(function == null ? text : function.apply(argument));
+    if (function != null) {
+      final String converted = function.apply(argument);
+      return text(converted);
+    }
+
+    final String plain = argument == null ? "" : argument.toString();
+    return text(plain);
   }
 
+  /**
+   * A message without arguments.
+   */
   @FunctionalInterface
-  interface NullComponent<S extends Sender> {
+  interface NullComponent {
+    /**
+     * Renders the message in the configured language.
+     *
+     * @return the message, ready to send
+     * @throws java.util.MissingResourceException if the message file has no message with the key
+     */
     Component build();
   }
 
+  /**
+   * A message with one argument.
+   *
+   * @param <A0> the type of the argument
+   */
   @FunctionalInterface
-  interface UniComponent<S extends Sender, A0> {
-    Component build(A0 arg0);
+  interface UniComponent<A0> {
+    /**
+     * Renders the message in the configured language.
+     *
+     * @param argument the argument inserted at {@code <arg:0>}
+     * @return the message, ready to send
+     * @throws java.util.MissingResourceException if the message file has no message with the key
+     */
+    Component build(A0 argument);
   }
 
+  /**
+   * A message with two arguments.
+   *
+   * @param <A0> the type of the first argument
+   * @param <A1> the type of the second argument
+   */
   @FunctionalInterface
-  interface BiComponent<S extends Sender, A0, A1> {
-    Component build(A0 arg0, A1 arg1);
+  interface BiComponent<A0, A1> {
+    /**
+     * Renders the message in the configured language.
+     *
+     * @param firstArgument  the argument inserted at {@code <arg:0>}
+     * @param secondArgument the argument inserted at {@code <arg:1>}
+     * @return the message, ready to send
+     * @throws java.util.MissingResourceException if the message file has no message with the key
+     */
+    Component build(A0 firstArgument, A1 secondArgument);
   }
 
+  /**
+   * A message with three arguments.
+   *
+   * @param <A0> the type of the first argument
+   * @param <A1> the type of the second argument
+   * @param <A2> the type of the third argument
+   */
   @FunctionalInterface
-  interface TriComponent<S extends Sender, A0, A1, A2> {
-    Component build(A0 arg0, A1 arg1, A2 arg2);
+  interface TriComponent<A0, A1, A2> {
+    /**
+     * Renders the message in the configured language.
+     *
+     * @param firstArgument  the argument inserted at {@code <arg:0>}
+     * @param secondArgument the argument inserted at {@code <arg:1>}
+     * @param thirdArgument  the argument inserted at {@code <arg:2>}
+     * @return the message, ready to send
+     * @throws java.util.MissingResourceException if the message file has no message with the key
+     */
+    Component build(A0 firstArgument, A1 secondArgument, A2 thirdArgument);
   }
 }

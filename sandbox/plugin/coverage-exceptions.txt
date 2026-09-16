@@ -1,0 +1,4 @@
+# Lines of production code that no test can run, each with the reason. The coverage lint skips them.
+# Format: path below src/main/java | exact source line | reason
+# The lint fails when an entry no longer matches an uncovered line, so this list cannot hide new gaps.
+me/brandonli/mcav/sandbox/MCAVSandbox.java | public MCAVSandbox() {} | JavaPlugin can only be constructed by the plugin class loader of a running Paper server

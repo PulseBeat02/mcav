@@ -17,37 +17,78 @@
  */
 package me.brandonli.mcav.sandbox.command.image;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
-import org.incendo.cloud.annotations.AnnotationParser;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Permission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * {@code /mcav image release}: removes the image that is shown.
+ */
 public final class ImageControlCommand implements AnnotationCommandFeature {
 
-  private MCAVSandbox sandbox;
-  private ImageManager manager;
+  private static final Logger LOGGER = LoggerFactory.getLogger(ImageControlCommand.class);
 
-  @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    this.sandbox = plugin;
+  private final MCAVSandbox plugin;
+  private final ImageManager manager;
+
+  /**
+   * Constructs the command.
+   *
+   * @param plugin the plugin
+   */
+  public ImageControlCommand(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
 
+  /**
+   * Handles {@code /mcav image release}: removes the image shown by any of the {@code /mcav image} commands and
+   * frees its memory. Blocks, maps, chat lines, text display entities, or scoreboards that showed it disappear for
+   * every viewer.
+   *
+   * <p>Requires the permission {@code mcav.command.image.release}; players and the console can run it. The sender
+   * is told "Releasing image..." at once and "Image released!" when it is done. When no image is shown, the
+   * command does nothing but still sends both messages.
+   *
+   * @param sender who ran the command
+   */
   @Command("mcav image release")
   @Permission("mcav.command.image.release")
   @CommandDescription("mcav.command.image.release.info")
-  public void releaseVideo(final CommandSender player) {
+  public void releaseImage(final CommandSender sender) {
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    final Component starting = Message.RELEASE_IMAGE_START.build();
+    sender.sendMessage(starting);
+
     final ExecutorService service = this.manager.getService();
-    player.sendMessage(Message.RELEASE_IMAGE_START.build());
-    CompletableFuture.runAsync(() -> this.manager.releaseImage(false), service).thenRun(
-      TaskUtils.handleAsyncTask(this.sandbox, () -> player.sendMessage(Message.RELEASE_IMAGE.build()))
-    );
+    final Component released = Message.RELEASE_IMAGE.build();
+    final Runnable done = TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(released));
+    final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(false), service);
+    TaskUtils.whenComplete(release, (_, error) -> reportRelease(done, error));
+  }
+
+  /**
+   * Tells the sender that the image is released once it is. A release that failed is logged, and the sender is not
+   * told that the image was released.
+   */
+  private static void reportRelease(final Runnable done, final @Nullable Throwable error) {
+    if (error != null) {
+      LOGGER.error("Failed to release the image", error);
+      return;
+    }
+    done.run();
   }
 }

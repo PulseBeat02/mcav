@@ -21,7 +21,10 @@ import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
+import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
+import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
+import me.brandonli.mcav.sandbox.audio.MissingVoiceChatException;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
@@ -30,151 +33,236 @@ import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
 import me.brandonli.mcav.svc.SVCModule;
 import me.brandonli.mcav.vm.VMModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
+import org.bukkit.Server;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * The MCAV sandbox plugin, which demonstrates every feature of the library through commands.
+ *
+ * <p>Everything is created in {@link #onEnable()} in dependency order: the library, the configuration, the audio
+ * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
+ * when called before the plugin is enabled.
+ */
 public final class MCAVSandbox extends JavaPlugin {
 
-  private ComponentLogger logger;
+  private static final String UNSUPPORTED_VERSION_REMEDY =
+    "run MCAV on a Minecraft " + ServerEnvironment.SUPPORTED_MINECRAFT_VERSION + " server";
+  private static final String MISSING_VOICE_CHAT_REMEDY =
+    "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
-  private MCAVApi mcav;
-  private boolean isQemuInstalled;
+  private @MonotonicNonNull ComponentLogger logger;
+  private @MonotonicNonNull MCAVApi mcav;
+  private @MonotonicNonNull PluginDataConfigurationMapper configurationMapper;
+  private @MonotonicNonNull AudioProvider audioProvider;
+  private @MonotonicNonNull ImageManager imageManager;
+  private @MonotonicNonNull VideoPlayerManager videoPlayerManager;
+  private @Nullable AnnotationParserHandler annotationParserHandler;
+  private @Nullable JukeBoxListener listener;
+  private boolean qemuInstalled;
 
-  private JukeBoxListener listener;
-  private AudioProvider audioProvider;
-  private ImageManager imageManager;
-  private VideoPlayerManager videoPlayerManager;
-  private AnnotationParserHandler annotationParserHandler;
-  private PluginDataConfigurationMapper configurationMapper;
+  /**
+   * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   */
+  public MCAVSandbox() {}
 
-  private void unloadMCAV() {
-    if (this.mcav != null) {
-      this.mcav.release();
-    }
-  }
-
+  /**
+   * Enables the plugin: installs the library and its modules, reads the configuration, starts the audio outputs
+   * and the media managers, and registers the commands and the jukebox listener.
+   *
+   * <p>Two failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
+   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the voicechat
+   * plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
+   * disables itself through the plugin manager, which calls {@link #onDisable()} to release what was created.
+   *
+   * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
+   *                          {@link #onDisable()} releases what was created
+   */
   @Override
   public void onEnable() {
     this.logger = this.getComponentLogger();
-    this.loadMCAV();
-    this.loadPluginData();
-    this.loadManager();
-    this.loadCommands();
-    this.loadListeners();
+    try {
+      this.loadMCAV();
+      this.loadPluginData();
+      this.loadManagers();
+      this.loadCommands();
+      this.loadListeners();
+    } catch (final UnsupportedServerVersionException exception) {
+      this.disableBecause(exception, UNSUPPORTED_VERSION_REMEDY);
+    } catch (final MissingVoiceChatException exception) {
+      this.disableBecause(exception, MISSING_VOICE_CHAT_REMEDY);
+    }
   }
 
-  private void loadManager() {
-    this.audioProvider = new AudioProvider(this);
-    this.audioProvider.initialize();
+  /**
+   * Logs on one line why the plugin cannot be enabled and how to fix it, and disables the plugin. The plugin manager
+   * calls {@link #onDisable()}, which releases whatever was created before the failure.
+   *
+   * @param failure the setup problem
+   * @param remedy  what the server owner has to do about it
+   */
+  private void disableBecause(final IllegalStateException failure, final String remedy) {
+    final ComponentLogger pluginLogger = this.requireLogger();
+    final String reason = failure.getMessage();
+    pluginLogger.error("MCAV cannot be enabled: {} ({})", reason, remedy);
+
+    final Server server = this.getServer();
+    final PluginManager pluginManager = server.getPluginManager();
+    pluginManager.disablePlugin(this);
+  }
+
+  private void loadMCAV() {
+    final ComponentLogger pluginLogger = this.requireLogger();
+    pluginLogger.info("Loading MCAV");
+    final long start = System.currentTimeMillis();
+    final MCAVApi api = MCAV.api();
+    // kept before installing, so onDisable releases whatever the modules created even when installing fails
+    this.mcav = api;
+    api.install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
+
+    final BukkitModule bukkitModule = api.getModule(BukkitModule.class);
+    bukkitModule.inject(this);
+    final VMModule vmModule = api.getModule(VMModule.class);
+    this.qemuInstalled = vmModule.isQemuInstalled();
+    if (!this.qemuInstalled) {
+      pluginLogger.warn("QEMU is not installed, virtual machines will not be available");
+    }
+
+    final long end = System.currentTimeMillis();
+    final long duration = end - start;
+    pluginLogger.info("MCAV loaded in {} ms", duration);
+  }
+
+  private void loadPluginData() {
+    final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this);
+    mapper.deserialize();
+    this.configurationMapper = mapper;
+  }
+
+  private void loadManagers() {
+    final AudioProvider provider = new AudioProvider(this);
+    this.audioProvider = provider;
+    provider.initialize();
     this.videoPlayerManager = new VideoPlayerManager(this);
     this.imageManager = new ImageManager(this);
   }
 
-  private void loadMCAV() {
-    this.logger.info("Loading MCAV Library");
-    final long startTime = System.currentTimeMillis();
-
-    this.mcav = MCAV.api();
-    this.mcav.install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
-
-    final BukkitModule module = this.mcav.getModule(BukkitModule.class);
-    module.inject(this);
-
-    final VMModule vmModule = this.mcav.getModule(VMModule.class);
-    this.isQemuInstalled = vmModule.isQemuInstalled();
-    if (!this.isQemuInstalled) {
-      this.logger.warn("QEMU is not installed. VM playback will not be available.");
-    }
-
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("MCAV Library loaded in {}ms", endTime - startTime);
-
-    this.getLogger().info("Paper Logger: " + this.getLogger().getClass().getName());
-    System.out.println("SLF4J: " + org.slf4j.LoggerFactory.getILoggerFactory().getClass().getName());
-  }
-
-  private void loadPluginData() {
-    this.logger.info("Loading Plugin Data");
-    final long startTime = System.currentTimeMillis();
-    this.configurationMapper = new PluginDataConfigurationMapper(this);
-    this.configurationMapper.deserialize();
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("Plugin Data loaded in {}ms", endTime - startTime);
-  }
-
-  @Override
-  public void onDisable() {
-    this.shutdownLookupTables();
-    this.unloadListeners();
-    this.shutdownCommands();
-    this.saveData();
-    this.unloadMCAV();
-  }
-
-  private void unloadListeners() {
-    if (this.listener != null) {
-      this.listener.shutdown();
-    }
+  private void loadCommands() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this);
+    handler.registerCommands();
+    this.annotationParserHandler = handler;
   }
 
   private void loadListeners() {
-    this.listener = new JukeBoxListener(this);
-    this.listener.start();
+    final JukeBoxListener jukeBoxListener = new JukeBoxListener(this);
+    jukeBoxListener.start();
+    this.listener = jukeBoxListener;
   }
 
-  private void shutdownCommands() {
-    if (this.annotationParserHandler != null) {
-      this.annotationParserHandler.shutdownCommands();
+  /**
+   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
+   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
+   */
+  @Override
+  public void onDisable() {
+    this.shutdownMedia();
+    final JukeBoxListener jukeBoxListener = this.listener;
+    if (jukeBoxListener != null) {
+      jukeBoxListener.shutdown();
+    }
+    final AnnotationParserHandler handler = this.annotationParserHandler;
+    if (handler != null) {
+      handler.shutdownCommands();
+    }
+    this.releaseAudioAndLibrary();
+  }
+
+  private void shutdownMedia() {
+    final VideoPlayerManager videoManager = this.videoPlayerManager;
+    if (videoManager != null) {
+      videoManager.shutdown();
+    }
+    final ImageManager images = this.imageManager;
+    if (images != null) {
+      images.shutdown();
     }
   }
 
-  private void saveData() {
-    if (this.configurationMapper != null) {
-      this.configurationMapper.shutdown();
+  private void releaseAudioAndLibrary() {
+    final AudioProvider provider = this.audioProvider;
+    if (provider != null) {
+      provider.shutdown();
     }
-    if (this.audioProvider != null) {
-      this.audioProvider.shutdown();
-    }
-  }
-
-  private void loadCommands() {
-    this.logger.info("Loading Commands");
-    final long startTime = System.currentTimeMillis();
-    this.annotationParserHandler = new AnnotationParserHandler(this);
-    this.annotationParserHandler.registerCommands();
-    final long endTime = System.currentTimeMillis();
-    this.logger.info("Commands loaded in {}ms", endTime - startTime);
-  }
-
-  private void shutdownLookupTables() {
-    if (this.videoPlayerManager != null) {
-      this.videoPlayerManager.shutdown();
-    }
-    if (this.imageManager != null) {
-      this.imageManager.shutdown();
+    final MCAVApi api = this.mcav;
+    if (api != null) {
+      api.release();
     }
   }
 
+  private static <T> T require(final @Nullable T value, final String name) {
+    if (value == null) {
+      throw new IllegalStateException("The " + name + " is not available before the plugin is enabled");
+    }
+    return value;
+  }
+
+  private ComponentLogger requireLogger() {
+    return require(this.logger, "logger");
+  }
+
+  /**
+   * Gets the library instance.
+   *
+   * @return the library
+   */
   public MCAVApi getMCAV() {
-    return this.mcav;
+    return require(this.mcav, "library");
   }
 
+  /**
+   * Gets the configuration.
+   *
+   * @return the configuration
+   */
   public PluginDataConfigurationMapper getConfiguration() {
-    return this.configurationMapper;
+    return require(this.configurationMapper, "configuration");
   }
 
+  /**
+   * Gets the manager of the video player.
+   *
+   * @return the video player manager
+   */
   public VideoPlayerManager getVideoPlayerManager() {
-    return this.videoPlayerManager;
+    return require(this.videoPlayerManager, "video player manager");
   }
 
+  /**
+   * Gets the provider of audio outputs.
+   *
+   * @return the audio provider
+   */
   public AudioProvider getAudioProvider() {
-    return this.audioProvider;
+    return require(this.audioProvider, "audio provider");
   }
 
+  /**
+   * Gets the manager of displayed images.
+   *
+   * @return the image manager
+   */
   public ImageManager getImageManager() {
-    return this.imageManager;
+    return require(this.imageManager, "image manager");
   }
 
+  /**
+   * Checks whether QEMU was found when the plugin was enabled.
+   *
+   * @return true if virtual machines can be created
+   */
   public boolean isQemuInstalled() {
-    return this.isQemuInstalled;
+    return this.qemuInstalled;
   }
 }

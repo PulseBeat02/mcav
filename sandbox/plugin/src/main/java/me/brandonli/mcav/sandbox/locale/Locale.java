@@ -17,15 +17,37 @@
  */
 package me.brandonli.mcav.sandbox.locale;
 
+import com.google.common.base.Preconditions;
 import java.util.Map;
 
+/**
+ * The languages the messages of the plugin are available in, chosen with the {@code language} option of
+ * {@code config.yml}.
+ *
+ * <p>Each language has a message file named {@code locale/mcav_<language>.properties} in lowercase, such as
+ * {@code locale/mcav_en_us.properties}, which is copied into the data folder of the plugin on first start so server
+ * owners can edit the messages.
+ */
 public enum Locale {
+  /**
+   * American English, read from {@code locale/mcav_en_us.properties}. This is the default language and the one
+   * used when the configured language is not recognized.
+   */
   EN_US;
 
   private static final Map<String, Locale> LOOKUP_TABLE = Map.of("EN_US", EN_US);
 
+  /**
+   * Finds the language for the {@code language} option of {@code config.yml}. Case does not matter, so
+   * {@code en_us} and {@code EN_US} both select {@link #EN_US}, whatever the default locale of the server is.
+   *
+   * @param locale the configured language, such as {@code EN_US}
+   * @return the language, or {@link #EN_US} if the value names no supported language
+   * @throws NullPointerException if the value is {@code null}
+   */
   public static Locale fromString(final String locale) {
-    final String upper = locale.toUpperCase();
-    return LOOKUP_TABLE.getOrDefault(upper, EN_US);
+    Preconditions.checkNotNull(locale, "Locale must not be null");
+    final String upperCaseName = locale.toUpperCase(java.util.Locale.ROOT);
+    return LOOKUP_TABLE.getOrDefault(upperCaseName, EN_US);
   }
 }

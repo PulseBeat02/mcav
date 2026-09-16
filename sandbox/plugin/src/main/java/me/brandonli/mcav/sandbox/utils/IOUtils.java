@@ -19,20 +19,26 @@ package me.brandonli.mcav.sandbox.utils;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 
+/**
+ * Locates the plugin's data folder and its bundled resources.
+ */
 public final class IOUtils {
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Gets the absolute path of the plugin's data folder.
+   *
+   * @return the data folder
+   */
   public static Path getPluginDataFolderPath() {
     final MCAVSandbox plugin = MCAVSandbox.getPlugin(MCAVSandbox.class);
     final File dataFolder = plugin.getDataFolder();
@@ -40,28 +46,24 @@ public final class IOUtils {
     return dataFolderPath.toAbsolutePath();
   }
 
-  public static Reader getResourceAsStreamReader(final String path) {
-    final InputStream stream = getResourceAsStream(path);
-    return new InputStreamReader(stream);
-  }
-
+  /**
+   * Opens a resource bundled with the plugin.
+   *
+   * @param path the path of the resource inside the plugin jar, such as {@code config.yml}
+   * @return the stream of the resource, which the caller closes
+   * @throws NullPointerException if the path is {@code null} or there is no such resource, with the path as the
+   *                              message in the second case
+   */
   public static InputStream getResourceAsStream(final String path) {
-    final Class<IOUtils> clazz = IOUtils.class;
-    final ClassLoader loader = requireNonNull(clazz.getClassLoader());
-    return requireNonNull(loader.getResourceAsStream(path));
-  }
+    Preconditions.checkNotNull(path, "Path must not be null");
+    final Class<IOUtils> utilsClass = IOUtils.class;
+    final ClassLoader nullableLoader = utilsClass.getClassLoader();
+    final ClassLoader loader = requireNonNull(nullableLoader);
 
-  public static boolean createFileIfNotExists(final Path path) {
-    try {
-      if (Files.notExists(path)) {
-        final Path parent = requireNonNull(path.getParent());
-        Files.createDirectories(parent);
-        Files.createFile(path);
-        return true;
-      }
-    } catch (final Exception e) {
-      throw new AssertionError(e);
+    final InputStream stream = loader.getResourceAsStream(path);
+    if (stream == null) {
+      throw new NullPointerException(path);
     }
-    return false;
+    return stream;
   }
 }

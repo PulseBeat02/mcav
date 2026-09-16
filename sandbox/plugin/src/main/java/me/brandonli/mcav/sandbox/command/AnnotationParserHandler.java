@@ -17,14 +17,28 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.command.image.*;
+import me.brandonli.mcav.sandbox.command.image.ImageBlockCommand;
+import me.brandonli.mcav.sandbox.command.image.ImageChatCommand;
+import me.brandonli.mcav.sandbox.command.image.ImageControlCommand;
+import me.brandonli.mcav.sandbox.command.image.ImageEntityCommand;
+import me.brandonli.mcav.sandbox.command.image.ImageMapCommand;
+import me.brandonli.mcav.sandbox.command.image.ImageScoreboardCommand;
 import me.brandonli.mcav.sandbox.command.interaction.BrowserCommand;
 import me.brandonli.mcav.sandbox.command.interaction.VirtualizeCommand;
-import me.brandonli.mcav.sandbox.command.video.*;
+import me.brandonli.mcav.sandbox.command.video.VideoBlockCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoChatCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoScoreboardCommand;
+import me.brandonli.mcav.sandbox.locale.LocaleTools;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TranslatableComponent;
 import org.bukkit.command.CommandSender;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
@@ -32,78 +46,108 @@ import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.minecraft.extras.RichDescription;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
+/**
+ * Creates the Cloud command manager and every command feature of the plugin.
+ */
 public final class AnnotationParserHandler {
-
-  private static final List<AnnotationCommandFeature> COMMAND_FEATURES = List.of(
-    new SuggestionProvider(),
-    new BrowserCommand(),
-    new DumpCommand(),
-    new HelpCommand(),
-    new ScreenCommand(),
-    new VideoMapCommand(),
-    new VideoControlCommand(),
-    new VideoEntityCommand(),
-    new VideoChatCommand(),
-    new VideoScoreboardCommand(),
-    new VirtualizeCommand(),
-    new VideoBlockCommand(),
-    new ImageBlockCommand(),
-    new ImageChatCommand(),
-    new ImageControlCommand(),
-    new ImageEntityCommand(),
-    new ImageMapCommand(),
-    new ImageScoreboardCommand()
-  );
 
   private final CommandManager<CommandSender> manager;
   private final AnnotationParser<CommandSender> parser;
-  private final MCAVSandbox plugin;
+  private final List<AnnotationCommandFeature> features;
 
+  /**
+   * Creates the command manager and the features. The plugin's managers must exist already.
+   *
+   * @param plugin the plugin
+   */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
-    this.plugin = plugin;
-    this.manager = this.getCommandManager(plugin);
-    this.parser = this.getAnnotationParser(this.manager);
+    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    this.manager = createCommandManager(plugin);
+    this.parser = createAnnotationParser(this.manager);
+    this.features = createFeatures(plugin, this.manager);
   }
 
-  private AnnotationParser<CommandSender> getAnnotationParser(
-    @UnderInitialization AnnotationParserHandler this,
-    final CommandManager<CommandSender> manager
-  ) {
-    final Class<CommandSender> sender = CommandSender.class;
-    final AnnotationParser<CommandSender> parser = new AnnotationParser<>(manager, sender);
-    parser.descriptionMapper(RichDescription::translatable);
-    return parser;
-  }
-
-  private CommandManager<CommandSender> getCommandManager(@UnderInitialization AnnotationParserHandler this, final MCAVSandbox plugin) {
+  private static CommandManager<CommandSender> createCommandManager(final MCAVSandbox plugin) {
     final ExecutionCoordinator<CommandSender> coordinator = ExecutionCoordinator.simpleCoordinator();
-    final LegacyPaperCommandManager<CommandSender> manager = LegacyPaperCommandManager.createNative(plugin, coordinator);
-    this.registerBrigadierCapability(manager);
-    return manager;
-  }
-
-  private void registerBrigadierCapability(
-    @UnderInitialization AnnotationParserHandler this,
-    final LegacyPaperCommandManager<CommandSender> manager
-  ) {
-    if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
-      manager.registerBrigadier();
+    final LegacyPaperCommandManager<CommandSender> paperManager = LegacyPaperCommandManager.createNative(plugin, coordinator);
+    final boolean brigadier = paperManager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER);
+    if (brigadier) {
+      paperManager.registerBrigadier();
     }
+    return paperManager;
   }
 
+  private static AnnotationParser<CommandSender> createAnnotationParser(final CommandManager<CommandSender> manager) {
+    final AnnotationParser<CommandSender> annotationParser = new AnnotationParser<>(manager, CommandSender.class);
+    annotationParser.descriptionMapper(AnnotationParserHandler::describe);
+    return annotationParser;
+  }
+
+  /**
+   * Renders the description of a command or argument with the messages of the plugin. The server only translates
+   * the keys of the game itself, so a translatable description would show its key in the help and the command
+   * suggestions.
+   *
+   * @param key the key of the message, or an empty string for no description
+   * @return the rendered description
+   */
+  @VisibleForTesting
+  static RichDescription describe(final String key) {
+    if (key.isEmpty()) {
+      return RichDescription.empty();
+    }
+    final TranslatableComponent translatable = Component.translatable(key);
+    final Component rendered = LocaleTools.MANAGER.render(translatable);
+    return RichDescription.of(rendered);
+  }
+
+  private static List<AnnotationCommandFeature> createFeatures(final MCAVSandbox plugin, final CommandManager<CommandSender> manager) {
+    return List.of(
+      new SuggestionProvider(),
+      new BrowserCommand(plugin),
+      new DumpCommand(),
+      new HelpCommand(manager),
+      new ScreenCommand(),
+      new VideoMapCommand(plugin),
+      new VideoControlCommand(plugin),
+      new VideoEntityCommand(plugin),
+      new VideoChatCommand(plugin),
+      new VideoScoreboardCommand(plugin),
+      new VirtualizeCommand(plugin),
+      new VideoBlockCommand(plugin),
+      new ImageBlockCommand(plugin),
+      new ImageChatCommand(plugin),
+      new ImageControlCommand(plugin),
+      new ImageEntityCommand(plugin),
+      new ImageMapCommand(plugin),
+      new ImageScoreboardCommand(plugin)
+    );
+  }
+
+  /**
+   * Gets the command manager.
+   *
+   * @return the command manager
+   */
   public CommandManager<CommandSender> getManager() {
     return this.manager;
   }
 
+  /**
+   * Sets up every feature and registers its commands.
+   */
   public void registerCommands() {
-    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
-      feature.registerFeature(this.plugin, this.parser);
+    for (final AnnotationCommandFeature feature : this.features) {
+      feature.registerFeature(this.parser);
       this.parser.parse(feature);
     }
   }
 
+  /**
+   * Shuts every feature down.
+   */
   public void shutdownCommands() {
-    for (final AnnotationCommandFeature feature : COMMAND_FEATURES) {
+    for (final AnnotationCommandFeature feature : this.features) {
       feature.shutdown();
     }
   }

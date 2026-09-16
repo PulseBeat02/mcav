@@ -17,72 +17,103 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.*;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_ARGUMENTS;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_AVAILABLE_COMMANDS;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_NEXT_PAGE;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_PREVIOUS_PAGE;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_TO_SHOW_HELP;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_DESCRIPTION;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_HELP_TITLE;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_NO_RESULTS_FOR_QUERY;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_OPTIONAL;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_PAGE_OUT_OF_RANGE;
+import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_SHOWING_RESULTS_FOR_QUERY;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
-import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.LocaleTools;
 import me.brandonli.mcav.sandbox.locale.TranslationManager;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotation.specifier.Greedy;
-import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.minecraft.extras.AudienceProvider;
+import org.incendo.cloud.minecraft.extras.ImmutableMinecraftHelp;
 import org.incendo.cloud.minecraft.extras.MinecraftHelp;
 
+/**
+ * {@code /mcav help [query]}: lists the commands, with texts from the plugin's locale file.
+ */
 public final class HelpCommand implements AnnotationCommandFeature {
 
-  private CommandManager<CommandSender> manager;
-  private MinecraftHelp<CommandSender> minecraftHelp;
+  private static final String ROOT_COMMAND = "mcav";
 
-  @Override
-  public void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser) {
-    this.manager = parser.manager();
-    this.setupHelp();
+  private final MinecraftHelp<CommandSender> minecraftHelp;
+
+  /**
+   * Constructs the command.
+   *
+   * @param manager the command manager whose commands are listed
+   */
+  public HelpCommand(final CommandManager<CommandSender> manager) {
+    Preconditions.checkNotNull(manager, "Command manager must not be null");
+    final Map<String, String> messages = createMessages();
+    final AudienceProvider<CommandSender> audiences = AudienceProvider.nativeAudience();
+    final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
+    final ImmutableMinecraftHelp.AudienceProviderBuildStage<CommandSender> audienceStage = managerStage.commandManager(manager);
+    final ImmutableMinecraftHelp.CommandPrefixBuildStage<CommandSender> prefixStage = audienceStage.audienceProvider(audiences);
+    final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix("/mcav help");
+    finalStage.messages(messages);
+    this.minecraftHelp = finalStage.build();
   }
 
-  private Map<String, String> constructHelpMap() {
-    final TranslationManager manager = LocaleTools.MANAGER;
-    final Map<String, String> bundle = new HashMap<>();
-    bundle.put(MESSAGE_HELP_TITLE, manager.getProperty("mcav.command.help.command"));
-    bundle.put(MESSAGE_DESCRIPTION, manager.getProperty("mcav.command.help.description"));
-    bundle.put(MESSAGE_ARGUMENTS, manager.getProperty("mcav.command.help.arguments"));
-    bundle.put(MESSAGE_OPTIONAL, manager.getProperty("mcav.command.help.optional"));
-    bundle.put(MESSAGE_SHOWING_RESULTS_FOR_QUERY, manager.getProperty("mcav.command.help.search_query"));
-    bundle.put(MESSAGE_NO_RESULTS_FOR_QUERY, manager.getProperty("mcav.command.help.none_query"));
-    bundle.put(MESSAGE_AVAILABLE_COMMANDS, manager.getProperty("mcav.command.help.available_commands"));
-    bundle.put(MESSAGE_CLICK_TO_SHOW_HELP, manager.getProperty("mcav.command.help.show_help"));
-    bundle.put(MESSAGE_PAGE_OUT_OF_RANGE, manager.getProperty("mcav.command.help.page_invalid"));
-    bundle.put(MESSAGE_CLICK_FOR_NEXT_PAGE, manager.getProperty("mcav.command.help.next_page"));
-    bundle.put(MESSAGE_CLICK_FOR_PREVIOUS_PAGE, manager.getProperty("mcav.command.help.previous_page"));
-    return bundle;
+  /**
+   * Creates the texts the help shows, each read from the locale file of the plugin. A key that is missing here makes
+   * the help fall back to its own English text, so every key it knows is filled in. Visible for testing.
+   *
+   * @return the help messages by the key of the help
+   */
+  @VisibleForTesting
+  static Map<String, String> createMessages() {
+    final Map<String, String> messages = new HashMap<>();
+    putTranslation(messages, MESSAGE_HELP_TITLE, "mcav.command.help.command");
+    putTranslation(messages, MESSAGE_DESCRIPTION, "mcav.command.help.description");
+    putTranslation(messages, MESSAGE_ARGUMENTS, "mcav.command.help.arguments");
+    putTranslation(messages, MESSAGE_OPTIONAL, "mcav.command.help.optional");
+    putTranslation(messages, MESSAGE_SHOWING_RESULTS_FOR_QUERY, "mcav.command.help.search_query");
+    putTranslation(messages, MESSAGE_NO_RESULTS_FOR_QUERY, "mcav.command.help.none_query");
+    putTranslation(messages, MESSAGE_AVAILABLE_COMMANDS, "mcav.command.help.available_commands");
+    putTranslation(messages, MESSAGE_CLICK_TO_SHOW_HELP, "mcav.command.help.show_help");
+    putTranslation(messages, MESSAGE_PAGE_OUT_OF_RANGE, "mcav.command.help.page_invalid");
+    putTranslation(messages, MESSAGE_CLICK_FOR_NEXT_PAGE, "mcav.command.help.next_page");
+    putTranslation(messages, MESSAGE_CLICK_FOR_PREVIOUS_PAGE, "mcav.command.help.previous_page");
+    return messages;
   }
 
-  private void setupHelp() {
-    this.minecraftHelp = MinecraftHelp.<CommandSender>builder()
-      .commandManager(this.manager)
-      .audienceProvider(AudienceProvider.nativeAudience())
-      .commandPrefix("/mcav help")
-      .messages(this.constructHelpMap())
-      .build();
+  private static void putTranslation(final Map<String, String> messages, final String helpKey, final String translationKey) {
+    final TranslationManager translations = LocaleTools.MANAGER;
+    final String text = translations.getProperty(translationKey);
+    messages.put(helpKey, text);
   }
 
-  public CommandManager<CommandSender> getManager() {
-    return this.manager;
-  }
-
-  public MinecraftHelp<CommandSender> getMinecraftHelp() {
-    return this.minecraftHelp;
-  }
-
+  /**
+   * Shows the help. The query is a command without the {@code /mcav} in front, such as {@code dump}, because the
+   * help matches queries against whole commands such as {@code mcav dump}.
+   *
+   * @param sender who ran the command
+   * @param query  the command to show, or {@code null} to list every command
+   */
   @Permission("mcav.command.help")
   @CommandDescription("mcav.command.help.info")
   @Command("mcav help [query]")
-  public void commandHelp(final CommandSender sender, @Greedy final String query) {
-    this.minecraftHelp.queryCommands(query == null ? "" : query, sender);
+  public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    final String search = query == null ? "" : ROOT_COMMAND + " " + query;
+    this.minecraftHelp.queryCommands(search, sender);
   }
 }

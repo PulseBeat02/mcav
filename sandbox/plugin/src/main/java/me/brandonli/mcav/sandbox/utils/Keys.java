@@ -19,10 +19,32 @@ package me.brandonli.mcav.sandbox.utils;
 
 import org.bukkit.NamespacedKey;
 
-public class Keys {
+/**
+ * The keys of the persistent data the plugin stores on the item frames of map screens.
+ */
+public final class Keys {
 
+  /**
+   * The namespace of every key of the plugin.
+   */
   public static final String NAMESPACE = "mcav";
+
+  /**
+   * Marks every item frame of a map screen.
+   */
   public static final NamespacedKey MAP_KEY = new NamespacedKey(NAMESPACE, "map");
+
+  /**
+   * Marks the top left item frame of a map screen.
+   */
   public static final NamespacedKey FIRST_MAP_KEY = new NamespacedKey(NAMESPACE, "first_map");
+
+  /**
+   * Marks the bottom right item frame of a map screen.
+   */
   public static final NamespacedKey LAST_MAP_KEY = new NamespacedKey(NAMESPACE, "second_map");
+
+  private Keys() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
 }

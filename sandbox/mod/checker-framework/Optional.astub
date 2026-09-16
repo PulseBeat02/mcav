@@ -1,7 +1,0 @@
-package java.util;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-class Optional<T> {
-  @Nullable T orElse(@Nullable T other);
-}

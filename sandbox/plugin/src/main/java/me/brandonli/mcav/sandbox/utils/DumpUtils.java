@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -29,120 +31,283 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class DumpUtils {
+/**
+ * Collects diagnostic information for bug reports and uploads it to a paste site.
+ *
+ * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM
+ * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
+ * log is included.
+ */
+public final class DumpUtils {
+
+  private static final String PASTE_SITE = "https://paste.helpch.at/";
+  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+  private static final Duration UPLOAD_TIMEOUT = Duration.ofSeconds(30);
+  private static final Path LOG_FILE = Path.of("logs", "latest.log");
+  private static final int MAX_LOG_LINES = 2_000;
+  private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
+  private static final String REDACTED = "<redacted>";
+  private static final long MEGABYTE = 1024L * 1024L;
 
   private DumpUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static final String FILE_UPLOAD_WEBSITE = "https://paste.helpch.at/";
-  private static final String FILE_ENDPOINT_URL = "%sdocuments/".formatted(FILE_UPLOAD_WEBSITE);
-  private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-
+  /**
+   * Collects the dump and uploads it.
+   *
+   * @return the URL of the uploaded dump
+   * @throws IllegalStateException if the upload fails
+   */
   public static String createAndUploadDump() {
+    return createAndUploadDump(HTTP_CLIENT, PASTE_SITE, LOG_FILE);
+  }
+
+  /**
+   * Collects the dump and uploads it to a paste site that speaks the hastebin protocol.
+   *
+   * @param client    the HTTP client
+   * @param pasteSite the URL of the paste site, ending with a slash
+   * @param logFile   the server log whose end is included
+   * @return the URL of the uploaded dump
+   * @throws IllegalStateException if the upload fails
+   */
+  @VisibleForTesting
+  static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
+    final String dump = createDumpContents(logFile);
     try {
-      final String dump = createDumpContents();
-      final String json = uploadDump(dump);
-      final JsonElement jsonElement = JsonParser.parseString(json);
-      final JsonObject jsonObject = jsonElement.getAsJsonObject();
-      final JsonElement file = jsonObject.get("key");
-      final String id = file.getAsString();
-      return "%s%s".formatted(FILE_UPLOAD_WEBSITE, id);
-    } catch (final IOException | InterruptedException e) {
+      final URI endpoint = URI.create(pasteSite + "documents/");
+      final String response = uploadDump(client, endpoint, dump);
+      final String documentKey = parseDocumentKey(response);
+      return pasteSite + documentKey;
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new IllegalStateException("Failed to upload the dump: " + message, exception);
+    } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new AssertionError(e);
+      throw new IllegalStateException("Interrupted while uploading the dump", exception);
     }
   }
 
-  private static String uploadDump(final String dump) throws IOException, InterruptedException {
-    final URI uri = URI.create(FILE_ENDPOINT_URL);
-    final HttpRequest.BodyPublisher bodyPublisher = HttpRequest.BodyPublishers.ofString(dump);
-    final HttpRequest request = HttpRequest.newBuilder().uri(uri).header("Content-Type", "text/plain").POST(bodyPublisher).build();
-    final HttpResponse.BodyHandler<String> responseBodyHandler = HttpResponse.BodyHandlers.ofString();
-    final HttpResponse<String> response = HTTP_CLIENT.send(request, responseBodyHandler);
-    if (response.statusCode() == 200) {
-      return response.body();
-    } else {
-      final int code = response.statusCode();
-      final String msg = "HTTP Error Code: %s".formatted(code);
-      throw new IOException(msg);
+  /**
+   * Reads the key of the uploaded document from the answer of the paste site, such as {@code {"key":"abc"}}.
+   */
+  private static String parseDocumentKey(final String response) {
+    final JsonElement element = parseJson(response);
+    if (element.isJsonObject()) {
+      final JsonObject document = element.getAsJsonObject();
+      final JsonElement key = document.get("key");
+      if (key != null && key.isJsonPrimitive()) {
+        return key.getAsString();
+      }
+    }
+    throw new IllegalStateException("The paste site did not answer with a document key: " + response);
+  }
+
+  private static JsonElement parseJson(final String response) {
+    try {
+      return JsonParser.parseString(response);
+    } catch (final JsonParseException exception) {
+      throw new IllegalStateException("The paste site did not answer with JSON: " + response, exception);
     }
   }
 
-  private static String createDumpContents() {
+  private static String uploadDump(final HttpClient client, final URI endpoint, final String dump)
+    throws IOException, InterruptedException {
+    final HttpRequest.BodyPublisher body = HttpRequest.BodyPublishers.ofString(dump);
+    final HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint);
+    builder.header("Content-Type", "text/plain");
+    builder.timeout(UPLOAD_TIMEOUT);
+    builder.POST(body);
+    final HttpRequest request = builder.build();
+    final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
+    final HttpResponse<String> response = client.send(request, handler);
+    final int status = response.statusCode();
+    if (status != 200) {
+      throw new IOException("The paste site answered with HTTP " + status);
+    }
+    return response.body();
+  }
+
+  /**
+   * Collects the dump: the system, the JVM properties with secrets redacted, the stack traces of every thread,
+   * and the end of the server log.
+   *
+   * @param logFile the server log
+   * @return the dump
+   */
+  @VisibleForTesting
+  static String createDumpContents(final Path logFile) {
     final StringBuilder dump = new StringBuilder();
+    appendSystem(dump);
+    appendProperties(dump);
+    appendThreads(dump);
+    appendLog(dump, logFile);
+    return dump.toString();
+  }
 
-    dump.append("=== System Information ===\n");
+  private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
+    dump.append(name);
+    dump.append(": ");
+    dump.append(value);
+    dump.append('\n');
+  }
+
+  private static void appendSection(final StringBuilder dump, final String title) {
+    dump.append("\n=== ");
+    dump.append(title);
+    dump.append(" ===\n");
+  }
+
+  private static void appendSystem(final StringBuilder dump) {
+    appendSection(dump, "System");
+    appendOperatingSystem(dump);
+    appendMemory(dump);
+    appendJvm(dump);
+  }
+
+  private static void appendOperatingSystem(final StringBuilder dump) {
     final String osName = System.getProperty("os.name");
     final String osVersion = System.getProperty("os.version");
-    final String osArch = System.getProperty("os.arch");
-    dump.append("OS: ").append(osName).append("\n");
-    dump.append("OS Version: ").append(osVersion).append("\n");
-    dump.append("OS Architecture: ").append(osArch).append("\n");
-
+    final String architecture = System.getProperty("os.arch");
     final String javaVersion = System.getProperty("java.version");
     final String javaVendor = System.getProperty("java.vendor");
-    dump.append("Java Version: ").append(javaVersion).append("\n");
-    dump.append("Java Vendor: ").append(javaVendor).append("\n");
+    appendLine(dump, "OS", osName);
+    appendLine(dump, "OS Version", osVersion);
+    appendLine(dump, "Architecture", architecture);
+    appendLine(dump, "Java Version", javaVersion);
+    appendLine(dump, "Java Vendor", javaVendor);
+  }
 
+  private static void appendMemory(final StringBuilder dump) {
     final Runtime runtime = Runtime.getRuntime();
-    final int availableProcessors = runtime.availableProcessors();
-    dump.append("Available Processors: ").append(availableProcessors).append("\n");
-
+    final int processors = runtime.availableProcessors();
     final long freeMemory = runtime.freeMemory();
-    final long maxMemory = runtime.maxMemory();
     final long totalMemory = runtime.totalMemory();
-    dump.append("Free Memory: ").append(freeMemory / 1024 / 1024).append(" MB\n");
-    dump.append("Max Memory: ").append(maxMemory / 1024 / 1024).append(" MB\n");
-    dump.append("Total Memory: ").append(totalMemory / 1024 / 1024).append(" MB\n");
+    final long maxMemory = runtime.maxMemory();
+    appendLine(dump, "Processors", processors);
+    appendLine(dump, "Free Memory (MB)", freeMemory / MEGABYTE);
+    appendLine(dump, "Total Memory (MB)", totalMemory / MEGABYTE);
+    appendLine(dump, "Max Memory (MB)", maxMemory / MEGABYTE);
+  }
 
-    dump.append("\n=== Environment Variables ===\n");
-    final Map<String, String> env = System.getenv();
-    env.forEach((key, value) -> dump.append(key).append(": ").append(value).append("\n"));
+  private static void appendJvm(final StringBuilder dump) {
+    final RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
+    final long uptime = runtimeBean.getUptime();
+    final List<String> arguments = runtimeBean.getInputArguments();
+    final List<String> redactedArguments = redactArguments(arguments);
+    appendLine(dump, "Uptime (ms)", uptime);
+    appendLine(dump, "JVM Arguments", redactedArguments);
+  }
 
-    dump.append("\n=== JVM Properties ===\n");
-    final Properties properties = System.getProperties();
-    properties.forEach((key, value) -> dump.append(key).append(": ").append(value).append("\n"));
-
-    dump.append("\n=== Thread Information ===\n");
-    final Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
-    stackTraces.forEach((thread, stackTrace) -> {
-      dump.append("Thread Name: ").append(thread.getName()).append("\n");
-      dump.append("State: ").append(thread.getState()).append("\n");
-      dump.append("Stack Trace:\n");
-      for (final StackTraceElement element : stackTrace) {
-        dump.append("\t").append(element).append("\n");
-      }
-    });
-
-    final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
-    final long uptime = bean.getUptime();
-    final long startTime = bean.getStartTime();
-    dump.append("\n=== Runtime Information ===\n");
-    dump.append("Uptime: ").append(uptime).append(" ms\n");
-    dump.append("Start Time: ").append(startTime).append(" ms since epoch\n");
-
-    dump.append("\n=== User Logs ===\n");
-    try {
-      final Path logPath = Path.of("logs/latest.log");
-      if (Files.exists(logPath)) {
-        final List<String> logs = Files.readAllLines(logPath);
-        for (final String log : logs) {
-          dump.append(log).append("\n");
-        }
-      } else {
-        dump.append("No logs found.\n");
-      }
-    } catch (final IOException e) {
-      final String message = e.getMessage();
-      dump.append("Error reading logs: ").append(message).append("\n");
+  /**
+   * Redacts the values of JVM arguments that look secret, such as {@code -Dbot.token=abc} or
+   * {@code -Djavax.net.ssl.keyStorePassword=abc}. Everything after the first equals sign of an argument is
+   * redacted when the text before its last equals sign looks secret, so a secret among the options of an agent,
+   * such as {@code -javaagent:agent.jar=token=abc}, is redacted as well.
+   *
+   * @param arguments the arguments
+   * @return the arguments with secrets redacted, in the same order
+   */
+  @VisibleForTesting
+  static List<String> redactArguments(final List<String> arguments) {
+    final List<String> redacted = new ArrayList<>();
+    for (final String argument : arguments) {
+      final String safe = redactArgument(argument);
+      redacted.add(safe);
     }
+    return redacted;
+  }
 
-    return dump.toString();
+  private static String redactArgument(final String argument) {
+    final int lastEquals = argument.lastIndexOf('=');
+    if (lastEquals < 0) {
+      return argument;
+    }
+    final String names = argument.substring(0, lastEquals);
+    final boolean secret = isSecret(names);
+    if (!secret) {
+      return argument;
+    }
+    final int firstEquals = argument.indexOf('=');
+    final String name = argument.substring(0, firstEquals);
+    return name + "=" + REDACTED;
+  }
+
+  private static void appendProperties(final StringBuilder dump) {
+    appendSection(dump, "JVM Properties");
+    final Properties properties = System.getProperties();
+    final Map<String, String> sorted = new TreeMap<>();
+    final Set<String> names = properties.stringPropertyNames();
+    for (final String name : names) {
+      final String value = properties.getProperty(name, "");
+      final boolean secret = isSecret(name);
+      sorted.put(name, secret ? REDACTED : value);
+    }
+    for (final Map.Entry<String, String> entry : sorted.entrySet()) {
+      final String name = entry.getKey();
+      final String value = entry.getValue();
+      appendLine(dump, name, value);
+    }
+  }
+
+  private static boolean isSecret(final String name) {
+    final String lower = name.toLowerCase(Locale.ROOT);
+    for (final String word : SECRET_WORDS) {
+      if (lower.contains(word)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static void appendThreads(final StringBuilder dump) {
+    appendSection(dump, "Threads");
+    final Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+    for (final Map.Entry<Thread, StackTraceElement[]> entry : traces.entrySet()) {
+      final Thread thread = entry.getKey();
+      final String threadName = thread.getName();
+      final Thread.State state = thread.getState();
+      appendLine(dump, "Thread", threadName + " (" + state + ")");
+      final StackTraceElement[] elements = entry.getValue();
+      for (final StackTraceElement element : elements) {
+        dump.append("\tat ");
+        dump.append(element);
+        dump.append('\n');
+      }
+    }
+  }
+
+  private static void appendLog(final StringBuilder dump, final Path logFile) {
+    appendSection(dump, "Latest Log");
+    final boolean exists = Files.isRegularFile(logFile);
+    if (!exists) {
+      dump.append("No log found\n");
+      return;
+    }
+    try {
+      final List<String> lines = Files.readAllLines(logFile);
+      final int size = lines.size();
+      final int start = Math.max(0, size - MAX_LOG_LINES);
+      final List<String> tail = lines.subList(start, size);
+      for (final String line : tail) {
+        dump.append(line);
+        dump.append('\n');
+      }
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      appendLine(dump, "Failed to read the log", message);
+    }
   }
 }

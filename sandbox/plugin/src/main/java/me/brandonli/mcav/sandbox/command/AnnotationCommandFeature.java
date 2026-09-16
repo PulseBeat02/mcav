@@ -17,13 +17,30 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
-import me.brandonli.mcav.sandbox.MCAVSandbox;
+import com.google.common.base.Preconditions;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.annotations.AnnotationParser;
 
-@FunctionalInterface
+/**
+ * A group of commands declared with Cloud annotations. Features receive everything they need through their
+ * constructor; {@link #registerFeature(AnnotationParser)} is called once before the annotations are parsed and
+ * {@link #shutdown()} once when the plugin is disabled.
+ */
 public interface AnnotationCommandFeature {
-  void registerFeature(final MCAVSandbox plugin, final AnnotationParser<CommandSender> parser);
+  /**
+   * Performs setup that needs the fully constructed feature, such as registering listeners.
+   *
+   * @param parser the parser the feature's annotations are about to be parsed with
+   */
+  default void registerFeature(final AnnotationParser<CommandSender> parser) {
+    Preconditions.checkNotNull(parser, "Parser must not be null");
+    // most features need no further setup
+  }
 
-  default void shutdown() {}
+  /**
+   * Releases everything the feature holds.
+   */
+  default void shutdown() {
+    // most features hold nothing
+  }
 }

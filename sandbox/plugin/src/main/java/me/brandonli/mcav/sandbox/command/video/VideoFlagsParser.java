@@ -17,65 +17,104 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import java.util.Optional;
+import static java.util.Objects.requireNonNull;
+
+import com.google.common.base.Splitter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Parses the optional flags of the video commands. yt-dlp options are written as
+ * {@code --yt-dlp{format=bestvideo,no-playlist}}, where a comma inside a value is escaped as {@code \,} and a
+ * closing brace as <code>\}</code>; every option becomes {@code --name} followed by its value as a separate
+ * argument. Other backslashes are kept as they are.
+ */
 public final class VideoFlagsParser {
 
-  private static final String YT_DLP_FLAGS = "--yt-dlp";
-  private static final Pattern PATTERN = Pattern.compile(YT_DLP_FLAGS + "\\{(.+?)}");
+  private static final String YT_DLP_FLAG = "--yt-dlp";
+  private static final String QUOTED_YT_DLP_FLAG = Pattern.quote(YT_DLP_FLAG);
+  private static final Pattern YT_DLP_PATTERN = Pattern.compile(QUOTED_YT_DLP_FLAG + "\\{((?:[^\\\\}]|\\\\.)*)}");
+  private static final Pattern UNESCAPED_COMMA = Pattern.compile("(?<!\\\\),");
+  // keeps empty options, including a trailing one, which appendOption skips
+  private static final Splitter OPTION_SPLITTER = Splitter.on(UNESCAPED_COMMA);
 
+  /**
+   * Constructs the parser, which keeps no state and can be shared.
+   */
   public VideoFlagsParser() {
-    // no-op
+    // stateless
   }
 
-  // example flag --yt-dlp{format=...,other=...}
-  public String[] parseYTDLPFlags(final String flags) {
-    if (flags == null || flags.isEmpty()) {
+  /**
+   * Extracts the yt-dlp arguments from the flags.
+   *
+   * @param flags the flags argument of the command, may be empty or {@code null}
+   * @return the arguments to pass to yt-dlp, empty if there are none
+   */
+  public String[] parseYTDLPFlags(final @Nullable String flags) {
+    final String content = extractOptions(flags);
+    if (content == null) {
       return new String[0];
     }
 
-    final Optional<String> optional = this.searchForFlag(flags);
-    if (optional.isEmpty()) {
-      return new String[0];
+    final List<String> arguments = new ArrayList<>();
+    final Iterable<String> options = OPTION_SPLITTER.split(content);
+    for (final String option : options) {
+      appendOption(option, arguments);
     }
-
-    final String flag = optional.get();
-    final Matcher matcher = PATTERN.matcher(flag);
-    if (!matcher.find()) {
-      return new String[0];
-    }
-
-    final String content = matcher.group(1);
-    if (content == null || content.isEmpty()) {
-      return new String[0];
-    }
-
-    final String[] pairs = content.split("(?<!\\\\),");
-    final String[] result = new String[pairs.length];
-    for (int i = 0; i < pairs.length; i++) {
-      final String[] keyValue = pairs[i].split("=", 2);
-      if (keyValue.length == 2) {
-        result[i] = "--" + keyValue[0].trim() + " " + keyValue[1].trim();
-      } else {
-        result[i] = "--" + keyValue[0].trim();
-      }
-    }
-
-    return result;
+    return arguments.toArray(new String[0]);
   }
 
-  private Optional<String> searchForFlag(final String flags) {
-    final String[] split = flags.split("(?<!\\\\)\\s+");
-    String result = null;
-    for (final String flag : split) {
-      if (!flag.startsWith(YT_DLP_FLAGS)) {
-        continue;
-      }
-      result = flag;
-      break;
+  /**
+   * Finds the options inside {@code --yt-dlp{...}}.
+   *
+   * @return the options, or {@code null} if the flags contain no yt-dlp options
+   */
+  private static @Nullable String extractOptions(final @Nullable String flags) {
+    if (flags == null || flags.isBlank()) {
+      return null;
     }
-    return Optional.ofNullable(result);
+
+    final Matcher matcher = YT_DLP_PATTERN.matcher(flags);
+    final boolean found = matcher.find();
+    if (!found) {
+      return null;
+    }
+
+    // the group always takes part in a match
+    final String group = matcher.group(1);
+    final String content = requireNonNull(group);
+    if (content.isBlank()) {
+      return null;
+    }
+    return content;
+  }
+
+  /**
+   * Turns one {@code name=value} or {@code name} option into yt-dlp arguments.
+   */
+  private static void appendOption(final String option, final List<String> arguments) {
+    final String commasUnescaped = option.replace("\\,", ",");
+    final String unescaped = commasUnescaped.replace("\\}", "}");
+    final String trimmed = unescaped.trim();
+    if (trimmed.isEmpty()) {
+      return;
+    }
+
+    final int equals = trimmed.indexOf('=');
+    if (equals < 0) {
+      arguments.add("--" + trimmed);
+      return;
+    }
+
+    final String name = trimmed.substring(0, equals);
+    final String value = trimmed.substring(equals + 1);
+    final String cleanName = name.trim();
+    final String cleanValue = value.trim();
+    arguments.add("--" + cleanName);
+    arguments.add(cleanValue);
   }
 }

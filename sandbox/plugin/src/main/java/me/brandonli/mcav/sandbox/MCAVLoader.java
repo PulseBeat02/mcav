@@ -19,6 +19,8 @@ package me.brandonli.mcav.sandbox;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import io.papermc.paper.plugin.loader.PluginClasspathBuilder;
 import io.papermc.paper.plugin.loader.PluginLoader;
 import java.nio.file.Path;
@@ -33,21 +35,64 @@ import xyz.jpenilla.gremlin.runtime.logging.GremlinLogger;
 import xyz.jpenilla.gremlin.runtime.logging.Slf4jGremlinLogger;
 import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
 
+/**
+ * Downloads the libraries of the plugin before it is loaded and puts them on its classpath. The libraries are
+ * listed in the {@code dependencies.txt} that Gremlin generates at build time, and are cached in
+ * {@code libraries/mcav}.
+ */
 public final class MCAVLoader implements PluginLoader {
 
+  private final Path libraries;
+
+  /**
+   * Constructs the loader. Paper creates it for you.
+   */
+  public MCAVLoader() {
+    this(Path.of("libraries/mcav"));
+  }
+
+  /**
+   * Constructs a loader that caches the libraries in another folder.
+   *
+   * @param libraries the cache folder
+   */
+  @VisibleForTesting
+  MCAVLoader(final Path libraries) {
+    this.libraries = libraries;
+  }
+
+  /**
+   * Gets the folder the libraries are cached in.
+   *
+   * @return the cache folder
+   */
+  @VisibleForTesting
+  Path getLibraries() {
+    return this.libraries;
+  }
+
+  /**
+   * Resolves the libraries listed in {@code dependencies.txt}, downloading those missing from the cache folder,
+   * adds them to the classpath of the plugin, and removes cached files that are no longer listed. Paper calls this
+   * once, before the plugin class is loaded.
+   *
+   * @param classpathBuilder the classpath of the plugin, which receives the library jars
+   * @throws NullPointerException if the classpath builder is {@code null}
+   */
   @Override
-  @SuppressWarnings("UnstableApiUsage")
   public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {
-    final Path libs = Path.of("libraries/mcav");
-    final Class<?> clazz = this.getClass();
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    final DependencySet deps = DependencySet.readDefault(classLoader);
-    final DependencyCache cache = new DependencyCache(libs);
+    Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null");
+    final Class<?> loaderClass = this.getClass();
+    final ClassLoader nullableClassLoader = loaderClass.getClassLoader();
+    final ClassLoader classLoader = requireNonNull(nullableClassLoader);
+    final DependencySet dependencies = DependencySet.readDefault(classLoader);
+    final DependencyCache cache = new DependencyCache(this.libraries);
+
     final org.slf4j.Logger logger = LoggerFactory.getLogger("Gremlin");
     final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(logger);
     try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
-      final ResolvedDependencySet resolvedDeps = downloader.resolve(deps, cache);
-      final Set<Path> jars = resolvedDeps.jarFiles();
+      final ResolvedDependencySet resolvedDependencies = downloader.resolve(dependencies, cache);
+      final Set<Path> jars = resolvedDependencies.jarFiles();
       final PaperClasspathAppender appender = new PaperClasspathAppender(classpathBuilder);
       appender.append(jars);
     }

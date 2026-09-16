@@ -17,166 +17,208 @@
  */
 package me.brandonli.mcav.sandbox.data;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.Objects;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
-import me.brandonli.mcav.utils.ExecutorUtils;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Reads {@code config.yml} into typed settings. Missing values fall back to defaults instead of failing, but a
+ * file that cannot be read or is not valid YAML fails, so a broken file never silently turns into the defaults.
+ */
 public final class PluginDataConfigurationMapper {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(PluginDataConfigurationMapper.class);
+  private static final String CONFIG_FILE = "config.yml";
   private static final String PLUGIN_LANGUAGE = "language";
-
   private static final String DISCORD_BOT_TOKEN_FIELD = "discord-bot.token";
   private static final String DISCORD_BOT_CHANNEL_FIELD = "discord-bot.channel-id";
   private static final String DISCORD_BOT_GUILD_ID_FIELD = "discord-bot.guild-id";
   private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
-
   private static final String HTTP_HOST_FIELD = "http-server.host-name";
   private static final String HTTP_PORT_FIELD = "http-server.port";
   private static final String HTTP_ENABLED = "http-server.enabled";
-
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
+  private static final int DEFAULT_HTTP_PORT = 3000;
 
-  private final ExecutorService service;
   private final MCAVSandbox plugin;
-  private final Lock readLock;
 
   private Locale locale;
-
   private boolean discordBotEnabled;
   private String discordBotToken;
   private String discordBotChannelId;
   private String discordBotGuildId;
-
   private boolean httpEnabled;
   private String httpHostName;
   private int httpPort;
-
   private boolean simpleVoiceChatEnabled;
 
+  /**
+   * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
+   *
+   * @param plugin the plugin
+   */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
-    final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    Preconditions.checkNotNull(plugin, "Plugin must not be null");
     this.plugin = plugin;
-    this.readLock = lock.readLock();
-    this.service = Executors.newVirtualThreadPerTaskExecutor();
+    this.locale = Locale.EN_US;
+    this.discordBotToken = "";
+    this.discordBotChannelId = "";
+    this.discordBotGuildId = "";
+    this.httpHostName = "localhost";
+    this.httpPort = DEFAULT_HTTP_PORT;
   }
 
-  public synchronized void shutdown() {
-    ExecutorUtils.shutdownExecutorGracefully(this.service);
+  /**
+   * Reads the configuration file, creating it from the bundled default first if it does not exist.
+   *
+   * @throws IllegalStateException if the file cannot be read or is not valid YAML
+   */
+  public synchronized void deserialize() {
+    final FileConfiguration config = this.loadConfiguration();
+    final String language = getString(config, PLUGIN_LANGUAGE, "EN_US");
+    this.locale = Locale.fromString(language);
+    this.discordBotEnabled = config.getBoolean(DISCORD_BOT_ENABLED, false);
+    this.discordBotToken = getString(config, DISCORD_BOT_TOKEN_FIELD, "");
+    this.discordBotChannelId = getString(config, DISCORD_BOT_CHANNEL_FIELD, "");
+    this.discordBotGuildId = getString(config, DISCORD_BOT_GUILD_ID_FIELD, "");
+    this.httpEnabled = config.getBoolean(HTTP_ENABLED, false);
+    this.httpHostName = getString(config, HTTP_HOST_FIELD, "localhost");
+    this.httpPort = readPort(config);
+    this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
   }
 
-  public synchronized MCAVSandbox getPlugin() {
+  private FileConfiguration loadConfiguration() {
+    final Path folder = IOUtils.getPluginDataFolderPath();
+    final Path file = folder.resolve(CONFIG_FILE);
+    final boolean exists = Files.exists(file);
+    if (!exists) {
+      this.plugin.saveResource(CONFIG_FILE, false);
+    }
+    try (final Reader reader = Files.newBufferedReader(file)) {
+      final YamlConfiguration configuration = new YamlConfiguration();
+      configuration.load(reader);
+      return configuration;
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new IllegalStateException("Failed to read " + file + ": " + message, exception);
+    } catch (final InvalidConfigurationException exception) {
+      final String message = exception.getMessage();
+      throw new IllegalStateException(file + " is not valid YAML: " + message, exception);
+    }
+  }
+
+  private static String getString(final FileConfiguration config, final String key, final String fallback) {
+    // never null because the fallback is not null
+    final String value = config.getString(key, fallback);
+    return Objects.requireNonNullElse(value, fallback);
+  }
+
+  private static int readPort(final FileConfiguration config) {
+    final int port = config.getInt(HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
+    if (port < 1 || port > 65535) {
+      LOGGER.warn("Invalid {} {}, using {}", HTTP_PORT_FIELD, port, DEFAULT_HTTP_PORT);
+      return DEFAULT_HTTP_PORT;
+    }
+    return port;
+  }
+
+  /**
+   * Gets the plugin.
+   *
+   * @return the plugin
+   */
+  public MCAVSandbox getPlugin() {
     return this.plugin;
   }
 
-  public synchronized void deserialize() {
-    this.readLock.lock();
-    final FileConfiguration config = this.retrieveConfiguration();
-    this.locale = this.getLocale(config);
-    this.discordBotToken = this.getDiscordBotToken(config);
-    this.discordBotChannelId = this.getDiscordBotChannelId(config);
-    this.discordBotGuildId = this.getDiscordBotGuildId(config);
-    this.httpHostName = this.getHttpHostName(config);
-    this.httpPort = this.getHttpPort(config);
-    this.discordBotEnabled = this.isDiscordBotEnabled(config);
-    this.httpEnabled = this.isHttpEnabled(config);
-    this.simpleVoiceChatEnabled = this.isSimpleVoiceChatEnabled(config);
-    this.readLock.unlock();
-  }
-
-  private FileConfiguration retrieveConfiguration() {
-    final Path path = IOUtils.getPluginDataFolderPath();
-    final Path configPath = path.resolve("config.yml");
-    if (Files.notExists(configPath)) {
-      this.plugin.saveResource("config.yml", false);
-    }
-    try (final Reader reader = Files.newBufferedReader(configPath)) {
-      return YamlConfiguration.loadConfiguration(reader);
-    } catch (final IOException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private boolean isDiscordBotEnabled(final FileConfiguration config) {
-    return config.getBoolean(DISCORD_BOT_ENABLED, false);
-  }
-
-  private boolean isSimpleVoiceChatEnabled(final FileConfiguration config) {
-    return config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
-  }
-
-  private boolean isHttpEnabled(final FileConfiguration config) {
-    return config.getBoolean(HTTP_ENABLED, false);
-  }
-
-  private int getHttpPort(final FileConfiguration config) {
-    return config.getInt(HTTP_PORT_FIELD);
-  }
-
-  private String getHttpHostName(final FileConfiguration config) {
-    return requireNonNull(config.getString(HTTP_HOST_FIELD, "localhost"));
-  }
-
-  private String getDiscordBotGuildId(final FileConfiguration config) {
-    return requireNonNull(config.getString(DISCORD_BOT_GUILD_ID_FIELD), "");
-  }
-
-  private String getDiscordBotChannelId(final FileConfiguration config) {
-    return requireNonNull(config.getString(DISCORD_BOT_CHANNEL_FIELD), "");
-  }
-
-  private String getDiscordBotToken(final FileConfiguration config) {
-    return requireNonNull(config.getString(DISCORD_BOT_TOKEN_FIELD), "");
-  }
-
-  private Locale getLocale(final FileConfiguration config) {
-    return Locale.fromString(requireNonNull(config.getString(PLUGIN_LANGUAGE, "EN_US")));
-  }
-
+  /**
+   * Gets the language of the messages.
+   *
+   * @return the locale
+   */
   public synchronized Locale getLocale() {
     return this.locale;
   }
 
+  /**
+   * Gets the Discord bot token.
+   *
+   * @return the token, empty if not set
+   */
   public synchronized String getDiscordBotToken() {
     return this.discordBotToken;
   }
 
+  /**
+   * Gets the id of the Discord voice channel.
+   *
+   * @return the channel id, empty if not set
+   */
   public synchronized String getDiscordBotChannelId() {
     return this.discordBotChannelId;
   }
 
+  /**
+   * Gets the id of the Discord server.
+   *
+   * @return the guild id, empty if not set
+   */
   public synchronized String getDiscordBotGuildId() {
     return this.discordBotGuildId;
   }
 
+  /**
+   * Gets the host name listeners use to reach the audio web page.
+   *
+   * @return the host name
+   */
   public synchronized String getHttpHostName() {
     return this.httpHostName;
   }
 
+  /**
+   * Gets the port of the audio web page.
+   *
+   * @return the port
+   */
   public synchronized int getHttpPort() {
     return this.httpPort;
   }
 
+  /**
+   * Checks whether the Discord bot is enabled.
+   *
+   * @return true if enabled
+   */
   public synchronized boolean isDiscordBotEnabled() {
     return this.discordBotEnabled;
   }
 
+  /**
+   * Checks whether the audio web page is enabled.
+   *
+   * @return true if enabled
+   */
   public synchronized boolean isHttpEnabled() {
     return this.httpEnabled;
   }
 
+  /**
+   * Checks whether Simple Voice Chat audio is enabled.
+   *
+   * @return true if enabled
+   */
   public synchronized boolean isSimpleVoiceChatEnabled() {
     return this.simpleVoiceChatEnabled;
   }
