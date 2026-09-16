@@ -1,0 +1,12 @@
+package java.awt;
+
+import org.checkerframework.checker.nullness.qual.*;
+import java.awt.image.ImageObserver;
+
+// The image observer of drawImage is optional; null means the image is drawn synchronously.
+public abstract class Graphics {
+  public abstract boolean drawImage(Image img, int x, int y, @Nullable ImageObserver observer);
+  public abstract boolean drawImage(Image img, int x, int y, int width, int height, @Nullable ImageObserver observer);
+  public abstract boolean drawImage(Image img, int x, int y, Color bgcolor, @Nullable ImageObserver observer);
+  public abstract boolean drawImage(Image img, int x, int y, int width, int height, Color bgcolor, @Nullable ImageObserver observer);
+}

@@ -248,3 +248,9 @@ dmypy.json
 
 # Temporary editor files
 *.swp
+
+# Kotlin compiler caches of the Gradle build logic
+.kotlin/
+
+# log folders that servers and tests write, including rotated archives
+logs/

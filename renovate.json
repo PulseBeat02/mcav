@@ -3,12 +3,29 @@
   "extends": [
     "config:recommended"
   ],
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": true,
   "packageRules": [
     {
       "matchDatasources": [
         "maven"
       ],
       "versioning": "semver"
+    },
+    {
+      "description": "typescript-eslint supports TypeScript below 6.1 only; raise this once it supports newer versions",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "eslint-plugin-react, which eslint-config-next uses, supports ESLint 9 only; raise this once it supports ESLint 10",
+      "matchPackageNames": [
+        "eslint"
+      ],
+      "allowedVersions": "<10.0.0"
     }
   ],
   "ignorePaths": [

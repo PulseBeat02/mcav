@@ -1,0 +1,22 @@
+package org.slf4j;
+
+import org.checkerframework.checker.nullness.qual.*;
+
+// SLF4J renders null arguments as "null", so message arguments may be nullable.
+public interface Logger {
+  void trace(String format, @Nullable Object arg);
+  void trace(String format, @Nullable Object arg1, @Nullable Object arg2);
+  void trace(String format, @Nullable Object... arguments);
+  void debug(String format, @Nullable Object arg);
+  void debug(String format, @Nullable Object arg1, @Nullable Object arg2);
+  void debug(String format, @Nullable Object... arguments);
+  void info(String format, @Nullable Object arg);
+  void info(String format, @Nullable Object arg1, @Nullable Object arg2);
+  void info(String format, @Nullable Object... arguments);
+  void warn(String format, @Nullable Object arg);
+  void warn(String format, @Nullable Object arg1, @Nullable Object arg2);
+  void warn(String format, @Nullable Object... arguments);
+  void error(String format, @Nullable Object arg);
+  void error(String format, @Nullable Object arg1, @Nullable Object arg2);
+  void error(String format, @Nullable Object... arguments);
+}

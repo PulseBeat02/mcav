@@ -1,0 +1,10 @@
+package java.lang;
+
+import org.checkerframework.checker.nullness.qual.*;
+
+// String.format renders null arguments as "null", so format arguments may be nullable.
+public final class String {
+  public static String format(String format, @Nullable Object... args);
+  public static String format(java.util.Locale l, String format, @Nullable Object... args);
+  public String formatted(@Nullable Object... args);
+}

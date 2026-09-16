@@ -1,9 +1,5 @@
 pluginManagement {
     repositories {
-        maven {
-            name = "Fabric"
-            url = uri("https://maven.fabricmc.net/")
-        }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -47,6 +43,3 @@ project(":mcav-svc").name = "mcav-svc"
 
 include(":sandbox:plugin")
 project(":sandbox:plugin").name = "plugin"
-
-include(":sandbox:mod")
-project(":sandbox:mod").name = "mod"
