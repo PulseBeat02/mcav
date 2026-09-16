@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.Preconditions;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -26,102 +28,151 @@ import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * Interface representing a browser-based player that supports interaction with browser elements,
- * video pipeline processing, and mouse event handling.
+ * Streams a web page as video and forwards mouse and keyboard input to it.
+ *
+ * <p>Two backends exist. {@link #selenium(String...)} drives the Chrome installed on the machine through
+ * ChromeDriver, which is downloaded automatically. {@link #playwright(String...)} downloads its own headless
+ * Chromium through Playwright the first time it starts, which takes a while but needs no Chrome installation; on
+ * Linux the system libraries Chromium depends on must be present. Both stream frames with the Chrome DevTools
+ * screencast, so frames arrive only when the page changes.
+ *
+ * <pre>{@code
+ *   final BrowserPlayer browser = BrowserPlayer.selenium();
+ *   final VideoAttachableCallback video = browser.getVideoAttachableCallback();
+ *   video.attach(pipeline);
+ *   final URI page = URI.create("https://example.com");
+ *   final BrowserSource source = BrowserSource.uri(page, 80, 1280, 720, 1);
+ *   browser.start(source);
+ *   browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
+ * }</pre>
+ *
+ * <p>Input coordinates are in the coordinate system of the streamed frames, so a click at the position of a
+ * pixel in a frame lands on the same spot of the page.
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
-   * Default arguments for Selenium ChromeDriver.
+   * The Chrome arguments used when none are specified: headless, without GPU acceleration so Chrome renders in
+   * software, muted, and without scrollbars. The list cannot be modified; to pass these arguments together with
+   * others, copy them into a new list or array.
    */
-  String[] DEFAULT_CHROME_ARGUMENTS = { "--headless", "--disable-gpu", "--disable-software-rasterizer" };
+  List<String> DEFAULT_CHROME_ARGUMENTS = List.of("--headless=new", "--disable-gpu", "--mute-audio", "--hide-scrollbars");
 
   /**
-   * Starts the browser player with the specified video pipeline step and combined browser source.
-   *
-   * @param combined the combined browser source that provides the video content to be played.
-   * @return true if the player started successfully, false otherwise.
+   * An argument for {@link #selenium(String...)} that opens a Chrome window instead of running headless. It is not
+   * passed on to Chrome. A window needs a display, which servers usually lack.
    */
-  boolean start(final BrowserSource combined);
+  String SHOW_WINDOW = "--mcav-show-window";
 
   /**
-   * Asynchronously starts the browser player with the specified video pipeline step and combined browser source.
+   * Creates a player that drives the installed Chrome through Selenium with {@link #DEFAULT_CHROME_ARGUMENTS}.
    *
-   * @param combined the combined browser source that provides the video content to be played.
-   * @param service the executor service to run the asynchronous task on.
-   * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
-   */
-  default CompletableFuture<Boolean> startAsync(final BrowserSource combined, final ExecutorService service) {
-    return CompletableFuture.supplyAsync(() -> this.start(combined), service);
-  }
-
-  /**
-   * Asynchronously starts the browser player with the specified video pipeline step and combined browser source
-   * using the common ForkJoinPool.
-   *
-   * @param combined the combined browser source that provides the video content to be played.
-   * @return a CompletableFuture that completes with true if the player started successfully, false otherwise.
-   */
-  default CompletableFuture<Boolean> startAsync(final BrowserSource combined) {
-    return this.startAsync(combined, ForkJoinPool.commonPool());
-  }
-
-  /**
-   * Moves the mouse cursor to the specified coordinates.
-   *
-   * @param x the x-coordinate to move the mouse to.
-   * @param y the y-coordinate to move the mouse to.
-   */
-  void moveMouse(final int x, final int y);
-
-  /**
-   * Sends a mouse event of the specified type at the given coordinates.
-   *
-   * @param type the type of mouse click event to send (e.g., click, double-click).
-   * @param x the x-coordinate where the mouse event should occur.
-   * @param y the y-coordinate where the mouse event should occur.
-   */
-  void sendMouseEvent(final MouseClick type, final int x, final int y);
-
-  /**
-   * Sends a key event with the specified text.
-   *
-   * @param text the text to be sent as a key event. This can include special characters or sequences.
-   */
-  void sendKeyEvent(final String text);
-
-  /**
-   * Gets the video-attachable callback associated with this player.
-   *
-   * @return The video-attachable callback.
-   */
-  VideoAttachableCallback getVideoAttachableCallback();
-
-  /**
-   * Creates a new instance of a Selenium browser using the default Chrome arguments.
-   *
-   * @return a Selenium browser instance configured with default Chrome arguments.
+   * @return the player
+   * @see #selenium(String...)
    */
   static BrowserPlayer selenium() {
-    return new SeleniumPlayer(DEFAULT_CHROME_ARGUMENTS);
+    final String[] defaultArguments = DEFAULT_CHROME_ARGUMENTS.toArray(String[]::new);
+    return new SeleniumPlayer(defaultArguments);
   }
 
   /**
-   * Creates a new instance of a Selenium browser with the specified arguments.
+   * Creates a player that drives the installed Chrome through Selenium.
    *
-   * @param args the command-line arguments to configure the Selenium browser.
-   * @return a Selenium browser instance configured with the provided arguments.
+   * <p>The arguments replace {@link #DEFAULT_CHROME_ARGUMENTS}, with two exceptions that keep Chrome working on
+   * headless servers. First, {@code --headless=new} is kept unless an argument chooses a headless mode itself, such as
+   * {@code --headless=old}, or is {@link #SHOW_WINDOW}. Second, on Linux {@code --disable-dev-shm-usage} is added, and
+   * {@code --no-sandbox} too when the process runs as root or in a Docker or Podman container, where Chrome cannot
+   * start with its sandbox.
+   *
+   * @param args the Chrome command-line arguments
+   * @return the player
    */
   static BrowserPlayer selenium(final String... args) {
+    Preconditions.checkNotNull(args, "Arguments must not be null");
     return new SeleniumPlayer(args);
   }
 
   /**
-   * Creates a new instance of a Playwright browser using the default arguments.
+   * Creates a player that drives a Chromium downloaded by Playwright. Chromium always runs headless.
    *
-   * @param args the command-line arguments to configure the Playwright browser.
-   * @return a Playwright browser instance configured with default arguments.
+   * @param args extra Chromium command-line arguments
+   * @return the player
    */
   static BrowserPlayer playwright(final String... args) {
+    Preconditions.checkNotNull(args, "Arguments must not be null");
     return new PlaywrightPlayer(args);
   }
+
+  /**
+   * Opens a page and starts streaming it. A player streams one page at a time; new tabs opened by the page are
+   * followed automatically.
+   *
+   * @param source the page and the screencast settings
+   * @return true if streaming started, false if the player is already playing or released
+   * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be started
+   */
+  boolean start(final BrowserSource source);
+
+  /**
+   * Starts streaming on an executor.
+   *
+   * @param source   the page and the screencast settings
+   * @param executor the executor that starts the browser
+   * @return a future that completes with the result of {@link #start(BrowserSource)}
+   */
+  default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.start(source), executor);
+  }
+
+  /**
+   * Starts streaming on the common pool.
+   *
+   * @param source the page and the screencast settings
+   * @return a future that completes with the result of {@link #start(BrowserSource)}
+   */
+  default CompletableFuture<Boolean> startAsync(final BrowserSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.startAsync(source, pool);
+  }
+
+  /**
+   * Moves the mouse pointer.
+   *
+   * @param x the x coordinate in the streamed frame
+   * @param y the y coordinate in the streamed frame
+   */
+  void moveMouse(final int x, final int y);
+
+  /**
+   * Moves the mouse pointer and performs a click.
+   *
+   * @param type the kind of click
+   * @param x    the x coordinate in the streamed frame
+   * @param y    the y coordinate in the streamed frame
+   */
+  void sendMouseEvent(final MouseClick type, final int x, final int y);
+
+  /**
+   * Types text into the focused element. Special keys are typed by their name, such as {@code Enter} or
+   * {@code ArrowLeft}; any other text is typed character by character.
+   *
+   * @param text the text or key name
+   */
+  void sendKeyEvent(final String text);
+
+  /**
+   * Checks whether a page is being streamed.
+   *
+   * @return true between a successful {@link #start(BrowserSource)} and {@link #release()}
+   */
+  boolean isPlaying();
+
+  /**
+   * Gets the slot that holds the video pipeline the frames are sent through.
+   *
+   * @return the video pipeline slot
+   */
+  VideoAttachableCallback getVideoAttachableCallback();
 }

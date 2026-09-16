@@ -18,16 +18,18 @@
 package me.brandonli.mcav.vnc;
 
 import com.google.common.base.Preconditions;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Implementation of the {@link VNCSource} interface
+ * The default {@link VNCSource}.
  */
-public class VNCSourceImpl implements VNCSource {
+public final class VNCSourceImpl implements VNCSource {
 
   private final String host;
   private final int port;
-  private final String username;
-  private final String password;
+  private final @Nullable String username;
+  private final @Nullable String password;
   private final int width;
   private final int height;
   private final int targetFrameRate;
@@ -35,8 +37,8 @@ public class VNCSourceImpl implements VNCSource {
   VNCSourceImpl(
     final String host,
     final int port,
-    final String username,
-    final String password,
+    final @Nullable String username,
+    final @Nullable String password,
     final int width,
     final int height,
     final int targetFrameRate
@@ -50,230 +52,146 @@ public class VNCSourceImpl implements VNCSource {
     this.targetFrameRate = targetFrameRate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public String getUsername() {
+  public @Nullable String getUsername() {
     return this.username;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getHost() {
     return this.host;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getPort() {
     return this.port;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public String getPassword() {
+  public @Nullable String getPassword() {
     return this.password;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getScreenWidth() {
     return this.width;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getScreenHeight() {
     return this.height;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public int getTargetFrameRate() {
     return this.targetFrameRate;
   }
 
-  /**
-   * Abstract builder interface for creating VNCSource instances.
-   */
-  public interface Builder {
-    /**
-     * Sets the VNC server hostname or IP address.
-     *
-     * @param host the VNC server host
-     * @return this builder
-     */
-    Builder host(String host);
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final VNCSourceImpl source)) {
+      return false;
+    }
+    return (
+      this.host.equals(source.host) &&
+      this.port == source.port &&
+      Objects.equals(this.username, source.username) &&
+      Objects.equals(this.password, source.password) &&
+      this.width == source.width &&
+      this.height == source.height &&
+      this.targetFrameRate == source.targetFrameRate
+    );
+  }
 
-    /**
-     * Sets the VNC server port.
-     *
-     * @param port the VNC server port
-     * @return this builder
-     */
-    Builder port(int port);
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.host, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);
+  }
 
-    /**
-     * Sets the VNC password.
-     *
-     * @param password the password for VNC authentication
-     * @return this builder
-     */
-    Builder password(String password);
-
-    /**
-     * Sets the screen width for the VNC connection.
-     *
-     * @param width the screen width in pixels
-     * @return this builder
-     */
-    Builder screenWidth(int width);
-
-    /**
-     * Sets the screen height for the VNC connection.
-     *
-     * @param height the screen height in pixels
-     * @return this builder
-     */
-    Builder screenHeight(int height);
-
-    /**
-     * Sets the target frame rate for the VNC connection. Will not always be honored.
-     *
-     * @param targetFrameRate the desired frame rate in frames per second
-     * @return this builder
-     */
-    Builder targetFrameRate(int targetFrameRate);
-
-    /**
-     * Sets the username for VNC authentication.
-     *
-     * @param username the username for VNC authentication
-     * @return this builder
-     */
-    Builder username(String username);
-
-    /**
-     * Builds a new VNCSource instance with the configured properties.
-     *
-     * @return a new VNCSource instance
-     */
-    VNCSource build();
+  @Override
+  public String toString() {
+    final String resource = this.getResource();
+    return "VNCSource[" + resource + ", " + this.width + "x" + this.height + "@" + this.targetFrameRate + "]";
   }
 
   /**
-   * Implementation of the Builder interface for VNCSourceImpl.
+   * The default {@link VNCSource.Builder}.
    */
-  public static class BuilderImpl implements Builder {
+  static final class BuilderImpl implements Builder {
 
-    private String host;
+    private @Nullable String host;
     private int port;
-    private String username;
-    private String password;
+    private @Nullable String username;
+    private @Nullable String password;
     private int width;
     private int height;
     private int targetFrameRate;
 
     BuilderImpl() {
-      // no-op
+      this.port = DEFAULT_PORT;
+      this.targetFrameRate = DEFAULT_FRAME_RATE;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Builder host(final String host) {
+      Preconditions.checkNotNull(host, "Host must not be null");
+      Preconditions.checkArgument(!host.isBlank(), "Host must not be blank");
       this.host = host;
       return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Builder port(final int port) {
+      Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
       this.port = port;
       return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Builder password(final String password) {
-      this.password = password;
-      return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Builder screenWidth(final int width) {
-      this.width = width;
-      return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Builder screenHeight(final int height) {
-      this.height = height;
-      return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Builder targetFrameRate(final int targetFrameRate) {
-      this.targetFrameRate = targetFrameRate;
-      return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Builder username(final String username) {
+      Preconditions.checkNotNull(username, "Username must not be null");
       this.username = username;
       return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    public Builder password(final String password) {
+      Preconditions.checkNotNull(password, "Password must not be null");
+      this.password = password;
+      return this;
+    }
+
+    @Override
+    public Builder screenWidth(final int width) {
+      Preconditions.checkArgument(width >= 0, "Width must not be negative but was %s", width);
+      this.width = width;
+      return this;
+    }
+
+    @Override
+    public Builder screenHeight(final int height) {
+      Preconditions.checkArgument(height >= 0, "Height must not be negative but was %s", height);
+      this.height = height;
+      return this;
+    }
+
+    @Override
+    public Builder targetFrameRate(final int targetFrameRate) {
+      Preconditions.checkArgument(targetFrameRate > 0, "Frame rate must be positive but was %s", targetFrameRate);
+      this.targetFrameRate = targetFrameRate;
+      return this;
+    }
+
     @Override
     public VNCSource build() {
-      Preconditions.checkNotNull(this.host);
-      Preconditions.checkArgument(this.port > 0 && this.port <= 65535, "Port must be between 1 and 65535");
-      Preconditions.checkArgument(this.width >= 0, "Width must be non-negative");
-      Preconditions.checkArgument(this.height >= 0, "Height must be non-negative");
-      Preconditions.checkArgument(this.targetFrameRate > 0, "Target frame rate must be positive");
-      return new VNCSourceImpl(this.host, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);
+      final String configuredHost = this.host;
+      if (configuredHost == null) {
+        throw new IllegalStateException("A host is required");
+      }
+      return new VNCSourceImpl(configuredHost, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);
     }
-  }
-
-  /**
-   * Creates a new builder for VNCSource.
-   *
-   * @return a new builder instance
-   */
-  static Builder builder() {
-    return new BuilderImpl();
   }
 }

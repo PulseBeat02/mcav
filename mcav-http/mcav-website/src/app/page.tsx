@@ -1,6 +1,7 @@
 'use client';
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import Image from 'next/image';
 import styles from './page.module.css';
 
 interface MediaInfo {
@@ -89,7 +90,7 @@ class PCMProcessor {
         newSamples.set(float32Array, this.samples.length);
         this.samples = newSamples;
 
-        if (this.samples.length / this.options.channels > this.options.sampleRate / 2) {
+        if (this.samples.length / this.options.channels > this.options.sampleRate / 10) {
             this.play();
         }
     }
@@ -119,46 +120,44 @@ class PCMProcessor {
     private play(): void {
         if (this.samples.length === 0 || this.isDestroyed) return;
 
-        const bufferSource = this.audioCtx.createBufferSource();
-        const length = this.samples.length / this.options.channels;
-        const audioBuffer = this.audioCtx.createBuffer(
-            this.options.channels,
-            length,
-            this.options.sampleRate
-        );
+        const channels = this.options.channels;
+        const length = Math.floor(this.samples.length / channels);
+        if (length === 0) return;
+        const audioBuffer = this.audioCtx.createBuffer(channels, length, this.options.sampleRate);
 
-        for (let channel = 0; channel < this.options.channels; channel++) {
+        // after running dry, restart slightly in the future so the next chunks can queue up behind this one
+        const underrun = this.startTime < this.audioCtx.currentTime;
+        if (underrun) {
+            this.startTime = this.audioCtx.currentTime + 0.1;
+        }
+
+        for (let channel = 0; channel < channels; channel++) {
             const audioData = audioBuffer.getChannelData(channel);
             let offset = channel;
-            let decrement = 50;
             for (let i = 0; i < length; i++) {
                 audioData[i] = this.samples[offset];
-                if (i < 50) {
-                    audioData[i] = (audioData[i] * i) / 50;
+                offset += channels;
+            }
+            // chunks play back to back without gaps, so only a restart after silence needs a fade-in against clicks
+            if (underrun) {
+                const fade = Math.min(64, length);
+                for (let i = 0; i < fade; i++) {
+                    audioData[i] = (audioData[i] * i) / fade;
                 }
-                if (i >= (length - 51)) {
-                    audioData[i] = (audioData[i] * decrement--) / 50;
-                }
-                offset += this.options.channels;
             }
         }
 
-        if (this.startTime < this.audioCtx.currentTime) {
-            this.startTime = this.audioCtx.currentTime;
-        }
-
+        const bufferSource = this.audioCtx.createBufferSource();
         bufferSource.buffer = audioBuffer;
         bufferSource.connect(this.gainNode);
-
         this.activeSources.add(bufferSource);
-
         bufferSource.onended = () => {
             this.activeSources.delete(bufferSource);
         };
-
         bufferSource.start(this.startTime);
         this.startTime += audioBuffer.duration;
-        this.samples = new Float32Array();
+        // keep an incomplete trailing frame so the channels stay aligned
+        this.samples = this.samples.slice(length * channels);
     }
 
     destroy(): void {
@@ -234,6 +233,50 @@ const formatDate = (dateString?: string | null): string => {
     }
 };
 
+const unknownMediaInfo: MediaInfo = {
+    title: 'Unknown Title',
+    uploader: 'Unknown Artist',
+    description: 'No description available',
+    thumbnail: undefined,
+    duration: 0,
+    view_count: 0,
+    like_count: 0,
+    upload_date: null
+};
+
+const loadMediaInfo = async (): Promise<MediaInfo> => {
+    try {
+        const response = await fetch('/media');
+        if (!response.ok) {
+            return unknownMediaInfo;
+        }
+        const data = await response.json();
+        return {
+            title: data?.title || 'Unknown Title',
+            uploader: data?.uploader || data?.channel || data?.uploader_id || 'Unknown Artist',
+            description: data?.description || 'No description available',
+            thumbnail: data?.thumbnail,
+            duration: data?.duration || 0,
+            view_count: data?.view_count || 0,
+            like_count: data?.like_count || 0,
+            upload_date: data?.upload_date || null
+        };
+    } catch (error) {
+        console.error('Error fetching media info:', error);
+        return unknownMediaInfo;
+    }
+};
+
+const sameMediaInfo = (first: MediaInfo, second: MediaInfo): boolean =>
+    first.title === second.title
+    && first.uploader === second.uploader
+    && first.description === second.description
+    && first.thumbnail === second.thumbnail
+    && first.duration === second.duration
+    && first.view_count === second.view_count
+    && first.like_count === second.like_count
+    && first.upload_date === second.upload_date;
+
 export default function AudioStreamPlayer() {
     const [statusText, setStatusText] = useState('Disconnected');
     const [statusConnected, setStatusConnected] = useState(false);
@@ -247,6 +290,9 @@ export default function AudioStreamPlayer() {
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [volume, setVolume] = useState(100);
+    const volumeRef = useRef(100);
+    const streamingRef = useRef(false);
+    const connectRef = useRef<() => void>(() => {});
     const [mediaInfo, setMediaInfo] = useState<MediaInfo>({
         title: 'Waiting for stream...',
         uploader: 'Unknown Artist',
@@ -269,49 +315,22 @@ export default function AudioStreamPlayer() {
     const titleRef = useRef<HTMLHeadingElement>(null);
     const titleWrapperRef = useRef<HTMLDivElement>(null);
     const placeholderRef = useRef<HTMLDivElement>(null);
-    const [isImageError, setIsImageError] = useState(false);
+    // the thumbnail that failed to load; a new thumbnail is tried again without resetting any state
+    const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
+    const fetchingMediaInfoRef = useRef(false);
 
     const maxReconnectAttempts = 5;
 
     const fetchMediaInfo = useCallback(async () => {
+        // a slow server must not pile up requests from the refresh timer
+        if (fetchingMediaInfoRef.current) return;
+        fetchingMediaInfoRef.current = true;
         try {
-            const response = await fetch('/media');
-            if (!response.ok) {
-                setMediaInfo({
-                    title: 'Unknown Title',
-                    uploader: 'Unknown Artist',
-                    description: 'No description available',
-                    thumbnail: undefined,
-                    duration: 0,
-                    view_count: 0,
-                    like_count: 0,
-                    upload_date: null
-                });
-                return;
-            }
-            const data = await response.json();
-            setMediaInfo({
-                title: data?.title || 'Unknown Title',
-                uploader: data?.uploader || data?.channel || data?.uploader_id || 'Unknown Artist',
-                description: data?.description || 'No description available',
-                thumbnail: data?.thumbnail,
-                duration: data?.duration || 0,
-                view_count: data?.view_count || 0,
-                like_count: data?.like_count || 0,
-                upload_date: data?.upload_date || null
-            });
-        } catch (error) {
-            console.error('Error fetching media info:', error);
-            setMediaInfo({
-                title: 'Unknown Title',
-                uploader: 'Unknown Artist',
-                description: 'No description available',
-                thumbnail: undefined,
-                duration: 0,
-                view_count: 0,
-                like_count: 0,
-                upload_date: null
-            });
+            const info = await loadMediaInfo();
+            // an unchanged answer keeps the current object, so the page does not render again every refresh
+            setMediaInfo(previous => sameMediaInfo(previous, info) ? previous : info);
+        } finally {
+            fetchingMediaInfoRef.current = false;
         }
     }, []);
 
@@ -335,15 +354,11 @@ export default function AudioStreamPlayer() {
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx || !pcmProcessorRef.current) return;
 
-        const width = canvas.width;
-        const height = canvas.height;
-        const centerY = height / 2;
-        const maxAmplitude = height * 0.4;
         const dataLength = 256;
-        const xStep = width / dataLength;
 
         let gradient: CanvasGradient | null = null;
         let lastHue = -1;
+        let lastWidth = -1;
 
         const draw = () => {
 
@@ -353,15 +368,22 @@ export default function AudioStreamPlayer() {
             }
 
             const {smoothedData, hue} = pcmProcessorRef.current.getVisualizerData();
+            // the canvas follows the size of its container, so the geometry is read every frame
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerY = height / 2;
+            const maxAmplitude = height * 0.4;
+            const xStep = width / dataLength;
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, width, height);
 
-            if (!gradient || Math.abs(hue - lastHue) > 5) {
+            if (!gradient || Math.abs(hue - lastHue) > 5 || width !== lastWidth) {
                 gradient = ctx.createLinearGradient(0, 0, width, 0);
                 gradient.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
                 gradient.addColorStop(0.5, `hsl(${hue + 60}, 100%, 50%)`);
                 gradient.addColorStop(1, `hsl(${hue + 120}, 100%, 50%)`);
                 lastHue = hue;
+                lastWidth = width;
             }
 
             ctx.shadowBlur = 0;
@@ -436,115 +458,14 @@ export default function AudioStreamPlayer() {
         reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
             if (shouldReconnectRef.current && audioContextRef.current?.state === 'running') {
-                connectWebSocket();
+                connectRef.current();
             }
         }, delay);
-    }, []);
-
-    const connectWebSocket = useCallback(() => {
-        if (pcmProcessorRef.current) {
-            pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = null;
-        }
-
-        startMetadataRefresh();
-
-        setTimeout(() => {
-            try {
-                setIsLoading(true);
-                updateStatus('Connecting...');
-
-                pcmProcessorRef.current = new PCMProcessor({
-                    encoding: '16bitInt',
-                    channels: 2,
-                    sampleRate: 48000,
-                    flushingTime: 2000,
-                    audioCtx: audioContextRef.current!
-                });
-
-                pcmProcessorRef.current.gainNode.gain.value = volume / 100;
-
-                const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-                const endpoint = `${scheme}://${window.location.host}/audio`;
-
-                wsRef.current = new WebSocket(endpoint);
-                wsRef.current.binaryType = 'arraybuffer';
-
-                wsRef.current.onopen = () => {
-                    updateStatus('Connected', true);
-                    setIsConnected(true);
-                    shouldReconnectRef.current = true;
-                    setIsLoading(false);
-                    startHeartbeat();
-
-                    if (placeholderRef.current) {
-                        placeholderRef.current.style.display = 'none';
-                    }
-                    if (canvasRef.current) {
-                        canvasRef.current.style.display = 'block';
-                    }
-
-                    reconnectAttemptsRef.current = 0;
-                    animateVisualizer();
-
-                    if (reconnectTimeoutRef.current) {
-                        clearTimeout(reconnectTimeoutRef.current);
-                        reconnectTimeoutRef.current = null;
-                    }
-                };
-
-                wsRef.current.onmessage = (e) => {
-                    try {
-                        if (e.data.byteLength > 0 && pcmProcessorRef.current && !pcmProcessorRef.current.isDestroyed) {
-                            if (statusText !== 'Streaming audio') {
-                                updateStatus('Streaming audio', true);
-                            }
-                            pcmProcessorRef.current.feed(e.data);
-                        }
-                    } catch (error) {
-                        console.error('Error processing audio data:', error);
-                        if (pcmProcessorRef.current) {
-                            pcmProcessorRef.current.flush();
-                        }
-                    }
-                };
-
-                wsRef.current.onerror = (e) => {
-                    console.error('WebSocket error:', e);
-                    setIsLoading(false);
-                    if (shouldReconnectRef.current) {
-                        updateStatus('Connection error - reconnecting...');
-                        attemptReconnect();
-                    } else {
-                        updateStatus('Connection error');
-                        stopStream();
-                    }
-                };
-
-                wsRef.current.onclose = () => {
-                    stopHeartbeat();
-                    setIsLoading(false);
-                    if (shouldReconnectRef.current) {
-                        updateStatus('Disconnected - reconnecting...');
-                        attemptReconnect();
-                    } else {
-                        updateStatus('Disconnected');
-                        stopStream();
-                    }
-                };
-            } catch (error) {
-                console.error('Error starting stream:', error);
-                updateStatus(`Error: ${(error as Error).message}`);
-                setIsLoading(false);
-                if (shouldReconnectRef.current) {
-                    attemptReconnect();
-                }
-            }
-        }, 100);
-    }, [volume, startMetadataRefresh, startHeartbeat, stopHeartbeat, animateVisualizer, attemptReconnect, updateStatus, statusText]);
+    }, [updateStatus]);
 
     const stopStream = useCallback(() => {
         shouldReconnectRef.current = false;
+        streamingRef.current = false;
 
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
@@ -587,6 +508,116 @@ export default function AudioStreamPlayer() {
             canvasRef.current.style.display = 'none';
         }
     }, [stopMetadataRefresh, stopHeartbeat, updateStatus]);
+
+    const connectWebSocket = useCallback(() => {
+        if (pcmProcessorRef.current) {
+            pcmProcessorRef.current.destroy();
+            pcmProcessorRef.current = null;
+        }
+
+        startMetadataRefresh();
+
+        setTimeout(() => {
+            try {
+                setIsLoading(true);
+                updateStatus('Connecting...');
+
+                pcmProcessorRef.current = new PCMProcessor({
+                    encoding: '16bitInt',
+                    channels: 2,
+                    sampleRate: 48000,
+                    flushingTime: 2000,
+                    audioCtx: audioContextRef.current!
+                });
+
+                pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / 100;
+
+                const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const endpoint = `${scheme}://${window.location.host}/audio`;
+
+                wsRef.current = new WebSocket(endpoint);
+                wsRef.current.binaryType = 'arraybuffer';
+
+                wsRef.current.onopen = () => {
+                    updateStatus('Connected', true);
+                    streamingRef.current = false;
+                    setIsConnected(true);
+                    shouldReconnectRef.current = true;
+                    setIsLoading(false);
+                    startHeartbeat();
+
+                    if (placeholderRef.current) {
+                        placeholderRef.current.style.display = 'none';
+                    }
+                    if (canvasRef.current) {
+                        canvasRef.current.style.display = 'block';
+                    }
+
+                    reconnectAttemptsRef.current = 0;
+                    animateVisualizer();
+
+                    if (reconnectTimeoutRef.current) {
+                        clearTimeout(reconnectTimeoutRef.current);
+                        reconnectTimeoutRef.current = null;
+                    }
+                };
+
+                wsRef.current.onmessage = (e) => {
+                    try {
+                        if (e.data.byteLength > 0 && pcmProcessorRef.current && !pcmProcessorRef.current.isDestroyed) {
+                            if (!streamingRef.current) {
+                                streamingRef.current = true;
+                                updateStatus('Streaming audio', true);
+                            }
+                            pcmProcessorRef.current.feed(e.data);
+                        }
+                    } catch (error) {
+                        console.error('Error processing audio data:', error);
+                        if (pcmProcessorRef.current) {
+                            pcmProcessorRef.current.flush();
+                        }
+                    }
+                };
+
+                wsRef.current.onerror = (e) => {
+                    console.error('WebSocket error:', e);
+                    setIsLoading(false);
+                    if (shouldReconnectRef.current) {
+                        updateStatus('Connection error - reconnecting...');
+                        attemptReconnect();
+                    } else {
+                        updateStatus('Connection error');
+                        stopStream();
+                    }
+                };
+
+                wsRef.current.onclose = () => {
+                    streamingRef.current = false;
+                    stopHeartbeat();
+                    setIsLoading(false);
+                    if (shouldReconnectRef.current) {
+                        updateStatus('Disconnected - reconnecting...');
+                        attemptReconnect();
+                    } else {
+                        updateStatus('Disconnected');
+                        stopStream();
+                    }
+                };
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                updateStatus(`Error: ${(error as Error).message}`);
+                setIsLoading(false);
+                if (shouldReconnectRef.current) {
+                    attemptReconnect();
+                }
+            }
+        }, 100);
+    }, [startMetadataRefresh, startHeartbeat, stopHeartbeat, animateVisualizer, attemptReconnect, updateStatus, stopStream]);
+
+    // the reconnect timer calls the connect function through this ref, so it always runs the current one
+    useEffect(() => {
+        connectRef.current = connectWebSocket;
+    }, [connectWebSocket]);
 
     const handleStart = useCallback(() => {
         shouldReconnectRef.current = true;
@@ -634,7 +665,8 @@ export default function AudioStreamPlayer() {
     }, [stopStream]);
 
     const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newVolume = parseInt(e.target.value);
+        const newVolume = parseInt(e.target.value, 10);
+        volumeRef.current = newVolume;
         setVolume(newVolume);
         if (pcmProcessorRef.current?.gainNode) {
             pcmProcessorRef.current.gainNode.gain.value = newVolume / 100;
@@ -658,22 +690,33 @@ export default function AudioStreamPlayer() {
     }, []);
 
     useEffect(() => {
-        fetchMediaInfo().then(() => {});
+        let unmounted = false;
+        loadMediaInfo().then(info => {
+            if (!unmounted) {
+                setMediaInfo(info);
+            }
+        });
 
         const resizeCanvas = () => {
             const canvas = canvasRef.current;
             if (canvas && canvas.parentElement) {
                 const rect = canvas.parentElement.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
+                const ratio = window.devicePixelRatio || 1;
+                canvas.width = Math.max(1, Math.round(rect.width * ratio));
+                canvas.height = Math.max(1, Math.round(rect.height * ratio));
             }
         };
 
-        window.addEventListener('resize', resizeCanvas);
+        const resizeObserver = new ResizeObserver(resizeCanvas);
+        const canvasContainer = canvasRef.current?.parentElement;
+        if (canvasContainer) {
+            resizeObserver.observe(canvasContainer);
+        }
         resizeCanvas();
 
         return () => {
-            window.removeEventListener('resize', resizeCanvas);
+            unmounted = true;
+            resizeObserver.disconnect();
 
             shouldReconnectRef.current = false;
 
@@ -707,17 +750,13 @@ export default function AudioStreamPlayer() {
                 }
             }
         };
-    }, [fetchMediaInfo]);
+    }, []);
 
     useEffect(() => {
         if (mediaInfo.title && mediaInfo.title !== 'Waiting for stream...') {
             setTimeout(checkTitleScrolling, 100);
         }
     }, [mediaInfo.title, checkTitleScrolling]);
-
-    useEffect(() => {
-        setIsImageError(false);
-    }, [mediaInfo.thumbnail]);
 
     return (
         <div className={styles.container}>
@@ -729,13 +768,14 @@ export default function AudioStreamPlayer() {
                 <div
                     className={`${styles.mediaInfo} ${mediaInfo.title && mediaInfo.title !== 'Waiting for stream...' ? styles.loaded : ''}`}>
                     <div className={styles.mediaThumbnail}>
-                        {!isImageError && mediaInfo.thumbnail ? (
-                            <img
+                        {mediaInfo.thumbnail && mediaInfo.thumbnail !== failedThumbnail ? (
+                            <Image
                                 src={mediaInfo.thumbnail}
                                 alt={mediaInfo.title || 'Media thumbnail'}
                                 width={128}
                                 height={128}
-                                onError={() => setIsImageError(true)}
+                                unoptimized
+                                onError={() => setFailedThumbnail(mediaInfo.thumbnail)}
                                 className={styles.mediaThumbnailImage}
                             />
                         ) : (

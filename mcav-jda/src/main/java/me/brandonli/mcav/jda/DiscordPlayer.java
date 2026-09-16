@@ -17,51 +17,69 @@
  */
 package me.brandonli.mcav.jda;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.audio.AudioReceiveHandler;
 import net.dv8tion.jda.api.audio.AudioSendHandler;
 
 /**
- * Represents a Discord audio filter which can be used to play audio in voice channels. Implements both
- * {@link AudioFilter}, and JDA {@link AudioSendHandler} and {@link AudioReceiveHandler} interfaces for
- * providing and sending audio data. You don't have to worry about transcoding data, as the implementation
- * already handles that conversion for you.
- * <p>
- * Here is an example of how to use it with the JDA API.
+ * Sends the audio of a pipeline into a Discord voice channel.
+ *
+ * <p>The player is both an {@link AudioFilter}, so it can be attached to the audio pipeline of any
+ * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer}, and an {@link AudioSendHandler}, so JDA can pull
+ * 20 millisecond frames from it. Samples are queued in a buffer of a few seconds; when the pipeline runs ahead of
+ * Discord, the oldest samples are dropped.
  *
  * <pre><code>
- *     final JDA jda = JDABuilder.createDefault(...).build();
- *     jda.awaitReady();
- *
- *     final Guild guild = jda.getGuildById(...);
- *     final VoiceChannel voiceChannel = guild.getVoiceChannelById(...);
- *     final AudioManager audioManager = guild.getAudioManager();
- *     audioManager.openAudioConnection(voiceChannel);
- *
- *     final DiscordPlayer player = DiscordPlayer.voice();
- *     audioManager.setSendingHandler(player);
- *
- *     final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(player);
- *     ...
+ *   final DiscordPlayer player = DiscordPlayer.voice(jda);
+ *   final AudioManager audioManager = guild.getAudioManager();
+ *   audioManager.setSendingHandler(player);
+ *   audioManager.openAudioConnection(channel);
+ *   final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
+ *   final AudioPipelineStep step = AudioPipelineStep.of(player);
+ *   audio.attach(step);
  * </code></pre>
  */
-public interface DiscordPlayer extends AudioFilter, AudioSendHandler, AudioReceiveHandler {
+public interface DiscordPlayer extends AudioFilter, AudioSendHandler {
   /**
-   * Creates a new instance of {@link DiscordPlayer}.
+   * Creates a player for a bot.
    *
-   * @param jda the JDA instance to use for audio playback
-   * @return a new instance of {@link DiscordPlayer}
+   * @param jda the logged-in bot
+   * @return the player
    */
   static DiscordPlayer voice(final JDA jda) {
+    Preconditions.checkNotNull(jda, "JDA must not be null");
     return new DiscordPlayerImpl(jda);
   }
 
   /**
-   * Sets the current media information for serving.
+   * Sets the presence of the bot to "Playing" the title of the media yt-dlp resolved. The title is shown as
+   * {@link #setPlaying(String)} describes; media without a title shows "Unknown title".
    *
-   * @param dump the URL parse dump containing information about the media
+   * @param dump the media information from yt-dlp
    */
   void setCurrentMedia(final URLParseDump dump);
+
+  /**
+   * Sets the presence of the bot to "Playing" a title. Any title is accepted and adjusted to the rules of
+   * Discord: surrounding whitespace is removed, a blank title shows "Unknown title", and a title longer than
+   * {@link net.dv8tion.jda.api.entities.Activity#MAX_ACTIVITY_NAME_LENGTH} characters is cut and ends with an
+   * ellipsis character (U+2026), so it fits the limit.
+   *
+   * @param title the title
+   */
+  void setPlaying(final String title);
+
+  /**
+   * Drops every queued sample, for example after seeking or stopping the source.
+   */
+  void flush();
+
+  /**
+   * Gets the number of milliseconds of audio waiting to be sent.
+   *
+   * @return the queued duration in milliseconds
+   */
+  long getQueuedMillis();
 }

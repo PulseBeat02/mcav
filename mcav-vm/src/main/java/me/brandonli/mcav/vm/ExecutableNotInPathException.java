@@ -17,26 +17,28 @@
  */
 package me.brandonli.mcav.vm;
 
+import com.google.common.base.Preconditions;
 import java.io.Serial;
 
 /**
- * Exception thrown when an executable required by the library is not found in the system PATH.
+ * Thrown when a program that must be installed on the machine, such as QEMU, is not on the {@code PATH} or in one of
+ * the folders {@link ExecutableFinder} also searches.
+ *
+ * <p>It is a {@link RuntimeException}, so {@code catch (Exception)} handles it.
  */
-public class ExecutableNotInPathException extends AssertionError {
+public class ExecutableNotInPathException extends RuntimeException {
 
   @Serial
-  private static final long serialVersionUID = 2760594791392402124L;
+  private static final long serialVersionUID = 4163726305184327011L;
 
   /**
-   * Constructs a new exception with a detailed message indicating the missing executable.
+   * Constructs a new exception.
    *
-   * @param executable the name of the executable that is not found in the PATH
+   * @param executable the name of the missing program
+   * @throws NullPointerException if the name is null
    */
   public ExecutableNotInPathException(final String executable) {
-    super(
-      "Executable %s is not in the system PATH. Please ensure it is installed and available in the PATH environment variable.".formatted(
-          executable
-        )
-    );
+    Preconditions.checkNotNull(executable, "Executable must not be null");
+    super("The program " + executable + " is not installed or not on the PATH");
   }
 }

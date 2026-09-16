@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.vm;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -27,111 +28,143 @@ import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * Represents a virtual machine player interface that extends the capabilities of a controllable player
+ * Runs a virtual machine in QEMU and streams its screen, forwarding mouse and keyboard input to it.
+ *
+ * <p>The player starts QEMU with a VNC display bound to the local machine and connects a
+ * {@link me.brandonli.mcav.vnc.VNCPlayer} to it. A USB tablet is attached so the mouse pointer follows absolute
+ * coordinates, and the fastest available accelerator is used unless the configuration sets one. QEMU must be
+ * installed on the machine; see {@link VMModule}.
+ *
+ * <pre><code>
+ *   final VMPlayer player = VMPlayer.create();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(pipeline);
+ *   final VMConfiguration configuration = VMConfiguration.builder();
+ *   configuration.cdrom("alpine.iso");
+ *   configuration.memory(1024);
+ *   final VMSettings settings = VMSettings.of(1024, 768, 30);
+ *   player.start(settings, VMPlayer.Architecture.X86_64, configuration);
+ * </code></pre>
  */
 public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, ExceptionHandler {
   /**
-   * Creates a new instance of the VMPlayer implementation.
+   * Creates a player.
    *
-   * @return a new instance of VMPlayer
+   * @return the player
    */
-  static VMPlayer vm() {
-    return new VMPlayerImpl();
+  static VMPlayer create() {
+    return VMPlayerImpl.createDefault();
   }
 
   /**
-   * Starts the virtual machine with the specified settings and architecture.
+   * Starts QEMU and connects to its display. Starting takes a few seconds; the call returns once the VNC display
+   * is reachable.
    *
-   * @param settings   the VM settings to use
-   * @param architecture the architecture of the VM
-   * @param arguments  additional configuration arguments for the VM
-   * @return true if the VM started successfully, false otherwise
+   * @param settings      how the machine is streamed
+   * @param architecture  the guest architecture, which picks the QEMU program
+   * @param configuration the QEMU command line
+   * @return true if the machine started, false if the player is already running or released
+   * @throws ExecutableNotInPathException              if the QEMU program is not installed
+   * @throws me.brandonli.mcav.media.player.PlayerException if QEMU exits or its display never becomes reachable
    */
-  boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration arguments);
+  boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration);
 
   /**
-   * Starts the virtual machine asynchronously with the specified settings and architecture.
+   * Starts the machine on an executor.
    *
-   * @param settings   the VM settings to use
-   * @param architecture the architecture of the VM
-   * @param arguments  additional configuration arguments for the VM
-   * @param service    the executor service to run the task on
-   * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
+   * @param settings      how the machine is streamed
+   * @param architecture  the guest architecture
+   * @param configuration the QEMU command line
+   * @param executor      the executor that starts QEMU
+   * @return a future that completes with the result of {@link #start(VMSettings, Architecture, VMConfiguration)}
    */
   default CompletableFuture<Boolean> startAsync(
     final VMSettings settings,
     final Architecture architecture,
-    final VMConfiguration arguments,
-    final ExecutorService service
+    final VMConfiguration configuration,
+    final ExecutorService executor
   ) {
-    return CompletableFuture.supplyAsync(() -> this.start(settings, architecture, arguments), service);
+    Preconditions.checkNotNull(settings, "Settings must not be null");
+    Preconditions.checkNotNull(architecture, "Architecture must not be null");
+    Preconditions.checkNotNull(configuration, "Configuration must not be null");
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.start(settings, architecture, configuration), executor);
   }
 
   /**
-   * Starts the virtual machine asynchronously with the specified settings and architecture.
+   * Starts the machine on the common pool.
    *
-   * @param settings   the VM settings to use
-   * @param architecture the architecture of the VM
-   * @param arguments  additional configuration arguments for the VM
-   * @return a CompletableFuture that completes with true if the VM started successfully, false otherwise
+   * @param settings      how the machine is streamed
+   * @param architecture  the guest architecture
+   * @param configuration the QEMU command line
+   * @return a future that completes with the result of {@link #start(VMSettings, Architecture, VMConfiguration)}
    */
   default CompletableFuture<Boolean> startAsync(
     final VMSettings settings,
     final Architecture architecture,
-    final VMConfiguration arguments
+    final VMConfiguration configuration
   ) {
-    return this.startAsync(settings, architecture, arguments, ForkJoinPool.commonPool());
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.startAsync(settings, architecture, configuration, pool);
   }
 
   /**
-   * Moves the mouse cursor to the specified coordinates within the virtual machine.
+   * Moves the mouse pointer.
    *
-   * @param x the x-coordinate to move the mouse to
-   * @param y the y-coordinate to move the mouse to
+   * @param x the x coordinate in the streamed frame
+   * @param y the y coordinate in the streamed frame
    */
   void moveMouse(final int x, final int y);
 
   /**
-   * Sends a key event with the specified text to the virtual machine.
+   * Types text. A key name from the X11 keysym table, such as {@code Return} or {@code Escape}, presses that
+   * key; any other text is typed character by character.
    *
-   * @param text the text to send as a key event
+   * @param text the text or key name
    */
   void sendKeyEvent(final String text);
 
   /**
-   * Sends a mouse event of the specified type at the given coordinates within the virtual machine.
+   * Moves the mouse pointer and performs a click.
    *
-   * @param type the type of mouse click event (e.g., CLICK, DOUBLE_CLICK, RIGHT_CLICK)
-   * @param x    the x-coordinate where the mouse event should occur
-   * @param y    the y-coordinate where the mouse event should occur
+   * @param type the kind of click
+   * @param x    the x coordinate in the streamed frame
+   * @param y    the y coordinate in the streamed frame
    */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**
-   * Gets the video-attachable callback associated with this player.
+   * Checks whether the machine is running and frames are delivered.
    *
-   * @return The video-attachable callback.
+   * @return true while running and not paused
+   */
+  boolean isPlaying();
+
+  /**
+   * Gets the slot that holds the video pipeline the frames are sent through.
+   *
+   * @return the video pipeline slot
    */
   VideoAttachableCallback getVideoAttachableCallback();
 
   /**
-   * Represents supported architectures for virtualization and emulation.
+   * The guest architectures QEMU can emulate, each with its own program.
    */
   enum Architecture {
     /**
-     * Represents the x86_64 architecture
+     * 64-bit x86 guests, run by {@code qemu-system-x86_64}.
      */
     X86_64("qemu-system-x86_64"),
     /**
-     * Represents the ARM architecture
+     * 32-bit ARM guests, run by {@code qemu-system-arm}.
      */
     ARM("qemu-system-arm"),
     /**
-     * Represents the AARCH64 architecture
+     * 64-bit ARM guests, run by {@code qemu-system-aarch64}.
      */
     AARCH64("qemu-system-aarch64"),
     /**
-     * Represents the RISC-V 64-bit architecture
+     * 64-bit RISC-V guests, run by {@code qemu-system-riscv64}.
      */
     RISCV64("qemu-system-riscv64");
 
@@ -142,9 +175,9 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
     }
 
     /**
-     * Retrieves the system command associated with a specific architecture.
+     * Gets the name of the QEMU program for this architecture.
      *
-     * @return the command string corresponding to the architecture.
+     * @return the program name
      */
     public String getCommand() {
       return this.command;

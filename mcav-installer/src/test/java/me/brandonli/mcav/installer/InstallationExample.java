@@ -17,19 +17,33 @@
  */
 package me.brandonli.mcav.installer;
 
-import static java.util.Objects.requireNonNull;
-
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Path;
 
+/**
+ * Downloads the core module into {@code dependencies} and loads it into a fresh class loader.
+ */
 public final class InstallationExample {
 
-  public static void main(final String[] args) {
-    final Path downloaded = Path.of("dependencies");
-    final Artifact download = Artifact.COMMON;
-    final Class<InstallationExample> clazz = InstallationExample.class;
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
-    @SuppressWarnings("deprecation")
-    final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
-    installer.loadMCAVDependencies(download);
+  /**
+   * Runs the example.
+   *
+   * @throws ClassNotFoundException if the core module did not end up in the class loader
+   * @throws IOException            if the class loader cannot be closed
+   */
+  static void main() throws ClassNotFoundException, IOException {
+    final Path folder = Path.of("dependencies");
+    final ClassLoader parent = InstallationExample.class.getClassLoader();
+    final URL[] noUrls = new URL[0];
+    try (final URLClassLoader loader = new URLClassLoader(noUrls, parent)) {
+      final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
+      installer.loadMCAVDependencies(Artifact.COMMON);
+
+      final Class<?> api = Class.forName("me.brandonli.mcav.MCAV", false, loader);
+      final String name = api.getName();
+      System.out.println("Loaded " + name);
+    }
   }
 }

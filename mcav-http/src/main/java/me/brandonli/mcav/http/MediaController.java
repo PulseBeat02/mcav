@@ -15,20 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
+package me.brandonli.mcav.http;
 
-import java.io.Serial;
+import java.util.Map;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Represents an exception when a jar entry's integrity is compromised, such as for unzipping and loading the
- * service entries in a jar file.
+ * Serves the information about the current media at {@code /media}.
  */
-public class JarEntryIntegrityException extends SecurityException {
+@RestController
+final class MediaController {
 
-  @Serial
-  private static final long serialVersionUID = -5481191042398056901L;
+  private final HttpResultImpl result;
 
-  JarEntryIntegrityException(final String message) {
-    super(message);
+  MediaController(final HttpResultImpl result) {
+    this.result = result;
+  }
+
+  @GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
+  Map<String, Object> media() {
+    final MediaInfo info = this.result.getCurrentMedia();
+    return info.toJson();
   }
 }

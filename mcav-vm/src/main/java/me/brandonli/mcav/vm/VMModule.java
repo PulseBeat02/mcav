@@ -17,74 +17,79 @@
  */
 package me.brandonli.mcav.vm;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.nio.file.Path;
+import java.util.Optional;
 import me.brandonli.mcav.module.MCAVModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The entry point for the VM module.
+ * Registers the virtual machine backend. Install it with {@code MCAV.api().install(VMModule.class)}.
+ *
+ * <p>QEMU cannot be installed by the library without administrator rights, so it must be installed on the
+ * machine: through the package manager on Linux, Homebrew on macOS, or the installer from
+ * <a href="https://qemu.weka.io/">qemu.weka.io</a> on Windows. The {@code qemu-system-*} programs must be on the
+ * {@code PATH} of the Java process, or in a folder {@link ExecutableFinder} also searches: {@code /usr/local/bin}
+ * and {@code /usr/bin} on Linux, the Homebrew folders and {@code /etc/paths} on macOS, and
+ * {@code C:\Program Files\qemu} on Windows. Services often run with a shorter {@code PATH} than a login shell, so a
+ * QEMU installed elsewhere must be added to the {@code PATH} of the service. Starting the module only checks whether
+ * QEMU is available; {@link VMPlayer#start(VMSettings, VMPlayer.Architecture, VMConfiguration)} fails with an
+ * {@link ExecutableNotInPathException} otherwise.
  */
 public final class VMModule implements MCAVModule {
 
-  private boolean isQemuInstalled;
+  private static final Logger LOGGER = LoggerFactory.getLogger(VMModule.class);
 
-  VMModule() {
-    // no-op
+  private final ExecutableFinder finder;
+  private volatile boolean qemuInstalled;
+
+  /**
+   * Constructs the module. The module loader creates it for you.
+   */
+  public VMModule() {
+    this(new ExecutableFinder());
   }
 
   /**
-   * {@inheritDoc}
+   * Constructs a module that looks for QEMU with the given finder.
+   *
+   * @param finder finds the QEMU program
    */
+  @VisibleForTesting
+  VMModule(final ExecutableFinder finder) {
+    this.finder = finder;
+  }
+
   @Override
   public void start() {
-    // this.installQemu();
-    final ExecutableFinder finder = new ExecutableFinder();
-    this.isQemuInstalled = finder.find("qemu-system-x86_64") != null;
+    final String command = VMPlayer.Architecture.X86_64.getCommand();
+    final Optional<Path> qemu = this.finder.find(command);
+    this.qemuInstalled = qemu.isPresent();
+    if (qemu.isPresent()) {
+      final Path path = qemu.get();
+      LOGGER.info("Found QEMU at {}", path);
+    } else {
+      LOGGER.warn("{} is not on the PATH or in the usual install folders, virtual machines cannot be started", command);
+    }
   }
 
-  //  private void installQemu() {
-  //    try {
-  //      final QemuInstaller installer = QemuInstaller.create();
-  //      if (!installer.isSupported()) {
-  //        this.capabilities.remove(Capability.QEMU);
-  //        LOGGER.info("QEMU is not enabled, skipping installation.");
-  //        return;
-  //      }
-  //      LOGGER.info("Installing QEMU...");
-  //      final long start = System.currentTimeMillis();
-  //      installer.download(true);
-  //      final long end = System.currentTimeMillis();
-  //      LOGGER.info("QEMU installation took {} ms", end - start);
-  //    } catch (final IOException e) {
-  //      this.capabilities.remove(Capability.QEMU);
-  //      final String msg = e.getMessage();
-  //      if (msg != null) {
-  //        LOGGER.error(msg);
-  //      }
-  //      LOGGER.info("Failed to install QEMU, skipping installation.");
-  //    }
-  //  }
-
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void stop() {
-    // no-op
+    // nothing to release
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getModuleName() {
     return "vm";
   }
 
   /**
-   * Checks if QEMU is installed.
+   * Checks whether QEMU for x86-64 guests was found when the module started.
    *
-   * @return true if QEMU is installed, false otherwise
+   * @return true if QEMU is available
    */
   public boolean isQemuInstalled() {
-    return this.isQemuInstalled;
+    return this.qemuInstalled;
   }
 }

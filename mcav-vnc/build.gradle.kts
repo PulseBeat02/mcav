@@ -8,6 +8,9 @@ dependencies {
 
     // provided
     compileOnlyApi(project(":mcav-common"))
+
+    // test dependencies
+    testImplementation(project(":mcav-common"))
 }
 
 tasks {

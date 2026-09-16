@@ -18,38 +18,56 @@
 package me.brandonli.mcav.installer;
 
 /**
- * Enum representing different artifacts in the mcav project.
+ * The modules of the library that can be downloaded at runtime. Each module brings its own transitive
+ * dependencies; {@link #COMMON} is required by every other module.
  */
 public enum Artifact {
   /**
-   * common artifact
+   * The core library: players, filters, dithering, and installers.
    */
   COMMON("mcav-common"),
-
   /**
-   * jda artifact
+   * Discord voice output through JDA.
    */
   JDA("mcav-jda"),
-
   /**
-   * http artifact
+   * The web audio player served over HTTP.
    */
   HTTP("mcav-http"),
-
   /**
-   * browser artifact
+   * Web page streaming through Selenium and Playwright.
    */
   BROWSER("mcav-browser"),
-
   /**
-   * vm artifact
+   * Virtual machines through QEMU.
    */
   VM("mcav-vm"),
+  /**
+   * Remote desktops through VNC.
+   */
+  VNC("mcav-vnc"),
+  /**
+   * Positional audio through Simple Voice Chat.
+   */
+  SVC("mcav-svc"),
+  /**
+   * OpenGL texture output through LWJGL.
+   */
+  LWJGL("mcav-lwjgl"),
+  /**
+   * Minecraft Paper integration: maps, blocks, entities, chat, scoreboards, and resource packs.
+   */
+  BUKKIT("mcav-bukkit");
 
   /**
-   * vnc artifact
+   * The Maven group of every module.
    */
-  VNC("mcav-vnc");
+  public static final String GROUP_ID = "me.brandonli";
+
+  /**
+   * The version downloaded when none is specified.
+   */
+  public static final String DEFAULT_VERSION = "1.0.0-SNAPSHOT";
 
   private final String artifactId;
 
@@ -58,9 +76,9 @@ public enum Artifact {
   }
 
   /**
-   * Returns the artifact ID of this artifact.
+   * Gets the Maven artifact id of the module.
    *
-   * @return the artifact ID
+   * @return the artifact id, such as {@code mcav-common}
    */
   public String getArtifactId() {
     return this.artifactId;

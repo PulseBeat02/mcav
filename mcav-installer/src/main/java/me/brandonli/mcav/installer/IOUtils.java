@@ -17,45 +17,28 @@
  */
 package me.brandonli.mcav.installer;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
+/**
+ * File helpers of the installer, which cannot depend on the library it installs.
+ */
 final class IOUtils {
 
   private IOUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
+  /**
+   * Gets the file name of a path.
+   *
+   * @param file the path
+   * @return the last element of the path
+   */
   static String getFileName(final Path file) {
-    final Path name = requireNonNull(file.getFileName());
+    final Path name = file.getFileName();
+    if (name == null) {
+      throw new InstallationException("Path " + file + " has no file name");
+    }
     return name.toString();
-  }
-
-  static String calculateSha256Hash(final Path file) throws IOException {
-    try {
-      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      final byte[] fileBytes = Files.readAllBytes(file);
-      final byte[] hashBytes = digest.digest(fileBytes);
-      return tohexString(hashBytes);
-    } catch (final NoSuchAlgorithmException e) {
-      throw new InstallationError("SHA-256 algorithm not available");
-    }
-  }
-
-  private static String tohexString(final byte[] hashBytes) {
-    final StringBuilder hexString = new StringBuilder();
-    for (final byte hashByte : hashBytes) {
-      final String hex = Integer.toHexString(0xff & hashByte);
-      if (hex.length() == 1) {
-        hexString.append('0');
-      }
-      hexString.append(hex);
-    }
-    return hexString.toString();
   }
 }

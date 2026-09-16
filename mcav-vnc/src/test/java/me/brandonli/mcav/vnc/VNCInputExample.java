@@ -17,69 +17,105 @@
  */
 package me.brandonli.mcav.vnc;
 
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import javax.swing.*;
+import javax.swing.ImageIcon;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.interaction.MouseClick;
 
-public class VNCInputExample {
+/**
+ * Shows the screen of the VNC server at {@code localhost:5900} in a window and forwards clicks to it.
+ */
+public final class VNCInputExample {
 
-  private static class VNCPanel extends JPanel {
+  private static final int WIDTH = 1024;
+  private static final int HEIGHT = 768;
 
-    private BufferedImage image;
-
-    @Override
-    protected void paintComponent(final Graphics g) {
-      super.paintComponent(g);
-      if (this.image != null) {
-        g.drawImage(this.image, 0, 0, this.getWidth(), this.getHeight(), (img, infoflags, x, y, width, height) -> false);
-      }
-    }
-
-    public void setImage(final BufferedImage img) {
-      this.image = img;
-      this.repaint();
-    }
+  private VNCInputExample() {
+    throw new UnsupportedOperationException("Example class cannot be instantiated");
   }
 
-  public static void main(final String[] args) {
+  /**
+   * Opens the window, connects to the server, and releases everything when the JVM exits.
+   */
+  static void main() {
     final MCAVApi api = MCAV.api();
-    api.install();
+    api.install(VNCModule.class);
 
-    final VNCPanel vncPanel = new VNCPanel();
-    vncPanel.setVisible(true);
+    final JLabel label = new JLabel();
+    openWindow(label);
 
-    final JFrame frame = new JFrame("VNC Viewer Test");
-    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    frame.setSize(800, 600);
-    frame.add(vncPanel, BorderLayout.CENTER);
-    frame.setSize(1000, 800);
-    frame.setVisible(true);
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((image, _) -> {
+      show(label, image);
+      return true;
+    });
+    final VideoPipelineStep pipeline = builder.build();
 
-    final VideoPipelineStep pipeline = PipelineBuilder.video()
-      .then((image, step) -> {
-        vncPanel.setImage(image.toBufferedImage());
-        return true;
-      })
-      .build();
-    final VNCSource source = VNCSource.vnc().host("localhost").port(5900).screenWidth(800).screenHeight(600).targetFrameRate(30).build();
-    final VNCPlayer player = VNCPlayer.vm();
+    final VNCSource.Builder sourceBuilder = VNCSource.builder();
+    sourceBuilder.host("localhost");
+    sourceBuilder.port(5900);
+    sourceBuilder.screenWidth(WIDTH);
+    sourceBuilder.screenHeight(HEIGHT);
+    sourceBuilder.targetFrameRate(30);
+    final VNCSource source = sourceBuilder.build();
 
+    final VNCPlayer player = VNCPlayer.create();
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
     callback.attach(pipeline);
-
     player.start(source);
 
+    forwardClicks(label, player);
+    releaseOnExit(api, player);
+  }
+
+  private static void openWindow(final JLabel label) {
+    final JFrame frame = new JFrame("VNC");
+    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+    frame.setSize(WIDTH, HEIGHT);
+    final BorderLayout layout = new BorderLayout();
+    frame.setLayout(layout);
+    frame.add(label, BorderLayout.CENTER);
+    frame.setVisible(true);
+  }
+
+  private static void forwardClicks(final JLabel label, final VNCPlayer player) {
+    final MouseListener listener = new MouseAdapter() {
+      @Override
+      public void mouseClicked(final MouseEvent event) {
+        final int x = event.getX();
+        final int y = event.getY();
+        player.sendMouseEvent(MouseClick.LEFT, x, y);
+      }
+    };
+    label.addMouseListener(listener);
+  }
+
+  private static void releaseOnExit(final MCAVApi api, final VNCPlayer player) {
+    final Thread hook = new Thread(() -> {
+      player.release();
+      api.release();
+    });
     final Runtime runtime = Runtime.getRuntime();
-    runtime.addShutdownHook(
-      new Thread(() -> {
-        player.release();
-        api.release();
-      })
-    );
+    runtime.addShutdownHook(hook);
+  }
+
+  private static void show(final JLabel label, final ImageBuffer samples) {
+    final BufferedImage image = samples.toBufferedImage();
+    final ImageIcon icon = new ImageIcon(image);
+    SwingUtilities.invokeLater(() -> label.setIcon(icon));
   }
 }

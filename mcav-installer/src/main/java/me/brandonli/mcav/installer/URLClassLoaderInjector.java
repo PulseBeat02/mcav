@@ -17,19 +17,16 @@
  */
 package me.brandonli.mcav.installer;
 
+import java.lang.invoke.MethodHandle;
 import java.net.URL;
 import java.net.URLClassLoader;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Calls the protected {@code addURL} method of a {@link URLClassLoader}. Two strategies exist because the
+ * runtime may deny the reflective access the first one needs.
+ */
 abstract class URLClassLoaderInjector {
-
-  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
-    if (ReflectiveInjector.isSupported()) {
-      return new ReflectiveInjector(classLoader);
-    } else if (UnsafeInjector.isSupported()) {
-      return new UnsafeInjector(classLoader);
-    }
-    throw new JarInjectorException("No supported injector found");
-  }
 
   private final URLClassLoader classLoader;
 
@@ -37,8 +34,54 @@ abstract class URLClassLoaderInjector {
     this.classLoader = classLoader;
   }
 
+  /**
+   * Creates the best injector the runtime allows.
+   *
+   * @param classLoader the class loader to add jars to
+   * @return the injector
+   * @throws JarInjectorException if no strategy works on this runtime
+   */
+  static URLClassLoaderInjector create(final URLClassLoader classLoader) {
+    return create(classLoader, ReflectiveInjector.ADD_URL, UnsafeInjector.UNSAFE);
+  }
+
+  /**
+   * Creates the first injector whose strategy is available. Visible for testing.
+   *
+   * @param classLoader the class loader to add jars to
+   * @param addUrl      the {@code addURL} handle of the reflective strategy, or null if it is not available
+   * @param unsafe      the access of the Unsafe strategy, or null if it is not available
+   * @return the injector
+   * @throws JarInjectorException if neither strategy is available
+   */
+  static URLClassLoaderInjector create(
+    final URLClassLoader classLoader,
+    final @Nullable MethodHandle addUrl,
+    final UnsafeInjector.@Nullable UnsafeAccess unsafe
+  ) {
+    if (addUrl != null) {
+      return new ReflectiveInjector(classLoader, addUrl);
+    }
+    if (unsafe != null) {
+      return new UnsafeInjector(classLoader, unsafe);
+    }
+    throw new JarInjectorException(
+      "No way to add jars to a URLClassLoader on this runtime; add --add-opens java.base/java.net=ALL-UNNAMED"
+    );
+  }
+
+  /**
+   * Appends a jar to the class loader.
+   *
+   * @param url the URL of the jar
+   */
   abstract void addURL(final URL url);
 
+  /**
+   * Gets the class loader jars are added to.
+   *
+   * @return the class loader
+   */
   URLClassLoader getClassLoader() {
     return this.classLoader;
   }

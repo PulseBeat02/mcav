@@ -13,15 +13,12 @@ dependencies {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
-    api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
-
     // provided
     compileOnlyApi(project(":mcav-common"))
-    compileOnlyApi("org.apache.logging.log4j:log4j-core:3.0.0-beta3")
 
     // testing
     testImplementation(project(":mcav-common"))
-    testImplementation("org.slf4j:slf4j-simple:2.1.0-alpha1")
+    testImplementation("org.slf4j:slf4j-simple:2.0.17")
 }
 
 val windows = System.getProperty("os.name").lowercase().contains("windows")
@@ -44,18 +41,19 @@ tasks {
         options.encoding = "UTF-8"
     }
 
-    val npmProjectInstall by registering(Exec::class) {
+    val npmProjectInstall = register<Exec>("npmProjectInstall") {
         group = "build"
         description = "Install npm dependencies for the website"
         workingDir = file("mcav-website")
         executable = getNpmExecutable().absolutePath
-        setArgs(listOf("install"))
+        // installs exactly what package-lock.json lists, so every machine builds the same website
+        setArgs(listOf("ci"))
         inputs.file("mcav-website/package.json")
         inputs.file("mcav-website/package-lock.json")
         outputs.dir("mcav-website/node_modules")
     }
 
-    val buildWebsite by registering(Exec::class) {
+    val buildWebsite = register<Exec>("buildWebsite") {
         group = "build"
         description = "Build the Next.js website"
         dependsOn(npmProjectInstall)

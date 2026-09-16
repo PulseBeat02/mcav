@@ -17,90 +17,164 @@
  */
 package me.brandonli.mcav.installer;
 
-import static java.util.Objects.requireNonNull;
-
 import java.nio.file.Path;
-import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Allows you to install and manage mcav dependencies for many artifacts. Downloads all transitive dependencies as
- * well. In general, you should use this class to construct your own ClassLoader that contains references to the
- * downloaded jars.
+ * Downloads modules of the library, or any other Maven artifact, at runtime and adds them to a class loader.
+ *
+ * <p>This keeps plugin jars small: the plugin ships only the installer and downloads the library on its first
+ * start. Shading the library into the plugin remains the simpler choice where jar size does not matter.
  *
  * <pre><code>
- *   final Path downloaded = Path.of("dependencies");
- *   final Class&lt;?&gt; clazz = this.getClass();
- *   final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
- *   final MCAVInstaller installer = MCAVInstaller.injector(downloaded, classLoader);
+ *   final Path dataPath = dataFolder.toPath();
+ *   final Path folder = dataPath.resolve("libs");
+ *   final MCAVInstaller installer = MCAVInstaller.injector(folder, this);
  *   installer.loadMCAVDependencies(Artifact.COMMON);
+ *   installer.loadMCAVDependencies(Artifact.BUKKIT);
  * </code></pre>
- *
- * @deprecated You shouldn't load dependencies at runtime unless you really have to. In that case, you should allow
- * other libraries to handle the large dependencies for you.
  */
-@Deprecated
-public class MCAVInstaller {
+public final class MCAVInstaller {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVInstaller.class);
 
   private final Path folder;
   private final ClassLoader classLoader;
+  private final Function<Path, InstallationManager> managerFactory;
 
   MCAVInstaller(final Path folder, final ClassLoader classLoader) {
-    this.folder = folder;
-    this.classLoader = classLoader;
+    this(folder, classLoader, InstallationManager::new);
   }
 
   /**
-   * Creates an instance of MCAVInstaller with the specified folder and class loader.
+   * Creates an installer with another way to create the {@link InstallationManager}, for example one that
+   * downloads from a repository on the file system.
    *
-   * @param folder      the folder path where dependencies or resources will be managed
-   * @param classLoader the class loader used to load dependencies at runtime
-   * @return an instance of MCAVInstaller
+   * @param folder         the folder the jars are copied into
+   * @param classLoader    the class loader the jars are added to
+   * @param managerFactory creates a manager for the folder
+   */
+  MCAVInstaller(final Path folder, final ClassLoader classLoader, final Function<Path, InstallationManager> managerFactory) {
+    this.folder = folder;
+    this.classLoader = classLoader;
+    this.managerFactory = managerFactory;
+  }
+
+  /**
+   * Gets the folder the jars are copied into.
+   *
+   * @return the folder
+   */
+  Path getFolder() {
+    return this.folder;
+  }
+
+  /**
+   * Gets the class loader the jars are added to.
+   *
+   * @return the class loader
+   */
+  ClassLoader getClassLoader() {
+    return this.classLoader;
+  }
+
+  /**
+   * Creates an installer that loads into a class loader.
+   *
+   * @param folder      the folder the jars are copied into
+   * @param classLoader the class loader the jars are added to
+   * @return the installer
+   * @throws NullPointerException if the folder or the class loader is null
    */
   public static MCAVInstaller injector(final Path folder, final ClassLoader classLoader) {
-    requireNonNull(folder);
-    requireNonNull(classLoader);
+    Objects.requireNonNull(folder, "Folder must not be null");
+    Objects.requireNonNull(classLoader, "Class loader must not be null");
     return new MCAVInstaller(folder, classLoader);
   }
 
   /**
-   * Creates an instance of MCAVInstaller with the specified folder and the class loader of the provided object.
+   * Creates an installer that loads into the class loader of an object, typically the plugin instance.
    *
-   * @param folder the folder path where dependencies or resources will be managed
-   * @param object an object whose class loader will be used to load dependencies
-   * @return an instance of MCAVInstaller
+   * @param folder the folder the jars are copied into
+   * @param owner  the object whose class loader receives the jars
+   * @return the installer
+   * @throws NullPointerException if the folder or the owner is null
+   * @throws JarInjectorException if the class of the owner was loaded by the bootstrap class loader
    */
-  public static MCAVInstaller injector(final Path folder, final Object object) {
-    final Class<?> clazz = object.getClass();
-    final ClassLoader classLoader = requireNonNull(clazz.getClassLoader());
+  public static MCAVInstaller injector(final Path folder, final Object owner) {
+    Objects.requireNonNull(folder, "Folder must not be null");
+    Objects.requireNonNull(owner, "Owner must not be null");
+    final Class<?> type = owner.getClass();
+    final ClassLoader classLoader = type.getClassLoader();
+    if (classLoader == null) {
+      throw new JarInjectorException("Classes of the bootstrap class loader cannot receive jars");
+    }
     return injector(folder, classLoader);
   }
 
   /**
-   * Downloads and loads the required dependencies for the given artifact.
+   * Downloads a module of the library in the default version and adds it to the class loader.
    *
-   * @param artifact the artifact whose dependencies need to be downloaded and loaded
-   * @param loader   the JarLoader implementation used for dynamically loading the dependencies
+   * @param artifact the module
+   * @throws NullPointerException  if the artifact is null
+   * @throws InstallationException if the module cannot be downloaded
+   * @throws JarInjectorException  if the jars cannot be added to the class loader
    */
-  public void loadMCAVDependencies(final Artifact artifact, final JarLoader loader) {
-    try (final InstallationManager manager = new InstallationManager(this.folder)) {
-      LOGGER.info("Downloading dependencies...");
-      final Collection<Path> jars = manager.downloadDependencies(artifact);
-      LOGGER.info("Loading dependencies...");
-      loader.loadJars(jars, this.classLoader);
-      LOGGER.info("Successfully loaded dependencies!");
-    }
+  public void loadMCAVDependencies(final Artifact artifact) {
+    Objects.requireNonNull(artifact, "Artifact must not be null");
+    this.loadMCAVDependencies(artifact, JarLoader.DEFAULT_URL_LOADER);
   }
 
   /**
-   * Downloads and loads the required dependencies for the given artifact using the default JarLoader.
+   * Downloads a module of the library in the default version and adds it with a custom loader.
    *
-   * @param artifact the artifact for which dependencies need to be downloaded and loaded
+   * @param artifact the module
+   * @param loader   how the jars are added
+   * @throws NullPointerException  if the artifact or the loader is null
+   * @throws InstallationException if the module cannot be downloaded
+   * @throws JarInjectorException  if the loader cannot add the jars
    */
-  public void loadMCAVDependencies(final Artifact artifact) {
-    this.loadMCAVDependencies(artifact, JarLoader.DEFAULT_URL_LOADER);
+  public void loadMCAVDependencies(final Artifact artifact, final JarLoader loader) {
+    Objects.requireNonNull(artifact, "Artifact must not be null");
+    Objects.requireNonNull(loader, "Loader must not be null");
+    final String artifactId = artifact.getArtifactId();
+    this.loadDependencies(Artifact.GROUP_ID, artifactId, Artifact.DEFAULT_VERSION, loader);
+  }
+
+  /**
+   * Downloads any Maven artifact with its runtime dependencies and adds it to the class loader.
+   *
+   * @param groupId    the group id
+   * @param artifactId the artifact id
+   * @param version    the version
+   * @param loader     how the jars are added
+   * @return the jars that were added
+   * @throws NullPointerException  if any argument is null
+   * @throws InstallationException if the artifact or one of its dependencies cannot be downloaded
+   * @throws JarInjectorException  if the loader cannot add the jars
+   */
+  public List<Path> loadDependencies(final String groupId, final String artifactId, final String version, final JarLoader loader) {
+    Objects.requireNonNull(groupId, "Group id must not be null");
+    Objects.requireNonNull(artifactId, "Artifact id must not be null");
+    Objects.requireNonNull(version, "Version must not be null");
+    Objects.requireNonNull(loader, "Loader must not be null");
+
+    final long start = System.currentTimeMillis();
+    LOGGER.info("Downloading {}:{}:{} and its dependencies...", groupId, artifactId, version);
+    final List<Path> jars;
+    try (final InstallationManager manager = this.managerFactory.apply(this.folder)) {
+      jars = manager.downloadDependencies(groupId, artifactId, version);
+    }
+    loader.loadJars(jars, this.classLoader);
+
+    final long end = System.currentTimeMillis();
+    final long elapsed = end - start;
+    final int count = jars.size();
+    LOGGER.info("Loaded {} jars for {} in {} ms", count, artifactId, elapsed);
+    return jars;
   }
 }

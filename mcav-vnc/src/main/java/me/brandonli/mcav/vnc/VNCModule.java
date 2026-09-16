@@ -20,33 +20,28 @@ package me.brandonli.mcav.vnc;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * The main entry point for the VNC module of MCAV.
+ * Registers the VNC backend. Install it with {@code MCAV.api().install(VNCModule.class)}; the VNC client is pure
+ * Java and needs nothing else.
  */
 public final class VNCModule implements MCAVModule {
 
-  VNCModule() {
-    // no-op
+  /**
+   * Constructs the module. The module loader creates it for you.
+   */
+  public VNCModule() {
+    // stateless
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void start() {
-    // no-op
+    // nothing to prepare
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public void stop() {
-    // no-op
+    // nothing to release
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public String getModuleName() {
     return "vnc";

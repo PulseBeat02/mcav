@@ -17,52 +17,104 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.Preconditions;
 import java.net.URI;
 import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
- * Represents a source for browser-based media playback.
+ * A web page to stream, together with the screencast settings: the JPEG quality of the frames, the size the
+ * frames are scaled to, and how many browser frames are skipped between streamed frames.
  */
 public interface BrowserSource extends UriSource {
   /**
-   * Gets the quality of the screencast.
+   * The JPEG quality used by {@link #uri(URI)}.
+   */
+  int DEFAULT_QUALITY = 80;
+
+  /**
+   * The frame width used by {@link #uri(URI)}.
+   */
+  int DEFAULT_WIDTH = 1280;
+
+  /**
+   * The frame height used by {@link #uri(URI)}.
+   */
+  int DEFAULT_HEIGHT = 720;
+
+  /**
+   * Creates a source with every setting.
    *
-   * @return the quality of the screencast
+   * @param uri      the address of the page
+   * @param quality  the JPEG quality of the frames from 0 to 100
+   * @param width    the width of the frames in pixels
+   * @param height   the height of the frames in pixels
+   * @param nthFrame stream every n-th browser frame; 1 streams every frame
+   * @return the source
+   */
+  static BrowserSource uri(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
+    Preconditions.checkNotNull(uri, "URI must not be null");
+    Preconditions.checkArgument(quality >= 0 && quality <= 100, "Quality must be between 0 and 100 but was %s", quality);
+    Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
+    Preconditions.checkArgument(nthFrame > 0, "Frame interval must be positive but was %s", nthFrame);
+    return new BrowserSourceImpl(uri, quality, width, height, nthFrame);
+  }
+
+  /**
+   * Creates a source with the default settings: quality {@value #DEFAULT_QUALITY}, {@value #DEFAULT_WIDTH} by
+   * {@value #DEFAULT_HEIGHT} pixels, every frame.
+   *
+   * @param uri the address of the page
+   * @return the source
+   */
+  static BrowserSource uri(final URI uri) {
+    return uri(uri, DEFAULT_QUALITY, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
+  }
+
+  /**
+   * Gets the JPEG quality of the frames.
+   *
+   * @return the quality from 0 to 100
    */
   int getScreencastQuality();
 
   /**
-   * Gets the width of the screencast.
+   * Gets the width of the frames.
    *
-   * @return the width of the screencast
+   * @return the width in pixels
    */
   int getScreencastWidth();
 
   /**
-   * Gets the height of the screencast.
+   * Gets the height of the frames.
    *
-   * @return the height of the screencast
+   * @return the height in pixels
    */
   int getScreencastHeight();
 
   /**
-   * Gets the nth frame to capture from the screencast.
+   * Gets how many browser frames are skipped between streamed frames.
    *
-   * @return the nth frame to capture
+   * @return the interval; 1 streams every frame
    */
   int getScreencastNthFrame();
 
   /**
-   * Creates a new instance of {@link BrowserSource} with the specified parameters.
+   * Gets the name of the source type.
    *
-   * @param uri the URI of the browser source
-   * @param quality the quality of the screencast
-   * @param width the width of the screencast
-   * @param height the height of the screencast
-   * @param nthFrame the nth frame to capture from the screencast
-   * @return a new instance of {@link BrowserSource}
+   * @return {@code browser}
    */
-  static BrowserSource uri(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
-    return new BrowserSourceImpl(uri, quality, width, height, nthFrame);
+  @Override
+  default String getName() {
+    return "browser";
+  }
+
+  /**
+   * Checks whether the address can be played directly. A web page is rendered by a browser, so it never can.
+   *
+   * @return false
+   */
+  @Override
+  default boolean isDirect() {
+    return false;
   }
 }

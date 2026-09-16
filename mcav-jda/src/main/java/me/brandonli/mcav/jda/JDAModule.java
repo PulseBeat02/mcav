@@ -20,32 +20,39 @@ package me.brandonli.mcav.jda;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * The main entry point for the JDA module of MCAV.
+ * Registers the Discord backend. Install it with {@code MCAV.api().install(JDAModule.class)}; the bot itself is
+ * created and logged in by your code with JDA.
  */
-public class JDAModule implements MCAVModule {
+public final class JDAModule implements MCAVModule {
 
-  JDAModule() {
-    // no-op
+  /**
+   * Constructs the module. The module loader creates it for you.
+   */
+  public JDAModule() {
+    // stateless
   }
 
   /**
-   * {@inheritDoc}
+   * Starts the module. Nothing is prepared here, because the bot is logged in by your code and every
+   * {@link DiscordPlayer} is created with {@link DiscordPlayer#voice(net.dv8tion.jda.api.JDA)}.
    */
   @Override
   public void start() {
-    // no-op
+    // nothing to prepare
   }
 
   /**
-   * {@inheritDoc}
+   * Stops the module. Nothing is released here, because the bot and its voice connections belong to your code.
    */
   @Override
   public void stop() {
-    // no-op
+    // nothing to release
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the name of the module.
+   *
+   * @return {@code jda}
    */
   @Override
   public String getModuleName() {

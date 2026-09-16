@@ -7,7 +7,6 @@ dependencies {
     api("com.microsoft.playwright:playwright:1.62.0")
     api("org.seleniumhq.selenium:selenium-java:4.49.0")
     api("io.github.bonigarcia:webdrivermanager:6.3.4")
-    api("org.slf4j:jul-to-slf4j:2.1.0-alpha1")
 
     // provided
     compileOnlyApi(project(":mcav-common"))

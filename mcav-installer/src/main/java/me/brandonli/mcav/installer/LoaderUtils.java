@@ -17,136 +17,104 @@
  */
 package me.brandonli.mcav.installer;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Enumeration;
-import java.util.ServiceLoader;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Appends jars to class loaders.
+ */
 final class LoaderUtils {
 
-  private static final int MAX_ENTRIES = 100_000;
-  private static final int MAX_BYTES = 1024 * 1024 * 1024;
-  private static final String META_INF_SERVICES = "META-INF/services/";
-  private static final int MAX_SERVICE_NAME_LENGTH = META_INF_SERVICES.length();
+  private static final String KNOT_CLASS_LOADER = "net.fabricmc.loader.impl.launch.knot.KnotClassLoader";
+  private static final String KNOT_URL_LOADER_FIELD = "urlLoader";
 
   private LoaderUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  static boolean loadJarPaths(final Collection<Path> jars, final ClassLoader loader) {
-    jars.forEach(jar -> loadJarPath(jar, loader));
-    return true;
+  /**
+   * Appends jars to a class loader.
+   *
+   * @param jars   the jar files
+   * @param loader the class loader
+   */
+  static void loadJarPaths(final Collection<Path> jars, final ClassLoader loader) {
+    final URLClassLoader target = resolveUrlClassLoader(loader);
+    final URLClassLoaderInjector injector = URLClassLoaderInjector.create(target);
+    for (final Path jar : jars) {
+      final URL url = toUrl(jar);
+      injector.addURL(url);
+    }
   }
 
-  static boolean loadJarPath(final Path jarPath, final ClassLoader loader) {
+  // the path is normalized so that the same jar always gets the same class path entry
+  private static URL toUrl(final Path jar) {
+    final Path absolute = jar.toAbsolutePath();
+    final Path normalized = absolute.normalize();
+    final URI uri = normalized.toUri();
     try {
-      addJarPath(jarPath, loader);
-      loadServiceProviders(jarPath, loader);
-    } catch (final IOException e) {
-      throw new JarInjectorException(e.getMessage(), e);
-    }
-    return true;
-  }
-
-  private static boolean addJarPath(final Path jarPath, final ClassLoader loader) throws MalformedURLException {
-    if (isUrlClassLoader(loader)) {
-      loadIntoUrlClassLoader(jarPath, (URLClassLoader) loader);
-      return true;
-    } else if (isKnotClassLoader(loader)) {
-      loadIntoUrlClassLoader(jarPath, getUrlClassLoaderFromKnotClassLoader(loader));
-      return true;
-    } else {
-      throw new JarInjectorException("Unsupported ClassLoader type!");
+      return uri.toURL();
+    } catch (final MalformedURLException exception) {
+      final String message = exception.getMessage();
+      throw new JarInjectorException("Invalid jar path " + jar + ": " + message, exception);
     }
   }
 
-  private static URLClassLoader getUrlClassLoaderFromKnotClassLoader(final ClassLoader loader) {
-    try {
-      final Class<?> clazz = loader.getClass();
-      final String name = clazz.getName();
-      final String innerClass = String.format("%s$DynamicURLClassLoader", name);
-      final Class<?> dynamicLoaderClass = Class.forName(innerClass);
-      final MethodHandles.Lookup defaultLookup = MethodHandles.lookup();
-      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(clazz, defaultLookup);
-      final VarHandle urlLoaderHandle = lookup.findVarHandle(clazz, "urlLoader", dynamicLoaderClass);
-      return (URLClassLoader) urlLoaderHandle.get(loader);
-    } catch (final IllegalAccessException | ClassNotFoundException | NoSuchFieldException e) {
-      throw new JarInjectorException(e.getMessage(), e);
+  private static URLClassLoader resolveUrlClassLoader(final ClassLoader loader) {
+    if (loader instanceof final URLClassLoader urlLoader) {
+      return urlLoader;
     }
-  }
-
-  private static void loadIntoUrlClassLoader(final Path jarPath, final URLClassLoader loader) throws MalformedURLException {
-    final URLClassLoaderInjector injector = URLClassLoaderInjector.create(loader);
-    final URI uri = jarPath.toUri();
-    final URL url = uri.toURL();
-    injector.addURL(url);
-  }
-
-  private static boolean isUrlClassLoader(final ClassLoader loader) {
-    return loader instanceof URLClassLoader;
-  }
-
-  private static boolean isKnotClassLoader(final ClassLoader loader) {
-    try {
-      final Class<?> clazz = Class.forName("net.fabricmc.loader.impl.launch.knot.KnotClassLoader");
-      final Class<?> loaderClazz = loader.getClass();
-      return loaderClazz.isAssignableFrom(clazz);
-    } catch (final ClassNotFoundException e) {
-      return false;
+    final URLClassLoader knot = findKnotUrlLoader(loader);
+    if (knot != null) {
+      return knot;
     }
+    final Class<? extends ClassLoader> type = loader.getClass();
+    final String name = type.getName();
+    throw new JarInjectorException(
+      "Cannot add jars to a " + name + "; put the dependencies on the class path or load them from a URLClassLoader"
+    );
   }
 
-  private static boolean loadServiceProviders(final Path jarPath, final ClassLoader loader) throws IOException {
-    int entryCount = 0;
-    final Path absolute = jarPath.toAbsolutePath();
-    final String pathString = absolute.toString();
-    try (final JarFile jarFile = new JarFile(pathString, true)) {
-      final Enumeration<JarEntry> entries = jarFile.entries();
-      while (entries.hasMoreElements()) {
-        final JarEntry entry = entries.nextElement();
-        final String name = entry.getName();
-        verifyEntry(++entryCount, entry);
-        if (!name.startsWith(META_INF_SERVICES) || entry.isDirectory()) {
-          continue;
-        }
-        loadServiceEntry(loader, name);
+  // Fabric wraps the class path in a URLClassLoader field of its Knot class loader
+  private static @Nullable URLClassLoader findKnotUrlLoader(final ClassLoader loader) {
+    Class<?> type = loader.getClass();
+    while (type != null) {
+      final String name = type.getName();
+      if (name.equals(KNOT_CLASS_LOADER)) {
+        return readKnotUrlLoader(type, loader);
       }
+      type = type.getSuperclass();
     }
-    return true;
+    return null;
   }
 
-  private static void loadServiceEntry(final ClassLoader loader, final String name) {
-    final String serviceName = name.substring(MAX_SERVICE_NAME_LENGTH);
+  private static URLClassLoader readKnotUrlLoader(final Class<?> knotType, final ClassLoader loader) {
     try {
-      final Class<?> serviceClass = Class.forName(serviceName, false, loader);
-      ServiceLoader.load(serviceClass, loader);
-    } catch (final ClassNotFoundException ignored) {
-      // ignore classes that cannot be loaded
+      final MethodHandles.Lookup lookup = MethodHandles.lookup();
+      final MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(knotType, lookup);
+      final Class<?> urlLoaderType = findFieldType(knotType);
+      final VarHandle handle = privateLookup.findVarHandle(knotType, KNOT_URL_LOADER_FIELD, urlLoaderType);
+      final Object value = handle.get(loader);
+      if (!(value instanceof final URLClassLoader urlLoader)) {
+        throw new JarInjectorException("The Fabric class loader has no URL class loader");
+      }
+      return urlLoader;
+    } catch (final IllegalAccessException | NoSuchFieldException exception) {
+      final String message = exception.getMessage();
+      throw new JarInjectorException("Cannot access the Fabric class loader: " + message, exception);
     }
   }
 
-  private static void verifyEntry(final int entryCount, final JarEntry entry) {
-    if (entryCount > MAX_ENTRIES) {
-      throw new JarEntryIntegrityException("Too many entries in JAR file!");
-    }
-
-    final String name = entry.getName();
-    if (name.contains("..")) {
-      throw new JarEntryIntegrityException("Invalid JAR entry name!");
-    }
-
-    final long size = entry.getSize();
-    if (size > MAX_BYTES) {
-      throw new JarEntryIntegrityException("JAR entry too large!");
-    }
+  private static Class<?> findFieldType(final Class<?> knotType) throws NoSuchFieldException {
+    final Field field = knotType.getDeclaredField(KNOT_URL_LOADER_FIELD);
+    return field.getType();
   }
 }

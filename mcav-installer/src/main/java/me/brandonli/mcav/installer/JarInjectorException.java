@@ -21,18 +21,19 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Represents an exception that occurs when jar injection fails or is unsupported.
+ * Thrown when jars cannot be added to a class loader, usually because the class loader is not a
+ * {@link java.net.URLClassLoader} or the runtime forbids the access the injection needs.
  */
 public class JarInjectorException extends UnsupportedOperationException {
 
   @Serial
   private static final long serialVersionUID = 861375458420366052L;
 
-  JarInjectorException(final @Nullable String msg) {
-    super(msg);
+  JarInjectorException(final @Nullable String message) {
+    super(message);
   }
 
-  JarInjectorException(final @Nullable String msg, final @Nullable Throwable cause) {
-    super(msg, cause);
+  JarInjectorException(final @Nullable String message, final @Nullable Throwable cause) {
+    super(message, cause);
   }
 }

@@ -20,50 +20,67 @@ package me.brandonli.mcav.installer;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Injector that uses reflection to add URLs to a {@link URLClassLoader}.
- * This is used when the addUrl method is not accessible.
+ * Calls {@code URLClassLoader.addURL} through a private method handle. Works when {@code java.net} is open to the
+ * installer, which is the case for most server launchers.
  */
 final class ReflectiveInjector extends URLClassLoaderInjector {
 
-  private static final @Nullable Method ADD_URL_METHOD = getUrlMethod();
+  /**
+   * The {@code addURL} method of {@link URLClassLoader}, or null if {@code java.net} is not opened to this module.
+   */
+  static final @Nullable MethodHandle ADD_URL = findAddUrl();
 
-  private static @Nullable Method getUrlMethod() {
+  private final MethodHandle addUrl;
+
+  /**
+   * Creates an injector.
+   *
+   * @param classLoader the class loader to add jars to
+   * @param addUrl      a handle that takes the class loader and the URL, normally {@link #ADD_URL}
+   */
+  ReflectiveInjector(final URLClassLoader classLoader, final MethodHandle addUrl) {
+    super(classLoader);
+    this.addUrl = addUrl;
+  }
+
+  private static @Nullable MethodHandle findAddUrl() {
+    final MethodHandles.Lookup lookup = MethodHandles.lookup();
+    return findAddUrl(lookup);
+  }
+
+  /**
+   * Finds the {@code addURL} method of {@link URLClassLoader}. Visible for testing.
+   *
+   * @param lookup the lookup that needs private access to {@link URLClassLoader}
+   * @return the handle, or null if the lookup has no access
+   */
+  static @Nullable MethodHandle findAddUrl(final MethodHandles.Lookup lookup) {
     try {
-      final MethodHandles.Lookup normal = MethodHandles.lookup();
-      final MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(URLClassLoader.class, normal);
-      final MethodType methodType = MethodType.methodType(Void.TYPE, URL.class);
-      final MethodHandle methodHandle = lookup.findVirtual(URLClassLoader.class, "addURL", methodType);
-      return MethodHandles.reflectAs(Method.class, methodHandle);
-    } catch (final Throwable t) {
+      final MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(URLClassLoader.class, lookup);
+      final MethodType type = MethodType.methodType(void.class, URL.class);
+      return privateLookup.findVirtual(URLClassLoader.class, "addURL", type);
+    } catch (final IllegalAccessException | NoSuchMethodException | RuntimeException exception) {
       return null;
     }
   }
 
-  static boolean isSupported() {
-    return ADD_URL_METHOD != null;
-  }
-
-  ReflectiveInjector(final URLClassLoader classLoader) {
-    super(classLoader);
-  }
-
   @Override
   void addURL(final URL url) {
-    if (ADD_URL_METHOD == null) {
-      throw new JarInjectorException("Reflective injector not supported");
-    }
+    final URLClassLoader loader = this.getClassLoader();
     try {
-      final ClassLoader classLoader = super.getClassLoader();
-      ADD_URL_METHOD.invoke(classLoader, url);
-    } catch (final IllegalAccessException | InvocationTargetException e) {
-      throw new JarInjectorException(e.getMessage(), e);
+      this.addUrl.invoke(loader, url);
+    } catch (final RuntimeException | Error exception) {
+      // unchecked failures of addURL, every Error included, reach the caller unchanged, so none is hidden or wrapped
+      throw exception;
+    } catch (final Throwable throwable) {
+      // invoke declares Throwable, so only checked exceptions get here; they mean that the jar cannot be added
+      final String message = throwable.getMessage();
+      throw new JarInjectorException("Failed to add " + url + ": " + message, throwable);
     }
   }
 }

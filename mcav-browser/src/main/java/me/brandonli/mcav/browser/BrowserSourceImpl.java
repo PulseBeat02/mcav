@@ -18,11 +18,14 @@
 package me.brandonli.mcav.browser;
 
 import java.net.URI;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Implementation of the {@link BrowserSource} interface.
+ * The default {@link BrowserSource}, created by {@link BrowserSource#uri(URI, int, int, int, int)} with validated
+ * settings. Two sources are equal when every setting is equal.
  */
-public class BrowserSourceImpl implements BrowserSource {
+public final class BrowserSourceImpl implements BrowserSource {
 
   private final URI uri;
   private final int quality;
@@ -39,7 +42,9 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the JPEG quality the browser encodes the frames with.
+   *
+   * @return the quality from 0 to 100
    */
   @Override
   public int getScreencastQuality() {
@@ -47,7 +52,9 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the width of the browser window and of the frames.
+   *
+   * @return the width in pixels
    */
   @Override
   public int getScreencastWidth() {
@@ -55,7 +62,9 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the height of the browser window and of the frames.
+   *
+   * @return the height in pixels
    */
   @Override
   public int getScreencastHeight() {
@@ -63,7 +72,9 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets how many browser frames are skipped between streamed frames.
+   *
+   * @return the interval; 1 streams every frame
    */
   @Override
   public int getScreencastNthFrame() {
@@ -71,7 +82,9 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the address of the page.
+   *
+   * @return the address
    */
   @Override
   public URI getUri() {
@@ -79,10 +92,45 @@ public class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * {@inheritDoc}
+   * Checks whether another object is a browser source with the same address and screencast settings.
+   *
+   * @param other the object to compare with
+   * @return true if every setting is equal
    */
   @Override
-  public boolean isDirect() {
-    return false;
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final BrowserSourceImpl source)) {
+      return false;
+    }
+    return (
+      this.uri.equals(source.uri) &&
+      this.quality == source.quality &&
+      this.width == source.width &&
+      this.height == source.height &&
+      this.nthFrame == source.nthFrame
+    );
+  }
+
+  /**
+   * Computes a hash code from the address and every screencast setting.
+   *
+   * @return the hash code
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.uri, this.quality, this.width, this.height, this.nthFrame);
+  }
+
+  /**
+   * Describes the source by its address, frame size, and quality.
+   *
+   * @return a text such as {@code BrowserSource[https://example.org, 1280x720, q=80]}
+   */
+  @Override
+  public String toString() {
+    return "BrowserSource[" + this.uri + ", " + this.width + "x" + this.height + ", q=" + this.quality + "]";
   }
 }

@@ -17,36 +17,72 @@
  */
 package me.brandonli.mcav.vm;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.utils.IOUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Stores the VNC settings for a virtual machine (VM) instance.
+ * How a virtual machine is streamed: the local VNC port QEMU listens on, the size frames are scaled to, and
+ * the frame rate requested from QEMU.
  */
 public final class VMSettings {
 
   private final int port;
   private final int width;
   private final int height;
-  private final int targetFps;
+  private final int targetFrameRate;
 
-  VMSettings(final int port, final int width, final int height, final int targetFps) {
+  VMSettings(final int port, final int width, final int height, final int targetFrameRate) {
     this.port = port;
     this.width = width;
     this.height = height;
-    this.targetFps = targetFps;
+    this.targetFrameRate = targetFrameRate;
   }
 
   /**
-   * Gets the port number for the VNC server.
+   * Creates settings on the next free VNC port.
    *
-   * @return the port number
+   * @param width           the width the frames are scaled to, in pixels
+   * @param height          the height the frames are scaled to, in pixels
+   * @param targetFrameRate the frame rate in frames per second
+   * @return the settings
+   */
+  public static VMSettings of(final int width, final int height, final int targetFrameRate) {
+    final int port = IOUtils.getNextFreeVNCPort();
+    return of(port, width, height, targetFrameRate);
+  }
+
+  /**
+   * Creates settings on a specific VNC port.
+   *
+   * @param port            the local port QEMU listens on, at least 5900
+   * @param width           the width the frames are scaled to, in pixels
+   * @param height          the height the frames are scaled to, in pixels
+   * @param targetFrameRate the frame rate in frames per second
+   * @return the settings
+   */
+  public static VMSettings of(final int port, final int width, final int height, final int targetFrameRate) {
+    Preconditions.checkArgument(
+      port >= VMProcess.FIRST_VNC_PORT && port <= 65535,
+      "VNC port must be between 5900 and 65535 but was %s",
+      port
+    );
+    Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
+    Preconditions.checkArgument(targetFrameRate > 0, "Frame rate must be positive but was %s", targetFrameRate);
+    return new VMSettings(port, width, height, targetFrameRate);
+  }
+
+  /**
+   * Gets the local VNC port.
+   *
+   * @return the port
    */
   public int getPort() {
     return this.port;
   }
 
   /**
-   * Gets the width of the VM display.
+   * Gets the width the frames are scaled to.
    *
    * @return the width in pixels
    */
@@ -55,7 +91,7 @@ public final class VMSettings {
   }
 
   /**
-   * Gets the height of the VM display.
+   * Gets the height the frames are scaled to.
    *
    * @return the height in pixels
    */
@@ -64,37 +100,41 @@ public final class VMSettings {
   }
 
   /**
-   * Gets the target frames per second (FPS) for the VM. Won't be guaranteed, but will be attempted to be achieved.
+   * Gets the frame rate requested from QEMU.
    *
-   * @return the target FPS
+   * @return the frame rate in frames per second
    */
   public int getTargetFps() {
-    return this.targetFps;
+    return this.targetFrameRate;
   }
 
-  /**
-   * Creates a new VMSettings instance with a free port and specified dimensions and target FPS.
-   *
-   * @param width      the width of the VM display
-   * @param height     the height of the VM display
-   * @param targetFps  the target frames per second for the VM
-   * @return a new VMSettings instance
-   */
-  public static VMSettings of(final int width, final int height, final int targetFps) {
-    final int free = IOUtils.getNextFreeVNCPort();
-    return of(free, width, height, targetFps);
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof final VMSettings settings)) {
+      return false;
+    }
+    return (
+      this.port == settings.port &&
+      this.width == settings.width &&
+      this.height == settings.height &&
+      this.targetFrameRate == settings.targetFrameRate
+    );
   }
 
-  /**
-   * Creates a new VMSettings instance with the specified port, dimensions, and target FPS.
-   *
-   * @param port       the port number for the VNC server
-   * @param width      the width of the VM display
-   * @param height     the height of the VM display
-   * @param targetFps  the target frames per second for the VM
-   * @return a new VMSettings instance
-   */
-  public static VMSettings of(final int port, final int width, final int height, final int targetFps) {
-    return new VMSettings(port, width, height, targetFps);
+  @Override
+  public int hashCode() {
+    int result = this.port;
+    result = result * 31 + this.width;
+    result = result * 31 + this.height;
+    result = result * 31 + this.targetFrameRate;
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return "VMSettings[port=" + this.port + ", " + this.width + "x" + this.height + "@" + this.targetFrameRate + "]";
   }
 }

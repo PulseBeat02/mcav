@@ -4,8 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.apache.maven.resolver:maven-resolver-impl:2.0.0-alpha-8")
-    implementation("org.apache.maven.resolver:maven-resolver-supplier:2.0.0-alpha-8")
+    implementation("org.apache.maven.resolver:maven-resolver-supplier-mvn3:2.0.22")
 }
 
 tasks {
@@ -21,6 +20,11 @@ tasks {
 
     assemble {
         dependsOn(shadowJar)
+    }
+
+    // the reflective injector needs java.net opened, as the error message of the injector tells users to do
+    test {
+        jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
     }
 
     shadowJar {

@@ -17,55 +17,89 @@
  */
 package me.brandonli.mcav.svc;
 
+import com.google.common.base.Preconditions;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import me.brandonli.mcav.module.MCAVModule;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The main entry point for the SVC (Simple Voice Chat) module of MCAV.
+ * Connects the library to Simple Voice Chat. Install it with {@code MCAV.api().install(SVCModule.class)}, then
+ * hand it the server API from your voice chat plugin once the voice chat server started:
+ *
+ * <pre><code>
+ *   public void initialize(final VoicechatApi api) {
+ *     final SVCModule module = mcav.getModule(SVCModule.class);
+ *     module.inject((VoicechatServerApi) api);
+ *   }
+ * </code></pre>
  */
 public final class SVCModule implements MCAVModule {
 
-  private static VoicechatServerApi VOICE_CHAT_API;
-
-  SVCModule() {
-    // no-op
-  }
+  private static volatile @Nullable VoicechatServerApi voiceChatApi;
 
   /**
-   * Injects the instance.
-   * @param voiceChatApi the instance to inject
+   * Constructs the module. The module loader creates it for you.
    */
-  public void inject(final VoicechatServerApi voiceChatApi) {
-    VOICE_CHAT_API = voiceChatApi;
+  public SVCModule() {
+    // the API is injected later
   }
 
   /**
-   * Retrieves the injected instance.
+   * Hands the Simple Voice Chat server API to the library. Call it from the {@code initialize} method of your
+   * voice chat plugin.
    *
-   * @return the current instance
+   * @param api the server API
    */
-  public static VoicechatServerApi getVoiceChatApi() {
-    return VOICE_CHAT_API;
+  public void inject(final VoicechatServerApi api) {
+    Preconditions.checkNotNull(api, "Voice chat API must not be null");
+    voiceChatApi = api;
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the injected server API.
+   *
+   * @return the API, or null if it was not injected yet
+   */
+  public static @Nullable VoicechatServerApi getVoiceChatApi() {
+    return voiceChatApi;
+  }
+
+  /**
+   * Gets the injected server API, failing if it is missing.
+   *
+   * @return the API
+   * @throws IllegalStateException if {@link #inject(VoicechatServerApi)} was not called yet
+   */
+  static VoicechatServerApi requireVoiceChatApi() {
+    final VoicechatServerApi api = voiceChatApi;
+    if (api == null) {
+      throw new IllegalStateException("The Simple Voice Chat API was not injected; call SVCModule#inject from your voice chat plugin");
+    }
+    return api;
+  }
+
+  /**
+   * Starts the module. Nothing is prepared here, because the voice chat API only becomes available once your voice
+   * chat plugin calls {@link #inject(VoicechatServerApi)}.
    */
   @Override
   public void start() {
-    // no-op
+    // nothing to prepare until the API is injected
   }
 
   /**
-   * {@inheritDoc}
+   * Stops the module and forgets the injected voice chat API, so filters can no longer be created or started until
+   * an API is injected again.
    */
   @Override
   public void stop() {
-    // no-op
+    voiceChatApi = null;
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the name of the module.
+   *
+   * @return {@code "svc"}
    */
   @Override
   public String getModuleName() {

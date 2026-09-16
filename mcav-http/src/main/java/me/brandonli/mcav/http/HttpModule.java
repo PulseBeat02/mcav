@@ -20,32 +20,40 @@ package me.brandonli.mcav.http;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * The main entry point for the HTTP module.
+ * Registers the HTTP audio backend. Install it with {@code MCAV.api().install(HttpModule.class)}; servers are
+ * created with the factories of {@link HttpResult}.
  */
 public final class HttpModule implements MCAVModule {
 
-  HttpModule() {
-    // no-op
+  /**
+   * Constructs the module. The module loader creates it for you.
+   */
+  public HttpModule() {
+    // stateless
   }
 
   /**
-   * {@inheritDoc}
+   * Starts the module. Nothing is prepared here, because every {@link HttpResult} starts its own web server with
+   * {@link HttpResult#start()}.
    */
   @Override
   public void start() {
-    // no-op
+    // servers are started individually
   }
 
   /**
-   * {@inheritDoc}
+   * Stops the module. Nothing is released here, because every {@link HttpResult} stops its own web server with
+   * {@link HttpResult#stop()}.
    */
   @Override
   public void stop() {
-    // no-op
+    // servers are stopped individually
   }
 
   /**
-   * {@inheritDoc}
+   * Gets the name of the module.
+   *
+   * @return {@code http}
    */
   @Override
   public String getModuleName() {

@@ -17,340 +17,588 @@
  */
 package me.brandonli.mcav.browser;
 
-import static java.util.Objects.requireNonNull;
-
-import java.util.*;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
-import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
-import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
-import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.utils.CollectionUtils;
+import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.ExecutorUtils;
-import me.brandonli.mcav.utils.LockUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.Event;
-import org.openqa.selenium.devtools.v153.page.Page;
-import org.openqa.selenium.devtools.v153.page.model.ScreencastFrame;
-import org.openqa.selenium.devtools.v153.page.model.ScreencastFrameMetadata;
 import org.openqa.selenium.interactions.Action;
 import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.json.Json;
+import org.openqa.selenium.json.JsonInput;
 
 /**
- * A Selenium-based browser player that captures screencasts.
+ * A {@link BrowserPlayer} that drives Chrome through Selenium and streams the page with the DevTools screencast.
+ *
+ * <p>Chrome sends a JPEG frame whenever the page changes. Frames are acknowledged right away and the newest one is
+ * decoded on a capture thread, so a slow pipeline never holds Chrome back. Input is replayed with Selenium actions on
+ * an input thread. A monitor follows tabs the page opens and returns to a remaining tab when the followed one closes;
+ * when the browser session is lost, as after a crash of Chrome, the player stops playing and can be started again.
  */
-public final class SeleniumPlayer implements BrowserPlayer {
+public final class SeleniumPlayer extends AbstractBrowserPlayer {
 
-  private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
-  private static final Function<Actions, Actions>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
-    Actions::click,
-    Actions::contextClick,
-    Actions::doubleClick,
-    Actions::clickAndHold,
-    Actions::release
-  );
+  private static final Base64.Decoder BASE64 = Base64.getDecoder();
+  private static final long TAB_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
+  private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
+  private static final String SCREENCAST_FRAME_EVENT = "Page.screencastFrame";
 
-  private final VideoAttachableCallback videoAttachableCallback;
-  private final ExecutorService captureExecutor;
-  private final Set<String> handles;
-  private final ExecutorService actionExecutor;
-  private final ExecutorService tabExecutor;
-  private final ChromeDriver driver;
-  private final AtomicBoolean running;
-  private final DevTools tools;
-  private final Lock lock;
+  private final DriverFactory driverFactory;
+  private final List<String> arguments;
+  private final AtomicReference<@Nullable ScreencastFrame> latestFrame;
+  private final Set<String> knownHandles;
 
-  @Nullable private volatile Long frameWidth;
+  private volatile @Nullable Connection connection;
+  private volatile @Nullable DevTools devTools;
+  private volatile @Nullable String currentHandle;
+  private @Nullable Thread tabThread;
 
-  @Nullable private volatile Long frameHeight;
-
-  @Nullable private volatile BrowserSource source;
-
-  private volatile BiConsumer<String, Throwable> exceptionHandler;
-
-  SeleniumPlayer(final String... args) {
-    final ChromeDriverService service = ChromeDriverServiceProvider.getService();
-    final ChromeOptions options = new ChromeOptions().addArguments(args);
-    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
-    this.videoAttachableCallback = VideoAttachableCallback.create();
-    this.driver = new ChromeDriver(service, options);
-    this.handles = Collections.synchronizedSet(new HashSet<>());
-    this.running = new AtomicBoolean(false);
-    this.captureExecutor = Executors.newSingleThreadExecutor();
-    this.tabExecutor = Executors.newSingleThreadExecutor();
-    this.actionExecutor = Executors.newVirtualThreadPerTaskExecutor();
-    this.tools = this.driver.getDevTools();
-    this.lock = new ReentrantLock();
+  SeleniumPlayer(final String... arguments) {
+    this(SeleniumPlayer::createDriver, arguments);
   }
 
   /**
-   * {@inheritDoc}
+   * Constructs a player that starts Chrome with the given factory, so tests can replace Chrome.
+   *
+   * @param driverFactory starts Chrome with the options of the player
+   * @param arguments     the command-line arguments of Chrome, resolved as {@link BrowserPlayer#selenium(String...)}
+   *                      describes
    */
-  @Override
-  public BiConsumer<String, Throwable> getExceptionHandler() {
-    return this.exceptionHandler;
+  @VisibleForTesting
+  SeleniumPlayer(final DriverFactory driverFactory, final String... arguments) {
+    this.driverFactory = driverFactory;
+    this.arguments = ChromeArguments.resolve(arguments);
+    this.latestFrame = new AtomicReference<>();
+    this.knownHandles = new HashSet<>();
+  }
+
+  private static ChromeDriver createDriver(final ChromeOptions options) {
+    final ChromeDriverService service = ChromeDriverProvider.getService();
+    return new ChromeDriver(service, options);
   }
 
   /**
-   * {@inheritDoc}
+   * Starts Chrome, opens the page, starts the screencast of its tab, and starts the thread that follows new tabs.
+   * Chrome is closed again if the page cannot be opened.
+   *
+   * @param source the page and the screencast settings
+   * @throws PlayerException if Chrome cannot be started or the page cannot be opened
    */
   @Override
-  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-    this.exceptionHandler = exceptionHandler;
+  protected void open(final BrowserSource source) {
+    final ChromeDriver chrome = this.launchChrome();
+    final ExecutorService capture = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcav-browser-capture"));
+    final ExecutorService input = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcav-browser-input"));
+    final Connection opened = new Connection(chrome, capture, input);
+    this.connection = opened;
+    try {
+      this.navigate(chrome, source);
+    } catch (final WebDriverException exception) {
+      this.close();
+      final String message = exception.getMessage();
+      throw new PlayerException("Failed to open " + source + ": " + message, exception);
+    }
+    this.startTabMonitor(opened, source);
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean start(final BrowserSource combined) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.source = combined;
-      this.running.set(true);
-      this.maximizeWindow(combined);
-      this.addScreencastListener(combined);
-      this.startScreencast(combined);
-      return true;
-    });
+  private ChromeDriver launchChrome() {
+    final ChromeOptions options = new ChromeOptions();
+    options.addArguments(this.arguments);
+    try {
+      return this.driverFactory.create(options);
+    } catch (final WebDriverException exception) {
+      final String message = exception.getMessage();
+      throw new PlayerException("Failed to start Chrome: " + message, exception);
+    }
   }
 
-  private void startScreencast(final BrowserSource source) {
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    final int qualityRaw = source.getScreencastQuality();
-    final int nthRaw = source.getScreencastNthFrame();
-    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality = Optional.of(qualityRaw);
-    final Optional<Integer> maxWidth = Optional.of(width);
-    final Optional<Integer> maxHeight = Optional.of(height);
-    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
-    this.tools.send(Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame));
-
-    final String handle = this.driver.getWindowHandle();
-    this.handles.add(handle);
-    this.tabExecutor.submit(this::startTabMonitoring);
-  }
-
-  private void addScreencastListener(final BrowserSource source) {
+  private void navigate(final ChromeDriver chrome, final BrowserSource source) {
+    this.resizeWindow(chrome, source);
     final String resource = source.getResource();
-    final Event<ScreencastFrame> screencastFrameEvent = Page.screencastFrame();
-    this.driver.get(resource);
-    this.tools.createSession();
-    this.tools.addListener(screencastFrameEvent, this::handleFrame);
+    chrome.get(resource);
+    final String handle = chrome.getWindowHandle();
+    synchronized (this.knownHandles) {
+      this.knownHandles.add(handle);
+    }
+    this.currentHandle = handle;
+    this.startScreencast(chrome, source, handle);
   }
 
-  private void maximizeWindow(final BrowserSource source) {
+  private void startTabMonitor(final Connection owner, final BrowserSource source) {
+    final Thread monitor = new Thread(() -> this.monitorTabs(owner, source), "mcav-browser-tabs");
+    monitor.setDaemon(true);
+    this.tabThread = monitor;
+    monitor.start();
+  }
+
+  private void resizeWindow(final ChromeDriver chrome, final BrowserSource source) {
     final int width = source.getScreencastWidth();
     final int height = source.getScreencastHeight();
     final Dimension size = new Dimension(width, height);
-    final WebDriver.Options options = this.driver.manage();
+    final WebDriver.Options options = chrome.manage();
     final WebDriver.Window window = options.window();
     window.setSize(size);
-    window.maximize();
   }
 
-  private void startTabMonitoring() {
-    while (this.running.get()) {
-      final Set<String> currentHandles = this.driver.getWindowHandles();
-      for (final String handle : currentHandles) {
-        if (this.handles.contains(handle)) {
-          continue;
-        }
-        this.handles.add(handle);
-        this.resetDevToolsSession(handle);
-        break;
-      }
-      this.waitForTabReset();
+  private void startScreencast(final ChromeDriver chrome, final BrowserSource source, final String handle) {
+    final DevTools previous = this.devTools;
+    if (previous != null) {
+      // the previous tab may be closed, so its session is dropped before anything is sent to it
+      previous.disconnectSession();
     }
+    final DevTools tools = chrome.getDevTools();
+    // without a handle the session attaches to the first tab Chrome lists, which is not the followed tab
+    tools.createSession(handle);
+    if (previous != null) {
+      // clearing sends commands to the session, which must belong to an open tab
+      previous.clearListeners();
+    }
+    final Event<ScreencastFrame> frameEvent = new Event<>(SCREENCAST_FRAME_EVENT, SeleniumPlayer::readFrame);
+    tools.addListener(frameEvent, frame -> this.onFrame(tools, frame));
+    // Chrome paints no frames for background tabs, and switching windows does not bring the tab to the front
+    final Map<String, Object> noParameters = Map.of();
+    final Command<Void> bringToFront = new Command<>("Page.bringToFront", noParameters);
+    tools.send(bringToFront);
+    final Map<String, Object> parameters = createScreencastParameters(source);
+    final Command<Void> start = new Command<>("Page.startScreencast", parameters);
+    tools.send(start);
+    this.devTools = tools;
   }
 
-  private void waitForTabReset() {
-    try {
-      Thread.sleep(50);
-    } catch (final InterruptedException e) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-    }
-  }
-
-  private void resetDevToolsSession(final String newHandle) {
-    if (!this.running.get() || this.source == null) {
-      return;
-    }
-
-    final WebDriver.TargetLocator targetLocator = this.driver.switchTo();
-    targetLocator.window(newHandle);
-
-    final BrowserSource source = requireNonNull(this.source);
+  private static Map<String, Object> createScreencastParameters(final BrowserSource source) {
+    final int quality = source.getScreencastQuality();
     final int width = source.getScreencastWidth();
     final int height = source.getScreencastHeight();
-    final int qualityRaw = source.getScreencastQuality();
-    final int nthRaw = source.getScreencastNthFrame();
-    final Optional<Page.StartScreencastFormat> format = Optional.of(Page.StartScreencastFormat.JPEG);
-    final Optional<Integer> quality = Optional.of(qualityRaw);
-    final Optional<Integer> maxWidth = Optional.of(width);
-    final Optional<Integer> maxHeight = Optional.of(height);
-    final Optional<Integer> everyNthFrame = Optional.of(nthRaw);
-    final Event<ScreencastFrame> screencastFrameEvent = Page.screencastFrame();
-    final Command<Void> startScreencast = Page.startScreencast(format, quality, maxWidth, maxHeight, everyNthFrame);
-    this.tools.clearListeners();
-    this.tools.close();
-    this.tools.createSession();
-    this.tools.addListener(screencastFrameEvent, this::handleFrameSend);
-    this.tools.send(startScreencast);
-  }
-
-  private void handleFrameSend(final ScreencastFrame frame) {
-    this.captureExecutor.submit(() -> this.handleFrame(frame));
-  }
-
-  private void handleFrame(final ScreencastFrame frame) {
-    if (!this.running.get() || !this.lock.tryLock() || this.source == null) {
-      return;
-    }
-
-    try {
-      final BrowserSource source = requireNonNull(this.source);
-      final ScreencastFrameMetadata frameMetadata = frame.getMetadata();
-      final int width = source.getScreencastWidth();
-      final int height = source.getScreencastHeight();
-      this.frameWidth = (long) frameMetadata.getDeviceWidth();
-      this.frameHeight = (long) frameMetadata.getDeviceHeight();
-
-      final String data = frame.getData();
-      final byte[] buffer = BASE64_DECODER.decode(data);
-      if (buffer == null) {
-        return;
-      }
-
-      final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
-      final ImageBuffer staticImage = ImageBuffer.bytes(buffer);
-      final ResizeFilter resizeFilter = new ResizeFilter(width, height);
-      resizeFilter.applyFilter(staticImage, metadata);
-
-      VideoPipelineStep current = this.videoAttachableCallback.retrieve();
-      while (current != null) {
-        current.process(staticImage, metadata);
-        current = current.next();
-      }
-
-      staticImage.release();
-
-      final int id = frame.getSessionId();
-      final Command<Void> event = Page.screencastFrameAck(id);
-      this.tools.send(event);
-    } finally {
-      this.lock.unlock();
-    }
+    final int nthFrame = source.getScreencastNthFrame();
+    return Map.of("format", "jpeg", "quality", quality, "maxWidth", width, "maxHeight", height, "everyNthFrame", nthFrame);
   }
 
   /**
-   * {@inheritDoc}
+   * Reads a {@code Page.screencastFrame} event. Missing or malformed values are read as empty data and zero sizes.
+   *
+   * @param input the JSON of the event parameters
+   * @return the frame
+   */
+  @VisibleForTesting
+  static ScreencastFrame readFrame(final JsonInput input) {
+    final Map<String, Object> raw = input.read(Json.MAP_TYPE);
+    if (raw == null) {
+      return new ScreencastFrame("", 0, 0, 0);
+    }
+    final Object data = raw.get("data");
+    final Object sessionId = raw.get("sessionId");
+    final Object metadata = raw.get("metadata");
+    int width = 0;
+    int height = 0;
+    if (metadata instanceof final Map<?, ?> map) {
+      final Object deviceWidth = map.get("deviceWidth");
+      final Object deviceHeight = map.get("deviceHeight");
+      width = readInt(deviceWidth);
+      height = readInt(deviceHeight);
+    }
+    final String encoded = data instanceof final String text ? text : "";
+    final int session = readInt(sessionId);
+    return new ScreencastFrame(encoded, session, width, height);
+  }
+
+  private static int readInt(final @Nullable Object value) {
+    if (value instanceof final Number number) {
+      return number.intValue();
+    }
+    return 0;
+  }
+
+  private void onFrame(final DevTools tools, final ScreencastFrame frame) {
+    // acknowledge first so Chrome keeps sending frames even while a frame is still being decoded
+    final int sessionId = frame.getSessionId();
+    final Map<String, Object> parameters = Map.of("sessionId", sessionId);
+    final Command<Void> acknowledge = new Command<>("Page.screencastFrameAck", parameters);
+    try {
+      tools.send(acknowledge);
+    } catch (final WebDriverException exception) {
+      return;
+    }
+    this.latestFrame.set(frame);
+    final Connection current = this.connection;
+    if (current != null) {
+      current.capture.execute(this::decodeLatestFrame);
+    }
+  }
+
+  private void decodeLatestFrame() {
+    final ScreencastFrame frame = this.latestFrame.getAndSet(null);
+    if (frame == null) {
+      return;
+    }
+    final String data = frame.getData();
+    if (data.isEmpty()) {
+      return;
+    }
+    final byte[] encoded;
+    try {
+      encoded = BASE64.decode(data);
+    } catch (final RuntimeException exception) {
+      this.report("Failed to decode a browser frame", exception);
+      return;
+    }
+    final int pageWidth = frame.getPageWidth();
+    final int pageHeight = frame.getPageHeight();
+    this.deliverFrame(encoded, pageWidth, pageHeight);
+  }
+
+  private void monitorTabs(final Connection owner, final BrowserSource source) {
+    while (true) {
+      // closing the player clears the connection, then interrupts this thread, which ends the wait at once
+      LockSupport.parkNanos(TAB_POLL_NANOS);
+      final Connection active = this.connection;
+      if (active != owner) {
+        return;
+      }
+      try {
+        this.followTabs(owner, source);
+      } catch (final NoSuchSessionException exception) {
+        this.fail("The browser session was lost", exception);
+        return;
+      } catch (final WebDriverException exception) {
+        final Connection current = this.connection;
+        if (current == owner) {
+          this.report("Failed to follow a new browser tab", exception);
+        }
+      }
+    }
+  }
+
+  private void followTabs(final Connection owner, final BrowserSource source) {
+    final ChromeDriver chrome = owner.driver;
+    final Set<String> handles = chrome.getWindowHandles();
+    final Connection current = this.connection;
+    if (current != owner) {
+      // the player is closing, and the DevTools session is about to be closed
+      return;
+    }
+
+    final String target = this.chooseTab(handles);
+    if (target == null) {
+      return;
+    }
+
+    final WebDriver.TargetLocator locator = chrome.switchTo();
+    locator.window(target);
+    this.currentHandle = target;
+    this.startScreencast(chrome, source, target);
+  }
+
+  /**
+   * Picks the tab to stream: the newest tab the page opened since the last poll, or a remaining tab if the followed
+   * tab was closed.
+   *
+   * @param handles the open tabs, oldest first
+   * @return the tab to switch to, or null to stay on the followed tab
+   */
+  private @Nullable String chooseTab(final Set<String> handles) {
+    final String opened = this.recordHandles(handles);
+    if (opened != null) {
+      return opened;
+    }
+
+    // the handle is set by navigate before the monitor starts
+    final String followed = Objects.requireNonNull(this.currentHandle, "The first tab is known");
+    return findRemainingTab(handles, followed);
+  }
+
+  /**
+   * Remembers the open tabs and forgets the closed ones.
+   *
+   * @param handles the open tabs, oldest first
+   * @return the newest tab that was not known before, or null if no tab was opened
+   */
+  private @Nullable String recordHandles(final Set<String> handles) {
+    String opened = null;
+    synchronized (this.knownHandles) {
+      for (final String handle : handles) {
+        final boolean known = this.knownHandles.contains(handle);
+        if (!known) {
+          this.knownHandles.add(handle);
+          opened = handle;
+        }
+      }
+      this.knownHandles.retainAll(handles);
+    }
+    return opened;
+  }
+
+  /**
+   * Picks the tab to return to when the followed tab was closed.
+   *
+   * @param handles the open tabs, oldest first
+   * @param current the followed tab
+   * @return the newest open tab, or null if the followed tab is still open or no tab is left
+   */
+  private static @Nullable String findRemainingTab(final Set<String> handles, final String current) {
+    final boolean stillOpen = handles.contains(current);
+    if (stillOpen || handles.isEmpty()) {
+      return null;
+    }
+    final List<String> remaining = new ArrayList<>(handles);
+    final int last = remaining.size() - 1;
+    return remaining.get(last);
+  }
+
+  /**
+   * Moves the mouse pointer of Chrome. The move is replayed on the input thread; it is ignored while the player is
+   * not playing.
+   *
+   * @param x the x coordinate in the streamed frame
+   * @param y the y coordinate in the streamed frame
    */
   @Override
   public void moveMouse(final int x, final int y) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get()) {
-        return;
-      }
-      final int[] translated = this.translateCoordinates(x, y);
-      final int newX = translated[0];
-      final int newY = translated[1];
-      final Actions actions = new Actions(this.driver);
-      final Actions move = actions.moveToLocation(newX, newY);
-      final Action action = move.build();
-      this.actionExecutor.submit(action::perform);
-    });
+    final Connection current = this.connection;
+    if (current == null || !this.canForwardInput()) {
+      return;
+    }
+    final int[] translated = this.translateCoordinates(x, y);
+    this.submitInput(current, actions -> actions.moveToLocation(translated[0], translated[1]));
   }
 
   /**
-   * {@inheritDoc}
+   * Moves the mouse pointer of Chrome and performs a click. The click is replayed on the input thread; it is ignored
+   * while the player is not playing.
+   *
+   * @param type the kind of click
+   * @param x    the x coordinate in the streamed frame
+   * @param y    the y coordinate in the streamed frame
    */
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get()) {
-        return;
-      }
-      final int[] translated = this.translateCoordinates(x, y);
-      final int newX = translated[0];
-      final int newY = translated[1];
-      final Actions actions = new Actions(this.driver);
-      final Actions move = actions.moveToLocation(newX, newY);
-      final int index = type.getId();
-      final Actions modified = MOUSE_ACTION_CONSUMERS[index].apply(move);
-      final Action action = modified.build();
-      this.actionExecutor.submit(action::perform);
-    });
+    checkMouseClick(type);
+    final Connection current = this.connection;
+    if (current == null || !this.canForwardInput()) {
+      return;
+    }
+    final int[] translated = this.translateCoordinates(x, y);
+    this.submitInput(current, actions -> {
+        final Actions moved = actions.moveToLocation(translated[0], translated[1]);
+        return click(moved, type);
+      });
   }
 
-  private int[] translateCoordinates(final int x, final int y) {
-    final BrowserSource source = requireNonNull(this.source);
-    final long width = requireNonNull(this.frameWidth);
-    final long height = requireNonNull(this.frameHeight);
-    final int sourceWidth = source.getScreencastWidth();
-    final int sourceHeight = source.getScreencastHeight();
-    final int targetWidth = (int) width;
-    final int targetHeight = (int) height;
-    final double widthRatio = (double) targetWidth / sourceWidth;
-    final double heightRatio = (double) targetHeight / sourceHeight;
-    final int newX = (int) (x * widthRatio);
-    final int newY = (int) (y * heightRatio);
-    final int clampedX = Math.clamp(newX, 0, targetWidth - 1);
-    final int clampedY = Math.clamp(newY, 0, targetHeight - 1);
-    return new int[] { clampedX, clampedY };
+  private static Actions click(final Actions actions, final MouseClick type) {
+    return switch (type) {
+      case LEFT -> actions.click();
+      case RIGHT -> actions.contextClick();
+      case DOUBLE -> actions.doubleClick();
+      case HOLD -> actions.clickAndHold();
+      case RELEASE -> actions.release();
+    };
   }
 
   /**
-   * {@inheritDoc}
+   * Types text into the focused element of Chrome, translating key names such as {@code Enter} into WebDriver keys.
+   * The text is typed on the input thread; it is ignored while the player is not playing.
+   *
+   * @param text the text or key name
    */
   @Override
   public void sendKeyEvent(final String text) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get()) {
-        return;
-      }
-      final Actions actions = new Actions(this.driver);
-      final Actions move = actions.sendKeys(text);
-      final Action action = move.build();
-      this.actionExecutor.submit(action::perform);
-    });
+    Preconditions.checkNotNull(text, "Text must not be null");
+    final Connection current = this.connection;
+    if (current == null || !this.canForwardInput()) {
+      return;
+    }
+    final String keys = PlaywrightKeys.toSeleniumKeys(text);
+    this.submitInput(current, actions -> actions.sendKeys(keys));
   }
 
-  @Override
-  public VideoAttachableCallback getVideoAttachableCallback() {
-    return this.videoAttachableCallback;
+  private void submitInput(final Connection current, final Function<Actions, Actions> builder) {
+    current.input.execute(() -> {
+      try {
+        final Actions actions = new Actions(current.driver);
+        final Actions configured = builder.apply(actions);
+        final Action action = configured.build();
+        action.perform();
+      } catch (final WebDriverException exception) {
+        final boolean playing = this.isPlaying();
+        if (playing) {
+          this.report("Failed to forward input to the browser", exception);
+        }
+      }
+    });
   }
 
   /**
-   * {@inheritDoc}
+   * Stops the tab monitor, closes the DevTools session, stops the capture and input threads, and quits Chrome.
+   * Failures are reported to the exception handler instead of being thrown.
    */
   @Override
-  public boolean release() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.tools.close();
-      this.handles.clear();
-      this.running.set(false);
-      ExecutorUtils.shutdownExecutorGracefully(this.captureExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.actionExecutor);
-      ExecutorUtils.shutdownExecutorGracefully(this.tabExecutor);
-      return true;
-    });
+  protected void close() {
+    // the tab monitor stops once the connection is gone, and must be stopped before the DevTools session it uses
+    final Connection current = this.connection;
+    this.connection = null;
+    this.stopTabMonitor();
+    this.closeDevTools();
+    if (current != null) {
+      ExecutorUtils.shutdownExecutorGracefully(current.input, SHUTDOWN_TIMEOUT);
+      ExecutorUtils.shutdownExecutorGracefully(current.capture, SHUTDOWN_TIMEOUT);
+      this.quitDriver(current.driver);
+    }
+    this.latestFrame.set(null);
+    synchronized (this.knownHandles) {
+      this.knownHandles.clear();
+    }
+  }
+
+  private void stopTabMonitor() {
+    final Thread monitor = this.tabThread;
+    if (monitor == null) {
+      return;
+    }
+    this.tabThread = null;
+    monitor.interrupt();
+    final Thread caller = Thread.currentThread();
+    // the monitor closes the player itself when a tab action releases it, and cannot wait for itself; threads compare
+    // by identity, so equals tells whether the caller is the monitor
+    final boolean calledByMonitor = monitor.equals(caller);
+    if (calledByMonitor) {
+      return;
+    }
+    final long timeoutMillis = SHUTDOWN_TIMEOUT.toMillis();
+    try {
+      monitor.join(timeoutMillis);
+    } catch (final InterruptedException exception) {
+      caller.interrupt();
+    }
+  }
+
+  private void closeDevTools() {
+    final DevTools tools = this.devTools;
+    if (tools == null) {
+      return;
+    }
+    try {
+      tools.clearListeners();
+      tools.close();
+    } catch (final RuntimeException exception) {
+      this.report("Failed to close the DevTools session", exception);
+    }
+    this.devTools = null;
+  }
+
+  private void quitDriver(final ChromeDriver chrome) {
+    try {
+      chrome.quit();
+    } catch (final WebDriverException exception) {
+      this.report("Failed to quit Chrome", exception);
+    }
+  }
+
+  /**
+   * Starts Chrome.
+   */
+  @FunctionalInterface
+  interface DriverFactory {
+    /**
+     * Starts Chrome with the given options.
+     *
+     * @param options the options, including the command-line arguments
+     * @return the driver of the started browser
+     * @throws WebDriverException if Chrome cannot be started
+     */
+    ChromeDriver create(ChromeOptions options);
+  }
+
+  /**
+   * The browser and the threads of a running player, created and released together.
+   */
+  private static final class Connection {
+
+    private final ChromeDriver driver;
+    private final ExecutorService capture;
+    private final ExecutorService input;
+
+    Connection(final ChromeDriver driver, final ExecutorService capture, final ExecutorService input) {
+      this.driver = driver;
+      this.capture = capture;
+      this.input = input;
+    }
+  }
+
+  /**
+   * A frame of the screencast.
+   */
+  @VisibleForTesting
+  static final class ScreencastFrame {
+
+    private final String data;
+    private final int sessionId;
+    private final int pageWidth;
+    private final int pageHeight;
+
+    ScreencastFrame(final String data, final int sessionId, final int pageWidth, final int pageHeight) {
+      this.data = data;
+      this.sessionId = sessionId;
+      this.pageWidth = pageWidth;
+      this.pageHeight = pageHeight;
+    }
+
+    /**
+     * Gets the Base64 encoded JPEG image.
+     *
+     * @return the image, or an empty string if the event had none
+     */
+    String getData() {
+      return this.data;
+    }
+
+    /**
+     * Gets the number Chrome expects in the acknowledgement of the frame.
+     *
+     * @return the session number
+     */
+    int getSessionId() {
+      return this.sessionId;
+    }
+
+    /**
+     * Gets the width of the page in CSS pixels.
+     *
+     * @return the width, or 0 if unknown
+     */
+    int getPageWidth() {
+      return this.pageWidth;
+    }
+
+    /**
+     * Gets the height of the page in CSS pixels.
+     *
+     * @return the height, or 0 if unknown
+     */
+    int getPageHeight() {
+      return this.pageHeight;
+    }
   }
 }

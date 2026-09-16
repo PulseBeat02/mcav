@@ -15,24 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.installer;
-
-import java.io.Serial;
-import org.checkerframework.checker.nullness.qual.Nullable;
+package net.fabricmc.loader.impl.launch.knot;
 
 /**
- * Represents a critical error which occurred while installing the dependencies of the specified artifact.
+ * Stands in for the class loader of Fabric in tests. Like the real one, it is no {@link java.net.URLClassLoader}
+ * but keeps the class path in a private {@code urlLoader} field.
  */
-public class InstallationError extends AssertionError {
+public class KnotClassLoader extends ClassLoader {
 
-  @Serial
-  private static final long serialVersionUID = 6370074734200515542L;
+  private final Object urlLoader;
 
-  InstallationError(final @Nullable String message) {
-    super(message);
+  /**
+   * Creates the class loader.
+   *
+   * @param urlLoader the value of the {@code urlLoader} field, normally a {@link java.net.URLClassLoader}
+   */
+  public KnotClassLoader(final Object urlLoader) {
+    super(null);
+    this.urlLoader = urlLoader;
   }
 
-  InstallationError(final @Nullable String message, final @Nullable Throwable cause) {
-    super(message, cause);
+  @Override
+  public String toString() {
+    return "KnotClassLoader[" + this.urlLoader + "]";
   }
 }

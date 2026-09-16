@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.vnc;
 
+import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -27,78 +28,101 @@ import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * An interface representing a VNC (Virtual Network Computing) player, useful for handling virtual desktops, etc.
+ * Streams the screen of a VNC server and forwards mouse and keyboard input to it.
+ *
+ * <p>Frames arrive whenever the remote screen changes, scaled to the size of the {@link VNCSource}. Input
+ * coordinates are in the coordinate system of the streamed frames. Pausing keeps the connection open but stops
+ * delivering frames.
+ *
+ * <pre><code>
+ *   final VNCPlayer player = VNCPlayer.create();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(pipeline);
+ *   player.start(source);
+ *   player.sendKeyEvent("Return");
+ * </code></pre>
  */
 public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, ExceptionHandler {
   /**
-   * Starts the playback process with the specified video pipeline and VNC source.
+   * Creates a player.
    *
-   * @param combined the VNC source representing the input data, including host
-   * @return {@code true} if the playback starts successfully, or {@code false} if it fails to start.
+   * @return the player
    */
-  boolean start(final VNCSource combined);
-
-  /**
-   * Asynchronously initiates the playback process with the specified video pipeline with a ForkJoinPool.
-   *
-   * @param combined the VNC source representing the input data
-   * @return a CompletableFuture that completes with {@code true} if the playback starts
-   */
-  default CompletableFuture<Boolean> startAsync(final VNCSource combined) {
-    return this.startAsync(combined, ForkJoinPool.commonPool());
+  static VNCPlayer create() {
+    return new VNCPlayerImpl();
   }
 
   /**
-   * Asynchronously initiates the playback process with the specified video pipeline
+   * Connects to a server and starts streaming its screen. A player streams one server at a time.
    *
-   * @param combined the VNC source representing the input data
-   * @param service the ExecutorService to run the task on, allowing for custom thread management
-   * @return a CompletableFuture that completes with {@code true} if the playback starts
+   * @param source the server to connect to
+   * @return true if the connection was made, false if the player is already playing or released
+   * @throws me.brandonli.mcav.media.player.PlayerException if the server cannot be reached or rejects the
+   * connection
    */
-  default CompletableFuture<Boolean> startAsync(final VNCSource combined, final ExecutorService service) {
-    return CompletableFuture.supplyAsync(() -> this.start(combined), service);
+  boolean start(final VNCSource source);
+
+  /**
+   * Connects on the common pool.
+   *
+   * @param source the server to connect to
+   * @return a future that completes with the result of {@link #start(VNCSource)}
+   */
+  default CompletableFuture<Boolean> startAsync(final VNCSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    return this.startAsync(source, pool);
   }
 
   /**
-   * Moves the mouse to the specified coordinates.
+   * Connects on an executor.
    *
-   * @param x the x-coordinate to move the mouse to
-   * @param y the y-coordinate to move the mouse to
+   * @param source   the server to connect to
+   * @param executor the executor that connects
+   * @return a future that completes with the result of {@link #start(VNCSource)}
+   */
+  default CompletableFuture<Boolean> startAsync(final VNCSource source, final ExecutorService executor) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(executor, "Executor must not be null");
+    return CompletableFuture.supplyAsync(() -> this.start(source), executor);
+  }
+
+  /**
+   * Moves the mouse pointer.
+   *
+   * @param x the x coordinate in the streamed frame
+   * @param y the y coordinate in the streamed frame
    */
   void moveMouse(final int x, final int y);
 
   /**
-   * Sends a key event with the specified text.
+   * Types text. A key name from the X11 keysym table, such as {@code Return}, {@code Escape}, or {@code Left},
+   * presses that key; any other text is typed character by character.
    *
-   * @param text the text to send as a key event
+   * @param text the text or key name
    */
   void sendKeyEvent(final String text);
 
   /**
-   * Sends a mouse event of the specified type at the given coordinates.
+   * Moves the mouse pointer and performs a click.
    *
-   * @param type the type of mouse click (e.g., left click, right click)
-   * @param x the x-coordinate where the mouse event occurs
-   * @param y the y-coordinate where the mouse event occurs
+   * @param type the kind of click
+   * @param x    the x coordinate in the streamed frame
+   * @param y    the y coordinate in the streamed frame
    */
   void sendMouseEvent(final MouseClick type, final int x, final int y);
 
   /**
-   * Gets the video-attachable callback associated with this player.
+   * Checks whether the player is connected and delivering frames.
    *
-   * @return The video-attachable callback.
+   * @return true while connected and not paused
    */
-  VideoAttachableCallback getVideoAttachableCallback();
+  boolean isPlaying();
 
   /**
-   * Returns an instance of the {@link VNCPlayer} interface.
-   * This method provides a thread-safe implementation of the VNCPlayer, enabling
-   * functionality such as playback control, VNC session interaction, and resource
-   * management for Virtual Network Computing streams.
+   * Gets the slot that holds the video pipeline the frames are sent through.
    *
-   * @return an instance of {@link VNCPlayer}, implemented by {@link VNCPlayerImpl}.
+   * @return the video pipeline slot
    */
-  static VNCPlayer vm() {
-    return new VNCPlayerImpl();
-  }
+  VideoAttachableCallback getVideoAttachableCallback();
 }

@@ -17,30 +17,28 @@
  */
 package me.brandonli.mcav.vnc;
 
-import static java.util.Objects.requireNonNull;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
+import com.shinyhut.vernacular.client.exceptions.VncException;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
-import java.awt.*;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.Objects;
+import java.util.OptionalInt;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import me.brandonli.mcav.json.GsonProvider;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -48,291 +46,577 @@ import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
-import me.brandonli.mcav.utils.CollectionUtils;
-import me.brandonli.mcav.utils.ExecutorUtils;
-import me.brandonli.mcav.utils.IOUtils;
-import me.brandonli.mcav.utils.LockUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
-import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A VNCPlayer implementation that handles VNC connections and video frame processing.
+ * The default {@link VNCPlayer}, built on the Vernacular VNC client.
+ *
+ * <p>The client delivers screen updates on its own thread; the newest one is handed to a render thread which
+ * scales it and runs the pipeline, so slow filters never block the protocol. Input is translated from frame
+ * coordinates to the coordinates of the remote screen, whose size is learned from the first update.
+ *
+ * <p>When the connection fails while streaming, the failure is reported, the player stops playing, and it can be
+ * started again.
  */
-public class VNCPlayerImpl implements VNCPlayer {
+public final class VNCPlayerImpl implements VNCPlayer {
 
-  private static final Consumer<VernacularClient>[] MOUSE_ACTION_CONSUMERS = CollectionUtils.array(
-    client -> client.click(1),
-    client -> client.click(2),
-    client -> {
-      client.click(1);
-      client.click(1);
-    },
-    client -> client.updateMouseButton(1, true),
-    client -> client.updateMouseButton(1, false)
-  );
+  private static final int LEFT_BUTTON = 1;
+  private static final int RIGHT_BUTTON = 3;
+  private static final long IDLE_PARK_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
+  private static final long STOP_TIMEOUT_MILLIS = 2_000L;
+  private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
 
-  private static final Map<String, Integer> KEY_SYMBOLS;
+  private final Function<VernacularConfig, VernacularClient> clientFactory;
+  private final Supplier<Socket> socketFactory;
+  private final VideoAttachableCallback videoCallback;
+  private final ExceptionHandler exceptionHandler;
+  private final Lock lock;
+  private final AtomicBoolean paused;
+  private final AtomicBoolean released;
+  private final AtomicReference<@Nullable BufferedImage> latestFrame;
 
-  static {
-    final Gson gson = GsonProvider.getSimple();
-    try (final Reader reader = IOUtils.getResourceAsStreamReader("keysyms.json")) {
-      final TypeToken<Map<String, String>> token = new TypeToken<>() {};
-      final Type type = token.getType();
-      final Map<String, String> map = requireNonNull(gson.fromJson(reader, type));
-      final Set<Map.Entry<@KeyFor("map") String, String>> entries = map.entrySet();
-      final Map<String, Integer> symbols = new HashMap<>();
-      for (final Map.Entry<String, String> entry : entries) {
-        final String key = entry.getKey();
-        final String value = entry.getValue();
-        final int decode = Integer.decode(value);
-        symbols.put(key, decode);
+  private volatile @Nullable Session session;
+  private @Nullable VernacularClient client;
+  private @Nullable Thread renderThread;
+  private volatile @Nullable VNCSource source;
+  private volatile int remoteWidth;
+  private volatile int remoteHeight;
+
+  VNCPlayerImpl() {
+    this(VernacularClient::new, Socket::new);
+  }
+
+  /**
+   * Constructs a player that creates its VNC clients and sockets with the given factories.
+   *
+   * @param clientFactory creates the client of a session from its configuration
+   * @param socketFactory creates the unconnected socket of a session
+   */
+  @VisibleForTesting
+  VNCPlayerImpl(final Function<VernacularConfig, VernacularClient> clientFactory, final Supplier<Socket> socketFactory) {
+    this.clientFactory = clientFactory;
+    this.socketFactory = socketFactory;
+    this.videoCallback = VideoAttachableCallback.create();
+    this.exceptionHandler = ExceptionHandler.createDefault();
+    this.lock = new ReentrantLock();
+    this.paused = new AtomicBoolean(false);
+    this.released = new AtomicBoolean(false);
+    this.latestFrame = new AtomicReference<>();
+  }
+
+  @Override
+  public boolean start(final VNCSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    this.lock.lock();
+    try {
+      final boolean gone = this.released.get();
+      final boolean active = this.isActive();
+      if (gone || active) {
+        return false;
       }
-      KEY_SYMBOLS = Map.copyOf(symbols);
-    } catch (final IOException e) {
-      throw new PlayerException(e.getMessage(), e);
+
+      this.resetForNewSession(source);
+      this.launchSession(source);
+      return true;
+    } finally {
+      this.lock.unlock();
     }
   }
 
-  private final VideoAttachableCallback videoCallback;
-  private final ExecutorService frameProcessorExecutor;
-  private final AtomicReference<@Nullable BufferedImage> current;
-  private final AtomicBoolean running;
-  private final Lock lock;
+  private void resetForNewSession(final VNCSource source) {
+    // the client and render thread of a session whose connection failed are still around
+    this.stopClient();
+    this.stopRenderThread();
 
-  @Nullable private volatile VernacularClient vncClient;
-
-  @Nullable private volatile VNCSource source;
-
-  private volatile BiConsumer<String, Throwable> exceptionHandler;
-
-  VNCPlayerImpl() {
-    this.exceptionHandler = ExceptionHandler.createDefault().getExceptionHandler();
-    this.videoCallback = VideoAttachableCallback.create();
-    this.frameProcessorExecutor = Executors.newSingleThreadExecutor();
-    this.current = new AtomicReference<>(null);
-    this.running = new AtomicBoolean(false);
-    this.lock = new ReentrantLock();
+    this.source = source;
+    this.remoteWidth = 0;
+    this.remoteHeight = 0;
+    this.paused.set(false);
+    this.latestFrame.set(null);
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public BiConsumer<String, Throwable> getExceptionHandler() {
-    return this.exceptionHandler;
+  private void launchSession(final VNCSource source) {
+    final Session created = new Session();
+
+    // the thread exists before the session so screen updates can wake it; it starts once the session is up
+    final Thread renderWorker = new Thread(() -> this.render(source, created), "mcav-vnc-render");
+    renderWorker.setDaemon(true);
+
+    this.client = this.openSession(source, created, renderWorker);
+    this.session = created;
+    this.renderThread = renderWorker;
+    renderWorker.start();
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-    this.exceptionHandler = exceptionHandler;
+  private VernacularClient openSession(final VNCSource source, final Session created, final Thread renderWorker) {
+    final VernacularConfig config = this.createConfig(source, created, renderWorker);
+    final VernacularClient vncClient = this.clientFactory.apply(config);
+    final Socket socket = this.connect(source);
+    try {
+      vncClient.start(socket);
+    } catch (final RuntimeException exception) {
+      closeQuietly(socket);
+      final String message = exception.getMessage();
+      throw new PlayerException("Failed to start the VNC session with " + source + ": " + message, exception);
+    }
+
+    // the client reports handshake failures, such as a rejected password, to the error listener and returns; a
+    // failure that arrives after this point is a failure of the running session
+    final VncException failure = created.finishStartup();
+    if (failure != null) {
+      vncClient.stop();
+      closeQuietly(socket);
+      final String message = failure.getMessage();
+      throw new PlayerException("Failed to start the VNC session with " + source + ": " + message, failure);
+    }
+    return vncClient;
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public boolean start(final VNCSource source) {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      if (this.running.get()) {
-        return true;
-      }
-
-      final VernacularConfig config = this.createConfig(source);
-      final String host = source.getHost();
-      final int port = source.getPort();
-      this.source = source;
-      this.running.set(true);
-
-      final VernacularClient client = new VernacularClient(config);
-      client.start(host, port);
-      this.vncClient = client;
-
-      return true;
-    });
+  // the client connects on its own thread and would only report failures later, so the socket is opened here
+  private Socket connect(final VNCSource source) {
+    final String host = source.getHost();
+    final int port = source.getPort();
+    final InetSocketAddress address = new InetSocketAddress(host, port);
+    final Socket socket = this.socketFactory.get();
+    try {
+      socket.connect(address, CONNECT_TIMEOUT_MILLIS);
+      socket.setTcpNoDelay(true);
+      return socket;
+    } catch (final IOException exception) {
+      closeQuietly(socket);
+      final String message = exception.getMessage();
+      throw new PlayerException("Failed to connect to " + source + ": " + message, exception);
+    }
   }
 
-  private VernacularConfig createConfig(final VNCSource source) {
-    final int fps = source.getTargetFrameRate();
+  private static void closeQuietly(final Socket socket) {
+    try {
+      socket.close();
+    } catch (final IOException exception) {
+      // nothing more can be done with a socket that refuses to close
+    }
+  }
+
+  private VernacularConfig createConfig(final VNCSource source, final Session created, final Thread renderWorker) {
     final VernacularConfig config = new VernacularConfig();
-    config.setColorDepth(ColorDepth.BPP_16_TRUE);
+    config.setColorDepth(ColorDepth.BPP_24_TRUE);
     config.setShared(true);
-    config.setTargetFramesPerSecond(fps);
-
-    final int width = source.getScreenWidth();
-    final int height = source.getScreenHeight();
-    final VideoPipelineStep videoPipeline = this.videoCallback.retrieve();
-    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.of(width, height, fps);
-    config.setScreenUpdateListener(image -> this.processImageAsync(image, videoMetadata, videoPipeline));
+    config.setUseLocalMousePointer(false);
+    final int frameRate = source.getTargetFrameRate();
+    config.setTargetFramesPerSecond(frameRate);
+    config.setScreenUpdateListener(image -> this.onScreenUpdate(image, renderWorker));
+    config.setErrorListener(error -> this.onError(created, error));
 
     final String username = source.getUsername();
     if (username != null && !username.isEmpty()) {
       config.setUsernameSupplier(() -> username);
     }
-
-    final String passwd = source.getPassword();
-    if (passwd != null && !passwd.isEmpty()) {
-      config.setPasswordSupplier(() -> passwd);
+    final String password = source.getPassword();
+    if (password != null && !password.isEmpty()) {
+      config.setPasswordSupplier(() -> password);
     }
-
     return config;
   }
 
-  private void processImageAsync(final Image image, final OriginalVideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
-    this.frameProcessorExecutor.submit(() -> this.processImage(image, videoMetadata, pipelineStep));
+  private void onScreenUpdate(final Image image, final Thread renderWorker) {
+    if (!(image instanceof final BufferedImage frame)) {
+      return;
+    }
+
+    final int width = frame.getWidth();
+    final int height = frame.getHeight();
+    this.remoteWidth = width;
+    this.remoteHeight = height;
+    final boolean pausedNow = this.paused.get();
+    if (pausedNow) {
+      return;
+    }
+
+    // the first update may arrive during the handshake; the render thread picks it up once it starts, so a screen
+    // that never changes is still shown
+    this.latestFrame.set(frame);
+    LockSupport.unpark(renderWorker);
   }
 
-  private void processImage(final Image image, final OriginalVideoMetadata videoMetadata, final VideoPipelineStep pipelineStep) {
-    if (!this.running.get()) {
+  private void onError(final Session failed, final VncException error) {
+    final boolean duringStartup = failed.recordStartupError(error);
+    if (duringStartup) {
       return;
     }
 
-    if (!(image instanceof final BufferedImage bufferedImage)) {
-      return;
+    // errors of a session that already ended, such as those caused by a release, are not reported
+    final boolean wasAlive = failed.end();
+    if (wasAlive) {
+      this.report("The VNC connection failed", error);
     }
-    this.current.set(bufferedImage);
+  }
 
-    final int width = videoMetadata.getVideoWidth();
-    final int height = videoMetadata.getVideoHeight();
-    try {
-      final ImageBuffer staticImage = ImageBuffer.image(bufferedImage);
-      final ResizeFilter resizeFilter = new ResizeFilter(width, height);
-      resizeFilter.applyFilter(staticImage, videoMetadata);
-      VideoPipelineStep current = pipelineStep;
-      while (current != null) {
-        current.process(staticImage, videoMetadata);
-        current = current.next();
+  private void render(final VNCSource source, final Session owner) {
+    @Nullable ResizeFilter resizeFilter = null;
+    @Nullable OriginalVideoMetadata metadata = null;
+    while (owner.isAlive()) {
+      final BufferedImage frame = this.latestFrame.getAndSet(null);
+      if (frame == null) {
+        LockSupport.parkNanos(IDLE_PARK_NANOS);
+        continue;
       }
-      staticImage.release();
-    } catch (final Throwable e) {
-      final String raw = e.getMessage();
-      final Class<?> clazz = e.getClass();
-      final String msg = raw != null ? raw : clazz.getName();
-      this.exceptionHandler.accept(msg, e);
+
+      final int width = frameWidth(source, frame);
+      final int height = frameHeight(source, frame);
+      if (resizeFilter == null || !resizeFilter.matches(width, height)) {
+        final int frameRate = source.getTargetFrameRate();
+        resizeFilter = new ResizeFilter(width, height);
+        metadata = OriginalVideoMetadata.of(width, height, frameRate);
+      }
+
+      // the metadata is created together with the resize filter
+      final OriginalVideoMetadata current = Objects.requireNonNull(metadata, "Metadata must exist with the filter");
+      this.deliver(frame, resizeFilter, current);
     }
+  }
+
+  private static int frameWidth(final VNCSource source, final BufferedImage frame) {
+    final int configuredWidth = source.getScreenWidth();
+    final int screenUpdateWidth = frame.getWidth();
+    return sizeOrFallback(configuredWidth, screenUpdateWidth);
+  }
+
+  private static int frameHeight(final VNCSource source, final BufferedImage frame) {
+    final int configuredHeight = source.getScreenHeight();
+    final int screenUpdateHeight = frame.getHeight();
+    return sizeOrFallback(configuredHeight, screenUpdateHeight);
+  }
+
+  // a configured size of 0 keeps the size of the remote screen
+  private static int sizeOrFallback(final int configuredSize, final int fallbackSize) {
+    if (configuredSize > 0) {
+      return configuredSize;
+    }
+    return fallbackSize;
+  }
+
+  private void deliver(final BufferedImage frame, final ResizeFilter resizeFilter, final OriginalVideoMetadata metadata) {
+    try (final ImageBuffer image = ImageBuffer.image(frame)) {
+      resizeFilter.applyFilter(image, metadata);
+      final VideoPipelineStep pipeline = this.videoCallback.retrieve();
+      pipeline.processAll(image, metadata);
+    } catch (final RuntimeException | Error exception) {
+      // a frame runs user filters and native OpenCV code, which can fail with any Error, such as an AssertionError or
+      // a LinkageError; only errors of the virtual machine are thrown, every other failure is reported
+      ThrowableUtils.throwIfFatal(exception);
+      this.report("Failed to process a VNC frame", exception);
+    }
+  }
+
+  private void report(final String message, final Throwable error) {
+    final BiConsumer<String, Throwable> handler = this.exceptionHandler.getExceptionHandler();
+    handler.accept(message, error);
+  }
+
+  private boolean isActive() {
+    final Session current = this.session;
+    return current != null && current.isAlive();
   }
 
   /**
-   * {@inheritDoc}
+   * Checks whether a screen update is waiting for the render thread. Pausing and starting a session drop the update
+   * that is waiting, so that a frame of a paused or of an ended session is never shown. Visible for testing.
+   *
+   * @return true while an update waits to be rendered
    */
+  @VisibleForTesting
+  boolean hasPendingFrame() {
+    final BufferedImage pending = this.latestFrame.get();
+    return pending != null;
+  }
+
   @Override
   public boolean pause() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      if (this.running.get()) {
-        this.running.set(false);
-        return true;
+    this.lock.lock();
+    try {
+      final boolean active = this.isActive();
+      if (!active) {
+        return false;
       }
-      return false;
-    });
+
+      final boolean changed = this.paused.compareAndSet(false, true);
+      if (changed) {
+        this.latestFrame.set(null);
+      }
+      return changed;
+    } finally {
+      this.lock.unlock();
+    }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean resume() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      if (this.running.get()) {
-        this.running.set(true);
-        return true;
+    this.lock.lock();
+    try {
+      final boolean active = this.isActive();
+      if (!active) {
+        return false;
       }
-      return false;
-    });
+      return this.paused.compareAndSet(true, false);
+    } finally {
+      this.lock.unlock();
+    }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
   public boolean release() {
-    return LockUtils.executeWithLock(this.lock, () -> {
-      this.running.set(false);
-      if (this.vncClient != null) {
-        final VernacularClient client = requireNonNull(this.vncClient);
-        client.stop();
-        this.vncClient = null;
+    this.lock.lock();
+    try {
+      final boolean first = this.released.compareAndSet(false, true);
+      if (!first) {
+        return false;
       }
-      ExecutorUtils.shutdownExecutorGracefully(this.frameProcessorExecutor);
 
+      final Session current = this.session;
+      if (current != null) {
+        current.end();
+      }
+      this.stopClient();
+      this.stopRenderThread();
+      this.latestFrame.set(null);
       return true;
-    });
+    } finally {
+      this.lock.unlock();
+    }
   }
 
-  /**
-   * {@inheritDoc}
-   */
+  private void stopClient() {
+    final VernacularClient vncClient = this.client;
+    if (vncClient == null) {
+      return;
+    }
+
+    // the client waits for its threads and swallows an interrupt of the caller, which must survive the release
+    final Thread current = Thread.currentThread();
+    final boolean interrupted = current.isInterrupted();
+    try {
+      vncClient.stop();
+    } catch (final RuntimeException exception) {
+      this.report("Failed to close the VNC connection", exception);
+    }
+    if (interrupted) {
+      current.interrupt();
+    }
+    this.client = null;
+  }
+
+  private void stopRenderThread() {
+    final Thread renderWorker = this.renderThread;
+    if (renderWorker == null) {
+      return;
+    }
+
+    LockSupport.unpark(renderWorker);
+    this.join(renderWorker);
+    this.renderThread = null;
+  }
+
+  private void join(final Thread thread) {
+    try {
+      thread.join(STOP_TIMEOUT_MILLIS);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+  }
+
+  @Override
+  public boolean isPlaying() {
+    final boolean active = this.isActive();
+    final boolean pausedNow = this.paused.get();
+    return active && !pausedNow;
+  }
+
   @Override
   public void moveMouse(final int x, final int y) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      final BufferedImage currentImage = this.current.get();
-      final VNCSource source = this.source;
-      if (currentImage == null || source == null || !this.running.get()) {
-        return;
-      }
+    final VernacularClient vncClient = this.getConnectedClient();
+    if (vncClient == null) {
+      return;
+    }
 
-      final VernacularClient client = this.vncClient;
-      if (client != null) {
-        final int[] translated = this.translateCoordinates(x, y);
-        client.moveMouse(translated[0], translated[1]);
-      }
-    });
-  }
-
-  private int[] translateCoordinates(final int x, final int y) {
-    final BufferedImage currentImage = requireNonNull(this.current.get());
-    final VNCSource source = requireNonNull(this.source);
-    final int sourceWidth = source.getScreenWidth();
-    final int sourceHeight = source.getScreenHeight();
-    final int targetWidth = currentImage.getWidth();
-    final int targetHeight = currentImage.getHeight();
-    final double widthRatio = (double) targetWidth / sourceWidth;
-    final double heightRatio = (double) targetHeight / sourceHeight;
-    final int newX = (int) (x * widthRatio);
-    final int newY = (int) (y * heightRatio);
-    final int clampedX = Math.clamp(newX, 0, targetWidth - 1);
-    final int clampedY = Math.clamp(newY, 0, targetHeight - 1);
-    return new int[] { clampedX, clampedY };
-  }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void sendKeyEvent(final String text) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      if (this.running.get() && this.vncClient != null) {
-        final VernacularClient client = requireNonNull(this.vncClient);
-        if (KEY_SYMBOLS.containsKey(text)) {
-          final int ks = KEY_SYMBOLS.get(text);
-          client.updateKey(ks, true);
-          client.updateKey(ks, false);
-          return;
-        }
-        client.type(text);
-      }
-    });
+    final int[] translated = this.translateCoordinates(x, y);
+    this.forward(() -> vncClient.moveMouse(translated[0], translated[1]));
   }
 
   @Override
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
-    LockUtils.executeWithLock(this.lock, () -> {
-      if (!this.running.get() || this.vncClient == null) {
-        return;
-      }
+    Preconditions.checkNotNull(type, "Mouse click type must not be null");
+    final VernacularClient vncClient = this.getConnectedClient();
+    if (vncClient == null) {
+      return;
+    }
 
-      final VernacularClient client = requireNonNull(this.vncClient);
-      final int value = type.getId();
-      final Consumer<VernacularClient> action = MOUSE_ACTION_CONSUMERS[value];
-      this.moveMouse(x, y);
-      action.accept(client);
-    });
+    final int[] translated = this.translateCoordinates(x, y);
+    this.forward(() -> {
+        vncClient.moveMouse(translated[0], translated[1]);
+        final Runnable press = clickAction(vncClient, type);
+        press.run();
+      });
+  }
+
+  private static Runnable clickAction(final VernacularClient vncClient, final MouseClick type) {
+    return switch (type) {
+      case LEFT -> () -> vncClient.click(LEFT_BUTTON);
+      case RIGHT -> () -> vncClient.click(RIGHT_BUTTON);
+      case DOUBLE -> () -> {
+        vncClient.click(LEFT_BUTTON);
+        vncClient.click(LEFT_BUTTON);
+      };
+      case HOLD -> () -> vncClient.updateMouseButton(LEFT_BUTTON, true);
+      case RELEASE -> () -> vncClient.updateMouseButton(LEFT_BUTTON, false);
+    };
+  }
+
+  @Override
+  public void sendKeyEvent(final String text) {
+    Preconditions.checkNotNull(text, "Text must not be null");
+    final VernacularClient vncClient = this.getConnectedClient();
+    if (vncClient == null) {
+      return;
+    }
+
+    final OptionalInt symbol = KeySymbols.lookup(text);
+    this.forward(() -> {
+        if (symbol.isPresent()) {
+          final int code = symbol.getAsInt();
+          vncClient.updateKey(code, true);
+          vncClient.updateKey(code, false);
+        } else {
+          vncClient.type(text);
+        }
+      });
+  }
+
+  private @Nullable VernacularClient getConnectedClient() {
+    final boolean active = this.isActive();
+    if (!active) {
+      return null;
+    }
+    return this.client;
+  }
+
+  private void forward(final Runnable action) {
+    try {
+      action.run();
+    } catch (final RuntimeException exception) {
+      final boolean active = this.isActive();
+      if (active) {
+        this.report("Failed to forward input to the VNC server", exception);
+      }
+    }
+  }
+
+  private int[] translateCoordinates(final int x, final int y) {
+    // input is only forwarded while connected, and the source is set before the connection is made
+    final VNCSource current = Objects.requireNonNull(this.source, "Source must be set while connected");
+    final int targetWidth = this.remoteWidth;
+    final int targetHeight = this.remoteHeight;
+
+    // the remote size is unknown until the first screen update arrives
+    final int smallerSide = Math.min(targetWidth, targetHeight);
+    if (smallerSide <= 0) {
+      final int untranslatedX = Math.max(0, x);
+      final int untranslatedY = Math.max(0, y);
+      return new int[] { untranslatedX, untranslatedY };
+    }
+
+    final int configuredWidth = current.getScreenWidth();
+    final int configuredHeight = current.getScreenHeight();
+    final int frameWidth = sizeOrFallback(configuredWidth, targetWidth);
+    final int frameHeight = sizeOrFallback(configuredHeight, targetHeight);
+    final double widthRatio = (double) targetWidth / frameWidth;
+    final double heightRatio = (double) targetHeight / frameHeight;
+    final int scaledX = (int) Math.round(x * widthRatio);
+    final int scaledY = (int) Math.round(y * heightRatio);
+    final int clampedX = Math.clamp(scaledX, 0, targetWidth - 1);
+    final int clampedY = Math.clamp(scaledY, 0, targetHeight - 1);
+    return new int[] { clampedX, clampedY };
   }
 
   @Override
   public VideoAttachableCallback getVideoAttachableCallback() {
     return this.videoCallback;
+  }
+
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler.getExceptionHandler();
+  }
+
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");
+    this.exceptionHandler.setExceptionHandler(exceptionHandler);
+  }
+
+  /**
+   * The state of one connection. Errors the client reports while the handshake runs fail the start; the hand-over
+   * from the handshake to the running session is atomic, so no error falls between the two.
+   */
+  private static final class Session {
+
+    private final AtomicBoolean alive;
+    private boolean starting;
+    private @Nullable VncException startupError;
+
+    Session() {
+      this.alive = new AtomicBoolean(false);
+      this.starting = true;
+    }
+
+    /**
+     * Records an error if the handshake is still running.
+     *
+     * @param error the error
+     * @return true if the error belongs to the handshake
+     */
+    synchronized boolean recordStartupError(final VncException error) {
+      if (!this.starting) {
+        return false;
+      }
+      if (this.startupError == null) {
+        this.startupError = error;
+      }
+      return true;
+    }
+
+    /**
+     * Ends the handshake: the session comes alive unless an error was recorded.
+     *
+     * @return the first error of the handshake, or null if it succeeded
+     */
+    synchronized @Nullable VncException finishStartup() {
+      this.starting = false;
+      final VncException failure = this.startupError;
+      if (failure == null) {
+        this.alive.set(true);
+      }
+      return failure;
+    }
+
+    /**
+     * Checks whether the session is running.
+     *
+     * @return true if the handshake succeeded and the session has not ended
+     */
+    boolean isAlive() {
+      return this.alive.get();
+    }
+
+    /**
+     * Ends the session.
+     *
+     * @return true if the session was alive
+     */
+    boolean end() {
+      return this.alive.getAndSet(false);
+    }
   }
 }

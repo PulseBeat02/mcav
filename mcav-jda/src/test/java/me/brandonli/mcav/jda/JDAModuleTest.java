@@ -15,24 +15,31 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.browser;
+package me.brandonli.mcav.jda;
 
-import java.io.Serial;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
 
 /**
- * Exception thrown when an invalid argument is provided for a mouse click operation.
+ * Tests {@link JDAModule}.
  */
-public class InvalidMouseClickArgument extends IllegalArgumentException {
+final class JDAModuleTest {
 
-  @Serial
-  private static final long serialVersionUID = -6679497293718318884L;
+  @Test
+  void isNamedJda() {
+    final JDAModule module = new JDAModule();
+    final String name = module.getModuleName();
+    assertEquals("jda", name);
+  }
 
-  /**
-   * Constructs a new InvalidMouseClickArgument exception with the specified detail message.
-   *
-   * @param message the detail message explaining the reason for the exception
-   */
-  public InvalidMouseClickArgument(final String message) {
-    super(message);
+  @Test
+  void startsAndStopsWithoutHoldingResources() {
+    final JDAModule module = new JDAModule();
+    assertDoesNotThrow(module::start);
+    assertDoesNotThrow(module::stop);
+    assertDoesNotThrow(module::start);
+    assertDoesNotThrow(module::stop);
   }
 }

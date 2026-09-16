@@ -21,19 +21,22 @@ import java.nio.file.Path;
 import java.util.Collection;
 
 /**
- * Interface to provide a mechanism to load jar files into the current ClassLoader.
+ * Adds downloaded jars to a class loader so their classes can be loaded.
  */
+@FunctionalInterface
 public interface JarLoader {
   /**
-   * Loads the specified JAR files into the given ClassLoader.
-   *
-   * @param jars   the collection of paths to the JAR files to be loaded
-   * @param loader the ClassLoader into which the JAR files should be loaded
-   */
-  void loadJars(final Collection<Path> jars, final ClassLoader loader);
-
-  /**
-   * Default implementation of JarLoader that uses the Unasfe or Reflective injector to load JAR files.
+   * The loader that appends jars to a {@link java.net.URLClassLoader}, including the plugin class loaders of
+   * Bukkit and Paper and the Knot class loader of Fabric.
    */
   JarLoader DEFAULT_URL_LOADER = LoaderUtils::loadJarPaths;
+
+  /**
+   * Adds jars to a class loader.
+   *
+   * @param jars   the jar files
+   * @param loader the class loader
+   * @throws JarInjectorException if the jars cannot be added
+   */
+  void loadJars(final Collection<Path> jars, final ClassLoader loader);
 }

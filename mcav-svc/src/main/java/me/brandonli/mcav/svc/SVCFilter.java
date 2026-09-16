@@ -17,19 +17,67 @@
  */
 package me.brandonli.mcav.svc;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.FunctionalAudioFilter;
 
 /**
- * Represents a filter for Simple Voice Chat (SVC) audio processing.
+ * Plays the audio of a pipeline through Simple Voice Chat, as if it came from one or more entities: every listed
+ * entity becomes a speaker that nearby players hear with positional audio.
+ *
+ * <p>The {@link SVCModule} must have received the voice chat API before a filter is created. Call
+ * {@link #start()} before attaching the filter and {@link #release()} when playback ends.
+ *
+ * <pre><code>
+ *   final SVCFilter speakers = SVCFilter.svc(player);
+ *   speakers.start();
+ *   final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
+ *   final AudioPipelineStep step = AudioPipelineStep.of(speakers);
+ *   audio.attach(step);
+ * </code></pre>
  */
 public interface SVCFilter extends FunctionalAudioFilter {
   /**
-   * Creates a new SVCFilter instance with the specified player UUIDs.
-   *
-   * @param players the objects of the players to filter
-   * @return a new SVCFilter instance
+   * The distance in blocks the audio can be heard from when none is specified.
    */
-  static SVCFilter svc(final Object... players) {
-    return new SVCFilterImpl(players);
+  float DEFAULT_DISTANCE = 32.0f;
+
+  /**
+   * Creates a filter that plays from the specified entities.
+   *
+   * @param entities the platform entities the audio comes from, such as Bukkit {@code Player}s
+   * @return the filter
+   * @throws IllegalStateException if the voice chat API was not injected into {@link SVCModule}
+   */
+  static SVCFilter svc(final Object... entities) {
+    return withDistance(DEFAULT_DISTANCE, entities);
   }
+
+  /**
+   * Creates a filter that plays from the specified entities with a hearing distance.
+   *
+   * @param distance the distance in blocks the audio can be heard from
+   * @param entities the platform entities the audio comes from, such as Bukkit {@code Player}s
+   * @return the filter
+   * @throws IllegalStateException if the voice chat API was not injected into {@link SVCModule}
+   */
+  static SVCFilter withDistance(final float distance, final Object... entities) {
+    final boolean finiteDistance = Float.isFinite(distance);
+    final boolean validDistance = distance > 0 && finiteDistance;
+    Preconditions.checkArgument(validDistance, "Distance must be positive but was %s", distance);
+
+    Preconditions.checkNotNull(entities, "Entities must not be null");
+    Preconditions.checkArgument(entities.length > 0, "At least one entity is required");
+    for (final Object entity : entities) {
+      Preconditions.checkNotNull(entity, "Entities must not contain null");
+    }
+
+    return new SVCFilterImpl(distance, entities);
+  }
+
+  /**
+   * Gets the number of 20 millisecond frames waiting to be played by the slowest speaker.
+   *
+   * @return the queued frame count
+   */
+  int getQueuedFrames();
 }
