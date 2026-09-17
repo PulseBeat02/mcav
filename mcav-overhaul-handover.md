@@ -63,7 +63,28 @@ Commands:
 | Docs | `jupyter-book build docs --path-output <dir> --warningiserror --keep-going` (venv with `docs/requirements.txt`) |
 | Website | in `mcav-http/mcav-website`: `eslint src`, `tsc --noEmit`, `npm run build` (Node 24.21.0 from `mcav-http/build/nodejs`) |
 
-**Final state (verified 2026-09-15):**
+**State verified 2026-09-17 on a headless Linux box (Ubuntu 24.04, GraalVM 25, no display, no sudo):**
+
+- `./gradlew spotlessCheck compileJava compileTestJava :sandbox:plugin:compileE2eTestJava javadoc --rerun-tasks
+  --continue` → **142 tasks, all executed** (nothing up to date), **0 javac / Error Prone / Checker Framework
+  warnings**, javadoc clean, spotlessCheck clean.
+- `./gradlew test --rerun-tasks --continue` → **2640 tests, 0 failures, 0 errors, 39 skipped**
+  (24 mcav-common, 14 mcav-lwjgl, 1 mcav-vm — every skip is environment-gated).
+- `./gradlew coverageLint --continue` → green for **browser, http, svc, jda, installer, vnc, bukkit, sandbox**;
+  gaps remain only in **lwjgl (113)**, **mcav-common (45)** and **vm (5)**, and every one of those traces to a test
+  that skips for a missing dependency on this box: no OpenGL context (GLFW reports `GLFW_PLATFORM_UNAVAILABLE`
+  even against Xvfb), `libvlc5` present but with **zero plugins** so libvlc cannot initialise, no GTK 2, no
+  `/dev/snd`, no QEMU, and the bundled OpenCV Linux build has no video-file backend.
+- Text scans: 0 files without a final newline, 0 `@SuppressWarnings`, 0 records, 0 `{@inheritDoc}`,
+  0 `-AsuppressWarnings`, 0 `AssertionError` subclasses, 0 TODO/FIXME, 0 CRLF outside `.bat`,
+  **0 chained calls** `).x(` across 409 production files.
+- **Installing Chrome for Testing is what closed mcav-browser's coverage.** Without a browser every
+  `mcav-browser` test skips itself and the module reports 59 uncovered lines; with one it is green. Anyone
+  reproducing these numbers needs Chrome + chromedriver on `PATH`.
+- **Not verified here:** Windows and macOS (no hardware — those paths are reasoned from the code only), the Paper
+  26.2 end-to-end test (opt-in, ~707 MiB download), and IntelliJ inspections (no IDE).
+
+**Earlier state (verified 2026-09-15 on the owner's Windows machine):**
 
 - `final-verify.sh` run 2 (after every change): spotlessCheck 0 violations; forced recompile of every source set
   (incl. `e2eTest`) 0 javac warnings; javadoc 0 warnings; **coverageLint green for every module (0 gaps, 0 failed
@@ -106,7 +127,8 @@ Commands:
 ## 5. Changes by module (summary — details in section 14)
 
 ### mcav-common
-- **New/moved reusable utilities**: `utils.audio.MonoDownmixer` (from svc), `utils.audio.AudioResampler` +
+- **New/moved reusable utilities**: `utils.audio.MonoDownmixer` (**new**; `master` had no such class, svc
+  downmixed through `javax.sound.sampled`), `utils.audio.AudioResampler` +
   `SampleFormat` (restored, libswresample-backed), `utils.ffmpeg.AudioExtractor` (from bukkit `SoundExtractorUtils`),
   `utils.http.NetworkUtils` (generic half of bukkit `NetworkUtils`), `utils.http.IdleTimeoutInputStream`
   (package-private), `utils.ThrowableUtils.throwIfFatal`, `capability.CapabilityGuard`.
@@ -125,12 +147,17 @@ Commands:
   race: concurrent same-target downloads failing in `MoveFileEx`).
 - **Exceptions**: none extends `AssertionError` any more (see section 6). `me.brandonli.mcav.utils.UncheckedIOException`
   was deleted in favour of `java.io.UncheckedIOException`.
+- **VLC `AudioRenderer`**: a bounded queue of `QUEUE_CAPACITY = 64` chunks with a drop-oldest strategy, so a
+  pipeline that falls behind loses the oldest audio instead of growing without bound; pause, seek and stop drop the
+  queue. (Previously this document mentioned only its `ThrowableUtils.throwIfFatal` call.)
 - **Media/pipeline performance**: pooled frame images (no per-frame allocation), VLC renders at the attached size,
   `VideoFrameCopier` resizes straight from decoder memory, `MatVideoFilter` round-trips raw BGR (no BufferedImage),
   spare-Mat reuse via `MatImageBuffer.transformMat` in Crop/Resize/Rotation/Transpose/Bilateral, `TintFilter` cache,
   `GrayscaleFilter` `ReusableMat`, `FaceDetectionFilter` reuse (synchronized — OpenCV classifier is not thread-safe),
   `TemporalDitherAlgorithm` reuses its index array, `ImageSupplier` bulk raster reads, per-thread random dither,
-  seek refused on live sources, start opens the new session before stopping the old, `resume()` returns false after
+  seek refused on live sources, start opens the new session before stopping the old **in `AbstractVideoPlayerCV`
+  only** (`VLCPlayer` still calls `stopPlayback()` before `created.start()`, so a source VLC accepts but cannot
+  open destroys the current playback), `resume()` returns false after
   the end (start replays), OpenCV frames get real timestamps (`VideoTimestamps`), flaky tests fixed deterministically
   (injected clock/threshold/audio lead in `PlaybackSession`).
 - **Pixel contract**: `ImageBuffer.getPixels()` is a shared read-only array; new `copyPixels()` (modifiable copy) and
@@ -143,12 +170,15 @@ Commands:
 - 18 review findings fixed: `BlockRenderer` resends the whole wall to new/returning viewers and every 20 ticks,
   restores blocks for removed viewers; `MapImage` resizes only when configured (centre/crop otherwise); resource-pack
   hosting (`MCPackHosting` revalidates cached URLs, `SimpleResourcePack` path validation and atomic moves,
-  `FileServerHandler` length from the open channel + read timeout removed after headers, IPv6 bracketing,
+  `FileServerHandler` length from the open channel + read timeout removed after headers, IPv6 bracketing (now in
+  core as `NetworkUtils.formatHostForUrl`; `HttpHosting.getRawUrl` had been missed and produced `http://::1:8080`),
   `NettyHosting` doesn't cache a localhost fallback); `MapLayout` overflow checks; `EntityRenderer` respawns invalid
   displays only in loaded chunks; `BukkitModule` restarts correctly; `DeltaMapEncoder` 128 KiB budget documented.
 - `ServerAddress` (server-ip / public address with cache and localhost fallback) replaces the old `NetworkUtils`.
 - `UnsupportedServerVersionException` is an `IllegalStateException`; only Paper 26.2 is accepted (`ServerEnvironment`).
-- `MapConfiguration.Builder#resize` is **not deprecated** any more (images have no player; the Javadoc says to prefer
+- `MapConfiguration.Builder#resize` is **not deprecated** any more. (An earlier version of this line justified that
+  with "images have no player", which is **wrong**: `media.player.image.ImagePlayer`/`ImagePlayerImpl` exist. The
+  real reason is that an image is shown once, so there is no stream whose size a player could attach.) The Javadoc says to prefer
   the player's `DimensionAttachableCallback` for videos).
 - Paper's experimental `Position`/`sendMultiBlockChange` is kept on purpose (the stable route allocates a BlockState
   per changed block per frame).
@@ -171,15 +201,21 @@ Commands:
 
 ### mcav-http / website
 - `HttpResult.builder()` (`HttpResultBuilder`: domain, port, directory, bindAddress), `stop()` never blocked by a stuck
-  listener (closeAsync), Spring logging left alone, LE samples regardless of buffer order, IPv6 URLs, path traversal
+  listener (closeAsync), Spring logging left alone, little-endian samples (the module byte-copies, so the buffer's
+  order flag cannot affect it — **`master` had no endianness bug here**; its real bugs were one `BinaryMessage`
+  shared across sessions so only the first listener got data, `sendMessage` on the pipeline thread, and
+  `return false` with no clients), IPv6 URLs, path traversal
   test. Website (`page.tsx`): stale closures fixed (volume kept on reconnect), refs for long-lived callbacks,
   DPR-aware canvas with `ResizeObserver`, no overlapping `/media` fetches and no re-render when unchanged, `next/image`
   unoptimized, no `setState` in effects; TypeScript `~6.0.3`, ESLint `^9.39.5` with the flat `eslint-config-next` config.
 
 ### mcav-jda / mcav-svc / mcav-installer
-- JDA: Discord activity title stripped/"Unknown title"/cut to 127 chars + "…" without splitting emoji; buffering
+- JDA: Discord activity title stripped/"Unknown title"/cut to 127 chars + "…" without splitting a **surrogate
+  pair** (a ZWJ sequence, a skin-tone modifier or a regional-indicator flag can still be cut); buffering
   documented (big-endian conversion, 3 s queue).
-- SVC: failed `start()` releases everything it created; half-second queue per speaker; `MonoDownmixer` moved to common.
+- SVC: failed `start()` releases everything it created; half-second queue per speaker (25 frames x 20 ms); the new
+  `MonoDownmixer` in common replaces the `javax.sound.sampled` conversion. The real `master` bug: **one shared
+  queue was handed to every speaker**, so N speakers were competing consumers and each played 1/N of the audio.
 - Installer: jars at `<folder>/<artifact>/<groupId>/<artifactId>/<artifactId-version[-classifier].ext>`, byte-for-byte
   comparison (old hash files deleted), repositories with checksum policy **fail** and daily updates, path escape
   check; `InstallationError` renamed **`InstallationException`** (RuntimeException).
@@ -194,7 +230,77 @@ Commands:
   Windows lookup only `.com/.exe/.bat/.cmd` (no binary planting), QEMU fallbacks (`/etc/paths(.d)`, Homebrew,
   `/usr/local/bin`, `%ProgramFiles%\qemu`), `ExecutableNotInPathException` is a RuntimeException, `OS.OTHER` handled.
   QEMU is **not** installed by mcav (needs admin rights) — it must be pre-installed.
-- LWJGL: GL state saved/restored, clear error without a current context, double-buffered upload.
+- LWJGL: the four unpack parameters it changes (`ALIGNMENT`, `ROW_LENGTH`, `SKIP_ROWS`, `SKIP_PIXELS`) are saved
+  and restored, along with the bound texture; `SWAP_BYTES` and `LSB_FIRST` are untouched and cannot affect a
+  `GL_BGR` + `GL_UNSIGNED_BYTE` upload, because both apply only to multi-byte components and to bitmap data.
+  Clear error without a current context, double-buffered upload.
+
+## 5a. Defects found and fixed by the post-rewrite review (2026-09-17)
+
+A skeptical review of the whole branch, plus a second-opinion council pass, found the following in code the
+rewrite had already shipped. All are fixed on the branch; each behavioural fix has a regression test that was
+run against the unfixed code first to prove it fails there.
+
+**Security**
+
+- `/mcav dump` published secrets to a public paste site. `DumpUtils.appendProperties` redacted a property only
+  when its *name* matched a secret word, but `sun.java.command` holds the whole program command line, so a server
+  started with `--api-token=abc` uploaded that token verbatim to `paste.helpch.at`. Every property *value* is now
+  scrubbed word by word with the same rule the JVM arguments use.
+
+**Correctness**
+
+- **A check-then-act race on the dimension callback, in four places.** `isAttached()` followed by `retrieve()`
+  lets a `detach()` in between return the empty `Dimension.NONE` fallback. In `VideoFrameCopier.copy` that scaled
+  the frame to 0x0, threw out of `PlaybackSession.decode`, and **ended playback**; in
+  `VideoRenderer.scaleIfRequested` it rejected every frame; in `AbstractVideoPlayerCV.configureGrabber` it told
+  FFmpeg to scale to 0x0; in `VideoRenderer.createBufferFormat` it handed VLC an `RV32BufferFormat(0, 0)` from
+  inside a native callback. All four now read the size once and treat an empty size as "not attached".
+- `BayerDither.NORMAL_8X8` was the **transpose** of the canonical Bayer 8x8 (56 of 64 cells wrong), contradicting
+  the same class's own `createBayerMatrix(8)`. The 2x2 and 4x4 constants were already correct.
+- `CompressedMapResult` could not be restarted: `released` was a one-way latch and `start()` was a no-op, so a
+  reused result rendered nothing at all for a second video.
+- `NettyHosting` installed its handler under a constant pipeline name although the class supports several
+  instances, so a second running instance threw `Duplicate handler name` on every new player connection.
+- `HttpHosting.getRawUrl()` did not bracket IPv6, producing the unparseable `http://::1:8080`.
+- `EntityRenderer` and `ScoreboardRenderer` showed their display/board only at spawn. Both `Player#showEntity`
+  and `Player#setScoreboard` are per session, so a viewer added later, or one who relogged, saw nothing. Both now
+  refresh in `onTick`, as `BlockRenderer` already did.
+- Four `Filter` implementations (`HttpResultImpl`, `DiscordPlayerImpl`, `SVCFilterImpl`, `GLTextureFilter`)
+  returned `true` from `applyFilter` although they only read the sample. The contract says `false`, and three of
+  them justified `true` with a Javadoc sentence that is simply wrong ("so the pipeline continues with the next
+  filter" — pipelines continue regardless).
+- `HttpResultImpl` leaked a permanently parked virtual thread: a WebSocket handshake finishing during `stop()`
+  was re-inserted after `listeners.clear()` and then parked in an uninterruptible wait nothing could signal.
+- Browser resource leaks: `AbstractBrowserPlayer.openPage` rethrew without closing (and set IDLE, not FAILED, so
+  the next start would not clean up either); `SeleniumPlayer.open` caught only `WebDriverException`, leaking a
+  live Chrome process on any other failure; `ChromeDriverProvider.getService` replaced a stopped service without
+  closing it.
+- `XoroshiroRandomProvider.nextInt` reduced with `%`, i.e. from the low bits the xoroshiro128+ authors warn
+  against, while the same class already took `nextDouble` from the high bits. It now uses a multiply-shift.
+- `MatVideoFilter` used `rewind()` where it needed `slice()`, so a third-party `ImageBuffer` whose view starts
+  past zero was rejected.
+- Fields written under a lock but read without one are now `volatile`: `VNCPlayerImpl.client` (its siblings
+  already were), `VMPlayerImpl.process`, `VMProcess.process`/`drainThread`.
+- The VLC plugin path is accepted only if it is a **directory**, not merely something with that name.
+
+**The coverage lint itself had a hole.** `CoverageReport.describeGap` ignored a line with missed instructions but
+no missed branches, which is exactly what a lambda whose body never runs looks like — JaCoCo attributes the body
+to the declaring line. It now reports those too.
+
+**Tests that could not fail** (all strengthened):
+
+- `NativeVLCDiscoveryTest`'s skip guard only checked that libvlc *libraries* existed, while the test required a
+  *loadable* VLC. On a server with `libvlc5` but no plugins — the normal state of a machine that pulled libvlc in
+  transitively — it **failed** instead of skipping. The guard now also requires a plugin directory. No assertion
+  was weakened.
+- `MapLayoutTest.numbersMapsRowByRowFromTheStartId` asserted only `getRegion(4)` on a 3x2 grid, and `4 % 3` and
+  `4 / 3` are both 1, so a swapped row/column decomposition produced the identical region. The one test named
+  after ordering could not detect a transposed numbering.
+- `EntityRendererTest` used position `(1, 70, 3)` → chunk `(0,0)`, where `>> 4` and `/ 16` agree, so the floor
+  semantics were unasserted.
+- `OrderedDitherTest`'s `assertEvenRanking` checked only dimensions and equal level counts, which any
+  permutation passes — which is why the transposed 8x8 matrix went unnoticed.
 
 ## 6. Exception hierarchy (no class extends AssertionError)
 
@@ -225,6 +331,21 @@ first (never swallow `VirtualMachineError`).
   all exceptions now unchecked `RuntimeException` subtypes; `MCAV.install()` no longer waits for VLC/yt-dlp;
   `VideoPlayer.resume()` returns false after the end; `FFmpegDirectSource.isStatic()` is false; `DitheringArgument.
   getAlgorithm()` → `createAlgorithm()`; `MapDisplaySettings.getAlgorithm()` → `createAlgorithm()`.
+- **Visible behaviour changes that earlier versions of this document omitted** (they belong in the release notes):
+  - `ResizeFilter` interpolation changed `INTER_NEAREST` → `INTER_AREA`/`INTER_LINEAR`. This changes **every map and
+    block-wall frame**, so rendered output is not pixel-identical to `master`.
+  - `OverlayImageFilter` changed from additive `addWeighted` to opaque `copyTo`.
+  - `RectangleFilter`'s bottom-right corner changed from `x + width` to `x + width - 1`.
+  - `BlurFilter`'s Gaussian hint changed `ALGO_HINT_APPROX` → `ALGO_HINT_DEFAULT`.
+  - `FPSFilter` was rewritten: 1 s window, font 0.25 → 0.6, outlined, y 20 → 24.
+  - `FaceDetectionFilter(double[])` was deleted; `BlendFilter` and `OverlayImageFilter` constructors were narrowed
+    from `MatImageBuffer` to `ImageBuffer`; several filters now throw `IllegalArgumentException` for inputs `master`
+    accepted (Blur even/zero kernels, Luminance negative contrast, Threshold range, Crop/Region/Overlay negative
+    origin, Tint strength, Blend alpha).
+  - New public `VideoPipelineStepBuilder`/`AudioPipelineStepBuilder` abstract classes; `ResizeFilter.matches(int,int)`.
+  - `AbstractVideoPlayerCV.getPositionMillis()` and `isPlaying()` are declared on **no interface**, and the factories
+    return `VideoPlayerMultiplexer`, so library users cannot reach them at all. Either promote them to
+    `ControllablePlayer`/`VideoPlayer` and implement them in `VLCPlayer`, or drop them.
 - Added: `MCAVApi.whenCapabilityReady`, `CapabilityGuard`, `Capability.FACE_DETECTION`/`getDisplayName()`,
   `HttpResult.builder()`, `ImageBuffer.copyPixels()/getReadOnlyPixels()`, `MatImageBuffer.transformMat()/setSize()`,
   `BrowserPlayer.SHOW_WINDOW`, `VMConfiguration.getAll()`, `OS.OTHER`, `Arch.OTHER`, `Platform.isKnown()`, and the
@@ -274,25 +395,88 @@ first (never swallow `VirtualMachineError`).
 
 - **Revoke the two Discord bot tokens** that are in git history (removed from the code).
 - Configuration cache blocked by the Checker Framework Gradle plugin; paperweight deprecation warning is upstream.
-- `FFmpegPlayerTest` still asserts real-time playback (> 24 fps, ~1.2 s margin) — inherently wall-clock based.
+- `FFmpegPlayerTest` still has **two** wall-clock assertions: real-time playback (> 24 fps, ~1.2 s margin) and
+  `assertPausingHoldsTheFrames`, which sleeps 200 ms then asserts a counter is unchanged over another 500 ms.
+  `mcav-http`'s `AudioListenerTest:267` also still has a `Thread.sleep(100)` against a real 50 ms limit.
 - Audio `ByteBuffer`s are still allocated per chunk (the `AudioFilter` contract lets filters keep them); VLC's
   native→`int[]` copy is kept (a pooled hand-off could race with stop and write freed memory).
 - `CapabilityGuard.shared()` is JVM-wide; `release()` waits at most 10 s for an installer thread ignoring interrupts.
 - Coverage is 100% on the fully equipped Windows machine; on headless Linux, coverageLint reports gaps only where
   tests skip for missing Chrome/GPU/QEMU/VLC/audio/GTK (by design `check` enforces coverage only with
   `-Pmcav.coverage`). Linux-runnable tests could still be added for `VLCInstaller` lines 229-231 and 258-260.
+  **Installing Chrome is what makes `mcav-browser` count**: without a browser its tests skip and the module reports
+  59 uncovered lines, and with Chrome for Testing on `PATH` it is green. Anyone reproducing the coverage numbers
+  needs `google-chrome` and `chromedriver` available.
+- The coverage lint now also reports a line the tests only **partly** cover, not just a wholly uncovered line or an
+  uncovered branch. That case is what a lambda whose body no test invokes looks like, since JaCoCo charges the body
+  to the line that declares it, and it used to pass silently. Expect the lint to be slightly stricter than before.
 - The resource pack format for 26.2 is not derived by the code — users pass `packFormat` (docs point to the
   Minecraft Wiki table).
 - The E2E is the only test of real Minecraft integration; live clients (map rendering seen by a player, voice chat
   heard by a player) were not tested interactively.
 - Old installs of the installer keep jars in the previous flat folder layout (not loaded any more).
+- **`AudioFilter`'s Javadoc says nothing about buffer lifetime**, only about not disturbing the position. The claim
+  above that "the contract lets filters keep them" is not backed by the contract as written; either the contract
+  should say so or the buffers can be pooled.
+
+### Open defects the 2026-09-17 review found and did NOT fix
+
+These are real. They are listed here so the next person does not have to rediscover them.
+
+- `sandbox/.../AbstractInteractiveCommand.java:248-262` — a browser/VM start superseded by a second `create` that
+  then **succeeds** is never released, leaking a Chrome or QEMU process. Only the failure path is guarded, so the
+  "overlapping browser/VM starts" fix is partial.
+- `sandbox/.../ImageManager.java:74` plus five `scheduler.runTask(this.plugin, …)` sites in the video commands
+  bypass `TaskUtils.runOnMainThread`, so they throw during shutdown and the image leaks native memory. The
+  "scheduling after disable" fix is likewise partial.
+- `sandbox/.../ArgumentUtils.java:57` — `parseDimensions` has no upper bound, so `/mcav screen 100000x100000 …`
+  freezes the main thread. OP-gated, but a typo kills the server. A cap is a policy decision.
+- `mcav-installer/.../InstallationManager.java:215` — `this.folder.resolve(artifactId)` is unchecked and the escape
+  test anchors on the already-escaped path, so an `artifactId` of `..` passes every check. The documented "path
+  escape check" covers dependency coordinates only.
+- **`mcav-installer` will stop working on a future JDK.** On Java 25,
+  `MethodHandles.privateLookupIn(URLClassLoader.class, …)` throws without
+  `--add-opens java.base/java.net=ALL-UNNAMED`, so `ReflectiveInjector.ADD_URL` is always null and every real run
+  takes the `sun.misc.Unsafe` fallback, which is deprecated for removal. `README.md` and
+  `docs/library/prerequisites.md` both claim "no extra JVM arguments". **This is the most urgent item here.**
+- `mcav-installer/build.gradle.kts:39` relocates `org.slf4j` with no provider shipped, so the installer's own
+  progress lines go to the NOP logger: users see nothing during a multi-minute ~1 GB first download.
+- `mcav-installer/.../InstallationManager.java:349` — `hasSameContent` runs `Files.mismatch` over every jar on every
+  start with no size fast path (~2 GB of reads per start when nothing changed).
+- `buildSrc` `tasks.build { dependsOn("spotlessApply") }` has no ordering against `compileJava` or the
+  `spotlessCheck` that `check` pulls in, and `org.gradle.parallel=true`, so `./gradlew build` can compile
+  pre-format sources and can fail `spotlessCheck` on the same run that fixes them.
+- `DeltaMapEncoder.holdBackNoise` zeroes a tile's noise counter before the budget stage knows whether the map fits,
+  so a budget-dropped map restarts its deferral. Bounded by the `waitingFrames` priority bonus.
+- `CompressedMapResult.getEncoder` does not clear maps that fall out of a **shrinking** grid; they keep the stale
+  picture.
+- `ChromeDriverProvider.useCachedDriver` sets the global `webdriver.chrome.driver` property and never clears it.
+- `FPSFilter`'s `windowStart`/`framesInWindow`/`displayedFrameRate` are mutated from the render thread without
+  `volatile`; a torn `long` read shows "0 fps". Cosmetic only.
+- `HttpResultImpl.getFullUrl()` reports the configured port, not the bound one, so a server on port 0 logs
+  `http://localhost:0/`.
+- The website's `package.json` declares six unused dependencies (`@mui/*`, `@emotion/*`, `howler`,
+  `@fontsource/roboto`) that are installed on every `npm ci`.
+- `Await.java` is duplicated and divergent between the `mcav-http` and `mcav-lwjgl` test helpers.
+- `settings.gradle.kts` — `project(":X").name = "X"` is a no-op for all ten modules.
+- `checker-framework/Objects.astub:8` — `Supplier<String>` is unresolved inside `package java.util;`, so that stub
+  overload is inert.
+- **There is no `-Werror` anywhere in `buildSrc`**, so the zero-warning policy is a convention, not an enforcement,
+  and with no CI nothing checks it automatically.
 
 ## 12. Git state
 
-- Nothing is committed or staged. At the end the index was normalized: `git reset` (index only, working tree
-  untouched) and `git add -N` for every new, non-ignored file, so every change is an unstaged, tracked change in the
-  IDE. Final numbers: see "Final git state" below (filled in after the last `spotlessApply`).
+**The branch is now committed and pushed.** The 2026-09-17 review ended by splitting its own work into one commit
+per logical change and pushing them to `origin rewrite` with an ordinary (non-force) push. Before that point the
+whole overhaul sat in the working tree as unstaged changes, which is what the rest of this section describes and
+why it reads the way it does.
+
+- The standing "never commit or stage" rule applied to the overhaul sessions. It does **not** describe the branch
+  any more: `git log master..rewrite` is the history, and `git status` on a clean checkout is empty.
 - `logs/` folders are ignored (tests and servers write logs there); an accidentally staged test log archive was removed.
+- `gradlew.bat` always shows as modified and that is **not** anyone's change: `.gitattributes` declares
+  `*.bat text eol=crlf` while the committed blob already contains CRLF, so git reports it dirty forever.
+  Do not commit it and do not run `git add --renormalize` to "fix" it.
 
 ### Final git state
 
@@ -608,19 +792,43 @@ is committed or staged, per the standing rule.
   the thread the factory creates, and geometry by fixtures derived from observable patch counts rather than from the
   algorithm. Four agents covered vnc/vm, bukkit, sandbox/http/lwjgl and mcav-common, and a fifth took mcav-common's
   remaining dither, filter, player, loader and discovery clusters.
-- **Final measured mutation state of every module:**
+- **Measured mutation state of every module.** Read the "measured on" column before comparing any two
+  rows: **a mutation score is a function of which native dependencies the machine has.** Where a module's
+  tests skip for a missing dependency, nothing covers that code and almost every mutant survives.
 
-  | Module | Mutants | Killed | Survived | Kill rate |
-  |---|---|---|---|---|
-  | mcav-jda | 35 | 35 | 0 | **100%** |
-  | sandbox plugin | 844 | 837 | 7 | 99% |
-  | mcav-http | 149 | 146 | 3 | 98% |
-  | mcav-installer | 75 | 73 | 2 | 97% |
-  | mcav-bukkit | 1112 | 1077 | 35 | 97% |
-  | mcav-vm | 279 | 268 | 11 | 96% |
-  | mcav-lwjgl | 53 | 51 | 2 | 96% |
-  | mcav-common | 2580 | 2438 | 142 | 94% |
-  | mcav-vnc | 222 | 209 | 13 | 94% |
+  | Module | Mutants | Killed | Survived | Kill rate | Measured on |
+  |---|---|---|---|---|---|
+  | mcav-jda | 35 | 35 | 0 | **100%** | Linux 2026-09-17 |
+  | mcav-bukkit | 1120 | 1085 | 35 | 97% | Linux 2026-09-17 |
+  | mcav-common | 1679 | 1581 | 98 | 94% | Linux 2026-09-17 (see below) |
+  | sandbox plugin | 844 | 837 | 7 | 99% | Windows 2026-09-15 |
+  | mcav-http | 149 | 146 | 3 | 98% | Windows 2026-09-15 |
+  | mcav-installer | 75 | 73 | 2 | 97% | Windows 2026-09-15 |
+  | mcav-vm | 279 | 268 | 11 | 96% | Windows 2026-09-15 |
+  | mcav-vnc | 222 | 209 | 13 | 94% | Windows 2026-09-15 |
+  | mcav-lwjgl | 53 | 1 | 52 | **2%** | Linux 2026-09-17 — **environment, not a regression** |
+
+  `mcav-lwjgl` is the warning example. It scores 96% on a machine with a GPU and 2% here, because all 14
+  of its tests skip when GLFW cannot get an OpenGL context, so nothing covers `GLTextureFilter` at all.
+  Do not read that row as a defect; re-measure it on a machine with a display.
+
+  **`mcav-common` now includes the media players**, which the earlier runs excluded. The 1679/1581 figures
+  are from a complete run; within them the previously excluded
+  `me.brandonli.mcav.media.player.multimedia.*` accounts for **93 mutants, of which 70 are killed and 16
+  more die on the timeout — 92.5% detected**, where before they were simply not tested. The earlier
+  "2580 mutants" figure is not comparable: it was measured on a fully equipped Windows machine where the
+  VLC, OpenCV and Chrome tests all run and therefore far more code is covered.
+
+  **Mutating the players is slow.** A `:mcav-common:pitest` run with them included takes well over half an
+  hour on an unloaded 12-core Linux box, because a mutant that breaks playback makes its test *wait*
+  rather than fail and so burns the whole timeout. `:mcav-browser:pitest` is worse still: it drives real
+  Chrome, and a run spawns dozens of browser processes. If that becomes a problem, the fix is to reuse one
+  browser across the tests of `SeleniumPlayerTest` and `PlaywrightPlayerTest`, or to move more of their
+  logic behind a seam like `AbstractBrowserPlayerTest` already uses — **not** to shorten the timeout,
+  which converts a loaded machine into fake kills, and **not** to exclude the classes again.
+
+  Run heavy modules **one at a time**: `org.gradle.parallel=true` plus PIT's own 4 threads put this box at
+  load 25 and the resulting timeouts are CPU starvation, not real detections.
 
   About **340 survivors were converted into kills** in total. Everything left is in a documented equivalent class:
   PIT replacing a `return false`/`return true` with the same literal, calls that change only latency
@@ -639,11 +847,17 @@ is committed or staged, per the standing rule.
   and ray-length arithmetic was invisible because the fixtures started at coordinate 0 with a level look; and the
   shared `EqualityAssertions` never checked that unequal values hash differently, so `hashCode` could have returned a
   constant across a dozen value types.
-- **mcav-browser: not completed, on purpose.** Its tests drive a real Chrome and Playwright, so a mutant that breaks
-  browser startup hangs every test in its batch until PIT's timeout. After 48 minutes it had finished none of its 15
-  batches, so the run was stopped. To make it feasible, narrow `targetClasses` to the pure helper classes
-  (`ChromeArguments`, `PlaywrightKeys`, the source and fallback classes), or lower `timeoutConstInMillis` and exclude
-  the player classes that need a live browser.
+- **mcav-browser: still the slowest module, and still unmeasured.** Its tests drive a real Chrome and Playwright, so
+  a mutant that breaks browser startup makes every test in its batch *wait* until PIT's timeout. A 2026-09-17 run
+  with the bounded timeout got further than the earlier attempt but was still going after 25 minutes with dozens of
+  Chrome processes alive, and was stopped.
+  Two things that were suggested earlier should **not** be done: narrowing `targetClasses` to the pure helper
+  classes, or excluding the player classes, both of which hide the mutants rather than killing them; and shortening
+  `timeoutConstInMillis`, which turns a loaded machine into kills the tests did not earn.
+  What would actually work is reusing **one** browser across the cases of `SeleniumPlayerTest` and
+  `PlaywrightPlayerTest` instead of starting one per test, or moving more of their logic behind a seam, the way
+  `AbstractBrowserPlayerTest` already drives `AbstractBrowserPlayer` through a player that opens no browser at all.
+  Neither was done, so this is open work.
 - **Running PIT on everything at once pins the machine.** `gradle.properties` sets `org.gradle.parallel=true`, so
   Gradle runs several modules' `pitest` tasks at the same time, each with 4 worker JVMs. On a 14-thread machine that is
   about 20 busy JVMs. It also made mcav-common's PIT fail its "all tests must pass first" pre-check, because the
@@ -669,8 +883,10 @@ Before the work was committed, all 926 changed paths were reviewed for deliberat
 - **Documented as a result of the review:** `AudioListener`'s writer waits uninterruptibly, so `stop()` is the only
   way to end it; `isStuck` depends on `takeNext` setting the clock under the lock; `YTDLPInstaller.install` replaces
   the unpacked folder non-atomically, so a crash in the window costs only a re-download; `MatImageBuffer.exchange`
-  recognises shared memory by the pixel start address, so an operation returning a *view* into the current matrix
-  would slip through — no filter does this, and `transformMat` now states the precondition; and
+  recognises shared memory by the pixel start address. The earlier note here claimed a region of interest "starts at
+  another address and would be kept as the spare"; that is **backwards**. OpenCV's `Mat(const Mat&, const Rect&)`
+  copies the *parent's* `datastart`, so a ROI compares equal and is correctly treated as shared — the described
+  hazard does not exist and the code is safer than it was advertised to be; and
   `ColorPalette.perceptualDistance`'s red and blue weights pass each other near the middle without ever being equal.
 - **Deliberately not changed:** `DitheringArgument` locks on the enum constant rather than a private object, because
   the deterministic race test holds that monitor to force the interleaving — trading a real test for a theoretical
@@ -808,7 +1024,9 @@ clients merges are done, and the only open item is revoking the Discord tokens.
   - DitheringArgument.createAlgorithm() builds a fresh FLOYD_STEINBERG_TEMPORAL per player; stateless constants are shared.
   - /mcav video resume sends mcav.command.video.resume.failed when resume() returns false; MessageTest count is 39.
 - Decisions made by me (accepted):
-  - PacketUtils: removed the always-false null check, because Paper declares the connection non-null.
+  - PacketUtils: removed the always-false null check, because Paper declares the connection non-null. It also gained
+    the join/quit listener registration (`LOWEST`/`MONITOR`), `shutdown()`, `isConnected()` and the seeding of the
+    currently online players, none of which this line used to mention.
   - Deleted the unused locale Sender type, and the type parameter it filled.
   - MapUtils rejects a negative map id and a non-positive size; Locale.fromString uppercases with Locale.ROOT.
   - Kept Paper's @ApiStatus.Experimental Position/sendMultiBlockChange in BlockRenderer: the stable route (BlockState#copy, then sendBlockChanges) allocates a BlockState per changed block per frame, which costs efficiency, and 26.2 is the only supported version. Also kept: PluginLoader in MCAVLoader (the only way for a Paper plugin to load libraries), internal LibraryStore in MCAVLoaderTest, and the Server#getLogger stub in TestServer.
