@@ -233,12 +233,20 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   /**
-   * Does nothing, because the encoder is created lazily when the first frame arrives: the frame size is unknown
-   * until then.
+   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
+   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
+   * video, the way every other result of this module can.
    */
   @Override
   public void start() {
-    // the encoder is created lazily when the first frame arrives, because the frame size is unknown until then
+    this.lock.lock();
+    try {
+      // release() leaves the encoder and the viewers cleared, so there is nothing to undo but the latch itself;
+      // without this, process() returned early forever and a reused result rendered nothing at all
+      this.released = false;
+    } finally {
+      this.lock.unlock();
+    }
   }
 
   /**

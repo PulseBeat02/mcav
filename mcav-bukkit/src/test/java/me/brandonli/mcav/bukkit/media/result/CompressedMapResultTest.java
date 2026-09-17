@@ -419,6 +419,26 @@ final class CompressedMapResultTest {
   }
 
   @Test
+  void showsASecondVideoAfterItWasReleasedAndStartedAgain() {
+    // every other result of this module can be started again; this one latched `released` for good, so a reused
+    // result silently rendered nothing at all for the second video
+    final MapConfiguration configuration = this.createConfiguration(2, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    this.nextFrame = MapPackets.pattern(256 * 128, 4);
+    final ImageBuffer image = Images.solid(256, 128, 0xFF000000);
+
+    result.process(image, this.algorithm);
+    result.release();
+    final int afterRelease = this.firstViewerPacketCount();
+
+    result.start();
+    result.process(image, this.algorithm);
+    final int afterRestart = this.firstViewerPacketCount();
+
+    assertTrue(afterRestart > afterRelease, "a started result sends frames again instead of dropping them");
+  }
+
+  @Test
   void clearsEveryMapOfTheGridOnTheFirstRelease() {
     final MapConfiguration configuration = this.createConfiguration(2, 2, false);
     final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
