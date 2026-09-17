@@ -78,8 +78,9 @@ final class VMProcess {
   private final long startTimeoutMillis;
   private final Deque<String> outputTail;
 
-  private @Nullable Process process;
-  private @Nullable Thread drainThread;
+  // written while starting and stopping, but read from other threads through isRunning()/liveness checks
+  private volatile @Nullable Process process;
+  private volatile @Nullable Thread drainThread;
 
   /**
    * Creates a QEMU process for the current operating system that has not started yet.

@@ -47,7 +47,8 @@ public final class VMPlayerImpl implements VMPlayer {
   private final AtomicBoolean running;
   private final AtomicBoolean released;
 
-  private @Nullable VMProcess process;
+  // written under the lock but read without it by isActive(), so the read must not see a stale reference
+  private volatile @Nullable VMProcess process;
 
   /**
    * Creates a player that runs QEMU from the {@code PATH} and streams its display with a new VNC player.

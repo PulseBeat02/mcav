@@ -78,7 +78,9 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private final AtomicReference<@Nullable BufferedImage> latestFrame;
 
   private volatile @Nullable Session session;
-  private @Nullable VernacularClient client;
+  // volatile like its siblings session and source: written under the lock, but read without it by
+  // getConnectedClient() on the input path
+  private volatile @Nullable VernacularClient client;
   private @Nullable Thread renderThread;
   private volatile @Nullable VNCSource source;
   private volatile int remoteWidth;
