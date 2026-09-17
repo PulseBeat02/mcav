@@ -10,8 +10,9 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 
-[*.md]
-trim_trailing_whitespace = false
+# Markdown keeps the repository default of trimming trailing whitespace, because Spotless trims it too and the two
+# must not disagree; write a hard line break as a trailing backslash, which CommonMark also accepts and which
+# survives trimming.
 
 [*.bat]
 end_of_line = crlf

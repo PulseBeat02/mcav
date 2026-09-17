@@ -26,9 +26,13 @@
         "eslint"
       ],
       "allowedVersions": "<10.0.0"
+    },
+    {
+      "description": "mcav-installer shades and relocates the Maven resolver, so its packages are rewritten at build time; a bump that moves or adds packages silently escapes the relocation list, which an auto-merged pull request would not catch. Updates for that module are therefore raised by hand.",
+      "matchFileNames": [
+        "mcav-installer/build.gradle.kts"
+      ],
+      "enabled": false
     }
-  ],
-  "ignorePaths": [
-    "mcav-installer/build.gradle.kts"
   ]
 }
