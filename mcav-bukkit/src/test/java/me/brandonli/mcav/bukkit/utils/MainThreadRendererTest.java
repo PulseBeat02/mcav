@@ -58,6 +58,22 @@ final class MainThreadRendererTest {
   }
 
   @Test
+  void keepsApplyingFramesForARendererThatDoesNotOverrideOnTick() {
+    // every renderer of this module overrides onTick, so without this the default body is never executed
+    final PlainRenderer renderer = new PlainRenderer();
+    renderer.startRendering();
+    renderer.submit("frame");
+
+    this.server.runTasks();
+    this.server.runTasks();
+
+    final List<String> applied = renderer.getAppliedFrames();
+    final List<String> expected = List.of("frame");
+    assertEquals(expected, applied, "a renderer without an onTick of its own still applies its frames");
+    renderer.stopRendering();
+  }
+
+  @Test
   void startsOneTaskThatRunsEveryTick() {
     final RecordingRenderer renderer = new RecordingRenderer();
     renderer.startRendering();
@@ -205,6 +221,23 @@ final class MainThreadRendererTest {
     MainThreadRenderer.runOnMainThread(runs::incrementAndGet);
     final int count = runs.get();
     assertEquals(1, count);
+  }
+
+  /**
+   * A renderer that overrides nothing but {@link MainThreadRenderer#apply}, so the default {@code onTick} runs.
+   */
+  private static final class PlainRenderer extends MainThreadRenderer<String> {
+
+    private final List<String> appliedFrames = new CopyOnWriteArrayList<>();
+
+    @Override
+    protected void apply(final String frame) {
+      this.appliedFrames.add(frame);
+    }
+
+    List<String> getAppliedFrames() {
+      return List.copyOf(this.appliedFrames);
+    }
   }
 
   /**

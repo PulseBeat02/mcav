@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.render;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -210,6 +211,34 @@ final class ScoreboardRendererTest {
 
     assertEquals(1, whileShown, "a shown scoreboard applies its frames once per tick");
     assertEquals(0, afterHide, "hiding the scoreboard stops its render task");
+  }
+
+  @Test
+  void doesNothingOnATickBeforeTheScoreboardWasCreated() {
+    final ScoreboardConfiguration configuration = createConfiguration(2);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+
+    assertDoesNotThrow(renderer::onTick);
+
+    verify(this.viewer, never()).setScoreboard(any(Scoreboard.class));
+  }
+
+  @Test
+  void putsTheScoreboardOnAViewerWhoComesOnlineAfterItWasCreated() {
+    // the scoreboard a player sees is per session, so a viewer who was offline when the board was created, or who
+    // relogged, was never shown it again
+    final ScoreboardConfiguration configuration = createConfiguration(2);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    renderer.show();
+    final Scoreboard board = this.scoreboards.getBoard();
+    final CraftPlayer latecomer = this.server.addPlayer(LATE_VIEWER);
+    verify(latecomer, never()).setScoreboard(board);
+
+    renderer.onTick();
+    renderer.onTick();
+
+    verify(latecomer, times(1)).setScoreboard(board);
+    verify(this.viewer, times(1)).setScoreboard(board);
   }
 
   @Test

@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -173,6 +174,40 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
       this.previousScoreboards.put(viewer, previous);
       player.setScoreboard(board);
     }
+  }
+
+  /**
+   * Puts the scoreboard back on viewers who are not looking at it yet.
+   *
+   * <p>The scoreboard a player sees is per session, so a viewer added to the configuration after the board was
+   * created, and a viewer who logged out and back in, would never be shown it again without this. A viewer already
+   * looking at the board is left alone, so their remembered previous scoreboard is not overwritten with this one.
+   * Viewers who went offline are forgotten: the server gives them the main scoreboard when they rejoin, so there is
+   * nothing left to restore, and they are served again as new viewers.
+   */
+  @Override
+  protected void onTick() {
+    final Scoreboard board = this.scoreboard;
+    if (board == null) {
+      return;
+    }
+
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final Set<UUID> watching = new HashSet<>();
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
+      watching.add(viewer);
+      final boolean alreadyShown = this.previousScoreboards.containsKey(viewer);
+      if (!alreadyShown) {
+        final Scoreboard previous = player.getScoreboard();
+        this.previousScoreboards.put(viewer, previous);
+        player.setScoreboard(board);
+      }
+    }
+    this.previousScoreboards.keySet().retainAll(watching);
   }
 
   /**

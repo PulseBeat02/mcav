@@ -17,11 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.render;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,6 +42,7 @@ import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.entity.CraftTextDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
@@ -109,6 +112,42 @@ final class EntityRendererTest {
     verify(display).setBackgroundColor(Color.BLACK);
     verify(display).setLineWidth(Integer.MAX_VALUE);
     verify(this.viewer).showEntity(plugin, display);
+  }
+
+  @Test
+  void doesNothingOnATickBeforeTheDisplayWasSpawned() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Plugin plugin = this.server.getPlugin();
+
+    assertDoesNotThrow(renderer::onTick);
+
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final boolean nothingSpawned = displays.isEmpty();
+    assertTrue(nothingSpawned, "a tick before show() must not spawn anything");
+    verify(this.viewer, never()).showEntity(eq(plugin), any(org.bukkit.entity.Entity.class));
+  }
+
+  @Test
+  void showsTheDisplayToAViewerWhoComesOnlineAfterTheSpawn() {
+    // the display is spawned with setVisibleByDefault(false), so a player sees it only after an explicit
+    // showEntity, and that is per session: a viewer who was offline at spawn, or who relogged, saw nothing at all
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Component text = Component.literal("frame");
+    renderer.show();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final CraftTextDisplay display = displays.getFirst();
+    final Plugin plugin = this.server.getPlugin();
+
+    final Player latecomer = this.server.addPlayer(OFFLINE);
+    verify(latecomer, never()).showEntity(eq(plugin), any(org.bukkit.entity.Entity.class));
+
+    renderer.apply(text);
+    renderer.onTick();
+
+    verify(latecomer).showEntity(plugin, display);
+    verify(this.viewer, times(1)).showEntity(plugin, display);
   }
 
   @Test

@@ -19,6 +19,8 @@ package me.brandonli.mcav.bukkit.media.render;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
@@ -53,6 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class EntityRenderer extends MainThreadRenderer<Component> {
 
   private final EntityConfiguration configuration;
+  private final Set<UUID> shownTo;
 
   private @Nullable TextDisplay entity;
 
@@ -65,6 +68,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   public EntityRenderer(final EntityConfiguration configuration) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     this.configuration = configuration;
+    this.shownTo = new HashSet<>();
   }
 
   /**
@@ -123,14 +127,49 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   }
 
   private void showToViewers(final TextDisplay display) {
+    this.shownTo.clear();
     final Plugin plugin = BukkitModule.getPlugin();
     final Collection<UUID> viewers = this.configuration.getViewers();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player != null) {
         player.showEntity(plugin, display);
+        this.shownTo.add(viewer);
       }
     }
+  }
+
+  /**
+   * Shows the display to viewers who are not seeing it yet.
+   *
+   * <p>The entity is spawned with {@code setVisibleByDefault(false)}, so a player only ever sees it after an
+   * explicit {@link Player#showEntity(Plugin, org.bukkit.entity.Entity)}. That is per session and per player, so a
+   * viewer added to the configuration after the spawn, and a viewer who logged out and back in, would never see the
+   * entity again without this. Viewers who went offline are forgotten, so they are served again when they return.
+   */
+  @Override
+  protected void onTick() {
+    final TextDisplay display = this.entity;
+    if (display == null) {
+      return;
+    }
+
+    final Plugin plugin = BukkitModule.getPlugin();
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final Set<UUID> watching = new HashSet<>();
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player == null) {
+        continue;
+      }
+      watching.add(viewer);
+      final boolean alreadyShown = this.shownTo.contains(viewer);
+      if (!alreadyShown) {
+        player.showEntity(plugin, display);
+        this.shownTo.add(viewer);
+      }
+    }
+    this.shownTo.retainAll(watching);
   }
 
   // runs before the entity is added to the world, so no viewer ever sees the default settings
