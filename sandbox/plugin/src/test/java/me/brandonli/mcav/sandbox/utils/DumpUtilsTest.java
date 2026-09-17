@@ -405,4 +405,29 @@ final class DumpUtilsTest {
     final boolean listed = dump.contains("\nJVM Arguments: " + redacted + "\n");
     assertTrue(listed, dump);
   }
+
+  @Test
+  void redactsASecretThatHidesInsideAPropertyValue() {
+    // the dump goes to a public paste site. sun.java.command holds the whole command line of the program, and no
+    // secret word appears in that property NAME, so redacting by name alone published the secret verbatim.
+    final String property = "sun.java.command";
+    final String previous = System.getProperty(property);
+    System.setProperty(property, "paper.jar --api-token=hunter2 --world world");
+    try {
+      final Path log = this.missingLog();
+      final String dump = DumpUtils.createDumpContents(log);
+      final boolean leaked = dump.contains("hunter2");
+      final boolean redacted = dump.contains("--api-token=<redacted>");
+      final boolean keptTheRest = dump.contains("paper.jar");
+      assertFalse(leaked, "a secret inside a property value must never reach the paste site");
+      assertTrue(redacted, dump);
+      assertTrue(keptTheRest, "only the secret is removed, the rest of the value stays useful");
+    } finally {
+      if (previous == null) {
+        System.clearProperty(property);
+      } else {
+        System.setProperty(property, previous);
+      }
+    }
+  }
 }

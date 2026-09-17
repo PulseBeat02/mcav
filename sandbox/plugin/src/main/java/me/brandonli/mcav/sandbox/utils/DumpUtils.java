@@ -253,13 +253,43 @@ public final class DumpUtils {
     for (final String name : names) {
       final String value = properties.getProperty(name, "");
       final boolean secret = isSecret(name);
-      sorted.put(name, secret ? REDACTED : value);
+      final String safe = secret ? REDACTED : redactSecretsInside(value);
+      sorted.put(name, safe);
     }
     for (final Map.Entry<String, String> entry : sorted.entrySet()) {
       final String name = entry.getKey();
       final String value = entry.getValue();
       appendLine(dump, name, value);
     }
+  }
+
+  /**
+   * Redacts the secrets a property value carries even though the name of the property does not look secret.
+   *
+   * <p>The dump is uploaded to a public paste site, so a value that repeats the command line must not pass through
+   * untouched. {@code sun.java.command} holds the whole command line of the program, so a server started with
+   * {@code --api-token=abc} publishes that token under a property name in which no secret word appears. Every
+   * whitespace-separated word of a value is therefore redacted on its own, with the same rule the JVM arguments use.
+   *
+   * @param value the value of the property
+   * @return the value with the secrets among its words redacted
+   */
+  private static String redactSecretsInside(final String value) {
+    final boolean hasAssignment = value.indexOf('=') >= 0;
+    if (!hasAssignment) {
+      return value;
+    }
+
+    final String[] words = value.split(" ", -1);
+    final StringBuilder safe = new StringBuilder();
+    for (int index = 0; index < words.length; index++) {
+      if (index > 0) {
+        safe.append(' ');
+      }
+      final String redactedWord = redactArgument(words[index]);
+      safe.append(redactedWord);
+    }
+    return safe.toString();
   }
 
   private static boolean isSecret(final String name) {
