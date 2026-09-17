@@ -219,6 +219,36 @@ final class HttpResultImplTest {
   }
 
   @Test
+  void turnsAwayAndClosesAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
+    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
+    final WebSocketSession early = session("early", sent);
+    http.addListener(early);
+    final int countWhileAccepting = http.getListenerCount();
+    assertEquals(1, countWhileAccepting);
+
+    http.stop();
+    final WebSocketSession late = session("late", sent);
+    http.addListener(late);
+    final int countAfterStop = http.getListenerCount();
+    assertEquals(1, countAfterStop, "a handshake that arrives after the stop must not be registered");
+    verifyClosed(late, CloseStatus.GOING_AWAY);
+  }
+
+  @Test
+  void survivesAHandshakeWhoseSessionCannotBeClosedAnyMore() throws Exception {
+    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    http.stop();
+    final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
+    Mockito.when(broken.getId()).thenReturn("broken");
+    Mockito.doThrow(new IOException("already gone")).when(broken).close(ArgumentMatchers.any());
+
+    assertDoesNotThrow(() -> http.addListener(broken));
+    final int count = http.getListenerCount();
+    assertEquals(0, count);
+  }
+
+  @Test
   void acceptsSamplesWithoutListeners() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);

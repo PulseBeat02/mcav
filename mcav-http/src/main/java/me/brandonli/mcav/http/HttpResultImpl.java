@@ -19,6 +19,7 @@ package me.brandonli.mcav.http;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -79,6 +80,10 @@ public final class HttpResultImpl implements HttpResult {
 
   private volatile MediaInfo currentMedia;
   private volatile @Nullable ConfigurableApplicationContext context;
+  // false only while the server is stopped. stop() clears it before it disconnects the listeners, so a handshake
+  // that finishes during the shutdown sees it and hands its own listener back instead of leaving a sender thread
+  // parked forever on a queue nothing will ever signal again
+  private volatile boolean acceptingListeners;
 
   /**
    * Creates a server that listens on every network interface.
@@ -130,6 +135,7 @@ public final class HttpResultImpl implements HttpResult {
     this.extraProperties = List.copyOf(extraProperties);
     this.listeners = new ConcurrentHashMap<>();
     this.lifecycleLock = new Object();
+    this.acceptingListeners = true;
     this.currentMedia = MediaInfo.EMPTY;
   }
 
@@ -154,6 +160,7 @@ public final class HttpResultImpl implements HttpResult {
       thread.setContextClassLoader(own);
       try {
         this.context = this.createApplication();
+        this.acceptingListeners = true;
         final String url = this.getFullUrl();
         LOGGER.info("Audio web player running at {}", url);
       } catch (final RuntimeException exception) {
@@ -250,6 +257,9 @@ public final class HttpResultImpl implements HttpResult {
   @Override
   public void stop() {
     synchronized (this.lifecycleLock) {
+      // cleared first and unconditionally: stopping always means no new listeners, and a handshake that finishes
+      // during the shutdown must see this before disconnectListeners() empties the map
+      this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
       if (current == null) {
         return;
@@ -341,10 +351,32 @@ public final class HttpResultImpl implements HttpResult {
    * @param session the WebSocket session
    */
   void addListener(final WebSocketSession session) {
+    final boolean acceptingBefore = this.acceptingListeners;
+    if (!acceptingBefore) {
+      closeQuietly(session);
+      return;
+    }
+
     final String id = session.getId();
     final AudioListener listener = new AudioListener(session, SEND_TIME_LIMIT_MILLIS, SEND_BUFFER_LIMIT_BYTES, this::dropListener);
     this.listeners.put(id, listener);
     listener.start();
+
+    // stop() clears the flag before it clears the map, so a listener registered after that clear is only visible
+    // here; taking the lifecycle lock instead would deadlock against the web server waiting for this handshake
+    final boolean acceptingAfter = this.acceptingListeners;
+    if (!acceptingAfter) {
+      this.listeners.remove(id, listener);
+      listener.closeAsync(CloseStatus.GOING_AWAY);
+    }
+  }
+
+  private static void closeQuietly(final WebSocketSession session) {
+    try {
+      session.close(CloseStatus.GOING_AWAY);
+    } catch (final IOException | RuntimeException exception) {
+      // the browser is already gone, which is the outcome this method wants anyway
+    }
   }
 
   /**

@@ -55,6 +55,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -425,6 +426,45 @@ final class HttpServerTest {
       assertStopsWithGoingAway(http, port);
       http.stop();
       assertRestarts(http);
+    } finally {
+      http.stop();
+    }
+  }
+
+  @Test
+  void refusesAHandshakeThatFinishesWhileTheServerIsStopping() throws Exception {
+    final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, LOOPBACK);
+    http.start();
+    try {
+      // the handshake is parked inside addListener, right after it saw the server accepting, until the stop is done
+      final CountDownLatch insideHandshake = new CountDownLatch(1);
+      final CountDownLatch serverStopped = new CountDownLatch(1);
+      final AtomicBoolean firstIdentifier = new AtomicBoolean(true);
+      final WebSocketSession late = Mockito.mock(WebSocketSession.class);
+      Mockito.when(late.isOpen()).thenReturn(true);
+      Mockito.when(late.getId()).thenAnswer(invocation -> {
+        final boolean first = firstIdentifier.getAndSet(false);
+        if (first) {
+          insideHandshake.countDown();
+          serverStopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+        return "late";
+      });
+
+      final Thread handshake = new Thread(() -> http.addListener(late), "late-handshake");
+      handshake.start();
+      final boolean parked = insideHandshake.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(parked, "the handshake must be inside addListener before the server stops");
+
+      http.stop();
+      serverStopped.countDown();
+      handshake.join(TIMEOUT_SECONDS * 1000);
+      final boolean finished = handshake.isAlive();
+      assertFalse(finished, "the handshake must finish instead of parking on a queue nothing signals");
+
+      final int listeners = http.getListenerCount();
+      assertEquals(0, listeners, "a listener registered during the shutdown must not survive it");
+      HttpResultImplTest.verifyClosed(late, CloseStatus.GOING_AWAY);
     } finally {
       http.stop();
     }
