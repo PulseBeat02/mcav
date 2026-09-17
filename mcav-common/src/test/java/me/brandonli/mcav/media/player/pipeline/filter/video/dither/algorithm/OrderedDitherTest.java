@@ -273,6 +273,47 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void theBayerConstantsAreExactlyTheMatricesOfTheRecursion() {
+    // an even ranking is not enough to identify a Bayer matrix: a transpose, a rotation or any permutation of the
+    // cells ranks just as evenly. The published matrix is the one the recursion M2n = [[4M, 4M+2], [4M+3, 4M+1]]
+    // builds, so the constants are pinned to this class's own generator, one-based to match their MAX values.
+    final ThresholdMatrix generatedTwo = oneBasedBayerMatrix(2);
+    final ThresholdMatrix generatedFour = oneBasedBayerMatrix(4);
+    final ThresholdMatrix generatedEight = oneBasedBayerMatrix(8);
+
+    assertArrayEquals(generatedTwo.toArray(), BayerDither.NORMAL_2X2.toArray(), "NORMAL_2X2");
+    assertArrayEquals(generatedFour.toArray(), BayerDither.NORMAL_4X4.toArray(), "NORMAL_4X4");
+    assertArrayEquals(generatedEight.toArray(), BayerDither.NORMAL_8X8.toArray(), "NORMAL_8X8");
+  }
+
+  @Test
+  void theEightByEightMatrixIsTheOneOfTheLiterature() {
+    // the canonical 8x8 Bayer matrix, one-based; see https://en.wikipedia.org/wiki/Ordered_dithering
+    final int[][] published = {
+      { 1, 33, 9, 41, 3, 35, 11, 43 },
+      { 49, 17, 57, 25, 51, 19, 59, 27 },
+      { 13, 45, 5, 37, 15, 47, 7, 39 },
+      { 61, 29, 53, 21, 63, 31, 55, 23 },
+      { 4, 36, 12, 44, 2, 34, 10, 42 },
+      { 52, 20, 60, 28, 50, 18, 58, 26 },
+      { 16, 48, 8, 40, 14, 46, 6, 38 },
+      { 64, 32, 56, 24, 62, 30, 54, 22 },
+    };
+    final int[][] actual = BayerDither.NORMAL_8X8.toArray();
+    assertArrayEquals(published, actual);
+  }
+
+  private static ThresholdMatrix oneBasedBayerMatrix(final int size) {
+    final int[][] generated = BayerDither.createBayerMatrix(size);
+    for (final int[] row : generated) {
+      for (int column = 0; column < row.length; column++) {
+        row[column] = row[column] + 1;
+      }
+    }
+    return ThresholdMatrix.of(generated);
+  }
+
+  @Test
   void clusteredDotMatricesHaveTheSizeOfTheirNamesAndRankTheirCellsEvenly() {
     assertEvenRanking("CLUSTERED_DOT_4X4", BayerDither.CLUSTERED_DOT_4X4, 4, 4, BayerDither.CLUSTERED_DOT_4X4_MAX);
     assertEvenRanking("CLUSTERED_DOT_6X6", BayerDither.CLUSTERED_DOT_6X6, 6, 6, BayerDither.CLUSTERED_DOT_6X6_MAX);
