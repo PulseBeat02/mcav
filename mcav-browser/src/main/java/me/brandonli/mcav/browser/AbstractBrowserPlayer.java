@@ -160,7 +160,10 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
       this.open(source);
     } catch (final RuntimeException | Error exception) {
       // Selenium and Playwright are third-party code that can also fail with an Error, such as a LinkageError of a
-      // missing native driver; the state is reset for every failure, which is rethrown unchanged, so none is hidden
+      // missing native driver; the state is reset for every failure, which is rethrown unchanged, so none is hidden.
+      // Whatever open() managed to create is closed here: the state goes back to IDLE rather than FAILED, so the
+      // next start would not clean it up, and both close() implementations are idempotent.
+      this.close();
       this.state.set(State.IDLE);
       throw exception;
     }

@@ -292,6 +292,12 @@ final class ChromeDriverProvider {
       if (current != null && current.isRunning()) {
         return current;
       }
+      if (current != null) {
+        // a stopped service still holds its process handle and port; replacing it without closing leaks one per
+        // browser restart
+        current.close();
+        service = null;
+      }
       final ChromeDriverService.Builder builder = new ChromeDriverService.Builder();
       builder.withLogLevel(ChromiumDriverLogLevel.WARNING);
       builder.usingAnyFreePort();

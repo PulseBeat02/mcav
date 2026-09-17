@@ -117,7 +117,9 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     this.connection = opened;
     try {
       this.navigate(chrome, source);
-    } catch (final WebDriverException exception) {
+    } catch (final RuntimeException exception) {
+      // any failure here, not only a WebDriverException, would otherwise leave a live Chrome process and two
+      // executors behind
       this.close();
       final String message = exception.getMessage();
       throw new PlayerException("Failed to open " + source + ": " + message, exception);
