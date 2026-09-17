@@ -260,4 +260,21 @@ final class NetworkUtilsTest {
   void cannotBeInstantiated() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(NetworkUtils.class);
   }
+
+  @Test
+  void bracketsIpv6AddressesForTheHostPartOfAUrl() {
+    // http://::1:8080/ cannot be parsed: nothing separates the colons of the address from the colon of the port
+    final String loopback = NetworkUtils.formatHostForUrl("::1");
+    final String full = NetworkUtils.formatHostForUrl("2001:db8::1");
+    final String scoped = NetworkUtils.formatHostForUrl("fe80::1%eth0");
+    final String ipv4 = NetworkUtils.formatHostForUrl("203.0.113.9");
+    final String hostName = NetworkUtils.formatHostForUrl("example.org");
+
+    assertEquals("[::1]", loopback);
+    assertEquals("[2001:db8::1]", full);
+    assertEquals("[fe80::1%25eth0]", scoped, "the zone separator is escaped for a URL");
+    assertEquals("203.0.113.9", ipv4);
+    assertEquals("example.org", hostName);
+    assertThrows(NullPointerException.class, () -> NetworkUtils.formatHostForUrl(null));
+  }
 }

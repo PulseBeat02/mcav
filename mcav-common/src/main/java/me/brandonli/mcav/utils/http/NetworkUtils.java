@@ -57,6 +57,29 @@ public final class NetworkUtils {
   }
 
   /**
+   * Formats an address for the host part of a URL, putting an IPv6 address in square brackets.
+   *
+   * <p>A bare IPv6 address cannot go into a URL: {@code http://::1:8080/} has no way to tell the colons of the
+   * address from the colon of the port, and every URL parser rejects it. RFC 3986 wraps the address in square
+   * brackets for that reason, and the percent sign of a scoped address has to be escaped as {@code %25}. Host
+   * names and IPv4 addresses are returned unchanged.
+   *
+   * @param address the host name or IP address
+   * @return the address as it may appear before the colon of the port
+   * @throws NullPointerException if the address is null
+   */
+  public static String formatHostForUrl(final String address) {
+    Preconditions.checkNotNull(address, "Address must not be null");
+    final boolean ipAddress = InetAddresses.isInetAddress(address);
+    final boolean ipv6 = ipAddress && address.contains(":");
+    if (!ipv6) {
+      return address;
+    }
+    final String escaped = address.replace("%", "%25");
+    return "[" + escaped + "]";
+  }
+
+  /**
    * Looks up the public IPv4 address of this machine by asking {@link #DEFAULT_ADDRESS_SERVICE}. This is the
    * address other machines on the internet see, which differs from the local address behind a NAT router.
    *

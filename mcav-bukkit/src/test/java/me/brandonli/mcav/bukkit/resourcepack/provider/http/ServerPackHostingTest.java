@@ -260,6 +260,16 @@ final class ServerPackHostingTest {
   }
 
   @Test
+  void bracketsAnIpv6AddressInTheDownloadUrl() {
+    // without the brackets the URL reads http://::1:25566, where nothing separates the address from the port
+    final HttpHosting hosting = PackHosting.http(this.zip, "::1", 25566);
+
+    final String url = hosting.getRawUrl();
+
+    assertEquals("http://[::1]:25566", url);
+  }
+
+  @Test
   void rejectsInvalidArguments() {
     final FileHttpServer server = new FileHttpServer(ANY_FREE_PORT, this.zip);
     final ServerPackHosting lowest = new ServerPackHosting(this.zip, "host", 1);

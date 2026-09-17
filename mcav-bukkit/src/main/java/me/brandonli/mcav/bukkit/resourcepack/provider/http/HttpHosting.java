@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit.resourcepack.provider.http;
 
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
+import me.brandonli.mcav.utils.http.NetworkUtils;
 
 /**
  * Hosts a resource pack on a dedicated HTTP server with its own host name and port.
@@ -51,6 +52,8 @@ public interface HttpHosting extends PackHosting {
   default String getRawUrl() {
     final String hostName = this.getHostName();
     final int port = this.getPort();
-    return HOST_URL.formatted(hostName, port);
+    // an IPv6 address needs square brackets before the colon of the port, or the URL cannot be parsed at all
+    final String host = NetworkUtils.formatHostForUrl(hostName);
+    return HOST_URL.formatted(host, port);
   }
 }
