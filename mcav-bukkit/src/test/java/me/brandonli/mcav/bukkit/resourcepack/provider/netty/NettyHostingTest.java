@@ -20,9 +20,11 @@ package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -111,10 +113,11 @@ final class NettyHostingTest {
       final ChannelPipeline pipeline = channel.pipeline();
       final List<String> names = pipeline.names();
       final String firstName = names.getFirst();
-      final ChannelHandler handler = pipeline.get(ResourcePackHttpHandler.NAME);
+      final String handlerName = hosting.getHandlerName();
+      final ChannelHandler handler = pipeline.get(handlerName);
       final byte[] bodyBytes = downloadPack(channel);
 
-      assertEquals(ResourcePackHttpHandler.NAME, firstName, "the handler sees the bytes before Minecraft does");
+      assertEquals(handlerName, firstName, "the handler sees the bytes before Minecraft does");
       assertInstanceOf(ResourcePackHttpHandler.class, handler);
       assertArrayEquals(PACK, bodyBytes);
     } finally {
@@ -141,6 +144,21 @@ final class NettyHostingTest {
     assertEquals(before + 2, running, "starting twice registers one listener, and every instance has its own");
     assertEquals(before + 1, afterFirstShutdown);
     assertEquals(before, after);
+  }
+
+  @Test
+  void givesEveryInstanceItsOwnPipelineName() {
+    // a Netty pipeline rejects two handlers of the same name. With a shared constant, a second running instance
+    // threw inside the channel initializer, which kills every new player connection.
+    final NettyHosting first = new NettyHosting(this.zip);
+    final NettyHosting second = new NettyHosting(this.zip);
+
+    final String firstName = first.getHandlerName();
+    final String secondName = second.getHandlerName();
+
+    assertNotEquals(firstName, secondName, "two instances must not install handlers under one name");
+    assertTrue(firstName.startsWith(ResourcePackHttpHandler.NAME), firstName);
+    assertTrue(secondName.startsWith(ResourcePackHttpHandler.NAME), secondName);
   }
 
   @Test

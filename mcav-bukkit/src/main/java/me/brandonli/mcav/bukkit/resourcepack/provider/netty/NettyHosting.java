@@ -19,7 +19,6 @@ package me.brandonli.mcav.bukkit.resourcepack.provider.netty;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.net.InetAddresses;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
@@ -28,6 +27,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.bukkit.utils.ServerAddress;
+import me.brandonli.mcav.utils.http.NetworkUtils;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -52,6 +52,7 @@ public final class NettyHosting implements InjectorHosting {
 
   private final Path zip;
   private final Key listenerKey;
+  private final String handlerName;
   private final ResourcePackFile packFile;
   private final AtomicBoolean running;
 
@@ -70,6 +71,9 @@ public final class NettyHosting implements InjectorHosting {
     final String keyValue = "resourcepack_%d".formatted(instanceNumber);
     this.zip = zip;
     this.listenerKey = Key.key(KEY_NAMESPACE, keyValue);
+    // a Netty pipeline rejects two handlers of the same name, and this class supports several running instances,
+    // so the name carries the instance number exactly as the listener key does
+    this.handlerName = ResourcePackHttpHandler.NAME + "_" + instanceNumber;
     this.packFile = new ResourcePackFile(zip);
     this.running = new AtomicBoolean(false);
   }
@@ -111,13 +115,7 @@ public final class NettyHosting implements InjectorHosting {
    */
   @VisibleForTesting
   static String formatHost(final String address) {
-    final boolean ipAddress = InetAddresses.isInetAddress(address);
-    final boolean ipv6 = ipAddress && address.contains(":");
-    if (!ipv6) {
-      return address;
-    }
-    final String escaped = address.replace("%", "%25");
-    return "[" + escaped + "]";
+    return NetworkUtils.formatHostForUrl(address);
   }
 
   /**
@@ -140,10 +138,20 @@ public final class NettyHosting implements InjectorHosting {
     ChannelInitializeListenerHolder.addListener(this.listenerKey, this::installHandler);
   }
 
+  /**
+   * Gets the name this instance installs its handler under in the Netty pipeline. Visible for testing.
+   *
+   * @return the pipeline name, which is unique per instance
+   */
+  @VisibleForTesting
+  String getHandlerName() {
+    return this.handlerName;
+  }
+
   private void installHandler(final Channel channel) {
     final ChannelPipeline pipeline = channel.pipeline();
     final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(this.packFile);
-    pipeline.addFirst(ResourcePackHttpHandler.NAME, handler);
+    pipeline.addFirst(this.handlerName, handler);
   }
 
   /**

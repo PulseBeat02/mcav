@@ -385,7 +385,8 @@ final class ResourcePackHttpHandlerTest {
   }
 
   @Test
-  void usesAStablePipelineName() {
+  void usesAStablePipelineNamePrefix() {
+    // NettyHosting appends its instance number, because a Netty pipeline rejects two handlers of one name
     assertEquals("mcav_resource_pack_http", ResourcePackHttpHandler.NAME);
   }
 }
