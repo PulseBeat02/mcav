@@ -269,8 +269,9 @@ public interface ImageBuffer extends Image {
   int getPixelCount();
 
   /**
-   * Gets a view of the raw 8-bit BGR pixels of the image, without padding. The buffer shares memory with the
-   * image: changes to it change the image, and it becomes invalid when the image is resized or released.
+   * Gets a view of the raw 8-bit BGR pixels of the image, without padding. The pixels are the bytes between the
+   * position and the limit of the returned buffer. The buffer shares memory with the image: changes to it change the
+   * image, and it becomes invalid when the image is resized, transformed or released.
    *
    * @return a direct buffer over the pixels
    */

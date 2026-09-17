@@ -77,8 +77,10 @@ public abstract class MatVideoFilter implements VideoFilter {
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final ByteBuffer data = samples.getData();
-    final ByteBuffer pixels = data.duplicate();
-    pixels.rewind();
+    // a slice, not a rewound duplicate: getData() promises a view of the pixels, so the pixels are what is left
+    // between the position and the limit. Rewinding moves the position back but keeps the limit, which turns a view
+    // that starts past zero into one that is too long, and the image buffer below then rejects it.
+    final ByteBuffer pixels = data.slice();
     try (final ImageBuffer temporary = ImageBuffer.bytes(pixels, width, height)) {
       final MatImageBuffer temporaryMat = (MatImageBuffer) temporary;
       final boolean modified = this.modifyImage(temporaryMat);
