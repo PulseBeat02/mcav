@@ -24,7 +24,7 @@ dependencies {
     runtimeDownload("org.incendo:cloud-core:2.1.0")
     runtimeDownload("org.incendo:cloud-annotations:2.1.0")
     runtimeDownload("org.incendo:cloud-paper:2.0.0")
-    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0")
+    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.1")
 
     runtimeDownload("me.lucko:commodore:2.2")
     runtimeDownload("org.bstats:bstats-bukkit:3.2.1")
