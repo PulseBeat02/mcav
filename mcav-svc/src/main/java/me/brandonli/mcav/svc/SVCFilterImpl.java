@@ -164,7 +164,7 @@ public final class SVCFilterImpl implements SVCFilter {
    *
    * @param samples  little-endian interleaved 16-bit stereo samples
    * @param metadata the metadata of the original stream
-   * @return always true
+   * @return always false, because the samples are only downmixed into a copy and never changed
    * @throws NullPointerException if the samples or the metadata are null
    */
   @Override
@@ -172,7 +172,7 @@ public final class SVCFilterImpl implements SVCFilter {
     Preconditions.checkNotNull(samples, "Samples must not be null");
     Preconditions.checkNotNull(metadata, "Metadata must not be null");
     if (!this.running) {
-      return true;
+      return false;
     }
 
     final short[] mono = MonoDownmixer.downmix(samples);
@@ -180,7 +180,7 @@ public final class SVCFilterImpl implements SVCFilter {
     while (offset < mono.length) {
       offset = this.collect(mono, offset);
     }
-    return true;
+    return false;
   }
 
   /**

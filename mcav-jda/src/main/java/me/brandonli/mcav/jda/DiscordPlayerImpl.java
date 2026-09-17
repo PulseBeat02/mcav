@@ -82,7 +82,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    *
    * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
    * @param metadata the metadata of the original audio
-   * @return always true, so the pipeline continues with the next filter
+   * @return always false, because the samples are only read out into frames and never changed
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -98,7 +98,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
         this.fillPartialFrame(bigEndian);
       }
     }
-    return true;
+    return false;
   }
 
   /**

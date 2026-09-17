@@ -95,6 +95,6 @@ public final class MonoDownmixExample {
     }
     final byte[] array = bytes.array();
     line.write(array, 0, array.length);
-    return true;
+    return false;
   }
 }

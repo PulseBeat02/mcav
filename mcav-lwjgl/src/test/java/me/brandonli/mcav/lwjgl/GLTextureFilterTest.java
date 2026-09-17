@@ -159,7 +159,7 @@ final class GLTextureFilterTest {
     final int height = image.getHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
     final boolean kept = filter.applyFilter(image, metadata);
-    assertTrue(kept, "the filter never drops frames");
+    assertFalse(kept, "the filter only reads the sample, so it reports no change");
   }
 
   // the frame is released before the upload, since the filter must have copied it already

@@ -394,7 +394,7 @@ public final class HttpResultImpl implements HttpResult {
    *
    * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
    * @param metadata the metadata of the original audio
-   * @return always true, so the pipeline continues with the next filter
+   * @return always false, because the samples are only copied out and never changed
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -402,7 +402,7 @@ public final class HttpResultImpl implements HttpResult {
     Preconditions.checkNotNull(metadata, "Metadata must not be null");
     final boolean empty = this.listeners.isEmpty();
     if (empty) {
-      return true;
+      return false;
     }
 
     // the page decodes little-endian 16-bit stereo, which is exactly the format of the pipeline
@@ -414,7 +414,7 @@ public final class HttpResultImpl implements HttpResult {
         this.dropListener(listener);
       }
     }
-    return true;
+    return false;
   }
 
   private static byte[] copyRemaining(final ByteBuffer samples) {

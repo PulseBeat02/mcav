@@ -155,7 +155,7 @@ final class DiscordPlayerImplTest {
     final boolean result = player.applyFilter(samples, this.metadata);
     final int inputPosition = samples.position();
     final ByteBuffer frame = player.provide20MsAudio();
-    assertTrue(result);
+    assertFalse(result, "the filter only reads the sample, so it reports no change");
     assertEquals(0, inputPosition);
     assertNotNull(frame);
     final int frameSize = frame.remaining();
@@ -357,7 +357,7 @@ final class DiscordPlayerImplTest {
     final ByteBuffer empty = ByteBuffer.allocate(0);
     final boolean result = player.applyFilter(empty, this.metadata);
     final boolean canProvide = player.canProvide();
-    assertTrue(result);
+    assertFalse(result, "the filter only reads the sample, so it reports no change");
     assertFalse(canProvide);
   }
 

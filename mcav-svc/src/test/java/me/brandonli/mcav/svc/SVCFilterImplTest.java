@@ -19,6 +19,7 @@ package me.brandonli.mcav.svc;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -233,10 +234,10 @@ final class SVCFilterImplTest {
     }
   }
 
-  private void assertStoppedFilterOnlyPassesSamplesOn(final SVCFilter filter, final short[] mono) {
-    final boolean passedOn = this.feed(filter, mono);
+  private void assertStoppedFilterQueuesNothing(final SVCFilter filter, final short[] mono) {
+    final boolean reportedChange = this.feed(filter, mono);
     final int queued = filter.getQueuedFrames();
-    assertTrue(passedOn);
+    assertFalse(reportedChange, "the filter only reads the samples, so it reports no change");
     assertEquals(0, queued);
   }
 
@@ -276,7 +277,7 @@ final class SVCFilterImplTest {
     this.module.stop();
     assertThrows(IllegalStateException.class, filter::start);
     final short[] silence = new short[FRAME_SAMPLES];
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, silence);
+    this.assertStoppedFilterQueuesNothing(filter, silence);
     final boolean noPlayers = this.players.isEmpty();
     assertTrue(noPlayers);
   }
@@ -359,11 +360,11 @@ final class SVCFilterImplTest {
   void passesSamplesOnWithoutPlayingThemUntilStartedAndAfterRelease() {
     final SVCFilter filter = SVCFilter.svc("alice");
     final short[] silence = new short[FRAME_SAMPLES];
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, silence);
+    this.assertStoppedFilterQueuesNothing(filter, silence);
 
     filter.start();
     filter.release();
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, silence);
+    this.assertStoppedFilterQueuesNothing(filter, silence);
     final short[] afterReleaseFrame = this.nextFrameOf(0);
     assertArrayEquals(silence, afterReleaseFrame);
   }
@@ -373,9 +374,9 @@ final class SVCFilterImplTest {
     final SVCFilter filter = SVCFilter.svc("alice", "bob");
     filter.start();
     final short[] mono = ramp(FRAME_SAMPLES, -100);
-    final boolean accepted = this.feed(filter, mono);
+    final boolean reportedChange = this.feed(filter, mono);
     final int queued = filter.getQueuedFrames();
-    assertTrue(accepted);
+    assertFalse(reportedChange, "the filter only reads the samples, so it reports no change");
     assertEquals(1, queued);
 
     final short[] aliceFrame = this.nextFrameOf(0);
@@ -545,7 +546,7 @@ final class SVCFilterImplTest {
     assertEquals(1, encoderCount);
     this.assertEverySpeakerStopped();
     final short[] silence = new short[FRAME_SAMPLES];
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, silence);
+    this.assertStoppedFilterQueuesNothing(filter, silence);
 
     this.refusedEntity = null;
     filter.start();
@@ -566,7 +567,7 @@ final class SVCFilterImplTest {
     this.assertOnlyReachedSpeakerPartsWereCreated(step, playersBefore);
     this.assertEverySpeakerStopped();
     final short[] frame = constant(FRAME_SAMPLES, 5);
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, frame);
+    this.assertStoppedFilterQueuesNothing(filter, frame);
 
     this.failingStep = null;
     filter.start();
@@ -586,7 +587,7 @@ final class SVCFilterImplTest {
     assertEquals(1, playerCount);
     this.assertEverySpeakerStopped();
     final short[] frame = constant(FRAME_SAMPLES, 5);
-    this.assertStoppedFilterOnlyPassesSamplesOn(filter, frame);
+    this.assertStoppedFilterQueuesNothing(filter, frame);
   }
 
   @Test

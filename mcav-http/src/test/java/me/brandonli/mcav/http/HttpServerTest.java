@@ -329,8 +329,8 @@ final class HttpServerTest {
     final ByteBuffer samplesTwo = ByteBuffer.wrap(chunkTwo);
     final boolean resultOne = server.applyFilter(samplesOne, this.metadata);
     final boolean resultTwo = server.applyFilter(samplesTwo, this.metadata);
-    assertTrue(resultOne);
-    assertTrue(resultTwo);
+    assertFalse(resultOne, "the filter only reads the sample, so it reports no change");
+    assertFalse(resultTwo, "the filter only reads the sample, so it reports no change");
 
     final List<RecordingListener> listeners = List.of(first, second);
     for (final RecordingListener listener : listeners) {

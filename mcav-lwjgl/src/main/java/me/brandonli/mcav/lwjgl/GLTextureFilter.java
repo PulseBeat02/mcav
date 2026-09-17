@@ -147,7 +147,7 @@ public class GLTextureFilter implements FunctionalVideoFilter {
    *
    * @param samples  the frame
    * @param metadata the metadata of the frame
-   * @return always true, the frame is not modified
+   * @return always false, because the frame is only copied into the staging buffer and never modified
    * @throws NullPointerException if the frame or the metadata is null
    */
   @Override
@@ -161,14 +161,14 @@ public class GLTextureFilter implements FunctionalVideoFilter {
     final ByteBuffer source = data.duplicate();
     final int size = width * height * CHANNELS;
     if (source.remaining() < size) {
-      return true;
+      return false;
     }
 
     final int start = source.position();
     final int end = start + size;
     source.limit(end);
     this.stage(source, width, height);
-    return true;
+    return false;
   }
 
   /**
