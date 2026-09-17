@@ -70,7 +70,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
 
   // the average step between palette colors per channel, assuming the colors fill the RGB cube evenly
   private static float computeSpread(final int levels) {
-    final double colorsPerAxis = Math.cbrt(Math.max(1, levels));
+    final int usableLevels = Math.max(1, levels);
+    final double colorsPerAxis = Math.cbrt(usableLevels);
     return (float) (256.0 / colorsPerAxis);
   }
 

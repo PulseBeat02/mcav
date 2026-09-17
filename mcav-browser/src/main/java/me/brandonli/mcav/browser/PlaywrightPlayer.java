@@ -295,7 +295,8 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
     final AtomicBoolean token
   ) {
     final boolean active = token.get();
-    final Page followed = Objects.requireNonNull(session.getPage(), "A page is attached before it can close");
+    final Page attachedPage = session.getPage();
+    final Page followed = Objects.requireNonNull(attachedPage, "A page is attached before it can close");
     // Playwright pages compare by identity, so equals tells whether the closed page is the followed one
     final boolean followedPageClosed = closedPage.equals(followed);
     if (!active || !followedPageClosed) {
@@ -415,7 +416,8 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
   private void pump(final Session session, final AtomicBoolean token) {
     while (token.get()) {
       session.runQueuedInput();
-      final Page page = Objects.requireNonNull(session.getPage(), "The first page is attached before the pump starts");
+      final Page attachedPage = session.getPage();
+      final Page page = Objects.requireNonNull(attachedPage, "The first page is attached before the pump starts");
       final boolean closed = page.isClosed();
       if (closed) {
         // the close handler returns to an open page, so a closed page means none is left, as after a crash
@@ -483,7 +485,8 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
 
   private void submit(final PageAction action, final Session session) {
     session.queue(() -> {
-      final Page page = Objects.requireNonNull(session.getPage(), "Input runs after the first page is attached");
+      final Page attachedPage = session.getPage();
+      final Page page = Objects.requireNonNull(attachedPage, "Input runs after the first page is attached");
       this.runAction(page, action);
     });
   }
