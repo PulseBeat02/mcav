@@ -355,7 +355,9 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     for (final String pathFormat : this.pluginPathFormats) {
       final String pluginPath = pathFormat.formatted(path);
       final File pluginDirectory = new File(pluginPath);
-      final boolean exists = pluginDirectory.exists();
+      // a directory, not merely something with that name: libvlc needs a folder to read its plugins from, and a
+      // plain file called "plugins" would otherwise be published as the plugin path and fail later
+      final boolean exists = pluginDirectory.isDirectory();
       if (exists) {
         return this.environmentSetter.set(PLUGIN_ENV_NAME, pluginPath);
       }

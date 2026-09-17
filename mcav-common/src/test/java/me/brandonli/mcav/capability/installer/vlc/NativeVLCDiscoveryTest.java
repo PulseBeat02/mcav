@@ -88,16 +88,35 @@ final class NativeVLCDiscoveryTest {
     assertEquals(systemDirectory, discoveredPath);
   }
 
+  /**
+   * Returns the directory of a VLC installation this machine can actually load, and skips the test otherwise.
+   *
+   * <p>Finding {@code libvlc.so} is not enough. libvlc refuses to start without its plugins, and vlcj's discovery
+   * reports failure when no plugin directory belongs to the libraries it found. Distributions package the two
+   * separately, so a server that installs only {@code libvlc5} — the usual case on a headless machine that pulled
+   * the library in as a transitive dependency — has the libraries without the plugins. The precondition therefore
+   * asks each strategy for both, exactly as a real discovery does, instead of settling for the libraries alone.
+   */
   private static Path requireSystemInstallation() {
     final NativeDiscoveryStrategy[] strategies = VLCDiscoveryStrategies.createSystemStrategies();
+    boolean librariesWithoutPlugins = false;
+
     for (final NativeDiscoveryStrategy strategy : strategies) {
       final boolean supported = strategy.supported();
       final String directory = supported ? strategy.discover() : null;
       if (directory != null) {
-        return Path.of(directory);
+        final boolean pluginsAvailable = strategy.onSetPluginPath(directory);
+        if (pluginsAvailable) {
+          return Path.of(directory);
+        }
+        librariesWithoutPlugins = true;
       }
     }
-    Assumptions.abort("VLC is not installed on this machine");
+
+    final String reason = librariesWithoutPlugins
+      ? "the VLC libraries of this machine have no plugin directory, so libvlc cannot start"
+      : "VLC is not installed on this machine";
+    Assumptions.abort(reason);
     throw new AssertionError("unreachable");
   }
 
