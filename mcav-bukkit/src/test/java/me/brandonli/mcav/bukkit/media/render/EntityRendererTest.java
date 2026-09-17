@@ -250,6 +250,26 @@ final class EntityRendererTest {
   }
 
   @Test
+  void asksAboutTheChunkThatHoldsANegativeBlockPosition() {
+    // the shared fixture sits at x = 1, z = 3, whose chunk is (0, 0) under every plausible arithmetic, so it cannot
+    // tell a floor from a truncation. A negative x can: -17 >> 4 is -2, while -17 / 16 truncates toward zero and
+    // gives -1, which is the chunk next door.
+    final World configuredWorld = this.world.getWorld();
+    final Location negative = new Location(configuredWorld, -17, 70, 35);
+    final EntityConfiguration configuration = this.createConfiguration(negative);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Component text = Component.literal("frame");
+    renderer.show();
+    final List<CraftTextDisplay> spawnedBefore = this.world.getSpawnedDisplays();
+    final CraftTextDisplay discarded = spawnedBefore.getFirst();
+    when(discarded.isValid()).thenReturn(false);
+
+    renderer.apply(text);
+
+    verify(configuredWorld).isChunkLoaded(-2, 2);
+  }
+
+  @Test
   void stopsRespawningOnceThePositionHasNoWorld() {
     final Location movable = this.position.clone();
     final EntityConfiguration configuration = this.createConfiguration(movable);

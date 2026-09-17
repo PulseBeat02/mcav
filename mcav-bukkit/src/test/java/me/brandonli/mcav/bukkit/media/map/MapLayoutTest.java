@@ -86,6 +86,11 @@ final class MapLayoutTest {
     final int imageWidth = layout.getImageWidth();
     final int imageHeight = layout.getImageHeight();
     final MapRegion secondRowSecondColumn = layout.getRegion(4);
+    // index 4 alone cannot detect a swapped decomposition: 4 % 3 and 4 / 3 are both 1, so reading the column as
+    // index / columns and the row as index % columns gives the same tile. Indexes 1 and 3 are the ones that tell
+    // a row-major numbering apart from a column-major one.
+    final MapRegion firstRowSecondColumn = layout.getRegion(1);
+    final MapRegion secondRowFirstColumn = layout.getRegion(3);
 
     assertEquals(6, mapCount);
     assertEquals(10, firstId);
@@ -93,6 +98,8 @@ final class MapLayoutTest {
     assertEquals(384, imageWidth);
     assertEquals(256, imageHeight);
     assertRegion(secondRowSecondColumn, 0, 0, 128, 128, 128, 128);
+    assertRegion(firstRowSecondColumn, 0, 0, 128, 128, 128, 0);
+    assertRegion(secondRowFirstColumn, 0, 0, 128, 128, 0, 128);
   }
 
   @Test
