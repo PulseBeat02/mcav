@@ -86,8 +86,13 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
   }
 
   /**
-   * Gets a random integer in a range. The modulo reduction is very slightly biased toward small offsets for huge
-   * ranges, which does not matter for dithering noise.
+   * Gets a random integer in a range, scaled from the high bits of the next output.
+   *
+   * <p>The offset is the high half of the unsigned product of the output and the width of the range, which is the
+   * multiply-shift reduction of Lemire. It is taken from the high bits on purpose: the authors of xoroshiro128+
+   * state that its lowest bits are of low linear complexity and recommend the high bits, so a modulo reduction,
+   * which depends on the lowest bits, would carry that weakness straight into the dithering noise. Scaling also
+   * leaves a bias below one part in 2^32 of the range, where a modulo reduction leaves one part in the range.
    *
    * @param min the smallest value, inclusive
    * @param max the largest value, exclusive
@@ -99,8 +104,7 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
     Preconditions.checkArgument(max > min, "Max must be greater than min");
     final long range = (long) max - min;
     final long nextBits = this.nextLong();
-    final long value = nextBits >>> 1;
-    final long offset = value % range;
+    final long offset = Math.unsignedMultiplyHigh(nextBits, range);
     return (int) (min + offset);
   }
 
