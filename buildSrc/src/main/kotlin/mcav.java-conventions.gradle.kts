@@ -109,6 +109,12 @@ extensions.configure<PitestPluginExtension> {
     junit5PluginVersion = "1.2.3"
     targetClasses = setOf("me.brandonli.mcav.*")
     threads = 4
+    // a mutant that breaks a player, a browser or a server thread makes its test wait instead of fail, so PIT stops
+    // it after this constant plus timeoutFactor times the time the test needed unmutated. The scaled part already
+    // protects a slow but correct test, so the constant is only the grace a hung mutant burns before it is killed.
+    // This is PIT's own default, stated explicitly: a shorter grace was measured and could not be shown to be safe,
+    // because a test whose runtime varies by more than the grace would be reported as a kill it did not earn.
+    timeoutConstInMillis = 4000
     outputFormats = setOf("HTML", "XML")
     timestampedReports = false
     // the mutated code runs under the JVM options of the module's tests, including those a module adds itself, such

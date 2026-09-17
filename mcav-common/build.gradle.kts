@@ -1,5 +1,3 @@
-import info.solidsoft.gradle.pitest.PitestPluginExtension
-
 plugins {
     id("maven-publish")
 }
@@ -55,13 +53,6 @@ tasks {
     withType<Javadoc>().configureEach {
         options.encoding = "UTF-8"
     }
-}
-
-// PIT mutates the deterministic part of the library. The players are left out: their tests drive a real VLC, FFmpeg
-// and OpenCV, so a mutant that breaks playback makes every test of its batch hang until PIT's timeout, which takes
-// hours without finding anything the fast tests do not already cover.
-extensions.configure<PitestPluginExtension> {
-    excludedClasses = setOf("me.brandonli.mcav.media.player.multimedia.*")
 }
 
 publishing {
