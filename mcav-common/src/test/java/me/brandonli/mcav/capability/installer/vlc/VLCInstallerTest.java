@@ -104,6 +104,27 @@ final class VLCInstallerTest {
   }
 
   @Test
+  void resolvesItsBundledDownloadsWhenNoneWereSupplied() {
+    // the default constructor's supplier is a lambda, and JaCoCo counts its body against the line that declares
+    // it, so a test that never asks for a download leaves that body untested while the line looks covered
+    final VLCInstaller installer = VLCInstaller.create(this.folder);
+    final Platform platform = Platform.getCurrentPlatform();
+    final OS operatingSystem = platform.getOS();
+    final String url = installer.getUrl();
+
+    final String expectedPrefix =
+      switch (operatingSystem) {
+        // Windows and macOS take the zip and the disk image VideoLAN publishes
+        case WINDOWS, MAC -> "https://get.videolan.org/vlc/";
+        // Linux takes an AppImage, because it installs without root
+        case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
+        // no VLC is published for the rest, and an unresolved download answers with an empty URL
+        default -> "";
+      };
+    assertTrue(url.startsWith(expectedPrefix), url);
+  }
+
+  @Test
   void rejectsANullFolder() {
     assertThrows(NullPointerException.class, () -> VLCInstaller.create(null));
   }

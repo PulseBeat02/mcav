@@ -96,6 +96,10 @@ object CoverageReport {
         return when {
             coveredInstructions == 0 && missedInstructions > 0 -> "line is not covered by any test"
             missedBranches > 0 -> "$missedBranches of ${missedBranches + coveredBranches} branches are not covered by any test"
+            // a line JaCoCo counts as covered can still hold instructions no test ran, which is what a lambda whose
+            // body is never invoked looks like: the body belongs to the line that declares it. Reporting only whole
+            // lines and branches would call such a line covered and hide the untested body.
+            missedInstructions > 0 -> "$missedInstructions of ${missedInstructions + coveredInstructions} instructions on this line are not covered by any test"
             else -> null
         }
     }
