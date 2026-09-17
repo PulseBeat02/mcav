@@ -800,7 +800,7 @@ is committed or staged, per the standing rule.
   |---|---|---|---|---|---|
   | mcav-jda | 35 | 35 | 0 | **100%** | Linux 2026-09-17 |
   | mcav-bukkit | 1120 | 1085 | 35 | 97% | Linux 2026-09-17 |
-  | mcav-common | 1679 | 1581 | 98 | 94% | Linux 2026-09-17 (see below) |
+  | mcav-common | 3260 | 3010 | 250 | 92% | Linux 2026-09-17 (see below) |
   | sandbox plugin | 844 | 837 | 7 | 99% | Windows 2026-09-15 |
   | mcav-http | 149 | 146 | 3 | 98% | Windows 2026-09-15 |
   | mcav-installer | 75 | 73 | 2 | 97% | Windows 2026-09-15 |
@@ -812,15 +812,25 @@ is committed or staged, per the standing rule.
   of its tests skip when GLFW cannot get an OpenGL context, so nothing covers `GLTextureFilter` at all.
   Do not read that row as a defect; re-measure it on a machine with a display.
 
-  **`mcav-common` now includes the media players**, which the earlier runs excluded. The 1679/1581 figures
-  are from a complete run; within them the previously excluded
-  `me.brandonli.mcav.media.player.multimedia.*` accounts for **93 mutants, of which 70 are killed and 16
-  more die on the timeout — 92.5% detected**, where before they were simply not tested. The earlier
-  "2580 mutants" figure is not comparable: it was measured on a fully equipped Windows machine where the
-  VLC, OpenCV and Chrome tests all run and therefore far more code is covered.
+  **`mcav-common` now includes the media players**, which the earlier runs excluded, and that is where the
+  jump from 2580 to 3260 mutants comes from. Splitting the run by package:
 
-  **Mutating the players is slow.** A `:mcav-common:pitest` run with them included takes well over half an
-  hour on an unloaded 12-core Linux box, because a mutant that breaks playback makes its test *wait*
+  | Package | Mutants | Detected | Rate |
+  |---|---|---|---|
+  | `media.player.multimedia.*` (was excluded) | 677 | 590 | **87%** |
+  | everything else | 2583 | 2420 | 94% |
+
+  So removing the exclusion put **677 mutants under test that were previously not tested at all**, and 87%
+  of them are detected — 469 killed outright and 121 more killed on the timeout. The 2583 for the rest
+  lines up with the 2580 the earlier Windows run reported, which confirms that figure was the
+  non-multimedia total.
+
+  Measure this **serially**. A contended run of the same module on the same code reported only 1679
+  mutants, because Gradle's parallelism plus PIT's own threads starved the minions and lost whole batches.
+  A number from a loaded machine is not comparable with one from an idle machine.
+
+  **Mutating the players is slow.** A `:mcav-common:pitest` run with them included takes **42m51s** on an
+  unloaded 12-core Linux box, because a mutant that breaks playback makes its test *wait*
   rather than fail and so burns the whole timeout. `:mcav-browser:pitest` is worse still: it drives real
   Chrome, and a run spawns dozens of browser processes. If that becomes a problem, the fix is to reuse one
   browser across the tests of `SeleniumPlayerTest` and `PlaywrightPlayerTest`, or to move more of their
