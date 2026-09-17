@@ -120,13 +120,17 @@ final class VideoRenderer implements RenderCallback {
   BufferFormat createBufferFormat(final int sourceWidth, final int sourceHeight, final int visibleWidth, final int visibleHeight) {
     this.metadata = OriginalVideoMetadata.of(visibleWidth, visibleHeight);
     final DimensionAttachableCallback dimensionCallback = this.owner.getDimensionAttachableCallback();
-    final boolean scale = dimensionCallback.isAttached();
+    // the size is read once. This runs inside a VLC callback, and asking whether the callback is attached and then
+    // asking it for the size lets a detach in between answer with the empty fallback, which would hand VLC a buffer
+    // format of 0x0
+    final Dimension target = dimensionCallback.retrieve();
+    final boolean scale = !target.isEmpty();
     if (!scale) {
       this.width = visibleWidth;
       this.height = visibleHeight;
       return new RV32BufferFormat(sourceWidth, sourceHeight);
     }
-    final Dimension target = dimensionCallback.retrieve();
+
     final int targetWidth = target.getWidth();
     final int targetHeight = target.getHeight();
     this.width = targetWidth;
@@ -329,11 +333,14 @@ final class VideoRenderer implements RenderCallback {
    */
   private void scaleIfRequested(final ImageBuffer buffer) {
     final DimensionAttachableCallback dimensionCallback = this.owner.getDimensionAttachableCallback();
-    final boolean scale = dimensionCallback.isAttached();
-    if (!scale) {
+    // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
+    // in between answer with the empty fallback, and a resize filter of 0x0 rejects every frame from then on
+    final Dimension dimension = dimensionCallback.retrieve();
+    final boolean empty = dimension.isEmpty();
+    if (empty) {
       return;
     }
-    final Dimension dimension = dimensionCallback.retrieve();
+
     final int targetWidth = dimension.getWidth();
     final int targetHeight = dimension.getHeight();
     final ResizeFilter resize = this.obtainResizeFilter(targetWidth, targetHeight);

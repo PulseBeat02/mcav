@@ -77,18 +77,29 @@ final class VideoFrameCopier {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
     final MatImageBuffer pooled = this.pool.acquire();
-    final boolean scale = this.dimensionCallback.isAttached();
-    if (!scale) {
-      return fill(pooled, frame, width, height);
-    }
+
+    // the size is read once. Asking whether the callback is attached and then asking it for the size lets a detach
+    // in between answer with the empty fallback, and scaling a frame to 0x0 throws out of the decoding loop, which
+    // ends playback; an empty size therefore means the frame is copied at its own size, exactly as a detached
+    // callback does
     final Dimension target = this.dimensionCallback.retrieve();
     final int targetWidth = target.getWidth();
     final int targetHeight = target.getHeight();
+    final boolean empty = target.isEmpty();
     final boolean sameSize = targetWidth == width && targetHeight == height;
-    if (sameSize) {
-      return fill(pooled, frame, width, height);
+
+    try {
+      if (empty || sameSize) {
+        return fill(pooled, frame, width, height);
+      }
+      return this.scale(frame, pooled, targetWidth, targetHeight);
+    } catch (final RuntimeException exception) {
+      // a frame the decoder gave us in a shape we cannot read must not cost the pool one of its images
+      if (pooled != null) {
+        this.pool.recycle(pooled);
+      }
+      throw exception;
     }
-    return this.scale(frame, pooled, targetWidth, targetHeight);
   }
 
   /**

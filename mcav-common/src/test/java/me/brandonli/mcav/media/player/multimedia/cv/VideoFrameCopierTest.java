@@ -34,6 +34,7 @@ import me.brandonli.mcav.utils.immutable.Dimension;
 import org.bytedeco.javacv.Frame;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link VideoFrameCopier}.
@@ -229,6 +230,46 @@ final class VideoFrameCopierTest {
     assertEquals(4, width);
     assertEquals(0xFF030201, first);
     image.release();
+  }
+
+  @Test
+  void copiesFramesAtTheirOwnSizeWhenTheAttachedSizeIsEmpty() {
+    // attach() rejects an empty size, so the only way a copier ever sees one is the race this guards against: the
+    // callback is detached between the copier asking whether a size is attached and asking what it is, and answers
+    // the second question with its empty fallback. Scaling a frame to 0x0 used to throw out of the decoding loop
+    // and end playback, so an empty size must be copied at the size of the frame instead.
+    final DimensionAttachableCallback detachedMidFrame = Mockito.mock(DimensionAttachableCallback.class);
+    Mockito.when(detachedMidFrame.isAttached()).thenReturn(true);
+    Mockito.when(detachedMidFrame.retrieve()).thenReturn(Dimension.NONE);
+    final VideoFrameCopier racingCopier = new VideoFrameCopier(this.pool, detachedMidFrame);
+
+    final Frame frame = solidFrame(4, (byte) 1, (byte) 2, (byte) 3);
+    final MatImageBuffer image = racingCopier.copy(frame);
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final int[] pixels = image.getPixels();
+    final int first = pixels[0];
+
+    assertEquals(4, width);
+    assertEquals(FRAME_HEIGHT, height);
+    assertEquals(0xFF030201, first);
+    image.release();
+    racingCopier.release();
+  }
+
+  @Test
+  void handsThePooledImageBackWhenAFrameCannotBeCopied() {
+    final Frame usable = solidFrame(4, (byte) 1, (byte) 2, (byte) 3);
+    final MatImageBuffer pooled = this.copier.copy(usable);
+    this.pool.recycle(pooled);
+    final int unusedBefore = this.pool.getUnusedCount();
+    assertEquals(1, unusedBefore);
+
+    final Frame broken = new Frame(4, FRAME_HEIGHT, Frame.DEPTH_UBYTE, 3);
+    broken.image = new Buffer[0];
+    assertThrows(RuntimeException.class, () -> this.copier.copy(broken));
+    final int unusedAfter = this.pool.getUnusedCount();
+    assertEquals(1, unusedAfter, "a frame that cannot be copied must not cost the pool one of its images");
   }
 
   @Test
