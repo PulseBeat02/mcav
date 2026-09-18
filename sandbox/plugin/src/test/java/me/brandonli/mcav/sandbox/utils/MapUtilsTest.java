@@ -295,6 +295,22 @@ final class MapUtilsTest {
   }
 
   @Test
+  void removesTheFramesAlreadyHangingWhereTheScreenIsBuilt() {
+    final CommandSender console = mock(CommandSender.class);
+    final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
+    // a screen built here earlier: its frame hangs in the very block the new frame needs
+    final Location occupied = this.fakeWorld.location(0.5, 64.5, 0.5);
+    final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
+    MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
+    // the old frame has to go: a block holds one frame per side, so leaving it would push the new frame onto the
+    // opposite side of the same block, back turned, right in front of the map
+    verify(existing).remove();
+    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final int frameCount = frames.size();
+    assertEquals(1, frameCount);
+  }
+
+  @Test
   void marksTheOnlyFrameOfASingleMapScreenAsBothCorners() {
     final Player player = playerFacing(BlockFace.NORTH);
     final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);

@@ -48,6 +48,7 @@ import static net.kyori.adventure.text.Component.text;
 import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 import com.google.common.base.Preconditions;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -58,6 +59,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -254,8 +256,28 @@ public final class MapUtils {
       return this.spawnFrame(block, map);
     }
 
+    /**
+     * Removes the item frames already hanging in the block the new frame goes into.
+     *
+     * <p>Without this, building a screen where one already stands leaves the old frame in place. A block holds
+     * only one frame per side, so the new frame cannot take the side it is asked for and keeps the one it was
+     * spawned with, hanging on the opposite side of the same block with its back to the viewer, directly in front
+     * of the map. The screen then shows the backs of item frames and stays blank however much media is sent to
+     * it, with nothing wrong in the packets.
+     */
+    private void clearFrames(final Block frameBlock) {
+      final Location centre = frameBlock.getLocation().add(0.5, 0.5, 0.5);
+      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, 0.5, 0.5, 0.5);
+      for (final Entity occupant : occupants) {
+        if (occupant instanceof ItemFrame) {
+          occupant.remove();
+        }
+      }
+    }
+
     private ItemFrame spawnFrame(final Block block, final int map) {
       final Block frameBlock = block.getRelative(this.outward);
+      this.clearFrames(frameBlock);
       final Location frameLocation = frameBlock.getLocation();
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
       // The supporting block lies ahead of the builder; the frame faces back toward the builder.
