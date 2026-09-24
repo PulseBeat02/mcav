@@ -282,12 +282,13 @@ public class MCPackHosting implements WebsiteHosting {
     }
   }
 
-  private String createMultipartHead(final String boundary) {
+  @VisibleForTesting
+  String createMultipartHead(final String boundary) {
     // the pack was read as a regular file, and the path of a regular file always ends with a file name
     final Path zipFileName = this.zip.getFileName();
     final Path fileNamePath = Objects.requireNonNull(zipFileName, "The resource pack has no file name");
     final String fileName = fileNamePath.toString();
-    final String safeFileName = fileName.replace("\"", "");
+    final String safeFileName = fileName.replaceAll("[\\p{Cntrl}\"\\\\]", "");
     return (
       "--" +
       boundary +

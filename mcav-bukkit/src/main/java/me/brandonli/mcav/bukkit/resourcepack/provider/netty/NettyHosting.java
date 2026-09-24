@@ -24,7 +24,6 @@ import io.netty.channel.ChannelPipeline;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.bukkit.utils.ServerAddress;
 import me.brandonli.mcav.utils.http.NetworkUtils;
@@ -39,7 +38,7 @@ import org.intellij.lang.annotations.Subst;
  *
  * <p>A small handler is added to the front of every new connection using Paper's channel initializer API. The
  * handler looks at the first bytes a client sends: HTTP {@code GET} and {@code HEAD} requests are answered with the
- * resource pack, and every other connection is handed to Minecraft untouched. See {@link ResourcePackHttpHandler}
+ * resource pack, for this instance's URL, and other requests pass to the next handler. Minecraft connections pass through untouched. See {@link ResourcePackHttpHandler}
  * for details.
  *
  * <p>Connections that arrive through a proxy using the PROXY protocol, or that are terminated by a proxy such as
@@ -53,8 +52,9 @@ public final class NettyHosting implements InjectorHosting {
   private final Path zip;
   private final Key listenerKey;
   private final String handlerName;
+  private final String requestPath;
   private final ResourcePackFile packFile;
-  private final AtomicBoolean running;
+  private boolean running;
 
   private volatile @Nullable String url;
 
@@ -69,24 +69,24 @@ public final class NettyHosting implements InjectorHosting {
     final int instanceNumber = INSTANCE_COUNTER.incrementAndGet();
     @Subst("resourcepack_1")
     final String keyValue = "resourcepack_%d".formatted(instanceNumber);
+    this.requestPath = "/mcav/" + keyValue + ".zip";
     this.zip = zip;
     this.listenerKey = Key.key(KEY_NAMESPACE, keyValue);
     // a Netty pipeline rejects two handlers of the same name, and this class supports several running instances,
     // so the name carries the instance number exactly as the listener key does
     this.handlerName = ResourcePackHttpHandler.NAME + "_" + instanceNumber;
     this.packFile = new ResourcePackFile(zip);
-    this.running = new AtomicBoolean(false);
   }
 
   /**
    * Gets the URL players download the resource pack from.
    *
-   * <p>The URL consists of the public address of the server and the port of the Minecraft server. IPv6 addresses
+   * <p>The URL consists of the public address of the server and the port of the Minecraft server, and a unique path for this hosting instance. IPv6 addresses
    * are enclosed in brackets. The public address is looked up the first time this method is called, and the URL is
    * cached once the address is known. While the address cannot be determined, a URL with {@code localhost} is
    * returned and the lookup is tried again on the next call.
    *
-   * @return the URL of the resource pack, in the format {@code http://<address>:<port>}
+   * @return the URL of the resource pack, in the format {@code http://<address>:<port>/mcav/resourcepack_<instance>.zip}
    */
   @Override
   public String getRawUrl() {
@@ -98,7 +98,7 @@ public final class NettyHosting implements InjectorHosting {
     final String address = ServerAddress.getPublicIPAddress();
     final int port = Bukkit.getPort();
     final String host = formatHost(address);
-    final String builtUrl = "http://%s:%d".formatted(host, port);
+    final String builtUrl = "http://%s:%d%s".formatted(host, port, this.requestPath);
     final boolean fallback = ServerAddress.isFallbackAddress(address);
     if (!fallback) {
       this.url = builtUrl;
@@ -124,18 +124,18 @@ public final class NettyHosting implements InjectorHosting {
    * @throws InjectorException if the resource pack file does not exist
    */
   @Override
-  public void start() {
+  public synchronized void start() {
     final boolean exists = Files.isRegularFile(this.zip);
     if (!exists) {
       final String message = "Resource pack does not exist: %s".formatted(this.zip);
       throw new InjectorException(message);
     }
 
-    final boolean started = this.running.compareAndSet(false, true);
-    if (!started) {
+    if (this.running) {
       return;
     }
     ChannelInitializeListenerHolder.addListener(this.listenerKey, this::installHandler);
+    this.running = true;
   }
 
   /**
@@ -150,7 +150,7 @@ public final class NettyHosting implements InjectorHosting {
 
   private void installHandler(final Channel channel) {
     final ChannelPipeline pipeline = channel.pipeline();
-    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(this.packFile);
+    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(this.packFile, this.requestPath);
     pipeline.addFirst(this.handlerName, handler);
   }
 
@@ -158,10 +158,10 @@ public final class NettyHosting implements InjectorHosting {
    * Stops answering HTTP requests for new connections. Connections that are already open are not affected.
    */
   @Override
-  public void shutdown() {
-    final boolean stopped = this.running.compareAndSet(true, false);
-    if (stopped) {
+  public synchronized void shutdown() {
+    if (this.running) {
       ChannelInitializeListenerHolder.removeListener(this.listenerKey);
+      this.running = false;
     }
   }
 

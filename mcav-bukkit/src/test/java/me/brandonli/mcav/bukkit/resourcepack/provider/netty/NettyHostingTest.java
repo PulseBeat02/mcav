@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -89,8 +90,11 @@ final class NettyHostingTest {
     return channel;
   }
 
-  private static byte[] downloadPack(final EmbeddedChannel channel) {
-    final ByteBuf request = Unpooled.copiedBuffer("GET / HTTP/1.1\r\n\r\n", StandardCharsets.US_ASCII);
+  private static byte[] downloadPack(final EmbeddedChannel channel, final NettyHosting hosting) {
+    final String url = hosting.getRawUrl();
+    final URI uri = URI.create(url);
+    final String path = uri.getRawPath();
+    final ByteBuf request = Unpooled.copiedBuffer("GET " + path + " HTTP/1.1\r\n\r\n", StandardCharsets.US_ASCII);
     channel.writeInbound(request);
 
     final ByteBuf headers = channel.readOutbound();
@@ -115,13 +119,61 @@ final class NettyHostingTest {
       final String firstName = names.getFirst();
       final String handlerName = hosting.getHandlerName();
       final ChannelHandler handler = pipeline.get(handlerName);
-      final byte[] bodyBytes = downloadPack(channel);
+      final byte[] bodyBytes = downloadPack(channel, hosting);
 
       assertEquals(handlerName, firstName, "the handler sees the bytes before Minecraft does");
       assertInstanceOf(ResourcePackHttpHandler.class, handler);
       assertArrayEquals(PACK, bodyBytes);
     } finally {
       hosting.shutdown();
+    }
+  }
+
+  @Test
+  void routesEachUrlToItsOwnPackAcrossFragmentedRequests() throws IOException {
+    final byte[] otherBytes = { 'P', 'K', 7, 8, 9 };
+    final Path other = this.directory.resolve("other.zip");
+    Files.write(other, otherBytes);
+    final NettyHosting first = new NettyHosting(this.zip);
+    final NettyHosting second = new NettyHosting(other);
+    first.start();
+    second.start();
+    try {
+      final String firstUrl = first.getRawUrl();
+      final String secondUrl = second.getRawUrl();
+      assertNotEquals(firstUrl, secondUrl);
+      final List<NettyHosting> hosts = List.of(first, second);
+      for (final NettyHosting hosting : hosts) {
+        final URI uri = URI.create(hosting.getRawUrl());
+        final String request = "GET " + uri.getRawPath() + " HTTP/1.1\r\n\r\n";
+        final byte[] bytes = request.getBytes(StandardCharsets.US_ASCII);
+        final EmbeddedChannel channel = connect();
+        try {
+          for (final byte value : bytes) {
+            if (!channel.isOpen()) {
+              break;
+            }
+            final ByteBuf part = Unpooled.buffer(1);
+            part.writeByte(value);
+            channel.writeInbound(part);
+          }
+          final ByteBuf headers = channel.readOutbound();
+          final String text = headers.toString(StandardCharsets.US_ASCII);
+          headers.release();
+          assertTrue(text.startsWith("HTTP/1.1 200 OK"));
+          final ByteBuf body = channel.readOutbound();
+          final byte[] received = ByteBufUtil.getBytes(body);
+          body.release();
+          final Path path = hosting.getZip();
+          final byte[] expected = Files.readAllBytes(path);
+          assertArrayEquals(expected, received);
+        } finally {
+          channel.finishAndReleaseAll();
+        }
+      }
+    } finally {
+      first.shutdown();
+      second.shutdown();
     }
   }
 
@@ -166,11 +218,16 @@ final class NettyHostingTest {
     final NettyHosting hosting = new NettyHosting(this.zip);
 
     hosting.start();
+    final String handlerName = hosting.getHandlerName();
+    final EmbeddedChannel before = connect();
+    final ChannelPipeline activePipeline = before.pipeline();
+    final ChannelHandler active = activePipeline.get(handlerName);
+    assertNotNull(active, "the instance handler must be installed before shutdown");
     hosting.shutdown();
     final EmbeddedChannel channel = connect();
 
     final ChannelPipeline pipeline = channel.pipeline();
-    final ChannelHandler handler = pipeline.get(ResourcePackHttpHandler.NAME);
+    final ChannelHandler handler = pipeline.get(handlerName);
     assertNull(handler);
   }
 
@@ -199,7 +256,7 @@ final class NettyHostingTest {
     bukkit.when(Bukkit::getIp).thenReturn("198.51.100.1");
     final String cachedUrl = hosting.getRawUrl();
 
-    assertEquals("http://203.0.113.9:25570", url);
+    assertTrue(url.startsWith("http://203.0.113.9:25570/mcav/resourcepack_"));
     assertEquals(url, cachedUrl);
   }
 
@@ -214,7 +271,7 @@ final class NettyHostingTest {
     final URI uri = URI.create(url);
     final int port = uri.getPort();
 
-    assertEquals("http://[2001:db8::5]:25570", url);
+    assertTrue(url.startsWith("http://[2001:db8::5]:25570/mcav/resourcepack_"));
     assertEquals(25570, port, "the URL can be parsed");
   }
 
@@ -241,8 +298,8 @@ final class NettyHostingTest {
       final String resolvedUrl = hosting.getRawUrl();
       final String cachedUrl = hosting.getRawUrl();
 
-      assertEquals("http://localhost:25565", fallbackUrl);
-      assertEquals("http://198.51.100.7:25565", resolvedUrl, "the fallback is not cached");
+      assertTrue(fallbackUrl.startsWith("http://localhost:25565/mcav/resourcepack_"));
+      assertTrue(resolvedUrl.startsWith("http://198.51.100.7:25565/mcav/resourcepack_"), "the fallback is not cached");
       assertEquals(resolvedUrl, cachedUrl, "a resolved address is cached");
     }
   }

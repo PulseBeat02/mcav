@@ -75,7 +75,7 @@ final class ResourcePackHttpHandlerTest {
 
   private EmbeddedChannel createChannel(final Path pack) {
     final ResourcePackFile file = new ResourcePackFile(pack);
-    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(file);
+    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(file, "/");
     final EmbeddedChannel channel = new EmbeddedChannel();
     final ChannelPipeline pipeline = channel.pipeline();
     pipeline.addFirst(ResourcePackHttpHandler.NAME, handler);
@@ -148,7 +148,7 @@ final class ResourcePackHttpHandlerTest {
   @Test
   void servesThePackToGetRequestsAndClosesTheConnection() {
     final EmbeddedChannel channel = this.createChannel(this.packPath);
-    final ByteBuf request = ascii("GET /pack.zip HTTP/1.1\r\nHost: example\r\n\r\n");
+    final ByteBuf request = ascii("GET / HTTP/1.1\r\nHost: example\r\n\r\n");
 
     channel.writeInbound(request);
     final String responseHeaders = readOutboundText(channel);
@@ -162,6 +162,22 @@ final class ResourcePackHttpHandlerTest {
     assertNull(passedOn, "the request never reaches Minecraft");
     assertFalse(open);
     assertEquals(0, requestReferences, "the request is released");
+  }
+
+  @Test
+  void waitsForTheWholeTargetAndPassesAnUnmatchedRequestUnchanged() {
+    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    writeText(channel, "HEAD /");
+    final Object premature = channel.readOutbound();
+    assertNull(premature);
+    writeText(channel, "other HTTP/1.1\r\n\r\n");
+    final String passed = new String(readInboundBytes(channel), StandardCharsets.US_ASCII);
+    final Object response = channel.readOutbound();
+    assertEquals("HEAD /other HTTP/1.1\r\n\r\n", passed);
+    assertNull(response);
+    final ChannelHandler handler = findHandler(channel);
+    assertNull(handler);
+    channel.finishAndReleaseAll();
   }
 
   @Test
@@ -311,7 +327,7 @@ final class ResourcePackHttpHandlerTest {
   @Test
   void dropsEverythingThatArrivesAfterThePackWasServed() {
     final ResourcePackFile file = new ResourcePackFile(this.packPath);
-    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(file);
+    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(file, "/");
     final ChannelHandlerContext context = mock(ChannelHandlerContext.class);
     final ChannelFuture future = mock(ChannelFuture.class);
     when(context.alloc()).thenReturn(ByteBufAllocator.DEFAULT);

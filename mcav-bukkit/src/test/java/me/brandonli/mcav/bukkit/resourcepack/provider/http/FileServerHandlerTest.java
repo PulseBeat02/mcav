@@ -159,6 +159,25 @@ final class FileServerHandlerTest {
   }
 
   @Test
+  void keepsUntrustedFileNamesInsideOneHeaderValue() throws IOException {
+    final Path path = mock(Path.class);
+    final Path name = mock(Path.class);
+    when(path.getFileName()).thenReturn(name);
+    when(name.toString()).thenReturn("pa\r\nc\t\"\\k.zip");
+    final FileServerHandler handler = new FileServerHandler(path, _ -> FileChannel.open(this.pack, StandardOpenOption.READ));
+    final EmbeddedChannel channel = new EmbeddedChannel(handler);
+    try {
+      writeRequest(channel, "GET / HTTP/1.1\r\n\r\n");
+      final String headers = readOutboundText(channel);
+      final byte[] body = readRegion(channel);
+      assertEquals(OK_HEADERS, headers);
+      assertArrayEquals(PACK, body);
+    } finally {
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  @Test
   void answersHeadRequestsWithTheHeadersOnly() {
     final EmbeddedChannel channel = this.createChannel(this.pack);
 
@@ -250,6 +269,15 @@ final class FileServerHandlerTest {
     final String response = readOutboundText(channel);
 
     assertEquals(METHOD_NOT_ALLOWED, response, "a request without a method is answered, not awaited");
+  }
+
+  @Test
+  void rejectsAMethodWithoutSpacesAtTheExactBufferBoundary() {
+    final EmbeddedChannel channel = this.createChannel(this.pack);
+    final String malformed = "a".repeat(252) + "\r\n\r\n";
+    writeRequest(channel, malformed);
+    final String response = readOutboundText(channel);
+    assertEquals(METHOD_NOT_ALLOWED, response);
   }
 
   @Test

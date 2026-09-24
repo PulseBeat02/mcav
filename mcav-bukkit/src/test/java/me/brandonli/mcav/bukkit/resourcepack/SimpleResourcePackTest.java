@@ -366,6 +366,35 @@ final class SimpleResourcePackTest {
   }
 
   @Test
+  void rejectsTraversalAndAmbiguousSoundPaths() {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    final List<String> invalid = List.of(
+      "mcav:../../../../outside",
+      "..:audio",
+      ".:audio",
+      "mcav:.",
+      "mcav:..",
+      "mcav:music/../audio",
+      "mcav:music/./audio",
+      "mcav:/audio",
+      "mcav:music//audio",
+      "mcav:music/"
+    );
+    for (final String key : invalid) {
+      assertThrows(IllegalArgumentException.class, () -> pack.sound(key, this.firstSound), key);
+    }
+    pack.sound("mcav:music/v1.2/intro", this.firstSound);
+  }
+
+  @Test
+  void rejectsDotSegmentsThatBypassReservedPaths() {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    assertThrows(IllegalArgumentException.class, () -> pack.external("./pack.mcmeta", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/./mcav/sounds.json", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/mcav/.", this.credits));
+  }
+
+  @Test
   void rejectsInvalidSounds() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final Path missing = this.directory.resolve("missing.ogg");

@@ -63,6 +63,7 @@ public final class SimpleResourcePack {
 
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
   private static final Pattern FILE_PATTERN = Pattern.compile("[a-zA-Z0-9_./-]+");
+  private static final Pattern UNSAFE_SEGMENT_PATTERN = Pattern.compile("(?:^|/)(?:\\.{1,2})?(?:/|$)");
   private static final Pattern RESERVED_PATTERN = Pattern.compile("pack\\.mcmeta|assets/[^/]+/sounds\\.json|assets/[^/]+/sounds/.+\\.ogg");
   private static final Gson GSON = createGson();
   private static final String PACK_META_ENTRY = "pack.mcmeta";
@@ -119,6 +120,8 @@ public final class SimpleResourcePack {
     final int separator = key.indexOf(':');
     final String namespace = key.substring(0, separator);
     final String value = key.substring(separator + 1);
+    final String soundPath = namespace + "/" + value;
+    checkPathSegments(soundPath);
     final Map<String, Path> namespaceSounds = this.sounds.computeIfAbsent(namespace, _ -> new LinkedHashMap<>());
     namespaceSounds.put(value, path);
   }
@@ -144,6 +147,7 @@ public final class SimpleResourcePack {
 
     final boolean relativeFile = !path.startsWith("/") && !path.endsWith("/") && !path.contains("//");
     Preconditions.checkArgument(relativeFile, "Pack path must be relative to the pack root and name a file: %s", path);
+    checkPathSegments(path);
 
     final Matcher reservedMatcher = RESERVED_PATTERN.matcher(path);
     final boolean reserved = reservedMatcher.matches();
@@ -152,6 +156,12 @@ public final class SimpleResourcePack {
     final boolean exists = Files.isRegularFile(file);
     Preconditions.checkArgument(exists, "File does not exist: %s", file);
     this.files.put(path, file);
+  }
+
+  private static void checkPathSegments(final String path) {
+    final Matcher segments = UNSAFE_SEGMENT_PATTERN.matcher(path);
+    final boolean unsafe = segments.find();
+    Preconditions.checkArgument(!unsafe, "Pack paths must not contain empty, dot or parent segments: %s", path);
   }
 
   /**

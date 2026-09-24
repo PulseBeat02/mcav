@@ -21,15 +21,22 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
 
 /**
  * Tests {@link ResourcePackFile}.
@@ -98,5 +105,32 @@ final class ResourcePackFileTest {
     final ResourcePackFile file = new ResourcePackFile(missing);
 
     assertThrows(NoSuchFileException.class, file::read);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void detectsSubmillisecondChangesAndReplacements(final boolean replacement) throws IOException {
+    final Path path = this.directory.resolve("precise.zip");
+    final BasicFileAttributes first = mock(BasicFileAttributes.class);
+    final BasicFileAttributes second = mock(BasicFileAttributes.class);
+    final Instant initial = Instant.parse("2024-01-01T00:00:00.000000001Z");
+    final Instant updated = replacement ? initial : initial.plusNanos(1);
+    final FileTime firstTime = FileTime.from(initial);
+    final FileTime secondTime = FileTime.from(updated);
+    when(first.lastModifiedTime()).thenReturn(firstTime);
+    when(second.lastModifiedTime()).thenReturn(secondTime);
+    when(first.size()).thenReturn(3L);
+    when(second.size()).thenReturn(3L);
+    when(first.fileKey()).thenReturn("inode-one");
+    when(second.fileKey()).thenReturn(replacement ? "inode-two" : "inode-one");
+    try (final MockedStatic<Files> files = mockStatic(Files.class)) {
+      files.when(() -> Files.readAttributes(path, BasicFileAttributes.class)).thenReturn(first, second);
+      files.when(() -> Files.readAllBytes(path)).thenReturn(ORIGINAL, SAME_SIZE);
+      final ResourcePackFile cache = new ResourcePackFile(path);
+      final byte[] original = cache.read();
+      final byte[] changed = cache.read();
+      assertArrayEquals(ORIGINAL, original);
+      assertArrayEquals(SAME_SIZE, changed);
+    }
   }
 }

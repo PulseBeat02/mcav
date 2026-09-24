@@ -42,7 +42,8 @@ import org.slf4j.LoggerFactory;
  * id {@code 0x00}. That makes the decision unambiguous after at most five bytes:
  *
  * <ul>
- *   <li>HTTP clients receive the resource pack and the connection is closed afterward.</li>
+ *   <li>HTTP requests for this handler's exact path receive the resource pack and the connection is closed afterward.
+ *       Other paths pass to the next handler, allowing several packs on the same server port.</li>
  *   <li>Minecraft clients receive every byte unchanged, and the handler removes itself from the pipeline, so it
  *       adds no overhead to game connections.</li>
  * </ul>
@@ -65,6 +66,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   private static final String CONTENT_TYPE_TEXT = "text/plain";
 
   private final ResourcePackFile packFile;
+  private final byte[] getPrefix;
+  private final byte[] headPrefix;
 
   private @Nullable CompositeByteBuf cumulation;
   private boolean served;
@@ -73,9 +76,12 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
    * Constructs a new handler for one connection.
    *
    * @param packFile the resource pack to serve to HTTP clients
+   * @param requestPath the unique absolute request path of this pack
    */
-  ResourcePackHttpHandler(final ResourcePackFile packFile) {
+  ResourcePackHttpHandler(final ResourcePackFile packFile, final String requestPath) {
     this.packFile = packFile;
+    this.getPrefix = ("GET " + requestPath + " ").getBytes(StandardCharsets.US_ASCII);
+    this.headPrefix = ("HEAD " + requestPath + " ").getBytes(StandardCharsets.US_ASCII);
   }
 
   /**
@@ -116,11 +122,22 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     }
 
     final boolean headOnly = type == RequestType.HEAD;
+    final byte[] expected = headOnly ? this.headPrefix : this.getPrefix;
+    final int readable = data.readableBytes();
+    final int start = data.readerIndex();
+    if (!matchesPrefix(data, start, readable, expected)) {
+      // Another hosting instance may own this request; forward every accumulated byte unchanged.
+      this.passToMinecraft(context, data);
+      return;
+    }
+    if (readable < expected.length) {
+      return;
+    }
     this.serve(context, data, headOnly);
   }
 
   /**
-   * Hands the connection back to Minecraft, which is the only protocol this connection will ever carry.
+   * Passes the bytes to the next pack handler or Minecraft and removes this handler.
    */
   private void passToMinecraft(final ChannelHandlerContext context, final ByteBuf data) {
     this.cumulation = null;
@@ -141,11 +158,6 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     if (existing != null) {
       existing.addComponent(true, buffer);
       return existing;
-    }
-
-    final int readable = buffer.readableBytes();
-    if (readable >= HEAD.length) {
-      return buffer;
     }
 
     final ByteBufAllocator allocator = context.alloc();

@@ -22,11 +22,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Caches the contents of a resource pack in memory, so repeated downloads do not read the file from disk every
- * time. The cache is keyed by the modification time and size of the file, so a rebuilt resource pack is picked
- * up automatically on the next download. This class is thread-safe.
+ * time. The cache uses the full modification time, size, and file identity when available. Changes that preserve
+ * all of that metadata cannot be detected; rebuilders should update the modification time. This class is thread-safe.
  *
  * <p>The whole pack is kept on the heap for as long as the hosting exists, so it costs as much memory as the pack
  * is large. For very large packs, prefer a dedicated server that streams the file from disk, such as
@@ -39,7 +41,8 @@ final class ResourcePackFile {
   private final Path path;
 
   private byte[] cachedBytes;
-  private long cachedModified;
+  private @Nullable FileTime cachedModified;
+  private @Nullable Object cachedFileKey;
   private long cachedSize;
 
   /**
@@ -50,7 +53,6 @@ final class ResourcePackFile {
   ResourcePackFile(final Path path) {
     this.path = path;
     this.cachedBytes = EMPTY;
-    this.cachedModified = Long.MIN_VALUE;
     this.cachedSize = -1;
   }
 
@@ -64,15 +66,17 @@ final class ResourcePackFile {
   synchronized byte[] read() throws IOException {
     final BasicFileAttributes attributes = Files.readAttributes(this.path, BasicFileAttributes.class);
     final FileTime modifiedTime = attributes.lastModifiedTime();
-    final long modified = modifiedTime.toMillis();
+    final Object fileKey = attributes.fileKey();
     final long size = attributes.size();
-    final boolean unchanged = this.cachedModified == modified && this.cachedSize == size;
+    final boolean unchanged =
+      modifiedTime.equals(this.cachedModified) && this.cachedSize == size && Objects.equals(fileKey, this.cachedFileKey);
     if (unchanged) {
       return this.cachedBytes;
     }
     final byte[] bytes = Files.readAllBytes(this.path);
     this.cachedBytes = bytes;
-    this.cachedModified = modified;
+    this.cachedModified = modifiedTime;
+    this.cachedFileKey = fileKey;
     this.cachedSize = size;
     return bytes;
   }

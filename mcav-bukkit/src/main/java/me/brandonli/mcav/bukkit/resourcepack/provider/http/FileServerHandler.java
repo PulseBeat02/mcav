@@ -298,7 +298,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
   }
 
   private static ByteBuf createHeaders(final long contentLength, final String fileName) {
-    final String safeFileName = fileName.replace("\"", "");
+    final String safeFileName = fileName.replaceAll("[\\p{Cntrl}\"\\\\]", "");
     final String text =
       "HTTP/1.1 " +
       STATUS_OK +

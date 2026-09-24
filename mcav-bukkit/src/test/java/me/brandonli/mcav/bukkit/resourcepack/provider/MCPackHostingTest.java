@@ -26,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -174,6 +176,19 @@ final class MCPackHostingTest {
     assertEquals("mcav", upload.userAgent);
     assertEquals("*/*", upload.accept);
     assertArrayEquals(expectedBody, upload.body);
+  }
+
+  @Test
+  void keepsUntrustedFileNamesInsideOneMultipartHeader() {
+    final Path path = mock(Path.class);
+    final Path name = mock(Path.class);
+    when(path.getFileName()).thenReturn(name);
+    when(name.toString()).thenReturn("pa\r\nc\t\"\\k.zip");
+    final MCPackHosting hosting = this.createHosting(path);
+    final String head = hosting.createMultipartHead("boundary");
+    final String expected =
+      "--boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pack.zip\"\r\nContent-Type: application/zip\r\n\r\n";
+    assertEquals(expected, head);
   }
 
   @Test
