@@ -196,7 +196,8 @@ final class VNCPlayerImplTest {
     final float frameRate = metadata.getVideoFrameRate();
     final RecordedFrame frame = new RecordedFrame(width, height, rgb, metadataWidth, metadataHeight, frameRate);
     this.frames.add(frame);
-    return true;
+    // Recording metadata and pixels does not modify the input frame.
+    return false;
   }
 
   private static VNCSource.Builder hostBuilder(final int port) {
@@ -844,17 +845,21 @@ final class VNCPlayerImplTest {
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> config = new AtomicReference<>();
     final AuthenticationFailedException failure = new AuthenticationFailedException("denied");
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
     doAnswer(_ -> {
+      final BufferedImage early = image(4, 4, RED);
+      pushScreen(config, early);
+      assertTrue(player.hasPendingFrame(), "the handshake can deliver an image before reporting its failure");
       pushError(config, failure);
       return null;
     })
       .when(client)
       .start(any(Socket.class));
-    final VNCPlayerImpl player = this.mockedPlayer(client, config);
     final VNCSource source = source(listening, 0, 0);
     final PlayerException exception = assertThrows(PlayerException.class, () -> player.start(source));
     final Throwable cause = exception.getCause();
     assertSame(failure, cause);
+    assertFalse(player.hasPendingFrame(), "a failed handshake must not retain its undelivered image");
 
     verify(client).stop();
     final Socket used = startedSocket(client);
@@ -901,6 +906,31 @@ final class VNCPlayerImplTest {
     final InOrder order = inOrder(client);
     order.verify(client).moveMouse(12, 7);
     order.verify(client).moveMouse(29, 19);
+  }
+
+  @Test
+  void clampsExtremeCoordinatesBeforeNarrowingToIntegers() throws IOException {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final VNCSource source = source(listening, 100, 50);
+    player.start(source);
+    final BufferedImage screen = image(200, 100, RED);
+    pushScreen(config, screen);
+
+    player.moveMouse(Integer.MAX_VALUE, Integer.MAX_VALUE);
+    player.moveMouse(Integer.MIN_VALUE + 1, Integer.MIN_VALUE + 1);
+    player.sendMouseEvent(MouseClick.LEFT, Integer.MAX_VALUE, Integer.MIN_VALUE + 1);
+    player.sendMouseEvent(MouseClick.RIGHT, Integer.MIN_VALUE + 1, Integer.MAX_VALUE);
+
+    final InOrder order = inOrder(client);
+    order.verify(client).moveMouse(199, 99);
+    order.verify(client).moveMouse(0, 0);
+    order.verify(client).moveMouse(199, 0);
+    order.verify(client).click(1);
+    order.verify(client).moveMouse(0, 99);
+    order.verify(client).click(3);
   }
 
   @Test
@@ -1526,6 +1556,220 @@ final class VNCPlayerImplTest {
       }
     }
     return false;
+  }
+
+  @Test
+  void ignoresScreensFromAnEndedSessionAfterRestartAndRelease() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch proceed = new CountDownLatch(1);
+    final VideoFilter busy = this.blockingThenRecording(entered, proceed);
+    attach(player, busy);
+    final VNCSource source = source(listening, 100, 50);
+    player.start(source);
+    final VernacularConfig oldConfig = config.get();
+    final Consumer<Image> oldListener = oldConfig.getScreenUpdateListener();
+    final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
+    pushError(config, failure);
+    player.start(source);
+    final VernacularConfig newConfig = config.get();
+    final Consumer<Image> newListener = newConfig.getScreenUpdateListener();
+    final BufferedImage current = image(200, 100, RED);
+    pushScreen(config, current);
+    final boolean rendering = entered.await(10, TimeUnit.SECONDS);
+    assertTrue(rendering);
+    try {
+      final BufferedImage stale = image(3, 9, GREEN);
+      oldListener.accept(stale);
+      final boolean staleQueued = player.hasPendingFrame();
+      player.moveMouse(50, 25);
+      assertFalse(staleQueued, "a late callback must not replace the next session's pending image");
+      verify(client).moveMouse(100, 50);
+      proceed.countDown();
+      player.release();
+      newListener.accept(stale);
+      final boolean queuedAfterRelease = player.hasPendingFrame();
+      assertFalse(queuedAfterRelease, "a released session must reject late image callbacks");
+    } finally {
+      proceed.countDown();
+    }
+  }
+
+  @Test
+  void releaseDropsThePendingFrameAfterTheRendererStops() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch proceed = new CountDownLatch(1);
+    final VideoFilter busy = this.blockingThenRecording(entered, proceed);
+    attach(player, busy);
+    final VNCSource source = source(listening, 0, 0);
+    player.start(source);
+    this.pushAndAwaitBusyRenderThread(config, entered);
+    final Thread renderer = onlyRenderThread();
+    try {
+      final BufferedImage pending = image(4, 4, GREEN);
+      pushScreen(config, pending);
+      final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
+      pushError(config, failure);
+      proceed.countDown();
+      renderer.join(2_000L);
+      final boolean pendingBeforeRelease = player.hasPendingFrame();
+      assertTrue(pendingBeforeRelease);
+      player.release();
+      final boolean pendingAfterRelease = player.hasPendingFrame();
+      assertFalse(pendingAfterRelease, "release must discard the retained image even when rendering already stopped");
+    } finally {
+      proceed.countDown();
+    }
+  }
+
+  @Test
+  void restartWaitsForThePreviousRendererToFinish() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch proceed = new CountDownLatch(1);
+    final VideoFilter busy = this.blockingThenRecording(entered, proceed);
+    attach(player, busy);
+    final VNCSource source = source(listening, 0, 0);
+    player.start(source);
+    this.pushAndAwaitBusyRenderThread(config, entered);
+    final Thread oldRenderer = onlyRenderThread();
+    final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
+    pushError(config, failure);
+    final CountDownLatch restarted = new CountDownLatch(1);
+    final AtomicBoolean result = new AtomicBoolean();
+    final Thread starter = new Thread(
+      () -> {
+        result.set(player.start(source));
+        restarted.countDown();
+      },
+      "restart-vnc-probe"
+    );
+    try {
+      starter.start();
+      final boolean restartedWhileBusy = restarted.await(250, TimeUnit.MILLISECONDS);
+      assertFalse(restartedWhileBusy, "restart must join the previous render worker before installing a new one");
+      proceed.countDown();
+      final boolean completed = restarted.await(10, TimeUnit.SECONDS);
+      final boolean oldAlive = oldRenderer.isAlive();
+      assertTrue(completed);
+      assertTrue(result.get());
+      assertFalse(oldAlive);
+    } finally {
+      proceed.countDown();
+      starter.join(10_000L);
+    }
+  }
+
+  @Test
+  void wakesAnIdleRendererForFramesAndShutdown() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final long longIdleWait = TimeUnit.SECONDS.toNanos(30);
+    final VNCPlayerImpl player = new VNCPlayerImpl(
+      configuration -> {
+        config.set(configuration);
+        return client;
+      },
+      Socket::new,
+      longIdleWait
+    );
+    this.track(player);
+    final CountDownLatch received = new CountDownLatch(1);
+    final VideoFilter recorder = (_, _) -> {
+      received.countDown();
+      return false;
+    };
+    attach(player, recorder);
+    final VNCSource source = source(listening, 0, 0);
+    player.start(source);
+    Await.until("the renderer starts", () -> !renderThreads().isEmpty());
+    final Thread renderer = onlyRenderThread();
+    try {
+      Await.until("the renderer enters its long idle park", VNCPlayerImplTest::anyRenderThreadWaitsForAnUpdate);
+      final BufferedImage screen = image(4, 4, RED);
+      pushScreen(config, screen);
+      final boolean delivered = received.await(2, TimeUnit.SECONDS);
+      assertTrue(delivered, "a screen callback must wake the renderer instead of waiting for its idle timeout");
+      Await.until("the renderer parks again after the frame", VNCPlayerImplTest::anyRenderThreadWaitsForAnUpdate);
+      player.release();
+      final boolean aliveAfterRelease = renderer.isAlive();
+      assertFalse(aliveAfterRelease, "release must wake the idle renderer so it can observe the ended session");
+    } finally {
+      player.release();
+      LockSupport.unpark(renderer);
+      renderer.join(2_000L);
+    }
+  }
+
+  @Test
+  void rejectsNonPositiveIdleWaits() {
+    assertThrows(IllegalArgumentException.class, () -> new VNCPlayerImpl(VernacularClient::new, Socket::new, 0));
+    assertThrows(IllegalArgumentException.class, () -> new VNCPlayerImpl(VernacularClient::new, Socket::new, -1));
+  }
+
+  @Test
+  void releasesFromARenderCallbackWithoutWaitingForItself() throws Exception {
+    this.assertControlFromRenderCallback(false);
+  }
+
+  @Test
+  void restartsAnEndedSessionFromARenderCallbackWithoutWaitingForItself() throws Exception {
+    this.assertControlFromRenderCallback(true);
+  }
+
+  private void assertControlFromRenderCallback(final boolean restart) throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final VNCSource source = source(listening, 0, 0);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch returned = new CountDownLatch(1);
+    final AtomicBoolean changed = new AtomicBoolean();
+    final AtomicReference<Thread> worker = new AtomicReference<>();
+    final VideoFilter controller = (_, _) -> {
+      worker.set(Thread.currentThread());
+      entered.countDown();
+      if (restart) {
+        final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
+        pushError(config, failure);
+        changed.set(player.start(source));
+      } else {
+        changed.set(player.release());
+      }
+      returned.countDown();
+      return false;
+    };
+    attach(player, controller);
+    player.start(source);
+    try {
+      final BufferedImage screen = image(4, 4, RED);
+      pushScreen(config, screen);
+      final boolean controlling = entered.await(2, TimeUnit.SECONDS);
+      assertTrue(controlling);
+      final boolean completed = returned.await(1, TimeUnit.SECONDS);
+      assertTrue(completed, "the render thread must not spend the two-second join timeout waiting for itself");
+      assertTrue(changed.get());
+      final Thread oldRenderer = worker.get();
+      oldRenderer.join(2_000L);
+      final boolean oldAlive = oldRenderer.isAlive();
+      final boolean playing = player.isPlaying();
+      assertFalse(oldAlive);
+      assertEquals(restart, playing);
+    } finally {
+      player.release();
+    }
   }
 
   @Test

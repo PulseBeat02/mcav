@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 import me.brandonli.mcav.vnc.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,24 @@ final class VNCSourceTest {
     final VNCSource.Builder builder = fullBuilder();
     change.accept(builder);
     return builder.build();
+  }
+
+  @Test
+  void avoidsAConstantHashAcrossRepresentativeSourceKeys() {
+    // This is a minimum performance policy for hash-based collections, not an equals-contract requirement.
+    // It permits collisions and does not prescribe an algorithm or pairwise distinct hashes.
+    final Set<Integer> hashes = new HashSet<>();
+    for (int index = 0; index < 64; index++) {
+      final VNCSource.Builder builder = fullBuilder();
+      builder.host("desktop-" + index + ".example.org");
+      builder.port(5900 + index);
+      builder.screenWidth(640 + index * 16);
+      final VNCSource source = builder.build();
+      final int hash = source.hashCode();
+      hashes.add(hash);
+    }
+    final int distinctHashes = hashes.size();
+    assertTrue(distinctHashes > 1, "representative source keys must not all use the same hash");
   }
 
   @Test

@@ -324,6 +324,7 @@ public final class RfbTestServer implements AutoCloseable {
     }
 
     input.readUnsignedByte();
+    this.layout = PixelLayout.SERVER;
     this.writeServerInit(clientOutput);
     this.output = clientOutput;
     try {
@@ -502,7 +503,7 @@ public final class RfbTestServer implements AutoCloseable {
     discard(input, 3);
     final int bitsPerPixel = input.readUnsignedByte();
     input.readUnsignedByte();
-    input.readUnsignedByte();
+    final boolean bigEndian = input.readUnsignedByte() != 0;
     input.readUnsignedByte();
     final int redMax = input.readUnsignedShort();
     final int greenMax = input.readUnsignedShort();
@@ -511,7 +512,7 @@ public final class RfbTestServer implements AutoCloseable {
     final int greenShift = input.readUnsignedByte();
     final int blueShift = input.readUnsignedByte();
     discard(input, 3);
-    this.layout = new PixelLayout(bitsPerPixel / 8, redMax, greenMax, blueMax, redShift, greenShift, blueShift);
+    this.layout = new PixelLayout(bitsPerPixel / 8, bigEndian, redMax, greenMax, blueMax, redShift, greenShift, blueShift);
   }
 
   private void answerPendingRequests() {
@@ -581,9 +582,10 @@ public final class RfbTestServer implements AutoCloseable {
    */
   private static final class PixelLayout {
 
-    static final PixelLayout SERVER = new PixelLayout(4, 255, 255, 255, 16, 8, 0);
+    static final PixelLayout SERVER = new PixelLayout(4, true, 255, 255, 255, 16, 8, 0);
 
     private final int bytesPerPixel;
+    private final boolean bigEndian;
     private final int redMax;
     private final int greenMax;
     private final int blueMax;
@@ -593,6 +595,7 @@ public final class RfbTestServer implements AutoCloseable {
 
     PixelLayout(
       final int bytesPerPixel,
+      final boolean bigEndian,
       final int redMax,
       final int greenMax,
       final int blueMax,
@@ -601,6 +604,7 @@ public final class RfbTestServer implements AutoCloseable {
       final int blueShift
     ) {
       this.bytesPerPixel = bytesPerPixel;
+      this.bigEndian = bigEndian;
       this.redMax = redMax;
       this.greenMax = greenMax;
       this.blueMax = blueMax;
@@ -610,7 +614,7 @@ public final class RfbTestServer implements AutoCloseable {
     }
 
     /**
-     * Encodes a color as one pixel of this layout, most significant byte first.
+     * Encodes a color as one pixel of this layout in the byte order negotiated by SetPixelFormat.
      *
      * @param rgb the color as packed RGB
      * @return the bytes of the pixel
@@ -626,7 +630,8 @@ public final class RfbTestServer implements AutoCloseable {
 
       final byte[] bytes = new byte[this.bytesPerPixel];
       for (int index = 0; index < bytes.length; index++) {
-        final int shift = (bytes.length - 1 - index) * 8;
+        final int byteIndex = this.bigEndian ? bytes.length - 1 - index : index;
+        final int shift = byteIndex * 8;
         bytes[index] = (byte) (value >>> shift);
       }
       return bytes;

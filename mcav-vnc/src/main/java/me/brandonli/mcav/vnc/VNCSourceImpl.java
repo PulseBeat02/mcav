@@ -106,6 +106,12 @@ public final class VNCSourceImpl implements VNCSource {
     );
   }
 
+  /**
+   * Hashes the source values for use in hash-based collections. Representative distinct sources should not all
+   * collapse to one hash; individual collisions remain valid and the exact hash algorithm is not guaranteed.
+   *
+   * @return the hash of this source's values
+   */
   @Override
   public int hashCode() {
     return Objects.hash(this.host, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);

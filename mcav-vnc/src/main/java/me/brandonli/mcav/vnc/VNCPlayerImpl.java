@@ -73,6 +73,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private final VideoAttachableCallback videoCallback;
   private final ExceptionHandler exceptionHandler;
   private final Lock lock;
+  private final Object frameLock;
+  private final long idleParkNanos;
   private final AtomicBoolean paused;
   private final AtomicBoolean released;
   private final AtomicReference<@Nullable BufferedImage> latestFrame;
@@ -98,11 +100,30 @@ public final class VNCPlayerImpl implements VNCPlayer {
    */
   @VisibleForTesting
   VNCPlayerImpl(final Function<VernacularConfig, VernacularClient> clientFactory, final Supplier<Socket> socketFactory) {
+    this(clientFactory, socketFactory, IDLE_PARK_NANOS);
+  }
+
+  /**
+   * Constructs a player with a replaceable idle wait so wake-up behavior can be tested without timing races.
+   *
+   * @param clientFactory creates the client of a session
+   * @param socketFactory creates its socket
+   * @param idleParkNanos how long an idle renderer waits unless a frame or shutdown wakes it first
+   */
+  @VisibleForTesting
+  VNCPlayerImpl(
+    final Function<VernacularConfig, VernacularClient> clientFactory,
+    final Supplier<Socket> socketFactory,
+    final long idleParkNanos
+  ) {
+    Preconditions.checkArgument(idleParkNanos > 0, "Idle wait must be positive");
     this.clientFactory = clientFactory;
     this.socketFactory = socketFactory;
     this.videoCallback = VideoAttachableCallback.create();
     this.exceptionHandler = ExceptionHandler.createDefault();
     this.lock = new ReentrantLock();
+    this.frameLock = new Object();
+    this.idleParkNanos = idleParkNanos;
     this.paused = new AtomicBoolean(false);
     this.released = new AtomicBoolean(false);
     this.latestFrame = new AtomicReference<>();
@@ -132,11 +153,14 @@ public final class VNCPlayerImpl implements VNCPlayer {
     this.stopClient();
     this.stopRenderThread();
 
-    this.source = source;
-    this.remoteWidth = 0;
-    this.remoteHeight = 0;
-    this.paused.set(false);
-    this.latestFrame.set(null);
+    synchronized (this.frameLock) {
+      this.session = null;
+      this.source = source;
+      this.remoteWidth = 0;
+      this.remoteHeight = 0;
+      this.paused.set(false);
+      this.latestFrame.set(null);
+    }
   }
 
   private void launchSession(final VNCSource source) {
@@ -146,8 +170,20 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final Thread renderWorker = new Thread(() -> this.render(source, created), "mcav-vnc-render");
     renderWorker.setDaemon(true);
 
-    this.client = this.openSession(source, created, renderWorker);
-    this.session = created;
+    // Publish the owner before the handshake, which can deliver the first screen update synchronously.
+    synchronized (this.frameLock) {
+      this.session = created;
+    }
+    try {
+      this.client = this.openSession(source, created, renderWorker);
+    } catch (final RuntimeException | Error exception) {
+      synchronized (this.frameLock) {
+        created.end();
+        this.session = null;
+        this.latestFrame.set(null);
+      }
+      throw exception;
+    }
     this.renderThread = renderWorker;
     renderWorker.start();
   }
@@ -208,7 +244,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     config.setUseLocalMousePointer(false);
     final int frameRate = source.getTargetFrameRate();
     config.setTargetFramesPerSecond(frameRate);
-    config.setScreenUpdateListener(image -> this.onScreenUpdate(image, renderWorker));
+    config.setScreenUpdateListener(image -> this.onScreenUpdate(created, image, renderWorker));
     config.setErrorListener(error -> this.onError(created, error));
 
     final String username = source.getUsername();
@@ -222,23 +258,29 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return config;
   }
 
-  private void onScreenUpdate(final Image image, final Thread renderWorker) {
+  private void onScreenUpdate(final Session owner, final Image image, final Thread renderWorker) {
     if (!(image instanceof final BufferedImage frame)) {
       return;
     }
 
-    final int width = frame.getWidth();
-    final int height = frame.getHeight();
-    this.remoteWidth = width;
-    this.remoteHeight = height;
-    final boolean pausedNow = this.paused.get();
-    if (pausedNow) {
-      return;
-    }
+    synchronized (this.frameLock) {
+      // A callback from a previous client may finish after stop() returns. Check and publish under the same lock
+      // as session replacement, so that callback cannot overwrite the new session's dimensions or pending frame.
+      if (this.session != owner || !owner.acceptsFrames()) {
+        return;
+      }
+      final int width = frame.getWidth();
+      final int height = frame.getHeight();
+      this.remoteWidth = width;
+      this.remoteHeight = height;
+      final boolean pausedNow = this.paused.get();
+      if (pausedNow) {
+        return;
+      }
 
-    // the first update may arrive during the handshake; the render thread picks it up once it starts, so a screen
-    // that never changes is still shown
-    this.latestFrame.set(frame);
+      // The first update may arrive during the handshake; the renderer picks it up once it starts.
+      this.latestFrame.set(frame);
+    }
     LockSupport.unpark(renderWorker);
   }
 
@@ -261,7 +303,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     while (owner.isAlive()) {
       final BufferedImage frame = this.latestFrame.getAndSet(null);
       if (frame == null) {
-        LockSupport.parkNanos(IDLE_PARK_NANOS);
+        LockSupport.parkNanos(this.idleParkNanos);
         continue;
       }
 
@@ -343,11 +385,13 @@ public final class VNCPlayerImpl implements VNCPlayer {
         return false;
       }
 
-      final boolean changed = this.paused.compareAndSet(false, true);
-      if (changed) {
-        this.latestFrame.set(null);
+      synchronized (this.frameLock) {
+        final boolean changed = this.paused.compareAndSet(false, true);
+        if (changed) {
+          this.latestFrame.set(null);
+        }
+        return changed;
       }
-      return changed;
     } finally {
       this.lock.unlock();
     }
@@ -382,7 +426,9 @@ public final class VNCPlayerImpl implements VNCPlayer {
       }
       this.stopClient();
       this.stopRenderThread();
-      this.latestFrame.set(null);
+      synchronized (this.frameLock) {
+        this.latestFrame.set(null);
+      }
       return true;
     } finally {
       this.lock.unlock();
@@ -421,6 +467,11 @@ public final class VNCPlayerImpl implements VNCPlayer {
   }
 
   private void join(final Thread thread) {
+    final Thread caller = Thread.currentThread();
+    if (thread.equals(caller)) {
+      // A filter can release or restart its player. Its old renderer exits when that callback returns.
+      return;
+    }
     try {
       thread.join(STOP_TIMEOUT_MILLIS);
     } catch (final InterruptedException exception) {
@@ -535,8 +586,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final int frameHeight = sizeOrFallback(configuredHeight, targetHeight);
     final double widthRatio = (double) targetWidth / frameWidth;
     final double heightRatio = (double) targetHeight / frameHeight;
-    final int scaledX = (int) Math.round(x * widthRatio);
-    final int scaledY = (int) Math.round(y * heightRatio);
+    final long scaledX = Math.round(x * widthRatio);
+    final long scaledY = Math.round(y * heightRatio);
     final int clampedX = Math.clamp(scaledX, 0, targetWidth - 1);
     final int clampedY = Math.clamp(scaledY, 0, targetHeight - 1);
     return new int[] { clampedX, clampedY };
@@ -601,6 +652,15 @@ public final class VNCPlayerImpl implements VNCPlayer {
         this.alive.set(true);
       }
       return failure;
+    }
+
+    /**
+     * Allows updates during the handshake and while streaming, but rejects callbacks after the session ends.
+     *
+     * @return true while the session can still produce frames
+     */
+    synchronized boolean acceptsFrames() {
+      return this.starting || this.alive.get();
     }
 
     /**

@@ -23,7 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -38,11 +40,10 @@ public final class EqualityAssertions {
   /**
    * Asserts that a value equals itself, that two values are equal in both directions with equal hash codes, that
    * neither equals {@code null} or an unrelated object, and that the value differs from every one of the different
-   * values in both directions and in its hash code.
+   * values in both directions and remains distinct from them as a hash map key.
    *
-   * <p>Hash codes of unequal values may collide in general, but every different value here differs in one property,
-   * so a hash code that mixes all of them apart keeps them apart. Equal hash codes would mean the property is missing
-   * from the hash code, which hash-based collections would then ignore.
+   * <p>Unequal values may have equal hash codes, even when only one property differs. Hash maps use equality to
+   * distinguish keys that collide; the contract requires equal hashes only for equal values.
    *
    * @param value           the value under test
    * @param equalValue      a distinct instance that must be equal to the value
@@ -73,12 +74,22 @@ public final class EqualityAssertions {
       assertFalse(equalsStranger);
     }
 
-    final int valueHash = value.hashCode();
     for (final Object differentValue : differentValues) {
       assertNotEquals(value, differentValue);
       assertNotEquals(differentValue, value);
-      final int differentHash = differentValue.hashCode();
-      assertNotEquals(valueHash, differentHash);
+      assertDistinctMapKeys(value, equalValue, differentValue);
     }
+  }
+
+  private static void assertDistinctMapKeys(final Object value, final Object equalValue, final Object differentValue) {
+    final Map<Object, String> values = new HashMap<>();
+    values.put(value, "original");
+    values.put(differentValue, "different");
+    final int size = values.size();
+    final String original = values.get(equalValue);
+    final String different = values.get(differentValue);
+    assertEquals(2, size, "unequal values remain distinct keys, even if their hashes collide");
+    assertEquals("original", original, "an equal value retrieves the original entry");
+    assertEquals("different", different);
   }
 }

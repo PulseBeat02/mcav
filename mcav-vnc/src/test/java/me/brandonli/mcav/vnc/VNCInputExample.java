@@ -61,7 +61,8 @@ public final class VNCInputExample {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
     builder.then((image, _) -> {
       show(label, image);
-      return true;
+      // Displaying or recording the frame leaves its pixels unchanged.
+      return false;
     });
     final VideoPipelineStep pipeline = builder.build();
 
