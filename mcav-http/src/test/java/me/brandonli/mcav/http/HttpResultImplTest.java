@@ -231,7 +231,8 @@ final class HttpResultImplTest {
     final WebSocketSession late = session("late", sent);
     http.addListener(late);
     final int countAfterStop = http.getListenerCount();
-    assertEquals(1, countAfterStop, "a handshake that arrives after the stop must not be registered");
+    assertEquals(0, countAfterStop, "stopping closes existing listeners and rejects later handshakes");
+    verifyClosed(early, CloseStatus.GOING_AWAY);
     verifyClosed(late, CloseStatus.GOING_AWAY);
   }
 
@@ -352,12 +353,49 @@ final class HttpResultImplTest {
 
     final Thread current = Thread.currentThread();
     final ClassLoader before = current.getContextClassLoader();
-    HttpResultImpl.closeWithOwnClassLoader(context);
-    final ClassLoader after = current.getContextClassLoader();
     final ClassLoader own = HttpResultImpl.class.getClassLoader();
-    final List<ClassLoader> expected = List.of(own);
-    assertEquals(expected, loadersWhileClosing, "Spring looks its own resources up through the context class loader");
-    assertSame(before, after, "the class loader of the caller is restored");
+    final ClassLoader caller = new ClassLoader(own) {};
+    try {
+      current.setContextClassLoader(caller);
+      HttpResultImpl.closeWithOwnClassLoader(context);
+      final ClassLoader after = current.getContextClassLoader();
+      final List<ClassLoader> expected = List.of(own);
+      assertEquals(expected, loadersWhileClosing, "Spring looks its own resources up through the context class loader");
+      assertSame(caller, after, "the distinct class loader of the caller is restored");
+    } finally {
+      current.setContextClassLoader(before);
+    }
+  }
+
+  @Test
+  void restoresTheCallersClassLoaderWhenClosingTheSpringContextFails() {
+    final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
+    final IllegalStateException failure = new IllegalStateException("context close failed");
+    final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
+    Mockito.doAnswer(invocation -> {
+      final Thread closing = Thread.currentThread();
+      final ClassLoader loader = closing.getContextClassLoader();
+      loadersWhileClosing.add(loader);
+      throw failure;
+    })
+      .when(context)
+      .close();
+
+    final Thread current = Thread.currentThread();
+    final ClassLoader before = current.getContextClassLoader();
+    final ClassLoader own = HttpResultImpl.class.getClassLoader();
+    final ClassLoader caller = new ClassLoader(own) {};
+    try {
+      current.setContextClassLoader(caller);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> HttpResultImpl.closeWithOwnClassLoader(context));
+      final ClassLoader after = current.getContextClassLoader();
+      final List<ClassLoader> expected = List.of(own);
+      assertSame(failure, thrown, "the original context failure is preserved");
+      assertEquals(expected, loadersWhileClosing, "closing runs with the library loader even when it fails");
+      assertSame(caller, after, "failed context cleanup must restore the distinct caller loader");
+    } finally {
+      current.setContextClassLoader(before);
+    }
   }
 
   @Test

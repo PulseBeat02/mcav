@@ -261,11 +261,11 @@ public final class HttpResultImpl implements HttpResult {
       // during the shutdown must see this before disconnectListeners() empties the map
       this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
+      this.disconnectListeners();
       if (current == null) {
         return;
       }
       this.context = null;
-      this.disconnectListeners();
       closeWithOwnClassLoader(current);
     }
   }

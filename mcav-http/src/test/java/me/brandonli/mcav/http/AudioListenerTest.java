@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
@@ -35,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -163,6 +165,44 @@ final class AudioListenerTest {
   private void verifySession(final VerificationMode mode, final CloseStatus status) throws IOException {
     final WebSocketSession verified = Mockito.verify(this.session, mode);
     verified.close(status);
+  }
+
+  @Test
+  void inspectingQueueDepthReleasesTheLockNeededByOtherProducers() throws Exception {
+    final AudioListener listener = this.createListener(1000, 1024);
+    final byte[] first = chunk(10, 1);
+    final boolean queued = listener.offer(first);
+    assertTrue(queued);
+
+    final int pending = listener.getPendingChunkCount();
+    assertEquals(1, pending);
+    // Observe the actual synchronization resource without replacing it or changing listener state. A retained
+    // reentrant hold is invisible to later calls on this thread but permanently blocks every other producer.
+    final Field field = AudioListener.class.getDeclaredField("lock");
+    field.setAccessible(true);
+    final ReentrantLock lock = (ReentrantLock) field.get(listener);
+    final boolean held = lock.isHeldByCurrentThread();
+    assertFalse(held, "reading queue depth must not retain the lock needed by other producer and sender threads");
+
+    final CompletableFuture<Boolean> offered = new CompletableFuture<>();
+    final byte[] second = chunk(20, 2);
+    final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
+    final Thread producer = builder.start(() -> {
+      try {
+        final boolean accepted = listener.offer(second);
+        offered.complete(accepted);
+      } catch (final RuntimeException | Error failure) {
+        offered.completeExceptionally(failure);
+      }
+    });
+    final boolean accepted = offered.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    producer.join(TIMEOUT_MILLIS);
+    final boolean alive = producer.isAlive();
+    final int bytes = listener.getPendingBytes();
+    assertTrue(accepted);
+    assertFalse(alive);
+    assertEquals(30, bytes, "a different producer can still append samples after a queue-depth query");
+    listener.stop();
   }
 
   @Test
