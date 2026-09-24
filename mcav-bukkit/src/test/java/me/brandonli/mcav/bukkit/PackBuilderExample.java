@@ -38,12 +38,19 @@ public final class PackBuilderExample {
   /**
    * Downloads the example video, extracts its audio, and writes the resource pack to {@code pack.zip}.
    *
+   * @param args one argument: the resource-pack format required by the target Minecraft client
    * @throws IOException if the audio cannot be extracted or the pack cannot be written
+   * @throws IllegalArgumentException if the resource-pack format is missing or invalid
    */
-  static void main() throws IOException {
+  static void main(final String[] args) throws IOException {
+    if (args.length != 1) {
+      throw new IllegalArgumentException("Usage: PackBuilderExample <resource-pack-format>");
+    }
+    final int format = Integer.parseInt(args[0]);
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.meta(format, "MCAV example audio");
     final UriSource video = UriSource.uri(VIDEO);
     final Path sound = AudioExtractor.extractOggVorbis(video);
-    final SimpleResourcePack pack = SimpleResourcePack.pack();
     pack.sound("mcav:example", sound);
     final Path destination = Path.of("pack.zip");
     pack.zip(destination);

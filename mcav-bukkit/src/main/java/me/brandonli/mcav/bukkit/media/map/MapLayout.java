@@ -62,9 +62,9 @@ public final class MapLayout {
    * @param rows        the number of maps vertically
    * @param imageWidth  the width of the image in pixels
    * @param imageHeight the height of the image in pixels
-   * @throws IllegalArgumentException if any argument is out of range, the last map id or the size of the grid in
-   *                                  pixels would exceed {@link Integer#MAX_VALUE}, or the image has more than
-   *                                  {@link Integer#MAX_VALUE} pixels
+   * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
+   *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
+   *                                  than {@link Integer#MAX_VALUE} pixels
    */
   public MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
     validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
@@ -94,6 +94,7 @@ public final class MapLayout {
     Preconditions.checkArgument(imageWidth > 0 && imageHeight > 0, "Image must not be empty");
 
     final long longMapCount = (long) columns * rows;
+    Preconditions.checkArgument(longMapCount <= Integer.MAX_VALUE, "Map grid of %sx%s maps has too many maps", columns, rows);
     final long lastMapId = startMapId + longMapCount - 1;
     Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids %s to %s exceed the largest map id", startMapId, lastMapId);
 

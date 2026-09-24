@@ -19,6 +19,8 @@ package me.brandonli.mcav.bukkit.utils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.net.InetAddresses;
+import java.net.InetAddress;
 import java.net.URI;
 import java.util.Optional;
 import me.brandonli.mcav.utils.http.NetworkUtils;
@@ -32,7 +34,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class ServerAddress {
 
   private static final String FALLBACK_ADDRESS = "localhost";
-  private static final String WILDCARD_ADDRESS = "0.0.0.0";
 
   private static volatile @Nullable String PUBLIC_ADDRESS;
 
@@ -65,7 +66,7 @@ public final class ServerAddress {
   static String getPublicIPAddress(final URI addressService) {
     Preconditions.checkNotNull(addressService, "Address service must not be null");
     final String configuredAddress = Bukkit.getIp();
-    final boolean hasConfiguredAddress = !configuredAddress.isBlank() && !configuredAddress.equals(WILDCARD_ADDRESS);
+    final boolean hasConfiguredAddress = isConfiguredAddress(configuredAddress);
     if (hasConfiguredAddress) {
       return configuredAddress;
     }
@@ -82,6 +83,18 @@ public final class ServerAddress {
     final String address = lookedUpAddress.get();
     PUBLIC_ADDRESS = address;
     return address;
+  }
+
+  private static boolean isConfiguredAddress(final String address) {
+    if (address.isBlank()) {
+      return false;
+    }
+    final boolean literal = InetAddresses.isInetAddress(address);
+    if (!literal) {
+      return true;
+    }
+    final InetAddress parsed = InetAddresses.forString(address);
+    return !parsed.isAnyLocalAddress();
   }
 
   /**

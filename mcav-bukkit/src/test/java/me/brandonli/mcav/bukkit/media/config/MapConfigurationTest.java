@@ -178,4 +178,24 @@ final class MapConfigurationTest {
     assertEquals(384, largeWidth, "the default of the first build is not kept in the builder");
     assertEquals(256, largeHeight);
   }
+
+  @Test
+  void rejectsOverflowingNativeResolutions() {
+    final MapConfiguration.Builder<?> width = completeBuilder();
+    width.mapBlockWidth(Integer.MAX_VALUE / 128 + 1);
+    final MapConfiguration.Builder<?> height = completeBuilder();
+    height.mapBlockHeight(Integer.MAX_VALUE / 128 + 1);
+    assertThrows(IllegalArgumentException.class, width::build);
+    assertThrows(IllegalArgumentException.class, height::build);
+  }
+
+  @Test
+  void acceptsTheLargestRepresentableNativeResolution() {
+    final int maps = Integer.MAX_VALUE / 128;
+    final MapConfiguration.Builder<?> builder = completeBuilder();
+    builder.mapBlockWidth(maps);
+    final MapConfiguration configuration = builder.build();
+    final int resolution = configuration.getMapWidthResolution();
+    assertEquals(maps * 128, resolution);
+  }
 }

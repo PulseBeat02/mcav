@@ -78,7 +78,7 @@ public final class ChatUtils {
     Preconditions.checkNotNull(data, "Pixels must not be null");
     Preconditions.checkNotNull(character, "Character must not be null");
     Preconditions.checkArgument(width > 0, "Width must be positive");
-    Preconditions.checkArgument(y >= 0 && (y + 1) * width <= data.length, "Row is outside of the image");
+    Preconditions.checkArgument(y >= 0 && (y + 1L) * width <= data.length, "Row is outside of the image");
     final int characterLength = character.length();
     final int capacity = width * (HEX_COLOR_LENGTH + characterLength);
     final StringBuilder builder = new StringBuilder(capacity);
@@ -99,7 +99,7 @@ public final class ChatUtils {
     Preconditions.checkNotNull(data, "Pixels must not be null");
     Preconditions.checkNotNull(character, "Character must not be null");
     Preconditions.checkArgument(width > 0 && height > 0, "Image must not be empty");
-    Preconditions.checkArgument(width * height <= data.length, "Image dimensions exceed the pixel data");
+    Preconditions.checkArgument((long) width * height <= data.length, "Image dimensions exceed the pixel data");
     final int characterLength = character.length();
     final int capacity = width * height * (HEX_COLOR_LENGTH + characterLength) + height;
     final StringBuilder builder = new StringBuilder(capacity);

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.result;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -30,13 +31,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.LogCapture;
@@ -48,10 +58,13 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Par
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.apache.logging.log4j.Level;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link CompressedMapResult}.
@@ -230,6 +243,48 @@ final class CompressedMapResultTest {
     MapPackets.assertMapPacket(snapshotPacket, 3, 0, 0, 128, 128, firstFrame);
   }
 
+  private static void applyPacketsToCanvas(
+    final byte[] canvas,
+    final int columns,
+    final int rows,
+    final List<ClientboundMapItemDataPacket> packets
+  ) {
+    final int canvasWidth = columns * 128;
+    for (final ClientboundMapItemDataPacket packet : packets) {
+      final MapId mapId = packet.mapId();
+      final int index = mapId.id() - 3;
+      assertTrue(index >= 0 && index < columns * rows, "packet must address the configured map grid");
+      final Optional<MapItemSavedData.MapPatch> colorPatch = packet.colorPatch();
+      final MapItemSavedData.MapPatch patch = colorPatch.orElseThrow();
+      final int mapX = (index % columns) * 128;
+      final int mapY = (index / columns) * 128;
+      final int startX = mapX + patch.startX();
+      final int startY = mapY + patch.startY();
+      final int width = patch.width();
+      final int height = patch.height();
+      final byte[] colors = patch.mapColors();
+      for (int row = 0; row < height; row++) {
+        final int destination = (startY + row) * canvasWidth + startX;
+        System.arraycopy(colors, row * width, canvas, destination, width);
+      }
+    }
+  }
+
+  private static void placeRectangle(
+    final byte[] canvas,
+    final int canvasWidth,
+    final int x,
+    final int y,
+    final int width,
+    final int height,
+    final byte[] colors
+  ) {
+    for (int row = 0; row < height; row++) {
+      final int destination = (y + row) * canvasWidth + x;
+      System.arraycopy(colors, row * width, canvas, destination, width);
+    }
+  }
+
   @Test
   void startsOverWhenTheFrameSizeChanges() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, false);
@@ -244,11 +299,217 @@ final class CompressedMapResultTest {
 
     final int count = this.firstViewerPacketCount();
     final List<ClientboundMapItemDataPacket> restart = this.packetsOf(FIRST, 1);
-    final int restartCount = restart.size();
-    final ClientboundMapItemDataPacket restartPacket = restart.getFirst();
-    assertEquals(2, count);
-    assertEquals(1, restartCount);
-    MapPackets.assertMapPacket(restartPacket, 3, 32, 32, 64, 64, smallFrame);
+    final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
+    final byte[] canvas = new byte[128 * 128];
+    applyPacketsToCanvas(canvas, 1, 1, original);
+    applyPacketsToCanvas(canvas, 1, 1, restart);
+    final byte[] expected = new byte[128 * 128];
+    placeRectangle(expected, 128, 32, 32, 64, 64, smallFrame);
+    assertEquals(2, count, "clear and replacement must share one bundle");
+    assertArrayEquals(expected, canvas, "the old border must be transparent after a shrink");
+    final int patches = restart.size();
+    assertEquals(5, patches, "four rectangular border strips and the new picture must stay compact");
+
+    result.process(small, this.algorithm);
+    final int afterUnchanged = this.firstViewerPacketCount();
+    assertEquals(2, afterUnchanged, "the reset is not repeated for an unchanged frame");
+  }
+
+  @Test
+  void preservesPixelsOutsideBothCenteredPictures() {
+    final MapConfiguration configuration = this.createConfiguration(2, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final byte[] originalFrame = MapPackets.pattern(128 * 64, 4);
+    this.nextFrame = originalFrame;
+    try (final ImageBuffer image = Images.solid(128, 64, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    final byte[] smallFrame = MapPackets.pattern(64 * 32, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer image = Images.solid(64, 32, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+
+    final byte[] canvas = new byte[256 * 128];
+    Arrays.fill(canvas, (byte) 117);
+    final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
+    final List<ClientboundMapItemDataPacket> restart = this.packetsOf(FIRST, 1);
+    applyPacketsToCanvas(canvas, 2, 1, original);
+    applyPacketsToCanvas(canvas, 2, 1, restart);
+    final byte[] expected = new byte[256 * 128];
+    Arrays.fill(expected, (byte) 117);
+    final byte[] transparent = new byte[128 * 64];
+    placeRectangle(expected, 256, 64, 32, 128, 64, transparent);
+    placeRectangle(expected, 256, 96, 48, 64, 32, smallFrame);
+    assertArrayEquals(expected, canvas, "only pixels occupied by the old or new picture may change");
+  }
+
+  @Test
+  void clearsFormerlyCoveredMapsForOldAndNewViewersDuringAShrink() {
+    final MapConfiguration configuration = this.createConfiguration(3, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    this.nextFrame = MapPackets.pattern(384 * 128, 4);
+    try (final ImageBuffer image = Images.solid(384, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    this.server.addPlayer(SECOND);
+    PacketUtils.init();
+    final byte[] smallFrame = MapPackets.pattern(64 * 64, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer image = Images.solid(64, 64, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+
+    final byte[] oldViewerCanvas = new byte[384 * 128];
+    final byte[] newViewerCanvas = new byte[384 * 128];
+    Arrays.fill(newViewerCanvas, (byte) 118);
+    final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
+    final List<ClientboundMapItemDataPacket> oldViewerReset = this.packetsOf(FIRST, 1);
+    final List<ClientboundMapItemDataPacket> newViewerReset = this.packetsOf(SECOND, 0);
+    applyPacketsToCanvas(oldViewerCanvas, 3, 1, original);
+    applyPacketsToCanvas(oldViewerCanvas, 3, 1, oldViewerReset);
+    applyPacketsToCanvas(newViewerCanvas, 3, 1, newViewerReset);
+    final byte[] expected = new byte[384 * 128];
+    placeRectangle(expected, 384, 160, 32, 64, 64, smallFrame);
+    assertArrayEquals(expected, oldViewerCanvas);
+    assertArrayEquals(expected, newViewerCanvas);
+    final int firstCount = this.firstViewerPacketCount();
+    final List<Packet<?>> secondPackets = this.server.getSentPackets(SECOND);
+    final int secondCount = secondPackets.size();
+    assertEquals(2, firstCount, "old viewers receive the clear and replacement together");
+    assertEquals(1, secondCount, "joining viewers receive the same reset in one bundle");
+  }
+
+  @Test
+  void keepsTheNormalByteBudgetAfterOneTimeResizeCleanup() {
+    final MapConfiguration configuration = this.createConfiguration(2, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1);
+    this.nextFrame = MapPackets.pattern(256 * 128, 4);
+    try (final ImageBuffer image = Images.solid(256, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+    }
+    final byte[] smallFrame = MapPackets.pattern(128 * 64, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer image = Images.solid(128, 64, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+    }
+
+    final List<ClientboundMapItemDataPacket> next = this.packetsOf(FIRST, 3);
+    final int nextCount = next.size();
+    final int totalCount = this.firstViewerPacketCount();
+    assertEquals(1, nextCount, "ordinary frames retain the encoder's one-urgent-map exception");
+    assertEquals(4, totalCount, "an unchanged completed frame sends nothing");
+    final byte[] canvas = new byte[256 * 128];
+    for (int index = 0; index < totalCount; index++) {
+      final List<ClientboundMapItemDataPacket> packets = this.packetsOf(FIRST, index);
+      applyPacketsToCanvas(canvas, 2, 1, packets);
+    }
+    final byte[] expected = new byte[256 * 128];
+    placeRectangle(expected, 256, 64, 32, 128, 64, smallFrame);
+    assertArrayEquals(expected, canvas);
+  }
+
+  @Test
+  void clearsTheClippedOldPictureWhenAnOversizedFrameShrinks() {
+    final MapConfiguration configuration = this.createConfiguration(2, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    this.nextFrame = MapPackets.pattern(512 * 256, 4);
+    try (final ImageBuffer image = Images.solid(512, 256, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    final byte[] smallFrame = MapPackets.pattern(64 * 64, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer image = Images.solid(64, 64, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+
+    final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
+    final List<ClientboundMapItemDataPacket> reset = this.packetsOf(FIRST, 1);
+    final byte[] canvas = new byte[256 * 128];
+    applyPacketsToCanvas(canvas, 2, 1, original);
+    applyPacketsToCanvas(canvas, 2, 1, reset);
+    final byte[] expected = new byte[256 * 128];
+    placeRectangle(expected, 256, 96, 32, 64, 64, smallFrame);
+    assertArrayEquals(expected, canvas);
+  }
+
+  @Test
+  void clearsHistoricalBordersWhenAViewerMissedTheResize() {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    try (final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    this.viewers.remove(FIRST);
+    final byte[] smallFrame = MapPackets.pattern(64 * 64, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer image = Images.solid(64, 64, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      final int beforeRejoining = this.firstViewerPacketCount();
+      assertEquals(1, beforeRejoining, "an absent viewer receives no resize packets");
+      this.viewers.add(FIRST);
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+    }
+
+    final byte[] canvas = new byte[128 * 128];
+    final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
+    final List<ClientboundMapItemDataPacket> rejoined = this.packetsOf(FIRST, 1);
+    applyPacketsToCanvas(canvas, 1, 1, original);
+    applyPacketsToCanvas(canvas, 1, 1, rejoined);
+    final byte[] expected = new byte[128 * 128];
+    placeRectangle(expected, 128, 32, 32, 64, 64, smallFrame);
+    assertArrayEquals(expected, canvas);
+    final int count = this.firstViewerPacketCount();
+    assertEquals(2, count, "cleanup is sent once when the viewer rejoins");
+  }
+
+  @Test
+  void retainsExactCoverageAcrossSeveralResizesWithoutClaimingUnviewedPixels() {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    this.nextFrame = MapPackets.pattern(128 * 32, 4);
+    try (final ImageBuffer image = Images.solid(128, 32, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    this.nextFrame = MapPackets.pattern(32 * 128, 7);
+    try (final ImageBuffer image = Images.solid(32, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    this.viewers.remove(FIRST);
+    // This whole-map frame has no connected configured viewer; its untouched corners must not become owned.
+    this.nextFrame = MapPackets.pattern(128 * 128, 11);
+    try (final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+    }
+    final byte[] finalFrame = MapPackets.pattern(64 * 16, 13);
+    this.nextFrame = finalFrame;
+    try (final ImageBuffer image = Images.solid(64, 16, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      this.viewers.add(FIRST);
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+    }
+
+    final byte[] canvas = new byte[128 * 128];
+    Arrays.fill(canvas, (byte) 117);
+    final int count = this.firstViewerPacketCount();
+    assertEquals(3, count, "wide, tall, and one rejoin snapshot; no unviewed or repeated reset");
+    for (int index = 0; index < count; index++) {
+      final List<ClientboundMapItemDataPacket> packets = this.packetsOf(FIRST, index);
+      applyPacketsToCanvas(canvas, 1, 1, packets);
+    }
+    final byte[] expected = new byte[128 * 128];
+    Arrays.fill(expected, (byte) 117);
+    final byte[] wideClear = new byte[128 * 32];
+    final byte[] tallClear = new byte[32 * 128];
+    placeRectangle(expected, 128, 0, 48, 128, 32, wideClear);
+    placeRectangle(expected, 128, 48, 0, 32, 128, tallClear);
+    placeRectangle(expected, 128, 32, 56, 64, 16, finalFrame);
+    assertArrayEquals(expected, canvas, "the union is a cross, not its whole-map bounding rectangle");
   }
 
   @Test
@@ -330,6 +591,10 @@ final class CompressedMapResultTest {
     final boolean shutDownAfterRelease = firstPool.isShutdown();
 
     assertSame(firstPool, secondPool, "the pool is reused");
+    final Runtime runtime = Runtime.getRuntime();
+    final int processors = runtime.availableProcessors();
+    final int parallelism = firstPool.getParallelism();
+    assertTrue(parallelism <= Math.max(1, processors / 2), "map dithering leaves at least half the CPUs for the server");
     assertTrue(namedWorker, workerName);
     assertTrue(daemon, "dither threads never keep the server alive");
     assertFalse(shutDownBeforeRelease);
@@ -395,7 +660,7 @@ final class CompressedMapResultTest {
   }
 
   @Test
-  void clearsTheMapsWhenReleasedAndIgnoresLaterFrames() {
+  void clearsTheMapsWhenReleasedAndIgnoresLaterFrames() throws ReflectiveOperationException {
     final MapConfiguration configuration = this.createConfiguration(2, 1, false);
     final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
     this.nextFrame = MapPackets.pattern(256 * 128, 4);
@@ -416,6 +681,14 @@ final class CompressedMapResultTest {
     assertEquals(2, clearedCount);
     MapPackets.assertMapPacket(firstCleared, 3, 0, 0, 128, 128, transparent);
     MapPackets.assertMapPacket(secondCleared, 4, 0, 0, 128, 128, transparent);
+    final java.lang.reflect.Field retainedField = CompressedMapResult.class.getDeclaredField("sentPixels");
+    retainedField.setAccessible(true);
+    final java.util.Map<?, ?> retained = (java.util.Map<?, ?>) retainedField.get(result);
+    assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
+    final java.lang.reflect.Field viewersField = CompressedMapResult.class.getDeclaredField("activeViewers");
+    viewersField.setAccessible(true);
+    final java.util.Set<?> retainedViewers = (java.util.Set<?>) viewersField.get(result);
+    assertTrue(retainedViewers.isEmpty(), "release drops the old viewer snapshot");
   }
 
   @Test
@@ -454,6 +727,61 @@ final class CompressedMapResultTest {
     assertEquals(1, count, "the first release clears the maps at once");
     assertEquals(4, clearedCount, "every map of the 2x2 grid is cleared");
     MapPackets.assertMapPacket(last, 6, 0, 0, 128, 128, transparent);
+  }
+
+  @Test
+  void finishesTheOldClearBeforeAConcurrentRestartCanSendFrames() throws Exception {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration);
+    final CountDownLatch clearing = new CountDownLatch(1);
+    final CountDownLatch finishClear = new CountDownLatch(1);
+    final CountDownLatch restarting = new CountDownLatch(1);
+    final List<String> order = new CopyOnWriteArrayList<>();
+    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(_ -> {
+      order.add("frame");
+      return this.nextFrame.clone();
+    });
+    try (final ExecutorService workers = Executors.newFixedThreadPool(2); final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
+      final CompletableFuture<Void> released = CompletableFuture.runAsync(
+        () -> {
+          try (final MockedStatic<MapPacketFactory> packets = Mockito.mockStatic(MapPacketFactory.class)) {
+            packets
+              .when(() -> MapPacketFactory.clear(this.viewers, 3, 1))
+              .thenAnswer(_ -> {
+                clearing.countDown();
+                assertTrue(finishClear.await(10, TimeUnit.SECONDS));
+                order.add("clear");
+                return null;
+              });
+            result.release();
+          }
+        },
+        workers
+      );
+      final CompletableFuture<Void> restarted;
+      try {
+        assertTrue(clearing.await(5, TimeUnit.SECONDS));
+        restarted = CompletableFuture.runAsync(
+          () -> {
+            restarting.countDown();
+            result.start();
+            result.process(image, this.algorithm);
+          },
+          workers
+        );
+        assertTrue(restarting.await(5, TimeUnit.SECONDS));
+        assertThrows(
+          TimeoutException.class,
+          () -> restarted.get(200, TimeUnit.MILLISECONDS),
+          "restart must wait until the old clear has been sent"
+        );
+      } finally {
+        finishClear.countDown();
+      }
+      released.get(5, TimeUnit.SECONDS);
+      restarted.get(5, TimeUnit.SECONDS);
+      assertEquals(List.of("clear", "frame"), order);
+    }
   }
 
   @Test

@@ -83,6 +83,14 @@ final class MapTilePatchTest {
   }
 
   @Test
+  void rejectsOriginsWhoseRectangleEndsOverflow() {
+    final byte[] two = new byte[2];
+
+    assertThrows(IllegalArgumentException.class, () -> new MapTilePatch(0, Integer.MAX_VALUE, 0, 2, 1, two));
+    assertThrows(IllegalArgumentException.class, () -> new MapTilePatch(0, 0, Integer.MAX_VALUE, 1, 2, two));
+  }
+
+  @Test
   void rejectsInvalidIdsAndColors() {
     final byte[] one = new byte[1];
     final byte[] two = new byte[2];

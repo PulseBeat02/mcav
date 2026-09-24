@@ -90,6 +90,24 @@ final class BukkitModuleTest {
   }
 
   @Test
+  void failsDuringInjectionWhenPaletteWarmupCannotComplete() {
+    final BukkitModule module = new BukkitModule();
+    final Plugin plugin = this.server.getPlugin();
+    final IllegalStateException unavailable = new IllegalStateException("palette unavailable");
+    try (
+      final MockedStatic<me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup> lookup = org.mockito.Mockito.mockStatic(
+        me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup.class
+      )
+    ) {
+      lookup.when(me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup::init).thenThrow(unavailable);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> module.inject(plugin));
+      assertSame(unavailable, thrown);
+    }
+    final PluginManager manager = this.server.getPluginManager();
+    verifyNoInteractions(manager);
+  }
+
+  @Test
   void rejectsMissingPlugins() {
     final BukkitModule module = new BukkitModule();
     assertThrows(NullPointerException.class, () -> module.inject(null));

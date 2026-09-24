@@ -93,10 +93,29 @@ final class ChatUtilsTest {
   }
 
   @Test
+  void supportsLongPixelMarkersInChatAndRawLines() {
+    final String marker = "long pixel marker with spaces";
+    final int[] pixels = { RED };
+    final String raw = ChatUtils.createRawLine(pixels, marker, 1, 0);
+    assertEquals("§x§f§f§0§0§0§0" + marker, raw);
+    final Component component = ChatUtils.createChatComponent(pixels, marker, 1, 1);
+    final String text = component.getString();
+    assertEquals(marker, text);
+  }
+
+  @Test
   void convertsTheRequestedRowOnly() {
     final int[] pixels = { RED, RED, GREEN, BLUE };
     final String line = ChatUtils.createRawLine(pixels, "ab", 2, 1);
     assertEquals("§x§0§0§f§f§0§0ab§x§0§0§0§0§f§fab", line);
+  }
+
+  @Test
+  void rejectsOverflowingImageAndRowBounds() {
+    final int[] pixels = new int[4];
+    assertThrows(IllegalArgumentException.class, () -> ChatUtils.createRawLine(pixels, "#", 2, Integer.MAX_VALUE));
+    assertThrows(IllegalArgumentException.class, () -> ChatUtils.createRawLine(pixels, "#", Integer.MAX_VALUE, 1));
+    assertThrows(IllegalArgumentException.class, () -> ChatUtils.createChatComponent(pixels, "#", 65536, 65536));
   }
 
   @Test

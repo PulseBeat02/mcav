@@ -300,6 +300,7 @@ public class MapConfiguration {
       if (configuredResolution > 0) {
         return configuredResolution;
       }
+      Preconditions.checkArgument(maps <= Integer.MAX_VALUE / MapLayout.MAP_SIZE, "Native map resolution exceeds the integer range");
       return MapLayout.MAP_SIZE * maps;
     }
   }

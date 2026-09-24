@@ -56,7 +56,7 @@ public final class MapTilePatch {
 
     final boolean negativeOrigin = x < 0 || y < 0;
     final boolean emptySize = width <= 0 || height <= 0;
-    final boolean exceedsMap = x + width > MapLayout.MAP_SIZE || y + height > MapLayout.MAP_SIZE;
+    final boolean exceedsMap = (long) x + width > MapLayout.MAP_SIZE || (long) y + height > MapLayout.MAP_SIZE;
     final boolean insideMap = !negativeOrigin && !emptySize && !exceedsMap;
     Preconditions.checkArgument(insideMap, "Patch is outside of the map bounds");
 

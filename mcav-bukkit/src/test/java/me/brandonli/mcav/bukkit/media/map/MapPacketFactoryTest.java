@@ -83,9 +83,9 @@ final class MapPacketFactoryTest {
   }
 
   @Test
-  void splitsLargeUpdatesIntoBundlesOfAtMost512Packets() {
+  void splitsOnlyWhenUpdatesExceedThe4096PacketProtocolLimit() {
     final List<MapTilePatch> patches = new ArrayList<>();
-    for (int mapId = 0; mapId < 513; mapId++) {
+    for (int mapId = 0; mapId < 4097; mapId++) {
       final MapTilePatch patch = new MapTilePatch(mapId, 0, 0, 1, 1, new byte[] { 1 });
       patches.add(patch);
     }
@@ -103,15 +103,20 @@ final class MapPacketFactoryTest {
     final MapTilePatch lastPatch = patches.getLast();
 
     assertEquals(2, bundleCount);
-    assertEquals(512, firstSize);
+    assertEquals(4096, firstSize);
     assertEquals(1, secondSize);
+    for (int index = 0; index < firstSize; index++) {
+      final ClientboundMapItemDataPacket packet = firstPackets.get(index);
+      final MapTilePatch expected = patches.get(index);
+      assertMapPacket(packet, expected);
+    }
     assertMapPacket(lastPacket, lastPatch);
   }
 
   @Test
   void sendsOneBundleWhenThePatchCountFillsItExactly() {
     final List<MapTilePatch> patches = new ArrayList<>();
-    for (int mapId = 0; mapId < 512; mapId++) {
+    for (int mapId = 0; mapId < 4096; mapId++) {
       final MapTilePatch patch = new MapTilePatch(mapId, 0, 0, 1, 1, new byte[] { 1 });
       patches.add(patch);
     }
@@ -124,7 +129,7 @@ final class MapPacketFactoryTest {
     final int mapPacketCount = mapPackets.size();
 
     assertEquals(1, bundleCount, "a full bundle is not followed by an empty one");
-    assertEquals(512, mapPacketCount);
+    assertEquals(4096, mapPacketCount);
   }
 
   @Test
@@ -171,6 +176,26 @@ final class MapPacketFactoryTest {
     final boolean nothingSent = packets.isEmpty();
 
     assertTrue(nothingSent);
+  }
+
+  @Test
+  void clearsTheExtremeMapIdsAndRejectsOverflowBeforeSending() {
+    final List<UUID> viewers = List.of(FIRST);
+    assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, Integer.MAX_VALUE, 2));
+    assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 0));
+    final List<Packet<?>> before = this.server.getSentPackets(FIRST);
+    assertTrue(before.isEmpty());
+    MapPacketFactory.clear(viewers, 0, 1);
+    MapPacketFactory.clear(viewers, Integer.MAX_VALUE, 1);
+    final List<Packet<?>> packets = this.server.getSentPackets(FIRST);
+    assertEquals(2, packets.size());
+    final List<ClientboundMapItemDataPacket> first = unbundle(packets.getFirst());
+    final List<ClientboundMapItemDataPacket> last = unbundle(packets.getLast());
+    final byte[] transparent = new byte[128 * 128];
+    final MapTilePatch firstExpected = new MapTilePatch(0, 0, 0, 128, 128, transparent);
+    final MapTilePatch lastExpected = new MapTilePatch(Integer.MAX_VALUE, 0, 0, 128, 128, transparent);
+    assertMapPacket(first.getFirst(), firstExpected);
+    assertMapPacket(last.getFirst(), lastExpected);
   }
 
   @Test

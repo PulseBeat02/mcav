@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -52,6 +53,7 @@ public abstract class MainThreadRenderer<T> {
   private final AtomicReference<@Nullable T> pendingFrame;
 
   private @Nullable BukkitTask task;
+  private long visibilityGeneration;
 
   /**
    * Constructs a new renderer. Nothing is scheduled until {@link #startRendering()} is called.
@@ -87,6 +89,54 @@ public abstract class MainThreadRenderer<T> {
     final Plugin plugin = BukkitModule.getPlugin();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     this.task = scheduler.runTaskTimer(plugin, this::applyPendingFrame, START_DELAY_TICKS, PERIOD_TICKS);
+  }
+
+  /**
+   * Initializes a display and starts rendering together on the main thread. A later show or hide request
+   * invalidates this request before its queued callback can change the world.
+   *
+   * @param initialize the main-thread display initialization, which may leave an existing display in place
+   */
+  protected final void showDisplay(final Runnable initialize) {
+    Preconditions.checkNotNull(initialize, "Initialization must not be null");
+    final long generation;
+    synchronized (this) {
+      generation = ++this.visibilityGeneration;
+    }
+    runOnMainThread(() -> {
+      synchronized (this) {
+        if (generation != this.visibilityGeneration) {
+          return;
+        }
+        initialize.run();
+        // An initialization callback may synchronously request hide on this same main thread.
+        if (generation == this.visibilityGeneration) {
+          this.startRendering();
+        }
+      }
+    });
+  }
+
+  /**
+   * Stops rendering immediately and removes the display on the main thread. A later show request invalidates
+   * a queued removal, so that old cleanup cannot remove the newly requested display.
+   *
+   * @param remove the main-thread display removal, which may do nothing for a hidden display
+   */
+  protected final void hideDisplay(final Runnable remove) {
+    Preconditions.checkNotNull(remove, "Removal must not be null");
+    final long generation;
+    synchronized (this) {
+      generation = ++this.visibilityGeneration;
+      this.stopRendering();
+    }
+    runOnMainThread(() -> {
+      synchronized (this) {
+        if (generation == this.visibilityGeneration) {
+          remove.run();
+        }
+      }
+    });
   }
 
   /**
@@ -144,6 +194,15 @@ public abstract class MainThreadRenderer<T> {
       return;
     }
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTask(plugin, task);
+    try {
+      scheduler.runTask(plugin, task);
+    } catch (final IllegalPluginAccessException exception) {
+      final String pluginName = plugin.getName();
+      LOGGER.warn(
+        "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown",
+        pluginName,
+        exception
+      );
+    }
   }
 }

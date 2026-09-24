@@ -32,6 +32,8 @@ import org.bukkit.Bukkit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
 /**
@@ -91,14 +93,22 @@ final class ServerAddressTest {
     assertEquals(0, otherRequests);
   }
 
-  @Test
-  void treatsTheWildcardAddressAsNotConfigured() {
-    this.configureServerAddress("0.0.0.0");
+  @ParameterizedTest
+  @ValueSource(strings = { "0.0.0.0", "::", "0:0:0:0:0:0:0:0", "0::0" })
+  void treatsTheWildcardAddressAsNotConfigured(final String wildcard) {
+    this.configureServerAddress(wildcard);
     final byte[] body = "2001:db8::1".getBytes(StandardCharsets.US_ASCII);
     this.http.respond("/ip", 200, body);
     final URI service = this.http.uri("/ip");
     final String address = ServerAddress.getPublicIPAddress(service);
     assertEquals("2001:db8::1", address);
+  }
+
+  @Test
+  void preservesAConfiguredHostname() {
+    this.configureServerAddress("mc.example.org");
+    final String address = ServerAddress.getPublicIPAddress();
+    assertEquals("mc.example.org", address);
   }
 
   @Test

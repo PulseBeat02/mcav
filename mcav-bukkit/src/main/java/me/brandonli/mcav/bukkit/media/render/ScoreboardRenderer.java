@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.render;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.Collection;
@@ -85,8 +87,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
    * Creates the scoreboard and shows it to every online viewer. May be called from any thread.
    */
   public void show() {
-    MainThreadRenderer.runOnMainThread(this::createScoreboard);
-    this.startRendering();
+    this.showDisplay(this::createScoreboard);
   }
 
   /**
@@ -117,8 +118,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
    * but call it on the main thread during shutdown, because a disabled plugin cannot schedule the restore anymore.
    */
   public void hide() {
-    this.stopRendering();
-    MainThreadRenderer.runOnMainThread(this::removeScoreboard);
+    this.hideDisplay(this::removeScoreboard);
   }
 
   private void createScoreboard() {
@@ -183,7 +183,8 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
    * created, and a viewer who logged out and back in, would never be shown it again without this. A viewer already
    * looking at the board is left alone, so their remembered previous scoreboard is not overwritten with this one.
    * Viewers who went offline are forgotten: the server gives them the main scoreboard when they rejoin, so there is
-   * nothing left to restore, and they are served again as new viewers.
+   * nothing left to restore, and they are served again as new viewers. Online viewers removed from the
+   * configuration receive their saved scoreboard before ownership is forgotten.
    */
   @Override
   protected void onTick() {
@@ -207,7 +208,18 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
         player.setScoreboard(board);
       }
     }
-    this.previousScoreboards.keySet().retainAll(watching);
+    final Set<UUID> remembered = this.previousScoreboards.keySet();
+    final Set<UUID> removed = new HashSet<>(remembered);
+    removed.removeAll(watching);
+    for (final UUID viewer : removed) {
+      @Nullable Scoreboard rememberedBoard = this.previousScoreboards.get(viewer);
+      final Scoreboard saved = requireNonNull(rememberedBoard);
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player != null) {
+        restoreViewer(player, board, saved);
+      }
+      this.previousScoreboards.remove(viewer);
+    }
   }
 
   /**
@@ -246,19 +258,27 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private void restoreViewers(final Scoreboard board) {
     final ScoreboardManager manager = Bukkit.getScoreboardManager();
     final Scoreboard mainScoreboard = manager.getMainScoreboard();
-    final Collection<UUID> viewers = this.configuration.getViewers();
+    // Include owners removed after the last tick, before hide had a chance to restore them.
+    final Collection<UUID> configured = this.configuration.getViewers();
+    final Set<UUID> viewers = new HashSet<>(configured);
+    final Set<UUID> remembered = this.previousScoreboards.keySet();
+    viewers.addAll(remembered);
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player == null) {
         continue;
       }
-      final Scoreboard current = player.getScoreboard();
-      // scoreboards do not override equals, so this asks whether the player sees this very scoreboard
-      final boolean seesThisBoard = board.equals(current);
-      if (seesThisBoard) {
-        final Scoreboard previous = this.previousScoreboards.getOrDefault(viewer, mainScoreboard);
-        player.setScoreboard(previous);
-      }
+      final Scoreboard previous = this.previousScoreboards.getOrDefault(viewer, mainScoreboard);
+      restoreViewer(player, board, previous);
+    }
+  }
+
+  private static void restoreViewer(final Player player, final Scoreboard board, final Scoreboard previous) {
+    final Scoreboard current = player.getScoreboard();
+    // Scoreboards do not override equals; preserve a replacement installed by another plugin.
+    final boolean seesThisBoard = board.equals(current);
+    if (seesThisBoard) {
+      player.setScoreboard(previous);
     }
   }
 

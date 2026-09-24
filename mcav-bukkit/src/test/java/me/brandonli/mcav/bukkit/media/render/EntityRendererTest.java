@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.FakeWorld;
@@ -59,6 +60,7 @@ final class EntityRendererTest {
   private static final UUID OFFLINE = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
   private FakeServer server;
+  private List<UUID> viewers;
   private FakeWorld world;
   private CraftPlayer viewer;
   private Location position;
@@ -66,6 +68,7 @@ final class EntityRendererTest {
   @BeforeEach
   void startServer() throws ReflectiveOperationException {
     this.server = FakeServer.start();
+    this.viewers = new CopyOnWriteArrayList<>(List.of(VIEWER, OFFLINE));
     this.viewer = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = FakeWorld.create();
@@ -80,7 +83,7 @@ final class EntityRendererTest {
 
   private EntityConfiguration createConfiguration(final Location configuredPosition) {
     final EntityConfiguration.Builder<?> builder = EntityConfiguration.builder();
-    builder.viewers(List.of(VIEWER, OFFLINE));
+    builder.viewers(this.viewers);
     builder.character("#");
     builder.position(configuredPosition);
     builder.entityWidth(2);
@@ -148,6 +151,46 @@ final class EntityRendererTest {
 
     verify(latecomer).showEntity(plugin, display);
     verify(this.viewer, times(1)).showEntity(plugin, display);
+  }
+
+  @Test
+  void forgetsAnOfflineVisibilityGrantAndShowsTheEntityToTheRejoinedSession() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    renderer.show();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final CraftTextDisplay display = displays.getFirst();
+    final Plugin plugin = this.server.getPlugin();
+    this.server.removePlayer(VIEWER);
+    renderer.onTick();
+    renderer.onTick();
+    verify(this.viewer, never()).hideEntity(plugin, display);
+
+    final CraftPlayer rejoined = this.server.addPlayer(VIEWER);
+    renderer.onTick();
+    renderer.onTick();
+    verify(rejoined, times(1)).showEntity(plugin, display);
+    final List<CraftTextDisplay> afterRejoin = this.world.getSpawnedDisplays();
+    final int count = afterRejoin.size();
+    assertEquals(1, count, "a new player session needs a visibility grant, not a replacement entity");
+    renderer.hide();
+    verify(display, times(1)).remove();
+  }
+
+  @Test
+  void grantsVisibilityToTheReplacementEntityAfterAViewerReturns() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    renderer.show();
+    renderer.hide();
+    this.viewers.clear();
+    renderer.show();
+    this.viewers.add(VIEWER);
+    renderer.onTick();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final CraftTextDisplay replacement = displays.getLast();
+    final Plugin plugin = this.server.getPlugin();
+    verify(this.viewer).showEntity(plugin, replacement);
   }
 
   @Test
@@ -316,6 +359,60 @@ final class EntityRendererTest {
     final EntityRenderer renderer = new EntityRenderer(configuration);
 
     assertThrows(IllegalStateException.class, renderer::show);
+  }
+
+  @Test
+  void hidesTheDisplayFromRemovedViewersAndShowsItAgainOnReaddition() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    renderer.show();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final CraftTextDisplay display = displays.getFirst();
+    final Plugin plugin = this.server.getPlugin();
+    this.viewers.remove(VIEWER);
+    renderer.onTick();
+    renderer.onTick();
+    verify(this.viewer, times(1)).hideEntity(plugin, display);
+    this.viewers.add(VIEWER);
+    renderer.onTick();
+    renderer.onTick();
+    verify(this.viewer, times(2)).showEntity(plugin, display);
+  }
+
+  @Test
+  void queuedShowCannotSpawnAnEntityAfterMainThreadHide() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    this.server.setPrimaryThread(false);
+    renderer.show();
+    this.server.setPrimaryThread(true);
+    renderer.hide();
+    this.server.runTasks();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    assertEquals(0, displays.size());
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(0, tasks);
+  }
+
+  @Test
+  void queuedHideCannotRemoveAnEntityRequestedAgainOnMain() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    renderer.show();
+    final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
+    final CraftTextDisplay display = displays.getFirst();
+    this.server.setPrimaryThread(false);
+    renderer.hide();
+    this.server.setPrimaryThread(true);
+    renderer.show();
+    this.server.runTasks();
+    verify(display, never()).remove();
+    final Component text = Component.literal("still rendering");
+    renderer.apply(text);
+    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle();
+    verify(handle).setText(text);
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(1, tasks);
   }
 
   @Test

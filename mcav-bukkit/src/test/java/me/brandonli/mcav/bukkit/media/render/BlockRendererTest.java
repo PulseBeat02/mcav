@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.never;
@@ -350,7 +351,7 @@ final class BlockRendererTest {
   }
 
   @Test
-  void restoresTheOriginalBlocksWhenHidden() {
+  void restoresTheOriginalBlocksWhenHidden() throws ReflectiveOperationException {
     final BlockConfiguration configuration = this.createConfiguration();
     final BlockRenderer renderer = new BlockRenderer(configuration);
     final ImageBuffer image = solidImage(3, 2, BROWN);
@@ -367,6 +368,27 @@ final class BlockRendererTest {
     final Map<Position, BlockData> expected = this.expectOriginal();
     assertEquals(expected, restored);
     assertEquals(0, tasks, "rendering stopped");
+    final java.lang.reflect.Field retainedField = BlockRenderer.class.getDeclaredField("activeViewers");
+    retainedField.setAccessible(true);
+    final java.util.Set<?> retained = (java.util.Set<?>) retainedField.get(renderer);
+    assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
+  }
+
+  @Test
+  void restoresBlocksForAViewerRemovedImmediatelyBeforeHide() {
+    final BlockConfiguration configuration = this.createConfiguration();
+    final BlockRenderer renderer = new BlockRenderer(configuration);
+    final ImageBuffer image = solidImage(3, 2, BROWN);
+    renderer.show();
+    renderer.render(image);
+    this.server.runTasks();
+    this.viewers.remove(VIEWER);
+    renderer.hide();
+    renderer.hide();
+    final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 2);
+    final Map<? extends Position, BlockData> restored = changes.getLast();
+    final Map<Position, BlockData> expected = this.expectOriginal();
+    assertEquals(expected, restored);
   }
 
   @Test
@@ -402,6 +424,47 @@ final class BlockRendererTest {
     final int tasks = this.server.getScheduledTaskCount();
     final World configuredWorld = this.world.getWorld();
     verify(configuredWorld, times(6)).getBlockData(anyInt(), anyInt(), anyInt());
+    assertEquals(1, tasks);
+  }
+
+  @Test
+  void queuedShowCannotCaptureBlocksAfterMainThreadHide() {
+    final BlockConfiguration configuration = this.createConfiguration();
+    final BlockRenderer renderer = new BlockRenderer(configuration);
+    final World world = this.world.getWorld();
+    this.server.setPrimaryThread(false);
+    renderer.show();
+    this.server.setPrimaryThread(true);
+    renderer.hide();
+    this.server.runTasks();
+    verify(world, never()).getBlockData(anyInt(), anyInt(), anyInt());
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(0, tasks);
+  }
+
+  @Test
+  void queuedHideCannotRestoreABlockWallRequestedAgainOnMain() {
+    final BlockConfiguration configuration = this.createConfiguration();
+    final BlockRenderer renderer = new BlockRenderer(configuration);
+    final ImageBuffer first = solidImage(3, 2, BROWN);
+    renderer.show();
+    renderer.render(first);
+    this.server.runTasks();
+    this.server.setPrimaryThread(false);
+    renderer.hide();
+    this.server.setPrimaryThread(true);
+    renderer.show();
+    this.server.runTasks();
+    final ImageBuffer changed = imageWithOneMagentaBlock();
+    renderer.render(changed);
+    this.server.runTasks();
+    final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 2);
+    final Map<? extends Position, BlockData> delta = changes.getLast();
+    final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
+    final Position changedPosition = Position.block(10, 64, -6);
+    final Map<Position, BlockData> expected = Map.of(changedPosition, magenta);
+    assertEquals(expected, delta, "old queued cleanup must neither restore the wall nor disable subsequent frames");
+    final int tasks = this.server.getScheduledTaskCount();
     assertEquals(1, tasks);
   }
 

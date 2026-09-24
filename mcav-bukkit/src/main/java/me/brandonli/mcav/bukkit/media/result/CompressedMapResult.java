@@ -19,10 +19,13 @@ package me.brandonli.mcav.bukkit.media.result;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -54,6 +57,12 @@ import org.slf4j.LoggerFactory;
  * <p>Players that start viewing while the video is playing, for example because they joined the server, first
  * receive the current picture once and then follow the updates like every other viewer.
  *
+ * <p>When the frame size changes or a viewer starts watching again, pixels previously sent by this result but
+ * outside the current snapshot are cleared. Cleanup leaves pixels never sent by this result untouched. Coverage history
+ * uses at most one bit per map pixel, regardless of how often the frame size changes, and is discarded on release.
+ * This cleanup and new-viewer snapshots are additional to the normal delta byte budget. Clears and the replacement
+ * snapshot share a bundle when their combined patch count fits the limit described by {@link MapPacketFactory}.
+ *
  * <p>The savings depend heavily on the dithering algorithm. Error diffusion algorithms spread tiny changes across
  * the whole picture, so almost every pixel changes in every frame. A temporally stable algorithm, such as
  * {@link DitherAlgorithm#temporalFloydSteinberg()}, keeps unchanged areas identical between frames and gives by
@@ -66,6 +75,7 @@ public class CompressedMapResult implements DitherResultStep {
   private final MapConfiguration configuration;
   private final int maxBytesPerFrame;
   private final Set<UUID> activeViewers;
+  private final Map<Integer, BitSet> sentPixels;
   private final Lock lock;
 
   private @Nullable DeltaMapEncoder encoder;
@@ -73,7 +83,7 @@ public class CompressedMapResult implements DitherResultStep {
   private boolean released;
 
   /**
-   * Constructs a new {@code CompressedMapResult} that sends at most
+   * Constructs a new {@code CompressedMapResult} with an ordinary-update budget of
    * {@link DeltaMapEncoder#DEFAULT_MAX_BYTES_PER_FRAME} bytes per frame.
    *
    * @param configuration the configuration describing the map grid and the viewers
@@ -86,8 +96,9 @@ public class CompressedMapResult implements DitherResultStep {
    * Constructs a new {@code CompressedMapResult}.
    *
    * @param configuration    the configuration describing the map grid and the viewers
-   * @param maxBytesPerFrame the maximum number of map bytes to send to each viewer per frame. Lower values save
-   *                         bandwidth but make fast motion and scene cuts take a few frames to appear completely
+   * @param maxBytesPerFrame the budget for ordinary delta updates, including estimated patch overhead. The most
+   *                         urgent map is always sent even if it exceeds the budget. Resize cleanup and new-viewer
+   *                         snapshots are additional. Lower values spread motion and scene cuts over more frames
    * @throws IllegalArgumentException if the budget is not positive
    */
   public CompressedMapResult(final MapConfiguration configuration, final int maxBytesPerFrame) {
@@ -96,6 +107,7 @@ public class CompressedMapResult implements DitherResultStep {
     this.configuration = configuration;
     this.maxBytesPerFrame = maxBytesPerFrame;
     this.activeViewers = new HashSet<>();
+    this.sentPixels = new TreeMap<>();
     this.lock = new ReentrantLock();
   }
 
@@ -148,10 +160,95 @@ public class CompressedMapResult implements DitherResultStep {
     final List<UUID> existingViewers = new ArrayList<>();
     final List<UUID> newViewers = new ArrayList<>();
     this.sortConnectedViewers(existingViewers, newViewers);
-    MapPacketFactory.send(existingViewers, patches);
+    if (!existingViewers.isEmpty()) {
+      MapPacketFactory.send(existingViewers, patches);
+      this.rememberCoverage(patches);
+    }
     if (!newViewers.isEmpty()) {
-      final List<MapTilePatch> snapshot = currentEncoder.snapshot();
+      // A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical
+      // cleanup available for viewers absent during earlier resizes, including when the snapshot is empty.
+      final List<MapTilePatch> currentSnapshot = currentEncoder.snapshot();
+      final List<MapTilePatch> snapshot = this.createHistoryClears(currentSnapshot);
+      snapshot.addAll(currentSnapshot);
       MapPacketFactory.send(newViewers, snapshot);
+      this.rememberCoverage(currentSnapshot);
+    }
+  }
+
+  private void rememberCoverage(final List<MapTilePatch> patches) {
+    for (final MapTilePatch patch : patches) {
+      final int mapId = patch.getMapId();
+      final BitSet pixels = this.sentPixels.computeIfAbsent(mapId, _ -> new BitSet(MapLayout.MAP_SIZE * MapLayout.MAP_SIZE));
+      setCoverage(pixels, patch, true);
+    }
+  }
+
+  /**
+   * Subtracts the current snapshot from the exact union of previously sent pixels. A bounding rectangle would
+   * erase pixels never owned by the result when, for example, a wide image is followed by a tall image.
+   */
+  private List<MapTilePatch> createHistoryClears(final List<MapTilePatch> snapshot) {
+    final Map<Integer, BitSet> uncovered = new TreeMap<>();
+    for (final Map.Entry<Integer, BitSet> entry : this.sentPixels.entrySet()) {
+      final int mapId = entry.getKey();
+      final BitSet pixels = entry.getValue();
+      final BitSet copy = (BitSet) pixels.clone();
+      uncovered.put(mapId, copy);
+    }
+    for (final MapTilePatch patch : snapshot) {
+      final int mapId = patch.getMapId();
+      final BitSet pixels = uncovered.get(mapId);
+      if (pixels != null) {
+        setCoverage(pixels, patch, false);
+      }
+    }
+    final List<MapTilePatch> clears = new ArrayList<>();
+    for (final Map.Entry<Integer, BitSet> entry : uncovered.entrySet()) {
+      final int mapId = entry.getKey();
+      final BitSet pixels = entry.getValue();
+      appendClearRectangles(mapId, pixels, clears);
+    }
+    return clears;
+  }
+
+  private static void setCoverage(final BitSet pixels, final MapTilePatch patch, final boolean covered) {
+    final int x = patch.getX();
+    final int y = patch.getY();
+    final int width = patch.getWidth();
+    final int height = patch.getHeight();
+    for (int row = 0; row < height; row++) {
+      final int start = (y + row) * MapLayout.MAP_SIZE + x;
+      pixels.set(start, start + width, covered);
+    }
+  }
+
+  /**
+   * Consumes a coverage bitmap as disjoint transparent rectangles. Each horizontal run is extended down through
+   * rows that contain it, keeping solid regions compact without including a pixel outside the recorded coverage.
+   */
+  private static void appendClearRectangles(final int mapId, final BitSet pixels, final List<MapTilePatch> clears) {
+    final int size = MapLayout.MAP_SIZE;
+    int first = pixels.nextSetBit(0);
+    while (first >= 0) {
+      final int x = first % size;
+      final int y = first / size;
+      final int nextClear = pixels.nextClearBit(first);
+      final int right = Math.min(nextClear, (y + 1) * size);
+      final int width = right - first;
+      int height = 1;
+      while (y + height < size) {
+        final int nextRowStart = (y + height) * size + x;
+        final int nextRowClear = pixels.nextClearBit(nextRowStart);
+        if (nextRowClear < nextRowStart + width) {
+          break;
+        }
+        height++;
+      }
+      final byte[] transparent = new byte[width * height];
+      final MapTilePatch clear = new MapTilePatch(mapId, x, y, width, height, transparent);
+      clears.add(clear);
+      setCoverage(pixels, clear, false);
+      first = pixels.nextSetBit(0);
     }
   }
 
@@ -255,33 +352,23 @@ public class CompressedMapResult implements DitherResultStep {
    */
   @Override
   public void release() {
-    final boolean releasedNow = this.shutDown();
-    if (releasedNow) {
-      this.clearMaps();
-    }
-  }
-
-  /**
-   * Marks this result as released and shuts down the dithering threads.
-   *
-   * @return true if this call released the result, false if it had already been released
-   */
-  private boolean shutDown() {
     this.lock.lock();
     try {
       if (this.released) {
-        return false;
+        return;
       }
       this.released = true;
       this.encoder = null;
       this.activeViewers.clear();
+      this.sentPixels.clear();
 
       final ForkJoinPool pool = this.ditherPool;
       if (pool != null) {
         pool.shutdownNow();
         this.ditherPool = null;
       }
-      return true;
+      // Clearing is part of the same transition: a restarted frame must be sent after this clear.
+      this.clearMaps();
     } finally {
       this.lock.unlock();
     }

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -211,6 +212,61 @@ final class MainThreadRendererTest {
     assertEquals(1, eventCount);
     assertEquals(Level.WARN, level);
     assertEquals("Skipped a task because the plugin MCAV is disabled; release displays on the main thread during shutdown", message);
+  }
+
+  @Test
+  void appliesOnlyTheLatestQueuedVisibilityRequest() {
+    final RecordingRenderer renderer = new RecordingRenderer();
+    final AtomicInteger created = new AtomicInteger();
+    final AtomicInteger removed = new AtomicInteger();
+    this.server.setPrimaryThread(false);
+    renderer.showDisplay(created::incrementAndGet);
+    renderer.hideDisplay(removed::incrementAndGet);
+    renderer.showDisplay(created::incrementAndGet);
+    this.server.setPrimaryThread(true);
+    this.server.runTasks();
+    final int initialized = created.get();
+    final int destroyed = removed.get();
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(1, initialized);
+    assertEquals(0, destroyed);
+    assertEquals(1, tasks);
+  }
+
+  @Test
+  void doesNotRestartRenderingWhenInitializationSynchronouslyHidesIt() {
+    final RecordingRenderer renderer = new RecordingRenderer();
+    final AtomicInteger removed = new AtomicInteger();
+    renderer.showDisplay(() -> renderer.hideDisplay(removed::incrementAndGet));
+    this.server.runTasks();
+    final int destroyed = removed.get();
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(1, destroyed);
+    assertEquals(0, tasks);
+  }
+
+  @Test
+  void skipsSchedulingWithAWarningIfDisableRacesTheEnabledCheck() {
+    this.server.setPrimaryThread(false);
+    final Plugin plugin = this.server.getPlugin();
+    when(plugin.isEnabled()).thenReturn(true);
+    when(plugin.getName()).thenReturn("MCAV");
+    final BukkitScheduler scheduler = this.server.getScheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(
+      new org.bukkit.plugin.IllegalPluginAccessException("disabled after check")
+    );
+    final AtomicInteger runs = new AtomicInteger();
+    final List<LogCapture.RecordedEvent> events;
+    try (final LogCapture logs = LogCapture.capture(MainThreadRenderer.class)) {
+      assertDoesNotThrow(() -> MainThreadRenderer.runOnMainThread(runs::incrementAndGet));
+      events = logs.getEvents();
+    }
+    final int count = runs.get();
+    assertEquals(0, count);
+    assertEquals(1, events.size());
+    final LogCapture.RecordedEvent event = events.getFirst();
+    final Level level = event.getLevel();
+    assertEquals(Level.WARN, level);
   }
 
   @Test

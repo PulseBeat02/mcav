@@ -165,6 +165,20 @@ final class DeltaMapEncoderTest {
   }
 
   @Test
+  void mergesHorizontalTileRunsAwayFromTheFirstColumn() {
+    final MapLayout layout = new MapLayout(0, 1, 1, 128, 128);
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
+    final byte[] image = MapLayoutTest.createImage(128, 128);
+    encoder.encode(image);
+    final byte[] changed = change(image, 128, 32, 16, 32, 16);
+    final List<MapTilePatch> patches = encoder.encode(changed);
+    final byte[] expected = MapLayoutTest.copyRectangle(changed, 128, 32, 16, 32, 16);
+    assertPatchCount(1, patches);
+    final MapTilePatch patch = patches.getFirst();
+    assertPatch(patch, 0, 32, 16, 32, 16, expected);
+  }
+
+  @Test
   void sendsSeparateRectanglesWhenTheyAreSmallerThanTheirBoundingBox() {
     final MapLayout layout = new MapLayout(0, 1, 1, 128, 128);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
@@ -454,6 +468,22 @@ final class DeltaMapEncoderTest {
     assertPatchCount(2, patches);
     assertPatch(merged, 0, 0, 0, 32, 32, mergedColors);
     assertPatch(distant, 0, 112, 32, 16, 16, distantColors);
+  }
+
+  @Test
+  void mergesTheLastTwoTilesWithoutReadingBeyondTheFinalRow() {
+    final MapLayout layout = new MapLayout(0, 1, 1, 128, 128);
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
+    final byte[] image = MapLayoutTest.createImage(128, 128);
+    encoder.encode(image);
+    final byte[] corner = change(image, 128, 0, 0, 16, 16);
+    final byte[] changed = change(corner, 128, 96, 112, 32, 16);
+    final List<MapTilePatch> patches = encoder.encode(changed);
+    assertPatchCount(2, patches);
+    final byte[] first = MapLayoutTest.copyRectangle(changed, 128, 0, 0, 16, 16);
+    final byte[] last = MapLayoutTest.copyRectangle(changed, 128, 96, 112, 32, 16);
+    assertPatch(patches.get(0), 0, 0, 0, 16, 16, first);
+    assertPatch(patches.get(1), 0, 96, 112, 32, 16, last);
   }
 
   @Test

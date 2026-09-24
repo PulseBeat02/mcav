@@ -77,8 +77,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    * @throws IllegalStateException if the position of the entity has no world, when called on the main thread
    */
   public void show() {
-    MainThreadRenderer.runOnMainThread(this::spawnEntity);
-    this.startRendering();
+    this.showDisplay(this::spawnEntity);
   }
 
   /**
@@ -105,8 +104,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    * because a disabled plugin cannot schedule the removal anymore.
    */
   public void hide() {
-    this.stopRendering();
-    MainThreadRenderer.runOnMainThread(this::removeEntity);
+    this.hideDisplay(this::removeEntity);
   }
 
   private void spawnEntity() {
@@ -146,6 +144,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    * explicit {@link Player#showEntity(Plugin, org.bukkit.entity.Entity)}. That is per session and per player, so a
    * viewer added to the configuration after the spawn, and a viewer who logged out and back in, would never see the
    * entity again without this. Viewers who went offline are forgotten, so they are served again when they return.
+   * Online viewers removed from the configuration have this plugin's visibility grant revoked.
    */
   @Override
   protected void onTick() {
@@ -167,6 +166,14 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
       if (!alreadyShown) {
         player.showEntity(plugin, display);
         this.shownTo.add(viewer);
+      }
+    }
+    final Set<UUID> removed = new HashSet<>(this.shownTo);
+    removed.removeAll(watching);
+    for (final UUID viewer : removed) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player != null) {
+        player.hideEntity(plugin, display);
       }
     }
     this.shownTo.retainAll(watching);

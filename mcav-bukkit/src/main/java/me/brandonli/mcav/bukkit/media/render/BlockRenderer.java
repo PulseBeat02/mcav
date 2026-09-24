@@ -98,8 +98,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    * @throws IllegalStateException if the position of the wall has no world, when called on the main thread
    */
   public void show() {
-    MainThreadRenderer.runOnMainThread(this::captureBlocks);
-    this.startRendering();
+    this.showDisplay(this::captureBlocks);
   }
 
   /**
@@ -133,8 +132,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    * call it on the main thread during shutdown, because a disabled plugin cannot schedule the restore anymore.
    */
   public void hide() {
-    this.stopRendering();
-    MainThreadRenderer.runOnMainThread(this::restoreBlocks);
+    this.hideDisplay(this::restoreBlocks);
   }
 
   private void captureBlocks() {
@@ -331,7 +329,10 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     }
 
     final Map<Position, BlockData> restored = this.createOriginalBlockMap(currentPositions);
-    final Collection<UUID> viewers = this.configuration.getViewers();
+    final Collection<UUID> configured = this.configuration.getViewers();
+    final Set<UUID> viewers = new HashSet<>(configured);
+    // A viewer can leave the configuration immediately before hide, without another render tick.
+    viewers.addAll(this.activeViewers);
     sendToOnlinePlayers(viewers, restored);
 
     this.positions = null;

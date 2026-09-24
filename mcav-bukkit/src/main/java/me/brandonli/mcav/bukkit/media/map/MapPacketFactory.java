@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
+import net.minecraft.network.protocol.BundlerInfo;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
@@ -35,14 +36,14 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 /**
  * Converts map patches into map data packets and sends them to players.
  *
- * <p>The patches of one call are grouped into bundle packets. The client applies all packets of a bundle in the
- * same tick, so viewers never see a frame where only some of the maps have been updated. A bundle may contain at
- * most 4096 packets, and much smaller bundles are used here to keep the latency of each bundle low. Every method
- * may be called from any thread.
+ * <p>Up to 4096 patches from one call are sent in one bundle, the protocol limit. The client handles the packets
+ * of a bundle together, so the call's patches are applied in order within one client tick. Larger calls are split
+ * into consecutive bundles; atomicity across those bundles is not guaranteed. Delta updates may also represent
+ * only part of a source frame when their encoder applies a byte budget. Every method may be called from any thread.
  */
 public final class MapPacketFactory {
 
-  private static final int MAX_PACKETS_PER_BUNDLE = 512;
+  private static final int MAX_PACKETS_PER_BUNDLE = BundlerInfo.BUNDLE_SIZE_LIMIT;
   private static final byte DEFAULT_SCALE = 0;
 
   private MapPacketFactory() {
@@ -50,7 +51,8 @@ public final class MapPacketFactory {
   }
 
   /**
-   * Sends the patches to the viewers. Viewers that are offline are skipped.
+   * Sends the patches to the viewers in their supplied order. Viewers that are offline are skipped. Calls with
+   * at most 4096 patches use a single bundle; larger calls have no guarantee of atomic application across bundles.
    *
    * @param viewers the UUIDs of the players to send the patches to
    * @param patches the patches to send
@@ -81,6 +83,10 @@ public final class MapPacketFactory {
   /**
    * Clears maps by filling them completely with the transparent color.
    *
+   * <p>This synchronous operation has no byte budget or tick pacing. Each map contributes 16384 color bytes
+   * per viewer, in bundles of up to 4096 maps. Large layouts can therefore produce a large network burst;
+   * the delta encoder's playback budget does not apply to clearing.
+   *
    * @param viewers    the UUIDs of the players to clear the maps for
    * @param startMapId the id of the first map
    * @param count      the number of maps with consecutive ids to clear
@@ -89,6 +95,8 @@ public final class MapPacketFactory {
     Preconditions.checkNotNull(viewers, "Viewers must not be null");
     Preconditions.checkArgument(startMapId >= 0, "Map id must be non-negative");
     Preconditions.checkArgument(count >= 0, "Map count must be non-negative");
+    final long lastMapId = (long) startMapId + count - 1;
+    Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids exceed the integer range");
 
     final int size = MapLayout.MAP_SIZE;
     final byte[] transparent = new byte[size * size];

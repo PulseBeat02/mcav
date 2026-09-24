@@ -202,6 +202,12 @@ final class MapLayoutTest {
   }
 
   @Test
+  void rejectsMapCountsThatOverflowEvenWhenTheLastIdFits() {
+    // 65,536 * 32,768 is 2^31 maps: IDs 0 through Integer.MAX_VALUE fit, but an array length does not.
+    assertThrows(IllegalArgumentException.class, () -> new MapLayout(0, 65_536, 32_768, 1, 1));
+  }
+
+  @Test
   void extractsRectanglesThatFillTheWholeRegion() {
     final MapLayout layout = new MapLayout(0, 1, 1, 100, 50);
     final byte[] image = createImage(100, 50);
