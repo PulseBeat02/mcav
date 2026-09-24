@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import me.brandonli.mcav.testing.OpenCvModules;
+import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 import org.bytedeco.opencv.presets.opencv_objdetect;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,13 +97,26 @@ final class FaceDetectionFilterTest {
   }
 
   @Test
+  void rejectsAndClosesAClassifierWhoseLoadReturnedFalse() {
+    final Path path = this.directory.resolve("rejected.xml");
+    try (final CascadeClassifier classifier = new CascadeClassifier()) {
+      assertThrows(IllegalArgumentException.class, () -> FaceDetectionFilter.loadClassifier(path, _ -> classifier));
+      final boolean closed = classifier.isNull();
+      assertTrue(closed, "failed native classifier ownership must be released before reporting failure");
+    }
+  }
+
+  @Test
   void rejectsCascadesThatCannotBeLoaded() throws IOException {
     final Path missing = this.directory.resolve("missing.xml");
     final Path unparsable = this.directory.resolve("unparsable.xml");
     final Path withoutCascade = this.directory.resolve("without-cascade.xml");
     Files.writeString(unparsable, "");
     Files.writeString(withoutCascade, "<?xml version=\"1.0\"?>\n<opencv_storage>\n<unrelated>1</unrelated>\n</opencv_storage>\n");
-    assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(missing, RED));
+    final IllegalArgumentException missingFailure = assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(missing, RED)
+    );
+    final String missingMessage = missingFailure.getMessage();
+    assertEquals("Cascade file does not exist: " + missing, missingMessage);
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(unparsable, RED));
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(withoutCascade, RED));
     assertThrows(NullPointerException.class, () -> new FaceDetectionFilter((Path) null, RED));

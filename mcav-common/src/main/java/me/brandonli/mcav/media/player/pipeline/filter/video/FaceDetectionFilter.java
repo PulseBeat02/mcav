@@ -113,9 +113,12 @@ public class FaceDetectionFilter extends MatVideoFilter {
         error
       );
     } catch (final RuntimeException exception) {
-      // OpenCV reports every file it cannot load as a cascade, whether unreadable, empty or without a cascade, with
-      // an exception rather than an empty classifier
       throw new IllegalArgumentException("Cascade file could not be loaded: " + cascadeFile, exception);
+    }
+    final boolean empty = classifier.empty();
+    if (empty) {
+      classifier.close();
+      throw new IllegalArgumentException("Cascade file could not be loaded: " + cascadeFile);
     }
     return classifier;
   }
