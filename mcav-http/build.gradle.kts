@@ -30,6 +30,10 @@ fun getNpmExecutable(): File {
     return executable
 }
 
+// npm uses an env-node shebang on Unix; put the managed Node beside npm on PATH.
+val npmDirectory = getNpmExecutable().parentFile
+val nodePath = npmDirectory.absolutePath + File.pathSeparator + System.getenv("PATH")
+
 tasks {
 
     java {
@@ -44,13 +48,17 @@ tasks {
     val npmProjectInstall = register<Exec>("npmProjectInstall") {
         group = "build"
         description = "Install npm dependencies for the website"
+        dependsOn("nodeSetup")
         workingDir = file("mcav-website")
         executable = getNpmExecutable().absolutePath
+        environment("PATH", nodePath)
         // installs exactly what package-lock.json lists, so every machine builds the same website
         setArgs(listOf("ci"))
         inputs.file("mcav-website/package.json")
         inputs.file("mcav-website/package-lock.json")
-        outputs.dir("mcav-website/node_modules")
+        // npm's installation receipt detects clean installs without hashing tens of thousands of dependency files.
+        // Use --rerun-tasks to repair a dependency directory modified outside npm.
+        outputs.file("mcav-website/node_modules/.package-lock.json")
     }
 
     val buildWebsite = register<Exec>("buildWebsite") {
@@ -59,32 +67,36 @@ tasks {
         dependsOn(npmProjectInstall)
         workingDir = file("mcav-website")
         executable = getNpmExecutable().absolutePath
+        environment("PATH", nodePath)
         setArgs(listOf("run", "build"))
         inputs.dir("mcav-website/src")
         inputs.dir("mcav-website/public")
         inputs.file("mcav-website/package.json")
         inputs.file("mcav-website/next.config.ts")
+        inputs.file("mcav-website/package-lock.json")
+        inputs.file("mcav-website/tsconfig.json")
+        inputs.file("mcav-website/postcss.config.mjs")
         outputs.dir("mcav-website/out")
         outputs.cacheIf { false }
         environment("NODE_OPTIONS", "--max-old-space-size=4096")
     }
 
     jar {
-        //dependsOn(buildWebsite)
+        dependsOn(buildWebsite)
         from("mcav-website/out") {
             into("static")
         }
     }
 
     named<Jar>("sourcesJar") {
-        //dependsOn(buildWebsite)
+        dependsOn(buildWebsite)
         from("mcav-website/out") {
             into("static")
         }
     }
 
     build {
-        //dependsOn(buildWebsite)
+        dependsOn(buildWebsite)
     }
 }
 
