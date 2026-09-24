@@ -20,6 +20,7 @@ package me.brandonli.mcav.vm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,7 +42,10 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.vm.testing.FakeProcess;
@@ -281,6 +285,65 @@ final class VMProcessTest {
     assertEquals(1, launches);
   }
 
+  @ParameterizedTest
+  @ValueSource(longs = { 0L, Long.MAX_VALUE - 100L })
+  void rejectsAReachableDisplayAtTheStartupDeadline(final long origin) {
+    final FakeProcess qemu = FakeProcess.running("");
+    final long duration = TimeUnit.MILLISECONDS.toNanos(SHORT_TIMEOUT_MILLIS);
+    final Deque<Long> times = new ArrayDeque<>(List.of(origin, origin + duration));
+    final LongSupplier clock = times::removeFirst;
+    final VMSettings settings = this.reachableSettings();
+    final VMConfiguration configuration = VMConfiguration.builder();
+    final VMProcess.Launcher launcher = command -> {
+      this.openDisplay();
+      return qemu;
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      QEMU,
+      configuration,
+      launcher,
+      OS.FREEBSD,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      clock
+    );
+    assertThrows(PlayerException.class, process::start);
+    final boolean alive = process.isAlive();
+    assertFalse(alive, "an expired startup must terminate QEMU even if its display is reachable");
+  }
+
+  @Test
+  void acceptsAReachableDisplayBeforeTheStartupDeadline() {
+    final FakeProcess qemu = FakeProcess.running("");
+    final long duration = TimeUnit.MILLISECONDS.toNanos(SHORT_TIMEOUT_MILLIS);
+    final Deque<Long> times = new ArrayDeque<>(List.of(0L, duration - 1));
+    final LongSupplier clock = times::removeFirst;
+    final VMSettings settings = this.reachableSettings();
+    final VMConfiguration configuration = VMConfiguration.builder();
+    final VMProcess.Launcher launcher = command -> {
+      this.openDisplay();
+      return qemu;
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      QEMU,
+      configuration,
+      launcher,
+      OS.FREEBSD,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      clock
+    );
+    try {
+      process.start();
+      final boolean alive = process.isAlive();
+      assertTrue(alive);
+    } finally {
+      process.shutdown();
+    }
+  }
+
   @Test
   void keepsTheAcceleratorOfTheConfiguration() {
     final FakeProcess failed = FakeProcess.exited(1, "kvm accel is not available\n");
@@ -416,6 +479,18 @@ final class VMProcessTest {
     assertEquals(expected, message);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = { "", "\n" })
+  void boundsLongDiagnosticLinesAndKeepsTheirSuffix(final String ending) {
+    final String discarded = "x".repeat(100_000);
+    final String suffix = "z".repeat(4090) + "-tail!";
+    final FakeProcess failed = FakeProcess.exited(1, discarded + suffix + ending);
+    final VMProcess process = this.reachable(OS.FREEBSD, failed);
+    final PlayerException exception = assertThrows(PlayerException.class, process::start);
+    final String message = exception.getMessage();
+    assertEquals("QEMU exited with code 1: " + suffix, message);
+  }
+
   @Test
   void keepsTheLastLineWithoutALineBreak() {
     final FakeProcess failed = FakeProcess.exited(1, "first\nlast words");
@@ -483,7 +558,7 @@ final class VMProcessTest {
     }
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    final boolean alive = process.isAlive();
+    final boolean alive = qemu.isAlive();
     final int forcibleCalls = qemu.getForcibleDestroyCalls();
     assertEquals("Interrupted while waiting for QEMU", message);
     assertInstanceOf(InterruptedException.class, cause);
@@ -520,7 +595,7 @@ final class VMProcessTest {
     process.shutdown();
     final int destroyCalls = qemu.getDestroyCalls();
     final int forcibleCalls = qemu.getForcibleDestroyCalls();
-    final boolean alive = process.isAlive();
+    final boolean alive = qemu.isAlive();
     assertEquals(1, destroyCalls);
     assertEquals(1, forcibleCalls);
     assertFalse(alive);
@@ -537,6 +612,207 @@ final class VMProcessTest {
     final int forcibleCalls = qemu.getForcibleDestroyCalls();
     assertTrue(interrupted);
     assertEquals(1, forcibleCalls);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void waitsForDelayedForcedTermination(final boolean interruptShutdown) {
+    final FakeProcess qemu = FakeProcess.running("");
+    qemu.ignoringDestroy();
+    qemu.delayingForcedExit(50L);
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    if (interruptShutdown) {
+      qemu.interruptingFirstWait();
+    }
+    try {
+      process.shutdown();
+      final boolean alive = qemu.isAlive();
+      final int forced = qemu.getForcibleDestroyCalls();
+      assertFalse(alive, "destroyForcibly only requests termination; shutdown must wait for the child to exit");
+      assertEquals(1, forced);
+    } finally {
+      final boolean interrupted = Thread.interrupted();
+      assertEquals(interruptShutdown, interrupted, "cleanup preserves interruption for the caller");
+    }
+  }
+
+  @Test
+  void boundsForcedWaitsAndPreservesInterruptsDuringForcedTermination() throws InterruptedException {
+    final FakeProcess original = FakeProcess.running("");
+    final FakeProcess qemu = org.mockito.Mockito.spy(original);
+    qemu.ignoringDestroy();
+    qemu.delayingForcedExit(100L);
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    final java.util.concurrent.atomic.AtomicBoolean interruptedOnce = new java.util.concurrent.atomic.AtomicBoolean();
+    org.mockito.Mockito.doAnswer(invocation -> {
+      final int forced = qemu.getForcibleDestroyCalls();
+      if (forced > 0) {
+        final long timeout = invocation.getArgument(0);
+        final TimeUnit unit = invocation.getArgument(1);
+        final long nanos = unit.toNanos(timeout);
+        final long maximum = TimeUnit.SECONDS.toNanos(10);
+        assertTrue(nanos > 0 && nanos <= maximum, "every forced wait must stay within the total ten-second deadline");
+        if (interruptedOnce.compareAndSet(false, true)) {
+          throw new InterruptedException("interrupt while forced exit is pending");
+        }
+      }
+      return invocation.callRealMethod();
+    })
+      .when(qemu)
+      .waitFor(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any(TimeUnit.class));
+    try {
+      process.shutdown();
+      final boolean alive = qemu.isAlive();
+      final boolean caught = interruptedOnce.get();
+      assertFalse(alive);
+      assertTrue(caught);
+      final boolean interrupted = Thread.interrupted();
+      assertTrue(interrupted, "the forced-exit phase must preserve its own interruption");
+    } finally {
+      Thread.interrupted();
+      qemu.exit(137);
+    }
+  }
+
+  @Test
+  void retainsAProcessThatRemainsAliveAfterTheForcedDeadline() throws InterruptedException {
+    final FakeProcess original = FakeProcess.running("");
+    final FakeProcess qemu = org.mockito.Mockito.spy(original);
+    qemu.ignoringDestroy();
+    org.mockito.Mockito.doReturn(qemu).when(qemu).destroyForcibly();
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    final Thread stopping = new Thread(process::shutdown, "stubborn-process-shutdown");
+    stopping.setDaemon(true);
+    try {
+      stopping.start();
+      stopping.join(12_000L);
+      final boolean stillWaiting = stopping.isAlive();
+      assertFalse(stillWaiting, "forced termination has a ten-second deadline even when the child refuses to exit");
+      final boolean retained = process.isAlive();
+      assertTrue(retained, "a live child remains owned after the deadline so shutdown can be retried");
+    } finally {
+      qemu.exit(137);
+      stopping.interrupt();
+      stopping.join(2_000L);
+      process.shutdown();
+    }
+    final int attempts = qemu.getDestroyCalls();
+    assertEquals(2, attempts, "the second cleanup still owns the process");
+  }
+
+  @Test
+  void boundsTheOutputJoinAndInterruptsAnUnfinishedReader() throws InterruptedException {
+    final CountDownLatch finish = new CountDownLatch(1);
+    final BlockingStream output = new BlockingStream(finish);
+    final FakeProcess qemu = FakeProcess.running(output);
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    final Thread stopping = new Thread(process::shutdown, "bounded-output-shutdown");
+    stopping.setDaemon(true);
+    try {
+      stopping.start();
+      final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+      boolean joined = false;
+      while (System.nanoTime() < deadline && stopping.isAlive()) {
+        if (stopping.getState() == Thread.State.TIMED_WAITING) {
+          joined = true;
+          break;
+        }
+        Thread.sleep(1L);
+      }
+      assertTrue(joined, "shutdown must block in a timed join instead of spinning on reader liveness");
+      stopping.join(4_000L);
+      final boolean alive = stopping.isAlive();
+      assertFalse(alive, "an unfinished reader cannot extend the two-second output deadline indefinitely");
+      final boolean interrupted = output.interruptedRead.await(1, TimeUnit.SECONDS);
+      assertTrue(interrupted, "a reader that outlives the deadline receives an interrupt");
+    } finally {
+      finish.countDown();
+      stopping.interrupt();
+      stopping.join(3_000L);
+      process.shutdown();
+    }
+  }
+
+  @Test
+  void preservesAnInterruptReceivedDuringTheOutputJoinAndStillWaitsForTheReader() throws InterruptedException {
+    final CountDownLatch finish = new CountDownLatch(1);
+    final BlockingStream output = new BlockingStream(finish);
+    final FakeProcess qemu = FakeProcess.running(output);
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    final AtomicBoolean restored = new AtomicBoolean();
+    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final CountDownLatch returned = new CountDownLatch(1);
+    final Thread stopping = new Thread(
+      () -> {
+        try {
+          process.shutdown();
+          final Thread current = Thread.currentThread();
+          restored.set(current.isInterrupted());
+        } catch (final Throwable thrown) {
+          failure.set(thrown);
+        } finally {
+          returned.countDown();
+        }
+      },
+      "interrupted-output-shutdown"
+    );
+    stopping.setDaemon(true);
+    try {
+      stopping.start();
+      awaitOutputJoin(stopping);
+      stopping.interrupt();
+      // Observe a fresh timed join with the interrupt cleared: the catch ran and cleanup resumed its wait.
+      awaitOutputJoin(stopping);
+      assertEquals(1, returned.getCount(), "interruption must not abandon the live output reader");
+      finish.countDown();
+      stopping.join(3_000L);
+      assertFalse(stopping.isAlive());
+      assertNull(failure.get());
+      assertTrue(restored.get(), "the caller receives its interrupt again after the reader finishes");
+      assertFalse(qemu.isAlive());
+    } finally {
+      finish.countDown();
+      stopping.interrupt();
+      stopping.join(3_000L);
+      process.shutdown();
+    }
+  }
+
+  private static void awaitOutputJoin(final Thread stopping) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+    while (System.nanoTime() < deadline && stopping.isAlive()) {
+      final Thread.State state = stopping.getState();
+      if (state == Thread.State.TIMED_WAITING && !stopping.isInterrupted()) {
+        final StackTraceElement[] stack = stopping.getStackTrace();
+        for (final StackTraceElement frame : stack) {
+          final String owner = frame.getClassName();
+          final String method = frame.getMethodName();
+          if (owner.equals(VMProcess.class.getName()) && method.equals("awaitOutput")) {
+            return;
+          }
+        }
+      }
+      Thread.sleep(1L);
+    }
+    fail("shutdown must be waiting inside awaitOutput's timed join");
+  }
+
+  @Test
+  void drainsFinalOutputBeforeReturningFromShutdown() {
+    final DelayedStream output = new DelayedStream("final diagnostic\n", 500L);
+    final FakeProcess qemu = FakeProcess.running(output);
+    final VMProcess process = this.reachable(OS.FREEBSD, qemu);
+    process.start();
+    process.shutdown();
+    final boolean alive = qemu.isAlive();
+    final boolean outputClosed = output.closed;
+    assertFalse(alive);
+    assertTrue(outputClosed, "shutdown must wait for the output reader to consume and close the stream");
   }
 
   @Test
@@ -725,6 +1001,7 @@ final class VMProcessTest {
   private static final class BlockingStream extends InputStream {
 
     private final CountDownLatch finish;
+    private final CountDownLatch interruptedRead = new CountDownLatch(1);
 
     BlockingStream(final CountDownLatch finish) {
       this.finish = finish;
@@ -746,6 +1023,7 @@ final class VMProcessTest {
       try {
         this.finish.await();
       } catch (final InterruptedException exception) {
+        this.interruptedRead.countDown();
         final Thread current = Thread.currentThread();
         current.interrupt();
       }
@@ -760,10 +1038,16 @@ final class VMProcessTest {
     private final byte[] content;
     private final long delayMillis;
     private int position;
+    private volatile boolean closed;
 
     DelayedStream(final String text, final long delayMillis) {
       this.content = text.getBytes(StandardCharsets.UTF_8);
       this.delayMillis = delayMillis;
+    }
+
+    @Override
+    public void close() {
+      this.closed = true;
     }
 
     @Override

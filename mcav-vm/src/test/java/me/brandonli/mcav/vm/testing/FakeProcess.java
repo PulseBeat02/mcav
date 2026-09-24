@@ -44,6 +44,7 @@ public final class FakeProcess extends Process {
   private volatile boolean interruptsWaits;
   private volatile boolean interruptsFirstWait;
   private volatile int exitCodeOnWait = -1;
+  private volatile long forcedExitDelayMillis;
 
   private FakeProcess(final InputStream output) {
     this.output = output;
@@ -96,6 +97,16 @@ public final class FakeProcess extends Process {
    */
   public void ignoringDestroy() {
     this.exitsOnDestroy = false;
+  }
+
+  /**
+   * Delays actual termination after the force request, as an operating system may do.
+   *
+   * @param delayMillis the delay before the process exits
+   */
+  public void delayingForcedExit(final long delayMillis) {
+    Preconditions.checkArgument(delayMillis > 0, "Delay must be positive");
+    this.forcedExitDelayMillis = delayMillis;
   }
 
   /**
@@ -217,8 +228,26 @@ public final class FakeProcess extends Process {
 
   @Override
   public Process destroyForcibly() {
-    this.forcibleDestroyCalls.incrementAndGet();
-    this.exit(137);
+    final int calls = this.forcibleDestroyCalls.incrementAndGet();
+    final long delayMillis = this.forcedExitDelayMillis;
+    if (delayMillis == 0) {
+      this.exit(137);
+    } else if (calls == 1) {
+      final Thread termination = new Thread(() -> this.exitAfterDelay(delayMillis), "fake-qemu-termination");
+      termination.setDaemon(true);
+      termination.start();
+    }
     return this;
+  }
+
+  private void exitAfterDelay(final long delayMillis) {
+    try {
+      Thread.sleep(delayMillis);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    } finally {
+      this.exit(137);
+    }
   }
 }

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.vm;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vnc.VNCPlayer;
 import me.brandonli.mcav.vnc.VNCSource;
@@ -92,7 +94,7 @@ public final class VMPlayerImpl implements VMPlayer {
         return false;
       }
 
-      this.clearExitedMachine();
+      this.clearPreviousMachine();
       this.launchMachine(settings, architecture, configuration);
       return true;
     } finally {
@@ -110,22 +112,54 @@ public final class VMPlayerImpl implements VMPlayer {
   private void launchMachine(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration) {
     final Path executable = this.findExecutable(architecture);
     final VMProcess qemu = this.processFactory.create(settings, executable, configuration);
-    qemu.start();
+    // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
     this.process = qemu;
-
-    this.connectDisplay(qemu, settings);
-    this.running.set(true);
+    try {
+      qemu.start();
+      this.connectDisplay(settings);
+      this.running.set(true);
+    } catch (final RuntimeException | Error failure) {
+      ThrowableUtils.throwIfFatal(failure);
+      this.shutdownAfterFailure(failure);
+      throw failure;
+    }
   }
 
   /**
-   * Cleans up after a QEMU process that exited on its own, so the machine can be started again.
+   * Cleans up the previous machine before replacement, retaining ownership if its bounded shutdown times out.
    */
-  private void clearExitedMachine() {
+  private void clearPreviousMachine() {
     this.running.set(false);
-    final VMProcess exited = this.process;
-    if (exited != null) {
-      exited.shutdown();
+    this.shutdownMachine();
+    if (this.process != null) {
+      throw new PlayerException("The previous QEMU process is still alive after shutdown");
+    }
+  }
+
+  /** Stops the owned machine, forgetting it only after its process has exited. The caller holds the lock. */
+  private void shutdownMachine() {
+    final VMProcess qemu = this.process;
+    if (qemu == null) {
+      return;
+    }
+    qemu.shutdown();
+    final boolean alive = qemu.isAlive();
+    if (!alive) {
       this.process = null;
+    }
+  }
+
+  /** Attempts cleanup without replacing an earlier failure with a recoverable shutdown failure. */
+  private void shutdownAfterFailure(final Throwable failure) {
+    try {
+      this.shutdownMachine();
+    } catch (final RuntimeException | Error cleanupFailure) {
+      ThrowableUtils.throwIfFatal(cleanupFailure);
+      final Equivalence<Object> identity = Equivalence.identity();
+      final boolean sameFailure = identity.equivalent(failure, cleanupFailure);
+      if (!sameFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
     }
   }
 
@@ -140,20 +174,12 @@ public final class VMPlayerImpl implements VMPlayer {
     return this.running.get() && alive;
   }
 
-  /**
-   * Connects the VNC player to the display of the started QEMU process, shutting QEMU down if that fails.
-   */
-  private void connectDisplay(final VMProcess qemu, final VMSettings settings) {
+  /** Connects the VNC player to the display; launchMachine retains responsibility for failed-start cleanup. */
+  private void connectDisplay(final VMSettings settings) {
     final VNCSource source = createSource(settings);
-    try {
-      final boolean connected = this.vncPlayer.start(source);
-      if (!connected) {
-        throw new PlayerException("The VNC player could not be started");
-      }
-    } catch (final PlayerException exception) {
-      qemu.shutdown();
-      this.process = null;
-      throw exception;
+    final boolean connected = this.vncPlayer.start(source);
+    if (!connected) {
+      throw new PlayerException("The VNC player could not be started");
     }
   }
 
@@ -224,24 +250,29 @@ public final class VMPlayerImpl implements VMPlayer {
     return active && this.vncPlayer.isPlaying();
   }
 
+  /**
+   * Releases playback and attempts to stop QEMU. Later calls retry a surviving process without releasing VNC twice.
+   *
+   * @return true for the first release, false for subsequent cleanup attempts
+   */
   @Override
   public boolean release() {
     this.lock.lock();
     try {
       final boolean first = this.released.compareAndSet(false, true);
-      if (!first) {
-        return false;
-      }
-
       this.running.set(false);
-      this.vncPlayer.release();
-
-      final VMProcess qemu = this.process;
-      if (qemu != null) {
-        qemu.shutdown();
-        this.process = null;
+      try {
+        if (first) {
+          this.vncPlayer.release();
+        }
+      } catch (final RuntimeException | Error failure) {
+        ThrowableUtils.throwIfFatal(failure);
+        this.shutdownAfterFailure(failure);
+        throw failure;
       }
-      return true;
+      // A repeated release still owns cleanup if QEMU survived the preceding bounded termination attempt.
+      this.shutdownMachine();
+      return first;
     } finally {
       this.lock.unlock();
     }

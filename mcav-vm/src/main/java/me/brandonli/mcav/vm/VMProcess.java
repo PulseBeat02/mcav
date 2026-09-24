@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
@@ -66,6 +67,7 @@ final class VMProcess {
   private static final long STOP_TIMEOUT_SECONDS = 10L;
   private static final long OUTPUT_TIMEOUT_MILLIS = 2_000L;
   private static final int OUTPUT_TAIL_LINES = 40;
+  private static final int OUTPUT_LINE_CHARACTERS = 4096;
   private static final String SOFTWARE_ACCELERATOR = "tcg";
   private static final Path KVM_DEVICE = Path.of("/dev/kvm");
 
@@ -75,7 +77,8 @@ final class VMProcess {
   private final Launcher launcher;
   private final OS os;
   private final Path kvmDevice;
-  private final long startTimeoutMillis;
+  private final long startTimeoutNanos;
+  private final LongSupplier nanoClock;
   private final Deque<String> outputTail;
 
   // written while starting and stopping, but read from other threads through isRunning()/liveness checks
@@ -116,13 +119,29 @@ final class VMProcess {
     final Path kvmDevice,
     final long startTimeoutMillis
   ) {
+    this(settings, executable, configuration, launcher, os, kvmDevice, startTimeoutMillis, System::nanoTime);
+  }
+
+  /** Constructs a process with a monotonic clock for deterministic startup deadline checks. */
+  @VisibleForTesting
+  VMProcess(
+    final VMSettings settings,
+    final Path executable,
+    final VMConfiguration configuration,
+    final Launcher launcher,
+    final OS os,
+    final Path kvmDevice,
+    final long startTimeoutMillis,
+    final LongSupplier nanoClock
+  ) {
     this.settings = settings;
     this.executable = executable;
     this.configuration = configuration;
     this.launcher = launcher;
     this.os = os;
     this.kvmDevice = kvmDevice;
-    this.startTimeoutMillis = startTimeoutMillis;
+    this.startTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(startTimeoutMillis);
+    this.nanoClock = nanoClock;
     this.outputTail = new ArrayDeque<>();
   }
 
@@ -364,12 +383,27 @@ final class VMProcess {
     for (int index = 0; index < count; index++) {
       final char character = characters[index];
       if (character == '\n') {
+        trimLine(line);
         final String complete = line.toString();
         this.remember(complete);
         line.setLength(0);
       } else if (character != '\r') {
         line.append(character);
       }
+    }
+    trimLine(line);
+  }
+
+  /**
+   * Retains only the end of a long diagnostic line, including when QEMU never prints a line break.
+   * The reader supplies at most 4096 characters at once, so incomplete lines also have bounded storage.
+   *
+   * @param line the line being collected
+   */
+  private static void trimLine(final StringBuilder line) {
+    final int excess = line.length() - OUTPUT_LINE_CHARACTERS;
+    if (excess > 0) {
+      line.delete(0, excess);
     }
   }
 
@@ -396,9 +430,9 @@ final class VMProcess {
   private void waitForDisplay(final Process started) {
     final int port = this.settings.getPort();
     final InetSocketAddress address = new InetSocketAddress(LOOPBACK, port);
-    final long deadline = System.currentTimeMillis() + this.startTimeoutMillis;
+    final long start = this.nanoClock.getAsLong();
 
-    while (System.currentTimeMillis() < deadline) {
+    while (this.nanoClock.getAsLong() - start < this.startTimeoutNanos) {
       this.checkAlive(started);
       final boolean reachable = isReachable(address);
       if (reachable) {
@@ -432,11 +466,28 @@ final class VMProcess {
 
   private void awaitOutput() {
     final Thread drain = Objects.requireNonNull(this.drainThread, "The output is drained while QEMU runs");
+    final long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(OUTPUT_TIMEOUT_MILLIS);
+    final long deadline = System.nanoTime() + timeoutNanos;
+    boolean interrupted = Thread.interrupted();
     try {
-      drain.join(OUTPUT_TIMEOUT_MILLIS);
-    } catch (final InterruptedException exception) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
+      while (drain.isAlive()) {
+        final long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) {
+          drain.interrupt();
+          LOGGER.warn("QEMU output reader did not stop within {} ms", OUTPUT_TIMEOUT_MILLIS);
+          return;
+        }
+        try {
+          TimeUnit.NANOSECONDS.timedJoin(drain, remaining);
+        } catch (final InterruptedException exception) {
+          interrupted = true;
+        }
+      }
+    } finally {
+      if (interrupted) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
     }
   }
 
@@ -474,25 +525,72 @@ final class VMProcess {
   }
 
   /**
-   * Stops QEMU, forcibly if it does not exit in time.
+   * Stops QEMU, forcibly if it does not exit in time, and waits for its final output.
+   * Graceful and forced termination each have a bounded wait. Interrupts request forced termination immediately
+   * and are restored after cleanup. A process that survives the forced wait remains visible to liveness checks.
    */
   void shutdown() {
     final Process current = this.process;
-    this.process = null;
     if (current == null) {
       return;
     }
 
-    current.destroy();
+    boolean interrupted = Thread.interrupted();
     try {
-      final boolean exited = current.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      current.destroy();
+      boolean exited = false;
+      if (!interrupted) {
+        try {
+          exited = current.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (final InterruptedException exception) {
+          interrupted = true;
+        }
+      }
       if (!exited) {
         current.destroyForcibly();
+        this.awaitForcedExit(current);
       }
-    } catch (final InterruptedException exception) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
-      current.destroyForcibly();
+      this.awaitOutput();
+      final boolean alive = current.isAlive();
+      if (!alive) {
+        this.process = null;
+      } else {
+        LOGGER.warn("QEMU is still alive after forced termination");
+      }
+    } finally {
+      if (interrupted) {
+        final Thread thread = Thread.currentThread();
+        thread.interrupt();
+      }
+    }
+  }
+
+  /**
+   * Waits for asynchronous forced termination without letting interrupts abandon the child process.
+   *
+   * @param current the process whose termination was requested
+   */
+  private void awaitForcedExit(final Process current) {
+    final long timeoutNanos = TimeUnit.SECONDS.toNanos(STOP_TIMEOUT_SECONDS);
+    final long deadline = System.nanoTime() + timeoutNanos;
+    boolean interrupted = Thread.interrupted();
+    try {
+      while (current.isAlive()) {
+        final long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) {
+          return;
+        }
+        try {
+          current.waitFor(remaining, TimeUnit.NANOSECONDS);
+        } catch (final InterruptedException exception) {
+          interrupted = true;
+        }
+      }
+    } finally {
+      if (interrupted) {
+        final Thread thread = Thread.currentThread();
+        thread.interrupt();
+      }
     }
   }
 

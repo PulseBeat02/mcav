@@ -65,7 +65,7 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * @param configuration the QEMU command line
    * @return true if the machine started, false if the player is already running or released
    * @throws ExecutableNotInPathException              if the QEMU program is not installed
-   * @throws me.brandonli.mcav.media.player.PlayerException if QEMU exits or its display never becomes reachable
+   * @throws me.brandonli.mcav.media.player.PlayerException if QEMU exits, its display never becomes reachable, or a previous machine cannot be stopped
    */
   boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration);
 
