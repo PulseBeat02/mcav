@@ -199,7 +199,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Greedy final String url
+    @Quoted final String url
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");

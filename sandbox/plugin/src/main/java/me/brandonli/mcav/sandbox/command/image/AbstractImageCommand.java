@@ -100,24 +100,15 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final String sourceMrl = unwrapMrl(mrl);
-    final Supplier<ImageBuffer> loader = createLoader(sourceMrl);
+    final Supplier<ImageBuffer> loader = createLoader(mrl);
     if (loader == null) {
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
       return;
     }
 
-    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configProvider);
+    final ImageRequest request = new ImageRequest(sender, mrl, resolution, configProvider);
     this.startLoading(loader, request);
-  }
-
-  private static String unwrapMrl(final String mrl) {
-    final int length = mrl.length();
-    if (length >= 2 && mrl.charAt(0) == '"' && mrl.charAt(length - 1) == '"') {
-      return mrl.substring(1, length - 1);
-    }
-    return mrl;
   }
 
   private void startLoading(final Supplier<ImageBuffer> loader, final ImageRequest request) {
