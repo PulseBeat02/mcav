@@ -77,7 +77,7 @@ public final class DeltaMapEncoder {
   private final int maxBytesPerFrame;
   private final byte[][] clientState;
   private final boolean[] synced;
-  private final int[] waitingFrames;
+  private final long[] waitingFrames;
   private final byte[][] deferredNoiseFrames;
   private final int[] changedPixelsPerTile;
 
@@ -98,7 +98,7 @@ public final class DeltaMapEncoder {
     this.maxBytesPerFrame = maxBytesPerFrame;
     this.clientState = new byte[mapCount][MAP_PIXELS];
     this.synced = new boolean[mapCount];
-    this.waitingFrames = new int[mapCount];
+    this.waitingFrames = new long[mapCount];
     this.deferredNoiseFrames = new byte[mapCount][TILE_COUNT];
     this.changedPixelsPerTile = new int[TILE_COUNT];
   }
