@@ -21,8 +21,8 @@ dependencies {
 
 ## Supported Platforms
 
-MCAV runs out of the box on the following platforms. No administrator rights, package manager, or extra JVM
-arguments are needed: everything MCAV downloads is stored in the cache folder of the current user.
+MCAV targets the following platforms. Everything MCAV downloads is stored in the cache folder of the current user;
+optional native features can also need system libraries, a display, or an audio device.
 
 | Operating System | Architectures             | Notes                                                              |
 |------------------|---------------------------|--------------------------------------------------------------------|
@@ -30,8 +30,9 @@ arguments are needed: everything MCAV downloads is stored in the cache folder of
 | macOS            | x86-64, ARM64 (Apple)     | VLC is downloaded and mounted without administrator rights.        |
 | Linux            | x86-64, ARM64             | VLC is used from the system, or downloaded as an AppImage on x86-64. |
 
-FFmpeg and OpenCV are bundled with the library for every platform above, so the FFmpeg and OpenCV players always
-work. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
+FFmpeg and OpenCV are bundled with the library for every platform above. Use the FFmpeg player for media files:
+the bundled Linux OpenCV build cannot decode video files. OpenCV capture also depends on a working capture backend
+and device. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
 unavailable, which you can check with [capabilities](instance.md#capabilities).
 
 QEMU is never installed by MCAV. To use the [virtual machine module](vm.md), install QEMU yourself and make sure it is

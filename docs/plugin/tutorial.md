@@ -6,6 +6,7 @@ plugin up.
 ---
 
 **Step 1: Install the Plugin**
+
 If you haven't already, follow the installation instructions in the [Installation Guide](./plugin.md#installing-the-plugin) to
 install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (26.2).
 
@@ -13,6 +14,7 @@ install the MCAV plugin on your Minecraft server. Make sure you are using a comp
 ---
 
 **Step 2: Configure the Plugin**
+
 Run the plugin once to generate the default configuration files. You can find the main configuration file in
 `plugins/MCAV/config.yml`. Open this file in your favorite text editor and adjust the settings as needed. If you would
 like audio support for videos, follow one or both of the ways to set up audio:
@@ -56,6 +58,7 @@ simple-voice-chat.enabled to false in config.yml)`, and disables itself. Fix eit
 ---
 
 **Step 3: Profit**
+
 Now that you have configured the plugin, you can start using it to play videos in your Minecraft server!
 
 ## Usage Instructions
@@ -74,11 +77,21 @@ can use other commands like `/mcav video block`.
 4) Set the `mrl` to either a local file path, or pretty much any valid URL to a website like YouTube, Vimeo, or Twitch.
 A list of all supported video sites can be found [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
+Image commands also accept a path or URL enclosed in double quotes. Unquoted image paths containing spaces still
+work; the image argument consumes the rest of the command.
+
+If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
+compare it with the original on the same screen. Decoding a high-resolution AV1 source can fall behind on a busy
+server. The playing message reports player state; it does not guarantee frames are arriving. MCAV currently has
+no decoder-progress warning, and a static image can also produce no map updates, so packet silence alone does not
+identify a decoder failure.
+
 ### If you would like to create a browser, here are the steps to take:
 1) Use the `/mcav browser create` command to create a new browser on that screen. Browsers can only be created on maps.
 For example, running `/mcav browser create @a 640x640 100 1 5x5 0 FILTER_LITE https://www.google.com` will create a new
 browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels, full quality,
-and snapshots taken every second with Filter Lite dithering. It will display the Google homepage by default.
+and captures every changed browser frame with Filter Lite dithering. The frame-skip value of `1` keeps every
+captured frame; it does not set a one-second interval. It will display the Google homepage by default.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which will take all your
 chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type the
 key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse

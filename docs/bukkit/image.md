@@ -7,7 +7,8 @@ To show a still image, create the configuration of the display you want, such as
 Map images are dithered, so `DisplayableImage.map` also takes a `DitherAlgorithm`.
 ```
 
-Displaying an image resizes the `ImageBuffer` to the size of the display in place. The scoreboard reads the image
+Scoreboard, block, entity, and chat displays resize the `ImageBuffer` in place. Map displays resize it only when
+the map configuration enables resizing; otherwise, they center or crop it to the map wall. The scoreboard reads the image
 before `displayImage` returns, so the method below releases the buffer right away. Call `release()` on the returned
 `DisplayableImage` when the image should disappear.
 

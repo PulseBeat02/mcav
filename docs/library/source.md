@@ -5,8 +5,8 @@ code generates. Sources are small immutable descriptions; the player opens them 
 
 | Source                | Created with                                         | Played by                          |
 |-----------------------|------------------------------------------------------|------------------------------------|
-| `FileSource`          | `FileSource.path(path)` with a `Path`                | Every video player                 |
-| `UriSource`           | `UriSource.uri(uri)` with a `URI`                    | Every video player                 |
+| `FileSource`          | `FileSource.path(path)` with a `Path`                | FFmpeg, VLC; OpenCV with a file decoding backend |
+| `UriSource`           | `UriSource.uri(uri)` with a `URI`                    | FFmpeg, VLC; OpenCV with a compatible URL backend |
 | `DeviceSource`        | `DeviceSource.device(0)`                             | `VideoPlayer.device()`             |
 | `FFmpegDirectSource`  | `FFmpegDirectSource.mrl("desktop", "gdigrab")`       | `VideoPlayer.ffmpeg()`             |
 | `FrameSource`         | `FrameSource.supplier(...)` or `FrameSource.image(...)` | `ImagePlayer`                   |

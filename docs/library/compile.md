@@ -25,7 +25,8 @@ the Checker Framework, and it must stay free of warnings.
 
 | Option | What it does |
 |--------|---------------|
-| `./gradlew build` | Compiles everything, formats the sources, and runs the tests. |
+| `./gradlew build` | Compiles everything, checks formatting, and runs the tests. |
+| `./gradlew spotlessApply` | Formats the sources; run before building after editing code. |
 | `-Pmcav.testJavaHome=<path to a Java 25 JDK>` | Runs the tests on another JDK, for machines whose JDK cannot load the bundled OpenCV natives. |
 | `./gradlew coverageLint` | Prints every line and branch no test covers, as `file:line`. |
 | `-Pmcav.coverage` | Makes `check` enforce the coverage lint as well. |

@@ -33,9 +33,10 @@ YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local fi
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to, [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or a Discord bot to play audio in voice channels.
 
-MCAV requires Java 25, and the plugin runs on Paper 26.2 only. MCAV runs out of the box on Windows (x86-64), macOS
-(x86-64 and Apple silicon), and Linux (x86-64 and ARM64), also on headless servers without a display or sound device,
-and needs neither administrator rights (no `sudo`) nor extra JVM arguments. FFmpeg and OpenCV are bundled and their
+MCAV requires Java 25, and the plugin runs on Paper 26.2 only. MCAV bundles native libraries for Windows (x86-64), macOS
+(x86-64 and Apple silicon), and Linux (x86-64 and ARM64). Core file playback works on headless servers without a display
+or sound device. Optional features can require system libraries, a browser, QEMU, or a display; MCAV does not run an
+administrative package installer. FFmpeg and OpenCV are bundled and their
 JavaCV natives are extracted into the JavaCPP cache of the user, and yt-dlp and VLC are downloaded into the cache folder
 of the user when they are missing; on Linux, VLC is downloaded on x86-64 only and is otherwise used from the system.
 Other Unix systems, such as FreeBSD, are detected as well: MCAV downloads nothing there and uses the VLC installed on
@@ -92,20 +93,20 @@ incorporated into the project. The following table lists the libraries used in M
 
 | Library                                                | License                                                     |
 |--------------------------------------------------------|-------------------------------------------------------------|
-| [VideoLAN/VLC](https://code.videolan.org/videolan/vlc) | [GPLv2](https://opensource.org/license/lgpl-2-0) (or later) |
-| [FFmpeg/FFmpeg](https://git.ffmpeg.org/ffmpeg.git)     | [GPLv2](https://opensource.org/license/lgpl-2-0) (or later) |
+| [VideoLAN/VLC](https://code.videolan.org/videolan/vlc) | [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) (or later) |
+| [FFmpeg/FFmpeg](https://git.ffmpeg.org/ffmpeg.git) | [LGPLv2.1+ or GPLv2+, depending on build options](https://ffmpeg.org/legal.html) |
 | [OpenCV/OpenCV](https://github.com/opencv/opencv)      | [Apache 2](https://opensource.org/license/apache-2-0)       |
-| [caprica/vlcj](https://github.com/caprica/vlcj)        | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
+| [caprica/vlcj](https://github.com/caprica/vlcj)        | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)            |
 | [bytedeco/javacv](https://github.com/bytedeco/javacv)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp)      | [Unlicense](https://opensource.org/license/unlicense)       |
 | [rkalla/imgscalr](https://github.com/rkalla/imgscalr)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
-| [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://opensource.org/license/lgpl-3-0)            |
+| [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)            |
 
 As a result of this, the MCAV library is licensed under the GPLv3 license shown [here](LICENSE).
 The [Apache 2](https://opensource.org/license/apache-2-0) License is compatible with the
-[GPLv3](https://opensource.org/license/lgpl-3-0) license, but not the [GPLv2](https://opensource.org/license/lgpl-2-0)
-license. You should license your project under the [GPLv3](https://opensource.org/license/lgpl-3-0) license or any other
-license that is compatible with the [GPLv3](https://opensource.org/license/lgpl-3-0) license.
+[GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license, but not the [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+license. You should license your project under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license or any other
+license that is compatible with the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license.
 
 ---
 

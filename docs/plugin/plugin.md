@@ -20,8 +20,9 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 3) Start the server.
 
 On the first start, the plugin downloads its libraries into the `libraries/mcav` folder of the server, which takes a
-moment; later starts are much faster. No administrator rights or system packages are needed on Windows, macOS, or
-Linux, and a headless server works as well.
+moment; later starts are much faster. Core file playback works on a headless server without a sound device. Optional
+features can require system libraries, a browser, QEMU, or a display; see the [prerequisites](../library/prerequisites.md).
+MCAV itself does not run an administrative package installer.
 
 The first download is about 707 MiB. Most of it is the FFmpeg, OpenCV, and OpenBLAS native libraries, which the plugin
 includes for the platforms a Paper server runs on: Linux (x86-64 and ARM64), macOS (Intel and Apple silicon), and

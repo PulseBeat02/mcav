@@ -33,7 +33,8 @@ MCAV implements the common families of dithering algorithms:
 
 ```{note}
 All error diffusion algorithms in MCAV process rows in serpentine order (alternating left to right and right to left),
-which reduces directional artifacts. Some use fast approximations whose error is below one percent.
+which reduces directional artifacts. Some use fast integer approximations; their visual error depends on the image
+and palette.
 ```
 
 The common algorithms have shortcuts, and every family has a builder for the remaining options:
@@ -87,4 +88,10 @@ before it starts; call `release()` on the returned filter when the video is over
   }
 ```
 
-Players who join while the video is running receive the full maps automatically.
+Configured viewers who connect while the video is running receive a full snapshot before incremental updates.
+Include each intended viewer's UUID in the configuration; connecting alone does not add a player to that collection.
+
+The default 128 KiB budget limits incremental updates. Full snapshots for joining viewers and clearing on release
+are not paced by that budget. Clearing sends 16,384 color bytes per map per viewer, plus packet overhead: a 32×18
+wall sends about 9.4 MB to each viewer. Calls use bundles of up to 4,096 patches; larger calls are split, so the
+entire call is not guaranteed to appear atomically. Choose screen sizes with that release cost in mind.

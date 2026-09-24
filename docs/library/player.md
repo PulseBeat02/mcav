@@ -36,41 +36,46 @@ Frames always reach the pipeline as 8-bit BGR images with three channels, and au
 little-endian PCM at 48 kHz with two interleaved channels, whatever the source format is.
 ```
 
-The example below plays a file with its audio on the speakers of the computer. The `display` filter is yours and
-shows the frames, for example in a window.
+The example below plays a file for the requested duration with its audio on the speakers of the computer. Run it
+on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a window.
 
 ```java
-  public static void playVideoFile(final Path videoFile, final VideoFilter display) {
+  public static void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
+    throws InterruptedException {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final DirectAudioOutput speakers = new DirectAudioOutput();
-    speakers.start(); // throws a PlayerException on a machine without a sound device
-    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    try {
+      speakers.start(); // throws a PlayerException on a machine without a sound device
+      final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
+      final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+      videoCallback.attach(videoPipelineStep);
+      final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+      audioCallback.attach(audioPipelineStep);
+      final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+      final Dimension resolution = Dimension.of(640, 360);
+      dimensionCallback.attach(resolution);
 
-    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(videoPipelineStep);
-    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(audioPipelineStep);
-    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-    final Dimension resolution = Dimension.of(640, 360);
-    dimensionCallback.attach(resolution);
-
-    final FileSource source = FileSource.path(videoFile);
-    player.start(source);
-    player.pause();
-    player.resume();
-    player.seek(30_000); // milliseconds
-    player.release();
-    speakers.release();
+      final FileSource source = FileSource.path(videoFile);
+      if (player.start(source)) {
+        Thread.sleep(playTime);
+      }
+    } finally {
+      try {
+        player.release();
+      } finally {
+        speakers.release();
+      }
+    }
   }
 ```
 
 `start`, `pause`, `resume`, and `seek` return whether they did anything. Once the media has played to its end,
 `resume()` returns `false` and does not restart it; call `start` with the source again to play it once more.
 
-Every video player is a multiplexer: besides a single source with video and audio, it can play video and audio from
-two different sources and keep them in sync. This is how the separate streams yt-dlp resolves for high-quality
-YouTube videos are played.
+The FFmpeg and VLC players can play video and audio from two different sources and keep them in sync. This is how
+the separate streams yt-dlp resolves for high-quality YouTube videos are played. The OpenCV and device backends
+share the multiplexer interface but do not decode audio.
 
 ```java
   public static boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
@@ -129,8 +134,8 @@ and only then closes the animation:
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipelineStep);
 
-      player.start(frameSource);
       try {
+        player.start(frameSource);
         Thread.sleep(playTime);
       } finally {
         player.release();

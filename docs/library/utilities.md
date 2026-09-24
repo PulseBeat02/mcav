@@ -76,7 +76,8 @@ Sample rates are in hertz and must be positive, and channel counts must be betwe
 `AudioResampler.MAX_CHANNELS`, which is 8, the number of channels of a 7.1 layout. Otherwise the factories throw an
 `IllegalArgumentException`; a `null` format throws a `NullPointerException`, and an `IllegalStateException` is thrown
 if FFmpeg cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0,
-5.1, 6.1, and 7.1): mixing down averages the channels, and mixing up spreads them without raising the volume.
+5.1, 6.1, and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses
+weighted contributions rather than an equal average of every channel.
 
 The resampler has three methods:
 

@@ -35,8 +35,9 @@ Until a program is ready:
   yt-dlp parser does the same for yt-dlp;
 - `whenCapabilityReady` returns a future that completes once the preparation finished.
 
-`release` cancels a preparation that is still running: the download is interrupted, its temporary file is deleted,
-and the installation thread has ended when `release` returns.
+`release` cancels a preparation that is still running and interrupts its download. It waits up to ten seconds in total
+for the installation threads to finish; an installer that does not respond to interruption may outlive that wait.
+Temporary downloads are deleted as the installer unwinds.
 
 ## Capabilities
 
