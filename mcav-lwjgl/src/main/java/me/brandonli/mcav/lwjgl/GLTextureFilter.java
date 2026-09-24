@@ -109,6 +109,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
     requireContext();
     if (this.ownsTexture && this.textureId == NO_TEXTURE) {
       this.textureId = GL11.glGenTextures();
+      this.textureWidth = 0;
+      this.textureHeight = 0;
     }
 
     final int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -118,8 +120,6 @@ public class GLTextureFilter implements FunctionalVideoFilter {
     GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
     GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
-    this.textureWidth = 0;
-    this.textureHeight = 0;
   }
 
   /**
@@ -243,13 +243,15 @@ public class GLTextureFilter implements FunctionalVideoFilter {
     final int previousSkipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS);
     final int previousSkipPixels = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_PIXELS);
 
-    GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textureId);
-    // rows of 3-byte pixels are not 4-byte aligned for most widths, and the frame is tightly packed
-    setUnpackState(1, 0, 0, 0);
-    this.writePixels(pixels, width, height);
-
-    setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
-    GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+    try {
+      GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textureId);
+      // Rows of 3-byte pixels are not usually 4-byte aligned; the frame is tightly packed.
+      setUnpackState(1, 0, 0, 0);
+      this.writePixels(pixels, width, height);
+    } finally {
+      setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
+      GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+    }
   }
 
   /**
