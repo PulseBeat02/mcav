@@ -37,6 +37,16 @@ import org.junit.jupiter.api.Test;
 final class FFmpegCommandTest {
 
   @Test
+  void anEmptyBuilderStillEmitsTheExecutable() {
+    final FFmpegCommand.Builder builder = FFmpegCommand.builder();
+    final FFmpegCommand command = builder.build();
+    final Path executable = command.getExecutable();
+    final String expected = executable.toString();
+    final String[] actual = command.toCommandArray();
+    assertArrayEquals(new String[] { expected }, actual);
+  }
+
+  @Test
   void builderAddsEveryArgumentInOrder() {
     final FFmpegCommand.Builder builder = FFmpegCommand.builder();
     final FFmpegCommand.Builder returned = builder.addInput("in.mp4");

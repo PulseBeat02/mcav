@@ -40,46 +40,48 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 public final class FFmpegPlayerExample {
 
   static void main() throws InterruptedException {
-    final MCAVApi api = MCAV.api();
-    api.install();
+    try (final ExampleResources resources = new ExampleResources()) {
+      final MCAVApi api = MCAV.api();
+      resources.add(api::release);
+      api.install();
 
-    final SwingVideoWindow window = new SwingVideoWindow("FFmpeg Player", 1280, 720);
-    final DirectAudioOutput speakers = new DirectAudioOutput();
-    speakers.start();
+      final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", 1280, 720);
+      resources.add(window::close);
+      final DirectAudioOutput speakers = new DirectAudioOutput();
+      resources.add(speakers::release);
+      speakers.start();
 
-    final AudioPipelineStepBuilder audioBuilder = PipelineBuilder.audio();
-    audioBuilder.then(speakers);
-    final AudioPipelineStep audioPipeline = audioBuilder.build();
+      final AudioPipelineStepBuilder audioBuilder = PipelineBuilder.audio();
+      audioBuilder.then(speakers);
+      final AudioPipelineStep audioPipeline = audioBuilder.build();
 
-    final VideoFilter display = window.asFilter();
-    final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
-    videoBuilder.then(new FPSFilter());
-    videoBuilder.then(display);
-    final VideoPipelineStep videoPipeline = videoBuilder.build();
+      final VideoFilter display = window.asFilter();
+      final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
+      final FPSFilter frameRate = new FPSFilter();
+      videoBuilder.then(frameRate);
+      videoBuilder.then(display);
+      final VideoPipelineStep videoPipeline = videoBuilder.build();
 
-    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
-    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(videoPipeline);
-    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(audioPipeline);
+      final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+      resources.add(player::release);
+      final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+      videoCallback.attach(videoPipeline);
+      final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+      audioCallback.attach(audioPipeline);
 
-    // registered before anything plays, so the player is released even when the example is stopped early
-    final Runtime runtime = Runtime.getRuntime();
-    runtime.addShutdownHook(
-      new Thread(() -> {
-        player.release();
-        speakers.release();
-        api.release();
-      })
-    );
+      final URI uri = URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4");
+      final UriSource source = UriSource.uri(uri);
+      final boolean started = player.start(source);
+      if (!started) {
+        throw new IllegalStateException("Playback could not start");
+      }
 
-    final URI uri = URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4");
-    final UriSource source = UriSource.uri(uri);
-    player.start(source);
+      TimeUnit.SECONDS.sleep(5);
+      player.pause();
+      TimeUnit.SECONDS.sleep(3);
+      player.resume();
 
-    TimeUnit.SECONDS.sleep(5);
-    player.pause();
-    TimeUnit.SECONDS.sleep(3);
-    player.resume();
+      window.awaitClosed();
+    }
   }
 }

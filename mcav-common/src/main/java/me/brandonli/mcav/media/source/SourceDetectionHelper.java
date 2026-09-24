@@ -82,7 +82,7 @@ public class SourceDetectionHelper {
         continue;
       }
       final int priority = detector.getPriority();
-      if (priority > bestPriority) {
+      if (best == null || priority > bestPriority) {
         bestPriority = priority;
         best = detector;
       }

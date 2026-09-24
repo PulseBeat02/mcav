@@ -96,6 +96,19 @@ final class SourceDetectionHelperTest {
   }
 
   @Test
+  void acceptsTheMinimumPriorityAndKeepsTheFirstTie() {
+    final Source first = DeviceSource.device(1);
+    final Source second = DeviceSource.device(2);
+    final SourceDetector<Source> low = new FixedDetector(first, Integer.MIN_VALUE, true);
+    final SourceDetector<Source> tied = new FixedDetector(second, Integer.MIN_VALUE, true);
+    final List<SourceDetector<? extends Source>> detectors = List.of(low, tied);
+    final SourceDetectionHelper helper = new SourceDetectionHelper(detectors);
+    final Optional<Source> detected = helper.detectSource("anything");
+    final Source source = detected.orElseThrow();
+    assertSame(first, source);
+  }
+
+  @Test
   void rejectsMissingArguments() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     assertThrows(NullPointerException.class, () -> helper.detectSource(null));

@@ -146,6 +146,85 @@ final class ModuleLoaderTest {
     }
   }
 
+  static final class LinkageStartModule extends RecordingModule {
+
+    static final UnsatisfiedLinkError FAILURE = new UnsatisfiedLinkError("native module missing");
+    static final AtomicInteger STOPS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      super.start();
+      throw FAILURE;
+    }
+
+    @Override
+    public void stop() {
+      super.stop();
+      STOPS.incrementAndGet();
+    }
+  }
+
+  static final class AssertionStartAndStopModule extends RecordingModule {
+
+    static final AssertionError START_FAILURE = new AssertionError("startup invariant failed");
+    static final LinkageError STOP_FAILURE = new LinkageError("cleanup native missing");
+    static final AtomicInteger STOPS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      super.start();
+      throw START_FAILURE;
+    }
+
+    @Override
+    public void stop() {
+      STOPS.incrementAndGet();
+      throw STOP_FAILURE;
+    }
+
+    @Override
+    public String getModuleName() {
+      final int starts = this.starts.get();
+      if (starts != 0) {
+        throw new IllegalStateException("a failed module cannot describe itself");
+      }
+      return "asserting module";
+    }
+  }
+
+  static final class FatalStartModule extends RecordingModule {
+
+    static final OutOfMemoryError FAILURE = new OutOfMemoryError("start exhausted memory");
+    static final AtomicInteger STOPS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      throw FAILURE;
+    }
+
+    @Override
+    public void stop() {
+      STOPS.incrementAndGet();
+    }
+  }
+
+  static final class SameStartAndStopFailureModule extends RecordingModule {
+
+    static final ModuleException FAILURE = new ModuleException("module failed");
+    static final AtomicInteger STOPS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      throw FAILURE;
+    }
+
+    @Override
+    public void stop() {
+      STOPS.incrementAndGet();
+      throw FAILURE;
+    }
+  }
+
   static final class ModuleExceptionStartModule extends RecordingModule {
 
     @Override
@@ -354,6 +433,76 @@ final class ModuleLoaderTest {
     loader.shutdownModules();
     final int stops = first.stops.get();
     assertEquals(1, stops);
+  }
+
+  @Test
+  void rollsBackLinkageFailuresAndKeepsEarlierModulesStarted() {
+    LinkageStartModule.STOPS.set(0);
+    final ModuleLoader loader = new ModuleLoader();
+    final ModuleException thrown = assertThrows(ModuleException.class, () ->
+      loader.loadModules(FirstModule.class, LinkageStartModule.class, SecondModule.class)
+    );
+    final Throwable cause = thrown.getCause();
+    final int failedStops = LinkageStartModule.STOPS.get();
+    final FirstModule first = loader.getModule(FirstModule.class);
+    final int firstStops = first.stops.get();
+    final Collection<MCAVModule> modules = loader.getModules();
+    final List<MCAVModule> expected = List.of(first);
+    assertSame(LinkageStartModule.FAILURE, cause);
+    assertEquals(1, failedStops);
+    assertEquals(0, firstStops);
+    assertEquals(expected, modules);
+    assertThrows(ModuleException.class, () -> loader.getModule(LinkageStartModule.class));
+    assertThrows(ModuleException.class, () -> loader.getModule(SecondModule.class));
+    loader.shutdownModules();
+    final int stoppedAfterShutdown = first.stops.get();
+    final int failedStopsAfterShutdown = LinkageStartModule.STOPS.get();
+    assertEquals(1, stoppedAfterShutdown);
+    assertEquals(1, failedStopsAfterShutdown);
+  }
+
+  @Test
+  void keepsAnAssertionStartFailureAndSuppressesTheCleanupFailure() {
+    AssertionStartAndStopModule.STOPS.set(0);
+    final ModuleLoader loader = new ModuleLoader();
+    final ModuleException thrown = assertThrows(ModuleException.class, () -> loader.loadModules(AssertionStartAndStopModule.class));
+    final Throwable cause = thrown.getCause();
+    final Throwable[] suppressed = thrown.getSuppressed();
+    final int stops = AssertionStartAndStopModule.STOPS.get();
+    final String message = thrown.getMessage();
+    final Collection<MCAVModule> modules = loader.getModules();
+    final boolean empty = modules.isEmpty();
+    assertSame(AssertionStartAndStopModule.START_FAILURE, cause);
+    assertEquals(1, stops);
+    assertEquals(1, suppressed.length);
+    assertSame(AssertionStartAndStopModule.STOP_FAILURE, suppressed[0]);
+    assertEquals("Module asserting module failed to start: startup invariant failed", message);
+    assertTrue(empty);
+  }
+
+  @Test
+  void passesVirtualMachineErrorsOfAStartThroughUnwrapped() {
+    FatalStartModule.STOPS.set(0);
+    final ModuleLoader loader = new ModuleLoader();
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> loader.loadModules(FatalStartModule.class));
+    final int stops = FatalStartModule.STOPS.get();
+    final Collection<MCAVModule> modules = loader.getModules();
+    final boolean empty = modules.isEmpty();
+    assertSame(FatalStartModule.FAILURE, thrown);
+    assertEquals(0, stops, "fatal VM errors propagate without attempting foreign cleanup");
+    assertTrue(empty);
+  }
+
+  @Test
+  void keepsThePrimaryFailureWhenStartAndStopThrowTheSameException() {
+    SameStartAndStopFailureModule.STOPS.set(0);
+    final ModuleLoader loader = new ModuleLoader();
+    final ModuleException thrown = assertThrows(ModuleException.class, () -> loader.loadModules(SameStartAndStopFailureModule.class));
+    final Throwable[] suppressed = thrown.getSuppressed();
+    final int stops = SameStartAndStopFailureModule.STOPS.get();
+    assertSame(SameStartAndStopFailureModule.FAILURE, thrown);
+    assertEquals(1, stops);
+    assertEquals(0, suppressed.length, "a throwable cannot suppress itself");
   }
 
   @Test

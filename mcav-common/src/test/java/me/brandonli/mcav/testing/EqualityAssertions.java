@@ -19,10 +19,11 @@ package me.brandonli.mcav.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.base.Preconditions;
+import java.util.HashMap;
+import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -37,11 +38,10 @@ public final class EqualityAssertions {
   /**
    * Asserts that a value equals itself, that two values are equal in both directions with equal hash codes, that
    * the value equals neither {@code null} nor an unrelated object, and that the value differs from every one of the
-   * different values in both directions and in its hash code.
+   * different values in both directions and remains distinct from them as a hash map key.
    *
-   * <p>Hash codes of unequal values may collide in general, but every different value passed here differs in one
-   * property, so a hash code that mixes all of them apart keeps them apart. An equal hash code would mean the
-   * property is missing from the hash code, which hash-based collections would then ignore.
+   * <p>Unequal values may have equal hash codes, even when only one property differs. Hash maps use equality to
+   * distinguish keys that collide; the contract requires equal hashes only for equal values.
    *
    * @param value           the value under test
    * @param equalValue      a distinct instance that must be equal to the value
@@ -57,7 +57,7 @@ public final class EqualityAssertions {
     assertNotEqualToNullOrUnrelated(value);
     for (final Object differentValue : differentValues) {
       assertDifferentInBothDirections(value, differentValue);
-      assertDifferentHashCodes(value, differentValue);
+      assertDistinctMapKeys(value, equalValue, differentValue);
     }
   }
 
@@ -76,10 +76,16 @@ public final class EqualityAssertions {
     assertEquals(hash, equalHash, "equal values must have equal hash codes");
   }
 
-  private static void assertDifferentHashCodes(final Object value, final Object differentValue) {
-    final int hash = value.hashCode();
-    final int differentHash = differentValue.hashCode();
-    assertNotEquals(hash, differentHash, () -> "the hash code must tell the value and " + differentValue + " apart");
+  private static void assertDistinctMapKeys(final Object value, final Object equalValue, final Object differentValue) {
+    final Map<Object, String> values = new HashMap<>();
+    values.put(value, "original");
+    values.put(differentValue, "different");
+    final int size = values.size();
+    final String original = values.get(equalValue);
+    final String different = values.get(differentValue);
+    assertEquals(2, size, "unequal values remain distinct keys, even if their hashes collide");
+    assertEquals("original", original, "an equal value retrieves the original entry");
+    assertEquals("different", different);
   }
 
   private static void assertNotEqualToNullOrUnrelated(final Object value) {

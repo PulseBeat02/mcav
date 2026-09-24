@@ -137,6 +137,38 @@ final class YTDLPParserImplTest {
   }
 
   @Test
+  void acceptsMoreExtraArgumentsThanItsFixedOptions() throws IOException {
+    final CommandTask task = task(0, "{\"id\":\"many\"}", "");
+    final AtomicReference<String[]> command = new AtomicReference<>();
+    final YTDLPParserImpl parser = parser(task, command);
+    final UriSource source = source();
+    final String[] options = {
+      "--format",
+      "best",
+      "--socket-timeout",
+      "10",
+      "--retries",
+      "2",
+      "--fragment-retries",
+      "2",
+      "--user-agent",
+      "mcav-test",
+      "--no-progress",
+      "--quiet",
+    };
+    final URLParseDump dump = parser.parse(source, options);
+    final String[] actual = command.get();
+    assertNotNull(actual);
+    assertEquals("many", dump.id);
+    assertEquals(21, actual.length);
+    for (int index = 0; index < options.length; index++) {
+      assertEquals(options[index], actual[7 + index]);
+    }
+    assertEquals("--", actual[19]);
+    assertEquals(URL, actual[20]);
+  }
+
+  @Test
   void runsWithoutExtraArguments() throws IOException {
     final CommandTask task = task(0, "{\"id\": \"plain\"}", "");
     final AtomicReference<String[]> command = new AtomicReference<>();

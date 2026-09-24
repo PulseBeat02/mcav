@@ -19,16 +19,13 @@ package me.brandonli.mcav.testing;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
-import me.brandonli.mcav.utils.ffmpeg.FFmpegExecutableProvider;
 
 /**
  * Media files for tests, generated once per test run with the FFmpeg executable bundled with JavaCV, so no binary
@@ -149,17 +146,11 @@ public final class TestMedia {
 
   private static Path generate(final String fileName, final String arguments) {
     final Path output = DIRECTORY.resolve(fileName);
-    final boolean generated = Files.isRegularFile(output);
-    if (generated) {
-      return output;
-    }
-    final List<String> command = createCommand(arguments, output);
-    run(command);
-    return output;
+    return GeneratedMedia.generate(output, temporary -> createCommand(arguments, temporary));
   }
 
   private static List<String> createCommand(final String arguments, final Path output) {
-    final Path executable = FFmpegExecutableProvider.getFFmpegPath();
+    final Path executable = GeneratedMedia.ffmpegPath();
     final String executablePath = executable.toString();
     final String[] argumentArray = arguments.split(ARGUMENT_SEPARATOR);
     final List<String> argumentList = List.of(argumentArray);
@@ -174,26 +165,5 @@ public final class TestMedia {
     command.add("-y");
     command.add(outputPath);
     return command;
-  }
-
-  private static void run(final List<String> command) {
-    final ProcessBuilder builder = new ProcessBuilder(command);
-    builder.redirectErrorStream(true);
-    try {
-      final Process process = builder.start();
-      final InputStream processOutput = process.getInputStream();
-      final byte[] outputBytes = processOutput.readAllBytes();
-      final int exitCode = process.waitFor();
-      if (exitCode != 0) {
-        final String output = new String(outputBytes, StandardCharsets.UTF_8);
-        throw new IllegalStateException("FFmpeg failed with exit code " + exitCode + ": " + output);
-      }
-    } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
-    } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media", exception);
-    }
   }
 }

@@ -44,6 +44,15 @@ final class KeyUtilsTest {
   }
 
   @Test
+  void expandsAdjacentKeyNames() {
+    final String actual = KeyUtils.replaceKeysWithKeyCodes("{ENTER}{TAB}");
+    final String enter = KeyCode.ENTER.asString();
+    final String tab = KeyCode.TAB.asString();
+    final String expected = enter + tab;
+    assertEquals(expected, actual);
+  }
+
+  @Test
   void turnsDoubledBracesIntoOneBrace() {
     final String replaced = KeyUtils.replaceKeysWithKeyCodes("{{ENTER}");
     assertEquals("{ENTER}", replaced);

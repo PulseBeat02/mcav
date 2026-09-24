@@ -18,6 +18,8 @@
 package me.brandonli.mcav;
 
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
+import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -45,47 +47,57 @@ public final class VLCPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCPlayerExample.class);
 
-  static void main() {
-    final MCAVApi api = MCAV.api();
-    api.install();
+  static void main() throws InterruptedException {
+    try (final ExampleResources resources = new ExampleResources()) {
+      final MCAVApi api = MCAV.api();
+      resources.add(api::release);
+      api.install();
+      final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.VLC);
+      final boolean available = ready.join();
+      if (!available) {
+        throw new IllegalStateException("VLC is unavailable");
+      }
 
-    final SwingVideoWindow window = new SwingVideoWindow("VLC Player", 960, 540);
-    final DirectAudioOutput speakers = new DirectAudioOutput();
-    speakers.start();
+      final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", 960, 540);
+      resources.add(window::close);
+      final DirectAudioOutput speakers = new DirectAudioOutput();
+      resources.add(speakers::release);
+      speakers.start();
 
-    final AudioPipelineStepBuilder audioBuilder = PipelineBuilder.audio();
-    audioBuilder.then(speakers);
-    final AudioPipelineStep audioPipeline = audioBuilder.build();
+      final AudioPipelineStepBuilder audioBuilder = PipelineBuilder.audio();
+      audioBuilder.then(speakers);
+      final AudioPipelineStep audioPipeline = audioBuilder.build();
 
-    final VideoFilter display = window.asFilter();
-    final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
-    videoBuilder.then(new FPSFilter());
-    videoBuilder.then(new InvertFilter());
-    videoBuilder.then(new FlipFilter(FlipFilter.FlipDirection.HORIZONTAL));
-    videoBuilder.then(display);
-    final VideoPipelineStep videoPipeline = videoBuilder.build();
+      final VideoFilter display = window.asFilter();
+      final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
+      final FPSFilter frameRate = new FPSFilter();
+      videoBuilder.then(frameRate);
+      final InvertFilter invert = new InvertFilter();
+      videoBuilder.then(invert);
+      final FlipFilter flip = new FlipFilter(FlipFilter.FlipDirection.HORIZONTAL);
+      videoBuilder.then(flip);
+      videoBuilder.then(display);
+      final VideoPipelineStep videoPipeline = videoBuilder.build();
 
-    final VideoPlayerMultiplexer player = VideoPlayer.vlc();
-    player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback failed in {}", context, throwable));
-    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(audioPipeline);
-    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(videoPipeline);
-    final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-    final Dimension dimension = new Dimension(960, 540);
-    dimensionCallback.attach(dimension);
+      final VideoPlayerMultiplexer player = VideoPlayer.vlc();
+      resources.add(player::release);
+      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback failed in {}", context, throwable));
+      final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+      audioCallback.attach(audioPipeline);
+      final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+      videoCallback.attach(videoPipeline);
+      final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
+      final Dimension dimension = new Dimension(960, 540);
+      dimensionCallback.attach(dimension);
 
-    final URI uri = URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov");
-    final UriSource source = UriSource.uri(uri);
-    player.start(source);
+      final URI uri = URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov");
+      final UriSource source = UriSource.uri(uri);
+      final boolean started = player.start(source);
+      if (!started) {
+        throw new IllegalStateException("Playback could not start");
+      }
 
-    final Runtime runtime = Runtime.getRuntime();
-    runtime.addShutdownHook(
-      new Thread(() -> {
-        player.release();
-        speakers.release();
-        api.release();
-      })
-    );
+      window.awaitClosed();
+    }
   }
 }

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.module;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -114,13 +115,14 @@ public final class ModuleLoader {
     try {
       module.start();
     } catch (final ModuleException exception) {
-      stopAfterFailedStart(module, exception);
+      stopAfterFailedStart(module, moduleName, exception);
       throw exception;
-    } catch (final RuntimeException exception) {
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
       final String reason = exception.getMessage();
       final String message = "Module %s failed to start: %s".formatted(moduleName, reason);
       final ModuleException failure = new ModuleException(message, exception);
-      stopAfterFailedStart(module, failure);
+      stopAfterFailedStart(module, moduleName, failure);
       throw failure;
     }
   }
@@ -129,16 +131,18 @@ public final class ModuleLoader {
    * Stops a module whose start failed, so whatever it acquired before failing is released. A failure to stop is
    * logged and attached to the start failure instead of replacing it.
    */
-  private static void stopAfterFailedStart(final MCAVModule module, final ModuleException startFailure) {
+  private static void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
     try {
       module.stop();
     } catch (final RuntimeException | Error stopFailure) {
       // a module is foreign code, so a failed stop must not replace the start failure; only a virtual machine error,
       // which no module can cause or recover from, is too severe to be attached
       ThrowableUtils.throwIfFatal(stopFailure);
-      final String moduleName = module.getModuleName();
       LOGGER.error("Module {} failed to stop after it failed to start", moduleName, stopFailure);
-      startFailure.addSuppressed(stopFailure);
+      final Equivalence<Object> identity = Equivalence.identity();
+      if (!identity.equivalent(stopFailure, startFailure)) {
+        startFailure.addSuppressed(stopFailure);
+      }
     }
   }
 

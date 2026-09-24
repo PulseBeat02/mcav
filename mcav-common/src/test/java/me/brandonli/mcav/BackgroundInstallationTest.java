@@ -165,6 +165,55 @@ final class BackgroundInstallationTest {
   }
 
   @Test
+  void cancellationWaitsForCooperativeCleanupWithinItsBudget() throws Exception {
+    final CountDownLatch started = new CountDownLatch(1);
+    final CountDownLatch interrupted = new CountDownLatch(1);
+    final CountDownLatch finish = new CountDownLatch(1);
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    Mockito.doAnswer(_ -> {
+      started.countDown();
+      try {
+        finish.await();
+      } catch (final InterruptedException expected) {
+        interrupted.countDown();
+        final boolean released = Uninterruptibles.awaitUninterruptibly(finish, WAIT_SECONDS, TimeUnit.SECONDS);
+        assertTrue(released);
+      }
+      return null;
+    })
+      .when(this.dependencies)
+      .installVLC();
+    final BackgroundInstallation installation = new BackgroundInstallation(
+      this.dependencies,
+      this.guard,
+      this.logger,
+      Duration.ofSeconds(5)
+    );
+    installation.start();
+    final boolean working = started.await(WAIT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(working);
+    final Thread cancelling = new Thread(() -> {
+      try {
+        installation.cancel();
+      } finally {
+        cancelled.countDown();
+      }
+    });
+    cancelling.start();
+    try {
+      final boolean receivedInterrupt = interrupted.await(WAIT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(receivedInterrupt);
+      final boolean returnedBeforeCleanup = cancelled.await(100, TimeUnit.MILLISECONDS);
+      assertFalse(returnedBeforeCleanup, "the cancellation budget lets a worker finish cleanup");
+    } finally {
+      finish.countDown();
+      final boolean ended = cancelling.join(Duration.ofSeconds(WAIT_SECONDS));
+      assertTrue(ended);
+      joinAll(installation);
+    }
+  }
+
+  @Test
   void givesUpWaitingForAThreadThatIgnoresTheInterrupt() throws Exception {
     final CountDownLatch vlcStarted = new CountDownLatch(1);
     final CountDownLatch finishVlc = new CountDownLatch(1);
