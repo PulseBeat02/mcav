@@ -1,5 +1,13 @@
+import info.solidsoft.gradle.pitest.PitestPluginExtension
+
 plugins {
     id("maven-publish")
+}
+
+// Each mutation worker may own native Chromium processes; serialize workers to avoid multiplying
+// browser memory and rendering contention. All tests and mutants remain enabled with the default timeouts.
+extensions.configure<PitestPluginExtension> {
+    threads = 1
 }
 
 dependencies {
