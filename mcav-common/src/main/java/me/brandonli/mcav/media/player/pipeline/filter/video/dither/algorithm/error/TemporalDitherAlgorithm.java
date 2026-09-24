@@ -155,8 +155,10 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   public void dither(final int[] buffer, final int width) {
     checkBuffer(buffer, width);
     final int height = buffer.length / width;
+    final byte[] previous = this.getPreviousIndices(buffer.length);
     final byte[] indices = new byte[buffer.length];
-    this.processStrip(buffer, width, 0, height, null, indices);
+    this.processStrip(buffer, width, 0, height, previous, indices);
+    this.remember(indices, previous);
     final DitherPalette palette = this.getPalette();
     final int[] colors = palette.getPalette();
     for (int pixel = 0; pixel < buffer.length; pixel++) {
