@@ -34,6 +34,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.artifact.Artifact;
@@ -83,6 +85,7 @@ final class InstallationManager implements AutoCloseable {
   private static final List<String> CLASSPATH_SCOPES = List.of("compile", "runtime");
   private static final List<String> EXCLUDED_SCOPES = List.of();
   private static final String PART_SUFFIX = ".part";
+  private static final Pattern ARTIFACT_ID = Pattern.compile("(?!\\.{1,2}$)[A-Za-z0-9_.-]+");
   private static final int CONNECT_TIMEOUT_MILLIS = 30_000;
   private static final int REQUEST_TIMEOUT_MILLIS = 120_000;
   private static final int MAX_COPY_THREADS = 8;
@@ -209,9 +212,14 @@ final class InstallationManager implements AutoCloseable {
    * @param artifactId the artifact id
    * @param version    the version
    * @return the copied jars
-   * @throws InstallationException if resolution or copying fails
+   * @throws InstallationException if the artifact id is not a plain Maven id, or resolution or copying fails
    */
   List<Path> downloadDependencies(final String groupId, final String artifactId, final String version) {
+    final Matcher matcher = ARTIFACT_ID.matcher(artifactId);
+    final boolean validId = matcher.matches();
+    if (!validId) {
+      throw new InstallationException("Artifact id must contain only letters, digits, dots, underscores or hyphens: " + artifactId);
+    }
     final Path target = this.folder.resolve(artifactId);
     try {
       Files.createDirectories(target);

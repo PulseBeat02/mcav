@@ -26,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -43,15 +45,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import me.brandonli.mcav.installer.testing.LocalMavenRepository;
+import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.repository.RepositoryPolicy;
 import org.eclipse.aether.resolution.DependencyResolutionException;
+import org.eclipse.aether.supplier.RepositorySystemSupplier;
 import org.eclipse.aether.transfer.ChecksumFailureException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedConstruction;
 
 /**
  * Tests {@link InstallationManager} against a Maven repository on the file system.
@@ -155,6 +163,21 @@ final class InstallationManagerTest {
     try (final InstallationManager manager = this.createManager()) {
       return manager.downloadDependencies(GROUP, artifactId, VERSION);
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "", ".", "..", "../escape", "nested/artifact", "nested\\artifact", "/absolute", "C:\\escape", "white space" })
+  void rejectsUnsafeRootArtifactIdsBeforeCreatingDirectories(final String artifactId) throws IOException {
+    final InstallationException failure = assertThrows(InstallationException.class, () -> this.download(artifactId));
+    final String message = failure.getMessage();
+    assertTrue(message.startsWith("Artifact id must contain only"));
+    try (final Stream<Path> entries = Files.list(this.folder)) {
+      final long count = entries.count();
+      assertEquals(0, count, "invalid coordinates must not create an installation tree");
+    }
+    final Path escaped = this.directory.resolve("escape");
+    final boolean escapedExists = Files.exists(escaped);
+    assertFalse(escapedExists);
   }
 
   private Path publishedJar(final String artifactId) {
@@ -288,6 +311,34 @@ final class InstallationManagerTest {
     final boolean stoppedAfterClose = manager.isStopped();
     assertFalse(stoppedBeforeClose);
     assertTrue(stoppedAfterClose);
+  }
+
+  @Test
+  void closesTheOwnedRepositorySystem() {
+    final RepositorySystemSupplier supplier = new RepositorySystemSupplier();
+    final RepositorySystem system = supplier.get();
+    final AtomicBoolean ended = new AtomicBoolean();
+    system.addOnSystemEndedHandler(() -> ended.set(true));
+    try (
+      final MockedConstruction<RepositorySystemSupplier> suppliers = mockConstruction(RepositorySystemSupplier.class, (replacement, _) ->
+        when(replacement.get()).thenReturn(system)
+      )
+    ) {
+      final InstallationManager manager = this.createManager();
+      try {
+        final boolean endedBefore = ended.get();
+        assertFalse(endedBefore);
+        manager.close();
+        final boolean endedAfter = ended.get();
+        assertTrue(endedAfter, "closing a manager must release its repository system, including registered services");
+        final List<RepositorySystemSupplier> constructed = suppliers.constructed();
+        assertEquals(1, constructed.size());
+      } finally {
+        manager.close();
+      }
+    } finally {
+      system.shutdown();
+    }
   }
 
   @Test

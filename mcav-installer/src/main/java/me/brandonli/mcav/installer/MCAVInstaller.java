@@ -42,6 +42,7 @@ public final class MCAVInstaller {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVInstaller.class);
 
+  private final Logger logger;
   private final Path folder;
   private final ClassLoader classLoader;
   private final Function<Path, InstallationManager> managerFactory;
@@ -59,9 +60,20 @@ public final class MCAVInstaller {
    * @param managerFactory creates a manager for the folder
    */
   MCAVInstaller(final Path folder, final ClassLoader classLoader, final Function<Path, InstallationManager> managerFactory) {
+    this(folder, classLoader, managerFactory, LOGGER);
+  }
+
+  /** Creates an installer with a diagnostic sink, allowing hosts and tests to capture installation timing. */
+  MCAVInstaller(
+    final Path folder,
+    final ClassLoader classLoader,
+    final Function<Path, InstallationManager> managerFactory,
+    final Logger logger
+  ) {
     this.folder = folder;
     this.classLoader = classLoader;
     this.managerFactory = managerFactory;
+    this.logger = logger;
   }
 
   /**
@@ -164,7 +176,7 @@ public final class MCAVInstaller {
     Objects.requireNonNull(loader, "Loader must not be null");
 
     final long start = System.currentTimeMillis();
-    LOGGER.info("Downloading {}:{}:{} and its dependencies...", groupId, artifactId, version);
+    this.logger.info("Downloading {}:{}:{} and its dependencies...", groupId, artifactId, version);
     final List<Path> jars;
     try (final InstallationManager manager = this.managerFactory.apply(this.folder)) {
       jars = manager.downloadDependencies(groupId, artifactId, version);
@@ -174,7 +186,7 @@ public final class MCAVInstaller {
     final long end = System.currentTimeMillis();
     final long elapsed = end - start;
     final int count = jars.size();
-    LOGGER.info("Loaded {} jars for {} in {} ms", count, artifactId, elapsed);
+    this.logger.info("Loaded {} jars for {} in {} ms", count, artifactId, elapsed);
     return jars;
   }
 }

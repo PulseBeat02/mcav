@@ -22,6 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +42,8 @@ import org.eclipse.aether.repository.RemoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
+import org.slf4j.Logger;
 
 /**
  * Tests {@link MCAVInstaller} against a Maven repository on the file system.
@@ -205,6 +211,27 @@ final class MCAVInstallerTest {
     assertThrows(InstallationException.class, () -> installer.loadDependencies("me.test", "missing", "1.0", recording));
     final boolean nothingLoaded = recording.isEmpty();
     assertTrue(nothingLoaded);
+  }
+
+  @Test
+  void reportsElapsedInstallationTimeRatherThanEpochTime() {
+    final ClassLoader classLoader = MCAVInstallerTest.class.getClassLoader();
+    final InstallationManager manager = mock(InstallationManager.class);
+    final Logger logger = mock(Logger.class);
+    final List<Path> downloaded = List.of();
+    when(manager.downloadDependencies("me.test", "helper", "1.0")).thenReturn(downloaded);
+    final MCAVInstaller installer = new MCAVInstaller(this.folder, classLoader, _ -> manager, logger);
+    final RecordingLoader recording = new RecordingLoader();
+    final long before = System.currentTimeMillis();
+    final List<Path> jars = installer.loadDependencies("me.test", "helper", "1.0", recording);
+    final long after = System.currentTimeMillis();
+    final ArgumentCaptor<Long> timing = ArgumentCaptor.forClass(Long.class);
+    verify(logger).info(eq("Loaded {} jars for {} in {} ms"), eq(0), eq("helper"), timing.capture());
+    final long elapsed = timing.getValue();
+    final long total = after - before;
+    assertTrue(elapsed >= 0 && elapsed <= total, "reported duration must fit within the observed call duration");
+    assertSame(downloaded, jars);
+    verify(manager).close();
   }
 
   @Test
