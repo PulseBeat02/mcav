@@ -121,11 +121,99 @@ final class AbstractBrowserPlayerTest {
     player.failure = failure;
     final PlayerException exception = assertThrows(PlayerException.class, () -> player.start(SOURCE));
     final boolean playing = player.isPlaying();
+    final int closed = player.closeCount.get();
     assertSame(failure, exception);
     assertFalse(playing);
+    assertEquals(1, closed, "resources acquired before opening failed must be closed");
     player.failure = null;
     final boolean started = player.start(SOURCE);
     assertTrue(started);
+  }
+
+  @Test
+  void ignoresLateFramesAndFailuresAfterOpeningFails() {
+    final TestPlayer player = this.player();
+    final VideoAttachableCallback callback = player.getVideoAttachableCallback();
+    final Frames frames = Frames.attach(callback);
+    final PlayerException failure = new PlayerException("opening failed");
+    final byte[] jpeg = Frames.jpeg(40, 20, GREEN);
+    player.failure = failure;
+    assertThrows(PlayerException.class, () -> player.start(SOURCE));
+    player.deliverFrame(jpeg, 40, 20);
+    player.fail("late browser callback", failure);
+    final int count = frames.count();
+    final boolean noReports = this.errors.isEmpty();
+    assertEquals(0, count);
+    assertTrue(noReports);
+  }
+
+  @Test
+  void preservesOpeningFailureWhenCleanupAlsoFails() {
+    final TestPlayer player = this.player();
+    final PlayerException failure = new PlayerException("opening failed");
+    final AssertionError cleanup = new AssertionError("cleanup failed");
+    player.failure = failure;
+    player.whileClosing = () -> {
+      throw cleanup;
+    };
+    final PlayerException thrown = assertThrows(PlayerException.class, () -> player.start(SOURCE));
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(failure, thrown);
+    assertArrayEquals(new Throwable[] { cleanup }, suppressed);
+    player.fail("late callback", cleanup);
+    final boolean noReports = this.errors.isEmpty();
+    assertTrue(noReports, "failed cleanup must not leave the player opening");
+    player.failure = null;
+    player.whileClosing = () -> {};
+    final boolean restarted = player.start(SOURCE);
+    assertTrue(restarted);
+    player.release();
+  }
+
+  @Test
+  void doesNotSuppressAnOpeningFailureOntoItself() {
+    final TestPlayer player = this.player();
+    final PlayerException failure = new PlayerException("shared failure");
+    player.failure = failure;
+    player.whileClosing = () -> {
+      throw failure;
+    };
+    final PlayerException thrown = assertThrows(PlayerException.class, () -> player.start(SOURCE));
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(failure, thrown);
+    assertEquals(0, suppressed.length);
+  }
+
+  @Test
+  void propagatesFatalCleanupWithoutLeavingThePlayerOpening() {
+    final TestPlayer player = this.player();
+    final PlayerException failure = new PlayerException("opening failed");
+    final InternalError fatal = new InternalError("fatal cleanup");
+    player.failure = failure;
+    player.whileClosing = () -> {
+      throw fatal;
+    };
+    final InternalError thrown = assertThrows(InternalError.class, () -> player.start(SOURCE));
+    assertSame(fatal, thrown);
+    player.fail("late callback", failure);
+    final boolean noReports = this.errors.isEmpty();
+    assertTrue(noReports);
+  }
+
+  @Test
+  void preservesFatalOpeningFailureWhenCleanupAlsoFails() {
+    final TestPlayer player = this.player();
+    final InternalError fatal = new InternalError("fatal opening");
+    player.whileOpening = _ -> {
+      throw fatal;
+    };
+    player.whileClosing = () -> {
+      throw new InternalError("fatal cleanup must not replace the original fatal error");
+    };
+    final InternalError thrown = assertThrows(InternalError.class, () -> player.start(SOURCE));
+    final int closed = player.closeCount.get();
+    assertSame(fatal, thrown);
+    assertEquals(1, closed);
   }
 
   @Test
@@ -190,7 +278,7 @@ final class AbstractBrowserPlayerTest {
     player.whileOpening = opening -> opening.fail("The browser was lost", crash);
     final boolean started = player.start(SOURCE);
     final boolean playing = player.isPlaying();
-    assertTrue(started);
+    assertFalse(started);
     assertFalse(playing);
     final List<Throwable> expectedErrors = List.of(crash);
     assertEquals(expectedErrors, this.errors);
@@ -239,10 +327,14 @@ final class AbstractBrowserPlayerTest {
     final int[] scaled = player.translateCoordinates(50, 25);
     final int[] clampedHigh = player.translateCoordinates(500, 500);
     final int[] clampedLow = player.translateCoordinates(-5, -5);
+    final int[] extremeHigh = player.translateCoordinates(Integer.MAX_VALUE, Integer.MAX_VALUE);
+    final int[] extremeLow = player.translateCoordinates(Integer.MIN_VALUE, Integer.MIN_VALUE);
     assertArrayEquals(new int[] { 50, 25 }, identity);
     assertArrayEquals(new int[] { 100, 75 }, scaled);
     assertArrayEquals(new int[] { 399, 299 }, clampedHigh);
     assertArrayEquals(new int[] { 0, 0 }, clampedLow);
+    assertArrayEquals(new int[] { 399, 299 }, extremeHigh);
+    assertArrayEquals(new int[] { 0, 0 }, extremeLow);
   }
 
   @Test
@@ -399,6 +491,7 @@ final class AbstractBrowserPlayerTest {
     private final AtomicInteger closeCount = new AtomicInteger();
     private volatile PlayerException failure;
     private volatile Consumer<TestPlayer> whileOpening = _ -> {};
+    private volatile Runnable whileClosing = () -> {};
 
     @Override
     protected void open(final BrowserSource source) {
@@ -413,6 +506,7 @@ final class AbstractBrowserPlayerTest {
     @Override
     protected void close() {
       this.closeCount.incrementAndGet();
+      this.whileClosing.run();
     }
 
     @Override

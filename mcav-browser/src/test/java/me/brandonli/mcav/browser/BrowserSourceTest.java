@@ -20,8 +20,11 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -92,6 +95,18 @@ final class BrowserSourceTest {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 0, 360, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 640, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 640, 360, 0));
+  }
+
+  @Test
+  void avoidsConstantHashingAcrossRepresentativeSources() {
+    final Set<Integer> hashes = new HashSet<>();
+    for (int index = 0; index < 64; index++) {
+      final URI uri = URI.create("https://example.org/page/" + index);
+      final BrowserSource source = BrowserSource.uri(uri);
+      hashes.add(source.hashCode());
+    }
+    final int distinct = hashes.size();
+    assertTrue(distinct > 1, "source collections need useful hashing; individual collisions remain valid");
   }
 
   @Test

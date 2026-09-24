@@ -18,6 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,14 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.openqa.selenium.Dimension;
@@ -59,17 +63,19 @@ import org.openqa.selenium.json.JsonInput;
  * decoded on a capture thread, so a slow pipeline never holds Chrome back. Input is replayed with Selenium actions on
  * an input thread. A monitor follows tabs the page opens and returns to a remaining tab when the followed one closes;
  * when the browser session is lost, as after a crash of Chrome, the player stops playing and can be started again.
+ * The input backlog is bounded; excess input is rejected and reported through the exception handler.
  */
 public final class SeleniumPlayer extends AbstractBrowserPlayer {
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Base64.Decoder BASE64 = Base64.getDecoder();
   private static final long TAB_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(500);
   private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
   private static final String SCREENCAST_FRAME_EVENT = "Page.screencastFrame";
+  private static final int MAX_QUEUED_INPUT = 128;
 
   private final DriverFactory driverFactory;
   private final List<String> arguments;
-  private final AtomicReference<@Nullable ScreencastFrame> latestFrame;
   private final Set<String> knownHandles;
 
   private volatile @Nullable Connection connection;
@@ -92,7 +98,6 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   SeleniumPlayer(final DriverFactory driverFactory, final String... arguments) {
     this.driverFactory = driverFactory;
     this.arguments = ChromeArguments.resolve(arguments);
-    this.latestFrame = new AtomicReference<>();
     this.knownHandles = new HashSet<>();
   }
 
@@ -111,20 +116,48 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   @Override
   protected void open(final BrowserSource source) {
     final ChromeDriver chrome = this.launchChrome();
-    final ExecutorService capture = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcav-browser-capture"));
-    final ExecutorService input = Executors.newSingleThreadExecutor(runnable -> new Thread(runnable, "mcav-browser-input"));
+    final ExecutorService capture = createCaptureExecutor();
+    final ExecutorService input = createInputExecutor();
     final Connection opened = new Connection(chrome, capture, input);
     this.connection = opened;
     try {
       this.navigate(chrome, source);
     } catch (final RuntimeException exception) {
-      // any failure here, not only a WebDriverException, would otherwise leave a live Chrome process and two
-      // executors behind
-      this.close();
+      // The base start boundary closes the partially opened connection and preserves cleanup failures as suppressed.
       final String message = exception.getMessage();
       throw new PlayerException("Failed to open " + source + ": " + message, exception);
     }
     this.startTabMonitor(opened, source);
+  }
+
+  /**
+   * Creates a decoder executor that retains only the newest pending notification while a frame is being delivered.
+   *
+   * @return the capture executor
+   */
+  @VisibleForTesting
+  static ThreadPoolExecutor createCaptureExecutor() {
+    return new ThreadPoolExecutor(
+      1,
+      1,
+      0L,
+      TimeUnit.MILLISECONDS,
+      new ArrayBlockingQueue<>(1),
+      runnable -> new Thread(runnable, "mcav-browser-capture"),
+      new ThreadPoolExecutor.DiscardOldestPolicy()
+    );
+  }
+
+  /**
+   * Creates an input executor with a finite FIFO backlog. The submitting player reports rejected excess input.
+   *
+   * @return the input executor
+   */
+  @VisibleForTesting
+  static ThreadPoolExecutor createInputExecutor() {
+    return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_INPUT), runnable ->
+      new Thread(runnable, "mcav-browser-input")
+    );
   }
 
   private ChromeDriver launchChrome() {
@@ -180,7 +213,8 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
       previous.clearListeners();
     }
     final Event<ScreencastFrame> frameEvent = new Event<>(SCREENCAST_FRAME_EVENT, SeleniumPlayer::readFrame);
-    tools.addListener(frameEvent, frame -> this.onFrame(tools, frame));
+    final Connection owner = Objects.requireNonNull(this.connection, "The browser is connected before its screencast starts");
+    tools.addListener(frameEvent, frame -> this.onFrame(owner, tools, frame));
     // Chrome paints no frames for background tabs, and switching windows does not bring the tab to the front
     final Map<String, Object> noParameters = Map.of();
     final Command<Void> bringToFront = new Command<>("Page.bringToFront", noParameters);
@@ -234,7 +268,7 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     return 0;
   }
 
-  private void onFrame(final DevTools tools, final ScreencastFrame frame) {
+  private void onFrame(final Connection owner, final DevTools tools, final ScreencastFrame frame) {
     // acknowledge first so Chrome keeps sending frames even while a frame is still being decoded
     final int sessionId = frame.getSessionId();
     final Map<String, Object> parameters = Map.of("sessionId", sessionId);
@@ -244,15 +278,17 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     } catch (final WebDriverException exception) {
       return;
     }
-    this.latestFrame.set(frame);
-    final Connection current = this.connection;
-    if (current != null) {
-      current.capture.execute(this::decodeLatestFrame);
+    if (this.connection == owner) {
+      owner.latestFrame.set(frame);
+      owner.capture.execute(() -> this.decodeLatestFrame(owner));
     }
   }
 
-  private void decodeLatestFrame() {
-    final ScreencastFrame frame = this.latestFrame.getAndSet(null);
+  private void decodeLatestFrame(final Connection owner) {
+    if (this.connection != owner) {
+      return;
+    }
+    final ScreencastFrame frame = owner.latestFrame.getAndSet(null);
     if (frame == null) {
       return;
     }
@@ -315,10 +351,10 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   }
 
   /**
-   * Picks the tab to stream: the newest tab the page opened since the last poll, or a remaining tab if the followed
+   * Picks the tab to stream: a tab the page opened since the last poll, or a remaining tab if the followed
    * tab was closed.
    *
-   * @param handles the open tabs, oldest first
+   * @param handles the open tabs in the order returned by WebDriver; chronology is not guaranteed
    * @return the tab to switch to, or null to stay on the followed tab
    */
   private @Nullable String chooseTab(final Set<String> handles) {
@@ -335,8 +371,8 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   /**
    * Remembers the open tabs and forgets the closed ones.
    *
-   * @param handles the open tabs, oldest first
-   * @return the newest tab that was not known before, or null if no tab was opened
+   * @param handles the open tabs in the order returned by WebDriver; chronology is not guaranteed
+   * @return the last previously unknown tab in the supplied order, or null if no tab was opened
    */
   private @Nullable String recordHandles(final Set<String> handles) {
     String opened = null;
@@ -356,9 +392,9 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   /**
    * Picks the tab to return to when the followed tab was closed.
    *
-   * @param handles the open tabs, oldest first
+   * @param handles the open tabs in the order returned by WebDriver; chronology is not guaranteed
    * @param current the followed tab
-   * @return the newest open tab, or null if the followed tab is still open or no tab is left
+   * @return the last tab in the supplied order, or null if the followed tab is still open or no tab is left
    */
   private static @Nullable String findRemainingTab(final Set<String> handles, final String current) {
     final boolean stillOpen = handles.contains(current);
@@ -437,19 +473,31 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
   }
 
   private void submitInput(final Connection current, final Function<Actions, Actions> builder) {
-    current.input.execute(() -> {
-      try {
-        final Actions actions = new Actions(current.driver);
-        final Actions configured = builder.apply(actions);
-        final Action action = configured.build();
-        action.perform();
-      } catch (final WebDriverException exception) {
-        final boolean playing = this.isPlaying();
-        if (playing) {
-          this.report("Failed to forward input to the browser", exception);
-        }
+    try {
+      current.input.execute(() -> this.performInput(current, builder));
+    } catch (final RejectedExecutionException exception) {
+      final boolean active = this.connection == current && this.canForwardInput();
+      if (active) {
+        this.report("Browser input queue is full", exception);
       }
-    });
+    }
+  }
+
+  private void performInput(final Connection current, final Function<Actions, Actions> builder) {
+    if (this.connection != current || !this.canForwardInput()) {
+      return;
+    }
+    try {
+      final Actions actions = new Actions(current.driver);
+      final Actions configured = builder.apply(actions);
+      final Action action = configured.build();
+      action.perform();
+    } catch (final WebDriverException exception) {
+      final boolean active = this.connection == current && this.isPlaying();
+      if (active) {
+        this.report("Failed to forward input to the browser", exception);
+      }
+    }
   }
 
   /**
@@ -461,16 +509,47 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     // the tab monitor stops once the connection is gone, and must be stopped before the DevTools session it uses
     final Connection current = this.connection;
     this.connection = null;
-    this.stopTabMonitor();
-    this.closeDevTools();
-    if (current != null) {
-      ExecutorUtils.shutdownExecutorGracefully(current.input, SHUTDOWN_TIMEOUT);
-      ExecutorUtils.shutdownExecutorGracefully(current.capture, SHUTDOWN_TIMEOUT);
-      this.quitDriver(current.driver);
+    runCleanup(this::stopTabMonitor, this::closeDevTools, () -> closeConnection(current), this::clearKnownHandles);
+  }
+
+  private void closeConnection(final @Nullable Connection current) {
+    if (current == null) {
+      return;
     }
-    this.latestFrame.set(null);
+    runCleanup(
+      () -> ExecutorUtils.shutdownExecutorGracefully(current.input, SHUTDOWN_TIMEOUT),
+      () -> ExecutorUtils.shutdownExecutorGracefully(current.capture, SHUTDOWN_TIMEOUT),
+      () -> this.quitDriver(current.driver),
+      () -> current.latestFrame.set(null)
+    );
+  }
+
+  private void clearKnownHandles() {
     synchronized (this.knownHandles) {
       this.knownHandles.clear();
+    }
+  }
+
+  /** Attempts every owned cleanup even when a resource or user exception handler throws. */
+  private static void runCleanup(final Runnable... actions) {
+    Throwable failure = null;
+    for (final Runnable action : actions) {
+      try {
+        action.run();
+      } catch (final RuntimeException | Error exception) {
+        ThrowableUtils.throwIfFatal(exception);
+        if (failure == null) {
+          failure = exception;
+        } else if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
+          failure.addSuppressed(exception);
+        }
+      }
+    }
+    if (failure instanceof final RuntimeException runtime) {
+      throw runtime;
+    }
+    if (failure instanceof final Error error) {
+      throw error;
     }
   }
 
@@ -501,13 +580,13 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     if (tools == null) {
       return;
     }
+    this.devTools = null;
     try {
-      tools.clearListeners();
-      tools.close();
-    } catch (final RuntimeException exception) {
+      runCleanup(tools::clearListeners, tools::close);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
       this.report("Failed to close the DevTools session", exception);
     }
-    this.devTools = null;
   }
 
   private void quitDriver(final ChromeDriver chrome) {
@@ -541,11 +620,13 @@ public final class SeleniumPlayer extends AbstractBrowserPlayer {
     private final ChromeDriver driver;
     private final ExecutorService capture;
     private final ExecutorService input;
+    private final AtomicReference<@Nullable ScreencastFrame> latestFrame;
 
     Connection(final ChromeDriver driver, final ExecutorService capture, final ExecutorService input) {
       this.driver = driver;
       this.capture = capture;
       this.input = input;
+      this.latestFrame = new AtomicReference<>();
     }
   }
 

@@ -30,6 +30,8 @@ import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link ChromeArguments}.
@@ -137,6 +139,21 @@ final class ChromeArgumentsTest {
     final boolean after = ChromeArguments.isContainer(markers);
     assertFalse(before);
     assertTrue(after);
+  }
+
+  @Test
+  void detectsRootEvenOutsideAContainer() {
+    final Path process = Path.of("/proc/self");
+    try (
+      final MockedStatic<Files> files = Mockito.mockStatic(Files.class);
+      final MockedStatic<OSUtils> os = Mockito.mockStatic(OSUtils.class)
+    ) {
+      os.when(OSUtils::getOS).thenReturn(OS.LINUX);
+      files.when(() -> Files.getAttribute(process, "unix:uid")).thenReturn(0);
+      final List<String> arguments = ChromeArguments.detectPlatformArguments();
+      final List<String> expected = List.of(NO_DEV_SHM, NO_SANDBOX);
+      assertEquals(expected, arguments);
+    }
   }
 
   @Test

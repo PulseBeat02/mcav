@@ -20,14 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.URI;
-import java.net.UnknownHostException;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Optional;
 import me.brandonli.mcav.media.player.PlayerException;
 
@@ -36,11 +29,6 @@ import me.brandonli.mcav.media.player.PlayerException;
  * and a machine without internet access cannot download the browser of Playwright. Each check runs once per test run.
  */
 final class ExternalBrowsers {
-
-  private static final String PLAYWRIGHT_DOWNLOAD_HOST = "cdn.playwright.dev";
-  private static final int HTTPS_PORT = 443;
-  private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
-  private static final URI BLANK_PAGE = URI.create("about:blank");
 
   private static String chromeProblem;
   private static String playwrightProblem;
@@ -98,56 +86,13 @@ final class ExternalBrowsers {
   }
 
   private static String findPlaywrightProblem() {
-    // starting the real player without installing anything shows whether the browser is there and can run
-    final PlaywrightPlayer probe = new PlaywrightPlayer(() -> {}, Duration.ofMinutes(2), Duration.ofSeconds(15));
-    final BrowserSource source = BrowserSource.uri(BLANK_PAGE, 50, 64, 64, 1);
+    // Preparing the cached executable requires no running browser. The class fixture owns the actual launch.
     try {
-      probe.start(source);
+      PlaywrightInstaller.ensureInstalled();
       return "";
     } catch (final PlayerException exception) {
-      final String rawMessage = exception.getMessage();
-      final String message = String.valueOf(rawMessage);
-      final boolean missingBrowser = message.contains("Executable doesn't exist");
-      final boolean missingLibraries = message.contains("missing dependencies");
-      if (missingLibraries) {
-        return "the system libraries Chromium needs are missing: " + message;
-      }
-      if (missingBrowser && !canReachDownloads()) {
-        return "the browser of Playwright is not installed and cannot be downloaded without internet access";
-      }
-      return "";
-    } finally {
-      probe.release();
-    }
-  }
-
-  private static boolean canReachDownloads() {
-    try {
-      final InetAddress[] addresses = InetAddress.getAllByName(PLAYWRIGHT_DOWNLOAD_HOST);
-      return canReachAny(addresses);
-    } catch (final UnknownHostException exception) {
-      return false;
-    }
-  }
-
-  // the host can resolve to IPv4 and IPv6 addresses, of which only some may be reachable from this machine
-  private static boolean canReachAny(final InetAddress[] addresses) {
-    for (final InetAddress address : addresses) {
-      final InetSocketAddress socketAddress = new InetSocketAddress(address, HTTPS_PORT);
-      final boolean reachable = canConnect(socketAddress);
-      if (reachable) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static boolean canConnect(final InetSocketAddress address) {
-    try (final Socket socket = new Socket()) {
-      socket.connect(address, CONNECT_TIMEOUT_MILLIS);
-      return true;
-    } catch (final IOException exception) {
-      return false;
+      final String message = exception.getMessage();
+      return "the browser of Playwright cannot be prepared: " + message;
     }
   }
 }

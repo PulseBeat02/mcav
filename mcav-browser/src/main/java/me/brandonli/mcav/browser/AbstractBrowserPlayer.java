@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -47,6 +48,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class AbstractBrowserPlayer implements BrowserPlayer {
 
   // frames are taken while the page opens, so the first frame of a page that never changes again is not lost
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Set<State> ACTIVE = EnumSet.of(State.OPENING, State.PLAYING);
 
   private final VideoAttachableCallback videoCallback;
@@ -91,7 +93,7 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
    * closed first.
    *
    * @param source the page and the screencast settings
-   * @return true if streaming started, false if the player is already playing or released
+   * @return true if streaming started, false if the player is already playing, released, or fails while opening
    * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be started
    */
   @Override
@@ -105,8 +107,7 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
       }
 
       this.useSource(source);
-      this.openPage(source);
-      return true;
+      return this.openPage(source);
     } finally {
       this.lock.unlock();
     }
@@ -150,11 +151,12 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
   }
 
   /**
-   * Opens the page, leaving the player idle if that fails and playing if it succeeds.
+   * Opens the page, preserving an asynchronous browser failure or leaving the player idle if opening throws.
    *
    * @param source the page and the screencast settings
+   * @return true if opening completed and the player transitioned to playing
    */
-  private void openPage(final BrowserSource source) {
+  private boolean openPage(final BrowserSource source) {
     this.state.set(State.OPENING);
     try {
       this.open(source);
@@ -163,13 +165,22 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
       // missing native driver; the state is reset for every failure, which is rethrown unchanged, so none is hidden.
       // Whatever open() managed to create is closed here: the state goes back to IDLE rather than FAILED, so the
       // next start would not clean it up, and both close() implementations are idempotent.
-      this.close();
       this.state.set(State.IDLE);
+      try {
+        this.close();
+      } catch (final RuntimeException | Error cleanup) {
+        ThrowableUtils.throwIfFatal(exception);
+        ThrowableUtils.throwIfFatal(cleanup);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanup);
+        if (!sameFailure) {
+          exception.addSuppressed(cleanup);
+        }
+      }
       throw exception;
     }
 
     // a browser that failed while the page opened stays failed
-    this.state.compareAndSet(State.OPENING, State.PLAYING);
+    return this.state.compareAndSet(State.OPENING, State.PLAYING);
   }
 
   /**
@@ -277,8 +288,8 @@ public abstract class AbstractBrowserPlayer implements BrowserPlayer {
     final int targetHeight = this.pageHeight;
     final double widthRatio = (double) targetWidth / frameWidth;
     final double heightRatio = (double) targetHeight / frameHeight;
-    final int scaledX = (int) Math.round(x * widthRatio);
-    final int scaledY = (int) Math.round(y * heightRatio);
+    final long scaledX = Math.round(x * widthRatio);
+    final long scaledY = Math.round(y * heightRatio);
     final int maximumX = Math.max(0, targetWidth - 1);
     final int maximumY = Math.max(0, targetHeight - 1);
     final int clampedX = Math.clamp(scaledX, 0, maximumX);

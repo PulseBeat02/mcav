@@ -40,11 +40,14 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -58,6 +61,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * that thread is inside a Playwright call, so one browser thread owns the browser: it runs the queued input and
  * otherwise waits inside Playwright for events. Frames are decoded on a capture thread. Pages the page opens are
  * followed, and when the followed page closes the stream returns to the newest remaining page.
+ * Input has a bounded FIFO backlog, with excess input reported through the exception handler. Each pump handles
+ * only a limited batch before dispatching browser events, so a continuous input producer cannot starve frames.
  *
  * <p>Every start has its own running flag, so a browser thread that outlives a failed start, for example one stuck
  * in a download, never launches a browser for a later start. A start is refused while such a thread is still alive.
@@ -66,13 +71,17 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
 
   private static final Base64.Decoder BASE64 = Base64.getDecoder();
   private static final long PUMP_MILLIS = 5L;
+  private static final int MAX_QUEUED_INPUT = 128;
+  private static final int INPUT_BATCH_SIZE = 16;
   private static final long FRAME_WAIT_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
   private static final Duration START_TIMEOUT = Duration.ofMinutes(30);
   private static final Duration STOP_TIMEOUT = Duration.ofSeconds(15);
 
   private final Runnable installer;
+  private final Supplier<Playwright> playwrightFactory;
   private final Duration startTimeout;
   private final Duration stopTimeout;
+  private final long frameWaitNanos;
   private final List<String> arguments;
   private final AtomicReference<byte@Nullable[]> latestFrame;
   private final AtomicReference<@Nullable Session> currentSession;
@@ -98,6 +107,44 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
    */
   @VisibleForTesting
   PlaywrightPlayer(final Runnable installer, final Duration startTimeout, final Duration stopTimeout, final String... arguments) {
+    this(installer, startTimeout, stopTimeout, PlaywrightPlayer::createPlaywright, arguments);
+  }
+
+  /**
+   * Replaces the owned Playwright connection for tests that lease a class-owned browser. The supplier runs on the
+   * browser thread, and the returned connection is closed on that same thread after all session work ends.
+   *
+   * @param playwrightFactory creates or leases the connection
+   * @param arguments the Chromium arguments
+   */
+  @VisibleForTesting
+  PlaywrightPlayer(final Supplier<Playwright> playwrightFactory, final String... arguments) {
+    this(PlaywrightInstaller::ensureInstalled, START_TIMEOUT, STOP_TIMEOUT, playwrightFactory, arguments);
+  }
+
+  @VisibleForTesting
+  PlaywrightPlayer(
+    final Runnable installer,
+    final Duration startTimeout,
+    final Duration stopTimeout,
+    final Supplier<Playwright> playwrightFactory,
+    final String... arguments
+  ) {
+    this(installer, startTimeout, stopTimeout, playwrightFactory, FRAME_WAIT_NANOS, arguments);
+  }
+
+  /** Replaces the idle poll interval so tests can distinguish notifications from periodic polling. */
+  @VisibleForTesting
+  PlaywrightPlayer(
+    final Runnable installer,
+    final Duration startTimeout,
+    final Duration stopTimeout,
+    final Supplier<Playwright> playwrightFactory,
+    final long frameWaitNanos,
+    final String... arguments
+  ) {
+    this.frameWaitNanos = frameWaitNanos;
+    this.playwrightFactory = playwrightFactory;
     this.installer = installer;
     this.startTimeout = startTimeout;
     this.stopTimeout = stopTimeout;
@@ -178,7 +225,7 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
 
   private void runSession(final BrowserSource source, final CompletableFuture<@Nullable Void> started, final AtomicBoolean token) {
     final Session session = new Session();
-    final BrowserResources resources = new BrowserResources();
+    final BrowserResources resources = new BrowserResources(token);
     try {
       this.installer.run();
       final boolean wanted = token.get();
@@ -200,16 +247,19 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
     } finally {
       // input sent after this point has no browser to go to
       this.currentSession.compareAndSet(session, null);
+      session.stopInput();
+      token.set(false);
+      final Thread capture = this.captureThread;
+      if (capture != null) {
+        LockSupport.unpark(capture);
+      }
       session.detach();
       resources.close();
     }
   }
 
   private void launch(final BrowserSource source, final Session session, final BrowserResources resources, final AtomicBoolean token) {
-    final Map<String, String> environment = PlaywrightInstaller.getEnvironment();
-    final Playwright.CreateOptions createOptions = new Playwright.CreateOptions();
-    createOptions.setEnv(environment);
-    final Playwright playwright = Playwright.create(createOptions);
+    final Playwright playwright = this.playwrightFactory.get();
     resources.setPlaywright(playwright);
     final Browser browser = this.launchChromium(playwright);
     resources.setBrowser(browser);
@@ -220,6 +270,13 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
     page.navigate(resource);
     this.attachScreencast(context, page, source, session, token);
     context.onPage(popup -> this.attachScreencast(context, popup, source, session, token));
+  }
+
+  private static Playwright createPlaywright() {
+    final Map<String, String> environment = PlaywrightInstaller.getEnvironment();
+    final Playwright.CreateOptions createOptions = new Playwright.CreateOptions();
+    createOptions.setEnv(environment);
+    return Playwright.create(createOptions);
   }
 
   private Browser launchChromium(final Playwright playwright) {
@@ -406,7 +463,7 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
     while (token.get()) {
       final byte[] frame = this.latestFrame.getAndSet(null);
       if (frame == null) {
-        LockSupport.parkNanos(FRAME_WAIT_NANOS);
+        LockSupport.parkNanos(this.frameWaitNanos);
         continue;
       }
       this.deliverFrame(frame, 0, 0);
@@ -416,6 +473,9 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
   private void pump(final Session session, final AtomicBoolean token) {
     while (token.get()) {
       session.runQueuedInput();
+      if (!token.get()) {
+        return;
+      }
       final Page attachedPage = session.getPage();
       final Page page = Objects.requireNonNull(attachedPage, "The first page is attached before the pump starts");
       final boolean closed = page.isClosed();
@@ -484,11 +544,18 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
   }
 
   private void submit(final PageAction action, final Session session) {
-    session.queue(() -> {
+    final boolean accepted = session.queue(() -> {
+      if (this.currentSession.get() != session || !this.canForwardInput()) {
+        return;
+      }
       final Page attachedPage = session.getPage();
       final Page page = Objects.requireNonNull(attachedPage, "Input runs after the first page is attached");
       this.runAction(page, action);
     });
+    if (!accepted && this.currentSession.get() == session && this.canForwardInput()) {
+      final RejectedExecutionException rejected = new RejectedExecutionException("The browser input backlog is full");
+      this.report("Browser input queue is full", rejected);
+    }
   }
 
   /**
@@ -604,7 +671,10 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
   protected void close() {
     final AtomicBoolean token = this.running;
     token.set(false);
-    this.currentSession.set(null);
+    final Session session = this.currentSession.getAndSet(null);
+    if (session != null) {
+      session.stopInput();
+    }
     this.stopBrowserThread();
     this.stopCaptureThread();
     this.latestFrame.set(null);
@@ -671,24 +741,41 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
 
     private @Nullable Playwright playwright;
     private @Nullable Browser browser;
+    private final Consumer<Browser> disconnected;
+
+    BrowserResources(final AtomicBoolean token) {
+      this.disconnected = ignored -> {
+        if (token.get()) {
+          throw new PlayerException("The Playwright browser disconnected");
+        }
+      };
+    }
 
     void setPlaywright(final @Nullable Playwright playwright) {
       this.playwright = playwright;
     }
 
-    void setBrowser(final @Nullable Browser browser) {
+    /** Observes browser loss before any synchronous page or CDP request can wait on it. */
+    void setBrowser(final Browser browser) {
       this.browser = browser;
+      browser.onDisconnected(this.disconnected);
     }
 
     void close() {
-      final Browser currentBrowser = this.browser;
-      if (currentBrowser != null) {
-        PlaywrightPlayer.this.closeQuietly(currentBrowser);
-      }
-
-      final Playwright currentPlaywright = this.playwright;
-      if (currentPlaywright != null) {
-        PlaywrightPlayer.this.closeQuietly(currentPlaywright);
+      try {
+        final Browser currentBrowser = this.browser;
+        if (currentBrowser != null) {
+          try {
+            currentBrowser.offDisconnected(this.disconnected);
+          } finally {
+            PlaywrightPlayer.this.closeQuietly(currentBrowser);
+          }
+        }
+      } finally {
+        final Playwright currentPlaywright = this.playwright;
+        if (currentPlaywright != null) {
+          PlaywrightPlayer.this.closeQuietly(currentPlaywright);
+        }
       }
     }
   }
@@ -696,23 +783,30 @@ public final class PlaywrightPlayer extends AbstractBrowserPlayer {
   /**
    * The page that is streamed, its DevTools session, and the input waiting for the browser thread.
    */
-  private static final class Session {
+  @VisibleForTesting
+  static final class Session {
 
     private final LinkedBlockingQueue<Runnable> actions;
     private volatile @Nullable CDPSession devToolsSession;
     private volatile @Nullable Page page;
+    private boolean acceptingInput = true;
 
     Session() {
       // empty until the first page is attached
-      this.actions = new LinkedBlockingQueue<>();
+      this.actions = new LinkedBlockingQueue<>(MAX_QUEUED_INPUT);
     }
 
-    void queue(final Runnable action) {
-      this.actions.offer(action);
+    synchronized boolean queue(final Runnable action) {
+      return this.acceptingInput && this.actions.offer(action);
+    }
+
+    synchronized void stopInput() {
+      this.acceptingInput = false;
+      this.actions.clear();
     }
 
     void runQueuedInput() {
-      while (true) {
+      for (int index = 0; index < INPUT_BATCH_SIZE; index++) {
         final Runnable action = this.actions.poll();
         if (action == null) {
           return;

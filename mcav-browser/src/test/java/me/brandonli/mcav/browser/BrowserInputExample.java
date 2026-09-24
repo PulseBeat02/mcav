@@ -85,7 +85,8 @@ public final class BrowserInputExample {
     builder.then(fpsFilter);
     builder.then((samples, _) -> {
       show(label, samples);
-      return true;
+      // Displaying or recording the frame leaves its pixels unchanged.
+      return false;
     });
     return builder.build();
   }

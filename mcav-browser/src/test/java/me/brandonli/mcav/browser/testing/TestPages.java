@@ -38,7 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Web pages on the loopback interface for browser tests.
  *
  * <p>{@code /main} is red, {@code /popup} is blue and {@code /second} is green, so the streamed frames show which
- * page is on screen. The pages report their mouse and keyboard events back to the server, where tests read them.
+ * page is on screen. Each page reports its mouse and keyboard events serially, preserving DOM event order in the
+ * server's arrival log. Different pages remain independent. A popup waits for its final report before closing.
  * Pressing {@code o} on the main page opens the popup, and pressing {@code x} on the popup closes it. Pressing
  * {@code n} on the popup opens the second page and closes the popup a second later; pressing {@code w} on the
  * second page closes it 300 milliseconds later.
@@ -66,10 +67,8 @@ public final class TestPages implements AutoCloseable {
     """
     <script>
       const page = document.body.dataset.page;
-      const closeLater = delay => setTimeout(() => {
-        fetch('/event?page=' + page + '&type=closing', { keepalive: true });
-        window.close();
-      }, delay);
+      // Serialize transport as well as DOM observation: independent fetches can arrive out of order.
+      let reports = Promise.resolve();
       const report = (type, event) => {
         const parameters = new URLSearchParams({
           page: page,
@@ -79,8 +78,18 @@ public final class TestPages implements AutoCloseable {
           button: String(event.button || 0),
           key: event.key || ''
         });
-        fetch('/event?' + parameters.toString(), { keepalive: true });
+        const address = '/event?' + parameters.toString();
+        reports = reports.then(async () => {
+          const response = await fetch(address, { keepalive: true });
+          if (!response.ok) {
+            throw new Error('Event reporting failed with HTTP ' + response.status);
+          }
+        }).catch(error => console.error('TestPages event reporting failed', page, type, error));
+        return reports;
       };
+      const closeLater = delay => setTimeout(() => {
+        report('closing', {}).then(() => window.close());
+      }, delay);
       for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
         document.addEventListener(type, event => report(type, event));
       }
@@ -89,7 +98,7 @@ public final class TestPages implements AutoCloseable {
         report('contextmenu', event);
       });
       document.addEventListener('keydown', event => {
-        report('keydown', event);
+        const reported = report('keydown', event);
         if (page === 'main' && event.key === 'o') {
           window.open('/popup', '_blank');
         }
@@ -101,7 +110,7 @@ public final class TestPages implements AutoCloseable {
           closeLater(300);
         }
         if (page === 'popup' && event.key === 'x') {
-          window.close();
+          reported.then(() => window.close());
         }
       });
       report('size', { clientX: window.innerWidth, clientY: window.innerHeight });

@@ -214,6 +214,12 @@ final class PlaywrightInstaller {
      * @throws PlayerException if the installation fails
      */
     synchronized void ensure() {
+      this.ensure(LOGGER);
+    }
+
+    /** Installs once and reports elapsed time through the supplied diagnostic sink. */
+    @VisibleForTesting
+    synchronized void ensure(final Logger logger) {
       if (this.installed) {
         return;
       }
@@ -222,7 +228,7 @@ final class PlaywrightInstaller {
       this.installed = true;
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
-      LOGGER.info("Playwright {} ready in {} ms", BROWSER, elapsed);
+      logger.info("Playwright {} ready in {} ms", BROWSER, elapsed);
     }
   }
 }

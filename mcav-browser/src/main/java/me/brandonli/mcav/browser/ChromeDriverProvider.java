@@ -71,6 +71,12 @@ final class ChromeDriverProvider {
    * @throws PlayerException if the driver can neither be resolved nor be found in the cache
    */
   static void prepare() {
+    prepare(LOGGER);
+  }
+
+  /** Resolves the driver while reporting its preparation time to the supplied diagnostic sink. */
+  @VisibleForTesting
+  static void prepare(final Logger logger) {
     synchronized (LOCK) {
       if (prepared) {
         return;
@@ -84,7 +90,7 @@ final class ChromeDriverProvider {
       prepared = true;
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
-      LOGGER.info("ChromeDriver ready in {} ms", elapsed);
+      logger.info("ChromeDriver ready in {} ms", elapsed);
     }
   }
 

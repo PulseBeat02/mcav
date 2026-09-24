@@ -106,12 +106,14 @@ public final class Frames {
     final int width = image.getWidth();
     final int height = image.getHeight();
     final int[] pixels = image.getPixels();
-    final int center = pixels[pixels.length / 2] & 0xFFFFFF;
+    final int centerIndex = (height / 2) * width + width / 2;
+    final int center = pixels[centerIndex] & 0xFFFFFF;
     final int metadataWidth = metadata.getVideoWidth();
     final int metadataHeight = metadata.getVideoHeight();
     final Frame frame = new Frame(width, height, center, metadataWidth, metadataHeight);
     this.frames.add(frame);
-    return true;
+    // The recorder only reads the input image.
+    return false;
   }
 
   /**
@@ -212,7 +214,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the color of the center pixel.
+     * Gets the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
      *
      * @return the color as packed RGB
      */

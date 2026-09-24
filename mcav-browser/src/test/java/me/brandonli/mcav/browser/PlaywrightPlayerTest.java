@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -70,15 +71,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.opentest4j.AssertionFailedError;
 
 /**
  * Tests {@link PlaywrightPlayer}.
  *
- * <p>Most tests drive the headless Chromium of Playwright against pages on the loopback interface; they are skipped
- * where the browser is neither installed nor downloadable. Start failures replace the installation step, and the
- * parsing of screencast events is tested with prepared JSON.
+ * <p>Fast tests use controlled transports and prepared events. The focused real-browser test classes compose this
+ * fixture to exercise browser input and process lifecycle against pages on the loopback interface.
  */
+@Execution(ExecutionMode.SAME_THREAD)
+@ExtendWith(SharedBrowserCache.class)
 final class PlaywrightPlayerTest {
 
   private static final int WIDTH = 480;
@@ -90,9 +95,13 @@ final class PlaywrightPlayerTest {
   private final List<String> errorMessages = new CopyOnWriteArrayList<>();
   private final List<Throwable> errors = new CopyOnWriteArrayList<>();
   private TestPages pages;
+  private @Nullable SharedPlaywright sharedBrowser;
 
   @BeforeEach
   void startPages() {
+    this.players.clear();
+    this.errorMessages.clear();
+    this.errors.clear();
     this.pages = TestPages.start();
   }
 
@@ -115,6 +124,11 @@ final class PlaywrightPlayerTest {
   }
 
   private PlaywrightPlayer player() {
+    final SharedPlaywright shared = this.sharedBrowser;
+    if (shared != null) {
+      final PlaywrightPlayer player = new PlaywrightPlayer(shared::lease);
+      return this.track(player);
+    }
     ExternalBrowsers.assumePlaywrightBrowser();
     return this.unstartedPlayer();
   }
@@ -260,9 +274,11 @@ final class PlaywrightPlayerTest {
 
   private static void killProcesses(final String... names) {
     final List<ProcessHandle> matching = browserProcesses(names);
+    assertFalse(matching.isEmpty(), "the crash fixture must find live owned browser processes");
     for (final ProcessHandle handle : matching) {
       handle.destroyForcibly();
     }
+    Await.until("the targeted browser processes exit", () -> matching.stream().noneMatch(ProcessHandle::isAlive));
   }
 
   private static List<ProcessHandle> processesStartedAfter(final Instant start) {
@@ -333,7 +349,6 @@ final class PlaywrightPlayerTest {
     };
   }
 
-  @Test
   void streamsThePageAndFollowsPopupsThePageOpensAndCloses() {
     final PlaywrightPlayer player = this.player();
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
@@ -362,7 +377,6 @@ final class PlaywrightPlayerTest {
     assertTrue(noErrors, this.errorMessages::toString);
   }
 
-  @Test
   void forwardsEveryKindOfMouseInput() {
     final PlaywrightPlayer player = this.player();
     final BrowserSource source = this.page("/main");
@@ -391,7 +405,6 @@ final class PlaywrightPlayerTest {
     assertEquals(0, releaseButton);
   }
 
-  @Test
   void pressesNamedKeysAndTypesText() {
     final PlaywrightPlayer player = this.player();
     final BrowserSource source = this.page("/main");
@@ -410,7 +423,6 @@ final class PlaywrightPlayerTest {
     assertEquals(expectedNames, names);
   }
 
-  @Test
   void ignoresInputWhileThePageIsStillLoading() {
     final PlaywrightPlayer player = this.player();
     final CountDownLatch hookRan = new CountDownLatch(1);
@@ -433,7 +445,6 @@ final class PlaywrightPlayerTest {
     assertEquals(0, clicks);
   }
 
-  @Test
   void staysOnTheFollowedPageWhenABackgroundPageClosesAndReturnsWhenItClosesItself() {
     final PlaywrightPlayer player = this.player();
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
@@ -499,7 +510,6 @@ final class PlaywrightPlayerTest {
     assertTrue(noReports, this.errorMessages::toString);
   }
 
-  @Test
   void failsWhenThePageCannotBeOpened() throws IOException {
     final int port;
     final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
@@ -517,43 +527,98 @@ final class PlaywrightPlayerTest {
     assertFalse(playing);
   }
 
-  @Test
   void reportsTheLossOfThePlaywrightDriver() {
     final PlaywrightPlayer player = this.player();
     final BrowserSource source = this.page("/main");
-    player.start(source);
+    final boolean started = player.start(source);
+    assertTrue(started, "the crash fixture must first start a working browser: " + this.errorMessages);
     killProcesses("node", "headless");
     Await.until("the failure is reported", () -> this.errorMessages.contains("The Playwright browser failed"));
     final boolean playing = player.isPlaying();
     assertFalse(playing);
   }
 
-  @Test
   void stopsPlayingWhenTheBrowserCrashesAndCanStartAgain() {
-    final PlaywrightPlayer player = this.player();
+    ExternalBrowsers.assumePlaywrightBrowser();
+    final OwnedPlaywright browser = new OwnedPlaywright();
+    final PlaywrightPlayer created = new PlaywrightPlayer(browser::create);
+    final PlaywrightPlayer player = this.track(created);
     final BrowserSource source = this.page("/main");
-    player.start(source);
-    killProcesses("headless");
-    Await.until("the failure is reported", () -> this.errorMessages.contains("The Playwright browser failed"));
-    final boolean playingAfterCrash = player.isPlaying();
-    player.sendKeyEvent("a");
-    player.moveMouse(1, 1);
-    player.sendMouseEvent(MouseClick.LEFT, 1, 1);
-    final boolean inputFailures = this.errorMessages.contains("Failed to forward input to the browser");
-    assertFalse(playingAfterCrash);
-    assertFalse(inputFailures, this.errorMessages::toString);
+    String phase = "initial start";
+    try {
+      final boolean started = player.start(source);
+      assertTrue(started, "the crash fixture must first start a working browser");
+      phase = "input before the crash";
+      player.sendKeyEvent("q");
+      this.awaitEvent("the original browser receives input", "main", "keydown", "q");
 
-    final boolean restarted = player.start(source);
-    final boolean playing = player.isPlaying();
-    assertTrue(restarted);
-    assertTrue(playing);
-    player.sendKeyEvent("r");
-    this.awaitEvent("the new browser receives input", "main", "keydown", "r");
-    final boolean released = player.release();
-    assertTrue(released);
+      phase = "terminate the exact owned browser process";
+      final ProcessHandle process = browser.process();
+      final boolean alive = process.isAlive();
+      assertTrue(alive, "the browser selected by CDP must still be alive before the crash");
+      final boolean terminationRequested = process.destroyForcibly();
+      assertTrue(terminationRequested, "the operating system must accept the crash request");
+      this.awaitOrDump("the owned browser process exits", () -> !process.isAlive());
+      phase = "failure notification";
+      this.awaitOrDump("the failure is reported", () -> this.errorMessages.contains("The Playwright browser failed"));
+      final boolean playingAfterCrash = player.isPlaying();
+      player.sendKeyEvent("a");
+      player.moveMouse(1, 1);
+      player.sendMouseEvent(MouseClick.LEFT, 1, 1);
+      final boolean inputFailures = this.errorMessages.contains("Failed to forward input to the browser");
+      assertFalse(playingAfterCrash);
+      assertFalse(inputFailures, this.errorMessages::toString);
+
+      phase = "restart after the crash";
+      final boolean restarted = player.start(source);
+      final boolean playing = player.isPlaying();
+      assertTrue(restarted);
+      assertTrue(playing);
+      phase = "input after restart";
+      player.sendKeyEvent("r");
+      this.awaitEvent("the new browser receives input", "main", "keydown", "r");
+      phase = "release after restart";
+      final boolean released = player.release();
+      assertTrue(released);
+    } catch (final RuntimeException | AssertionError failure) {
+      final String processes = browser.describeProcess();
+      final String threads = describeBrowserThreads();
+      final String traces = this.describeErrors();
+      final String diagnostics =
+        "Playwright crash fixture failed during " +
+        phase +
+        "; " +
+        processes +
+        "; messages " +
+        this.errorMessages +
+        "; errors " +
+        traces +
+        "; browser threads " +
+        threads;
+      System.err.println(diagnostics);
+      throw new AssertionError(diagnostics, failure);
+    }
   }
 
-  @Test
+  private static String describeBrowserThreads() {
+    final StringBuilder result = new StringBuilder();
+    final Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+    for (final Map.Entry<Thread, StackTraceElement[]> entry : threads.entrySet()) {
+      final Thread thread = entry.getKey();
+      final String name = thread.getName();
+      if (!name.startsWith("mcav-playwright")) {
+        continue;
+      }
+      final Thread.State state = thread.getState();
+      result.append(name).append(' ').append(state).append('\n');
+      final StackTraceElement[] stack = entry.getValue();
+      for (final StackTraceElement frame : stack) {
+        result.append("  ").append(frame).append('\n');
+      }
+    }
+    return result.toString();
+  }
+
   void closesTheBrowserOnReleaseAndDropsLaterInput() {
     final PlaywrightPlayer player = this.player();
     final BrowserSource source = this.page("/main");
@@ -714,8 +779,17 @@ final class PlaywrightPlayerTest {
 
   @Test
   void keepsTheInterruptWhenInterruptedWhileStarting() {
-    final IllegalStateException failure = new IllegalStateException("not installed");
-    final Runnable installer = failingInstaller(failure);
+    // Keep the future incomplete: CompletableFuture.get may report an already completed failure
+    // before checking the caller's interrupt. The test must actually reach its waiting path.
+    final Runnable installer = () -> {
+      final CountDownLatch waiting = new CountDownLatch(1);
+      try {
+        waiting.await();
+      } catch (final InterruptedException exception) {
+        final Thread installing = Thread.currentThread();
+        installing.interrupt();
+      }
+    };
     final PlaywrightPlayer player = this.playerWithInstaller(installer, INSTALL_TIMEOUT);
     final BrowserSource source = this.page("/main");
     final Thread current = Thread.currentThread();
@@ -817,5 +891,17 @@ final class PlaywrightPlayerTest {
     assertEquals("Failed to close Playwright", message);
     assertSame(failure, error);
     assertEquals(1, count);
+  }
+
+  void openSharedBrowser() {
+    this.sharedBrowser = SharedBrowserCache.playwright();
+  }
+
+  void closeSharedBrowser() {
+    final SharedPlaywright shared = this.sharedBrowser;
+    this.sharedBrowser = null;
+    if (shared != null) {
+      SharedBrowserCache.finishedPlaywright(shared);
+    }
   }
 }
