@@ -511,6 +511,145 @@ final class SVCFilterImplTest {
   }
 
   @Test
+  void releaseAttemptsEveryResourceAndPreservesCleanupFailures() {
+    final SVCFilter filter = SVCFilter.svc("alice", "bob");
+    filter.start();
+    final short[] input = constant(FRAME_SAMPLES + 10, 4);
+    this.feed(filter, input);
+    final IllegalStateException stopping = new IllegalStateException("player stop failed");
+    final UnsatisfiedLinkError closing = new UnsatisfiedLinkError("encoder close failed");
+    final IllegalArgumentException later = new IllegalArgumentException("second player stop failed");
+    final AudioPlayer alice = this.players.get(0);
+    final AudioPlayer bob = this.players.get(1);
+    final OpusEncoder aliceEncoder = this.encoders.get(0);
+    final Stubber failedStop = Mockito.doThrow(stopping);
+    final AudioPlayer stubbedAlice = failedStop.when(alice);
+    stubbedAlice.stopPlaying();
+    final Stubber failedClose = Mockito.doThrow(closing);
+    final OpusEncoder stubbedEncoder = failedClose.when(aliceEncoder);
+    stubbedEncoder.close();
+    final Stubber laterStop = Mockito.doThrow(later);
+    final AudioPlayer stubbedBob = laterStop.when(bob);
+    stubbedBob.stopPlaying();
+
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, filter::release);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    final Throwable[] expected = { closing, later };
+    final int queued = filter.getQueuedFrames();
+    final short[] silence = new short[FRAME_SAMPLES];
+    final short[] aliceAfterRelease = this.nextFrameOf(0);
+    final short[] bobAfterRelease = this.nextFrameOf(1);
+    assertSame(stopping, thrown);
+    assertArrayEquals(expected, suppressed);
+    assertEquals(0, queued);
+    assertArrayEquals(silence, aliceAfterRelease);
+    assertArrayEquals(silence, bobAfterRelease);
+    this.assertEverySpeakerStopped();
+    filter.release();
+    final VerificationMode once = Mockito.times(1);
+    final AudioPlayer checkedAlice = Mockito.verify(alice, once);
+    checkedAlice.stopPlaying();
+
+    filter.start();
+    final short[] almostAFrame = constant(FRAME_SAMPLES - 1, 8);
+    this.feed(filter, almostAFrame);
+    final int queuedAfterRestart = filter.getQueuedFrames();
+    assertEquals(0, queuedAfterRestart, "failed cleanup must also discard the previous partial frame");
+    filter.release();
+  }
+
+  @Test
+  void preservesTheStartFailureWhenRollingBackSpeakersAlsoFails() {
+    this.failingEntity = "bob";
+    this.failingStep = "createEncoder";
+    final IllegalArgumentException cleanupFailure = new IllegalArgumentException("stop failed");
+    final Stubber playerCreation = Mockito.doAnswer(invocation -> {
+      final AudioPlayer player = this.createPlayer(invocation);
+      final Stubber failedStop = Mockito.doThrow(cleanupFailure);
+      final AudioPlayer stubbedPlayer = failedStop.when(player);
+      stubbedPlayer.stopPlaying();
+      return player;
+    });
+    final VoicechatServerApi stubbedApi = playerCreation.when(this.api);
+    stubbedApi.createAudioPlayer(
+      ArgumentMatchers.any(AudioChannel.class),
+      ArgumentMatchers.any(OpusEncoder.class),
+      ArgumentMatchers.<Supplier<short[]>>any()
+    );
+    final SVCFilter filter = SVCFilter.svc("alice", "bob");
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, filter::start);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    final Throwable[] expected = { cleanupFailure };
+    assertSame(this.failure, thrown);
+    assertArrayEquals(expected, suppressed);
+    this.assertEverySpeakerStopped();
+    filter.release();
+  }
+
+  @Test
+  void neverSuppressesACleanupExceptionOntoItself() {
+    final SVCFilter filter = SVCFilter.svc("alice", "bob");
+    filter.start();
+    final IllegalStateException sharedFailure = new IllegalStateException("shared cleanup failure");
+    for (final AudioPlayer player : this.players) {
+      final Stubber failedStop = Mockito.doThrow(sharedFailure);
+      final AudioPlayer stubbedPlayer = failedStop.when(player);
+      stubbedPlayer.stopPlaying();
+    }
+    for (final OpusEncoder encoder : this.encoders) {
+      final Stubber failedClose = Mockito.doThrow(sharedFailure);
+      final OpusEncoder stubbedEncoder = failedClose.when(encoder);
+      stubbedEncoder.close();
+    }
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, filter::release);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(sharedFailure, thrown);
+    assertEquals(0, suppressed.length);
+    this.assertEverySpeakerStopped();
+    filter.release();
+  }
+
+  @Test
+  void rethrowsTheFirstRecoverableCleanupErrorAfterStoppingEverySpeaker() {
+    final SVCFilter filter = SVCFilter.svc("alice", "bob");
+    filter.start();
+    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError("native encoder cleanup failed");
+    final OpusEncoder first = this.encoders.getFirst();
+    final Stubber failedClose = Mockito.doThrow(failure);
+    final OpusEncoder stubbedEncoder = failedClose.when(first);
+    stubbedEncoder.close();
+    final UnsatisfiedLinkError thrown = assertThrows(UnsatisfiedLinkError.class, filter::release);
+    assertSame(failure, thrown);
+    this.assertEverySpeakerStopped();
+    assertEquals(0, filter.getQueuedFrames());
+    filter.release();
+    final VerificationMode once = Mockito.times(1);
+    final OpusEncoder checked = Mockito.verify(first, once);
+    checked.close();
+  }
+
+  @Test
+  void propagatesFatalCleanupErrorsWithoutAttemptingMoreThirdPartyCalls() {
+    final SVCFilter filter = SVCFilter.svc("alice", "bob");
+    filter.start();
+    final InternalError fatal = new InternalError("the VM cannot continue cleanup");
+    final AudioPlayer first = this.players.get(0);
+    final AudioPlayer second = this.players.get(1);
+    final Stubber failedStop = Mockito.doThrow(fatal);
+    final AudioPlayer stubbedPlayer = failedStop.when(first);
+    stubbedPlayer.stopPlaying();
+    final InternalError thrown = assertThrows(InternalError.class, filter::release);
+    assertSame(fatal, thrown);
+    final VerificationMode never = Mockito.never();
+    final AudioPlayer checkedSecond = Mockito.verify(second, never);
+    checkedSecond.stopPlaying();
+    for (final OpusEncoder encoder : this.encoders) {
+      final OpusEncoder checkedEncoder = Mockito.verify(encoder, never);
+      checkedEncoder.close();
+    }
+  }
+
+  @Test
   void restartingCreatesNewSpeakersAndForgetsThePartialFrame() {
     final SVCFilter filter = SVCFilter.svc("alice");
     filter.start();

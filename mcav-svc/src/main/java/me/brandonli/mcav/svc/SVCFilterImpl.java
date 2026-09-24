@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.svc;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import de.maxhenkel.voicechat.api.Entity;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
@@ -34,6 +35,7 @@ import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.audio.MonoDownmixer;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The default {@link SVCFilter}.
@@ -100,7 +102,7 @@ public final class SVCFilterImpl implements SVCFilter {
       // the speakers that already play are stopped for any recoverable failure, so a later start does not add them a
       // second time, and the failure is rethrown unchanged
       ThrowableUtils.throwIfFatal(exception);
-      this.stopSpeakers();
+      this.stopSpeakers(exception);
       throw exception;
     }
 
@@ -134,7 +136,7 @@ public final class SVCFilterImpl implements SVCFilter {
       // creating or starting the player runs third-party code that can fail with a LinkageError as well; the speaker
       // is not listed yet, so its encoder and player are released here before the failure is rethrown unchanged
       ThrowableUtils.throwIfFatal(exception);
-      speaker.stop();
+      speaker.stop(exception);
       throw exception;
     }
     return speaker;
@@ -147,15 +149,49 @@ public final class SVCFilterImpl implements SVCFilter {
   @Override
   public synchronized void release() {
     this.running = false;
-    this.stopSpeakers();
     this.partialLength = 0;
+    final Throwable failure = this.stopSpeakers(null);
+    if (failure instanceof final RuntimeException exception) {
+      throw exception;
+    }
+    if (failure instanceof final Error error) {
+      throw error;
+    }
   }
 
-  private void stopSpeakers() {
-    for (final Speaker speaker : this.speakers) {
-      speaker.stop();
-    }
+  private @Nullable Throwable stopSpeakers(final @Nullable Throwable initialFailure) {
+    final List<Speaker> stopped = new ArrayList<>(this.speakers);
     this.speakers.clear();
+    Throwable failure = initialFailure;
+    for (final Speaker speaker : stopped) {
+      failure = speaker.stop(failure);
+    }
+    return failure;
+  }
+
+  /**
+   * Attempts an independent cleanup, preserving the first recoverable failure and suppressing later ones.
+   *
+   * @param previous the earlier failure, if any
+   * @param cleanup the cleanup to attempt
+   * @return the first failure, or null if every cleanup has succeeded
+   */
+  private static @Nullable Throwable cleanup(final @Nullable Throwable previous, final Runnable cleanup) {
+    try {
+      cleanup.run();
+      return previous;
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      if (previous == null) {
+        return exception;
+      }
+      final Equivalence<Object> identity = Equivalence.identity();
+      final boolean same = identity.equivalent(previous, exception);
+      if (!same) {
+        previous.addSuppressed(exception);
+      }
+      return previous;
+    }
   }
 
   /**
@@ -269,15 +305,16 @@ public final class SVCFilterImpl implements SVCFilter {
     }
 
     // the player is missing when voice chat failed to create it
-    void stop() {
-      final AudioPlayer current = this.player;
-      if (current != null) {
-        current.stopPlaying();
-      }
-      this.encoder.close();
+    @Nullable Throwable stop(final @Nullable Throwable initialFailure) {
       synchronized (this.frames) {
         this.frames.clear();
       }
+      Throwable failure = initialFailure;
+      final AudioPlayer current = this.player;
+      if (current != null) {
+        failure = cleanup(failure, current::stopPlaying);
+      }
+      return cleanup(failure, this.encoder::close);
     }
   }
 }
