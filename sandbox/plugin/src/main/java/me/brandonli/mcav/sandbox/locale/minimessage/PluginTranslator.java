@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import net.kyori.adventure.key.Key;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The translator of the plugin: renders MiniMessage messages read from the message file of the configured
@@ -52,12 +53,12 @@ public final class PluginTranslator extends MiniMessageTranslator {
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for, which is ignored because the plugin serves one language
-   * @return the message text
-   * @throws java.util.MissingResourceException if the bundle has no message with the key
+   * @return the message text, or null when the bundle has no message with the key
    */
   @Override
-  protected String getMiniMessageString(final String key, final Locale locale) {
-    return this.bundle.getString(key);
+  protected @Nullable String getMiniMessageString(final String key, final Locale locale) {
+    final boolean known = this.bundle.containsKey(key);
+    return known ? this.bundle.getString(key) : null;
   }
 
   /**

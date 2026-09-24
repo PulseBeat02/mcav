@@ -33,7 +33,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The methods do not look the message up right away: they return a small builder whose {@code build} method renders
  * the message, with its arguments, each time it is sent. The message text is MiniMessage, such as
  * {@code <gold>Image loaded!</gold>}, and arguments appear in it as {@code <arg:0>}, {@code <arg:1>} and so on, or as
- * the special placeholder {@code $URL$} inside click events.
+ * the special placeholder {@code $URL$} in text and {@code open_url} click targets. Other tag parameters do
+ * not support this placeholder; see {@link me.brandonli.mcav.sandbox.locale.minimessage.MiniMessageTranslator}.
  */
 public interface LocaleTools {
   /**

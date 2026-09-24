@@ -20,15 +20,16 @@ package me.brandonli.mcav.sandbox.locale.minimessage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import me.brandonli.mcav.sandbox.testing.Components;
@@ -39,6 +40,7 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -56,6 +58,7 @@ final class PluginTranslatorTest {
     plain=Plain text
     colored=<red>Hello <arg:0>, you are <arg:1></red>
     link=Open $URL$ now
+    rich=Hello <red>world</red>
     """;
 
   private PluginTranslator translator;
@@ -69,6 +72,7 @@ final class PluginTranslatorTest {
 
   private String render(final TranslatableComponent component) {
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
+    assertNotNull(rendered);
     return Components.plain(rendered);
   }
 
@@ -116,14 +120,34 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void failsForUnknownKeys() {
+  void keepsParsedChildrenOriginalSuffixAndFallbackStyle() {
+    final TranslatableComponent base = Component.translatable("rich");
+    final TranslatableComponent blue = base.color(NamedTextColor.BLUE);
+    final TranslatableComponent bold = blue.decorate(TextDecoration.BOLD);
+    final TextComponent suffix = Component.text("!");
+    final TranslatableComponent component = bold.append(suffix);
+    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
+    assertNotNull(rendered);
+    final TextComponent expectedStart = Component.text("Hello ", NamedTextColor.BLUE);
+    final TextComponent expectedStyled = expectedStart.decorate(TextDecoration.BOLD);
+    final TextComponent redWord = Component.text("world", NamedTextColor.RED);
+    final Component expected = expectedStyled.append(redWord, suffix);
+    final String text = Components.plain(rendered);
+    assertEquals("Hello world!", text);
+    assertEquals(expected, rendered, "translation styling overrides fallback while original children remain appended");
+  }
+
+  @Test
+  void declinesUnknownKeys() {
     final TranslatableComponent component = Component.translatable("missing");
-    assertThrows(MissingResourceException.class, () -> this.translator.translate(component, Locale.ENGLISH));
+    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
+    assertNull(rendered);
   }
 
   @Test
   void doesNotTranslateToMessageFormats() {
-    assertThrows(UnsupportedOperationException.class, () -> this.translator.translate("plain", Locale.ENGLISH));
+    final MessageFormat rendered = this.translator.translate("plain", Locale.ENGLISH);
+    assertNull(rendered);
   }
 
   @Test

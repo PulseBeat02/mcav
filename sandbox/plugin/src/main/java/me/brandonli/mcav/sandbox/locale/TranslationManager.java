@@ -29,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -131,7 +132,12 @@ public final class TranslationManager {
    */
   public Component render(final TranslatableComponent component) {
     Preconditions.checkNotNull(component, "Component must not be null");
-    return this.translator.translate(component, DEFAULT_LOCALE);
+    final Component rendered = this.translator.translate(component, DEFAULT_LOCALE);
+    if (rendered == null) {
+      final String key = component.key();
+      throw new MissingResourceException("No configured translation for " + key, PluginTranslator.class.getName(), key);
+    }
+    return rendered;
   }
 
   /**
