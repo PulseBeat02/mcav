@@ -18,10 +18,13 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -36,11 +39,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.Polling;
 import me.brandonli.mcav.media.source.Source;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 import uk.co.caprica.vlcj.player.base.ControlsApi;
 import uk.co.caprica.vlcj.player.base.StatusApi;
@@ -120,6 +125,20 @@ final class VLCPlaybackTest {
     VLCPlayback.correctDrift(controls, drift, 10_000L);
     verify(controls).setTime(10_000L);
     verify(controls).setRate(1.0f);
+  }
+
+  @Test
+  void fatalSecondaryFailuresEscapeWithoutBeingSuppressed() {
+    final IllegalStateException primary = new IllegalStateException("recoverable failure");
+    final OutOfMemoryError fatal = new OutOfMemoryError("cleanup exhausted memory");
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
+      VLCPlayback.attemptAfterFailure(primary, () -> {
+        throw fatal;
+      })
+    );
+    final Throwable[] suppressed = primary.getSuppressed();
+    assertSame(fatal, thrown);
+    assertEquals(0, suppressed.length);
   }
 
   @Test
@@ -207,6 +226,85 @@ final class VLCPlaybackTest {
     assertEquals(1, referencesWhilePlaying);
     assertEquals(0, referencesAfterStop);
     awaitNoPlaybackThreads();
+  }
+
+  static Stream<Throwable> recoverableStopFailures() {
+    return Stream.of(
+      new IllegalStateException("stop failed"),
+      new UnsatisfiedLinkError("native stop missing"),
+      new AssertionError("stop assertion")
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("recoverableStopFailures")
+  void stopCompletesCleanupAfterRecoverableFailures(final Throwable failure) throws InterruptedException {
+    final VLCPlayback playback = VLCPlayback.create(this.owner, this.video, this.audio);
+    final boolean started = playback.start();
+    final MockVlc.Player first = this.vlc.player(0);
+    final ControlsApi controls = first.getControls();
+    final EmbeddedMediaPlayer firstPlayer = first.getPlayer();
+    final IllegalStateException releaseFailure = new IllegalStateException("release failed");
+    doThrow(failure).when(controls).stop();
+    doThrow(releaseFailure).when(firstPlayer).release();
+
+    final Class<? extends Throwable> failureType = failure.getClass();
+    final Throwable thrown = assertThrows(failureType, playback::stop);
+    assertSame(failure, thrown);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertEquals(1, suppressed.length);
+    assertSame(releaseFailure, suppressed[0]);
+    playback.stop();
+
+    final List<MockVlc.Player> players = this.vlc.getPlayers();
+    for (final MockVlc.Player player : players) {
+      final EmbeddedMediaPlayer mediaPlayer = player.getPlayer();
+      final ControlsApi playerControls = player.getControls();
+      verify(playerControls, times(1)).stop();
+      verify(mediaPlayer, times(1)).release();
+    }
+    final SharedMediaPlayerFactory shared = this.vlc.getSharedFactory();
+    final int references = shared.getReferences();
+    assertTrue(started);
+    assertEquals(0, references);
+    awaitNoPlaybackThreads();
+  }
+
+  @Test
+  void stopDoesNotSuppressTheSameFailureOntoItself() {
+    final VLCPlayback playback = VLCPlayback.create(this.owner, this.video, this.audio);
+    final MockVlc.Player first = this.vlc.player(0);
+    final ControlsApi controls = first.getControls();
+    final EmbeddedMediaPlayer firstPlayer = first.getPlayer();
+    final IllegalStateException failure = new IllegalStateException("same native failure");
+    doThrow(failure).when(controls).stop();
+    doThrow(failure).when(firstPlayer).release();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, playback::stop);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(failure, thrown);
+    assertEquals(0, suppressed.length);
+    final SharedMediaPlayerFactory shared = this.vlc.getSharedFactory();
+    final int references = shared.getReferences();
+    assertEquals(0, references);
+  }
+
+  @Test
+  void stopPropagatesFatalVmErrorsImmediately() {
+    final VLCPlayback playback = VLCPlayback.create(this.owner, this.video, this.audio);
+    final ControlsApi controls = this.videoControls();
+    final OutOfMemoryError failure = new OutOfMemoryError("fatal native allocation");
+    doThrow(failure).when(controls).stop();
+    final SharedMediaPlayerFactory shared = this.vlc.getSharedFactory();
+    try {
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, playback::stop);
+      assertSame(failure, thrown);
+      final MockVlc.Player second = this.vlc.player(1);
+      final EmbeddedMediaPlayer secondPlayer = second.getPlayer();
+      verify(secondPlayer, never()).release();
+    } finally {
+      // No render threads were started; balance this test's mocked factory reference after the fatal-path check.
+      shared.release();
+    }
   }
 
   @Test

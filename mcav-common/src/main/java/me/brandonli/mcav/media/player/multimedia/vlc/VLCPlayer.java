@@ -18,9 +18,11 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,6 +35,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -57,6 +60,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private static final long OPEN_TIMEOUT_MILLIS = 5_000L;
+  private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
   private final SharedMediaPlayerFactory sharedFactory;
   private final long openTimeoutMillis;
@@ -69,6 +73,21 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   private volatile BiConsumer<String, Throwable> exceptionHandler;
   private @Nullable VLCPlayback playback;
+  private @Nullable StartTransition pending;
+
+  /** One candidate and its previous playback; all access to claimed is guarded by the player lock. */
+  private static final class StartTransition {
+
+    private @Nullable VLCPlayback created;
+    private @Nullable VLCPlayback previous;
+    private boolean claimed;
+  }
+
+  private enum OpenResult {
+    CANCELLED,
+    FAILED,
+    STARTED,
+  }
 
   /**
    * Constructs a new VLC player. Create instances with
@@ -121,8 +140,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * opened the media. The current playback keeps playing if VLC cannot even be set up for the new source.
    *
    * @param combined the source
-   * @return true if playback started, false if the player is released or the source cannot be opened, which is
-   * reported to the exception handler
+   * @return true if playback started; false if the player is released, another start is in progress, or the source
+   * cannot be opened. Source failures are reported to the exception handler.
    */
   @Override
   public boolean start(final Source combined) {
@@ -137,8 +156,8 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback started, false if the player is released or a source cannot be opened, which is
-   * reported to the exception handler
+   * @return true if playback started; false if the player is released, another start is in progress, or a source
+   * cannot be opened. Source failures are reported to the exception handler.
    */
   @Override
   public boolean start(final Source video, final Source audio) {
@@ -152,49 +171,165 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   }
 
   private boolean startPlayback(final Source video, final @Nullable Source audio) {
-    this.lock.lock();
+    final StartTransition transition = new StartTransition();
     try {
-      if (this.released.get()) {
+      if (!this.prepareCandidate(transition, video, audio)) {
         return false;
       }
-      return this.startNewPlayback(video, audio);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      VLCPlayback.attemptAfterFailure(exception, () -> this.cleanFailedPreparation(transition));
+      return this.reportFailedStart(video, exception);
+    }
+    try {
+      final VLCPlayback previous = transition.previous;
+      if (previous != null) {
+        previous.stop();
+      }
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      if (this.claimCandidate(transition)) {
+        VLCPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
+      }
+      throw exception;
+    }
+    return this.startReservedPlayback(transition, video);
+  }
+
+  /**
+   * Reserves ownership before foreign acquisition code can reenter the player. Reservation and acquisition share
+   * one lock scope; no empty, unclaimed reservation is ever visible to release. The replacement acquires the shared
+   * VLC engine before the previous playback is detached.
+   */
+  private boolean prepareCandidate(final StartTransition transition, final Source video, final @Nullable Source audio) {
+    this.lock.lock();
+    try {
+      if (this.released.get() || this.pending != null) {
+        return false;
+      }
+      transition.previous = this.playback;
+      transition.claimed = true;
+      this.pending = transition;
+      transition.created = VLCPlayback.create(this, video, audio);
+      this.playback = null;
+      transition.claimed = false;
+      return true;
     } finally {
       this.lock.unlock();
     }
   }
 
-  private boolean startNewPlayback(final Source video, final @Nullable Source audio) {
-    final VLCPlayback created;
+  /** A failed acquisition keeps the old playback unless a reentrant release cancelled it. */
+  private void cleanFailedPreparation(final StartTransition transition) {
+    this.lock.lock();
     try {
-      created = VLCPlayback.create(this, video, audio);
-    } catch (final RuntimeException | LinkageError exception) {
-      // VLC throws linkage errors when its native libraries are missing
-      this.reportStartFailure(video, exception);
-      return false;
+      if (!this.released.get()) {
+        this.pending = null;
+        return;
+      }
+    } finally {
+      this.lock.unlock();
     }
-    // the new playback holds the shared VLC instance before the old one lets go of it, so restarting keeps the
-    // instance instead of shutting it down and loading it again
-    this.stopPlayback();
-    return this.startCreatedPlayback(created, video);
+    try {
+      final VLCPlayback previous = transition.previous;
+      if (previous != null) {
+        previous.stop();
+      }
+    } finally {
+      this.clearReservation();
+    }
   }
 
-  private boolean startCreatedPlayback(final VLCPlayback created, final Source video) {
+  /** Claims a candidate for failed-transition cleanup only if release has not taken its ownership. */
+  private boolean claimCandidate(final StartTransition transition) {
+    this.lock.lock();
     try {
-      final boolean started = created.start();
-      if (started) {
-        this.playback = created;
-        return true;
+      if (!IDENTITY.equivalent(this.pending, transition)) {
+        return false;
       }
-    } catch (final RuntimeException exception) {
-      this.reportStartFailure(video, exception);
+      transition.claimed = true;
+      return true;
+    } finally {
+      this.lock.unlock();
     }
-    created.stop();
+  }
+
+  private boolean startReservedPlayback(final StartTransition transition, final Source video) {
+    final OpenResult result;
+    try {
+      result = this.openCandidate(transition);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      VLCPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
+      return this.reportFailedStart(video, exception);
+    }
+    if (result == OpenResult.FAILED) {
+      this.cleanCandidate(transition);
+    }
+    return result == OpenResult.STARTED;
+  }
+
+  /** Serializes native open with release; no renderer joins or failure cleanup run under this lock. */
+  private OpenResult openCandidate(final StartTransition transition) {
+    this.lock.lock();
+    try {
+      if (!IDENTITY.equivalent(this.pending, transition)) {
+        return OpenResult.CANCELLED;
+      }
+      transition.claimed = true;
+      if (this.released.get()) {
+        return OpenResult.FAILED;
+      }
+      final VLCPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate");
+      final boolean started = created.start();
+      if (started && !this.released.get()) {
+        this.playback = created;
+        this.pending = null;
+        return OpenResult.STARTED;
+      }
+      return OpenResult.FAILED;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /** Retains the reservation during cleanup so another start cannot overtake unfinished renderer shutdown. */
+  private void cleanCandidate(final StartTransition transition) {
+    try {
+      final VLCPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate");
+      created.stop();
+    } finally {
+      this.clearReservation();
+    }
+  }
+
+  /** Only the owner of a claimed candidate calls this; release and competing starts leave that reservation intact. */
+  private void clearReservation() {
+    this.lock.lock();
+    try {
+      this.pending = null;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private boolean reportFailedStart(final Source video, final Throwable exception) {
+    ThrowableUtils.throwIfFatal(exception);
+    final boolean reported = this.reportStartFailure(video, exception);
+    if (!reported) {
+      if (exception instanceof RuntimeException runtime) {
+        throw runtime;
+      }
+      throw (Error) exception;
+    }
     return false;
   }
 
-  private void reportStartFailure(final Source video, final Throwable exception) {
-    final String resource = video.getResource();
-    this.exceptionHandler.accept("Failed to start VLC playback of " + resource, exception);
+  private boolean reportStartFailure(final Source video, final Throwable exception) {
+    return VLCPlayback.attemptAfterFailure(exception, () -> {
+      final String resource = video.getResource();
+      this.exceptionHandler.accept("Failed to start VLC playback of " + resource, exception);
+    });
   }
 
   /**
@@ -257,33 +392,40 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
   }
 
   /**
-   * Stops playback and releases the VLC resources of the player. No pipeline runs after this method returns, unless
-   * it is called from a pipeline. A released player cannot be started again.
+   * Stops playback and releases the VLC resources of the player. Render threads are interrupted and each is awaited
+   * for up to five seconds without holding the player lock. A pipeline may release its own player without waiting
+   * for itself; a callback that ignores interruption may outlive the wait. A pending replacement is cancelled.
+   * If a start already owns native opening or failure cleanup, it finishes that cleanup when it unwinds; it cannot
+   * publish playback after release. A released player cannot be started again.
    *
    * @return true if the player was released, false if it had already been released
    */
   @Override
   public boolean release() {
+    final VLCPlayback current;
     this.lock.lock();
     try {
       final boolean first = this.released.compareAndSet(false, true);
       if (!first) {
         return false;
       }
-      this.stopPlayback();
-      return true;
+      final StartTransition transition = this.pending;
+      if (transition == null) {
+        current = this.playback;
+      } else if (transition.claimed) {
+        current = null;
+      } else {
+        current = Objects.requireNonNull(transition.created, "An unclaimed transition owns a prepared candidate");
+        this.pending = null;
+      }
+      this.playback = null;
     } finally {
       this.lock.unlock();
     }
-  }
-
-  private void stopPlayback() {
-    final VLCPlayback current = this.playback;
-    if (current == null) {
-      return;
+    if (current != null) {
+      current.stop();
     }
-    this.playback = null;
-    current.stop();
+    return true;
   }
 
   /**

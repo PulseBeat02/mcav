@@ -34,15 +34,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.Polling;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -163,6 +166,27 @@ final class ImagePlayerTest {
     final VideoFilter checking = checkingFramesAndFailingOnce(times, consumed);
     attach(player, checking);
     return player;
+  }
+
+  @Test
+  void releaseInvalidatesTheLastDeliveredFrame() throws Exception {
+    final ImagePlayer player = ImagePlayer.player();
+    final BlockingQueue<ImageBuffer> delivered = new LinkedBlockingQueue<>();
+    attach(player, (image, _) -> {
+      delivered.offer(image);
+      return false;
+    });
+    final FrameSource source = solidFrames(2, 2, 30.0f);
+    try {
+      final boolean started = player.start(source);
+      assertTrue(started);
+      final ImageBuffer image = delivered.poll(5L, TimeUnit.SECONDS);
+      assertNotNull(image);
+      player.release();
+      assertThrows(IllegalStateException.class, image::getPixels);
+    } finally {
+      player.release();
+    }
   }
 
   @Test

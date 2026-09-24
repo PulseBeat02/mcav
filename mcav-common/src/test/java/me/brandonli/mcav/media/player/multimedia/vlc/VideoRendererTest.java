@@ -43,6 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.Polling;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -280,6 +281,9 @@ final class VideoRendererTest {
     this.renderer.start();
     this.display(1, 1, RED);
     assertNoFrame(this.frames);
+    this.renderer.stop();
+    final boolean reportedNothing = this.errors.isEmpty();
+    assertTrue(reportedNothing, "an unknown size is dropped before allocating an invalid image");
   }
 
   @Test
@@ -339,6 +343,53 @@ final class VideoRendererTest {
     awaitSize(rendered, 3);
     final List<Integer> expected = List.of(RED, WHITE, GREEN);
     assertEquals(expected, rendered, "only the newest of the frames that queued up is rendered");
+  }
+
+  @Test
+  void resumingAnAlreadyRunningRendererKeepsItsQueuedFrame() throws Exception {
+    final CountDownLatch rendering = new CountDownLatch(1);
+    final CountDownLatch proceed = new CountDownLatch(1);
+    final List<Integer> rendered = Collections.synchronizedList(new ArrayList<>());
+    this.attachBlockingRecorder(rendered, rendering, proceed);
+    this.renderer.createBufferFormat(1, 1, 1, 1);
+    this.renderer.start();
+    this.display(1, 1, RED);
+    final boolean blocked = rendering.await(5, TimeUnit.SECONDS);
+    assertTrue(blocked);
+    try {
+      this.display(1, 1, GREEN);
+      this.renderer.setPaused(false);
+    } finally {
+      proceed.countDown();
+    }
+    awaitSize(rendered, 2);
+    final List<Integer> expected = List.of(RED, GREEN);
+    assertEquals(expected, rendered);
+  }
+
+  @Test
+  void replacementNeverRecyclesAnArrayStillQueuedForRendering() throws Exception {
+    final CountDownLatch rendering = new CountDownLatch(1);
+    final CountDownLatch proceed = new CountDownLatch(1);
+    final List<Integer> rendered = Collections.synchronizedList(new ArrayList<>());
+    this.attachBlockingRecorder(rendered, rendering, proceed);
+    this.renderer.createBufferFormat(1, 1, 1, 1);
+    this.renderer.start();
+    this.display(1, 1, RED);
+    final boolean blocked = rendering.await(5, TimeUnit.SECONDS);
+    assertTrue(blocked);
+    try {
+      this.display(1, 1, GREEN);
+      this.display(1, 1, BLUE);
+      this.display(1, 1, WHITE);
+      final int[] spare = this.renderer.acquirePixels(1);
+      spare[0] = GREEN;
+    } finally {
+      proceed.countDown();
+    }
+    awaitSize(rendered, 2);
+    final List<Integer> expected = List.of(RED, WHITE);
+    assertEquals(expected, rendered, "a spare array must not alias the newest queued picture");
   }
 
   @Test
@@ -406,6 +457,30 @@ final class VideoRendererTest {
       third.countDown();
       return false;
     };
+  }
+
+  @Test
+  void fatalFilterFailuresEscapeWithoutBeingReported() throws Exception {
+    final OutOfMemoryError failure = new OutOfMemoryError("filter exhausted memory");
+    final AtomicReference<Throwable> uncaught = new AtomicReference<>();
+    final CountDownLatch escaped = new CountDownLatch(1);
+    this.attach((_, _) -> {
+        final Thread worker = Thread.currentThread();
+        worker.setUncaughtExceptionHandler((_, thrown) -> {
+          uncaught.set(thrown);
+          escaped.countDown();
+        });
+        throw failure;
+      });
+    this.renderer.createBufferFormat(1, 1, 1, 1);
+    this.renderer.start();
+    this.display(1, 1, RED);
+    final boolean ended = escaped.await(5L, TimeUnit.SECONDS);
+    final Throwable observed = uncaught.get();
+    final boolean reportedNothing = this.errors.isEmpty();
+    assertTrue(ended);
+    assertSame(failure, observed);
+    assertTrue(reportedNothing, "fatal VM failures must not be converted to ordinary filter reports");
   }
 
   @Test

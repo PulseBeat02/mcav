@@ -163,6 +163,54 @@ final class VideoFrameCopierTest {
   }
 
   @Test
+  void averagesAllSourcePixelsWhenShrinkingEitherAxis() {
+    for (final boolean horizontal : new boolean[] { true, false }) {
+      final int width = horizontal ? 3 : 1;
+      final int height = horizontal ? 1 : 3;
+      try (final Frame frame = new Frame(width, height, Frame.DEPTH_UBYTE, 3)) {
+        final ByteBuffer data = (ByteBuffer) frame.image[0];
+        for (int index = 0; index < data.capacity(); index++) {
+          data.put(index, (byte) 0);
+        }
+        final int middle = horizontal ? 3 : frame.imageStride;
+        data.put(middle, (byte) 90);
+        this.attachSize(1, 1);
+        try (final MatImageBuffer image = this.copier.copy(frame)) {
+          final int[] actual = image.getPixels();
+          assertArrayEquals(new int[] { 0xFF00001E }, actual);
+        }
+      }
+    }
+  }
+
+  @Test
+  void interpolatesGrowingFramesAndRefreshesTheReusedPixelCache() {
+    for (final boolean horizontal : new boolean[] { true, false }) {
+      final int width = horizontal ? 2 : 1;
+      final int height = horizontal ? 1 : 2;
+      try (final Frame frame = new Frame(width, height, Frame.DEPTH_UBYTE, 3)) {
+        final ByteBuffer data = (ByteBuffer) frame.image[0];
+        for (int index = 0; index < data.capacity(); index++) {
+          data.put(index, (byte) 0);
+        }
+        final int secondPixel = horizontal ? 3 : frame.imageStride;
+        data.put(secondPixel, (byte) 80);
+        this.attachSize(horizontal ? 4 : 1, horizontal ? 1 : 4);
+        final MatImageBuffer first = this.copier.copy(frame);
+        final int[] actual = first.getPixels();
+        assertArrayEquals(new int[] { 0xFF000000, 0xFF000014, 0xFF00003C, 0xFF000050 }, actual);
+        this.pool.recycle(first);
+        data.put(secondPixel, (byte) 0);
+        try (final MatImageBuffer second = this.copier.copy(frame)) {
+          final int[] refreshed = second.getPixels();
+          assertSame(first, second);
+          assertArrayEquals(new int[] { 0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000 }, refreshed);
+        }
+      }
+    }
+  }
+
+  @Test
   void shrinksFramesThatDoNotHaveTheAttachedSize() {
     this.attachSize(2, 1);
     final Frame frame = solidFrame(4, (byte) 0x30, (byte) 0x20, (byte) 0x10);
@@ -270,6 +318,29 @@ final class VideoFrameCopierTest {
     assertThrows(RuntimeException.class, () -> this.copier.copy(broken));
     final int unusedAfter = this.pool.getUnusedCount();
     assertEquals(1, unusedAfter, "a frame that cannot be copied must not cost the pool one of its images");
+  }
+
+  @Test
+  void scalesExactlyPackedNativeRowsWithoutAllocatingAnUnscaledCopy() {
+    this.attachSize(1, 1);
+    try (final Frame frame = new Frame()) {
+      frame.imageWidth = 2;
+      frame.imageHeight = 2;
+      frame.imageDepth = Frame.DEPTH_UBYTE;
+      frame.imageChannels = 3;
+      frame.imageStride = 6;
+      final ByteBuffer pixels = ByteBuffer.allocateDirect(12);
+      for (int index = 0; index < 12; index++) {
+        pixels.put(index, (byte) 32);
+      }
+      frame.image = new Buffer[] { pixels };
+      try (final MatImageBuffer image = this.copier.copy(frame)) {
+        final int[] actual = image.getPixels();
+        final boolean extraCopy = this.copier.hasUnscaledCopy();
+        assertArrayEquals(new int[] { 0xFF202020 }, actual);
+        assertFalse(extraCopy, "a valid native plane with exact row and capacity bounds scales directly");
+      }
+    }
   }
 
   @Test

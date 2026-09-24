@@ -124,31 +124,37 @@ public final class ImagePlayerImpl implements ImagePlayer {
   }
 
   /**
-   * Stops playback and releases the player. The frame thread is woken up and awaited for up to two seconds; a
-   * released player cannot be started again.
+   * Stops playback and releases the player. An external caller interrupts and awaits the frame thread for up to
+   * two seconds, without holding the player lock. A pipeline can release its own player without waiting for itself.
+   * A callback that ignores interruption may outlive the wait; a released player cannot be started again.
    *
    * @return true if the player was released, false if it was already released
    */
   @Override
   public boolean release() {
+    final Thread worker;
     this.lock.lock();
     try {
       final boolean first = this.released.compareAndSet(false, true);
       if (!first) {
         return false;
       }
-
       this.playing.set(false);
-      final Thread worker = this.thread;
-      if (worker != null) {
-        LockSupport.unpark(worker);
-        this.join(worker);
-        this.thread = null;
-      }
-      return true;
+      worker = this.thread;
+      this.thread = null;
     } finally {
       this.lock.unlock();
     }
+    if (worker != null) {
+      LockSupport.unpark(worker);
+      final Thread caller = Thread.currentThread();
+      final boolean self = caller.equals(worker);
+      if (!self) {
+        worker.interrupt();
+        this.join(worker);
+      }
+    }
+    return true;
   }
 
   private void join(final Thread worker) {

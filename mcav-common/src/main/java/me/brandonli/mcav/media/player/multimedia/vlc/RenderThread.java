@@ -28,8 +28,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The renderers of {@link VLCPlayer} hand work from VLC's threads to render threads, so VLC's threads never wait
  * for a pipeline. A step that throws a runtime exception is reported to the failure handler and the loop goes on
  * with the next step, so one broken frame does not end the playback; errors such as running out of memory are not
- * caught. Stopping ends the loop after the current step and waits for the thread to exit, so no step runs after
- * {@link #stop()} returns, unless {@link #stop()} is called from the render thread itself.
+ * caught. Stopping interrupts the current step and waits up to five seconds for the thread to exit. A step that
+ * ignores interruption can outlive that wait; a render thread never waits for itself.
  */
 final class RenderThread {
 
@@ -84,7 +84,7 @@ final class RenderThread {
   }
 
   /**
-   * Checks whether the thread has been started and not stopped yet.
+   * Checks whether the thread is still accepting work; every loop exit clears this state.
    *
    * @return true if the thread accepts work
    */
@@ -135,6 +135,7 @@ final class RenderThread {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     } finally {
+      running.set(false);
       cleanup.run();
     }
   }

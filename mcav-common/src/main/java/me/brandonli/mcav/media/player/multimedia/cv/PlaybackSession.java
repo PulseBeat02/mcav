@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -71,6 +73,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Sessions cannot be restarted; seeking or resuming after a stop creates a new session.
  */
 final class PlaybackSession {
+
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+  private static final long END_OFFER_TIMEOUT_MILLIS = 50L;
 
   private static final int VIDEO_QUEUE_CAPACITY = 4;
   private static final int IMAGE_POOL_CAPACITY = VIDEO_QUEUE_CAPACITY + 2;
@@ -201,9 +206,27 @@ final class PlaybackSession {
    */
   void open() throws FrameGrabber.Exception {
     final FrameGrabber grabber = this.videoGrabberFactory.create();
-    final long length = grabber.getLengthInTime();
-    this.seekable = length > 0;
-    this.videoGrabber = grabber;
+    try {
+      final long length = grabber.getLengthInTime();
+      this.seekable = length > 0;
+      this.videoGrabber = grabber;
+    } catch (final RuntimeException | Error failure) {
+      ThrowableUtils.throwIfFatal(failure);
+      closeAfterFailedOpen(grabber, failure);
+      throw failure;
+    }
+  }
+
+  private static void closeAfterFailedOpen(final FrameGrabber grabber, final Throwable failure) {
+    try {
+      grabber.close();
+    } catch (final FrameGrabber.Exception | RuntimeException | Error cleanup) {
+      ThrowableUtils.throwIfFatal(cleanup);
+      final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, cleanup);
+      if (!sameFailure) {
+        failure.addSuppressed(cleanup);
+      }
+    }
   }
 
   /**
@@ -256,9 +279,14 @@ final class PlaybackSession {
     final FrameGrabber grabber;
     try {
       grabber = factory.create();
-    } catch (final FrameGrabber.Exception exception) {
-      this.report("Failed to start the audio source", exception);
-      signalEnd(this.audioQueue, END_OF_AUDIO);
+    } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
+      try {
+        ThrowableUtils.throwIfFatal(exception);
+        this.report("Failed to start the audio source", exception);
+      } finally {
+        // No audio decoder exists on this path. Only stop() can have queued a marker already, so no wait is needed.
+        this.audioQueue.offer(END_OF_AUDIO);
+      }
       return;
     }
     this.decode(grabber, false, true);
@@ -276,16 +304,35 @@ final class PlaybackSession {
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-    } catch (final RuntimeException exception) {
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
       this.report("Unexpected error while decoding media", exception);
     } finally {
+      this.finishDecoding(grabber, wantVideo, wantAudio);
+    }
+  }
+
+  /** Closes the decoder without allowing failed native cleanup to strand either consumer. */
+  private void finishDecoding(final FrameGrabber grabber, final boolean wantVideo, final boolean wantAudio) {
+    try {
       closeQuietly(grabber);
+    } finally {
+      this.finishDecodedStreams(wantVideo, wantAudio);
+    }
+  }
+
+  /** Releases the copier before signalling termination, including when that release fails. */
+  private void finishDecodedStreams(final boolean wantVideo, final boolean wantAudio) {
+    try {
       if (wantVideo) {
         this.frameCopier.release();
-        signalEnd(this.videoQueue, END_OF_VIDEO);
+      }
+    } finally {
+      if (wantVideo) {
+        this.signalEnd(this.videoQueue, END_OF_VIDEO);
       }
       if (wantAudio) {
-        signalEnd(this.audioQueue, END_OF_AUDIO);
+        this.signalEnd(this.audioQueue, END_OF_AUDIO);
       }
     }
   }
@@ -431,15 +478,29 @@ final class PlaybackSession {
   }
 
   /**
-   * Tells the renderer of a queue that no more media follows. When the session is stopping the put is interrupted,
-   * which is fine, because stopping hands every renderer its end marker itself.
+   * Tells the renderer of a queue that no more media follows. An unexpected decoder or handler interrupt must not
+   * lose this marker. Once stopping begins, stop() supplies the markers and this bounded wait ends instead of
+   * waiting for a renderer that may already have exited. The decoder's interrupt status is preserved.
    */
-  private static <T extends @NonNull Object> void signalEnd(final BlockingQueue<T> queue, final T marker) {
+  @VisibleForTesting
+  <T extends @NonNull Object> void signalEnd(final BlockingQueue<T> queue, final T marker) {
+    boolean interrupted = Thread.interrupted();
     try {
-      queue.put(marker);
-    } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      while (this.running.get()) {
+        try {
+          final boolean offered = queue.offer(marker, END_OFFER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+          if (offered) {
+            return;
+          }
+        } catch (final InterruptedException exception) {
+          interrupted = true;
+        }
+      }
+    } finally {
+      if (interrupted) {
+        final Thread currentThread = Thread.currentThread();
+        currentThread.interrupt();
+      }
     }
   }
 
@@ -450,7 +511,12 @@ final class PlaybackSession {
         this.renderVideoFrame(frame);
         frame = this.videoQueue.take();
       }
+    } catch (final RuntimeException | Error failure) {
+      // A failed error handler or fatal filter must not leave producers blocked behind this renderer.
+      this.stop();
+      throw failure;
     } catch (final InterruptedException exception) {
+      this.stop();
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     } finally {
@@ -520,7 +586,12 @@ final class PlaybackSession {
         this.renderAudioChunk(chunk);
         chunk = this.audioQueue.take();
       }
+    } catch (final RuntimeException | Error failure) {
+      // A failed error handler or fatal filter must not leave producers blocked behind this renderer.
+      this.stop();
+      throw failure;
     } catch (final InterruptedException exception) {
+      this.stop();
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     }
@@ -650,6 +721,14 @@ final class PlaybackSession {
       return;
     }
 
+    if (this.threads.isEmpty()) {
+      final FrameGrabber prepared = this.videoGrabber;
+      this.videoGrabber = null;
+      if (prepared != null) {
+        closeQuietly(prepared);
+      }
+      return;
+    }
     final Thread currentThread = Thread.currentThread();
     this.interruptThreadsExcept(currentThread);
     // a renderer that stopped the session itself is not interrupted, so it finishes through its end marker
@@ -724,8 +803,9 @@ final class PlaybackSession {
   private static void closeQuietly(final FrameGrabber grabber) {
     try {
       grabber.close();
-    } catch (final FrameGrabber.Exception exception) {
-      // the grabber is being discarded, nothing can be done about a failed close
+    } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      // the grabber is being discarded, nothing can be done about a recoverable failed close
     }
   }
 }

@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.media.Polling;
 import org.junit.jupiter.api.Test;
 
@@ -131,6 +132,19 @@ final class PlaybackClockTest {
     assertTrue(paused >= 25_000_000L, "a paused clock waits the timeout, waited " + paused);
     assertTrue(paused < 2_000_000_000L, "but not much longer, waited " + paused);
     assertTrue(stillPaused);
+  }
+
+  @Test
+  void reanchorsOnlyBeyondTheExactTwoSecondBoundary() {
+    final AtomicLong now = new AtomicLong(7_000_000_000L);
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    final long anchor = clock.dueAt(0L);
+    final long boundary = clock.dueAt(2_000_000L);
+    assertEquals(7_000_000_000L, anchor);
+    assertEquals(9_000_000_000L, boundary);
+    now.set(8_000_000_000L);
+    final long reanchored = clock.dueAt(4_000_000L);
+    assertEquals(8_000_000_000L, reanchored);
   }
 
   @Test

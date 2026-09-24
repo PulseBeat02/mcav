@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.multimedia.vlc;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -277,6 +278,30 @@ final class AudioRendererTest {
     awaitSize(received, 2);
     final List<Short> expected = List.of((short) 0, (short) 3);
     assertEquals(expected, received);
+  }
+
+  @Test
+  void fatalFilterFailuresEscapeWithoutBeingReported() throws Exception {
+    final OutOfMemoryError failure = new OutOfMemoryError("filter exhausted memory");
+    final AtomicReference<Throwable> uncaught = new AtomicReference<>();
+    final CountDownLatch escaped = new CountDownLatch(1);
+    this.attach((_, _) -> {
+        final Thread worker = Thread.currentThread();
+        worker.setUncaughtExceptionHandler((_, thrown) -> {
+          uncaught.set(thrown);
+          escaped.countDown();
+        });
+        throw failure;
+      });
+
+    this.renderer.start();
+    this.play((short) 1, (short) 1);
+    final boolean ended = escaped.await(5L, TimeUnit.SECONDS);
+    final Throwable observed = uncaught.get();
+    final boolean reportedNothing = this.errors.isEmpty();
+    assertTrue(ended);
+    assertSame(failure, observed);
+    assertTrue(reportedNothing, "fatal VM failures must not be converted to ordinary filter reports");
   }
 
   @Test

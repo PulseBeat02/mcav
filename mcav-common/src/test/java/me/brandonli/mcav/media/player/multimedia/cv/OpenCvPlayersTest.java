@@ -67,6 +67,17 @@ final class OpenCvPlayersTest {
     warmUp.release();
   }
 
+  @Test
+  void createsTheNativeFileGrabberWithoutOpeningTheFile() throws FrameGrabber.Exception {
+    final OpenCVPlayer player = new OpenCVPlayer();
+    try (final FrameGrabber grabber = player.createFrameGrabber("unopened-file.mp4")) {
+      assertInstanceOf(OpenCVFrameGrabber.class, grabber);
+      assertThrows(NullPointerException.class, () -> player.createFrameGrabber(null));
+    } finally {
+      player.release();
+    }
+  }
+
   /**
    * Plays the test video with the OpenCV player until more than ten frames arrived, and records the width of every
    * frame.

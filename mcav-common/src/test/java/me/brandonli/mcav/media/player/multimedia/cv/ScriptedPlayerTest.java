@@ -308,6 +308,16 @@ final class ScriptedPlayerTest {
     final Dimension size = Dimension.of(160, 90);
     final DimensionAttachableCallback dimension = player.getDimensionAttachableCallback();
     dimension.attach(size);
+    final List<Dimension> delivered = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final VideoFilter recording = (samples, _) -> {
+      final int deliveredWidth = samples.getWidth();
+      final int deliveredHeight = samples.getHeight();
+      delivered.add(Dimension.of(deliveredWidth, deliveredHeight));
+      return false;
+    };
+    final VideoPipelineStep step = VideoPipelineStep.of(recording);
+    final VideoAttachableCallback video = player.getVideoAttachableCallback();
+    video.attach(step);
     player.start(VIDEO);
     awaitEnd(player);
 
@@ -317,6 +327,7 @@ final class ScriptedPlayerTest {
     player.release();
     assertEquals(160, width);
     assertEquals(90, height);
+    assertEquals(List.of(size), delivered, "the pipeline must receive a scaled frame, not just decoder configuration");
   }
 
   @Test
@@ -420,6 +431,34 @@ final class ScriptedPlayerTest {
         final boolean onCommonPool = thread.startsWith("ForkJoinPool.commonPool");
         assertTrue(onCommonPool, "the calls without an executor ran on the common pool: " + thread);
       }
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void equalSourcesPreserveBothSuccessfulAndRejectedStarts() {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    try {
+      final boolean started = player.start(VIDEO, VIDEO);
+      assertTrue(started);
+      player.release();
+      final boolean restarted = player.start(VIDEO, VIDEO);
+      assertFalse(restarted);
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void completedStartAllowsControlFromAnotherThread() throws Exception {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    try {
+      final boolean started = player.start(VIDEO);
+      assertTrue(started);
+      final CompletableFuture<Boolean> pause = CompletableFuture.supplyAsync(player::pause);
+      final boolean paused = pause.get(5L, TimeUnit.SECONDS);
+      assertTrue(paused, "completed start must relinquish its reservation lock");
     } finally {
       player.release();
     }

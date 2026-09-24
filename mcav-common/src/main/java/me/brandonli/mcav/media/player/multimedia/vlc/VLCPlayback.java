@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +33,7 @@ import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -57,6 +59,8 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;
  * restarted once it is stopped.
  */
 final class VLCPlayback {
+
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private static final String NO_AUDIO_OPTION = ":no-audio";
   private static final String NO_VIDEO_OPTION = ":no-video";
@@ -90,14 +94,14 @@ final class VLCPlayback {
     this.factory = factory;
     this.video = video;
     this.audio = audio;
+    this.videoRenderer = new VideoRenderer(owner);
+    this.audioRenderer = new AudioRenderer(owner);
+    this.running = new AtomicBoolean(true);
     final MediaPlayerApi playerApi = factory.mediaPlayers();
     final EmbeddedMediaPlayer createdVideoPlayer = playerApi.newEmbeddedMediaPlayer();
     this.videoPlayer = createdVideoPlayer;
     this.audioPlayer = createAudioPlayer(playerApi, createdVideoPlayer, audio);
     this.players = listPlayers(createdVideoPlayer, this.audioPlayer);
-    this.videoRenderer = new VideoRenderer(owner);
-    this.audioRenderer = new AudioRenderer(owner);
-    this.running = new AtomicBoolean(true);
   }
 
   /**
@@ -115,8 +119,9 @@ final class VLCPlayback {
     final MediaPlayerFactory factory = sharedFactory.acquire();
     try {
       return new VLCPlayback(owner, factory, video, audio);
-    } catch (final RuntimeException exception) {
-      sharedFactory.release();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      attemptAfterFailure(exception, sharedFactory::release);
       throw exception;
     }
   }
@@ -136,9 +141,29 @@ final class VLCPlayback {
     }
     try {
       return playerApi.newEmbeddedMediaPlayer();
-    } catch (final RuntimeException exception) {
-      videoPlayer.release();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      attemptAfterFailure(exception, videoPlayer::release);
       throw exception;
+    }
+  }
+
+  /**
+   * Attempts cleanup or reporting without losing the failure that required it. Fatal VM errors still propagate.
+   *
+   * @return true if the action succeeded, false if a recoverable failure was attached to the original failure
+   */
+  static boolean attemptAfterFailure(final Throwable primary, final Runnable action) {
+    try {
+      action.run();
+      return true;
+    } catch (final RuntimeException | Error secondary) {
+      ThrowableUtils.throwIfFatal(secondary);
+      final boolean sameFailure = FAILURE_IDENTITY.equivalent(primary, secondary);
+      if (!sameFailure) {
+        primary.addSuppressed(secondary);
+      }
+      return false;
     }
   }
 
@@ -418,20 +443,56 @@ final class VLCPlayback {
     if (!wasRunning) {
       return;
     }
+    final StopFailures failures = new StopFailures();
     final Synchronizer currentSynchronizer = this.synchronizer;
     if (currentSynchronizer != null) {
-      currentSynchronizer.stop();
+      failures.run(currentSynchronizer::stop);
     }
     for (final EmbeddedMediaPlayer player : this.players) {
-      final ControlsApi controls = player.controls();
-      controls.stop();
+      failures.run(() -> {
+        final ControlsApi controls = player.controls();
+        controls.stop();
+      });
     }
-    this.videoRenderer.stop();
-    this.audioRenderer.stop();
+    failures.run(this.videoRenderer::stop);
+    failures.run(this.audioRenderer::stop);
     for (final EmbeddedMediaPlayer player : this.players) {
-      player.release();
+      failures.run(player::release);
     }
-    this.sharedFactory.release();
+    failures.run(this.sharedFactory::release);
+    failures.rethrow();
+  }
+
+  /** Completes independent cleanup steps before rethrowing the first recoverable failure. */
+  private static final class StopFailures {
+
+    private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
+    private @Nullable Throwable first;
+
+    void run(final Runnable action) {
+      try {
+        action.run();
+      } catch (final RuntimeException | Error failure) {
+        ThrowableUtils.throwIfFatal(failure);
+        final Throwable previous = this.first;
+        if (previous == null) {
+          this.first = failure;
+        } else if (!IDENTITY.equivalent(previous, failure)) {
+          previous.addSuppressed(failure);
+        }
+      }
+    }
+
+    void rethrow() {
+      final Throwable failure = this.first;
+      if (failure instanceof final RuntimeException exception) {
+        throw exception;
+      }
+      if (failure instanceof final Error error) {
+        throw error;
+      }
+    }
   }
 
   /**

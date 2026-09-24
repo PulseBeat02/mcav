@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
@@ -58,6 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
 
+  private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final long MICROS_PER_MILLI = 1_000L;
   private static final String NETWORK_TIMEOUT_MICROS = "15000000";
 
@@ -72,6 +74,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   private @Nullable Source videoSource;
   private @Nullable Source audioSource;
   private boolean released;
+  private boolean starting;
 
   /**
    * Constructs a new player with detached pipelines and the default exception handler, which logs errors.
@@ -99,7 +102,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * cannot be opened.
    *
    * @param combined the source
-   * @return true if playback started, false if the player is released or the source cannot be opened, which is
+   * @return true if playback started, false if the player is released, another start is in progress, or the source cannot be opened, which is
    * reported to the exception handler
    */
   @Override
@@ -114,7 +117,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback started, false if the player is released or the video source cannot be opened, which
+   * @return true if playback started, false if the player is released, another start is in progress, or the video source cannot be opened, which
    * is reported to the exception handler
    */
   @Override
@@ -161,20 +164,89 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * be opened leaves the current playback alone.
    */
   private boolean startSources(final Source video, final @Nullable Source audio, final long positionMicros, final boolean paused) {
+    return this.startSources(video, audio, positionMicros, paused, null);
+  }
+
+  /** A reservation keeps competing starts from overtaking acquisition or shutdown, without holding the player lock. */
+  private boolean startSources(
+    final Source video,
+    final @Nullable Source audio,
+    final long positionMicros,
+    final boolean paused,
+    final @Nullable PlaybackSession expected
+  ) {
+    final PlaybackSession created;
+    this.lock.lock();
+    try {
+      if (this.released || this.starting || (expected != null && !IDENTITY.equivalent(expected, this.session))) {
+        return false;
+      }
+      created = this.createSession(video, audio, positionMicros, paused);
+      this.starting = true;
+    } finally {
+      this.lock.unlock();
+    }
+
+    boolean started = false;
+    try {
+      if (!this.openSession(created, video)) {
+        return false;
+      }
+      final PlaybackSession previous = this.takeSession();
+      if (previous != null) {
+        previous.stop();
+      }
+      started = this.publishSession(created, video, audio);
+      return started;
+    } finally {
+      this.finishStart(created, started);
+    }
+  }
+
+  /** Ends an acquisition reservation after cleaning any candidate that was not published. */
+  private void finishStart(final PlaybackSession created, final boolean started) {
+    try {
+      if (!started) {
+        created.stop();
+      }
+    } finally {
+      this.clearStartReservation();
+    }
+  }
+
+  private void clearStartReservation() {
+    this.lock.lock();
+    try {
+      this.starting = false;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /** Detaches the previous session before joining its workers outside the lock. */
+  private @Nullable PlaybackSession takeSession() {
+    this.lock.lock();
+    try {
+      final PlaybackSession previous = this.session;
+      this.session = null;
+      this.videoSource = null;
+      this.audioSource = null;
+      return previous;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /** Release can cancel an acquisition or replacement; its owner then closes the prepared candidate. */
+  private boolean publishSession(final PlaybackSession created, final Source video, final @Nullable Source audio) {
     this.lock.lock();
     try {
       if (this.released) {
         return false;
       }
-      final PlaybackSession created = this.createSession(video, audio, positionMicros, paused);
-      final boolean opened = this.openSession(created, video);
-      if (!opened) {
-        return false;
-      }
-      this.stopSession();
+      created.startThreads();
       this.videoSource = video;
       this.audioSource = audio;
-      created.startThreads();
       this.session = created;
       return true;
     } finally {
@@ -321,19 +393,24 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   @Override
   public boolean seek(final long time) {
     Preconditions.checkArgument(time >= 0, "Seek time must not be negative");
+    final PlaybackSession current;
+    final Source video;
+    @Nullable Source audio;
+    final boolean paused;
     this.lock.lock();
     try {
-      final PlaybackSession current = this.session;
+      current = this.session;
       if (current == null || !current.isSeekable()) {
         return false;
       }
-      final Source video = Objects.requireNonNull(this.videoSource, "A session always has a video source");
-      final boolean paused = current.isPaused();
-      final long positionMicros = time * MICROS_PER_MILLI;
-      return this.startSources(video, this.audioSource, positionMicros, paused);
+      video = Objects.requireNonNull(this.videoSource, "A session always has a video source");
+      audio = this.audioSource;
+      paused = current.isPaused();
     } finally {
       this.lock.unlock();
     }
+    final long positionMicros = Math.min(time, Long.MAX_VALUE / MICROS_PER_MILLI) * MICROS_PER_MILLI;
+    return this.startSources(video, audio, positionMicros, paused, current);
   }
 
   /**
@@ -363,7 +440,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   /**
    * Stops playback and releases the player. A released player cannot be started again. The threads of the playback
    * are awaited without holding the lock of the player, so other methods return right away meanwhile, but this
-   * method can block for seconds when a decoder is stuck; see {@link #releaseAsync()}.
+   * method can block for seconds when a decoder is stuck; see {@link #releaseAsync()}. A pending start is cancelled;
+   * its owner closes its prepared resources when acquisition or previous-session shutdown returns.
    *
    * @return true if the player was released, false if it was already released
    */
@@ -387,15 +465,6 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
       stopped.stop();
     }
     return true;
-  }
-
-  private void stopSession() {
-    final PlaybackSession current = this.session;
-    if (current == null) {
-      return;
-    }
-    this.session = null;
-    current.stop();
   }
 
   /**

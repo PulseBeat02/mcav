@@ -18,9 +18,6 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +25,7 @@ import java.util.Optional;
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
-import me.brandonli.mcav.utils.ffmpeg.FFmpegExecutableProvider;
+import me.brandonli.mcav.testing.GeneratedMedia;
 import org.junit.jupiter.api.Assumptions;
 import org.mockito.Mockito;
 
@@ -82,15 +79,18 @@ final class VlcTestSupport {
    */
   static Path solidVideo(final Path directory, final String color, final int width, final int height) {
     final Path output = directory.resolve(color + "-" + width + "x" + height + ".mp4");
-    final Path executable = FFmpegExecutableProvider.getFFmpegPath();
+    return GeneratedMedia.generate(output, temporary -> solidVideoCommand(color, width, height, temporary));
+  }
+
+  private static List<String> solidVideoCommand(final String color, final int width, final int height, final Path output) {
+    final Path executable = GeneratedMedia.ffmpegPath();
     final String executablePath = executable.toString();
     final String outputPath = output.toString();
     final List<String> arguments = solidVideoArguments(color, width, height, outputPath);
     final List<String> command = new ArrayList<>();
     command.add(executablePath);
     command.addAll(arguments);
-    run(command);
-    return output;
+    return command;
   }
 
   private static List<String> solidVideoArguments(final String color, final int width, final int height, final String outputPath) {
@@ -122,26 +122,5 @@ final class VlcTestSupport {
       "-y",
       outputPath
     );
-  }
-
-  private static void run(final List<String> command) {
-    final ProcessBuilder builder = new ProcessBuilder(command);
-    builder.redirectErrorStream(true);
-    try {
-      final Process process = builder.start();
-      final InputStream processOutput = process.getInputStream();
-      final byte[] outputBytes = processOutput.readAllBytes();
-      final int exitCode = process.waitFor();
-      if (exitCode != 0) {
-        final String output = new String(outputBytes, StandardCharsets.UTF_8);
-        throw new IllegalStateException("FFmpeg failed with exit code " + exitCode + ": " + output);
-      }
-    } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
-    } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media", exception);
-    }
   }
 }

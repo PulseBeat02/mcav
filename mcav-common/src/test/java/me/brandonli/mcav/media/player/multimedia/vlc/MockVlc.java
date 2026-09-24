@@ -90,7 +90,7 @@ final class MockVlc {
 
   private volatile Throwable factoryFailure;
   private volatile int failingPlayerIndex;
-  private volatile RuntimeException playerFailure;
+  private volatile Throwable playerFailure;
 
   /**
    * Constructs a new engine whose players all play successfully unless configured otherwise.
@@ -129,7 +129,13 @@ final class MockVlc {
   private EmbeddedMediaPlayer createPlayer() {
     final int index = this.players.size();
     if (index == this.failingPlayerIndex) {
-      throw this.playerFailure;
+      final Throwable failure = this.playerFailure;
+      if (failure instanceof final Error error) {
+        throw error;
+      }
+      if (failure instanceof final RuntimeException exception) {
+        throw exception;
+      }
     }
     final Outcome outcome;
     synchronized (this.outcomes) {
@@ -185,7 +191,7 @@ final class MockVlc {
    *
    * @param failure the exception thrown
    */
-  void failSecondPlayerCreation(final RuntimeException failure) {
+  void failSecondPlayerCreation(final Throwable failure) {
     this.playerFailure = failure;
     this.failingPlayerIndex = SECOND_PLAYER_INDEX;
   }
