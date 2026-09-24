@@ -25,7 +25,20 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Point;
+import java.awt.Transparency;
+import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
+import java.awt.image.ComponentSampleModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
+import java.awt.image.Raster;
+import java.awt.image.SampleModel;
+import java.awt.image.SinglePixelPackedSampleModel;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -46,6 +59,10 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link MatImageBuffer} and the factories of {@link ImageBuffer}.
@@ -351,6 +368,125 @@ final class MatImageBufferTest {
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.image(null));
   }
 
+  /**
+   * Creates a normal RGB or BGR raster whose logical data occupies only part of its backing array.
+   */
+  private static BufferedImage imageWithExtraStorage(final int type, final int offset) {
+    final BufferedImage prototype = new BufferedImage(2, 2, type);
+    final SampleModel model = prototype.getSampleModel();
+    final ColorModel colors = prototype.getColorModel();
+    final int elements = type == BufferedImage.TYPE_INT_RGB ? 4 : 12;
+    final int length = elements + offset + 2;
+    final DataBuffer data;
+    if (type == BufferedImage.TYPE_INT_RGB) {
+      final int[] backing = new int[length];
+      data = new DataBufferInt(backing, elements, offset);
+    } else {
+      final byte[] backing = new byte[length];
+      data = new DataBufferByte(backing, elements, offset);
+    }
+    final Point origin = new Point();
+    final WritableRaster raster = Raster.createWritableRaster(model, data, origin);
+    final BufferedImage image = new BufferedImage(colors, raster, false, null);
+    image.setRGB(0, 0, 0xFF123456);
+    image.setRGB(1, 0, 0xFFABCDEF);
+    image.setRGB(0, 1, 0xFF789ABC);
+    image.setRGB(1, 1, 0xFF654321);
+    return image;
+  }
+
+  /**
+   * Uses BufferedImage's raster-aware pixel access as the oracle for construction and replacement.
+   */
+  private static void assertCopiesRasterPixels(final BufferedImage source) {
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final int[] expected = source.getRGB(0, 0, width, height, null, 0, width);
+    try (final ImageBuffer converted = ImageBuffer.image(source); final ImageBuffer replaced = Images.indexed(width, height)) {
+      final int[] convertedPixels = converted.getPixels();
+      replaced.setAsBufferedImage(source);
+      final int[] replacedPixels = replaced.getPixels();
+      assertArrayEquals(expected, convertedPixels);
+      assertArrayEquals(expected, replacedPixels);
+    }
+  }
+
+  @Test
+  void copiesLogicalPixelsWhenTheBackingArrayHasExtraStorage() {
+    final int[] types = { BufferedImage.TYPE_INT_RGB, BufferedImage.TYPE_3BYTE_BGR };
+    for (final int type : types) {
+      for (int offset = 0; offset <= 1; offset++) {
+        final BufferedImage source = imageWithExtraStorage(type, offset);
+        final int actualType = source.getType();
+        assertEquals(type, actualType, "the image is recognized as a standard packed type");
+        assertCopiesRasterPixels(source);
+      }
+    }
+  }
+
+  @Test
+  void copiesIntegerRowsUsingTheirScanlineStride() {
+    final BufferedImage prototype = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
+    final ColorModel colors = prototype.getColorModel();
+    final int[] masks = { 0xFF0000, 0xFF00, 0xFF };
+    final SampleModel model = new SinglePixelPackedSampleModel(DataBuffer.TYPE_INT, 2, 2, 1, masks);
+    final int[] pixels = { 0x123456, 0xABCDEF, 0x789ABC, 0x654321 };
+    final DataBuffer data = new DataBufferInt(pixels, pixels.length);
+    final Point origin = new Point();
+    final WritableRaster raster = Raster.createWritableRaster(model, data, origin);
+    final BufferedImage source = new BufferedImage(colors, raster, false, null);
+    final int type = source.getType();
+    assertEquals(BufferedImage.TYPE_INT_RGB, type);
+    assertCopiesRasterPixels(source);
+  }
+
+  @Test
+  void copiesStandardImagesWithExactBackingStorage() {
+    for (int type = BufferedImage.TYPE_INT_RGB; type <= BufferedImage.TYPE_BYTE_INDEXED; type++) {
+      final BufferedImage source = new BufferedImage(2, 2, type);
+      source.setRGB(0, 0, 0xFF123456);
+      source.setRGB(1, 0, 0xFFABCDEF);
+      source.setRGB(0, 1, 0xFF789ABC);
+      source.setRGB(1, 1, 0xFF654321);
+      assertCopiesRasterPixels(source);
+    }
+  }
+
+  @Test
+  void copiesASingleRowWithUnusedScanlinePadding() {
+    final BufferedImage standard = new BufferedImage(2, 1, BufferedImage.TYPE_3BYTE_BGR);
+    final ColorModel colors = standard.getColorModel();
+    final SampleModel model = new java.awt.image.PixelInterleavedSampleModel(DataBuffer.TYPE_BYTE, 2, 1, 3, 7, new int[] { 2, 1, 0 });
+    final DataBuffer data = new DataBufferByte(6);
+    final WritableRaster raster = Raster.createWritableRaster(model, data, new Point());
+    final BufferedImage source = new BufferedImage(colors, raster, false, null);
+    source.setRGB(0, 0, 0xFF123456);
+    source.setRGB(1, 0, 0xFFABCDEF);
+    assertCopiesRasterPixels(source);
+  }
+
+  @Test
+  void copiesPlanarCustomRastersAndSeparateBanks() {
+    final ColorSpace space = ColorSpace.getInstance(ColorSpace.CS_sRGB);
+    final int[] transferTypes = { DataBuffer.TYPE_BYTE, DataBuffer.TYPE_INT };
+    for (final int type : transferTypes) {
+      final ColorModel colors = new ComponentColorModel(space, new int[] { 8, 8, 8 }, false, false, Transparency.OPAQUE, type);
+      final SampleModel model = new ComponentSampleModel(type, 2, 2, 1, 2, new int[] { 0, 4, 8 });
+      final DataBuffer data = type == DataBuffer.TYPE_BYTE ? new DataBufferByte(12) : new DataBufferInt(12);
+      final WritableRaster raster = Raster.createWritableRaster(model, data, new Point());
+      final BufferedImage source = new BufferedImage(colors, raster, false, null);
+      source.setRGB(0, 0, 0xFF123456);
+      source.setRGB(1, 1, 0xFFABCDEF);
+      assertCopiesRasterPixels(source);
+    }
+    final ColorModel colors = new ComponentColorModel(space, false, false, Transparency.OPAQUE, DataBuffer.TYPE_BYTE);
+    final WritableRaster raster = Raster.createBandedRaster(DataBuffer.TYPE_BYTE, 2, 2, 3, new Point());
+    final BufferedImage source = new BufferedImage(colors, raster, false, null);
+    source.setRGB(0, 0, 0xFF123456);
+    source.setRGB(1, 1, 0xFFABCDEF);
+    assertCopiesRasterPixels(source);
+  }
+
   @Test
   void copiesOnlyThePixelsOfSubImages() {
     final int[] types = { BufferedImage.TYPE_3BYTE_BGR, BufferedImage.TYPE_INT_RGB };
@@ -362,6 +498,9 @@ final class MatImageBufferTest {
       final BufferedImage shiftedX = parent.getSubimage(1, 0, 2, 2);
       final BufferedImage shiftedY = parent.getSubimage(0, 1, 2, 2);
       final BufferedImage narrower = parent.getSubimage(0, 0, 2, 2);
+      assertCopiesRasterPixels(shiftedX);
+      assertCopiesRasterPixels(shiftedY);
+      assertCopiesRasterPixels(narrower);
       try (
         final ImageBuffer fromShiftedX = ImageBuffer.image(shiftedX);
         final ImageBuffer fromShiftedY = ImageBuffer.image(shiftedY);
@@ -399,6 +538,18 @@ final class MatImageBufferTest {
       assertEquals(5, width);
       assertEquals(4, height);
       assertThrows(NullPointerException.class, () -> image.setAsBufferedImage(null));
+    }
+  }
+
+  @Test
+  void coordinateDiagnosticsDescribeTheActualValidRange() {
+    try (final ImageBuffer image = Images.solid(3, 4, 0xFF000000)) {
+      final IllegalArgumentException horizontal = assertThrows(IllegalArgumentException.class, () -> image.getPixel(3, 0));
+      final IllegalArgumentException vertical = assertThrows(IllegalArgumentException.class, () -> image.getPixel(0, 4));
+      final String horizontalMessage = horizontal.getMessage();
+      final String verticalMessage = vertical.getMessage();
+      assertEquals("x must be between 0 and 2 but was 3", horizontalMessage);
+      assertEquals("y must be between 0 and 3 but was 4", verticalMessage);
     }
   }
 
@@ -741,6 +892,77 @@ final class MatImageBufferTest {
     assertThrows(IllegalStateException.class, () -> image.updateData(ByteBuffer.allocate(3), 1, 1));
     assertThrows(IllegalStateException.class, () -> image.setAsBufferedImage(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)));
     assertThrows(IllegalStateException.class, () -> buffer.setMat(new Mat(1, 1, opencv_core.CV_8UC3)));
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    {
+      "715827883, 1, Image dimensions exceed the maximum BGR buffer size: 715827883x1",
+      "65536, 65536, Image dimensions exceed the maximum BGR buffer size: 65536x65536",
+      "2147483647, 2147483647, Image dimensions exceed the maximum BGR buffer size: 2147483647x2147483647",
+    }
+  )
+  void rejectsUnrepresentableDimensionsBeforeNativeAllocation(final int width, final int height, final String expectedMessage) {
+    // Length2 differs from BOTH wrapped counts for every row: pixels715827883/0/1 and BGR-2147483647/0/3.
+    // If a mutation removes the dimension guard, the existing length guard still rejects before any allocation.
+    final byte[] bytes = new byte[2];
+    final ByteBuffer buffer = ByteBuffer.wrap(bytes);
+    final int[] pixels = new int[2];
+    final IllegalArgumentException fromBytes = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.bytes(bytes, width, height)
+    );
+    final IllegalArgumentException fromBuffer = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.bytes(buffer, width, height)
+    );
+    final IllegalArgumentException fromArgb = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.buffer(pixels, width, height)
+    );
+    final String bytesMessage = fromBytes.getMessage();
+    final String bufferMessage = fromBuffer.getMessage();
+    final String argbMessage = fromArgb.getMessage();
+    assertEquals(expectedMessage, bytesMessage);
+    assertEquals(expectedMessage, bufferMessage);
+    assertEquals(expectedMessage, argbMessage);
+
+    try (final ImageBuffer image = Images.solid(1, 1, 0xFF123456)) {
+      final IllegalArgumentException updateBytes = assertThrows(IllegalArgumentException.class, () ->
+        image.updateData(buffer, width, height)
+      );
+      final IllegalArgumentException updatePixels = assertThrows(IllegalArgumentException.class, () ->
+        image.updateArgb(pixels, width, height)
+      );
+      final String updateBytesMessage = updateBytes.getMessage();
+      final String updatePixelsMessage = updatePixels.getMessage();
+      assertEquals(expectedMessage, updateBytesMessage);
+      assertEquals(expectedMessage, updatePixelsMessage);
+      final int retainedWidth = image.getWidth();
+      final int retainedHeight = image.getHeight();
+      final int retainedPixel = argbAt(image, 0, 0);
+      assertEquals(1, retainedWidth);
+      assertEquals(1, retainedHeight);
+      assertEquals(0xFF123456, retainedPixel);
+    }
+  }
+
+  @Test
+  void permitsTheLargestRepresentablePackedSizeToReachTheLengthCheck() {
+    final byte[] shortInput = new byte[2];
+    // The original length error proves the inclusive boundary is allowed, without allocating its2147483646bytes.
+    // Intercept Mat construction too: removing the length guard must not let a mutation allocate native2GiB.
+    try (
+      final MockedConstruction<Mat> allocations = Mockito.mockConstruction(Mat.class, (_, _) -> {
+        throw new AssertionError("The length guard must reject before constructing a native matrix");
+      })
+    ) {
+      final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.bytes(shortInput, 715827882, 1)
+      );
+      final String message = failure.getMessage();
+      assertEquals("Expected 2147483646 bytes but got 2", message);
+      final java.util.List<Mat> constructed = allocations.constructed();
+      final int count = constructed.size();
+      assertEquals(0, count);
+    }
   }
 
   @Test

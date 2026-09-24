@@ -40,6 +40,17 @@ final class ImageBufferTest {
   private static final int SIDE = 2;
 
   @Test
+  void closeInvalidatesTheOwnedImage() {
+    final ImageBuffer image = ImageBuffer.buffer(PIXELS, SIDE, SIDE);
+    try {
+      image.close();
+      assertThrows(IllegalStateException.class, image::getPixels);
+    } finally {
+      image.release();
+    }
+  }
+
+  @Test
   void copiesThePixelsIntoAnArrayTheCallerOwns() {
     try (final ImageBuffer image = ImageBuffer.buffer(PIXELS, SIDE, SIDE)) {
       final int[] shared = image.getPixels();

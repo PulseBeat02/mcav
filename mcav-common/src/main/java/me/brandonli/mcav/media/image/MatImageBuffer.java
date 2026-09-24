@@ -19,11 +19,13 @@ package me.brandonli.mcav.media.image;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferInt;
+import java.awt.image.PixelInterleavedSampleModel;
+import java.awt.image.SampleModel;
+import java.awt.image.SinglePixelPackedSampleModel;
 import java.awt.image.WritableRaster;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
@@ -163,6 +165,15 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private static void checkDimensions(final int width, final int height) {
     Preconditions.checkArgument(width > 0 && height > 0, "Image dimensions must be positive but were %sx%s", width, height);
+    // BGR arrays and ByteBuffer capacities use int indices. Avoid multiplying the long product by3 as well:
+    // even positive int dimensions can overflow long when the channel count is included.
+    final long pixels = (long) width * height;
+    Preconditions.checkArgument(
+      pixels <= Integer.MAX_VALUE / CHANNELS,
+      "Image dimensions exceed the maximum BGR buffer size: %sx%s",
+      width,
+      height
+    );
   }
 
   /**
@@ -268,13 +279,19 @@ public final class MatImageBuffer implements ImageBuffer {
       writeArgb(target, pixels, bytes);
       return;
     }
-    final BufferedImage bgr = convertToBgr(image);
-    writeBufferedImage(target, bgr, scratchFactory);
+    // getRGB applies the source ColorModel's conversion to sRGB. Java2D's grayscale blit may instead copy
+    // linear gray samples as sRGB bytes, darkening an image (gray sample 8 is sRGB 50, not 8).
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final int[] pixels = new int[width * height];
+    image.getRGB(0, 0, width, height, pixels, 0, width);
+    final byte[] bytes = scratchFactory.apply(pixels.length * CHANNELS);
+    writeArgb(target, pixels, bytes);
   }
 
   /**
    * Checks that the pixels of an image fill its data buffer exactly and start at its beginning. Sub-images share
-   * the data buffer of their parent, so their pixels have to be copied out through drawing instead.
+   * the data buffer of their parent, so their pixels are read through the raster-aware getRGB fallback instead.
    */
   private static boolean isPacked(final BufferedImage image) {
     final WritableRaster raster = image.getRaster();
@@ -284,22 +301,27 @@ public final class MatImageBuffer implements ImageBuffer {
     final int width = raster.getWidth();
     final int height = raster.getHeight();
     final int elementsPerPixel = raster.getNumDataElements();
-    final int expectedElements = width * height * elementsPerPixel;
+    final long expectedElements = (long) width * height * elementsPerPixel;
     final int bufferElements = dataBuffer.getSize();
-    return translateX == 0 && translateY == 0 && bufferElements == expectedElements;
-  }
-
-  private static BufferedImage convertToBgr(final BufferedImage image) {
-    final int width = image.getWidth();
-    final int height = image.getHeight();
-    final BufferedImage bgr = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-    final Graphics2D graphics = bgr.createGraphics();
-    try {
-      graphics.drawImage(image, 0, 0, null);
-    } finally {
-      graphics.dispose();
+    final int offset = dataBuffer.getOffset();
+    final int banks = dataBuffer.getNumBanks();
+    if (translateX != 0 || translateY != 0 || offset != 0 || banks != 1 || bufferElements != expectedElements) {
+      return false;
     }
-    return bgr;
+    // DataBuffer.getSize() describes its logical range, not the length or layout of the backing array.
+    final SampleModel sampleModel = raster.getSampleModel();
+    if (dataBuffer instanceof final DataBufferByte bytes && sampleModel instanceof final PixelInterleavedSampleModel interleaved) {
+      final byte[] backing = bytes.getData();
+      final int pixelStride = interleaved.getPixelStride();
+      final int rowStride = interleaved.getScanlineStride();
+      return backing.length == expectedElements && pixelStride == CHANNELS && rowStride == (long) width * CHANNELS;
+    }
+    if (dataBuffer instanceof final DataBufferInt integers && sampleModel instanceof final SinglePixelPackedSampleModel packed) {
+      final int[] backing = integers.getData();
+      final int rowStride = packed.getScanlineStride();
+      return backing.length == expectedElements && rowStride == width;
+    }
+    return false;
   }
 
   /**
@@ -441,7 +463,8 @@ public final class MatImageBuffer implements ImageBuffer {
    *
    * @param width  the new width in pixels
    * @param height the new height in pixels
-   * @throws IllegalArgumentException if the width or the height is not positive
+   * @throws IllegalArgumentException if the dimensions are not positive or the packed BGR storage exceeds
+   *                                  {@link Integer#MAX_VALUE} bytes
    * @throws IllegalStateException    if the image was released
    */
   public void setSize(final int width, final int height) {

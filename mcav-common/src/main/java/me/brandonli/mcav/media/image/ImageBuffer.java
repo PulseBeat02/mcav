@@ -68,6 +68,7 @@ public interface ImageBuffer extends Image {
 
   /**
    * Creates an image from raw 8-bit BGR pixels without padding. The bytes are copied.
+   * Dimensions must be positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes.
    *
    * @param data   the pixels, exactly {@code width * height * 3} bytes
    * @param width  the width in pixels
@@ -81,7 +82,8 @@ public interface ImageBuffer extends Image {
 
   /**
    * Creates an image from raw 8-bit BGR pixels without padding. The bytes are copied from the current position of
-   * the buffer to its limit.
+   * the buffer to its limit. Dimensions must be positive and their packed BGR representation must fit within
+   * {@link Integer#MAX_VALUE} bytes.
    *
    * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
    * @param width  the width in pixels
@@ -144,7 +146,8 @@ public interface ImageBuffer extends Image {
 
   /**
    * Creates an image from packed ARGB pixels, one integer per pixel laid out row by row. The alpha channel is
-   * discarded.
+   * discarded. Dimensions must be positive and the resulting packed BGR representation must fit within
+   * {@link Integer#MAX_VALUE} bytes, even though the supplied pixels are integers.
    *
    * @param data   the pixels, exactly {@code width * height} integers
    * @param width  the width in pixels
@@ -279,7 +282,8 @@ public interface ImageBuffer extends Image {
 
   /**
    * Replaces the pixels of the image with raw 8-bit BGR pixels, reusing the native memory when the dimensions did
-   * not change. The bytes are copied from the current position of the buffer to its limit.
+   * not change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be
+   * positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes.
    *
    * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
    * @param width  the new width in pixels
@@ -289,7 +293,8 @@ public interface ImageBuffer extends Image {
 
   /**
    * Replaces the pixels of the image with packed ARGB pixels, reusing the native memory when the dimensions did
-   * not change. The alpha channel is discarded.
+   * not change. The alpha channel is discarded. Dimensions must be positive and the resulting packed BGR
+   * representation must fit within {@link Integer#MAX_VALUE} bytes.
    *
    * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
    * @param width  the new width in pixels

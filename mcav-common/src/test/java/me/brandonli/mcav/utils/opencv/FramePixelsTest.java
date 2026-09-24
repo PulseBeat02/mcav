@@ -66,6 +66,18 @@ final class FramePixelsTest {
   }
 
   @Test
+  void copiesEveryRowOfACompactFrameAndChecksTheWholeTargetSize() {
+    final byte[] data = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+    try (final Frame compact = frame(2, 2, 6, data)) {
+      final ByteBuffer actual = FramePixels.copyBgr(compact);
+      final byte[] copied = remaining(actual);
+      assertArrayEquals(data, copied);
+      final ByteBuffer tooSmall = ByteBuffer.allocate(11);
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, tooSmall));
+    }
+  }
+
+  @Test
   void dropsTheRowPaddingOfNarrowFrames() {
     final byte[] data = { 1, 2, 3, 0, 0, 0, 0, 0, 4, 5, 6, 0, 0, 0, 0, 0 };
     final Frame padded = frame(1, 2, 8, data);
