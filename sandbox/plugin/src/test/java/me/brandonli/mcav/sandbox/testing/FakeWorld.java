@@ -209,6 +209,10 @@ public final class FakeWorld {
       final NamespacedKey key = invocation.getArgument(0);
       return data.containsKey(key);
     });
+    when(container.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(invocation -> {
+      final NamespacedKey key = invocation.getArgument(0);
+      return data.get(key);
+    });
     when(frame.getPersistentDataContainer()).thenReturn(container);
     when(frame.getLocation()).thenAnswer(_ -> location.clone());
     when(frame.getWorld()).thenReturn(this.world);

@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import org.bukkit.Location;
@@ -41,8 +42,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Translates where a player looks on a wall of map item frames into pixel coordinates of the image on the wall.
  *
  * <p>The frames of a wall are tagged with {@link Keys#MAP_KEY}, and its top left and bottom right frames are
- * additionally tagged with {@link Keys#FIRST_MAP_KEY} and {@link Keys#LAST_MAP_KEY}. The pixel coordinates are
- * measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
+ * additionally tagged with {@link Keys#FIRST_MAP_KEY} and {@link Keys#LAST_MAP_KEY}.
+ * New screens also carry a shared {@link Keys#SCREEN_KEY}; neighboring legacy screens with ambiguous corners are
+ * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
  */
 public final class InteractUtils {
 
@@ -60,7 +62,7 @@ public final class InteractUtils {
    *
    * @param player the player
    * @return the x and y pixel coordinates on the wall, or {@code null} if the player does not look at a map frame
-   * of a complete wall
+   * of a complete vertical wall
    */
   public static int@Nullable[] getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null");
@@ -77,7 +79,7 @@ public final class InteractUtils {
    * @param player the player
    * @param entity the item frame the player looks at
    * @return the x and y pixel coordinates on the wall, or {@code null} if the frame does not belong to a complete
-   * wall
+   * vertical wall or the line of sight misses the frame
    * @throws IllegalArgumentException if the entity is not an item frame
    */
   public static int@Nullable[] getBoardCoordinates(final Player player, final Entity entity) {
@@ -91,8 +93,11 @@ public final class InteractUtils {
       return null;
     }
     final double[] framePosition = getRotatedFramePosition(player, frame);
-    final int pixelX = (int) (framePosition[0] * MAP_PIXELS);
-    final int pixelY = (int) (framePosition[1] * MAP_PIXELS);
+    if (framePosition == null) {
+      return null;
+    }
+    final int pixelX = Math.clamp((int) (framePosition[0] * MAP_PIXELS), 0, MAP_PIXELS - 1);
+    final int pixelY = Math.clamp((int) (framePosition[1] * MAP_PIXELS), 0, MAP_PIXELS - 1);
     final int absoluteX = mapIndex[0] * MAP_PIXELS + pixelX;
     final int absoluteY = mapIndex[1] * MAP_PIXELS + pixelY;
     return new int[] { absoluteX, absoluteY };
@@ -109,7 +114,7 @@ public final class InteractUtils {
     if (hitFace == null) {
       return null;
     }
-    final ItemFrame firstCorner = findFirstCorner(player, hitFace);
+    final ItemFrame firstCorner = findFirstCorner(player, hitFace, frame);
     if (firstCorner == null) {
       return null;
     }
@@ -147,8 +152,11 @@ public final class InteractUtils {
    * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, taking the rotation of the
    * map inside the frame into account.
    */
-  private static double[] getRotatedFramePosition(final Player player, final ItemFrame frame) {
+  private static double@Nullable[] getRotatedFramePosition(final Player player, final ItemFrame frame) {
     final double[] position = getFramePosition(player, frame);
+    if (position == null) {
+      return null;
+    }
     final double horizontal = position[0];
     final double vertical = position[1];
     final Rotation rotation = frame.getRotation();
@@ -162,20 +170,27 @@ public final class InteractUtils {
 
   /**
    * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, as if the map were not
-   * rotated. Only frames on walls are supported; frames on floors and ceilings report the top left corner.
+   * rotated. Returns {@code null} for misses and unsupported floor or ceiling frames.
    */
-  private static double[] getFramePosition(final Player player, final ItemFrame frame) {
+  private static double@Nullable[] getFramePosition(final Player player, final ItemFrame frame) {
     final BlockFace face = frame.getAttachedFace();
     final boolean alongX = face == BlockFace.EAST || face == BlockFace.WEST;
     final boolean alongZ = face == BlockFace.NORTH || face == BlockFace.SOUTH;
     if (!alongX && !alongZ) {
-      return new double[] { 0.0, 0.0 };
+      return null;
     }
     final Vector lookedAt = findLookedAtPoint(player, frame, alongX);
+    if (lookedAt == null) {
+      return null;
+    }
+    final Location frameLocation = frame.getLocation();
     final double horizontalCoordinate = alongX ? lookedAt.getZ() : lookedAt.getX();
-    final double horizontal = fractionalPart(horizontalCoordinate);
-    final double verticalCoordinate = lookedAt.getY();
-    final double verticalFraction = fractionalPart(verticalCoordinate);
+    final int horizontalOrigin = alongX ? frameLocation.getBlockZ() : frameLocation.getBlockX();
+    final double horizontal = horizontalCoordinate - horizontalOrigin;
+    final double verticalFraction = lookedAt.getY() - frameLocation.getBlockY();
+    if (!(horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1)) {
+      return null;
+    }
     final boolean mirrored = face == BlockFace.WEST || face == BlockFace.SOUTH;
     final double x = mirrored ? 1 - horizontal : horizontal;
     final double y = 1 - verticalFraction;
@@ -187,29 +202,28 @@ public final class InteractUtils {
    *
    * @param alongX true if the frame hangs on a wall facing east or west, false if it faces north or south
    */
-  private static Vector findLookedAtPoint(final Player player, final ItemFrame frame, final boolean alongX) {
+  private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final boolean alongX) {
     final Location eyeLocation = player.getEyeLocation();
     final Location frameLocation = frame.getLocation();
     final Vector direction = eyeLocation.getDirection();
     direction.normalize();
     final double distance = alongX ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
     final double directionComponent = alongX ? direction.getX() : direction.getZ();
-    final double scale = Math.abs(distance / directionComponent);
+    final double scale = distance / directionComponent;
+    if (!Double.isFinite(scale) || scale < 0) {
+      return null;
+    }
     direction.multiply(scale);
     final Vector eyePosition = eyeLocation.toVector();
     return eyePosition.add(direction);
-  }
-
-  private static double fractionalPart(final double value) {
-    return value - Math.floor(value);
   }
 
   /**
    * Finds the first corner of the wall the player looks at by walking from the targeted block through all
    * connected map frames that face the same direction.
    */
-  private static @Nullable ItemFrame findFirstCorner(final Player player, final BlockFace hitFace) {
-    final Set<ItemFrame> wallFrames = collectWallFrames(player, hitFace);
+  private static @Nullable ItemFrame findFirstCorner(final Player player, final BlockFace hitFace, final ItemFrame target) {
+    final Set<ItemFrame> wallFrames = collectWallFrames(player, hitFace, target);
     final ItemFrame firstCorner = findTaggedFrame(wallFrames, Keys.FIRST_MAP_KEY);
     final ItemFrame lastCorner = findTaggedFrame(wallFrames, Keys.LAST_MAP_KEY);
     if (lastCorner == null) {
@@ -218,8 +232,11 @@ public final class InteractUtils {
     return firstCorner;
   }
 
-  private static Set<ItemFrame> collectWallFrames(final Player player, final BlockFace hitFace) {
-    final Block targetBlock = player.getTargetBlock(null, MAX_TARGET_DISTANCE);
+  private static Set<ItemFrame> collectWallFrames(final Player player, final BlockFace hitFace, final ItemFrame target) {
+    final Location targetLocation = target.getLocation();
+    final Block targetBlock = targetLocation.getBlock();
+    final PersistentDataContainer targetData = target.getPersistentDataContainer();
+    final String screen = targetData.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
     final World world = player.getWorld();
     final Set<ItemFrame> wallFrames = new HashSet<>();
     // the block of a frame is only queued when the frame is found for the first time, so the search ends
@@ -227,7 +244,7 @@ public final class InteractUtils {
     pending.add(targetBlock);
     while (!pending.isEmpty()) {
       final Block block = pending.remove();
-      addNearbyWallFrames(world, block, hitFace, wallFrames, pending);
+      addNearbyWallFrames(world, block, hitFace, screen, wallFrames, pending);
     }
     return wallFrames;
   }
@@ -236,6 +253,7 @@ public final class InteractUtils {
     final World world,
     final Block block,
     final BlockFace hitFace,
+    final @Nullable String screen,
     final Set<ItemFrame> wallFrames,
     final Queue<Block> pending
   ) {
@@ -251,8 +269,11 @@ public final class InteractUtils {
       if (!(entity instanceof final ItemFrame frame) || frame.getFacing() != hitFace) {
         continue;
       }
+      final PersistentDataContainer data = frame.getPersistentDataContainer();
+      final String candidateScreen = data.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
+      final boolean sameScreen = Objects.equals(screen, candidateScreen);
       final boolean isMapFrame = hasTag(frame, Keys.MAP_KEY);
-      if (isMapFrame && wallFrames.add(frame)) {
+      if (sameScreen && isMapFrame && wallFrames.add(frame)) {
         final Location frameLocation = frame.getLocation();
         final Block frameBlock = frameLocation.getBlock();
         pending.add(frameBlock);
@@ -264,6 +285,10 @@ public final class InteractUtils {
     ItemFrame tagged = null;
     for (final ItemFrame frame : frames) {
       if (hasTag(frame, key)) {
+        if (tagged != null) {
+          // Legacy screens have no identity: reject ambiguous neighboring corners instead of choosing arbitrarily.
+          return null;
+        }
         tagged = frame;
       }
     }

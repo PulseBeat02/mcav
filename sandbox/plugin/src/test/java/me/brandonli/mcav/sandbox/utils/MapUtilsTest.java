@@ -183,17 +183,48 @@ final class MapUtilsTest {
     verify(meta).setMapView(created);
   }
 
+  @Test
+  void rejectsAMissingHistoricalMapInsteadOfDisplayingAnotherId() {
+    final World world = this.fakeWorld.world();
+    when(this.server.getMap(5)).thenReturn(null);
+    when(this.server.getWorlds()).thenReturn(List.of(world));
+    final MapView later = mock(MapView.class);
+    when(later.getId()).thenReturn(20);
+    when(this.server.createMap(world)).thenReturn(later);
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.getMapFromID(5));
+    assertEquals("Map id 5 is unavailable; the server allocated 20", failure.getMessage());
+    verify(this.server).createMap(world);
+    assertTrue(this.metas.isEmpty(), "no item may silently target a map outside the requested layout");
+  }
+
+  @Test
+  void rejectsOverflowingScreenIdsBeforeChangingTheWorld() {
+    final Player player = playerFacing(BlockFace.NORTH);
+    final Location location = this.fakeWorld.location(0, 64, 0);
+    assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 2, 1, Integer.MAX_VALUE));
+    assertThrows(IllegalArgumentException.class, () ->
+      MapUtils.buildMapScreen(player, location, Material.STONE, Integer.MAX_VALUE, Integer.MAX_VALUE, 0)
+    );
+    assertEquals(0, this.fakeWorld.changedBlocks());
+    assertTrue(this.fakeWorld.spawnedFrames().isEmpty());
+    assertTrue(this.metas.isEmpty());
+  }
+
   @ParameterizedTest
   @CsvSource(
     delimiter = '|',
     value = {
-      "NORTH | 0,65,0;1,65,0;0,64,0;1,64,0",
-      "SOUTH | 1,65,0;0,65,0;1,64,0;0,64,0",
-      "EAST | 0,65,-1;0,65,0;0,64,-1;0,64,0",
-      "WEST | 0,65,0;0,65,-1;0,64,0;0,64,-1",
+      "NORTH | SOUTH | 0,65,0;1,65,0;0,64,0;1,64,0",
+      "SOUTH | NORTH | 1,65,0;0,65,0;1,64,0;0,64,0",
+      "EAST | WEST | 0,65,-1;0,65,0;0,64,-1;0,64,0",
+      "WEST | EAST | 0,65,0;0,65,-1;0,64,0;0,64,-1",
     }
   )
-  void buildsTheScreenRowByRowFromTheTopLeftCornerAsSeenByThePlayer(final BlockFace face, final String expectedFrames) {
+  void buildsTheScreenRowByRowFromTheTopLeftCornerAsSeenByThePlayer(
+    final BlockFace face,
+    final BlockFace expectedFrameFacing,
+    final String expectedFrames
+  ) {
     final Player player = playerFacing(face);
     final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 2, 2, 10);
@@ -209,7 +240,7 @@ final class MapUtilsTest {
       final int[] position = coordinates(frame);
       final Material wall = this.fakeWorld.material(position[0] + modX, position[1], position[2] + modZ);
       assertEquals(Material.STONE, wall);
-      verify(frame).setFacingDirection(face);
+      verify(frame).setFacingDirection(expectedFrameFacing);
       verify(frame).setInvulnerable(true);
       verify(frame).setGravity(false);
       final List<ItemStack> constructed = this.items.constructed();
@@ -228,6 +259,26 @@ final class MapUtilsTest {
   }
 
   @Test
+  void givesAllFramesOfOneScreenTheSameIdentityAndDifferentScreensDifferentIdentities() {
+    final CommandSender console = mock(CommandSender.class);
+    final Location firstLocation = this.fakeWorld.location(0.5, 64.0, 0.5);
+    final Location secondLocation = this.fakeWorld.location(2.5, 64.0, 0.5);
+    MapUtils.buildMapScreen(console, firstLocation, Material.STONE, 2, 1, 0);
+    MapUtils.buildMapScreen(console, secondLocation, Material.STONE, 1, 1, 2);
+    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final org.bukkit.persistence.PersistentDataContainer first = frames.get(0).getPersistentDataContainer();
+    final org.bukkit.persistence.PersistentDataContainer same = frames.get(1).getPersistentDataContainer();
+    final org.bukkit.persistence.PersistentDataContainer other = frames.get(2).getPersistentDataContainer();
+    final String firstId = first.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    final String sameId = same.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    final String otherId = other.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+    org.junit.jupiter.api.Assertions.assertNotNull(firstId);
+    org.junit.jupiter.api.Assertions.assertNotNull(otherId);
+    assertEquals(firstId, sameId);
+    org.junit.jupiter.api.Assertions.assertNotEquals(firstId, otherId);
+  }
+
+  @Test
   void buildsTheScreenToTheNorthForSendersThatAreNotPlayers() {
     final CommandSender console = mock(CommandSender.class);
     final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
@@ -240,7 +291,7 @@ final class MapUtilsTest {
     assertEquals(Material.OBSIDIAN, left);
     assertEquals(Material.OBSIDIAN, right);
     final ItemFrame first = frames.getFirst();
-    verify(first).setFacingDirection(BlockFace.NORTH);
+    verify(first).setFacingDirection(BlockFace.SOUTH);
   }
 
   @Test
@@ -292,6 +343,21 @@ final class MapUtilsTest {
     final ItemFrame lower = frames.get(1);
     final boolean lowerIsFirst = FakeWorld.hasTag(lower, Keys.FIRST_MAP_KEY);
     assertFalse(lowerIsFirst);
+  }
+
+  @Test
+  void buildsTheHighestTwoValidMapIdsWithoutOverflow() {
+    final CommandSender console = mock(CommandSender.class);
+    final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
+    MapUtils.buildMapScreen(console, location, Material.STONE, 2, 1, Integer.MAX_VALUE - 1);
+    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    assertEquals(2, frames.size());
+    final MapMeta first = this.metas.get(0);
+    final MapMeta second = this.metas.get(1);
+    final MapView firstMap = this.existingMap(Integer.MAX_VALUE - 1);
+    final MapView lastMap = this.existingMap(Integer.MAX_VALUE);
+    verify(first).setMapView(firstMap);
+    verify(second).setMapView(lastMap);
   }
 
   @Test

@@ -44,6 +44,9 @@ public final class Keys {
    */
   public static final NamespacedKey LAST_MAP_KEY = new NamespacedKey(NAMESPACE, "second_map");
 
+  /** Identifies the screen a map frame belongs to, so neighboring screens remain independent. */
+  public static final NamespacedKey SCREEN_KEY = new NamespacedKey(NAMESPACE, "screen");
+
   private Keys() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }

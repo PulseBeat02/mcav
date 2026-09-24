@@ -49,6 +49,7 @@ import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 import com.google.common.base.Preconditions;
 import java.util.List;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -83,6 +84,7 @@ public final class MapUtils {
    * @param id the id of the map, zero or more
    * @return the map item, with the id in its lore
    * @throws IllegalArgumentException if the id is negative
+   * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
    */
   public static ItemStack getMapFromID(final int id) {
     Preconditions.checkArgument(id >= 0, "Map id must not be negative: %s", id);
@@ -122,7 +124,8 @@ public final class MapUtils {
   /**
    * Creates maps until the map with the id exists. The server hands out map ids in increasing order.
    *
-   * @return the last created map, which has the id unless the server had already handed it out
+   * @return the created map with exactly the requested id
+   * @throws IllegalStateException if the server has already advanced past a missing map id
    */
   private static MapView createMapsUpTo(final int id) {
     final List<World> worlds = Bukkit.getWorlds();
@@ -133,6 +136,7 @@ public final class MapUtils {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
+    Preconditions.checkState(currentId == id, "Map id %s is unavailable; the server allocated %s", id, currentId);
     return created;
   }
 
@@ -165,6 +169,9 @@ public final class MapUtils {
     Preconditions.checkArgument(width > 0, "Width must be positive: %s", width);
     Preconditions.checkArgument(height > 0, "Height must be positive: %s", height);
     Preconditions.checkArgument(map >= 0, "Map id must not be negative: %s", map);
+    final long count = (long) width * height;
+    final long lastMap = map + count - 1;
+    Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Screen map ids exceed the integer range: %s", lastMap);
 
     final BlockFace face = sender instanceof final Player player ? player.getFacing() : BlockFace.NORTH;
     final boolean alongX = face == BlockFace.NORTH || face == BlockFace.SOUTH;
@@ -181,19 +188,21 @@ public final class MapUtils {
   }
 
   private static void fillWall(final Wall wall, final int width, final int height, final int firstMap) {
+    final UUID identifier = UUID.randomUUID();
+    final String screen = identifier.toString();
     int mapId = firstMap;
     for (int row = height - 1; row >= 0; row--) {
       for (int column = 0; column < width; column++) {
         final ItemFrame frame = wall.place(column, row, width, mapId);
         final boolean first = row == height - 1 && column == 0;
         final boolean last = row == 0 && column == width - 1;
-        tagFrame(frame, first, last);
+        tagFrame(frame, first, last, screen);
         mapId++;
       }
     }
   }
 
-  private static void tagFrame(final ItemFrame frame, final boolean first, final boolean last) {
+  private static void tagFrame(final ItemFrame frame, final boolean first, final boolean last, final String screen) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     if (first) {
       container.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
@@ -202,6 +211,7 @@ public final class MapUtils {
       container.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
     }
     container.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
+    container.set(Keys.SCREEN_KEY, PersistentDataType.STRING, screen);
   }
 
   /**
@@ -211,8 +221,7 @@ public final class MapUtils {
 
     private final World world;
     private final Block start;
-    private final BlockFace face;
-    private final BlockFace opposite;
+    private final BlockFace outward;
     private final Material material;
     private final boolean alongX;
     private final boolean reversed;
@@ -220,8 +229,7 @@ public final class MapUtils {
     Wall(final World world, final Block start, final BlockFace face, final Material material, final boolean alongX) {
       this.world = world;
       this.start = start;
-      this.face = face;
-      this.opposite = face.getOppositeFace();
+      this.outward = face.getOppositeFace();
       this.material = material;
       this.alongX = alongX;
       // the columns are counted along the positive axis, which runs from right to left when facing south or east
@@ -247,10 +255,11 @@ public final class MapUtils {
     }
 
     private ItemFrame spawnFrame(final Block block, final int map) {
-      final Block frameBlock = block.getRelative(this.opposite);
+      final Block frameBlock = block.getRelative(this.outward);
       final Location frameLocation = frameBlock.getLocation();
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
-      frame.setFacingDirection(this.face);
+      // The supporting block lies ahead of the builder; the frame faces back toward the builder.
+      frame.setFacingDirection(this.outward);
 
       final ItemStack item = getMapFromID(map);
       frame.setItem(item);

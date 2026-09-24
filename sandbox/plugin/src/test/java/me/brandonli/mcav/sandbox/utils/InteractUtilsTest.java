@@ -37,10 +37,14 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Zombie;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Vector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests {@link InteractUtils}.
@@ -138,6 +142,30 @@ final class InteractUtilsTest {
     final Location eye = this.eye(3.3, 64.6, 5.0, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     return target;
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { true, false })
+  void keepsAdjacentScreenCornersSeparateOrRejectsAmbiguousLegacyWalls(final boolean identified) {
+    final Location firstLocation = this.fakeWorld.location(0.5, 64.5, 0.0);
+    final Location secondLocation = this.fakeWorld.location(1.5, 64.5, 0.0);
+    final ItemFrame first = this.fakeWorld.addFrame(firstLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
+    final ItemFrame second = this.fakeWorld.addFrame(secondLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
+    if (identified) {
+      final PersistentDataContainer firstData = first.getPersistentDataContainer();
+      final PersistentDataContainer secondData = second.getPersistentDataContainer();
+      firstData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "first");
+      secondData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "second");
+    }
+    final Block wall = this.fakeWorld.block(1, 64, -1);
+    final Location eye = this.eye(1.3, 64.6, 5.0, LOOK_NORTH);
+    this.aimAt(second, BlockFace.SOUTH, wall, eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    if (identified) {
+      assertArrayEquals(new int[] { 38, 51 }, coordinates);
+    } else {
+      assertNull(coordinates, "legacy walls with several possible corners cannot be resolved safely");
+    }
   }
 
   @Test
@@ -271,9 +299,9 @@ final class InteractUtilsTest {
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(1, 64, 7);
     // yaw 150 looks north-north-west, so the ray travels 0.577 blocks west for every block north: over the 5.3 blocks
-    // to the wall it moves 3.06 west, from x = 3.3 to x = 0.24, which is 0.24 of the frame from its left edge. A frame
+    // to the wall it moves 3.06 west, from x = 4.3 to x = 1.24, which is 0.24 of the frame from its left edge. A frame
     // that faces south is attached to the north side of its block, so the pixel is not mirrored: 0.24 * 128 = 30
-    final Location eye = this.eye(3.3, 64.6, 13.3, 150.0f);
+    final Location eye = this.eye(4.3, 64.6, 13.3, 150.0f);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     final int[] expected = { 128 + 30, 51 };
@@ -288,9 +316,9 @@ final class InteractUtilsTest {
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.WEST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(9, 64, 1);
     // yaw -60 looks east-south-east, so the ray travels 0.577 blocks south for every block east: over the 5.3 blocks
-    // to the wall it moves 3.06 south, from z = 1.5 to z = 4.56, which is 0.56 of the frame from its first edge. A
+    // to the wall it moves 3.06 south, from z = -1.5 to z = 1.56, which is 0.56 of the frame from its first edge. A
     // frame that faces west is attached to the east side of its block, so the pixel is not mirrored: 0.56 * 128 = 71
-    final Location eye = this.eye(2.7, 64.6, 1.5, -60.0f);
+    final Location eye = this.eye(2.7, 64.6, -1.5, -60.0f);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     final int[] expected = { 128 + 71, 51 };
@@ -298,7 +326,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void usesTheTopLeftCornerOfFramesOnTheFloor() {
+  void rejectsUnsupportedFramesOnTheFloor() {
     ItemFrame target = null;
     for (int x = 0; x < 2; x++) {
       for (int z = 0; z < 2; z++) {
@@ -318,7 +346,68 @@ final class InteractUtilsTest {
     final Location eye = this.eye(1.3, 67.0, 1.6, LOOK_NORTH);
     this.aimAt(target, BlockFace.UP, floorBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 128, 128 }, coordinates);
+    assertNull(coordinates);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "2.9,64.5", "4.1,64.5", "3.5,63.9", "3.5,65.1" })
+  void rejectsRaysOutsideTheSelectedFrame(final double x, final double y) {
+    this.buildSouthWall();
+    final Location eye = this.eye(x, y, 5.0, LOOK_NORTH);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertNull(coordinates);
+  }
+
+  @Test
+  void acceptsAnEyeOnTheMapPlaneLookingAcrossIt() {
+    this.buildSouthWall();
+    final Location eye = this.eye(3.5, 64.5, 0.0, LOOK_NORTH);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertArrayEquals(new int[] { 3 * 128 + 64, 128 + 64 }, coordinates);
+  }
+
+  @Test
+  void rejectsAnIntersectionBehindThePlayer() {
+    this.buildSouthWall();
+    final Location eye = this.eye(3.3, 64.6, 5.0, LOOK_SOUTH);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertNull(coordinates);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "5.0", "0.0" })
+  void rejectsParallelAndCoplanarRays(final double z) {
+    this.buildSouthWall();
+    final Location eye = mock(Location.class);
+    when(eye.getZ()).thenReturn(z);
+    final Vector direction = new Vector(1, 0, 0);
+    when(eye.getDirection()).thenReturn(direction);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertNull(coordinates);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "3.0,64.0,0,127", "4.0,65.0,127,0" })
+  void keepsFrameEdgesInsideTheSelectedMap(final double x, final double y, final int pixelX, final int pixelY) {
+    this.buildSouthWall();
+    final Location eye = this.eye(x, y, -5.0, LOOK_SOUTH);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertArrayEquals(new int[] { 3 * 128 + pixelX, 128 + pixelY }, coordinates);
+  }
+
+  @Test
+  void keepsRotatedFrameEdgesInsideTheSelectedMap() {
+    final ItemFrame target = this.buildSouthWall();
+    when(target.getRotation()).thenReturn(Rotation.CLOCKWISE);
+    final Location eye = this.eye(3.0, 65.0, -5.0, LOOK_SOUTH);
+    when(this.player.getEyeLocation()).thenReturn(eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertArrayEquals(new int[] { 3 * 128 + 127, 128 + 127 }, coordinates);
   }
 
   @Test
