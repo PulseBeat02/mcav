@@ -53,6 +53,7 @@ public final class VideoFlagsParser {
    *
    * @param flags the flags argument of the command, may be empty or {@code null}
    * @return the arguments to pass to yt-dlp, empty if there are none
+   * @throws IllegalArgumentException if an option with a value has an empty name
    */
   public String[] parseYTDLPFlags(final @Nullable String flags) {
     final String content = extractOptions(flags);
@@ -114,6 +115,9 @@ public final class VideoFlagsParser {
     final String value = trimmed.substring(equals + 1);
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
+    if (cleanName.isEmpty()) {
+      throw new IllegalArgumentException("yt-dlp option name must not be empty");
+    }
     arguments.add("--" + cleanName);
     arguments.add(cleanValue);
   }

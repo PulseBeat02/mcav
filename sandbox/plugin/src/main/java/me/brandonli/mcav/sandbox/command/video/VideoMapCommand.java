@@ -33,9 +33,7 @@ import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.scheduler.BukkitScheduler;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
@@ -158,9 +156,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final CompressedMapResult result = new CompressedMapResult(configuration);
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
 
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTask(this.plugin, ditherFilter::start);
-    this.manager.setFilter(ditherFilter);
+    this.manager.startFilter(ditherFilter);
     return VideoPipelineStep.of(ditherFilter);
   }
 }

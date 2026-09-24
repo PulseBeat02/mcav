@@ -141,6 +141,23 @@ final class DitheringArgumentTest {
   }
 
   @Test
+  void cachedAlgorithmDoesNotWaitForTheInitializationLock() throws Exception {
+    final DitheringArgument argument = DitheringArgument.NEAREST_COLOR;
+    final DitherAlgorithm expected = argument.createAlgorithm();
+    final java.util.concurrent.CompletableFuture<DitherAlgorithm> completed = new java.util.concurrent.CompletableFuture<>();
+    final Thread reader = new Thread(() -> completed.complete(argument.createAlgorithm()), "cached-algorithm-reader");
+    try {
+      synchronized (argument) {
+        reader.start();
+        final DitherAlgorithm actual = completed.get(2, TimeUnit.SECONDS);
+        assertSame(expected, actual, "a warm cache read never waits for first-use initialization");
+      }
+    } finally {
+      reader.join(TIMEOUT_MILLIS);
+    }
+  }
+
+  @Test
   @Order(4)
   void createsANewTemporalAlgorithmForEveryStream() {
     final DitheringArgument argument = DitheringArgument.FLOYD_STEINBERG_TEMPORAL;

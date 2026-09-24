@@ -30,6 +30,7 @@ import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.svc.SVCModule;
 import me.brandonli.mcav.vm.VMModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -54,11 +55,11 @@ public final class MCAVSandbox extends JavaPlugin {
     "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
   private @MonotonicNonNull ComponentLogger logger;
-  private @MonotonicNonNull MCAVApi mcav;
+  private @Nullable MCAVApi mcav;
   private @MonotonicNonNull PluginDataConfigurationMapper configurationMapper;
-  private @MonotonicNonNull AudioProvider audioProvider;
-  private @MonotonicNonNull ImageManager imageManager;
-  private @MonotonicNonNull VideoPlayerManager videoPlayerManager;
+  private @Nullable AudioProvider audioProvider;
+  private @Nullable ImageManager imageManager;
+  private @Nullable VideoPlayerManager videoPlayerManager;
   private @Nullable AnnotationParserHandler annotationParserHandler;
   private @Nullable JukeBoxListener listener;
   private boolean qemuInstalled;
@@ -151,14 +152,14 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadCommands() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this);
-    handler.registerCommands();
     this.annotationParserHandler = handler;
+    handler.registerCommands();
   }
 
   private void loadListeners() {
     final JukeBoxListener jukeBoxListener = new JukeBoxListener(this);
-    jukeBoxListener.start();
     this.listener = jukeBoxListener;
+    jukeBoxListener.start();
   }
 
   /**
@@ -167,38 +168,50 @@ public final class MCAVSandbox extends JavaPlugin {
    */
   @Override
   public void onDisable() {
-    this.shutdownMedia();
-    final JukeBoxListener jukeBoxListener = this.listener;
-    if (jukeBoxListener != null) {
-      jukeBoxListener.shutdown();
-    }
-    final AnnotationParserHandler handler = this.annotationParserHandler;
-    if (handler != null) {
-      handler.shutdownCommands();
-    }
-    this.releaseAudioAndLibrary();
-  }
-
-  private void shutdownMedia() {
-    final VideoPlayerManager videoManager = this.videoPlayerManager;
-    if (videoManager != null) {
-      videoManager.shutdown();
-    }
+    final VideoPlayerManager videos = this.videoPlayerManager;
     final ImageManager images = this.imageManager;
-    if (images != null) {
-      images.shutdown();
-    }
-  }
-
-  private void releaseAudioAndLibrary() {
-    final AudioProvider provider = this.audioProvider;
-    if (provider != null) {
-      provider.shutdown();
-    }
-    final MCAVApi api = this.mcav;
-    if (api != null) {
-      api.release();
-    }
+    final JukeBoxListener jukebox = this.listener;
+    final AnnotationParserHandler commands = this.annotationParserHandler;
+    final AudioProvider audio = this.audioProvider;
+    final MCAVApi library = this.mcav;
+    this.videoPlayerManager = null;
+    this.imageManager = null;
+    this.listener = null;
+    this.annotationParserHandler = null;
+    this.audioProvider = null;
+    this.mcav = null;
+    CleanupUtils.runAll(
+      () -> {
+        if (videos != null) {
+          videos.shutdown();
+        }
+      },
+      () -> {
+        if (images != null) {
+          images.shutdown();
+        }
+      },
+      () -> {
+        if (jukebox != null) {
+          jukebox.shutdown();
+        }
+      },
+      () -> {
+        if (commands != null) {
+          commands.shutdownCommands();
+        }
+      },
+      () -> {
+        if (audio != null) {
+          audio.shutdown();
+        }
+      },
+      () -> {
+        if (library != null) {
+          library.release();
+        }
+      }
+    );
   }
 
   private static <T> T require(final @Nullable T value, final String name) {

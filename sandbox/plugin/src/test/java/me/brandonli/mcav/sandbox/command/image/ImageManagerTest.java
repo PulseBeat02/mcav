@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.image;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
@@ -106,6 +107,7 @@ final class ImageManagerTest {
     doThrow(failure).when(this.image).close();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.manager.releaseImage(true));
     assertEquals(failure, thrown);
+    verify(this.player, times(1)).release();
     this.manager.releaseImage(true);
     verify(this.image, times(1)).close();
     verify(this.display, times(1)).release();
@@ -120,6 +122,64 @@ final class ImageManagerTest {
     final ExecutorService service = this.manager.getService();
     final boolean shutdown = service.isShutdown();
     assertTrue(shutdown);
+  }
+
+  @Test
+  void rejectsALoadThatFinishesAfterShutdownOrClear() {
+    final long beforeClear = this.manager.beginLoad();
+    this.manager.releaseImage(true);
+    final boolean retainedAfterClear = this.manager.retainLoaded(beforeClear, this.image);
+    assertFalse(retainedAfterClear);
+    final long beforeShutdown = this.manager.beginLoad();
+    this.manager.shutdown();
+    final boolean retainedAfterShutdown = this.manager.retainLoaded(beforeShutdown, this.image);
+    assertFalse(retainedAfterShutdown);
+    assertThrows(java.util.concurrent.RejectedExecutionException.class, this.manager::beginLoad);
+  }
+
+  @Test
+  void shutsDownTheWorkerEvenWhenDisplayCleanupFails() {
+    this.fill();
+    final IllegalStateException failure = new IllegalStateException("display cleanup failed");
+    doThrow(failure).when(this.display).release();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::shutdown);
+    assertEquals(failure, thrown);
+    verify(this.image).close();
+    verify(this.player).release();
+    final ExecutorService service = this.manager.getService();
+    final boolean stopped = service.isShutdown();
+    assertTrue(stopped);
+  }
+
+  @Test
+  void discardingAnOldRequestCannotReleaseTheNewRequestsImage() {
+    final long oldRequest = this.manager.beginLoad();
+    final long newRequest = this.manager.beginLoad();
+    final boolean retained = this.manager.retainLoaded(newRequest, this.image);
+    assertTrue(retained);
+    this.manager.discardLoaded(oldRequest);
+    verify(this.image, never()).release();
+    this.manager.discardLoaded(newRequest);
+    verify(this.image, times(1)).release();
+    this.manager.discardLoaded(newRequest);
+    verify(this.image, times(1)).release();
+  }
+
+  @Test
+  void cancellationAndReplacementNeverReviveAnOlderLoadToken() {
+    final long oldest = this.manager.beginLoad();
+    final long replaced = this.manager.beginLoad();
+    this.manager.releaseImage(true);
+    final boolean oldestAccepted = this.manager.retainLoaded(oldest, this.image);
+    final boolean replacedAccepted = this.manager.retainLoaded(replaced, this.image);
+    assertFalse(oldestAccepted);
+    assertFalse(replacedAccepted);
+    final long current = this.manager.beginLoad();
+    assertFalse(this.manager.retainLoaded(oldest, this.image));
+    assertFalse(this.manager.retainLoaded(replaced, this.image));
+    assertTrue(this.manager.retainLoaded(current, this.image));
+    final ImageBuffer taken = this.manager.takeLoaded(current);
+    org.junit.jupiter.api.Assertions.assertSame(this.image, taken);
   }
 
   @Test

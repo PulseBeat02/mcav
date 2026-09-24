@@ -102,8 +102,9 @@ public final class HelpCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Shows the help. The query is a command without the {@code /mcav} in front, such as {@code dump}, because the
-   * help matches queries against whole commands such as {@code mcav dump}.
+   * Shows the help for a shorthand query such as {@code dump}, a full command query such as {@code mcav dump},
+   * or a page number. Full queries and page numbers are used by the help's generated navigation links. A trailing
+   * page number selects a page of a filtered query, such as {@code video 2}.
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
@@ -113,7 +114,29 @@ public final class HelpCommand implements AnnotationCommandFeature {
   @Command("mcav help [query]")
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
-    final String search = query == null ? "" : ROOT_COMMAND + " " + query;
+    final String search = searchQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
+  }
+
+  private static String searchQuery(final @Nullable String query) {
+    if (query == null) {
+      return "";
+    }
+    final String trimmed = query.strip();
+    if (trimmed.isEmpty()) {
+      return trimmed;
+    }
+    final int separator = trimmed.indexOf(' ');
+    final String first = separator < 0 ? trimmed : trimmed.substring(0, separator);
+    if (ROOT_COMMAND.equalsIgnoreCase(first)) {
+      return trimmed;
+    }
+    try {
+      // Cloud reserves a trailing integer for pagination, including a page with no command query.
+      Integer.parseInt(trimmed);
+      return trimmed;
+    } catch (final NumberFormatException notPageNumber) {
+      return ROOT_COMMAND + " " + trimmed;
+    }
   }
 }

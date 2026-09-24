@@ -81,6 +81,14 @@ final class VideoMapCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
+    org.mockito.Mockito.doAnswer(invocation -> {
+      final FunctionalVideoFilter filter = invocation.getArgument(0);
+      final org.bukkit.scheduler.BukkitScheduler scheduler = org.bukkit.Bukkit.getScheduler();
+      scheduler.runTask(plugin, filter::start);
+      return null;
+    })
+      .when(this.manager)
+      .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(provider);
@@ -168,7 +176,7 @@ final class VideoMapCommandTest {
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter ditherFilter) {
-    verify(this.manager).setFilter(ditherFilter);
+    verify(this.manager).startFilter(ditherFilter);
     verify(ditherFilter, never()).start();
     final int tasks = TestServer.runPendingTasks();
     assertEquals(1, tasks);

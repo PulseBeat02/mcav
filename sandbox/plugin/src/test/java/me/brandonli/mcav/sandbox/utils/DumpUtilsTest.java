@@ -406,6 +406,40 @@ final class DumpUtilsTest {
     assertTrue(listed, dump);
   }
 
+  @ParameterizedTest
+  @ValueSource(
+    strings = {
+      "paper.jar --world flat --api-token topsecret hidden-tail",
+      "paper.jar --api-token=\"topsecret hidden-tail\" --world world",
+      "paper.jar\t--password\t'topsecret hidden-tail'",
+      "paper.jar -javaagent:agent.jar=token=topsecret hidden-tail",
+    }
+  )
+  void redactsTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
+    final String property = "sun.java.command";
+    final String previous = System.getProperty(property);
+    final Path log = this.folder.resolve("latest.log");
+    Files.writeString(log, command);
+    System.setProperty(property, command);
+    try {
+      final String dump = DumpUtils.createDumpContents(log);
+      final boolean firstPart = dump.contains("topsecret");
+      final boolean trailingPart = dump.contains("hidden-tail");
+      final boolean keptProgram = dump.contains("paper.jar");
+      final boolean redacted = dump.contains("<redacted>");
+      assertFalse(firstPart);
+      assertFalse(trailingPart, "quoted or ambiguous trailing secret text must also be omitted");
+      assertTrue(keptProgram);
+      assertTrue(redacted);
+    } finally {
+      if (previous == null) {
+        System.clearProperty(property);
+      } else {
+        System.setProperty(property, previous);
+      }
+    }
+  }
+
   @Test
   void redactsASecretThatHidesInsideAPropertyValue() {
     // the dump goes to a public paste site. sun.java.command holds the whole command line of the program, and no

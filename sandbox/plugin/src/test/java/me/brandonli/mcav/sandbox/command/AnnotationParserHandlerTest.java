@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -64,6 +65,9 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -198,6 +202,78 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
+  void rollsBackAllFeaturesWhenRegistrationFails() {
+    final IllegalStateException failure = new IllegalStateException("listener registration failed");
+    try (
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
+        Mockito.doThrow(failure).when(browser).registerFeature(any())
+      );
+      final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
+    ) {
+      final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::registerCommands);
+      assertSame(failure, thrown);
+      handler.shutdownCommands();
+      final List<BrowserCommand> createdBrowsers = browsers.constructed();
+      final List<VirtualizeCommand> createdMachines = machines.constructed();
+      final BrowserCommand browser = createdBrowsers.getFirst();
+      final VirtualizeCommand machine = createdMachines.getFirst();
+      verify(browser, Mockito.times(1)).shutdown();
+      verify(machine, Mockito.times(1)).shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void registrationFailureRemainsPrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
+    final IllegalStateException primary = new IllegalStateException("registration failed");
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("browser cleanup failed");
+    try (
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, context) -> {
+        Mockito.doThrow(primary).when(browser).registerFeature(any());
+        Mockito.doThrow(cleanup).when(browser).shutdown();
+      });
+      final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
+    ) {
+      final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::registerCommands);
+      assertSame(primary, thrown);
+      final Throwable[] suppressed = thrown.getSuppressed();
+      final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanup };
+      assertArrayEquals(expected, suppressed);
+      handler.shutdownCommands();
+      final List<BrowserCommand> createdBrowsers = browsers.constructed();
+      final List<VirtualizeCommand> createdMachines = machines.constructed();
+      final BrowserCommand browser = createdBrowsers.getFirst();
+      final VirtualizeCommand machine = createdMachines.getFirst();
+      verify(browser, Mockito.times(1)).shutdown();
+      verify(machine, Mockito.times(1)).shutdown();
+    }
+  }
+
+  @Test
+  void shutsLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
+    final IllegalStateException failure = new IllegalStateException("browser cleanup failed");
+    try (
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
+        Mockito.doThrow(failure).when(browser).shutdown()
+      );
+      final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
+    ) {
+      final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::shutdownCommands);
+      assertSame(failure, thrown);
+      handler.shutdownCommands();
+      final List<BrowserCommand> createdBrowsers = browsers.constructed();
+      final List<VirtualizeCommand> createdMachines = machines.constructed();
+      final BrowserCommand browser = createdBrowsers.getFirst();
+      final VirtualizeCommand machine = createdMachines.getFirst();
+      verify(browser, Mockito.times(1)).shutdown();
+      verify(machine, Mockito.times(1)).shutdown();
+    }
+  }
+
+  @Test
   void rendersDescriptionsWithTheMessagesOfThePlugin() {
     final RichDescription description = AnnotationParserHandler.describe("mcav.command.video.pause.info");
     final Component contents = description.contents();
@@ -212,5 +288,49 @@ final class AnnotationParserHandlerTest {
   @Test
   void refusesANullPlugin() {
     assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
+  }
+
+  @Test
+  void propagatesFatalRegistrationFailureWithoutAttemptingRollback() {
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    try (
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
+        Mockito.doThrow(fatal).when(browser).registerFeature(any())
+      );
+      final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
+    ) {
+      final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, handler::registerCommands);
+      assertSame(fatal, thrown);
+      final List<BrowserCommand> createdBrowsers = browsers.constructed();
+      final List<VirtualizeCommand> createdMachines = machines.constructed();
+      final BrowserCommand browser = createdBrowsers.getFirst();
+      final VirtualizeCommand machine = createdMachines.getFirst();
+      verify(browser, never()).shutdown();
+      verify(machine, never()).shutdown();
+    }
+  }
+
+  @Test
+  void propagatesFatalCleanupFailureDuringRollback() {
+    final IllegalStateException primary = new IllegalStateException("registration failed");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    try (
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) -> {
+        Mockito.doThrow(primary).when(browser).registerFeature(any());
+        Mockito.doThrow(fatal).when(browser).shutdown();
+      });
+      final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
+    ) {
+      final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, handler::registerCommands);
+      assertSame(fatal, thrown);
+      final List<BrowserCommand> createdBrowsers = browsers.constructed();
+      final List<VirtualizeCommand> createdMachines = machines.constructed();
+      final BrowserCommand browser = createdBrowsers.getFirst();
+      final VirtualizeCommand machine = createdMachines.getFirst();
+      verify(browser).shutdown();
+      verify(machine, never()).shutdown();
+    }
   }
 }

@@ -23,7 +23,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * How a virtual machine is streamed: the local VNC port QEMU listens on, the size frames are scaled to, and
- * the frame rate requested from QEMU.
+ * the target frame rate of the VNC render loop. This setting does not change the guest display rate.
  */
 public final class VMSettings {
 
@@ -100,7 +100,7 @@ public final class VMSettings {
   }
 
   /**
-   * Gets the frame rate requested from QEMU.
+   * Gets the target frame rate of the VNC render loop. This setting does not change the guest display rate.
    *
    * @return the frame rate in frames per second
    */

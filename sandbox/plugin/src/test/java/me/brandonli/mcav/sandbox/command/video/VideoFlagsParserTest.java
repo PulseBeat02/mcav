@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,12 +47,10 @@ final class VideoFlagsParserTest {
     assertArrayEquals(new String[0], arguments);
   }
 
-  @Test
-  void treatsAnOptionThatStartsWithTheSeparatorAsAnEmptyName() {
-    // the option has no name before the separator, so the argument is the separator alone and the rest is its value
-    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{=best}");
-    final String[] expected = { "--", "best" };
-    assertArrayEquals(expected, arguments);
+  @ParameterizedTest
+  @ValueSource(strings = { "--yt-dlp{=best}", "--yt-dlp{  = best}", "--yt-dlp{format=best,=value}" })
+  void rejectsEmptyOptionNames(final String flags) {
+    assertThrows(IllegalArgumentException.class, () -> this.parser.parseYTDLPFlags(flags));
   }
 
   @Test

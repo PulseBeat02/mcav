@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command.image;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,11 +42,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
+import me.brandonli.mcav.media.source.SourceDetectionHelper;
+import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
@@ -112,9 +118,8 @@ final class AbstractImageCommandTest {
   void createCommand() {
     TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    this.manager = mock(ImageManager.class);
+    this.manager = spy(new ImageManager(plugin, this.direct));
     when(plugin.getImageManager()).thenReturn(this.manager);
-    when(this.manager.getService()).thenReturn(this.direct);
     this.display = mock(DisplayableImage.class);
     this.command = new RecordingCommand(plugin, this.display);
     this.sender = mock(CommandSender.class);
@@ -125,7 +130,7 @@ final class AbstractImageCommandTest {
     if (this.server != null) {
       this.server.stop(0);
     }
-    this.direct.shutdown();
+    this.manager.shutdown();
   }
 
   private static byte[] encode(final String format) throws IOException {
@@ -213,6 +218,60 @@ final class AbstractImageCommandTest {
     }
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void loadsPathsWithSpacesWithOrWithoutSurroundingQuotes(final boolean quoted) throws IOException {
+    final Path file = this.writeImage("my picture.png", "png");
+    final String path = file.toString();
+    final String mrl = quoted ? '"' + path + '"' : path;
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    final ImageBuffer image = this.verifyShown();
+    final int[] pixels = image.getPixels();
+    assertEquals(0xFFFF0000, pixels[0]);
+  }
+
+  @Test
+  void downloadsAnImageFromAQuotedUrl() throws IOException {
+    final String url = this.serveImage();
+    final String mrl = '"' + url + '"';
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    final ImageBuffer image = this.verifyShown();
+    final int[] pixels = image.getPixels();
+    assertEquals(0xFFFF0000, pixels[0]);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "", "\"", "\"\"", "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
+  void rejectsEmptyOrMalformedQuotedSources(final String mrl) {
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    this.assertNothingShown();
+    final List<Component> messages = Components.received(this.sender);
+    final Component invalid = Message.UNSUPPORTED_MRL.build();
+    final List<Component> expected = List.of(invalid);
+    assertEquals(expected, messages);
+  }
+
+  @Test
+  void rejectsEmptyQuotedMrlEvenWhenRawQuotesResolveToAnImage() throws IOException {
+    final Path imagePath = this.writeImage("literal-quotes.png", "png");
+    final FileSource imageSource = FileSource.path(imagePath);
+    // A Unix file can literally be named two quote characters. Model that lookup without creating a shared
+    // working-directory file, since PIT minions run concurrently. Delimiters still represent an empty MRL.
+    try (
+      final MockedConstruction<SourceDetectionHelper> detection = Mockito.mockConstruction(SourceDetectionHelper.class, (helper, _) ->
+        when(helper.detectSource("\"\"")).thenReturn(Optional.of(imageSource))
+      )
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "8x8", "\"\"");
+      this.assertNothingShown();
+      final List<Component> messages = Components.received(this.sender);
+      final Component invalid = Message.UNSUPPORTED_MRL.build();
+      assertEquals(List.of(invalid), messages);
+      final List<SourceDetectionHelper> lookups = detection.constructed();
+      assertEquals(0, lookups.size(), "an empty quoted MRL must be rejected before consulting the filesystem");
+    }
+  }
+
   @Test
   void refusesInvalidResolutions() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
@@ -259,7 +318,7 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
       output = capture.getOutput();
     }
-    final boolean named = output.contains(mrl);
+    final boolean named = output.contains("Failed to load the image " + mrl);
     assertTrue(named, "the log of a failed image names the media it could not load");
   }
 
@@ -308,6 +367,215 @@ final class AbstractImageCommandTest {
   }
 
   @Test
+  void releasesAnImageWhenAnAcceptedMainThreadTaskIsCancelledByShutdown() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("queued.png", "png");
+    final String mrl = file.toString();
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, never()).release();
+      this.manager.shutdown();
+      verify(image, times(1)).release();
+      // Even if the accepted task runs after shutdown instead of being discarded, it cannot revive the image.
+      TestServer.runPendingTasks();
+      verify(image, times(1)).release();
+      this.assertNothingShown();
+    }
+  }
+
+  @Test
+  void discardsTheOlderLoadedImageWhenANewerRequestIsQueued() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("queued.png", "png");
+    final String mrl = file.toString();
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> "first", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "second", this.sender, "8x4", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer first = constructed.get(0);
+      final MatImageBuffer second = constructed.get(1);
+      verify(first, times(1)).release();
+      TestServer.runPendingTasks();
+      verify(this.display, never()).displayImage(first);
+      verify(this.display, times(1)).displayImage(second);
+      verify(first, times(1)).release();
+      final int creations = this.command.resolutions.size();
+      assertEquals(1, creations);
+    }
+  }
+
+  @Test
+  void releasesTheLoadedImageWhenDisplayConfigurationFails() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("queued.png", "png");
+    final String mrl = file.toString();
+    final RecordingCommand failing = spy(this.command);
+    final IllegalStateException failure = new IllegalStateException("invalid display configuration");
+    Mockito.doThrow(failure).when(failing).createImage(any(), any());
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
+      assertSame(failure, thrown);
+      verify(image, times(1)).release();
+      this.assertNothingShown();
+    }
+  }
+
+  @Test
+  void releasesBothDisplayAndImageWhenDisplayingFails() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("queued.png", "png");
+    final String mrl = file.toString();
+    final IllegalStateException failure = new IllegalStateException("failed display");
+    Mockito.doThrow(failure).when(this.display).displayImage(any());
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
+      assertSame(failure, thrown);
+      verify(image, times(1)).close();
+      verify(this.display, times(1)).release();
+    }
+  }
+
+  @Test
+  void releasesALoadThatCompletesAfterItsManagerHasShutDown() throws IOException, InterruptedException {
+    final ExecutorService deferred = mock(ExecutorService.class);
+    final List<Runnable> work = new ArrayList<>();
+    Mockito.doAnswer(invocation -> {
+      final Runnable task = invocation.getArgument(0);
+      work.add(task);
+      return null;
+    })
+      .when(deferred)
+      .execute(any(Runnable.class));
+    when(deferred.awaitTermination(Mockito.anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final ImageManager deferredManager = new ImageManager(plugin, deferred);
+    when(plugin.getImageManager()).thenReturn(deferredManager);
+    final RecordingCommand deferredCommand = new RecordingCommand(plugin, this.display);
+    final Path file = this.writeImage("late.png", "png");
+    final String mrl = file.toString();
+    deferredCommand.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    deferredManager.shutdown();
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      final Runnable lateWork = work.getFirst();
+      lateWork.run();
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, times(1)).release();
+      verify(this.display, never()).displayImage(any());
+    }
+    verify(deferred).shutdown();
+  }
+
+  @Test
+  void propagatesFatalConfigurationFailureWithoutAttemptingNativeCleanup() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("queued.png", "png");
+    final String mrl = file.toString();
+    final RecordingCommand failing = spy(this.command);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal configuration failure");
+    Mockito.doThrow(fatal).when(failing).createImage(any(), any());
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
+      assertSame(fatal, thrown);
+      verify(image, never()).release();
+      verify(image, never()).close();
+      verify(this.display, never()).release();
+    }
+  }
+
+  @Test
+  void reportsARejectedLoadWithoutAllocatingAnImage() throws IOException {
+    final Path file = this.writeImage("rejected.png", "png");
+    final String mrl = file.toString();
+    this.manager.shutdown();
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final boolean empty = constructed.isEmpty();
+      assertTrue(empty);
+    }
+    final List<Component> messages = Components.received(this.sender);
+    final Component loading = Message.LOAD_IMAGE_START.build();
+    final Component rejected = Message.UNSUPPORTED_MRL.build();
+    final List<Component> expected = List.of(loading, rejected);
+    assertEquals(expected, messages);
+    this.assertNothingShown();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = { 0, 1, 2 })
+  void failedSchedulingDiscardsTheImageAndPreservesCleanupFailures(final int cleanupMode) throws IOException {
+    final Path file = this.writeImage("schedule-failure.png", "png");
+    final String mrl = file.toString();
+    final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image");
+    final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException("image release failed");
+    final BukkitScheduler scheduler = TestServer.scheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
+    final String output;
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) -> {
+        if (cleanupMode != 0) {
+          Mockito.doThrow(cleanup).when(image).release();
+        }
+      });
+      final StandardErrorCapture capture = StandardErrorCapture.start()
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, times(1)).release();
+      this.manager.shutdown();
+      verify(image, times(1)).release();
+      output = capture.getOutput();
+    }
+    final Throwable[] suppressed = primary.getSuppressed();
+    final Throwable[] expected = cleanupMode == 2 ? new Throwable[] { cleanup } : new Throwable[0];
+    assertArrayEquals(expected, suppressed);
+    final boolean reported = output.contains("scheduler rejected the loaded image");
+    assertTrue(reported, "the callback reports the scheduling failure after releasing the image");
+    this.assertNothingShown();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void failedConfigurationPreservesItsPrimaryFailureWhenImageCleanupAlsoFails(final boolean sameFailure) throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("cleanup-failure.png", "png");
+    final String mrl = file.toString();
+    final RecordingCommand failing = spy(this.command);
+    final IllegalStateException primary = new IllegalStateException("invalid image configuration");
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("image release failed");
+    Mockito.doThrow(primary).when(failing).createImage(any(), any());
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) -> {
+        Mockito.doThrow(cleanup).when(image).release();
+      })
+    ) {
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
+      assertSame(primary, thrown);
+      final Throwable[] suppressed = thrown.getSuppressed();
+      final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanup };
+      assertArrayEquals(expected, suppressed);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, times(1)).release();
+      this.assertNothingShown();
+    }
+  }
+
+  @Test
   void refusesNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider configuration = _ -> "configuration";
     assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
@@ -316,5 +584,86 @@ final class AbstractImageCommandTest {
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, null, "picture.png"));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, "4x2", null));
     verify(this.manager, never()).getService();
+  }
+
+  @Test
+  void propagatesFatalSchedulingFailureWithoutDiscardingLoadedImage() throws IOException {
+    final Path file = this.writeImage("schedule-fatal.png", "png");
+    final String mrl = file.toString();
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel");
+    final BukkitScheduler scheduler = TestServer.scheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(fatal);
+
+    final String output;
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
+      final StandardErrorCapture capture = StandardErrorCapture.start()
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      output = capture.getOutput();
+      verify(this.manager, never()).discardLoaded(Mockito.anyLong());
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, never()).release();
+    }
+    final boolean reported = output.contains("fatal scheduling sentinel");
+    assertTrue(reported, "the fatal scheduling error is logged by the background callback handler");
+    this.assertNothingShown();
+  }
+
+  @Test
+  void propagatesFatalDiscardFailureDuringSchedulingFailureRecovery() throws IOException {
+    final Path file = this.writeImage("discard-fatal.png", "png");
+    final String mrl = file.toString();
+    final IllegalStateException primary = new IllegalStateException("scheduling rejected");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal discard sentinel");
+    final BukkitScheduler scheduler = TestServer.scheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
+
+    final String output;
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) -> {
+        Mockito.doThrow(fatal).doNothing().when(image).release();
+      });
+      final StandardErrorCapture capture = StandardErrorCapture.start()
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      output = capture.getOutput();
+      verify(this.manager, times(1)).discardLoaded(Mockito.anyLong());
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, times(1)).release();
+    }
+    final Throwable[] suppressed = primary.getSuppressed();
+    assertEquals(0, suppressed.length, "fatal cleanup failure must not be suppressed onto recoverable primary exception");
+    final boolean reported = output.contains("fatal discard sentinel");
+    assertTrue(reported, "the fatal discard failure is logged as the escaping callback error");
+    this.assertNothingShown();
+  }
+
+  @Test
+  void propagatesFatalImageCleanupFailureWhenDisplayConfigurationFails() throws IOException {
+    TestServer.resetWithDeferredTasks();
+    final Path file = this.writeImage("config-cleanup-fatal.png", "png");
+    final String mrl = file.toString();
+    final RecordingCommand failing = spy(this.command);
+    final IllegalStateException primary = new IllegalStateException("display configuration failed");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup sentinel");
+    Mockito.doThrow(primary).when(failing).createImage(any(), any());
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) -> {
+        Mockito.doThrow(fatal).doNothing().when(image).release();
+      })
+    ) {
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
+      assertSame(fatal, thrown);
+      final Throwable[] suppressed = primary.getSuppressed();
+      assertEquals(0, suppressed.length, "fatal cleanup error must not be suppressed onto recoverable primary exception");
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer image = constructed.getFirst();
+      verify(image, times(1)).release();
+      this.assertNothingShown();
+    }
   }
 }

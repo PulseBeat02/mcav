@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -36,6 +37,8 @@ import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoScoreboardCommand;
 import me.brandonli.mcav.sandbox.locale.LocaleTools;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import org.bukkit.command.CommandSender;
@@ -51,9 +54,12 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
  */
 public final class AnnotationParserHandler {
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private final CommandManager<CommandSender> manager;
   private final AnnotationParser<CommandSender> parser;
   private final List<AnnotationCommandFeature> features;
+  private boolean shutDown;
 
   /**
    * Creates the command manager and the features. The plugin's managers must exist already.
@@ -137,9 +143,23 @@ public final class AnnotationParserHandler {
    * Sets up every feature and registers its commands.
    */
   public void registerCommands() {
-    for (final AnnotationCommandFeature feature : this.features) {
-      feature.registerFeature(this.parser);
-      this.parser.parse(feature);
+    try {
+      for (final AnnotationCommandFeature feature : this.features) {
+        feature.registerFeature(this.parser);
+        this.parser.parse(feature);
+      }
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      try {
+        this.shutdownCommands();
+      } catch (final RuntimeException | Error cleanupFailure) {
+        ThrowableUtils.throwIfFatal(cleanupFailure);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+        if (!sameFailure) {
+          exception.addSuppressed(cleanupFailure);
+        }
+      }
+      throw exception;
     }
   }
 
@@ -147,8 +167,16 @@ public final class AnnotationParserHandler {
    * Shuts every feature down.
    */
   public void shutdownCommands() {
-    for (final AnnotationCommandFeature feature : this.features) {
-      feature.shutdown();
+    if (this.shutDown) {
+      return;
     }
+    this.shutDown = true;
+    final int count = this.features.size();
+    final Runnable[] cleanups = new Runnable[count];
+    for (int index = 0; index < count; index++) {
+      final AnnotationCommandFeature feature = this.features.get(index);
+      cleanups[index] = feature::shutdown;
+    }
+    CleanupUtils.runAll(cleanups);
   }
 }

@@ -17,11 +17,13 @@
  */
 package me.brandonli.mcav.sandbox.command.image;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -35,6 +37,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -48,6 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
 
   /**
@@ -77,7 +81,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param configProvider   creates the display configuration for the parsed resolution
    * @param sender           who ran the command
    * @param imageResolution  the resolution argument, such as {@code 640x640}
-   * @param mrl              the path or URL of the image
+   * @param mrl              the path or URL of the image, optionally enclosed in one pair of double quotes
    */
   public void displayImage(
     final ImageConfigurationProvider configProvider,
@@ -96,15 +100,24 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final Supplier<ImageBuffer> loader = createLoader(mrl);
+    final String sourceMrl = unwrapMrl(mrl);
+    final Supplier<ImageBuffer> loader = createLoader(sourceMrl);
     if (loader == null) {
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
       return;
     }
 
-    final ImageRequest request = new ImageRequest(sender, mrl, resolution, configProvider);
+    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configProvider);
     this.startLoading(loader, request);
+  }
+
+  private static String unwrapMrl(final String mrl) {
+    final int length = mrl.length();
+    if (length >= 2 && mrl.charAt(0) == '"' && mrl.charAt(length - 1) == '"') {
+      return mrl.substring(1, length - 1);
+    }
+    return mrl;
   }
 
   private void startLoading(final Supplier<ImageBuffer> loader, final ImageRequest request) {
@@ -113,15 +126,30 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     sender.sendMessage(loadingMessage);
 
     final ExecutorService service = this.manager.getService();
-    final CompletableFuture<ImageBuffer> loading = CompletableFuture.supplyAsync(loader, service);
-    TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, image, error));
+    final long generation;
+    final CompletableFuture<ImageBuffer> loading;
+    try {
+      generation = this.manager.beginLoad();
+      loading = CompletableFuture.supplyAsync(loader, service);
+    } catch (final RejectedExecutionException exception) {
+      LOGGER.error("The image worker refused to load an image", exception);
+      final Component message = Message.UNSUPPORTED_MRL.build();
+      sender.sendMessage(message);
+      return;
+    }
+    TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
   }
 
   /**
    * Hands the loaded image over to the main thread. When the plugin is disabled, the main thread accepts no more
    * tasks, so the image is released at once instead of leaking its native memory.
    */
-  private void onImageLoaded(final ImageRequest request, final @Nullable ImageBuffer image, final @Nullable Throwable error) {
+  private void onImageLoaded(
+    final ImageRequest request,
+    final long generation,
+    final @Nullable ImageBuffer image,
+    final @Nullable Throwable error
+  ) {
     final CommandSender sender = request.getSender();
     if (error != null) {
       final String mrl = request.getMrl();
@@ -132,27 +160,75 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
     // without an error the loader always returns an image
     final ImageBuffer loaded = Objects.requireNonNull(image);
+    final boolean retained = this.manager.retainLoaded(generation, loaded);
+    if (!retained) {
+      loaded.release();
+      return;
+    }
     final Pair<Integer, Integer> resolution = request.getResolution();
     final ImageConfigurationProvider configProvider = request.getConfigProvider();
-    final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () -> this.showImage(loaded, resolution, configProvider, sender));
-    if (!scheduled) {
-      loaded.release();
+    try {
+      final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () -> this.showImage(generation, resolution, configProvider, sender)
+      );
+      if (!scheduled) {
+        this.manager.discardLoaded(generation);
+      }
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      try {
+        this.manager.discardLoaded(generation);
+      } catch (final RuntimeException | Error cleanupFailure) {
+        ThrowableUtils.throwIfFatal(cleanupFailure);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+        if (!sameFailure) {
+          exception.addSuppressed(cleanupFailure);
+        }
+      }
+      throw exception;
     }
   }
 
+  /**
+   * Runs only on the server main thread, as do manager shutdown and display ownership changes. Taking a pending
+   * image and publishing its display cannot interleave with shutdown on that thread.
+   */
   private void showImage(
-    final ImageBuffer image,
+    final long generation,
     final Pair<Integer, Integer> resolution,
     final ImageConfigurationProvider configProvider,
     final CommandSender sender
   ) {
-    this.manager.releaseImage(true);
-    final DisplayableImage display = this.createImage(resolution, configProvider);
-    this.manager.setImage(display);
-    this.manager.setCurrentImage(image);
-    display.displayImage(image);
-    final Component message = Message.LOAD_IMAGE.build();
-    sender.sendMessage(message);
+    final ImageBuffer image = this.manager.takeLoaded(generation);
+    if (image == null) {
+      return;
+    }
+    boolean adopted = false;
+    try {
+      this.manager.releaseImage(true);
+      final DisplayableImage display = this.createImage(resolution, configProvider);
+      this.manager.setImage(display);
+      this.manager.setCurrentImage(image);
+      adopted = true;
+      display.displayImage(image);
+      final Component message = Message.LOAD_IMAGE.build();
+      sender.sendMessage(message);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      try {
+        if (adopted) {
+          this.manager.releaseImage(true);
+        } else {
+          image.release();
+        }
+      } catch (final RuntimeException | Error cleanupFailure) {
+        ThrowableUtils.throwIfFatal(cleanupFailure);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+        if (!sameFailure) {
+          exception.addSuppressed(cleanupFailure);
+        }
+      }
+      throw exception;
+    }
   }
 
   private static @Nullable Pair<Integer, Integer> parseResolution(final String imageResolution) {
@@ -169,6 +245,9 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @return the loader, or {@code null} if the media is not such an image
    */
   private static @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
+    if (mrl.isBlank()) {
+      return null;
+    }
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     if (detected.isEmpty()) {

@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.sandbox.command.interaction;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ForwardingExecutorService;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,11 +40,13 @@ import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
 import me.brandonli.mcav.sandbox.utils.Keys;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -63,6 +67,10 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.PluginManager;
@@ -82,6 +90,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractInteractiveCommand<T> implements AnnotationCommandFeature, Listener {
 
+  private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final int REACH = 100;
@@ -98,6 +107,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   private final Set<Player> activePlayers;
   private final Object lock;
+  private volatile @Nullable Screen screen;
+  private boolean closed;
 
   /**
    * The maps the player is shown on, while one is running. Changed only while holding the lock of this command.
@@ -124,6 +135,17 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     this.lock = new Object();
   }
 
+  AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(service, "Executor must not be null");
+    this.plugin = plugin;
+    this.service = service;
+    final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
+    final Set<Player> players = Collections.newSetFromMap(backing);
+    this.activePlayers = Collections.synchronizedSet(players);
+    this.lock = new Object();
+  }
+
   /**
    * Registers this command as a listener, so clicks on screens and chat messages reach the running player.
    *
@@ -143,9 +165,17 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @Override
   public void shutdown() {
-    this.releaseCurrent();
-    HandlerList.unregisterAll(this);
-    ExecutorUtils.shutdownExecutorGracefully(this.service);
+    synchronized (this.lock) {
+      if (this.closed) {
+        return;
+      }
+      this.closed = true;
+    }
+    CleanupUtils.runAll(
+      this::releaseCurrent,
+      () -> HandlerList.unregisterAll(this),
+      () -> ExecutorUtils.shutdownExecutorGracefully(this.service)
+    );
   }
 
   /**
@@ -154,19 +184,28 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   protected final void releaseCurrent() {
     final T current;
     final CompressedMapResult maps;
+    final Screen oldScreen;
     synchronized (this.lock) {
       current = this.player;
       maps = this.result;
+      oldScreen = this.screen;
       this.player = null;
       this.result = null;
+      this.screen = null;
     }
-
-    if (current != null) {
-      this.releasePlayer(current);
-    }
-    if (maps != null) {
-      maps.release();
-    }
+    final boolean workerOwnsCleanup = oldScreen != null && oldScreen.cancel();
+    CleanupUtils.runAll(
+      () -> {
+        if (current != null && !workerOwnsCleanup) {
+          this.releasePlayer(current);
+        }
+      },
+      () -> {
+        if (maps != null) {
+          maps.release();
+        }
+      }
+    );
   }
 
   /**
@@ -197,6 +236,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @return the maps, which become the running ones, and the pipeline to attach to the new player
    */
   final Screen createScreen(final ScreenSettings settings) {
+    synchronized (this.lock) {
+      Preconditions.checkState(!this.closed, "The interactive command is shut down");
+    }
     this.releaseCurrent();
     final MultiplePlayerSelector viewers = settings.getViewers();
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(viewers);
@@ -208,14 +250,107 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final DitheringArgument dithering = settings.getDithering();
     final DitherAlgorithm algorithm = dithering.createAlgorithm();
     final CompressedMapResult maps = new CompressedMapResult(configuration);
-    final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, maps);
-    filter.start();
     synchronized (this.lock) {
       this.result = maps;
     }
+    try {
+      final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, maps);
+      filter.start();
+      final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
+      final int columns = blocks.getFirst();
+      final int rows = blocks.getSecond();
+      final long mapCount = (long) columns * rows;
+      final Screen created = new Screen(maps, pipeline, mapId, mapCount);
+      synchronized (this.lock) {
+        this.result = maps;
+        this.screen = created;
+      }
+      return created;
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      this.releaseAfterFailure(exception);
+      throw exception;
+    }
+  }
 
-    final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
-    return new Screen(maps, pipeline);
+  /** Takes ownership on the main thread before callback attachment or executor submission can fail. */
+  final void ownCreatedPlayer(final T created) {
+    synchronized (this.lock) {
+      this.player = created;
+    }
+  }
+
+  /** Releases the screen and any adopted backend if synchronous startup preparation fails. */
+  final void createResource(final Runnable create) {
+    try {
+      create.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      this.releaseAfterFailure(exception);
+      throw exception;
+    }
+  }
+
+  private void releaseAfterFailure(final Throwable exception) {
+    try {
+      this.releaseCurrent();
+    } catch (final RuntimeException | Error cleanup) {
+      ThrowableUtils.throwIfFatal(cleanup);
+      final boolean same = IDENTITY.equivalent(exception, cleanup);
+      if (!same) {
+        exception.addSuppressed(cleanup);
+      }
+    }
+  }
+
+  /**
+   * Gates queued startup by this specific screen and assigns in-flight cancellation cleanup to the worker.
+   * A canceled queued task is skipped; its future is canceled by Screen even if it was bound after cancellation.
+   * BrowserPlayer and VMPlayer submit their CompletableFuture startup through execute. Screen creation,
+   * reportStartWhenDone, release commands and shutdown are main-thread operations; startup runs on the worker.
+   */
+  final ExecutorService startExecutor(final T started, final Screen screen) {
+    return new ForwardingExecutorService() {
+      @Override
+      protected ExecutorService delegate() {
+        return AbstractInteractiveCommand.this.service;
+      }
+
+      @Override
+      public void execute(final Runnable task) {
+        final ExecutorService executor = this.delegate();
+        executor.execute(() -> AbstractInteractiveCommand.this.runStartTask(started, screen, task));
+      }
+    };
+  }
+
+  private void runStartTask(final T started, final Screen screen, final Runnable task) {
+    if (!screen.beginStart()) {
+      return;
+    }
+    try {
+      task.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      try {
+        this.finishStartTask(started, screen);
+      } catch (final RuntimeException | Error cleanup) {
+        ThrowableUtils.throwIfFatal(cleanup);
+        final boolean same = IDENTITY.equivalent(exception, cleanup);
+        if (!same) {
+          exception.addSuppressed(cleanup);
+        }
+      }
+      throw exception;
+    }
+    this.finishStartTask(started, screen);
+  }
+
+  private void finishStartTask(final T started, final Screen screen) {
+    final boolean cancelled = screen.finishStart();
+    if (cancelled) {
+      this.releasePlayer(started);
+    }
   }
 
   /**
@@ -238,14 +373,22 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final String description
   ) {
     synchronized (this.lock) {
-      this.player = started;
+      final boolean current = IDENTITY.equivalent(this.screen, screen);
+      if (!this.closed && current) {
+        this.player = started;
+      }
     }
+    screen.bindStart(start);
     final CompressedMapResult maps = screen.getMaps();
-    final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, description);
+    final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, screen, description);
     TaskUtils.whenComplete(start, (success, error) -> this.onStartCompleted(attempt, success, error));
   }
 
   private void onStartCompleted(final StartAttempt<T> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
+    final Screen screen = attempt.getScreen();
+    if (screen.isCancelled()) {
+      return;
+    }
     final boolean success = error == null && Boolean.TRUE.equals(started);
     if (!success) {
       final String description = attempt.getDescription();
@@ -257,7 +400,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     final Component message = this.createStartMessage(success, error);
     final CommandSender sender = attempt.getSender();
-    TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
+    TaskUtils.runOnMainThread(this.plugin, () -> {
+      if (!screen.isCancelled()) {
+        sender.sendMessage(message);
+      }
+    });
   }
 
   /**
@@ -267,25 +414,31 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   private void releaseIfCurrent(final T failed, final CompressedMapResult maps) {
     final boolean playerCurrent;
     final boolean mapsCurrent;
-    // neither the players nor the map results override equals, so this compares the very instances
     synchronized (this.lock) {
       final T current = this.player;
-      playerCurrent = current != null && current.equals(failed);
+      playerCurrent = IDENTITY.equivalent(current, failed);
       if (playerCurrent) {
         this.player = null;
       }
-      mapsCurrent = maps.equals(this.result);
+      mapsCurrent = IDENTITY.equivalent(maps, this.result);
       if (mapsCurrent) {
         this.result = null;
+        this.screen = null;
       }
     }
 
-    if (playerCurrent) {
-      this.releasePlayer(failed);
-    }
-    if (mapsCurrent) {
-      maps.release();
-    }
+    CleanupUtils.runAll(
+      () -> {
+        if (playerCurrent) {
+          this.releasePlayer(failed);
+        }
+      },
+      () -> {
+        if (mapsCurrent) {
+          maps.release();
+        }
+      }
+    );
   }
 
   private static boolean isScreen(final Entity entity) {
@@ -294,6 +447,24 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     }
     final PersistentDataContainer data = frame.getPersistentDataContainer();
     return data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN);
+  }
+
+  private boolean ownsScreen(final ItemFrame frame) {
+    final Screen current = this.screen;
+    if (current == null) {
+      return false;
+    }
+    final ItemStack item = frame.getItem();
+    final ItemMeta metadata = item.getItemMeta();
+    if (!(metadata instanceof final MapMeta mapMetadata)) {
+      return false;
+    }
+    final MapView map = mapMetadata.getMapView();
+    if (map == null) {
+      return false;
+    }
+    final int mapId = map.getId();
+    return current.ownsMap(mapId);
   }
 
   /**
@@ -316,7 +487,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     final Player breaker = event.getPlayer();
     final ItemFrame frame = findScreenInSight(breaker);
-    if (frame == null) {
+    if (frame == null || !this.ownsScreen(frame)) {
       return;
     }
 
@@ -395,10 +566,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     // only a punch is forwarded; a projectile is not the player who shot it
     final boolean punched = damager instanceof Player;
     final T current = this.player;
-    if (current == null || !punched) {
+    if (current == null || !punched || !this.ownsScreen((ItemFrame) entity)) {
       return;
     }
-    final int[] coordinates = InteractUtils.getBoardCoordinates(attacker);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
     if (coordinates != null) {
       this.handleLeftClick(current, coordinates[0], coordinates[1]);
     }
@@ -432,12 +603,12 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final T current = this.player;
     final Entity entity = event.getRightClicked();
     final boolean screen = isScreen(entity);
-    if (current == null || !screen) {
+    if (current == null || !screen || !this.ownsScreen((ItemFrame) entity)) {
       return;
     }
 
     final Player clicker = event.getPlayer();
-    final int[] coordinates = InteractUtils.getBoardCoordinates(clicker);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(clicker, entity);
     if (coordinates == null) {
       return;
     }
@@ -575,12 +746,20 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     private final CommandSender sender;
     private final T player;
     private final CompressedMapResult maps;
+    private final Screen screen;
     private final String description;
 
-    StartAttempt(final CommandSender sender, final T player, final CompressedMapResult maps, final String description) {
+    StartAttempt(
+      final CommandSender sender,
+      final T player,
+      final CompressedMapResult maps,
+      final Screen screen,
+      final String description
+    ) {
       this.sender = sender;
       this.player = player;
       this.maps = maps;
+      this.screen = screen;
       this.description = description;
     }
 
@@ -594,6 +773,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     CompressedMapResult getMaps() {
       return this.maps;
+    }
+
+    Screen getScreen() {
+      return this.screen;
     }
 
     String getDescription() {

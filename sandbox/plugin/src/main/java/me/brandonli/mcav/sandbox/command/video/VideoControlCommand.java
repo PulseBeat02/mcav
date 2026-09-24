@@ -115,13 +115,14 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
+    this.manager.cancelStart();
     final Component starting = Message.RELEASE_PLAYER_START.build();
     sender.sendMessage(starting);
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_PLAYER.build();
     final Runnable done = TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(released));
-    final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::releaseVideoPlayer, service);
+    final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::clearCurrentVideo, service);
     TaskUtils.whenComplete(release, (_, error) -> reportRelease(done, error));
   }
 

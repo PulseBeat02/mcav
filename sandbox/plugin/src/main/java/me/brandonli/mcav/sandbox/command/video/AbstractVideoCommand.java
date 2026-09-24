@@ -17,12 +17,14 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
@@ -57,6 +59,7 @@ import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.SourceUtils;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
@@ -142,24 +145,31 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (resolution == null) {
       return;
     }
+    final String[] ytdlpArguments = parseFlags(flags);
     final boolean ready = this.checkBackends(sender, playerType, audioType, mrl);
     if (!ready || !this.claim(sender)) {
       return;
     }
 
-    final Player[] viewers = collectViewers(selector);
-    notifyLoading(viewers);
-    final String[] ytdlpArguments = parseFlags(flags);
-    final PlaybackRequest request = new PlaybackRequest(
-      playerType,
-      audioType,
-      mrl,
-      ytdlpArguments,
-      resolution,
-      configurationProvider,
-      viewers
-    );
-    this.launch(sender, request);
+    try {
+      final Player[] viewers = collectViewers(selector);
+      notifyLoading(viewers);
+      final PlaybackRequest request = new PlaybackRequest(
+        playerType,
+        audioType,
+        mrl,
+        ytdlpArguments,
+        resolution,
+        configurationProvider,
+        viewers
+      );
+      this.launch(sender, request);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      final AtomicBoolean initializing = this.manager.getStatus();
+      initializing.set(false);
+      throw exception;
+    }
   }
 
   /**
@@ -221,9 +231,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AtomicBoolean initializing = this.manager.getStatus();
     final ExecutorService service = this.manager.getService();
     final CompletableFuture<Boolean> start;
+    final long generation;
     try {
-      start = CompletableFuture.supplyAsync(() -> this.startPlayer(request), service);
-    } catch (final RejectedExecutionException exception) {
+      generation = this.manager.beginStart();
+      start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
+    } catch (final RejectedExecutionException | CancellationException exception) {
       initializing.set(false);
       LOGGER.error("The video worker refused to start a video", exception);
       final Component message = Message.VIDEO_START_ERROR.build();
@@ -235,7 +247,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Player[] viewers = request.getViewers();
     TaskUtils.whenComplete(start, (started, error) -> {
       initializing.set(false);
-      TaskUtils.runOnMainThread(this.plugin, () -> this.report(sender, audioType, viewers, started, error));
+      TaskUtils.runOnMainThread(this.plugin, () -> {
+        if (this.manager.isCurrent(generation)) {
+          this.report(sender, audioType, viewers, started, error);
+        }
+      });
     });
   }
 
@@ -392,24 +408,37 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   // runs on the worker thread
-  private boolean startPlayer(final PlaybackRequest request) {
+  private boolean startPlayer(final PlaybackRequest request, final long generation) {
+    this.manager.checkStart();
     final String mrl = request.getMrl();
     final String[] ytdlpArguments = request.getYtdlpArguments();
     final SourceSelection selection = selectSources(mrl, ytdlpArguments);
+    this.manager.checkStart();
     if (selection == null) {
       return false;
     }
 
-    this.manager.releaseVideoPlayer();
+    this.manager.clearCurrentVideo();
+    this.manager.checkStart();
     final URLParseDump dump = selection.getDump();
-    final VideoPlayerMultiplexer player = this.createPlayer(request, dump);
-    final boolean playing = this.startPlayback(player, selection);
-    if (!playing) {
-      return false;
+    try {
+      final VideoPlayerMultiplexer player = this.createPlayer(request, dump);
+      final boolean playing = this.startPlayback(player, selection);
+      if (!playing) {
+        this.manager.clearCurrentVideo();
+        return false;
+      }
+      TaskUtils.runOnMainThread(this.plugin, () -> {
+        if (this.manager.isCurrent(generation)) {
+          this.showHologram(dump);
+        }
+      });
+      return true;
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      cleanupAfterFailure(exception, this.manager::clearCurrentVideo);
+      throw exception;
     }
-
-    TaskUtils.runOnMainThread(this.plugin, () -> this.showHologram(dump));
-    return true;
   }
 
   /**
@@ -425,7 +454,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     final AudioArgument audioType = request.getAudioType();
     final Player[] viewers = request.getViewers();
+    this.manager.checkStart();
     final AudioFilter audioFilter = this.provider.constructFilter(audioType, dump, viewers);
+    this.manager.checkStart();
     final AudioPipelineStep audioPipeline = AudioPipelineStep.of(audioFilter);
 
     final PlayerArgument playerType = request.getPlayerType();
@@ -462,18 +493,20 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
     final Source video = selection.getVideo();
     final Source audio = selection.getAudio();
-    final boolean playing;
-    try {
-      playing = audio == null ? player.start(video) : player.start(video, audio);
-    } catch (final RuntimeException exception) {
-      this.manager.releaseVideoPlayer();
-      throw exception;
-    }
+    return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
+  }
 
-    if (!playing) {
-      this.manager.releaseVideoPlayer();
+  /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
+  private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (final RuntimeException | Error cleanupFailure) {
+      ThrowableUtils.throwIfFatal(cleanupFailure);
+      final Equivalence<Object> identity = Equivalence.identity();
+      if (!identity.equivalent(failure, cleanupFailure)) {
+        failure.addSuppressed(cleanupFailure);
+      }
     }
-    return playing;
   }
 
   private void showHologram(final URLParseDump dump) {
@@ -489,9 +522,16 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
 
     final Hologram hologram = Hologram.basic();
-    hologram.handleRequest(location, dump);
-    hologram.start();
     this.manager.setHologram(hologram);
+    try {
+      hologram.handleRequest(location, dump);
+      hologram.start();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      this.manager.setHologram(null);
+      cleanupAfterFailure(exception, hologram::kill);
+      throw exception;
+    }
   }
 
   /**

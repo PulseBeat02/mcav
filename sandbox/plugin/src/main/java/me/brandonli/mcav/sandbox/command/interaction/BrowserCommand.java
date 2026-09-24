@@ -22,6 +22,7 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -219,10 +220,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
+    final BrowserSource source = createSource(uri, quality, nth, resolution);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
-    final BrowserSource source = createSource(uri, quality, nth, resolution);
-    this.startBrowser(sender, screen, source);
+    this.createResource(() -> this.startBrowser(sender, screen, source));
   }
 
   private static BrowserSource createSource(final URI uri, final int quality, final int nth, final Pair<Integer, Integer> resolution) {
@@ -233,11 +234,13 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   private void startBrowser(final CommandSender sender, final Screen screen, final BrowserSource source) {
     final BrowserPlayer browser = BrowserPlayer.selenium();
+    this.ownCreatedPlayer(browser);
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
 
-    final CompletableFuture<Boolean> start = browser.startAsync(source, this.service);
+    final ExecutorService executor = this.startExecutor(browser, screen);
+    final CompletableFuture<Boolean> start = browser.startAsync(source, executor);
     final URI uri = source.getUri();
     this.reportStartWhenDone(sender, browser, screen, start, "the browser for " + uri);
   }

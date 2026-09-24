@@ -29,10 +29,8 @@ import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.scheduler.BukkitScheduler;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -123,9 +121,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
 
     final BlockConfiguration configuration = (BlockConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new BlockResult(configuration);
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTask(this.plugin, result::start);
-    this.manager.setFilter(result);
+    this.manager.startFilter(result);
     return VideoPipelineStep.of(result);
   }
 

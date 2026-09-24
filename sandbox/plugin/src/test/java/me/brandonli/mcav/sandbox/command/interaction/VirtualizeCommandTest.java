@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -119,6 +120,24 @@ final class VirtualizeCommandTest {
         VMPlayer.Architecture.X86_64,
         flags
       );
+  }
+
+  @Test
+  void releasesTheMachineAndScreenWhenSubmissionIsRejected() {
+    final java.util.concurrent.RejectedExecutionException failure = new java.util.concurrent.RejectedExecutionException("executor stopped");
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenThrow(
+      failure
+    );
+    final java.util.concurrent.RejectedExecutionException thrown = assertThrows(java.util.concurrent.RejectedExecutionException.class, () ->
+      this.create("640x480", "5x4", "")
+    );
+    assertSame(failure, thrown);
+    verify(this.machine).release();
+    final List<CompressedMapResult> created = this.maps.constructed();
+    final CompressedMapResult screen = created.getFirst();
+    verify(screen).release();
+    assertNull(this.command.player);
+    assertNull(this.command.result);
   }
 
   private void startsWith(final CompletableFuture<Boolean> start) {

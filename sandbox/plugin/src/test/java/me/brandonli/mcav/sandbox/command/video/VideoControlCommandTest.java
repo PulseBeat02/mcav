@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -130,15 +131,52 @@ final class VideoControlCommandTest {
     final Component done = Message.RELEASE_PLAYER.build();
     final InOrder order = inOrder(this.sender, this.manager);
     order.verify(this.sender).sendMessage(start);
-    order.verify(this.manager).releaseVideoPlayer();
+    order.verify(this.manager).clearCurrentVideo();
     order.verify(this.sender).sendMessage(done);
     this.assertReceived(start, done);
   }
 
   @Test
+  void queuedReleaseDoesNotCancelARequestSubmittedAfterIt() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final me.brandonli.mcav.MCAVApi api = mock(me.brandonli.mcav.MCAVApi.class);
+    final me.brandonli.mcav.sandbox.audio.AudioProvider provider = mock(me.brandonli.mcav.sandbox.audio.AudioProvider.class);
+    when(plugin.getMCAV()).thenReturn(api);
+    when(plugin.getAudioProvider()).thenReturn(provider);
+    final VideoPlayerManager realManager = new VideoPlayerManager(plugin);
+    final VideoPlayerManager owner = org.mockito.Mockito.spy(realManager);
+    final ExecutorService deferred = mock(ExecutorService.class);
+    final List<Runnable> pending = new java.util.ArrayList<>();
+    org.mockito.Mockito.doAnswer(invocation -> {
+      final Runnable task = invocation.getArgument(0);
+      pending.add(task);
+      return null;
+    })
+      .when(deferred)
+      .execute(org.mockito.ArgumentMatchers.any(Runnable.class));
+    org.mockito.Mockito.doReturn(deferred).when(owner).getService();
+    when(plugin.getVideoPlayerManager()).thenReturn(owner);
+    final VideoControlCommand controls = new VideoControlCommand(plugin);
+    try {
+      final long oldGeneration = owner.beginStart();
+      controls.releaseVideo(this.sender);
+      final boolean oldCurrent = owner.isCurrent(oldGeneration);
+      assertFalse(oldCurrent, "release invalidates the previous request immediately");
+      final long nextGeneration = owner.beginStart();
+      final Runnable cleanup = pending.getFirst();
+      cleanup.run();
+      final boolean nextCurrent = owner.isCurrent(nextGeneration);
+      assertTrue(nextCurrent, "queued cleanup must not invalidate a newer admitted request");
+      verify(owner, org.mockito.Mockito.times(1)).cancelStart();
+    } finally {
+      owner.shutdown();
+    }
+  }
+
+  @Test
   void logsAFailedReleaseAndDoesNotReportThePlayerAsReleased() {
     final IllegalStateException failure = new IllegalStateException("the release failed");
-    doThrow(failure).when(this.manager).releaseVideoPlayer();
+    doThrow(failure).when(this.manager).clearCurrentVideo();
 
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {

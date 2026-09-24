@@ -39,8 +39,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -102,7 +107,8 @@ final class PaperServerEndToEndTest {
     ) {
       server.awaitLine(0, PaperServerEndToEndTest::isStartupComplete, STARTUP_TIMEOUT);
       final int servedFileCount = repository.getServedFileCount();
-      assertTrue(servedFileCount > 0, "the server downloads the modules of this build from the local repository");
+      assertCurrentModuleJars(serverDirectory, pluginJar);
+      System.out.println("Local repository files served: " + servedFileCount + "; cached module hashes verified against this plugin");
       runCommand(server, "plugins", "MCAV");
       runCommand(server, "mcav help", "mcav dump");
       final String mediaInfo = fetchMediaInfo(server, httpPort);
@@ -110,6 +116,47 @@ final class PaperServerEndToEndTest {
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
       assertRanCleanly(exitCode, mediaInfo, output);
+    }
+  }
+
+  /**
+   * Verifies current module bytes even on a warm cache, where valid Gremlin hashes deliberately avoid HTTP.
+   */
+  private static void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
+    final String manifest;
+    try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
+      final ZipEntry entry = plugin.getEntry("dependencies.txt");
+      assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
+      try (final InputStream input = plugin.getInputStream(entry)) {
+        final byte[] bytes = input.readAllBytes();
+        manifest = new String(bytes, StandardCharsets.UTF_8);
+      }
+    }
+    final Set<String> expected = new HashSet<>();
+    final List<String> lines = manifest.lines().toList();
+    for (final String line : lines) {
+      if (line.startsWith("me.brandonli:mcav-")) {
+        final String[] fields = line.split(" ", 2);
+        assertEquals(2, fields.length, "module coordinates must have a SHA-256 digest");
+        expected.add(fields[1]);
+      }
+    }
+    assertTrue(!expected.isEmpty(), "the plugin must request the modules of this build");
+    final Path modules = serverDirectory.resolve("libraries/mcav/me/brandonli");
+    final List<Path> files;
+    try (final Stream<Path> walk = Files.walk(modules)) {
+      files = walk.filter(Files::isRegularFile).toList();
+    }
+    final Set<String> actual = new HashSet<>();
+    for (final Path file : files) {
+      final Path fileName = file.getFileName();
+      final String name = fileName.toString();
+      if (name.endsWith(".jar")) {
+        actual.add(hash(file, "SHA-256"));
+      }
+    }
+    for (final String digest : expected) {
+      assertTrue(actual.contains(digest), "the running server's module cache must contain build digest " + digest);
     }
   }
 

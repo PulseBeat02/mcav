@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -237,32 +238,32 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       return;
     }
 
+    final VMConfiguration vmConfiguration = parseOptions(flags);
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    final VMSettings vmSettings = VMSettings.of(width, height, targetFps);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
-    this.startMachine(sender, screen, resolution, targetFps, architecture, flags);
+    this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration));
   }
 
   private void startMachine(
     final CommandSender sender,
     final Screen screen,
-    final Pair<Integer, Integer> resolution,
-    final int targetFps,
+    final VMSettings settings,
     final VMPlayer.Architecture architecture,
-    final String flags
+    final VMConfiguration vmConfiguration
   ) {
-    final VMConfiguration vmConfiguration = parseOptions(flags);
-    final int width = resolution.getFirst();
-    final int height = resolution.getSecond();
-    final VMSettings settings = VMSettings.of(width, height, targetFps);
-
     final VMPlayer machine = VMPlayer.create();
+    this.ownCreatedPlayer(machine);
     final VideoAttachableCallback callback = machine.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
 
     final Component loading = Message.VM_LOADING.build();
     sender.sendMessage(loading);
-    final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, this.service);
+    final ExecutorService executor = this.startExecutor(machine, screen);
+    final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, executor);
     this.reportStartWhenDone(sender, machine, screen, start, "the virtual machine");
   }
 

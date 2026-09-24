@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -194,6 +195,63 @@ final class BrowserCommandTest {
     this.browsers.verifyNoInteractions();
     final List<CompressedMapResult> created = this.maps.constructed();
     assertEquals(0, created.size());
+  }
+
+  private void assertCreatedScreenReleased() {
+    final List<CompressedMapResult> created = this.maps.constructed();
+    assertEquals(1, created.size());
+    final CompressedMapResult screen = created.getFirst();
+    verify(screen).release();
+    assertNull(this.command.player);
+    assertNull(this.command.result);
+  }
+
+  @Test
+  void releasesTheScreenWhenTheBrowserFactoryFails() {
+    final IllegalStateException failure = new IllegalStateException("browser factory");
+    this.browsers.when(BrowserPlayer::selenium).thenThrow(failure);
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      this.create("1280x720", "5x3", "https://example.com")
+    );
+    assertSame(failure, thrown);
+    this.assertCreatedScreenReleased();
+    verify(this.browser, never()).release();
+  }
+
+  @Test
+  void releasesTheBrowserAndScreenWhenCallbackAttachmentFails() {
+    final IllegalStateException failure = new IllegalStateException("callback attach");
+    Mockito.doThrow(failure).when(this.callback).attach(any(VideoPipelineStep.class));
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      this.create("1280x720", "5x3", "https://example.com")
+    );
+    assertSame(failure, thrown);
+    verify(this.browser).release();
+    this.assertCreatedScreenReleased();
+  }
+
+  @Test
+  void releasesTheBrowserAndScreenWhenSubmissionIsRejected() {
+    final java.util.concurrent.RejectedExecutionException failure = new java.util.concurrent.RejectedExecutionException("executor stopped");
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenThrow(failure);
+    final java.util.concurrent.RejectedExecutionException thrown = assertThrows(java.util.concurrent.RejectedExecutionException.class, () ->
+      this.create("1280x720", "5x3", "https://example.com")
+    );
+    assertSame(failure, thrown);
+    verify(this.browser).release();
+    this.assertCreatedScreenReleased();
+  }
+
+  @Test
+  void releasesTheUnpublishedScreenWhenFilterStartupFails() {
+    final IllegalStateException failure = new IllegalStateException("display start");
+    Mockito.doThrow(failure).when(this.ditherFilter).start();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      this.create("1280x720", "5x3", "https://example.com")
+    );
+    assertSame(failure, thrown);
+    this.assertCreatedScreenReleased();
+    this.browsers.verifyNoInteractions();
   }
 
   @Test

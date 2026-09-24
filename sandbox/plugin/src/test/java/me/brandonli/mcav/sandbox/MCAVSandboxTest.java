@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -256,6 +258,82 @@ final class MCAVSandboxTest {
       verify(listener).shutdown();
       verify(handler).shutdownCommands();
       verify(provider).shutdown();
+    }
+  }
+
+  @Test
+  void keepsOwnershipWhenCommandRegistrationFailsPartwayThrough() {
+    final IllegalStateException failure = new IllegalStateException("partial registration");
+    try (
+      final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class, (handler, _) ->
+        doThrow(failure).when(handler).registerCommands()
+      )
+    ) {
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
+      assertSame(failure, thrown);
+      this.sandbox.onDisable();
+      final List<AnnotationParserHandler> constructed = handlers.constructed();
+      final AnnotationParserHandler handler = constructed.getFirst();
+      verify(handler).shutdownCommands();
+      verify(this.api).release();
+    }
+  }
+
+  @Test
+  void keepsOwnershipWhenListenerStartupFails() {
+    final IllegalStateException failure = new IllegalStateException("partial listener startup");
+    try (
+      final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class, (listener, _) ->
+        doThrow(failure).when(listener).start()
+      )
+    ) {
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
+      assertSame(failure, thrown);
+      this.sandbox.onDisable();
+      final List<JukeBoxListener> constructed = listeners.constructed();
+      final JukeBoxListener listener = constructed.getFirst();
+      verify(listener).shutdown();
+      verify(this.api).release();
+    }
+  }
+
+  @Test
+  void attemptsEveryOwnedCleanupOnceEvenWhenTheFirstTwoFail() {
+    final IllegalStateException first = new IllegalStateException("video cleanup");
+    final IllegalArgumentException second = new IllegalArgumentException("image cleanup");
+    try (
+      final MockedConstruction<VideoPlayerManager> videos = Mockito.mockConstruction(VideoPlayerManager.class, (manager, _) ->
+        doThrow(first).when(manager).shutdown()
+      );
+      final MockedConstruction<ImageManager> images = Mockito.mockConstruction(ImageManager.class, (manager, _) ->
+        doThrow(second).when(manager).shutdown()
+      );
+      final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
+      final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
+      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class)
+    ) {
+      this.sandbox.onEnable();
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onDisable);
+      assertSame(first, thrown);
+      final Throwable[] suppressed = thrown.getSuppressed();
+      assertArrayEquals(new Throwable[] { second }, suppressed);
+      this.sandbox.onDisable();
+      final List<VideoPlayerManager> videoManagers = videos.constructed();
+      final List<ImageManager> imageManagers = images.constructed();
+      final List<JukeBoxListener> createdListeners = listeners.constructed();
+      final List<AnnotationParserHandler> createdHandlers = handlers.constructed();
+      final List<AudioProvider> audioProviders = providers.constructed();
+      final VideoPlayerManager videoManager = videoManagers.getFirst();
+      final ImageManager imageManager = imageManagers.getFirst();
+      final JukeBoxListener listener = createdListeners.getFirst();
+      final AnnotationParserHandler handler = createdHandlers.getFirst();
+      final AudioProvider provider = audioProviders.getFirst();
+      verify(videoManager, times(1)).shutdown();
+      verify(imageManager, times(1)).shutdown();
+      verify(listener, times(1)).shutdown();
+      verify(handler, times(1)).shutdownCommands();
+      verify(provider, times(1)).shutdown();
+      verify(this.api, times(1)).release();
     }
   }
 

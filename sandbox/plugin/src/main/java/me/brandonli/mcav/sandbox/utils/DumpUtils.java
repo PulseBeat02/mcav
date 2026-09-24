@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -32,13 +33,17 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -46,7 +51,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM
  * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
- * log is included.
+ * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
+ * still appear in diagnostic text.
  */
 public final class DumpUtils {
 
@@ -57,6 +63,7 @@ public final class DumpUtils {
   private static final int MAX_LOG_LINES = 2_000;
   private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
   private static final String REDACTED = "<redacted>";
+  private static final Pattern WORD = Pattern.compile("\\S+");
   private static final long MEGABYTE = 1024L * 1024L;
 
   private DumpUtils() {
@@ -269,27 +276,29 @@ public final class DumpUtils {
    * <p>The dump is uploaded to a public paste site, so a value that repeats the command line must not pass through
    * untouched. {@code sun.java.command} holds the whole command line of the program, so a server started with
    * {@code --api-token=abc} publishes that token under a property name in which no secret word appears. Every
-   * whitespace-separated word of a value is therefore redacted on its own, with the same rule the JVM arguments use.
+   * value is scanned for assignments and secret command options. From the first secret onward the remainder is
+   * omitted, including quoted or space-separated values. This intentionally sacrifices trailing diagnostics
+   * because the JVM does not retain shell quoting reliably. The same heuristic applies to log lines; it cannot
+   * identify unlabelled secrets or every application-specific credential format.
    *
-   * @param value the value of the property
-   * @return the value with the secrets among its words redacted
+   * @param value the property value or log line
+   * @return the text before the first secret followed by a redaction marker
    */
   private static String redactSecretsInside(final String value) {
-    final boolean hasAssignment = value.indexOf('=') >= 0;
-    if (!hasAssignment) {
-      return value;
-    }
-
-    final String[] words = value.split(" ", -1);
-    final StringBuilder safe = new StringBuilder();
-    for (int index = 0; index < words.length; index++) {
-      if (index > 0) {
-        safe.append(' ');
+    final Matcher words = WORD.matcher(value);
+    while (words.find()) {
+      final String word = words.group();
+      final String redacted = redactArgument(word);
+      if (!redacted.equals(word)) {
+        final String prefix = value.substring(0, words.start());
+        return prefix + redacted;
       }
-      final String redactedWord = redactArgument(words[index]);
-      safe.append(redactedWord);
+      if (word.startsWith("-") && isSecret(word)) {
+        final String prefix = value.substring(0, words.end());
+        return prefix + " " + REDACTED;
+      }
     }
-    return safe.toString();
+    return value;
   }
 
   private static boolean isSecret(final String name) {
@@ -326,13 +335,18 @@ public final class DumpUtils {
       dump.append("No log found\n");
       return;
     }
-    try {
-      final List<String> lines = Files.readAllLines(logFile);
-      final int size = lines.size();
-      final int start = Math.max(0, size - MAX_LOG_LINES);
-      final List<String> tail = lines.subList(start, size);
-      for (final String line : tail) {
-        dump.append(line);
+    try (final BufferedReader reader = Files.newBufferedReader(logFile)) {
+      final Deque<String> tail = new ArrayDeque<>();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        tail.addLast(line);
+        if (tail.size() > MAX_LOG_LINES) {
+          tail.removeFirst();
+        }
+      }
+      for (final String retained : tail) {
+        final String safe = redactSecretsInside(retained);
+        dump.append(safe);
         dump.append('\n');
       }
     } catch (final IOException exception) {
