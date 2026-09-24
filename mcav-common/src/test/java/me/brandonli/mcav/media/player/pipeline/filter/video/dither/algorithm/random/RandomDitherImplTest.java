@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
@@ -40,7 +42,14 @@ final class RandomDitherImplTest {
     });
     thread.start();
     thread.join(5_000L);
-    return provider.get();
+    final boolean stillRunning = thread.isAlive();
+    if (stillRunning) {
+      thread.interrupt();
+    }
+    assertFalse(stillRunning, "the worker completed its generator lookup");
+    final RandomNumberProvider result = provider.get();
+    assertNotNull(result, "the worker returned a generator");
+    return result;
   }
 
   @Test

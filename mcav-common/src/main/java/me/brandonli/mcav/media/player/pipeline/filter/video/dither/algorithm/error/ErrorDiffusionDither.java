@@ -33,7 +33,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The engine keeps the pending errors of the next few rows in a small ring of padded rows, so memory use is
  * independent of the image height and no bounds checks are needed at the edges. Subclasses only choose a kernel.
- * Instances hold no state between calls and are safe to share between threads.
+ * The basic kernel implementations hold no state between calls and can be shared. Temporal subclasses retain
+ * the history of one stream and must not be shared across streams or threads.
  */
 public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
 

@@ -225,6 +225,34 @@ final class TemporalDitherTest {
   }
 
   @Test
+  void inPlaceDitheringHonorsTheErrorThresholdAndStrength() {
+    final TemporalDitherAlgorithm threshold = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 8, 288, 1.0f);
+    final TemporalDitherAlgorithm zeroStrength = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 8, 0, 0.0f);
+    final int[] expected = new int[16 * 16];
+    Arrays.fill(expected, 0xFF000000);
+    for (final TemporalDitherAlgorithm dither : new TemporalDitherAlgorithm[] { threshold, zeroStrength }) {
+      final int[] pixels = new int[16 * 16];
+      Arrays.fill(pixels, 0xFF606060);
+      dither.dither(pixels, 16);
+      // Each channel differs from black by 96: total error 288. Either setting prevents all diffusion.
+      assertArrayEquals(expected, pixels);
+    }
+  }
+
+  @Test
+  void inPlaceDitheringDoesNotReadOrReplaceTheRememberedVideoFrame() {
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES, 255, NO_DIFFUSION, 1.0f);
+    ditherSolid(dither, 0xFFFF0000);
+    final int[] green = new int[16 * 16];
+    Arrays.fill(green, 0xFF00FF00);
+    final int[] expected = green.clone();
+    dither.dither(green, 16);
+    assertArrayEquals(expected, green, "in-place still images do not reuse the video frame");
+    final byte[] remembered = ditherSolid(dither, 0xFF00FF00);
+    assertAll(remembered, RED, "in-place still images do not replace video history");
+  }
+
+  @Test
   void acceptsTheBoundaryValuesOfItsSettings() {
     final TemporalDitherAlgorithm lowest = new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, 0.0f);
     final TemporalDitherAlgorithm highest = new TemporalFloydSteinbergDither(PRIMARIES, 255, 0, 1.0f);
@@ -313,6 +341,15 @@ final class TemporalDitherTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  @Test
+  void rejectsAnIncompleteFinalRowBeforeChangingAnyPixels() {
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
+    final int[] pixels = { 0xFF808080, 0xFF808080, 0xFF808080 };
+    final int[] original = pixels.clone();
+    assertThrows(IllegalArgumentException.class, () -> dither.dither(pixels, 2));
+    assertArrayEquals(original, pixels);
   }
 
   @Test

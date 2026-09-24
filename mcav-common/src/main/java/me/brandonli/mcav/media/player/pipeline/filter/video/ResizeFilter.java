@@ -27,7 +27,8 @@ import org.bytedeco.opencv.opencv_core.Size;
  * Resizes frames to a fixed size.
  *
  * <p>Downscaling uses area averaging, which produces smooth results without aliasing and is what the Minecraft
- * displays need, and upscaling uses bilinear interpolation. Frames that already have the target size are left
+ * displays need. Area averaging is selected when either axis shrinks, including mixed shrink/grow resizes;
+ * bilinear interpolation is used when neither axis shrinks. Frames that already have the target size are left
  * untouched.
  *
  * <p>The result is written into the spare matrix of the frame, see

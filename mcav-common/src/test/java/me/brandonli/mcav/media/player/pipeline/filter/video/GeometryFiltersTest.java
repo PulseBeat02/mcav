@@ -137,6 +137,41 @@ final class GeometryFiltersTest {
   }
 
   @Test
+  void shrinkingEitherAxisAveragesAllThreeSourcePixels() {
+    // Three source pixels [0, 90, 0] average to 30. Linear center sampling
+    // would instead choose 90, so dimensions alone cannot establish correctness.
+    for (final boolean horizontal : new boolean[] { true, false }) {
+      final int width = horizontal ? 3 : 1;
+      final int height = horizontal ? 1 : 3;
+      try (final ImageBuffer image = Images.solid(width, height, 0xFF000000)) {
+        image.setPixel(horizontal ? 1 : 0, horizontal ? 0 : 1, new double[] { 90.0, 90.0, 90.0 });
+        final ResizeFilter filter = new ResizeFilter(1, 1);
+        final boolean modified = filter.applyFilter(image);
+        final int[] actual = image.getPixels();
+        assertTrue(modified);
+        assertArrayEquals(new int[] { 0xFF1E1E1E }, actual);
+      }
+    }
+  }
+
+  @Test
+  void growingEitherAxisInterpolatesBetweenPixelCenters() {
+    for (final boolean horizontal : new boolean[] { true, false }) {
+      final int width = horizontal ? 2 : 1;
+      final int height = horizontal ? 1 : 2;
+      try (final ImageBuffer image = Images.solid(width, height, 0xFF000000)) {
+        image.setPixel(horizontal ? 1 : 0, horizontal ? 0 : 1, new double[] { 80.0, 80.0, 80.0 });
+        final ResizeFilter filter = new ResizeFilter(horizontal ? 4 : 1, horizontal ? 1 : 4);
+        final boolean modified = filter.applyFilter(image);
+        final int[] actual = image.getPixels();
+        assertTrue(modified);
+        // Source coordinates -0.25, 0.25, 0.75, 1.25 with edge clamping.
+        assertArrayEquals(new int[] { 0xFF000000, 0xFF141414, 0xFF3C3C3C, 0xFF505050 }, actual);
+      }
+    }
+  }
+
+  @Test
   void resizeKnowsItsTargetSize() {
     final ResizeFilter filter = new ResizeFilter(8, 6);
     final boolean exact = filter.matches(8, 6);

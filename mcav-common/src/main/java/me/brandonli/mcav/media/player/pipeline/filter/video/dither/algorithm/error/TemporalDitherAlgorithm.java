@@ -145,6 +145,27 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   }
 
   /**
+   * Dithers a still image in place using the configured error threshold and strength. This operation neither
+   * reads nor replaces the previous video frame; temporal reuse applies only to the palette-index methods.
+   *
+   * @param buffer the ARGB pixels, replaced with palette colors
+   * @param width the positive image width, which must divide the buffer length
+   */
+  @Override
+  public void dither(final int[] buffer, final int width) {
+    checkBuffer(buffer, width);
+    final int height = buffer.length / width;
+    final byte[] indices = new byte[buffer.length];
+    this.processStrip(buffer, width, 0, height, null, indices);
+    final DitherPalette palette = this.getPalette();
+    final int[] colors = palette.getPalette();
+    for (int pixel = 0; pixel < buffer.length; pixel++) {
+      final int index = indices[pixel] & 0xFF;
+      buffer[pixel] = colors[index];
+    }
+  }
+
+  /**
    * Dithers a frame into palette indices, keeping the index of every pixel whose wanted color stayed close to the
    * color it received in the previous frame. The frame is not modified, and becomes the previous frame of the next
    * call.

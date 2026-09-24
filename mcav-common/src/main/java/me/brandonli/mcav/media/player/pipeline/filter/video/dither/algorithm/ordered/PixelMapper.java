@@ -63,7 +63,7 @@ public interface PixelMapper {
    * @param strength the strength, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix is null
-   * @throws IllegalArgumentException if the number of levels or the strength is not positive
+   * @throws IllegalArgumentException if the number of levels is not positive or the strength is negative
    */
   static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final int max, final float strength) {
     Preconditions.checkNotNull(matrix, "Matrix must not be null");
@@ -78,7 +78,7 @@ public interface PixelMapper {
    * @param strength the strength, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix is null
-   * @throws IllegalArgumentException if the strength is not positive
+   * @throws IllegalArgumentException if the strength is negative
    */
   static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final float strength) {
     Preconditions.checkNotNull(matrix, "Matrix must not be null");

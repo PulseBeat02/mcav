@@ -18,8 +18,10 @@
 package me.brandonli.mcav.media.player.pipeline.filter.audio;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
+import java.util.List;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -27,6 +29,7 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import me.brandonli.mcav.utils.ThrowableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -45,6 +48,7 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
   @VisibleForTesting
   static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, true, false);
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final int BUFFER_MILLIS = 200;
 
   private final LineOpener lineOpener;
@@ -129,7 +133,17 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
     try {
       final int bufferSize = (SAMPLE_RATE * FRAME_SIZE * BUFFER_MILLIS) / 1000;
       final SourceDataLine opened = this.lineOpener.open(FORMAT, bufferSize);
-      opened.start();
+      try {
+        opened.start();
+      } catch (final RuntimeException | Error failure) {
+        ThrowableUtils.throwIfFatal(failure);
+        try {
+          opened.close();
+        } catch (final RuntimeException | Error cleanup) {
+          suppressCleanupFailure(failure, cleanup);
+        }
+        throw failure;
+      }
       this.line = opened;
     } catch (final LineUnavailableException | IllegalArgumentException exception) {
       final String message = exception.getMessage();
@@ -138,7 +152,9 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
   }
 
   /**
-   * Closes the sound device, discarding samples that have not been played yet.
+   * Closes the sound device, discarding samples that have not been played yet. Ordinary stop or flush failures do
+   * not prevent closing the line; the first failure is rethrown with later failures suppressed. Fatal VM errors
+   * propagate immediately.
    */
   @Override
   public synchronized void release() {
@@ -147,9 +163,34 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
       return;
     }
     this.line = null;
-    currentLine.stop();
-    currentLine.flush();
-    currentLine.close();
+    Throwable failure = null;
+    final List<Runnable> cleanup = List.of(currentLine::stop, currentLine::flush, currentLine::close);
+    for (final Runnable action : cleanup) {
+      try {
+        action.run();
+      } catch (final RuntimeException | Error exception) {
+        ThrowableUtils.throwIfFatal(exception);
+        if (failure == null) {
+          failure = exception;
+        } else {
+          suppressCleanupFailure(failure, exception);
+        }
+      }
+    }
+    if (failure instanceof final RuntimeException runtime) {
+      throw runtime;
+    }
+    if (failure instanceof final Error error) {
+      throw error;
+    }
+  }
+
+  private static void suppressCleanupFailure(final Throwable failure, final Throwable cleanup) {
+    ThrowableUtils.throwIfFatal(cleanup);
+    final boolean same = FAILURE_IDENTITY.equivalent(failure, cleanup);
+    if (!same) {
+      failure.addSuppressed(cleanup);
+    }
   }
 
   /**

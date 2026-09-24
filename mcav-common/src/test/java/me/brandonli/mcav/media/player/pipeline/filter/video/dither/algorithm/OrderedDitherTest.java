@@ -204,6 +204,22 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void normalizesThresholdsAcrossTheEntireIntegerRange() {
+    final int[][] thresholds = { { Integer.MIN_VALUE, 0, Integer.MAX_VALUE } };
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(thresholds, 1.0f);
+    final float[][] matrix = mapper.getMatrix();
+    // There are 2^32 ranks. The middle rank is 2^31, so its centered offset is exactly 2^-33.
+    assertArrayEquals(new float[] { -0.5f, 0x1.0p-33f, 0.5f }, matrix[0]);
+  }
+
+  @Test
+  void rejectsNonFiniteStrengths() {
+    assertThrows(IllegalArgumentException.class, () -> PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, Float.POSITIVE_INFINITY));
+    assertThrows(IllegalArgumentException.class, () -> PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, Float.NEGATIVE_INFINITY));
+    assertThrows(IllegalArgumentException.class, () -> PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, Float.NaN));
+  }
+
+  @Test
   void pixelMapperAcceptsAStrengthOfZero() {
     final PixelMapper flat = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 0.0f);
     final float[][] matrix = flat.getMatrix();
@@ -249,6 +265,18 @@ final class OrderedDitherTest {
     }
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));
+  }
+
+  @Test
+  void orderedSpreadDoesNotOverBrightenADarkGray() {
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1.0f);
+    final OrderedDither dither = new OrderedDither(DitherTestImages.BLACK_WHITE, mapper);
+    final int[] pixels = { 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A };
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
+      final byte[] actual = dither.ditherIntoBytes(image);
+      // Gray90 plus [-76,25,76,-25] gives [14,115,166,65]. Only the third is white.
+      assertArrayEquals(new byte[] { 0, 0, 1, 0 }, actual);
+    }
   }
 
   @Test

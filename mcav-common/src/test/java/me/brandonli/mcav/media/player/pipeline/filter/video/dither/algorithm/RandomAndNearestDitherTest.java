@@ -29,6 +29,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.NearestDitherBuilder;
@@ -170,6 +171,37 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void xoroshiroTranslatesNonzeroBoundsWithoutChangingTheDistribution() {
+    final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(42L);
+    final double actual = provider.nextDouble(-5.0, 7.0);
+    final double unit = 8119767394961995L / (double) (1L << 53);
+    final double expected = -5.0 + 12.0 * unit;
+    assertEquals(expected, actual, 1.0e-12);
+  }
+
+  @Test
+  void xoroshiroPreservesTheQuantileWhenTheRangeOverflows() {
+    final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(42L);
+    final double minimum = -Double.MAX_VALUE;
+    final double maximum = Double.MAX_VALUE / 2.0;
+    final double actual = provider.nextDouble(minimum, maximum);
+    // The independently recorded C-reference output identifies this quantile.
+    // Decimal arithmetic evaluates the convex combination without a double overflow.
+    final BigDecimal numerator = BigDecimal.valueOf(8119767394961995L);
+    final BigDecimal denominator = BigDecimal.valueOf(1L << 53);
+    final BigDecimal unit = numerator.divide(denominator);
+    final BigDecimal complement = BigDecimal.ONE.subtract(unit);
+    final BigDecimal lower = new BigDecimal(minimum);
+    final BigDecimal upper = new BigDecimal(maximum);
+    final BigDecimal lowerPart = lower.multiply(complement);
+    final BigDecimal upperPart = upper.multiply(unit);
+    final BigDecimal weighted = lowerPart.add(upperPart);
+    final double expected = weighted.doubleValue();
+    final double tolerance = Math.ulp(expected) * 4.0;
+    assertEquals(expected, actual, tolerance);
+  }
+
+  @Test
   void xoroshiroReadsItsBooleanFromTheSignOfItsOutput() {
     final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(42L);
     final boolean first = provider.nextBoolean();
@@ -280,6 +312,35 @@ final class RandomAndNearestDitherTest {
       sawFalse |= !flag;
     }
     assertTrue(sawMinimum && sawMaximum && sawTrue && sawFalse);
+  }
+
+  @Test
+  void xoroshiroNeverRoundsToTheExclusiveDoubleBound() {
+    final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(3L);
+    final double upper = Math.nextUp(1.0);
+    final double value = provider.nextDouble(1.0, upper);
+    // There is exactly one representable double in [1, nextUp(1)): 1 itself.
+    assertEquals(1.0, value);
+  }
+
+  @Test
+  void xoroshiroHandlesFiniteDoubleBoundsWhoseDifferenceOverflows() {
+    final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(0L);
+    for (int sample = 0; sample < 100; sample++) {
+      final double value = provider.nextDouble(-Double.MAX_VALUE, Double.MAX_VALUE);
+      final boolean finite = Double.isFinite(value);
+      assertTrue(finite);
+      assertTrue(value >= -Double.MAX_VALUE && value < Double.MAX_VALUE);
+    }
+  }
+
+  @Test
+  void xoroshiroRejectsNonfiniteDoubleBounds() {
+    final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(0L);
+    assertThrows(IllegalArgumentException.class, () -> provider.nextDouble(Double.NEGATIVE_INFINITY, 1.0));
+    assertThrows(IllegalArgumentException.class, () -> provider.nextDouble(0.0, Double.POSITIVE_INFINITY));
+    assertThrows(IllegalArgumentException.class, () -> provider.nextDouble(Double.NaN, 1.0));
+    assertThrows(IllegalArgumentException.class, () -> provider.nextDouble(0.0, Double.NaN));
   }
 
   @Test

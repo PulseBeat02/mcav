@@ -17,14 +17,18 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.audio;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -43,6 +47,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 
 /**
  * Tests {@link DirectAudioOutput} with a mocked audio line, and {@link AudioFilter#NO_OP}.
@@ -105,6 +110,109 @@ final class DirectAudioOutputTest {
   }
 
   @Test
+  void closesAnAcquiredLineWhenStartingItFails() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalStateException failure = new IllegalStateException("start failed");
+    doThrow(failure).when(line).start();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, output::start);
+    assertSame(failure, thrown);
+    verify(line).close();
+    output.release();
+    verify(line).close();
+  }
+
+  @Test
+  void preservesStartFailureWhenClosingTheLineAlsoFails() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalArgumentException failure = new IllegalArgumentException("start failed");
+    final AssertionError cleanup = new AssertionError("close failed");
+    doThrow(failure).when(line).start();
+    doThrow(cleanup).when(line).close();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    final PlayerException thrown = assertThrows(PlayerException.class, output::start);
+    final Throwable cause = thrown.getCause();
+    final Throwable[] suppressed = failure.getSuppressed();
+    assertSame(failure, cause);
+    assertArrayEquals(new Throwable[] { cleanup }, suppressed);
+    verify(line).close();
+  }
+
+  @Test
+  void attemptsEveryReleaseStageAndPreservesTheFirstFailure() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalStateException failure = new IllegalStateException("stop failed");
+    final AssertionError flush = new AssertionError("flush failed");
+    final IllegalArgumentException close = new IllegalArgumentException("close failed");
+    doThrow(failure).when(line).stop();
+    doThrow(flush).when(line).flush();
+    doThrow(close).when(line).close();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, output::release);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(failure, thrown);
+    assertArrayEquals(new Throwable[] { flush, close }, suppressed);
+    final InOrder order = inOrder(line);
+    order.verify(line).stop();
+    order.verify(line).flush();
+    order.verify(line).close();
+    output.release();
+    verify(line).close();
+  }
+
+  @Test
+  void rethrowsAnOrdinaryErrorAfterClosingTheLineWithoutSelfSuppression() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final AssertionError failure = new AssertionError("shared failure");
+    doThrow(failure).when(line).flush();
+    doThrow(failure).when(line).close();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    final AssertionError thrown = assertThrows(AssertionError.class, output::release);
+    final Throwable[] suppressed = thrown.getSuppressed();
+    assertSame(failure, thrown);
+    assertEquals(0, suppressed.length);
+    verify(line).close();
+  }
+
+  @Test
+  void propagatesFatalStartFailuresImmediately() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final InternalError failure = new InternalError("fatal start");
+    doThrow(failure).when(line).start();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    final InternalError thrown = assertThrows(InternalError.class, output::start);
+    assertSame(failure, thrown);
+    verify(line, never()).close();
+  }
+
+  @Test
+  void propagatesFatalCleanupAfterAStartFailure() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalStateException failure = new IllegalStateException("start failed");
+    final InternalError fatal = new InternalError("fatal close");
+    doThrow(failure).when(line).start();
+    doThrow(fatal).when(line).close();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    final InternalError thrown = assertThrows(InternalError.class, output::start);
+    assertSame(fatal, thrown);
+  }
+
+  @Test
+  void propagatesFatalReleaseFailuresImmediately() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final InternalError fatal = new InternalError("fatal stop");
+    doThrow(fatal).when(line).stop();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    final InternalError thrown = assertThrows(InternalError.class, output::release);
+    assertSame(fatal, thrown);
+    verify(line, never()).flush();
+    verify(line, never()).close();
+  }
+
+  @Test
   void reportsLinesThatCannotBeOpened() {
     final DirectAudioOutput unavailable = new DirectAudioOutput((_, _) -> {
       throw new LineUnavailableException("busy");
@@ -118,6 +226,23 @@ final class DirectAudioOutputTest {
     final Throwable unsupportedCause = unsupportedException.getCause();
     assertInstanceOf(LineUnavailableException.class, unavailableCause);
     assertInstanceOf(IllegalArgumentException.class, unsupportedCause);
+  }
+
+  @Test
+  void opensTheDefaultLineBeforeStartingIt() throws Exception {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    try (final MockedStatic<AudioSystem> system = mockStatic(AudioSystem.class)) {
+      system.when(() -> AudioSystem.getLine(org.mockito.ArgumentMatchers.any(DataLine.Info.class))).thenReturn(line);
+      final DirectAudioOutput output = new DirectAudioOutput();
+      try {
+        output.start();
+        final InOrder order = inOrder(line);
+        order.verify(line).open(DirectAudioOutput.FORMAT, 38_400);
+        order.verify(line).start();
+      } finally {
+        output.release();
+      }
+    }
   }
 
   @Test

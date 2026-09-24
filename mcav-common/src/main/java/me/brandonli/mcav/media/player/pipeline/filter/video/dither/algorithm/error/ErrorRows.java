@@ -43,7 +43,7 @@ final class ErrorRows {
   private final DiffusionKernel kernel;
   private final int padding;
   private final int rowCount;
-  private final int weightSum;
+  private final long weightSum;
   private final int largestTap;
   private final int[][] rows;
 
@@ -63,9 +63,9 @@ final class ErrorRows {
     this.rows = new int[this.rowCount][paddedWidth * CHANNELS];
   }
 
-  private static int sumWeights(final DiffusionKernel kernel) {
+  private static long sumWeights(final DiffusionKernel kernel) {
     final int tapCount = kernel.getTapCount();
-    int sum = 0;
+    long sum = 0;
     for (int tap = 0; tap < tapCount; tap++) {
       sum += kernel.getWeight(tap);
     }
@@ -205,22 +205,22 @@ final class ErrorRows {
     }
     final int divisor = this.kernel.getDivisor();
     final int tapCount = this.kernel.getTapCount();
-    int spreadRed = 0;
-    int spreadGreen = 0;
-    int spreadBlue = 0;
+    long spreadRed = 0;
+    long spreadGreen = 0;
+    long spreadBlue = 0;
     for (int tap = 0; tap < tapCount; tap++) {
       final int weight = this.kernel.getWeight(tap);
-      final int shareRed = (errorRed * weight) / divisor;
-      final int shareGreen = (errorGreen * weight) / divisor;
-      final int shareBlue = (errorBlue * weight) / divisor;
+      final int shareRed = (int) (((long) errorRed * weight) / divisor);
+      final int shareGreen = (int) (((long) errorGreen * weight) / divisor);
+      final int shareBlue = (int) (((long) errorBlue * weight) / divisor);
       this.addError(tap, x, y, step, shareRed, shareGreen, shareBlue);
       spreadRed += shareRed;
       spreadGreen += shareGreen;
       spreadBlue += shareBlue;
     }
-    final int remainderRed = (errorRed * this.weightSum) / divisor - spreadRed;
-    final int remainderGreen = (errorGreen * this.weightSum) / divisor - spreadGreen;
-    final int remainderBlue = (errorBlue * this.weightSum) / divisor - spreadBlue;
+    final int remainderRed = (int) ((errorRed * this.weightSum) / divisor - spreadRed);
+    final int remainderGreen = (int) ((errorGreen * this.weightSum) / divisor - spreadGreen);
+    final int remainderBlue = (int) ((errorBlue * this.weightSum) / divisor - spreadBlue);
     this.addError(this.largestTap, x, y, step, remainderRed, remainderGreen, remainderBlue);
   }
 

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import java.util.function.LongSupplier;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Point;
@@ -36,6 +37,8 @@ public class FPSFilter extends MatVideoFilter {
   private static final int TEXT_THICKNESS = 1;
   private static final long WINDOW_NANOS = 1_000_000_000L;
 
+  private final LongSupplier clock;
+
   private long windowStart;
   private int framesInWindow;
   private int displayedFrameRate;
@@ -44,7 +47,12 @@ public class FPSFilter extends MatVideoFilter {
    * Constructs a new frame rate filter.
    */
   public FPSFilter() {
-    this.windowStart = System.nanoTime();
+    this(System::nanoTime);
+  }
+
+  FPSFilter(final LongSupplier clock) {
+    this.clock = clock;
+    this.windowStart = clock.getAsLong();
   }
 
   /**
@@ -66,7 +74,7 @@ public class FPSFilter extends MatVideoFilter {
    * Counts a frame and recomputes the displayed frame rate once per measuring window.
    */
   private void countFrame() {
-    final long now = System.nanoTime();
+    final long now = this.clock.getAsLong();
     this.framesInWindow++;
     final long elapsed = now - this.windowStart;
     if (elapsed < WINDOW_NANOS) {

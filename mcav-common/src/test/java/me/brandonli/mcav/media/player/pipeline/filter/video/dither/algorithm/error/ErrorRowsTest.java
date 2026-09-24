@@ -172,6 +172,30 @@ final class ErrorRowsTest {
   }
 
   @Test
+  void preservesAUnitFractionWithLargeEquivalentWeights() {
+    final DiffusionKernel kernel = new DiffusionKernel("Scaled unit", Integer.MAX_VALUE, new int[][] { { 1, 0, Integer.MAX_VALUE } });
+    final ErrorRows rows = new ErrorRows(kernel, 2);
+    rows.diffuse(0, 0, 1, 100, -100, 1);
+    final int right = rows.applyPendingError(GRAY, 1, 0);
+    assertEquals(0xE41C81, right, "MAX/MAX is one; scaling a fraction must not change any channel");
+  }
+
+  @Test
+  void sumsLargeWeightsWithoutWrappingOrForbiddingAmplification() {
+    final DiffusionKernel kernel = new DiffusionKernel(
+      "Two unit shares",
+      Integer.MAX_VALUE,
+      new int[][] { { 1, 0, Integer.MAX_VALUE }, { 0, 1, Integer.MAX_VALUE } }
+    );
+    final ErrorRows rows = new ErrorRows(kernel, 2);
+    rows.diffuse(0, 0, 1, 50, -50, 3);
+    final int right = rows.applyPendingError(GRAY, 1, 0);
+    final int below = rows.applyPendingError(GRAY, 0, 1);
+    assertEquals(0xB24E83, right, "each tap receives one whole error; the total weight exceeds int range");
+    assertEquals(0xB24E83, below);
+  }
+
+  @Test
   void dropsErrorsThatFallOutsideTheImage() {
     final ErrorRows rows = new ErrorRows(DiffusionKernel.STEVENSON_ARCE, 1);
     rows.diffuse(0, 0, 1, 200, 200, 200);

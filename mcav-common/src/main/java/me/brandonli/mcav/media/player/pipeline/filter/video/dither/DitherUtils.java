@@ -38,7 +38,7 @@ public final class DitherUtils {
 
   /**
    * Computes the index into the palette lookup tables for an RGB color. The components are not checked, because
-   * this method runs for every pixel; values outside the range from 0 to 255 produce an index outside the tables.
+   * this method runs for every pixel; values outside the range from 0 to 255 may alias another color or produce an out-of-range index.
    *
    * @param red   the red component from 0 to 255
    * @param green the green component from 0 to 255

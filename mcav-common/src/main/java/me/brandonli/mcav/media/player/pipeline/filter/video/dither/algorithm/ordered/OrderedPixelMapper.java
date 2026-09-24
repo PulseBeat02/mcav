@@ -34,7 +34,8 @@ public final class OrderedPixelMapper implements PixelMapper {
   OrderedPixelMapper(final int[][] thresholds, final float strength) {
     Preconditions.checkNotNull(thresholds, "Thresholds must not be null");
     Preconditions.checkArgument(thresholds.length > 0, "Threshold matrix must have at least one row");
-    Preconditions.checkArgument(strength >= 0, "Strength must not be negative");
+    final boolean finite = Float.isFinite(strength);
+    Preconditions.checkArgument(finite && strength >= 0, "Strength must be finite and not negative");
     this.strength = strength;
     this.matrix = normalize(thresholds, strength);
   }
@@ -43,13 +44,13 @@ public final class OrderedPixelMapper implements PixelMapper {
     final int columns = checkRectangular(thresholds);
     final int minimum = findMinimum(thresholds);
     final int maximum = findMaximum(thresholds);
-    final int levels = maximum - minimum + 1;
+    final long levels = (long) maximum - minimum + 1;
 
     final float[][] normalized = new float[thresholds.length][columns];
     for (int y = 0; y < thresholds.length; y++) {
       for (int x = 0; x < columns; x++) {
-        final int rank = thresholds[y][x] - minimum;
-        final float centered = (rank + 0.5f) / levels - 0.5f;
+        final long rank = (long) thresholds[y][x] - minimum;
+        final float centered = (float) ((rank + 0.5) / levels - 0.5);
         normalized[y][x] = centered * strength;
       }
     }

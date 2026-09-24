@@ -111,17 +111,30 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
   /**
    * Gets a random floating point number in a range, drawn from the top 53 bits of the next output.
    *
-   * @param min the smallest value, inclusive
-   * @param max the largest value, exclusive
-   * @return a random value from {@code min} to {@code max}
-   * @throws IllegalArgumentException if {@code max} is not greater than {@code min}
+   * @param min the finite smallest value, inclusive
+   * @param max the finite largest value, exclusive
+   * @return a random value greater than or equal to {@code min} and less than {@code max}
+   * @throws IllegalArgumentException if either bound is not finite or {@code max} is not greater than {@code min}
    */
   @Override
   public double nextDouble(final double min, final double max) {
-    Preconditions.checkArgument(max > min, "Max must be greater than min");
+    Preconditions.checkArgument(
+      Double.isFinite(min) && Double.isFinite(max) && max > min,
+      "Bounds must be finite and max greater than min"
+    );
     final long nextBits = this.nextLong();
     final double unit = (nextBits >>> 11) * DOUBLE_UNIT;
-    return min + unit * (max - min);
+    final double range = max - min;
+    final double result;
+    if (Double.isInfinite(range)) {
+      // Scale before subtracting, as in JDK RandomSupport.boundedNextDouble, to avoid an infinite range.
+      final double halfMin = min * 0.5;
+      result = (unit * (max * 0.5 - halfMin) + halfMin) * 2.0;
+    } else {
+      result = min + unit * range;
+    }
+    // Floating-point rounding can reach the exclusive bound, especially when the bounds are adjacent doubles.
+    return result >= max ? Math.nextDown(max) : result;
   }
 
   /**

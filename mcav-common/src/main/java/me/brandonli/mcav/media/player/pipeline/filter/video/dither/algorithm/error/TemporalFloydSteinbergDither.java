@@ -47,7 +47,7 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
    * @param palette           the palette to reduce images to
    * @param temporalThreshold how far a pixel may drift per channel, from 0 to 255, before its color is
    *                          recomputed
-   * @param errorThreshold    the total error below which no error is diffused
+   * @param errorThreshold    the total error at or below which no error is diffused
    * @param errorStrength     the fraction of the error that is diffused, from 0 to 1
    */
   public TemporalFloydSteinbergDither(

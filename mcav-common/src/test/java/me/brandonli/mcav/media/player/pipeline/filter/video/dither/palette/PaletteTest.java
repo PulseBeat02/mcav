@@ -26,7 +26,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.Color;
 import java.io.StringReader;
 import java.util.List;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.OrderedDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +42,32 @@ final class PaletteTest {
   private static int[] parse(final String json) {
     final StringReader reader = new StringReader(json);
     return MapPaletteLoader.parseColors(reader);
+  }
+
+  @Test
+  void blueLookupNeverOverwritesTheFirstEntryOfAnOddGreenRow() {
+    final DitherPalette palette = DitherPalette.colors(0x000000, 0x0000FF);
+    final byte[] lookup = palette.getColorMap();
+    final int[] colors = palette.getFullColorMap();
+    // At (R=0,G=2,B=0), black is closer than saturated blue under redmean distance.
+    // Blue=256 is outside the LUT domain and must never overwrite this entry.
+    assertEquals(0, lookup[128]);
+    assertEquals(0xFF000000, colors[128]);
+  }
+
+  @Test
+  void orderedSpreadCountsOnlyUsablePaletteColors() {
+    final int[] colors = { 0, 0, 0xFF000000, 0xFFFFFFFF };
+    final DitherPalette palette = new ColorPalette(colors, 2);
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1.0f);
+    final OrderedDither dither = new OrderedDither(palette, mapper);
+    final int[] pixels = { 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A };
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
+      final byte[] actual = dither.ditherIntoBytes(image);
+      // Two usable colors give spread 256/cbrt(2), offsets [-76,25,76,-25].
+      // Gray 106 therefore becomes [30,131,182,81], mapping to black/white/white/black.
+      assertArrayEquals(new byte[] { 2, 3, 3, 2 }, actual);
+    }
   }
 
   @Test

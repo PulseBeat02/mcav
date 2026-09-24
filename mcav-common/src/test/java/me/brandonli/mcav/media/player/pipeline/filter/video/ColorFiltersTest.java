@@ -200,6 +200,39 @@ final class ColorFiltersTest {
   }
 
   @Test
+  void bilateralAveragesANonuniformCrossInTheImageBuffer() {
+    final BilateralFilter filter = new BilateralFilter(3, 1.0e9, 1.0e9);
+    try (final ImageBuffer image = Images.solid(5, 5, 0xFF000000)) {
+      image.setPixel(2, 2, new double[] { 0.0, 0.0, 100.0 });
+      final boolean modified = filter.applyFilter(image);
+      final int center = pixelAt(image, 2, 2);
+      final int neighbor = pixelAt(image, 1, 2);
+      final int distant = pixelAt(image, 0, 0);
+      assertTrue(modified);
+      // Radius one includes the center and four axial neighbors. Huge sigmas make
+      // the five weights equal at byte precision: one red 100 / five samples = 20.
+      assertEquals(0xFF140000, center);
+      assertEquals(0xFF140000, neighbor);
+      assertEquals(0xFF000000, distant);
+    }
+  }
+
+  @Test
+  void bilateralWritesTheSmoothedPixelsBackToABareMatrix() {
+    final BilateralFilter filter = new BilateralFilter(3, 1.0e9, 1.0e9);
+    try (final Scalar black = new Scalar(0.0); final Mat mat = new Mat(5, 5, opencv_core.CV_8UC3, black)) {
+      final ByteBuffer original = mat.createBuffer();
+      original.put(3 * 12 + 2, (byte) 100);
+      final boolean modified = filter.modifyMat(mat);
+      final ByteBuffer pixels = mat.createBuffer();
+      assertTrue(modified);
+      assertEquals(20, pixels.get(3 * 12 + 2) & 0xFF);
+      assertEquals(20, pixels.get(3 * 11 + 2) & 0xFF);
+      assertEquals(0, pixels.get(2) & 0xFF);
+    }
+  }
+
+  @Test
   void colorMapRecolorsEveryPixelByItsBrightness() {
     final ColorMapFilter filter = new ColorMapFilter(opencv_imgproc.COLORMAP_JET);
     final int fromGray = applyToSolid(filter, 0xFF1D1D1D);

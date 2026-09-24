@@ -92,8 +92,8 @@ public final class DitherFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Prepares the result step, which for example creates the maps of the display. Pipelines call this once before
-   * the first frame.
+   * Prepares the result step, which for example creates the maps of the display. The owner must call this before
+   * playback; attaching a filter to a pipeline does not manage its lifecycle.
    */
   @Override
   public void start() {
@@ -101,8 +101,8 @@ public final class DitherFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Releases the result step, which for example removes the maps of the display. Pipelines call this once after the
-   * last frame.
+   * Releases the result step, which for example removes the maps of the display. The owner must call this after
+   * playback has stopped, including when playback fails.
    */
   @Override
   public void release() {

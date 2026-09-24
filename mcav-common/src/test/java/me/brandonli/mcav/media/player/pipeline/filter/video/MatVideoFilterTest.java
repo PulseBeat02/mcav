@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -88,7 +89,7 @@ final class MatVideoFilterTest {
     final byte[] bytes = written.getBytes();
     assertTrue(modified);
     assertArrayEquals(new byte[] { 0x30, 0x20, 0x10 }, bytes, "one BGR pixel remains");
-    verify(image).updateData(any(), anyInt(), anyInt());
+    verify(image).updateData(any(), eq(1), eq(1));
   }
 
   @Test
