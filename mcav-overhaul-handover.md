@@ -79,7 +79,7 @@ inspection run was available. Static text scans are not equivalent to a complete
 
 ## Coverage and mutation evidence
 
-Full Finish build and coverageLint passed. JUnit reports 3,158 tests, 8 skips and 0 failures/errors across eleven modules. Results reused by Gradle remain identified by their original timestamps in `sept24-finish-validation/counts.json`. Sandbox retains its one declared Paper-only constructor line.
+Final post-cherry build and coverageLint passed. JUnit reports 3,160 tests, 8 skips and 0 failures/errors across eleven modules. Results reused by Gradle remain identified by their original timestamps in `sept24-post-cherry-validation/counts.json`. Sandbox retains its one declared Paper-only constructor line.
 
 | Module | Tests reported | Skips | Covered / total lines | Covered / total branches |
 |---|---:|---:|---:|---:|
@@ -93,12 +93,23 @@ Full Finish build and coverageLint passed. JUnit reports 3,158 tests, 8 skips an
 | mcav-svc | 37 | 0 | 144 / 144 | 42 / 42 |
 | mcav-vm | 129 | 0 | 666 / 666 | 246 / 246 |
 | mcav-vnc | 85 | 0 | 424 / 424 | 133 / 133 |
-| sandbox/plugin | 753 | 0 | 3042 / 3043 | 750 / 750 |
+| sandbox/plugin | 755 | 0 | 3051 / 3052 | 754 / 754 |
 
-Final formatter: 87.39 seconds. Combined build/coverage/Javadoc/E2E compilation: 273.54 seconds. No compiler warnings. Gradle reports the deprecated Kotlin task-registration delegate from PaperweightUser.kt:403/408 in paperweight-userdev 2.0.0-beta.23; the trace is in sept24-finish-build3.log. That upstream Gradle 10 migration remains open. Both normal and source HTTP jars contain static/index.html and 24 static files (31 entries including directories). ESLint passed separately; the 33-page isolated docs build passed with warnings as errors.
+Final formatter: 83.89 seconds. Combined build/coverage/Javadoc/E2E compilation: 146.11 seconds. No compiler warnings.
+An upstream Gradle 10 deprecation remains in paperweight-userdev 2.0.0-beta.23 (PaperweightUser.kt:403/408), traced
+in `sept24-finish-build3.log`. Both normal and source HTTP jars contain `static/index.html` and 24 static files
+(31 entries including directories). ESLint passed separately. The final isolated Jupyter Book build passed with
+warnings as errors and 34 source pages, including the manual checklist.
 
-Latest separate class scopes: FaceDetectionFilter 14/14 KILLED; image commands 56/56 KILLED; InstallationManager 34 = 32 KILLED + 2 TIMED_OUT; HttpResultImpl 50 = 46 KILLED + 4 TIMED_OUT; VNCPlayerImpl 158 = 138 KILLED + 7 SURVIVED + 13 TIMED_OUT. Four initial exact-class runs accidentally inherited production names as test selectors and reported NO_COVERAGE; they are retained as discovery failures, not assurance. Exact unchanged-production comparisons prove both strengthened boundary assertions killed their earlier survivors.
+Separate final class scopes: FaceDetectionFilter 14/14 KILLED; image commands 56/56 KILLED;
+InstallationManager 34 = 32 KILLED + 2 TIMED_OUT; HttpResultImpl 50 = 46 KILLED + 4 TIMED_OUT;
+VNCPlayerImpl 158 = 138 KILLED + 7 SURVIVED + 13 TIMED_OUT. Initial exact-class attempts that accidentally inherited
+production names as test selectors are retained as failed discovery attempts, never assurance.
 
+After Claude integration, MapUtils* measured 73 = 68 KILLED + 5 TIMED_OUT. All three mutations in the new frame-cleanup
+path were killed. Five timeout identities in `buildMapScreen` and `createMapsUpTo` remain open; see
+`sept24-post-cherry-map-dispositions.json`. This scoped result does not replace the full sandbox baseline.
+The final commands, counts, source hashes and logs are under `/home/dev/mcav-pass2-state/sept24-post-cherry-*`.
 
 Independent full common baseline: 3,556 = 2,982 KILLED + 296 SURVIVED + 192 TIMED_OUT + 78 NO_COVERAGE + 8 RUN_ERROR,
 snapshot 5b48cea3ca44c998f0f6160fc4c0b89d5fafbb04d8d6a62c47976f3488021010.
@@ -144,7 +155,12 @@ protocol was corroborating only. Contended CPU/decode timing is not a clean thro
 Repeated screen construction stacked frames and hid valid map pixels: 270 frames for 135 maps. The proposed fix
 clears ItemFrames in each destination frame cell before spawning; Claude's followup showed 135 frames and visible
 still/video content, then clear on release. The original MapView/client-decoding conjecture was refuted.
-Accepted commits `035f5bd0` and `3249ba9e` are pending the owner-required post-Finish cherry-pick. The integration will retain screen UUID identity, correct the manual checklist, add its TOC entry and test that other entities and adjacent frames remain intact. A final build, narrow MapUtils mutation followup and docs rebuild are still required after that integration.
+After the own Finish commits and first push, both accepted commits were cherry-picked without conflicts:
+`035f5bd0` → `6b1eff1a` (manual checklist), `3249ba9e` → `e16ab5d0` (frame cleanup). The later screen UUID tags were
+preserved. `ce72b81d` adds the non-frame/adjacent-frame boundary regression and the explicit Location local;
+`d8a24819` corrects local-build setup, image quoting, relative commands, ownership and measurement claims in the
+manual checklist and links it in the documentation TOC. The final ordinary build, scoped mutation followup and
+docs rebuild passed. These local checks do not turn Claude's historical measurements into a final-tree live run.
 
 ### OPEN ITEM: clear pacing and decoder-progress telemetry
 
@@ -235,7 +251,12 @@ was removed; invalid range arguments can now throw rather than clamp. Consult cu
 
 ## Git and evidence
 
-The own Finish tree passed validation on September 24. Its 23 logical review commits and this separate handover commit precede the accepted Claude cherry-picks. This handover checkpoint does not claim the integration or final push has happened. The final report records each resulting hash and the subsequent verification. Pre-existing `gradlew.bat` remains excluded.
+The own Finish series contains 23 logical review commits and a separate handover commit, ending at `b3f85dc2`;
+that series was pushed before the two accepted Claude cherry-picks. Integration corrections are separate commits,
+followed by this final handover update. The external report contains the full final commit list and normal-push
+verification. Pre-existing `gradlew.bat` remains the only excluded worktree change. No review commit changes it.
+The report retains all open findings; this is completion of the bounded review, not a claim of complete mutation
+assurance or final-tree live/cross-platform validation.
 
 The completion marker `/home/dev/.session-done/mcav-pass2` starts pass 3. Write it only after own logical commits,
 accepted Claude cherry-picks, final build/push, `git log origin/rewrite..rewrite` empty, report finalization and owned
