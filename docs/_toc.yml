@@ -11,6 +11,7 @@ parts:
       - file: plugin/commands.md
       - file: plugin/config.md
       - file: plugin/faq.md
+      - file: manual-test.md
   - caption: Common Library + Core Modules 🚀
     chapters:
       - file: library/prerequisites.md

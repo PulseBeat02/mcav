@@ -41,9 +41,11 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 > and let the server download them from there:
 >
 > ```sh
+> # from the repository root, build and publish before starting either server:
+> ./gradlew :sandbox:plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+> python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
+> # then, from the repository root in a second shell:
 > ./gradlew :sandbox:plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
-> # in a second shell, serve that repository while the server starts:
-> cd build/e2e-repository && python3 -m http.server 8765 --bind 127.0.0.1
 > ```
 >
 > The port is baked into the plugin's `dependencies.txt` as the first repository, so the server asks it first. You
@@ -59,8 +61,8 @@ Connect your client to `localhost:25565`. You should appear in a flat world.
 
 ## 4. Build a screen and play something
 
-Run these in the server console (no leading slash) or in chat (with a leading slash). Give yourself the
-permissions first if you are in survival: `op <yourname>`.
+Run these in chat with a leading slash, so the relative coordinates use your position. Grant yourself
+permission from the server console first with `op <yourname>`.
 
 ```
 mcav screen "15x9" 0 black_concrete ~ ~ ~
@@ -74,35 +76,38 @@ it. The second plays the file onto exactly those maps. Stop it with:
 mcav video release
 ```
 
-A still image, and audio, are worth a look too:
+Inspect a still image, release it, then try video with browser audio. Run each command separately:
 
 ```
 mcav image map @a "1920x1080" "15x9" 0 FLOYD_STEINBERG /absolute/path/to/picture.png
-mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/absolute/path/to/mcav.mp4"
 mcav image release
+mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/absolute/path/to/mcav.mp4"
 ```
 
-> **Quoting differs between the image and video commands.** The video commands take the MRL as a *quoted*
-> argument, so it must be in quotes. The image commands take it as a *greedy* argument, which swallows the rest of
-> the line including any quotes you type, so the path must **not** be quoted. Quoting an image MRL fails with
-> `Invalid MRL! MRL must be a valid media resource locator`, which does not hint at the real cause.
+> **Image paths may be quoted or unquoted.** Image commands consume the rest of the line and strip one
+> enclosing pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs
+> containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
 
 With `HTTP_SERVER` audio, the console prints `The audio web page is available at http://localhost:8080/`; open
-that page in a browser (forward port 8080 the same way) and press play to hear the sound in sync.
+that page in a browser (forward port 8080 the same way) and press play. Listen for audio and compare its timing
+with the video; a successful connection alone does not verify synchronization.
 
 ## 5. What to look for
 
 - **The whole wall fills.** Every map in the grid should show part of the picture, including the outer rows and
-  columns. A map that stays blank means its id never received data.
-- **No tearing between maps.** All the maps of one frame are sent in a single bundle packet and the client applies
-  a bundle in one tick, so you should never catch the wall showing half of one frame and half of the next.
+  columns. If a map stays blank, check its ID, frame facing and duplicate frames as well as packet delivery.
+  Rebuild the same screen once and verify it remains visible with one item frame per cell.
+- **No tearing between maps.** Watch motion across tile boundaries. Packets are bundled, but large updates can be split
+  and delta budgeting can defer tiles. A bundle is not a guarantee that the whole wall displays one decoded
+  frame atomically; record any visible split or stale tiles.
 - **Motion is smooth, or evenly slow.** Playback that stutters in bursts — a second of motion, then several
-  seconds frozen — is almost always the *source* being too expensive to decode on the server (`mcav.mp4` is
-  2560x1440 AV1 at 60 fps), not the map pipeline. Re-encode it smaller to tell the two apart:
+  seconds frozen — can come from decoding, rendering or contention. The measured `mcav.mp4` fixture is
+  2560x1440 AV1 at 60 fps. Compare it with a smaller H.264 file:
   ```sh
   ffmpeg -i mcav.mp4 -t 120 -vf scale=854:480 -r 30 -c:v libx264 -preset veryfast -crf 28 cheap.mp4
   ```
-  If `cheap.mp4` is smooth and `mcav.mp4` is not, the server simply cannot decode `mcav.mp4` in real time.
+  If `cheap.mp4` is smooth and `mcav.mp4` is not, that supports a workload or codec bottleneck; it does not
+  isolate decoder time from every other stage. The playing message reports state, not continuing frame progress.
 - **The maps clear on release.** `mcav video release` should blank the wall, not leave the last frame frozen on it.
 - **The console stays quiet.** No `ERROR`, no stack traces, during playback or on release.
 
