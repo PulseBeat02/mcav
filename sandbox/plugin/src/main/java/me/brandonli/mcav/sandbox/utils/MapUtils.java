@@ -266,7 +266,8 @@ public final class MapUtils {
      * it, with nothing wrong in the packets.
      */
     private void clearFrames(final Block frameBlock) {
-      final Location centre = frameBlock.getLocation().add(0.5, 0.5, 0.5);
+      final Location centre = frameBlock.getLocation();
+      centre.add(0.5, 0.5, 0.5);
       final Collection<Entity> occupants = this.world.getNearbyEntities(centre, 0.5, 0.5, 0.5);
       for (final Entity occupant : occupants) {
         if (occupant instanceof ItemFrame) {

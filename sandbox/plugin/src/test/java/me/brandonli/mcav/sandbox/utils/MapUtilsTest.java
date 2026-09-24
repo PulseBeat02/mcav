@@ -45,6 +45,7 @@ import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -292,6 +293,25 @@ final class MapUtilsTest {
     assertEquals(Material.OBSIDIAN, right);
     final ItemFrame first = frames.getFirst();
     verify(first).setFacingDirection(BlockFace.SOUTH);
+  }
+
+  @Test
+  void keepsNonFrameOccupantsAndAdjacentFramesWhenRebuilding() {
+    final CommandSender console = mock(CommandSender.class);
+    final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
+    final Location occupied = this.fakeWorld.location(0.5, 64.5, 0.5);
+    final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
+    final Entity other = mock(Entity.class);
+    when(other.getLocation()).thenReturn(occupied);
+    this.fakeWorld.addEntity(other);
+    final Location adjacentLocation = this.fakeWorld.location(1.5, 64.5, 0.5);
+    final ItemFrame adjacent = this.fakeWorld.addFrame(adjacentLocation, BlockFace.SOUTH);
+
+    MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
+
+    verify(existing).remove();
+    verify(other, never()).remove();
+    verify(adjacent, never()).remove();
   }
 
   @Test
