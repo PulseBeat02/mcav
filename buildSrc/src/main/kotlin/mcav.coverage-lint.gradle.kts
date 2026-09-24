@@ -4,6 +4,7 @@
 // OpenCV build cannot read video files (the bundled Linux build cannot), and the code they test would show up as gaps.
 
 import me.brandonli.mcav.gradle.CoverageLintTask
+import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 
 plugins {
     java
@@ -28,9 +29,6 @@ testTask {
     finalizedBy(jacocoReport)
 }
 
-// a report of a filtered test run covers only part of the code, so the lint would print false gaps for it
-val testsFilteredOnCommandLine = gradle.startParameter.taskRequests.any { request -> request.args.any { it.startsWith("--tests") } }
-
 val coverageLint = tasks.register<CoverageLintTask>("coverageLint") {
     group = "verification"
     description = "Runs the tests and reports every line and branch of production code that no test covers."
@@ -38,7 +36,14 @@ val coverageLint = tasks.register<CoverageLintTask>("coverageLint") {
     report.from(layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml"))
     sourceDirectory = layout.projectDirectory.dir("src/main/java")
     exceptionsFile.from(layout.projectDirectory.file("coverage-exceptions.txt"))
-    testsFiltered = testTask.map { testsFilteredOnCommandLine || it.filter.includePatterns.isNotEmpty() }
+    // Gradle stores --tests separately from public includePatterns. Consult this task's filter, not the global
+    // command line: filtering one module must not disable coverage verification for every other module.
+    // DefaultTestFilter is internal API; keep the functional test when updating the Gradle wrapper.
+    testsFiltered = testTask.map {
+        val filter = it.filter as DefaultTestFilter
+        filter.commandLineIncludePatterns.isNotEmpty() || filter.includePatterns.isNotEmpty() ||
+            filter.excludePatterns.isNotEmpty() || it.includes.isNotEmpty() || it.excludes.isNotEmpty()
+    }
     projectPath = project.path
 }
 

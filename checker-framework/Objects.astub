@@ -1,6 +1,7 @@
 package java.util;
 
 import org.checkerframework.checker.nullness.qual.*;
+import java.util.function.Supplier;
 
 class Objects {
   @NonNull static <T> T requireNonNull(@Nullable T obj);

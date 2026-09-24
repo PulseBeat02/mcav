@@ -44,8 +44,8 @@ object CoverageExceptions {
 }
 
 /**
- * Finds the gaps in a JaCoCo XML report. Like JaCoCo's line counter, a line is a gap when none of it runs or when one
- * of its branches never runs.
+ * Finds the gaps in a JaCoCo XML report. A line is a gap when any of its instructions or branches never runs,
+ * including an uncalled lambda body on a line whose other instructions ran.
  */
 object CoverageReport {
 

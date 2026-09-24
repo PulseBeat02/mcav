@@ -50,7 +50,7 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     // every javac warning is reported; annotation processing notes are left out because the Checker Framework does
     // not claim the annotations it reads
-    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing"))
+    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing", "-Werror"))
     options.isFork = true
     options.forkOptions.memoryMaximumSize = "4g"
     // the Checker Framework Gradle plugin does not add this export for recent Checker Framework versions, see
@@ -188,10 +188,6 @@ spotless {
 // prettier needs the downloaded Node.js
 tasks.matching { it.name.startsWith("spotlessJava") }.configureEach {
     dependsOn("nodeSetup")
-}
-
-tasks.build {
-    dependsOn("spotlessApply")
 }
 
 // the end-to-end test of the sandbox plugin runs a server with the modules of this build, published into a folder
