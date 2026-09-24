@@ -173,6 +173,7 @@ final class LinuxInstallationStrategyTest {
       final Path libraryDirectory = extracted.resolve("lib");
       Files.createDirectories(libraryDirectory);
       createFile(libraryDirectory, "libvlccore.so");
+      createFile(libraryDirectory, "libvlc.so");
     };
   }
 
@@ -190,6 +191,6 @@ final class LinuxInstallationStrategyTest {
 
   private static Path createFile(final Path directory, final String name) throws IOException {
     final Path file = directory.resolve(name);
-    return Files.createFile(file);
+    return Files.writeString(file, "structural fixture, never loaded as native code");
   }
 }

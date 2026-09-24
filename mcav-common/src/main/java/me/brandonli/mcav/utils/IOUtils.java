@@ -43,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
@@ -542,8 +543,11 @@ public final class IOUtils {
   /**
    * Extracts a zip archive into a directory.
    *
-   * <p>Entries that would escape the destination directory are rejected, and single entries larger than 512 MB or
-   * archives larger than 2 GB in total are rejected as well, to protect against malicious archives.
+   * <p>The destination is resolved to its real directory. Entries that would escape it or use an existing symbolic
+   * link below it are rejected. Single entries larger than 512 MB or archives larger than 2 GB in total are
+   * rejected before bytes beyond either limit are written. Extraction may leave files written before a failure.
+   * The destination must not be modified concurrently: these checks do not prevent another process from replacing
+   * a parent directory between a check and a write.
    *
    * @param archive     the zip archive
    * @param destination the directory to extract into, which is created if it does not exist
@@ -570,13 +574,16 @@ public final class IOUtils {
   static void unzip(final Path archive, final Path destination, final long maxEntrySize, final long maxTotalSize) {
     Preconditions.checkNotNull(archive, "Archive must not be null");
     Preconditions.checkNotNull(destination, "Destination must not be null");
+    Preconditions.checkArgument(maxEntrySize >= 0, "Entry size limit must not be negative");
+    Preconditions.checkArgument(maxTotalSize >= 0, "Total size limit must not be negative");
 
     final Path absoluteDestination = destination.toAbsolutePath();
     final Path normalizedDestination = absoluteDestination.normalize();
     createDirectoryIfNotExists(normalizedDestination);
     try {
       requireZipArchive(archive);
-      extractArchive(archive, normalizedDestination, maxEntrySize, maxTotalSize);
+      final Path realDestination = normalizedDestination.toRealPath();
+      extractArchive(archive, realDestination, maxEntrySize, maxTotalSize);
     } catch (final IOException exception) {
       final String message = exception.getMessage();
       throw new UncheckedIOException(message, exception);
@@ -611,18 +618,21 @@ public final class IOUtils {
     long totalSize = 0;
     ZipEntry entry = zip.getNextEntry();
     while (entry != null) {
-      final long written = extractEntry(zip, entry, destination, maxEntrySize);
+      final long remainingTotalSize = maxTotalSize - totalSize;
+      final long written = extractEntry(zip, entry, destination, maxEntrySize, remainingTotalSize);
       totalSize += written;
-      if (totalSize > maxTotalSize) {
-        throw new ZipEntryIntegrityException("Total extracted size exceeds the limit");
-      }
       zip.closeEntry();
       entry = zip.getNextEntry();
     }
   }
 
-  private static long extractEntry(final ZipInputStream zip, final ZipEntry entry, final Path destination, final long maxEntrySize)
-    throws IOException {
+  private static long extractEntry(
+    final ZipInputStream zip,
+    final ZipEntry entry,
+    final Path destination,
+    final long maxEntrySize,
+    final long remainingTotalSize
+  ) throws IOException {
     final String name = entry.getName();
     final Path target = resolveInside(destination, name);
     if (entry.isDirectory()) {
@@ -632,7 +642,7 @@ public final class IOUtils {
     final Path parentOrNull = target.getParent();
     final Path parent = Objects.requireNonNull(parentOrNull, "An entry inside the destination always has a parent");
     Files.createDirectories(parent);
-    return writeZipEntry(zip, target, name, maxEntrySize);
+    return writeZipEntry(zip, target, name, maxEntrySize, remainingTotalSize);
   }
 
   private static Path resolveInside(final Path destination, final String name) {
@@ -643,22 +653,55 @@ public final class IOUtils {
       final String message = "Zip entry escapes the destination directory: %s".formatted(name);
       throw new ZipEntryIntegrityException(message);
     }
+    rejectSymbolicLinks(destination, target, name);
     return target;
   }
 
-  private static long writeZipEntry(final ZipInputStream zip, final Path target, final String name, final long maxEntrySize)
-    throws IOException {
+  /**
+   * Rejects existing links, including dangling links, in every component below the real extraction root.
+   */
+  private static void rejectSymbolicLinks(final Path destination, final Path target, final String name) {
+    final Path relative = destination.relativize(target);
+    Path current = destination;
+    for (final Path component : relative) {
+      current = current.resolve(component);
+      final boolean symbolicLink = Files.isSymbolicLink(current);
+      if (symbolicLink) {
+        final String message = "Zip entry uses a symbolic link in the destination: %s".formatted(name);
+        throw new ZipEntryIntegrityException(message);
+      }
+    }
+  }
+
+  private static long writeZipEntry(
+    final ZipInputStream zip,
+    final Path target,
+    final String name,
+    final long maxEntrySize,
+    final long remainingTotalSize
+  ) throws IOException {
     long entrySize = 0;
-    try (final OutputStream output = Files.newOutputStream(target)) {
+    try (
+      final OutputStream output = Files.newOutputStream(
+        target,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING,
+        StandardOpenOption.WRITE,
+        LinkOption.NOFOLLOW_LINKS
+      )
+    ) {
       final byte[] buffer = new byte[COPY_BUFFER_SIZE];
       int read = zip.read(buffer);
       while (read != -1) {
-        entrySize += read;
-        if (entrySize > maxEntrySize) {
+        if (read > maxEntrySize - entrySize) {
           final String message = "Zip entry exceeds the maximum size: %s".formatted(name);
           throw new ZipEntryIntegrityException(message);
         }
+        if (read > remainingTotalSize - entrySize) {
+          throw new ZipEntryIntegrityException("Total extracted size exceeds the limit");
+        }
         output.write(buffer, 0, read);
+        entrySize += read;
         read = zip.read(buffer);
       }
     }

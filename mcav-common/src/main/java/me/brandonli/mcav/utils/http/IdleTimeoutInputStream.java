@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -69,6 +70,10 @@ final class IdleTimeoutInputStream extends InputStream {
 
   @Override
   public int read(final byte@NonNull[] buffer, final int offset, final int length) throws IOException {
+    Objects.checkFromIndexSize(offset, length, buffer.length);
+    if (length == 0) {
+      return 0;
+    }
     final Callable<Integer> readTask = () -> this.delegate.read(buffer, offset, length);
     final Future<Integer> pending = this.reader.submit(readTask);
     return this.await(pending);
@@ -90,6 +95,12 @@ final class IdleTimeoutInputStream extends InputStream {
       throw new InterruptedIOException("Interrupted while waiting for data");
     } catch (final ExecutionException exception) {
       final Throwable cause = exception.getCause();
+      if (cause instanceof final RuntimeException runtime) {
+        throw runtime;
+      }
+      if (cause instanceof final Error error) {
+        throw error;
+      }
       final String reason = exception.getMessage();
       throw new IOException("Reading the response failed: " + reason, cause);
     }

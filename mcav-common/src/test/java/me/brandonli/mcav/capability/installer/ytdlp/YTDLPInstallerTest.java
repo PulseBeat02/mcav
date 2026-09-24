@@ -252,7 +252,10 @@ final class YTDLPInstallerTest {
       final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
       final Path installed = installer.download(true);
       final boolean staleLeft = Files.exists(stale);
+      final Path relocatedLeftover = unpacked.resolve("leftover.txt");
+      final boolean leftoverCopied = Files.exists(relocatedLeftover);
       final boolean installedExists = Files.isRegularFile(installed);
+      assertFalse(leftoverCopied, "stale extraction files must not be promoted into the new installation");
       assertFalse(staleLeft);
       assertTrue(installedExists);
       this.assertOnlyTheUnpackedFolderIsLeft();

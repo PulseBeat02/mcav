@@ -280,7 +280,7 @@ final class OSXInstallationStrategyTest {
     final Path library = libraryDirectory.resolve("libvlc.dylib");
     final Path coreLibrary = libraryDirectory.resolve("libvlccore.dylib");
     Files.createDirectories(libraryDirectory);
-    Files.createFile(library);
-    Files.createFile(coreLibrary);
+    Files.writeString(library, "structural API fixture, never loaded");
+    Files.writeString(coreLibrary, "structural core fixture, never loaded");
   }
 }

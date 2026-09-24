@@ -63,6 +63,7 @@ import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.Platform;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -350,6 +351,96 @@ final class IOUtilsTest {
     assertFalse(siblingExists, "a sibling whose name starts with the destination name is outside of it");
   }
 
+  private static void createSymbolicLinkOrSkip(final Path link, final Path target) {
+    try {
+      Files.createSymbolicLink(link, target);
+    } catch (final IOException | UnsupportedOperationException exception) {
+      Assumptions.abort("Symbolic links cannot be created here: " + exception);
+    }
+  }
+
+  @Test
+  void rejectsZipEntriesUnderExistingDirectoryLinks() throws IOException {
+    final Path outside = this.directory.resolve("outside");
+    Files.createDirectories(outside);
+    final Path kept = outside.resolve("kept.txt");
+    Files.writeString(kept, "original");
+    final Path destination = this.directory.resolve("safe");
+    Files.createDirectories(destination);
+    final Path link = destination.resolve("linked");
+    createSymbolicLinkOrSkip(link, outside);
+    final Path archive = this.writeZip("linked/kept.txt", "overwritten");
+
+    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+    final String content = Files.readString(kept);
+    final boolean stillLinked = Files.isSymbolicLink(link);
+    assertEquals("original", content);
+    assertTrue(stillLinked);
+  }
+
+  @Test
+  void rejectsDirectoryEntriesUnderExistingLinks() throws IOException {
+    final Path outside = this.directory.resolve("outside");
+    Files.createDirectories(outside);
+    final Path destination = this.directory.resolve("safe");
+    Files.createDirectories(destination);
+    final Path link = destination.resolve("linked");
+    createSymbolicLinkOrSkip(link, outside);
+    final Path archive = this.writeZip("linked/created/", "");
+
+    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+    final Path escaped = outside.resolve("created");
+    final boolean escapedExists = Files.exists(escaped);
+    assertFalse(escapedExists);
+  }
+
+  @Test
+  void rejectsZipEntriesThatReplaceExistingFileLinks() throws IOException {
+    final Path kept = this.directory.resolve("outside.txt");
+    Files.writeString(kept, "original");
+    final Path destination = this.directory.resolve("safe");
+    Files.createDirectories(destination);
+    final Path link = destination.resolve("entry.txt");
+    createSymbolicLinkOrSkip(link, kept);
+    final Path archive = this.writeZip("entry.txt", "overwritten");
+
+    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+    final String content = Files.readString(kept);
+    final boolean stillLinked = Files.isSymbolicLink(link);
+    assertEquals("original", content);
+    assertTrue(stillLinked);
+  }
+
+  @Test
+  void rejectsZipEntriesThatReplaceDanglingLinks() throws IOException {
+    final Path outside = this.directory.resolve("outside.txt");
+    final Path destination = this.directory.resolve("safe");
+    Files.createDirectories(destination);
+    final Path link = destination.resolve("entry.txt");
+    createSymbolicLinkOrSkip(link, outside);
+    final Path archive = this.writeZip("entry.txt", "escaped");
+
+    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+    final boolean outsideExists = Files.exists(outside);
+    final boolean stillLinked = Files.isSymbolicLink(link);
+    assertFalse(outsideExists);
+    assertTrue(stillLinked);
+  }
+
+  @Test
+  void resolvesTheDestinationItselfToItsRealDirectory() throws IOException {
+    final Path realDestination = this.directory.resolve("real");
+    Files.createDirectories(realDestination);
+    final Path destination = this.directory.resolve("alias");
+    createSymbolicLinkOrSkip(destination, realDestination);
+    final Path archive = this.writeZip("nested/file.txt", "content");
+
+    IOUtils.unzip(archive, destination);
+    final Path extracted = realDestination.resolve("nested/file.txt");
+    final String content = Files.readString(extracted);
+    assertEquals("content", content);
+  }
+
   @Test
   void allowsDotDotSegmentsThatStayInside() throws IOException {
     final Path archive = this.writeZip("folder/../inside.txt", "fine");
@@ -365,8 +456,71 @@ final class IOUtilsTest {
     final Path archive = this.writeZip("one.txt", "1234", "two.txt", "5678");
     final Path entryDestination = this.directory.resolve("entry-limit");
     final Path totalDestination = this.directory.resolve("total-limit");
-    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, entryDestination, 3, 100));
-    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, totalDestination, 100, 5));
+    final ZipEntryIntegrityException entryFailure = assertThrows(ZipEntryIntegrityException.class, () ->
+      IOUtils.unzip(archive, entryDestination, 3, 100)
+    );
+    final ZipEntryIntegrityException totalFailure = assertThrows(ZipEntryIntegrityException.class, () ->
+      IOUtils.unzip(archive, totalDestination, 100, 5)
+    );
+    final String entryMessage = entryFailure.getMessage();
+    final String totalMessage = totalFailure.getMessage();
+    assertEquals("Zip entry exceeds the maximum size: one.txt", entryMessage);
+    assertEquals("Total extracted size exceeds the limit", totalMessage);
+  }
+
+  @Test
+  void neverWritesMoreThanTheTotalLimitAcrossEntryChunks() throws IOException {
+    final String firstContent = "a".repeat(20_000);
+    final String secondContent = "b".repeat(160_000);
+    final Path archive = this.writeZip("first.txt", firstContent, "second.txt", secondContent);
+    final Path destination = this.directory.resolve("limited");
+    final long totalLimit = 100_000;
+
+    final ZipEntryIntegrityException failure = assertThrows(ZipEntryIntegrityException.class, () ->
+      IOUtils.unzip(archive, destination, 200_000, totalLimit)
+    );
+    final Path first = destination.resolve("first.txt");
+    final Path second = destination.resolve("second.txt");
+    final long firstSize = Files.size(first);
+    final long secondSize = Files.size(second);
+    final long written = firstSize + secondSize;
+    final String message = failure.getMessage();
+    assertEquals(20_000, firstSize);
+    assertTrue(written <= totalLimit, "bytes written across entries: " + written);
+    assertEquals("Total extracted size exceeds the limit", message);
+  }
+
+  @Test
+  void enforcesTheEntryLimitAcrossMultipleReads() throws IOException {
+    final String content = "x".repeat(200_000);
+    final Path archive = this.writeZip("large.txt", content);
+    final Path destination = this.directory.resolve("multi-read-entry");
+    final ZipEntryIntegrityException failure = assertThrows(ZipEntryIntegrityException.class, () ->
+      IOUtils.unzip(archive, destination, 100_000, 1_000_000)
+    );
+    final Path extracted = destination.resolve("large.txt");
+    final long written = Files.size(extracted);
+    final String message = failure.getMessage();
+    assertTrue(written <= 100_000, "the cumulative entry limit applies before writing each chunk");
+    assertEquals("Zip entry exceeds the maximum size: large.txt", message);
+  }
+
+  @Test
+  void acceptsEmptyFilesWithZeroSizeLimits() throws IOException {
+    final Path archive = this.writeZip("empty.txt", "");
+    final Path destination = this.directory.resolve("zero-limit");
+    IOUtils.unzip(archive, destination, 0, 0);
+    final Path extracted = destination.resolve("empty.txt");
+    final long size = Files.size(extracted);
+    assertEquals(0, size);
+  }
+
+  @Test
+  void rejectsNegativeExtractionLimits() throws IOException {
+    final Path archive = this.writeZip();
+    final Path destination = this.directory.resolve("invalid-limit");
+    assertThrows(IllegalArgumentException.class, () -> IOUtils.unzip(archive, destination, -1, 100));
+    assertThrows(IllegalArgumentException.class, () -> IOUtils.unzip(archive, destination, 100, -1));
   }
 
   @Test

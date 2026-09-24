@@ -212,7 +212,7 @@ final class ManualInstallationStrategyTest {
 
   private static Path createFile(final Path directory, final String name) throws IOException {
     final Path file = directory.resolve(name);
-    return Files.createFile(file);
+    return Files.writeString(file, "structural fixture, never loaded as native code");
   }
 
   private static void createLinkOrAbort(final Path link, final Path target) {

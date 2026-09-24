@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -88,35 +89,79 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   }
 
   /**
-   * Finds the directory that contains a regular file matching the pattern, searching the directory recursively. Files
-   * at most eight levels below the directory are found, so a file in the seventh nested subdirectory is found but one
-   * in the eighth is not.
+   * Finds the first nonempty library matching one pattern, searching at most eight levels below the root.
    *
-   * @param root    the directory to search
-   * @param pattern the pattern the file name must match completely
-   * @return the parent directory of the first matching file, or empty if the directory does not exist or no file
-   * matches
-   * @throws IOException if the directory cannot be read
+   * @param root the directory to search
+   * @param pattern the complete library file-name pattern
+   * @return the parent directory of a matching library, or empty if none exists
+   * @throws IOException if a candidate directory or library cannot be read
    */
   protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern) throws IOException {
+    return findLibraryDirectory(root, pattern, new Pattern[0]);
+  }
+
+  /**
+   * Finds a directory containing nonempty regular files matching every required pattern. File symlinks are accepted
+   * when their targets are regular and nonempty. The recursive search does not follow directory symlinks, and files
+   * are searched at most eight levels below the root.
+   *
+   * @param root the directory to search
+   * @param pattern the pattern for the main library file name
+   * @param companions additional library patterns that must match files in the same directory
+   * @return the first complete library directory, or empty if no complete directory exists
+   * @throws IOException if a candidate directory or library cannot be read
+   */
+  protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern, final Pattern... companions)
+    throws IOException {
     Preconditions.checkNotNull(root, "Root must not be null");
     Preconditions.checkNotNull(pattern, "Pattern must not be null");
-    final boolean exists = Files.isDirectory(root);
-    if (!exists) {
+    Preconditions.checkNotNull(companions, "Companion patterns must not be null");
+    for (final Pattern companion : companions) {
+      Preconditions.checkNotNull(companion, "Companion patterns must not contain null");
+    }
+    if (!Files.isDirectory(root)) {
       return Optional.empty();
     }
-    final Optional<Path> match;
+    Optional<Path> found = Optional.empty();
     try (final Stream<Path> files = Files.walk(root, MAX_SEARCH_DEPTH)) {
       final Stream<Path> matching = files.filter(file -> matchesFileName(file, pattern));
-      match = matching.findFirst();
+      final Iterator<Path> candidates = matching.iterator();
+      while (candidates.hasNext()) {
+        final Path library = candidates.next();
+        final Path parentOrNull = library.getParent();
+        final Path parent = Objects.requireNonNull(parentOrNull, "A file found below a directory has a parent");
+        if (Files.size(library) > 0 && containsCompanions(parent, companions)) {
+          found = Optional.of(parent);
+          break;
+        }
+      }
     }
-    if (match.isEmpty()) {
-      return Optional.empty();
+    return found;
+  }
+
+  private static boolean containsCompanions(final Path directory, final Pattern[] companions) throws IOException {
+    for (final Pattern companion : companions) {
+      if (!containsNonemptyLibrary(directory, companion)) {
+        return false;
+      }
     }
-    final Path library = match.get();
-    final Path parentOrNull = library.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "A file found below a directory has a parent");
-    return Optional.of(parent);
+    return true;
+  }
+
+  private static boolean containsNonemptyLibrary(final Path directory, final Pattern pattern) throws IOException {
+    boolean found = false;
+    try (final Stream<Path> files = Files.list(directory)) {
+      final Stream<Path> matching = files.filter(file -> matchesFileName(file, pattern));
+      final Iterator<Path> candidates = matching.iterator();
+      while (candidates.hasNext()) {
+        final Path library = candidates.next();
+        if (Files.size(library) > 0) {
+          found = true;
+          break;
+        }
+      }
+    }
+    return found;
   }
 
   private static boolean matchesFileName(final Path file, final Pattern pattern) {

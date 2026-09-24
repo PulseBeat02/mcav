@@ -89,7 +89,9 @@ final class CommandTaskTest {
     final CommandTask task = new CommandTask(java, "-XX:+NoSuchOptionForMcav");
     final int exitCode = task.run();
     final CommandTask checked = new CommandTask(java, "-XX:+NoSuchOptionForMcav");
+    final int recordedExitCode = task.getExitCode();
     assertNotEquals(0, exitCode);
+    assertEquals(exitCode, recordedExitCode);
     assertThrows(ProcessException.class, checked::runChecked);
   }
 

@@ -37,6 +37,7 @@ import me.brandonli.mcav.utils.IOUtils;
 public final class LinuxInstallationStrategy extends ManualInstallationStrategy {
 
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.so(?:\\.\\d+)*");
+  private static final Pattern LIBRARY = Pattern.compile("libvlc\\.so(?:\\.\\d+)*");
   private static final String EXTRACTED_DIRECTORY = "squashfs-root";
   private static final String EXTRACT_OPTION = "--appimage-extract";
 
@@ -60,7 +61,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   }
 
   /**
-   * Looks for {@code libvlccore.so} inside the installation directory.
+   * Looks for nonempty {@code libvlc.so} and {@code libvlccore.so} in the same installation directory.
    *
    * @return the directory that contains the library, or empty if VLC has not been installed
    * @throws IOException if the installation directory cannot be searched
@@ -68,7 +69,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   @Override
   public Optional<Path> getInstalledPath() throws IOException {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, CORE_LIBRARY);
+    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -91,9 +92,9 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     this.extractAppImage(absoluteArchive, workingDirectory, extracted);
     Files.move(extracted, installDirectory);
     Files.deleteIfExists(absoluteArchive);
-    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, CORE_LIBRARY);
+    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     if (libraryDirectory.isEmpty()) {
-      throw new IOException("The extracted VLC AppImage does not contain libvlccore.so");
+      throw new IOException("The extracted VLC AppImage does not contain nonempty libvlc.so and libvlccore.so in the same directory");
     }
     return libraryDirectory.get();
   }

@@ -37,6 +37,7 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstaller;
 public final class OSXInstallationStrategy extends ManualInstallationStrategy {
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dylib");
+  private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dylib");
   private static final String VLC_APP = "VLC.app";
   private static final String MOUNT_DIRECTORY = "vlc-mount";
 
@@ -60,7 +61,7 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
   }
 
   /**
-   * Looks for {@code libvlc.dylib} inside the installation directory.
+   * Looks for nonempty {@code libvlc.dylib} and {@code libvlccore.dylib} in the same installation directory.
    *
    * @return the directory that contains the library, or empty if VLC has not been installed
    * @throws IOException if the installation directory cannot be searched
@@ -68,7 +69,7 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
   @Override
   public Optional<Path> getInstalledPath() throws IOException {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, LIBRARY);
+    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -90,9 +91,9 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
     Files.createDirectories(mountPoint);
     this.copyFromDiskImage(archive, mountPoint, installDirectory);
     Files.deleteIfExists(archive);
-    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY);
+    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     if (libraryDirectory.isEmpty()) {
-      throw new IOException("The VLC disk image does not contain libvlc.dylib");
+      throw new IOException("The VLC disk image does not contain nonempty libvlc.dylib and libvlccore.dylib in the same directory");
     }
     return libraryDirectory.get();
   }

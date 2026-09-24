@@ -25,11 +25,15 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -48,16 +52,19 @@ import org.slf4j.LoggerFactory;
  *   final String output = task.getOutput();
  * </code></pre>
  *
- * <p>{@link #run(Duration)} limits how long the program may run and kills it, together with the processes it started,
- * when it takes longer. A task can be run only once. Instances are not thread-safe.
+ * <p>{@link #run(Duration)} uses one deadline for the program and both captured streams. At the deadline it requests
+ * termination of the program and the descendants observed while it ran. Descendant discovery is best effort:
+ * an operating system can reparent a very short-lived program's children before they can be observed. A task can be run only once. Instances are not thread-safe.
  */
 public final class CommandTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CommandTask.class);
   private static final int NOT_RUN = Integer.MIN_VALUE;
+  private static final long PROCESS_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20L);
 
   private final List<String> command;
   private final @Nullable Path workingDirectory;
+  private final Set<ProcessHandle> descendants;
 
   private @Nullable Process process;
   private String output;
@@ -84,6 +91,7 @@ public final class CommandTask {
     Preconditions.checkArgument(command.length > 0, "Command must not be empty");
     this.command = List.of(command);
     this.workingDirectory = workingDirectory;
+    this.descendants = new HashSet<>();
     this.output = "";
     this.errorOutput = "";
     this.exitCode = NOT_RUN;
@@ -116,8 +124,8 @@ public final class CommandTask {
   }
 
   /**
-   * Runs the program and waits at most the timeout for it to exit. A program that is still running when the timeout
-   * passes is killed together with the processes it started, and the method fails.
+   * Runs the program and waits at most one timeout for its exit and both captured output streams. On timeout,
+   * termination of the program and its observed descendants is requested and the method fails.
    *
    * @param timeout how long to wait for the program, which must be positive
    * @return the exit code of the program
@@ -138,16 +146,21 @@ public final class CommandTask {
 
   private int runWithTimeout(final @Nullable Duration timeout) throws IOException {
     Preconditions.checkState(this.process == null, "Command has already been run");
+    final long startNanos = System.nanoTime();
     final Process started = this.startProcess();
     this.process = started;
     final InputStream standardOutput = started.getInputStream();
     final InputStream standardError = started.getErrorStream();
     // both streams are drained on their own threads, so a process that fills one pipe never blocks on it; a shared
     // pool could run the readers one after another and deadlock exactly like that
-    try (final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor()) {
+    final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
+    try {
       final Future<String> outputFuture = readers.submit(() -> readFully(standardOutput));
       final Future<String> errorFuture = readers.submit(() -> readFully(standardError));
-      this.awaitCompletion(started, outputFuture, errorFuture, timeout);
+      this.awaitCompletion(started, outputFuture, errorFuture, timeout, startNanos);
+    } finally {
+      // close() waits indefinitely for blocked pipe readers. Cancellation must not extend the caller's deadline.
+      readers.shutdownNow();
     }
     LOGGER.debug("Command {} exited with code {}", this.command, this.exitCode);
     return this.exitCode;
@@ -165,8 +178,8 @@ public final class CommandTask {
   }
 
   /**
-   * Runs the program, waits at most the timeout for it to exit, and fails if the exit code is not zero. A program
-   * that is still running when the timeout passes is killed together with the processes it started.
+   * Runs the program, applies one timeout to its exit and output capture, and fails if the exit code is not zero.
+   * When the timeout passes, termination of the program and its observed descendants is requested.
    *
    * @param timeout how long to wait for the program, which must be positive
    * @throws IOException      if the program cannot be started, its output cannot be read, or it does not exit in
@@ -205,37 +218,82 @@ public final class CommandTask {
     final Future<String> errorFuture,
     final @Nullable Duration timeout
   ) throws IOException {
+    final long startNanos = System.nanoTime();
+    this.awaitCompletion(started, outputFuture, errorFuture, timeout, startNanos);
+  }
+
+  private void awaitCompletion(
+    final Process started,
+    final Future<String> outputFuture,
+    final Future<String> errorFuture,
+    final @Nullable Duration timeout,
+    final long startNanos
+  ) throws IOException {
     try {
-      this.exitCode = this.waitForExit(started, timeout);
-      this.output = outputFuture.get();
-      this.errorOutput = errorFuture.get();
+      this.exitCode = this.waitForExit(started, timeout, startNanos);
+      this.output = awaitOutput(outputFuture, timeout, startNanos);
+      this.errorOutput = awaitOutput(errorFuture, timeout, startNanos);
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      destroyProcessTree(started);
+      this.destroyProcessTree(started);
       throw new IOException("Interrupted while waiting for command " + this.command, exception);
+    } catch (final TimeoutException exception) {
+      this.destroyProcessTree(started);
+      final String message = "Command %s did not finish within %s; termination was requested".formatted(this.command, timeout);
+      throw new IOException(message, exception);
     } catch (final ExecutionException exception) {
+      this.destroyProcessTree(started);
       final Throwable cause = exception.getCause();
       throw new IOException("Failed to read the output of command " + this.command, cause);
+    } finally {
+      outputFuture.cancel(true);
+      errorFuture.cancel(true);
     }
   }
 
-  private int waitForExit(final Process started, final @Nullable Duration timeout) throws InterruptedException, IOException {
+  private static String awaitOutput(final Future<String> output, final @Nullable Duration timeout, final long startNanos)
+    throws ExecutionException, InterruptedException, TimeoutException {
     if (timeout == null) {
-      return started.waitFor();
+      return output.get();
     }
-    final boolean exited = started.waitFor(timeout);
-    if (exited) {
-      return started.exitValue();
-    }
-    // the pipes only close once every process holding them is gone, so the children are killed as well
-    destroyProcessTree(started);
-    throw new IOException("Command %s did not finish within %s and was killed".formatted(this.command, timeout));
+    final long remaining = remainingNanos(timeout, startNanos);
+    return output.get(remaining, TimeUnit.NANOSECONDS);
   }
 
-  private static void destroyProcessTree(final Process started) {
-    final Stream<ProcessHandle> descendants = started.descendants();
-    descendants.forEach(ProcessHandle::destroyForcibly);
+  private static long remainingNanos(final Duration timeout, final long startNanos) throws TimeoutException {
+    final long budget = TimeUnit.NANOSECONDS.convert(timeout);
+    final long elapsed = System.nanoTime() - startNanos;
+    final long remaining = budget - elapsed;
+    if (remaining <= 0) {
+      throw new TimeoutException("The command and output deadline expired");
+    }
+    return remaining;
+  }
+
+  private int waitForExit(final Process started, final @Nullable Duration timeout, final long startNanos)
+    throws InterruptedException, TimeoutException {
+    while (true) {
+      // Keep handles while the parent exists: after it exits, inherited-pipe children may already be reparented.
+      this.rememberDescendants(started);
+      final long remaining = timeout == null ? PROCESS_POLL_NANOS : remainingNanos(timeout, startNanos);
+      final long waitNanos = Math.min(remaining, PROCESS_POLL_NANOS);
+      final boolean exited = started.waitFor(waitNanos, TimeUnit.NANOSECONDS);
+      if (exited) {
+        return started.exitValue();
+      }
+    }
+  }
+
+  private void rememberDescendants(final Process started) {
+    try (final Stream<ProcessHandle> children = started.descendants()) {
+      children.forEach(this.descendants::add);
+    }
+  }
+
+  private void destroyProcessTree(final Process started) {
+    this.rememberDescendants(started);
+    this.descendants.forEach(ProcessHandle::destroyForcibly);
     started.destroyForcibly();
   }
 

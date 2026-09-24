@@ -39,6 +39,7 @@ import me.brandonli.mcav.utils.ZipEntryIntegrityException;
 public final class WinInstallationStrategy extends ManualInstallationStrategy {
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dll");
+  private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dll");
   private static final String TEMP_DIRECTORY = "vlc-extract";
 
   /**
@@ -51,7 +52,7 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
   }
 
   /**
-   * Looks for {@code libvlc.dll} inside the installation directory.
+   * Looks for nonempty {@code libvlc.dll} and {@code libvlccore.dll} in the same installation directory.
    *
    * @return the directory that contains the library, or empty if VLC has not been installed
    * @throws IOException if the installation directory cannot be searched
@@ -59,7 +60,7 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
   @Override
   public Optional<Path> getInstalledPath() throws IOException {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, LIBRARY);
+    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -90,9 +91,9 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
 
   private static void extractInto(final Path archive, final Path temporary, final Path installDirectory) throws IOException {
     unzip(archive, temporary);
-    final Optional<Path> extractedLibraryDirectory = findLibraryDirectory(temporary, LIBRARY);
+    final Optional<Path> extractedLibraryDirectory = findLibraryDirectory(temporary, LIBRARY, CORE_LIBRARY);
     if (extractedLibraryDirectory.isEmpty()) {
-      throw new IOException("The VLC zip does not contain libvlc.dll");
+      throw new IOException("The VLC zip does not contain nonempty libvlc.dll and libvlccore.dll in the same directory");
     }
     final Path extractedRoot = extractedLibraryDirectory.get();
     Files.move(extractedRoot, installDirectory);

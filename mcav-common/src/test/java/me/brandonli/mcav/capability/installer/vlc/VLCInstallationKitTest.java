@@ -20,6 +20,7 @@ package me.brandonli.mcav.capability.installer.vlc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -224,6 +225,7 @@ final class VLCInstallationKitTest {
     final VLCLoadState standardState = standard.getLoadState();
     assertSame(installer, customInstaller);
     assertEquals(expectedFolder, standardFolder);
+    assertNotNull(customState, "the shared load state exists, rather than both kits returning null");
     assertSame(customState, standardState, "libvlc is loaded once per JVM, whichever kit loads it");
   }
 

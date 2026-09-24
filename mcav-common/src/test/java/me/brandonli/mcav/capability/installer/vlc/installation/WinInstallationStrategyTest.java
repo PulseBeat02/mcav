@@ -75,11 +75,27 @@ final class WinInstallationStrategyTest {
   }
 
   @Test
+  void doesNotPromoteStaleFilesFromAnEarlierExtraction() throws IOException {
+    final VLCInstaller installer = VLCInstaller.create(this.temp);
+    final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
+    final Path temporary = this.temp.resolve(TEMPORARY_DIRECTORY);
+    final Path previousRoot = temporary.resolve("vlc-3.0.23");
+    Files.createDirectories(previousRoot);
+    final Path stale = previousRoot.resolve("stale.dll");
+    Files.writeString(stale, "left over from an interrupted extraction");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
+    final Path installed = strategy.execute(archive);
+    final Path relocatedStale = installed.resolve("stale.dll");
+    final boolean copied = Files.exists(relocatedStale);
+    assertFalse(copied, "only files from the new archive may enter the installation");
+  }
+
+  @Test
   void reportsTheInstallationOnlyOnceItExists() throws IOException {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
     final Optional<Path> before = strategy.getInstalledPath();
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
     final Path installed = strategy.execute(archive);
     final Optional<Path> after = strategy.getInstalledPath();
     final Optional<Path> expected = Optional.of(installed);
@@ -96,7 +112,7 @@ final class WinInstallationStrategyTest {
     Files.createDirectories(installDirectory);
     final Path stale = installDirectory.resolve("stale.dll");
     Files.createFile(stale);
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
     strategy.execute(archive);
     final boolean staleExists = Files.exists(stale);
     final boolean libraryExists = containsFile(installDirectory, "libvlc.dll");

@@ -33,7 +33,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.Optional;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
@@ -293,6 +295,54 @@ final class VLCInstallerTest {
   }
 
   @Test
+  void installsALinuxArchiveThroughItsExecutableExtractionProtocol() throws IOException {
+    final OS operatingSystem = OSUtils.getOS();
+    Assumptions.assumeTrue(operatingSystem == OS.LINUX, "The executable fixture uses a POSIX shell");
+    final Path archive = this.folder.resolve("fixture.AppImage");
+    // Model the AppImage extraction protocol, not the VLC binary: the returned library must never be loaded.
+    final String script =
+      """
+      #!/bin/sh
+      set -eu
+      test "$1" = --appimage-extract
+      mkdir -p squashfs-root/usr/lib/vlc/plugins
+      printf fixture-core > squashfs-root/usr/lib/libvlccore.so.9
+      printf fixture-api > squashfs-root/usr/lib/libvlc.so.5
+      printf fixture-plugin > squashfs-root/usr/lib/vlc/plugins/test.so
+      """;
+    Files.writeString(archive, script);
+    final VLCInstaller installer = VLCInstaller.create(this.folder);
+    final Path installed = installer.install(archive);
+    final Path installDirectory = installer.getInstallDirectory();
+    final Path expected = installDirectory.resolve("usr/lib");
+    final Path core = installed.resolve("libvlccore.so.9");
+    final String content = Files.readString(core);
+    final boolean archiveRemains = Files.exists(archive);
+    assertEquals(expected, installed);
+    assertEquals("fixture-core", content);
+    assertFalse(archiveRemains);
+  }
+
+  @Test
+  void keepsGoingWhenPosixPermissionsPreventLegacyDeletion() throws IOException {
+    final OS operatingSystem = OSUtils.getOS();
+    Assumptions.assumeTrue(operatingSystem == OS.LINUX, "This fixture exercises POSIX directory permissions");
+    final Path legacy = createTree(this.folder, "VLC.app");
+    final Set<PosixFilePermission> original = Files.getPosixFilePermissions(legacy);
+    final Set<PosixFilePermission> readOnly = Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+    try {
+      Files.setPosixFilePermissions(legacy, readOnly);
+      final boolean writable = Files.isWritable(legacy);
+      Assumptions.assumeFalse(writable, "A privileged process can bypass the fixture's directory permissions");
+      VLCInstaller.removeLegacyInstallations(this.folder);
+      final boolean legacyRemains = Files.isDirectory(legacy);
+      assertTrue(legacyRemains, "failed cleanup is reported and leaves the undeletable directory in place");
+    } finally {
+      Files.setPosixFilePermissions(legacy, original);
+    }
+  }
+
+  @Test
   void offersTheBundledDownloadForThisPlatform() {
     final Platform current = Platform.getCurrentPlatform();
     final OS operatingSystem = current.getOS();
@@ -385,7 +435,15 @@ final class VLCInstallerTest {
     final String libraryName = libraryName(operatingSystem);
     final Path library = libraryDirectory.resolve(libraryName);
     Files.createDirectories(libraryDirectory);
-    Files.createFile(library);
+    Files.writeString(library, "structural library fixture, never loaded");
+    final String counterpart =
+      switch (operatingSystem) {
+        case WINDOWS -> "libvlccore.dll";
+        case MAC -> "libvlccore.dylib";
+        case LINUX, FREEBSD, OTHER -> "libvlc.so.5";
+      };
+    final Path companion = libraryDirectory.resolve(counterpart);
+    Files.writeString(companion, "structural companion fixture, never loaded");
     return libraryDirectory;
   }
 

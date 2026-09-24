@@ -54,6 +54,8 @@ import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link HttpDownloader} against a server on the loopback interface.
@@ -80,6 +82,15 @@ final class HttpDownloaderTest {
     final byte[] hash = digest.digest(CONTENT);
     final HexFormat hex = HexFormat.of();
     return hex.formatHex(hash);
+  }
+
+  @Test
+  void rejectsUnsupportedUrisBeforeAllocatingAnHttpClient() {
+    final URI unsupported = URI.create("file:///tmp/media.mp4");
+    try (final MockedStatic<HttpClient> clients = Mockito.mockStatic(HttpClient.class)) {
+      assertThrows(IllegalArgumentException.class, () -> HttpDownloader.openStream(unsupported));
+      clients.verifyNoInteractions();
+    }
   }
 
   @Test
@@ -391,6 +402,24 @@ final class HttpDownloaderTest {
     try (final InputStream stream = HttpDownloader.openStream(uri)) {
       assertNotNull(stream, "opening either fails or yields a stream");
     }
+  }
+
+  @Test
+  void closingAResponseStreamClosesItsBodyEvenWhenTheClientOwnsNoExchange() throws IOException {
+    final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+    final InputStream body = new java.io.ByteArrayInputStream(new byte[] { 1 }) {
+      @Override
+      public void close() throws IOException {
+        closed.set(true);
+        super.close();
+      }
+    };
+    final HttpClient client = org.mockito.Mockito.mock(HttpClient.class);
+    final InputStream response = new HttpDownloader.ClientClosingStream(body, client);
+    response.close();
+    final boolean bodyClosed = closed.get();
+    assertTrue(bodyClosed);
+    org.mockito.Mockito.verify(client).shutdownNow();
   }
 
   @Test

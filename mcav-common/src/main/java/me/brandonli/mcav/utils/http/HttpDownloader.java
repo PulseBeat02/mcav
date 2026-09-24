@@ -120,9 +120,9 @@ public final class HttpDownloader {
    */
   public static InputStream openStream(final URI uri) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");
-    final HttpClient client = createClient();
     final HttpRequest request = createRequest(uri);
     final HttpResponse.BodyHandler<InputStream> bodyHandler = HttpResponse.BodyHandlers.ofInputStream();
+    final HttpClient client = createClient();
     try {
       final HttpResponse<InputStream> response = client.send(request, bodyHandler);
       final int status = response.statusCode();

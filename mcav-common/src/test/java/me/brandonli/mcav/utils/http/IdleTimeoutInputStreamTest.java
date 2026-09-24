@@ -32,7 +32,10 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Tests {@link IdleTimeoutInputStream}.
@@ -112,6 +115,63 @@ final class IdleTimeoutInputStreamTest {
       assertThrows(InterruptedIOException.class, stream::read);
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted, "the interrupt must be restored");
+    }
+  }
+
+  @Test
+  void validatesArgumentsAndReturnsZeroWithoutReadingTheSource() throws IOException {
+    final InputStream unused = new InputStream() {
+      @Override
+      public int read() {
+        throw new AssertionError("An empty or invalid read must not access the source");
+      }
+
+      @Override
+      public int read(final byte[] bytes, final int offset, final int length) {
+        return this.read();
+      }
+    };
+    try (final IdleTimeoutInputStream stream = new IdleTimeoutInputStream(unused, GENEROUS_TIMEOUT)) {
+      final byte[] buffer = new byte[4];
+      final int empty = stream.read(buffer, buffer.length, 0);
+      assertEquals(0, empty);
+      assertThrows(NullPointerException.class, () -> stream.read(null, 0, 0));
+      assertThrows(IndexOutOfBoundsException.class, () -> stream.read(buffer, -1, 1));
+      assertThrows(IndexOutOfBoundsException.class, () -> stream.read(buffer, 0, -1));
+      assertThrows(IndexOutOfBoundsException.class, () -> stream.read(buffer, 4, 1));
+      assertThrows(IndexOutOfBoundsException.class, () -> stream.read(buffer, Integer.MAX_VALUE, 2));
+    }
+  }
+
+  static Stream<Throwable> uncheckedReadFailures() {
+    return Stream.of(
+      new IllegalStateException("source closed"),
+      new AssertionError("source invariant"),
+      new OutOfMemoryError("source allocation")
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("uncheckedReadFailures")
+  void preservesUncheckedFailuresAcrossTheWorkerThread(final Throwable failure) throws IOException {
+    final InputStream broken = new InputStream() {
+      @Override
+      public int read() {
+        if (failure instanceof final RuntimeException exception) {
+          throw exception;
+        }
+        throw (Error) failure;
+      }
+
+      @Override
+      public int read(final byte[] bytes, final int offset, final int length) {
+        return this.read();
+      }
+    };
+    try (final IdleTimeoutInputStream stream = new IdleTimeoutInputStream(broken, GENEROUS_TIMEOUT)) {
+      final Class<? extends Throwable> failureType = failure.getClass();
+      final Throwable thrown = assertThrows(failureType, stream::read);
+      assertSame(failure, thrown, "a worker must not disguise an unchecked or fatal failure as an IOException");
     }
   }
 
