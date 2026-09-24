@@ -317,22 +317,25 @@ export default function AudioStreamPlayer() {
     const placeholderRef = useRef<HTMLDivElement>(null);
     // the thumbnail that failed to load; a new thumbnail is tried again without resetting any state
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
-    const fetchingMediaInfoRef = useRef(false);
+    const mediaInfoRequestRef = useRef<Promise<MediaInfo> | null>(null);
 
     const maxReconnectAttempts = 5;
 
-    const fetchMediaInfo = useCallback(async () => {
-        // a slow server must not pile up requests from the refresh timer
-        if (fetchingMediaInfoRef.current) return;
-        fetchingMediaInfoRef.current = true;
-        try {
-            const info = await loadMediaInfo();
-            // an unchanged answer keeps the current object, so the page does not render again every refresh
-            setMediaInfo(previous => sameMediaInfo(previous, info) ? previous : info);
-        } finally {
-            fetchingMediaInfoRef.current = false;
+    const requestMediaInfo = useCallback((): Promise<MediaInfo> => {
+        // Initial loading and refreshes share the same pending response from a slow server.
+        if (!mediaInfoRequestRef.current) {
+            mediaInfoRequestRef.current = loadMediaInfo().finally(() => {
+                mediaInfoRequestRef.current = null;
+            });
         }
+        return mediaInfoRequestRef.current;
     }, []);
+
+    const fetchMediaInfo = useCallback(async () => {
+        const info = await requestMediaInfo();
+        // An unchanged answer keeps the current object, avoiding a render on every refresh.
+        setMediaInfo(previous => sameMediaInfo(previous, info) ? previous : info);
+    }, [requestMediaInfo]);
 
     const startMetadataRefresh = useCallback(() => {
         if (metadataIntervalRef.current) {
@@ -691,7 +694,7 @@ export default function AudioStreamPlayer() {
 
     useEffect(() => {
         let unmounted = false;
-        loadMediaInfo().then(info => {
+        requestMediaInfo().then(info => {
             if (!unmounted) {
                 setMediaInfo(info);
             }
@@ -750,7 +753,7 @@ export default function AudioStreamPlayer() {
                 }
             }
         };
-    }, []);
+    }, [requestMediaInfo]);
 
     useEffect(() => {
         if (mediaInfo.title && mediaInfo.title !== 'Waiting for stream...') {
