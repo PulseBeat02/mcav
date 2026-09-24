@@ -73,7 +73,7 @@ public class FPSFilter extends MatVideoFilter {
   /**
    * Counts a frame and recomputes the displayed frame rate once per measuring window.
    */
-  private void countFrame() {
+  private synchronized void countFrame() {
     final long now = this.clock.getAsLong();
     this.framesInWindow++;
     final long elapsed = now - this.windowStart;
