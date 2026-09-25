@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.utils.IOUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -63,7 +64,7 @@ public final class JukeBoxListener implements Listener {
     Preconditions.checkNotNull(sandbox, "Sandbox must not be null");
     this.sandbox = sandbox;
     final Path dataFolder = sandbox.getDataPath();
-    this.isoFolder = dataFolder.resolve("iso");
+    this.isoFolder = DiskImages.folderOf(dataFolder);
     IOUtils.createDirectoryIfNotExists(this.isoFolder);
   }
 
