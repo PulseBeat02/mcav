@@ -82,11 +82,13 @@ public interface VideoPlayer extends ExceptionHandler {
   }
 
   /**
-   * Creates a player backed by the video reader of OpenCV. It decodes video only, without audio, through the video
-   * backends of the OpenCV build bundled with JavaCV. The Windows build reads files and streams through FFmpeg and
-   * Media Foundation, but the Linux build only captures from cameras through V4L2 and cannot open files or streams at
-   * all, so there the player reports the failure and does not start. Prefer {@link #ffmpeg()}, which decodes
-   * everything on every system.
+   * Creates a player backed by the video reader of OpenCV, which reads files and streams on every platform.
+   *
+   * <p>The OpenCV build bundled with JavaCV differs per platform: the Windows build reads files through FFmpeg and
+   * Media Foundation and the macOS build through AVFoundation, while the Linux build has no file backend at all and
+   * only captures from cameras through V4L2. Where OpenCV cannot read files, the player reads them with the FFmpeg
+   * reader JavaCV bundles, so the same code plays the same file everywhere; audio then arrives as well, where the
+   * reader of OpenCV delivers video only.
    *
    * @return the player
    */

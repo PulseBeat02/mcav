@@ -30,9 +30,10 @@ optional native features can also need system libraries, a display, or an audio 
 | macOS            | x86-64, ARM64 (Apple)     | VLC is downloaded and mounted without administrator rights.        |
 | Linux            | x86-64, ARM64             | VLC is used from the system, or downloaded as an AppImage on x86-64. |
 
-FFmpeg and OpenCV are bundled with the library for every platform above. Use the FFmpeg player for media files:
-the bundled Linux OpenCV build cannot decode video files. OpenCV capture also depends on a working capture backend
-and device. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
+FFmpeg and OpenCV are bundled with the library for every platform above. The OpenCV build differs per platform: the
+Windows and macOS builds read video files themselves, the Linux build has no file backend and only captures from
+cameras. `VideoPlayer.opencv()` therefore reads files with the bundled FFmpeg where OpenCV cannot, so a file plays on
+every platform. OpenCV capture still depends on a working capture backend and device. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
 unavailable, which you can check with [capabilities](instance.md#capabilities).
 
 QEMU is never installed by MCAV. To use the [virtual machine module](vm.md), install QEMU yourself and make sure it is

@@ -18,11 +18,7 @@
 package me.brandonli.mcav.testing;
 
 import com.google.common.base.Preconditions;
-import java.util.List;
-import java.util.stream.Stream;
-import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Loader;
-import org.bytedeco.opencv.global.opencv_core;
 
 /**
  * Checks what the OpenCV natives bundled with JavaCV can do on this machine, so tests of features that need a missing
@@ -32,9 +28,6 @@ import org.bytedeco.opencv.global.opencv_core;
  * GTK, but the Linux build of OpenCV has no video file backend at all: it only captures from cameras through V4L2.
  */
 public final class OpenCvModules {
-
-  private static final String VIDEO_SECTION = "Video I/O:";
-  private static final List<String> FILE_BACKENDS = List.of("FFMPEG:", "Media Foundation:", "AVFoundation:", "GStreamer:");
 
   private OpenCvModules() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -54,39 +47,5 @@ public final class OpenCvModules {
     } catch (final LinkageError error) {
       return false;
     }
-  }
-
-  /**
-   * Checks whether the video module of OpenCV was built with a backend that reads video files, such as FFmpeg on
-   * Windows or AVFoundation on macOS.
-   *
-   * @return true if OpenCV can open video files on this machine
-   */
-  public static boolean canDecodeVideoFiles() {
-    final BytePointer information = opencv_core.getBuildInformation();
-    final String text = information.getString();
-    final int start = text.indexOf(VIDEO_SECTION);
-    if (start < 0) {
-      return false;
-    }
-    final int end = text.indexOf("\n\n", start);
-    final int sectionEnd = end < 0 ? text.length() : end;
-    final String section = text.substring(start, sectionEnd);
-    return listsEnabledFileBackend(section);
-  }
-
-  private static boolean listsEnabledFileBackend(final String videoSection) {
-    final Stream<String> lineStream = videoSection.lines();
-    final List<String> lines = lineStream.toList();
-    for (final String line : lines) {
-      final String trimmed = line.strip();
-      final boolean enabled = trimmed.contains("YES");
-      for (final String backend : FILE_BACKENDS) {
-        if (enabled && trimmed.startsWith(backend)) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 }

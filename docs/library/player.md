@@ -16,7 +16,7 @@ Create a video player with one of the factories of `VideoPlayer`:
 |------------------------|-----------------------------------------------------------------|-------|
 | `VideoPlayer.ffmpeg()` | The FFmpeg libraries bundled with MCAV; the recommended default | Yes   |
 | `VideoPlayer.vlc()`    | VLC, which must be installed or installable (see capabilities)  | Yes   |
-| `VideoPlayer.opencv()` | The OpenCV video reader; the bundled Linux build cannot read video files, so use `ffmpeg()` there | No    |
+| `VideoPlayer.opencv()` | The OpenCV video reader; where the bundled OpenCV build has no file backend, as on Linux, files are read with the bundled FFmpeg instead | Only there |
 | `VideoPlayer.device()` | Cameras and capture cards, played from a `DeviceSource`         | No    |
 
 ```{note}

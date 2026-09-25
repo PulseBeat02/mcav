@@ -37,12 +37,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.file.FileSource;
-import me.brandonli.mcav.testing.OpenCvModules;
 import me.brandonli.mcav.testing.TestMedia;
 import me.brandonli.mcav.utils.immutable.Dimension;
+import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -51,8 +50,6 @@ import org.junit.jupiter.api.Test;
  */
 final class OpenCvPlayersTest {
 
-  private static final String NO_FILE_BACKEND =
-    "The OpenCV build of this system has no video file backend; the Linux build only captures from V4L2 cameras";
   private static final Duration PLAYBACK_TIMEOUT = Duration.ofSeconds(10);
 
   /**
@@ -68,13 +65,62 @@ final class OpenCvPlayersTest {
   }
 
   @Test
-  void createsTheNativeFileGrabberWithoutOpeningTheFile() throws FrameGrabber.Exception {
+  void createsTheFileGrabberOfThisPlatformWithoutOpeningTheFile() throws FrameGrabber.Exception {
     final OpenCVPlayer player = new OpenCVPlayer();
+    final boolean openCvReadsFiles = OpenCvVideoBackends.canDecodeFiles();
     try (final FrameGrabber grabber = player.createFrameGrabber("unopened-file.mp4")) {
-      assertInstanceOf(OpenCVFrameGrabber.class, grabber);
+      if (openCvReadsFiles) {
+        assertInstanceOf(OpenCVFrameGrabber.class, grabber, "a build with a file backend reads the file itself");
+      } else {
+        assertInstanceOf(FFmpegFrameGrabber.class, grabber, "a build without a file backend reads the file with FFmpeg");
+      }
       assertThrows(NullPointerException.class, () -> player.createFrameGrabber(null));
     } finally {
       player.release();
+    }
+  }
+
+  @Test
+  void readsFilesWithTheGrabberThatCanOpenThem() throws Exception {
+    final Path video = TestMedia.video();
+    final boolean openCvReadsFiles = OpenCvVideoBackends.canDecodeFiles();
+    final boolean openCvOpenedTheFile = opensWithOpenCv(video);
+    assertEquals(
+      openCvReadsFiles,
+      openCvOpenedTheFile,
+      "the backend check has to agree with what the reader of OpenCV really does with a file"
+    );
+
+    try (final FFmpegFrameGrabber ffmpeg = new FFmpegFrameGrabber(video.toString())) {
+      ffmpeg.start();
+      final int width = ffmpeg.getImageWidth();
+      assertEquals(TestMedia.VIDEO_WIDTH, width, "the FFmpeg reader of JavaCV opens the file on every platform");
+    }
+  }
+
+  /**
+   * Whether the reader of OpenCV opens a video file on this machine. A build without a file backend either refuses to
+   * start or starts without a picture size, and both mean the same: it cannot read the file.
+   */
+  private static boolean opensWithOpenCv(final Path video) {
+    final String path = video.toString();
+    final OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(path);
+    try {
+      grabber.start();
+      final int width = grabber.getImageWidth();
+      return width > 0;
+    } catch (final FrameGrabber.Exception refused) {
+      return false;
+    } finally {
+      releaseQuietly(grabber);
+    }
+  }
+
+  private static void releaseQuietly(final OpenCVFrameGrabber grabber) {
+    try {
+      grabber.release();
+    } catch (final FrameGrabber.Exception failure) {
+      // a grabber that never opened has nothing to release
     }
   }
 
@@ -86,9 +132,6 @@ final class OpenCvPlayersTest {
    * @return an array of two elements, the number of frames followed by the width of the last frame
    */
   private static int[] playTestVideo(final Dimension size) throws InterruptedException {
-    final boolean fileBackend = OpenCvModules.canDecodeVideoFiles();
-    Assumptions.assumeTrue(fileBackend, NO_FILE_BACKEND);
-
     final AtomicInteger frames = new AtomicInteger();
     final AtomicInteger width = new AtomicInteger();
     // a player that never drops a frame as late, so how many frames arrive does not depend on the load of the machine
@@ -145,7 +188,7 @@ final class OpenCvPlayersTest {
     final int frames = result[0];
     final int width = result[1];
     assertTrue(frames > 10, "frames " + frames);
-    assertEquals(160, width, "the file reader of OpenCV ignores the requested size, so the frames are scaled");
+    assertEquals(160, width, "the frames arrive at the attached size, whether the reader scales them or the pipeline does");
   }
 
   @Test
