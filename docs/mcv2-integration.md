@@ -54,9 +54,11 @@ gpu-codec at build or run time.
 (numpy 2.5.3 semantics were pinned by experiment: negative float→uint8 wraps, reduced-chroma residuals are scaled in
 float64, channel sums associate left to right), and is bit-exact on every frame of the round-19 corpus and both
 shipped streams (780 of 780 frames, per-frame SHA-256 of the RGB output). The serializer reproduces all 780 frames
-byte for byte from their rebuilt block trees. The encoder is not bit-identical to the Python encoder (numpy's float32
-BLAS fits cannot be reproduced), and does not need to be: its streams must decode with the reference and land within
-0.3 VMAF / 0.1 dB of the reference encoder at the same profile and rate.
+byte for byte from their rebuilt block trees. The encoder only had to decode with the reference and land within
+0.3 VMAF / 0.1 dB of the reference encoder; it does better: it reproduces the reference encoder's output **byte for
+byte** on both shipped 30-frame 1080p30 streams (archive SHA-256 `6fc68739…` and `4399bb6f…`), so its quality and
+rate are the reference's exactly. The float32 least-squares fits that looked irreproducible are the reference's own
+pseudo-inverse matrices, loaded from `fitting_matrices.bin` and applied separably in float64.
 
 ## 3. Threading and the real-time budget
 
@@ -111,9 +113,9 @@ does offer one legitimate mechanism: **persistent post-chain targets**.
 | option | client state | extra bandwidth | robustness |
 |---|---|---|---|
 | **A** persistent previous-frame target in the post chain | one fixed-size persistent target | none: the modeled 3.458 map Mbps | every P frame must be decoded, in order; a frame the client never renders breaks the chain until the next keyframe (≤ 2 s) |
-| **B** P frames predict only from the last keyframe | the decoded keyframe | to be measured with the Java encoder | any render cadence works: each P frame decodes on its own against the keyframe |
+| **B** P frames predict only from the last keyframe | the decoded keyframe | measured: 5.447 map Mbps at the ship lambda (+57.5%) with VMAF 76.53; **+73% at matched VMAF 77.93** | any render cadence works: each P frame decodes on its own against the keyframe |
 | **C** raw RGB8 reference sent as maps | none | 6.22 MB (507 maps) per refresh: ~33 Mbps at one refresh per 2 s; ~1 Gbps per frame | fails the budget by an order of magnitude |
-| **D** all-intra (key interval 1) | none | keyframes are ~19.7 KB: ~6.4 map Mbps, +84% | any cadence, no state at all |
+| **D** all-intra (key interval 1) | none | measured: 6.287 map Mbps at the ship lambda (+81.8%) with VMAF 73.36; **+144% at matched VMAF 77.93** | any cadence, no state at all |
 
 **Council (Codex, Antigravity), 2026-09-25**, record in the report: both reject A as the default. The render loop is
 decoupled from the 30 fps video: at 20 render fps, looking away (the data frames and the trigger are culled), during
@@ -121,11 +123,33 @@ a stall, or after F3+T, frames go unseen and A's reference chain breaks; the ser
 Codex: ship D first, B if it measures well, A experimental, and give A map banks plus bounded catch-up if kept.
 Antigravity: ship B, D as the server-side escape.
 
-**Decision (provisional until the B measurement lands):** the resource pack implements **one decode pipeline** whose
-reference is a persistent target, and the server chooses the prediction model per stream: B (keyframe-only
-reference) if its measured bandwidth is close enough to A to be worth its robustness, otherwise A with map banks and
-catch-up decoding; D is always available as the key-interval-1 setting of the same pipeline. The report and this
-section carry the measured A/B/D numbers and the final choice.
+**Measurement (2026-09-25).** The Java encoder has a reference-policy option (`PREVIOUS_FRAME`, `LAST_KEYFRAME`) and a
+key interval, so the three models were encoded from the same 30 frames of the frontier's 1080p30 source and scored
+with the frontier's own VMAF filter (option A reproduces the frontier's 77.933209 / 34.4437 dB exactly):
+
+| model | lambda | map Mbps | VMAF mean / min | PSNR dB |
+|---|---:|---:|---:|---:|
+| A previous frame (ship) | 65.26 | 3.458 | 77.933 / 70.117 | 34.444 |
+| B last keyframe | 65.26 | 5.447 | 76.529 / 70.117 | 34.355 |
+| B last keyframe | 45 | 6.497 | 79.329 | |
+| B last keyframe | 32 | 10.313 | 82.733 | |
+| D all-intra | 65.26 | 6.287 | 73.357 / 70.117 | 34.208 |
+| D all-intra | 45 | 7.704 | 77.344 | |
+| D all-intra | 32 | 11.716 | 80.587 | |
+| D all-intra | 22 | 17.599 | 84.553 | |
+| D all-intra | 15 | 23.718 | 87.995 | |
+
+Interpolated at A's VMAF 77.93: B needs about 5.97 map Mbps (+73%) and D about 8.43 (+144%). The raw sweep is in the
+report's evidence.
+
+**Decision.** The shipped default is **A**, the codec as the frontier tuned it: the council's objection is about
+robustness, not correctness, and B and D cost 73% and 144% more bandwidth for the same picture. The resource pack
+implements **one decode pipeline with two persistent references**, the previous decoded frame and the last decoded
+keyframe; a P frame's reference id selects which one it predicts from. So the same pack decodes all three models and
+the server chooses per screen: A by default, B (`ReferencePolicy.LAST_KEYFRAME`) where viewers render below the video
+rate or look away often, D (key interval 1) where no client state may be assumed. A client that misses a frame under A
+shows the last good picture until the next keyframe (at most 2 s at the ship key interval); map banks with catch-up
+decoding would remove that gap and remain a stretch goal.
 
 ## 5. Client shader architecture (resource pack)
 
