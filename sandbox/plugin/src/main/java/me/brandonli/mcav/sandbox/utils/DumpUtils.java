@@ -39,6 +39,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -63,7 +64,15 @@ public final class DumpUtils {
   private static final int MAX_LOG_LINES = 2_000;
   private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
   private static final String REDACTED = "<redacted>";
+  private static final String REDACTED_ADDRESS = "<redacted-address>";
   private static final Pattern WORD = Pattern.compile("\\S+");
+  // the address of a player, as the server logs it when they join or leave, with or without its port
+  private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
+  // the bracketed form the server logs an IPv6 address in, such as /[::1]:25565, and never a time of day
+  private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+](?::\\d{1,5})?");
+  // what a player typed after a command of another plugin, which may be their password
+  private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
+  private static final String OWN_COMMAND_PREFIX = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
 
   private DumpUtils() {
@@ -301,6 +310,46 @@ public final class DumpUtils {
     return value;
   }
 
+  /**
+   * Redacts a line of the server log before it is published. The dump goes to a paste site anyone can read, so the
+   * addresses of players and what they typed after the commands of other plugins never belong in it; the arguments of
+   * the commands of this plugin stay, because they are what a bug report is about.
+   *
+   * @param line the line of the log
+   * @return the line as it may be published
+   */
+  @VisibleForTesting
+  static String redactLogLine(final String line) {
+    final String withoutSecrets = redactSecretsInside(line);
+    final String withoutArguments = redactOtherCommandArguments(withoutSecrets);
+    return redactAddresses(withoutArguments);
+  }
+
+  private static String redactAddresses(final String line) {
+    final Matcher sixth = IPV6_ADDRESS.matcher(line);
+    final String withoutSixth = sixth.replaceAll("/" + REDACTED_ADDRESS);
+    final Matcher fourth = IPV4_ADDRESS.matcher(withoutSixth);
+    return fourth.replaceAll(REDACTED_ADDRESS);
+  }
+
+  private static String redactOtherCommandArguments(final String line) {
+    final Matcher matcher = OTHER_COMMAND.matcher(line);
+    final boolean command = matcher.find();
+    if (!command) {
+      return line;
+    }
+    final String name = matcher.group(2);
+    final String arguments = matcher.group(3);
+    // group 2 always takes part in a match, group 3 only when the command has arguments
+    final String commandName = Objects.requireNonNull(name);
+    final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
+    if (own || arguments == null || arguments.isBlank()) {
+      return line;
+    }
+    final String prefix = line.substring(0, matcher.start(3));
+    return prefix + " " + REDACTED;
+  }
+
   private static boolean isSecret(final String name) {
     final String lower = name.toLowerCase(Locale.ROOT);
     for (final String word : SECRET_WORDS) {
@@ -345,7 +394,7 @@ public final class DumpUtils {
         }
       }
       for (final String retained : tail) {
-        final String safe = redactSecretsInside(retained);
+        final String safe = redactLogLine(retained);
         dump.append(safe);
         dump.append('\n');
       }

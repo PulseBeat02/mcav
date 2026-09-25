@@ -323,6 +323,56 @@ final class DumpUtilsTest {
   }
 
   @Test
+  void redactsThePlayerAddressesOfTheLog() {
+    final String join = "[12:34:56 INFO]: Player[/203.0.113.7:50514] logged in with entity id 42";
+    final String sixth = "[12:34:56 INFO]: Player[/[2001:db8::1]:50514] logged in with entity id 42";
+
+    final String redactedJoin = DumpUtils.redactLogLine(join);
+    final String redactedSixth = DumpUtils.redactLogLine(sixth);
+
+    assertFalse(redactedJoin.contains("203.0.113.7"), redactedJoin);
+    assertTrue(redactedJoin.contains("<redacted-address>"), redactedJoin);
+    assertTrue(redactedJoin.startsWith("[12:34:56 INFO]: Player"), "the time of day is not an address: " + redactedJoin);
+    assertTrue(redactedJoin.contains("entity id 42"), redactedJoin);
+    assertFalse(redactedSixth.contains("2001:db8"), redactedSixth);
+    assertTrue(redactedSixth.contains("<redacted-address>"), redactedSixth);
+  }
+
+  @Test
+  void redactsWhatPlayersTypedAfterTheCommandsOfOtherPlugins() {
+    final String login = "[12:34:56 INFO]: Steve issued server command: /login hunter2";
+    final String own = "[12:34:56 INFO]: Steve issued server command: /mcav video map @a FFMPEG NONE 640x360 5x3 0 FILTER_LITE  clip.mp4";
+    final String bare = "[12:34:56 INFO]: Steve issued server command: /spawn";
+    final String trailing = "[12:34:56 INFO]: Steve issued server command: /spawn ";
+
+    final String redactedLogin = DumpUtils.redactLogLine(login);
+    final String keptOwn = DumpUtils.redactLogLine(own);
+    final String keptBare = DumpUtils.redactLogLine(bare);
+
+    assertEquals("[12:34:56 INFO]: Steve issued server command: /login <redacted>", redactedLogin);
+    assertEquals(own, keptOwn, "the arguments of this plugin are what a bug report is about");
+    assertEquals(bare, keptBare, "a command without arguments has nothing to redact");
+    final String keptTrailing = DumpUtils.redactLogLine(trailing);
+    assertEquals(trailing, keptTrailing, "blank arguments have nothing to redact either");
+  }
+
+  @Test
+  void redactsTheAddressesAndCommandsOfTheUploadedLog() throws IOException {
+    final Path log = this.folder.resolve("latest.log");
+    final List<String> lines = List.of(
+      "[12:34:56 INFO]: Steve[/203.0.113.7:50514] logged in",
+      "[12:34:57 INFO]: Steve issued server command: /login hunter2"
+    );
+    Files.write(log, lines, StandardCharsets.UTF_8);
+
+    final String dump = DumpUtils.createDumpContents(log);
+
+    assertFalse(dump.contains("203.0.113.7"), dump);
+    assertFalse(dump.contains("hunter2"), dump);
+    assertTrue(dump.contains("<redacted-address>"), dump);
+  }
+
+  @Test
   void includesOnlyTheEndOfALongLog() throws IOException {
     final Path log = this.folder.resolve("latest.log");
     final List<String> lines = new ArrayList<>();
