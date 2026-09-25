@@ -24,11 +24,11 @@ moment; later starts are much faster. Core file playback works on a headless ser
 features can require system libraries, a browser, QEMU, or a display; see the [prerequisites](../library/prerequisites.md).
 MCAV itself does not run an administrative package installer.
 
-The first download is about 707 MiB. Most of it is the FFmpeg, OpenCV, and OpenBLAS native libraries, which the plugin
+The first download is about 465 MiB. Most of it is the FFmpeg, OpenCV, and OpenBLAS native libraries, which the plugin
 includes for the platforms a Paper server runs on: Linux (x86-64 and ARM64), macOS (Intel and Apple silicon), and
-Windows (x86-64). Natives for Android, iOS, and 32-bit systems are left out. About 193 MiB belong to the Playwright
-driver used by the browser commands. Every file is checked against its SHA-256 hash, and later starts reuse the
-downloaded files. When building the plugin yourself, the list of platforms is the `javacppPlatform` property in
+Windows (x86-64). Natives for Android, iOS, and 32-bit systems are left out. The browser commands download Chromium
+separately, 136 to 165 MB depending on the platform, the first time a browser starts. Every file is checked against its
+SHA-256 hash, and later starts reuse the downloaded files. When building the plugin yourself, the list of platforms is the `javacppPlatform` property in
 `sandbox/plugin/gradle.properties`.
 
 The server finishes starting without waiting for VLC and yt-dlp. When the server has no VLC, the plugin downloads it in

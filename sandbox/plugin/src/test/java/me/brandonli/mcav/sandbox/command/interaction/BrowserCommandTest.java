@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +32,7 @@ import static org.mockito.Mockito.when;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
@@ -39,6 +42,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
@@ -65,6 +69,7 @@ import org.mockito.Mockito;
 final class BrowserCommandTest {
 
   private BrowserCommand command;
+  private PluginDataConfigurationMapper configuration;
   private CommandSender sender;
   private MultiplePlayerSelector selector;
   private BrowserPlayer browser;
@@ -79,6 +84,8 @@ final class BrowserCommandTest {
     final Server server = TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     when(plugin.getServer()).thenReturn(server);
+    this.configuration = mock(PluginDataConfigurationMapper.class);
+    when(plugin.getConfiguration()).thenReturn(this.configuration);
     this.command = new BrowserCommand(plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -90,7 +97,7 @@ final class BrowserCommandTest {
     this.callback = mock(VideoAttachableCallback.class);
     when(this.browser.getVideoAttachableCallback()).thenReturn(this.callback);
     this.browsers = Mockito.mockStatic(BrowserPlayer.class);
-    this.browsers.when(BrowserPlayer::selenium).thenReturn(this.browser);
+    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenReturn(this.browser);
     this.ditherFilter = mock(FunctionalVideoFilter.class);
     this.dithers = Mockito.mockStatic(DitherFilter.class);
     this.dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(this.ditherFilter);
@@ -106,7 +113,7 @@ final class BrowserCommandTest {
   }
 
   private void create(final String resolution, final String blocks, final String url) {
-    this.command.createBrowser(this.sender, this.selector, resolution, 80, 2, blocks, 0, DitheringArgument.FILTER_LITE, url);
+    this.command.createBrowser(this.sender, this.selector, resolution, 2, blocks, 0, DitheringArgument.FILTER_LITE, url);
   }
 
   private void assertReceived(final Component... expected) {
@@ -129,12 +136,10 @@ final class BrowserCommandTest {
     final BrowserSource source = sources.getValue();
     final URI uri = source.getUri();
     final URI expected = URI.create("https://example.com/page");
-    final int quality = source.getScreencastQuality();
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    final int nth = source.getScreencastNthFrame();
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final int nth = source.getFrameInterval();
     assertEquals(expected, uri);
-    assertEquals(80, quality);
     assertEquals(1280, width);
     assertEquals(720, height);
     assertEquals(2, nth);
@@ -211,6 +216,30 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void refusesBrowsersLargerThanTheBrowserCanPaint() {
+    this.create("4097x720", "5x3", "https://example.com/page");
+    this.create("1280x4097", "5x3", "https://example.com/page");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error, error);
+    this.browsers.verifyNoInteractions();
+  }
+
+  @Test
+  void theBrowserFollowsTheConfiguration() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create("1280x720", "5x3", "https://example.com/page");
+    this.browsers.verify(() -> BrowserPlayer.create(argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit())));
+
+    when(this.configuration.isBrowserPrivateNetworks()).thenReturn(true);
+    when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
+    final BrowserOptions options = this.command.createOptions();
+    assertTrue(options.isPrivateNetworks());
+    assertTrue(options.isJavaScriptJit());
+  }
+
+  @Test
   void refusesInvalidUrls() {
     this.create("1280x720", "5x3", "https://exa mple.com/page");
 
@@ -233,7 +262,7 @@ final class BrowserCommandTest {
   @Test
   void releasesTheScreenWhenTheBrowserFactoryFails() {
     final IllegalStateException failure = new IllegalStateException("browser factory");
-    this.browsers.when(BrowserPlayer::selenium).thenThrow(failure);
+    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenThrow(failure);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
     );
@@ -320,7 +349,7 @@ final class BrowserCommandTest {
 
   @Test
   void describesTheOutcomeOfTheStart() {
-    final IllegalStateException error = new IllegalStateException("no chrome");
+    final IllegalStateException error = new IllegalStateException("no browser");
 
     final Component success = this.command.createStartMessage(true, null);
     final Component failure = this.command.createStartMessage(false, error);
@@ -333,8 +362,8 @@ final class BrowserCommandTest {
 
   @Test
   void reportsABrowserThatCannotStartWithoutBlamingTheUrl() {
-    final IllegalStateException missingDriver = new IllegalStateException("chromedriver not found");
-    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingDriver);
+    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host");
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingNatives);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
 
     this.create("1280x720", "5x3", "https://example.com/page");

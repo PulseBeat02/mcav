@@ -23,11 +23,13 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -50,7 +52,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  *
  * <p>Only web pages on {@code http} and {@code https} addresses are opened. Other addresses, such as
  * {@code file:} or {@code chrome:}, would let anyone with the permission show local files of the server, like the
- * configuration with the Discord token, on the maps.
+ * configuration with the Discord token, on the maps. Pages reach public addresses of the internet only, unless
+ * {@code browser.allow-private-networks} in {@code config.yml} allows the server's own network.
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
@@ -172,16 +175,17 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   }
 
   /**
-   * Handles {@code /mcav browser create <playerSelector> <browserResolution> <quality> <nth> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <url>}: opens a web page in the Chrome installed on the server, driven through Selenium,
-   * and streams it onto a wall of maps.
+   * Handles {@code /mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId>
+   * <ditheringAlgorithm> <url>}: opens a web page in mcav's embedded Chromium, which runs in a process of its own,
+   * and streams it onto a wall of maps. The first browser on a server downloads Chromium once, about 150 MB.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then
    * left click or right click the screen to click the page at that spot, and type into it after enabling
    * {@code /mcav browser interact}. Only one browser runs at a time: creating a new one closes the running one.
    *
    * <p>Requires the permission {@code mcav.command.browser.create}; players and the console can run it. Invalid
-   * dimensions, or an address that is not an absolute {@code http} or {@code https} URL with a host, are reported
+   * dimensions, a browser larger than {@value BrowserSource#MAX_SIDE} pixels on a side, or an address that is not an
+   * absolute {@code http} or {@code https} URL with a host, are reported
    * with an error message and nothing starts. Otherwise the browser starts in the background, and the sender is
    * told "Browser started!" once the page streams, or that it could not be started, with the details in the
    * console.
@@ -190,8 +194,6 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param playerSelector     the players who see the browser on the maps, such as a player name or {@code @a}
    * @param browserResolution  the size of the browser window as {@code <width>x<height>} in pixels, such as
    *                           {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
-   * @param quality            the JPEG quality of the frames the browser sends, from 1 to 100; lower values use
-   *                           less CPU and bandwidth at the cost of compression artifacts
    * @param nth                stream only every n-th frame of the browser; 1 streams every frame, higher values
    *                           lower the frame rate and the load on the server
    * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
@@ -202,15 +204,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *                           command line. Other schemes, such as {@code file:}, are refused so that the maps
    *                           cannot show files of the server
    */
-  @Command("mcav browser create <playerSelector> <browserResolution> <quality> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
+  @Command("mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
   @Permission("mcav.command.browser.create")
   @CommandDescription("mcav.command.browser.create.info")
   public void createBrowser(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
-    @Argument(suggestions = "quality") @Range(min = "1", max = "100") final int quality,
-    @Argument(suggestions = "nth") @Range(min = "1") final int nth,
+    @Argument(suggestions = "nth") @Range(min = "1", max = "1000") final int nth,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -224,6 +225,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (resolution == null) {
       return;
     }
+    // the browser paints at most this many pixels per side, fewer than a wall of maps can show
+    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
+      return;
+    }
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
       return;
@@ -235,20 +242,33 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final BrowserSource source = createSource(uri, quality, nth, resolution);
+    final BrowserSource source = createSource(uri, nth, resolution);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
     this.createResource(() -> this.startBrowser(sender, screen, source));
   }
 
-  private static BrowserSource createSource(final URI uri, final int quality, final int nth, final Pair<Integer, Integer> resolution) {
+  private static BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
-    return BrowserSource.uri(uri, quality, width, height, nth);
+    return BrowserSource.uri(uri, width, height, nth);
+  }
+
+  /**
+   * Builds the options of a new browser from {@code config.yml}.
+   *
+   * @return the options
+   */
+  BrowserOptions createOptions() {
+    final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
+    final boolean privateNetworks = configuration.isBrowserPrivateNetworks();
+    final boolean javaScriptJit = configuration.isBrowserJavaScriptJit();
+    return BrowserOptions.builder().privateNetworks(privateNetworks).javaScriptJit(javaScriptJit).build();
   }
 
   private void startBrowser(final CommandSender sender, final Screen screen, final BrowserSource source) {
-    final BrowserPlayer browser = BrowserPlayer.selenium();
+    final BrowserOptions options = this.createOptions();
+    final BrowserPlayer browser = BrowserPlayer.create(options);
     this.ownCreatedPlayer(browser);
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();

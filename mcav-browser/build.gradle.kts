@@ -4,28 +4,44 @@ plugins {
     id("maven-publish")
 }
 
-// Each mutation worker may own native Chromium processes; serialize workers to avoid multiplying
-// browser memory and rendering contention. All tests and mutants remain enabled with the default timeouts.
+// The tests tagged "cef" start real browser helpers with Chromium; a mutant cannot reach code that runs inside a helper
+// process, which loads the unmutated classes, so they only cost mutation time. Every other test runs under PIT.
 extensions.configure<PitestPluginExtension> {
-    threads = 1
+    excludedGroups = setOf("cef")
 }
 
 dependencies {
-    // project dependencies
-    api("com.microsoft.playwright:playwright:1.62.0")
-    api("org.seleniumhq.selenium:selenium-java:4.49.0")
-    api("io.github.bonigarcia:webdrivermanager:6.3.4")
+    // JCEF through jcefmaven. jcef-api depends on JOGL and GlueGen for its own off-screen browser, which draws into an
+    // OpenGL canvas; mcav's off-screen browser draws nothing, so both are left out and a server never downloads them
+    implementation("me.friwi:jcefmaven:146.0.10") {
+        exclude(group = "me.friwi", module = "jogl-all")
+        exclude(group = "me.friwi", module = "gluegen-rt")
+    }
 
     // provided
     compileOnlyApi(project(":mcav-common"))
+    // the annotations JavaCPP's package declarations carry, so reading them while compiling against OpenCV warns about
+    // nothing, as in mcav-common
+    compileOnly("org.osgi:osgi.annotation:8.1.0")
 
     // test dependencies
-    testImplementation("org.seleniumhq.selenium:selenium-java:4.49.0")
-    testImplementation("io.github.bonigarcia:webdrivermanager:6.3.4")
     testImplementation(project(":mcav-common"))
+    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
 
 tasks {
+    // the tests start browser helper processes with the coverage agent of the test JVM, which write their coverage
+    // here; it is part of what the tests produce, so it is removed before they run and cached with their results
+    val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
+    test {
+        outputs.file(helperCoverage).withPropertyName("helperCoverage")
+        doFirst {
+            delete(helperCoverage)
+        }
+    }
+    jacocoTestReport {
+        executionData(helperCoverage)
+    }
     java {
         withSourcesJar()
         withJavadocJar()

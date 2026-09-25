@@ -1,0 +1,375 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.browser;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
+import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
+import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.interaction.MouseClick;
+import org.junit.jupiter.api.Test;
+
+class CefBrowserPlayerTest {
+
+  private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
+
+  private final List<FakeSession> sessions = new ArrayList<>();
+  private final List<String> reports = new ArrayList<>();
+  private final List<ImageBuffer> processed = new ArrayList<>();
+  private BrowserSession.Listener listener;
+  private RuntimeException startFailure;
+
+  private final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+    if (this.startFailure != null) {
+      throw this.startFailure;
+    }
+    this.listener = sessionListener;
+    final FakeSession session = new FakeSession();
+    this.sessions.add(session);
+    return session;
+  });
+
+  CefBrowserPlayerTest() {
+    this.player.setExceptionHandler((message, error) -> this.reports.add(message + ": " + error.getMessage()));
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((samples, metadata) -> {
+      this.processed.add(samples);
+      return false;
+    });
+    final VideoPipelineStep pipeline = builder.build();
+    this.player.getVideoAttachableCallback().attach(pipeline);
+  }
+
+  /**
+   * A session that records what the player sends it.
+   */
+  static final class FakeSession implements BrowserSession {
+
+    final List<String> sent = new ArrayList<>();
+    boolean accepting = true;
+    int requested;
+    int closed;
+
+    @Override
+    public boolean sendMouse(final MouseInput mouse) {
+      this.sent.add(
+          "mouse " +
+          mouse.getAction() +
+          " " +
+          mouse.getX() +
+          "," +
+          mouse.getY() +
+          " b" +
+          mouse.getButton() +
+          " c" +
+          mouse.getClickCount() +
+          " d" +
+          mouse.getDeltaX() +
+          "," +
+          mouse.getDeltaY()
+        );
+      return this.accepting;
+    }
+
+    @Override
+    public boolean sendKey(final int action, final String value) {
+      this.sent.add("key " + action + " " + value);
+      return this.accepting;
+    }
+
+    @Override
+    public void requestFrame() {
+      this.requested++;
+    }
+
+    @Override
+    public void close() {
+      this.closed++;
+    }
+  }
+
+  private static ImageBuffer frame() {
+    return ImageBuffer.buffer(new int[100 * 50], 100, 50);
+  }
+
+  @Test
+  void aStartedPlayerPlaysAndAsksForTheFirstPictureAgain() {
+    assertFalse(this.player.isPlaying());
+    assertTrue(this.player.start(SOURCE));
+    assertTrue(this.player.isPlaying());
+    assertEquals(1, this.sessions.getFirst().requested);
+    assertFalse(this.player.start(SOURCE), "a playing player does not start again");
+    assertEquals(1, this.sessions.size());
+  }
+
+  @Test
+  void framesRunThroughThePipelineAndAreClosed() {
+    this.player.start(SOURCE);
+    final ImageBuffer frame = frame();
+    this.listener.onFrame(frame);
+    assertEquals(1, this.processed.size());
+    assertSame(frame, this.processed.getFirst());
+  }
+
+  @Test
+  void framesOfTheStartBeforeTheSessionIsKnownAreDropped() {
+    final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      sessionListener.onFrame(frame());
+      sessionListener.onEnded("too early", new IllegalStateException("x"));
+      return new FakeSession();
+    });
+    final List<String> earlyReports = new ArrayList<>();
+    early.setExceptionHandler((message, error) -> earlyReports.add(message));
+    assertTrue(early.start(SOURCE));
+    assertTrue(early.isPlaying());
+    assertEquals(List.of(), earlyReports);
+  }
+
+  @Test
+  void aFailingPipelineIsReportedAndTheFrameStillClosed() {
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((samples, metadata) -> {
+      throw new IllegalStateException("filter broke");
+    });
+    this.player.getVideoAttachableCallback().attach(builder.build());
+    this.player.start(SOURCE);
+    this.listener.onFrame(frame());
+    assertEquals(List.of("Failed to process a browser frame: filter broke"), this.reports);
+  }
+
+  @Test
+  void aFatalErrorOfTheVirtualMachineIsThrown() {
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((samples, metadata) -> {
+      throw new OutOfMemoryError("full");
+    });
+    this.player.getVideoAttachableCallback().attach(builder.build());
+    this.player.start(SOURCE);
+    assertThrows(OutOfMemoryError.class, () -> this.listener.onFrame(frame()));
+  }
+
+  @Test
+  void framesAndEndsOfAReplacedSessionAreIgnored() {
+    this.player.start(SOURCE);
+    final BrowserSession.Listener first = this.listener;
+    first.onEnded("gone", new IllegalStateException("crash"));
+    assertFalse(this.player.isPlaying());
+    assertEquals(List.of("gone: crash"), this.reports);
+    // a failed player starts again with a new session, closing the failed one
+    assertTrue(this.player.start(SOURCE));
+    assertEquals(1, this.sessions.getFirst().closed);
+    first.onFrame(frame());
+    first.onEnded("late", new IllegalStateException("late"));
+    assertEquals(0, this.processed.size());
+    assertEquals(1, this.reports.size());
+    assertTrue(this.player.isPlaying());
+  }
+
+  @Test
+  void aFrameOfTheCurrentSessionAfterItFailedIsDropped() {
+    this.player.start(SOURCE);
+    this.listener.onEnded("gone", new IllegalStateException("crash"));
+    final ImageBuffer late = frame();
+    this.listener.onFrame(late);
+    assertEquals(0, this.processed.size(), "a failed player shows nothing more");
+  }
+
+  @Test
+  void anEndIsReportedOnce() {
+    this.player.start(SOURCE);
+    this.listener.onEnded("gone", new IllegalStateException("one"));
+    this.listener.onEnded("gone again", new IllegalStateException("two"));
+    assertEquals(List.of("gone: one"), this.reports);
+  }
+
+  @Test
+  void aFailedStartLeavesThePlayerIdle() {
+    this.startFailure = new PlayerException("no browser here");
+    assertThrows(PlayerException.class, () -> this.player.start(SOURCE));
+    assertFalse(this.player.isPlaying());
+    this.startFailure = null;
+    assertTrue(this.player.start(SOURCE));
+  }
+
+  @Test
+  void aReleasedPlayerClosesItsSessionAndNeverStartsAgain() {
+    this.player.start(SOURCE);
+    assertTrue(this.player.release());
+    assertFalse(this.player.isPlaying());
+    assertEquals(1, this.sessions.getFirst().closed);
+    assertFalse(this.player.release());
+    assertFalse(this.player.start(SOURCE));
+    this.listener.onFrame(frame());
+    assertEquals(0, this.processed.size());
+  }
+
+  @Test
+  void clicksBecomeMovesPressesAndReleases() {
+    this.player.start(SOURCE);
+    this.player.sendMouseEvent(MouseClick.LEFT, 10, 20);
+    this.player.sendMouseEvent(MouseClick.RIGHT, 1, 2);
+    this.player.sendMouseEvent(MouseClick.DOUBLE, 3, 4);
+    this.player.sendMouseEvent(MouseClick.HOLD, 5, 6);
+    this.player.sendMouseEvent(MouseClick.RELEASE, 7, 8);
+    assertEquals(
+      List.of(
+        "mouse 0 10,20 b0 c0 d0,0",
+        "mouse 1 10,20 b0 c1 d0,0",
+        "mouse 2 10,20 b0 c1 d0,0",
+        "mouse 0 1,2 b0 c0 d0,0",
+        "mouse 1 1,2 b2 c1 d0,0",
+        "mouse 2 1,2 b2 c1 d0,0",
+        "mouse 0 3,4 b0 c0 d0,0",
+        "mouse 1 3,4 b0 c1 d0,0",
+        "mouse 2 3,4 b0 c1 d0,0",
+        "mouse 1 3,4 b0 c2 d0,0",
+        "mouse 2 3,4 b0 c2 d0,0",
+        "mouse 0 5,6 b0 c0 d0,0",
+        "mouse 1 5,6 b0 c1 d0,0",
+        "mouse 0 7,8 b0 c0 d0,0",
+        "mouse 2 7,8 b0 c1 d0,0"
+      ),
+      this.sessions.getFirst().sent
+    );
+  }
+
+  @Test
+  void positionsAreClampedToThePageAndWheelDistancesToTheProtocol() {
+    this.player.start(SOURCE);
+    this.player.moveMouse(-5, 500);
+    this.player.scroll(1000, -1, 100_000, -100_000);
+    assertEquals(List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768"), this.sessions.getFirst().sent);
+    assertEquals(0, this.player.clamp(0, 0)[0]);
+  }
+
+  @Test
+  void aPlayerWithoutAPageClampsToItsFirstPixel() {
+    assertArrayEquals(new int[] { 0, 0 }, this.player.clamp(-3, 7));
+  }
+
+  @Test
+  void keyNamesArePressedAndOtherTextIsTyped() {
+    this.player.start(SOURCE);
+    this.player.sendKeyEvent("Enter");
+    this.player.sendKeyEvent("PageDown");
+    this.player.sendKeyEvent("hello");
+    assertEquals(List.of("key 0 Enter", "key 0 PageDown", "key 1 hello"), this.sessions.getFirst().sent);
+  }
+
+  @Test
+  void inputIsIgnoredWhileThePlayerIsNotPlaying() {
+    this.player.moveMouse(1, 1);
+    this.player.sendMouseEvent(MouseClick.LEFT, 1, 1);
+    this.player.scroll(1, 1, 0, 10);
+    this.player.sendKeyEvent("x");
+    this.player.start(SOURCE);
+    this.listener.onEnded("gone", new IllegalStateException("crash"));
+    this.player.sendKeyEvent("x");
+    assertEquals(List.of(), this.sessions.getFirst().sent);
+  }
+
+  @Test
+  void droppedInputIsReported() {
+    this.player.start(SOURCE);
+    this.sessions.getFirst().accepting = false;
+    this.player.sendKeyEvent("x");
+    this.player.scroll(1, 1, 0, 1);
+    assertEquals(
+      List.of(
+        "Browser input queue is full: The browser input backlog is full",
+        "Browser input queue is full: The browser input backlog is full"
+      ),
+      this.reports
+    );
+  }
+
+  @Test
+  void argumentsAreChecked() {
+    assertThrows(NullPointerException.class, () -> this.player.start(null));
+    assertThrows(NullPointerException.class, () -> this.player.sendMouseEvent(null, 1, 1));
+    assertThrows(NullPointerException.class, () -> this.player.sendKeyEvent(null));
+    assertThrows(NullPointerException.class, () -> this.player.setExceptionHandler(null));
+    assertThrows(NullPointerException.class, () -> BrowserPlayer.create(null));
+  }
+
+  @Test
+  void theExceptionHandlerCanBeReadBack() {
+    assertTrue(this.player.getExceptionHandler() != null);
+    final VideoAttachableCallback callback = this.player.getVideoAttachableCallback();
+    assertSame(callback, this.player.getVideoAttachableCallback());
+  }
+
+  @Test
+  void startingAsynchronouslyUsesTheExecutor() throws Exception {
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
+      assertTrue(started.get(10, TimeUnit.SECONDS));
+    } finally {
+      executor.shutdownNow();
+    }
+    this.player.release();
+    final CefBrowserPlayer other = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> new FakeSession());
+    assertTrue(other.startAsync(SOURCE).get(10, TimeUnit.SECONDS));
+    assertThrows(NullPointerException.class, () -> other.startAsync(null));
+    assertThrows(NullPointerException.class, () -> other.startAsync(SOURCE, null));
+  }
+
+  @Test
+  void theDefaultPlayerIsAJcefPlayer() {
+    assertInstanceOf(CefBrowserPlayer.class, BrowserPlayer.create());
+    assertInstanceOf(CefBrowserPlayer.class, BrowserPlayer.create(BrowserOptions.builder().frameRate(10).build()));
+  }
+
+  @Test
+  void theDefaultSessionsFailWhenTheNativesCannotBeInstalled() {
+    final JcefNatives broken = new JcefNatives(
+      Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
+      (uri, destination, sha256) -> {
+        throw new IOException("offline");
+      },
+      "https://unreachable.test/",
+      new ArchiveExtractor()
+    );
+    final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(broken, List.of());
+    final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
+    final PlayerException failure = assertThrows(PlayerException.class, () -> offline.start(SOURCE));
+    assertTrue(failure.getMessage().startsWith("The browser cannot be installed"), failure.getMessage());
+    assertFalse(offline.isPlaying());
+    assertInstanceOf(IOException.class, failure.getCause());
+  }
+}

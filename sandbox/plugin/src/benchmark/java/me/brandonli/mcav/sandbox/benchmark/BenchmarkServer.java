@@ -38,7 +38,8 @@ import java.util.concurrent.TimeUnit;
  */
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FPS_PAGE = """
+  private static final String FPS_PAGE =
+    """
     <!doctype html><html><body style="margin:0;overflow:hidden">
     <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
     <script>
@@ -48,7 +49,8 @@ final class BenchmarkServer implements AutoCloseable {
     requestAnimationFrame(step);
     </script></body></html>
     """;
-  private static final String LATENCY_PAGE = """
+  private static final String LATENCY_PAGE =
+    """
     <!doctype html><html><body style="margin:0;overflow:hidden">
     <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#f7e9a3"></div>
     <script>

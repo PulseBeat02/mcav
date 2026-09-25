@@ -24,7 +24,7 @@
 MCAV (pronounced *EM CAV*) is an incredibly powerful multimedia library and plugin for Java, serving as the successor of
 EzMediaCore2. MCAV utilizes several low-level libraries like [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/), and LibVLC
 (from [VLC media player](https://www.videolan.org/vlc/)) to provide a seamless playback experience for developers and
-users. MCAV also is capable of rendering browsers using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/java/), or
+users. MCAV also is capable of rendering web pages with an embedded Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), or
 even virtual machines using [QEMU](https://www.qemu.org/). All of this is supported within the library and plugin itself.
 
 The plugin is an example demonstrating the power of the library. For media playback, it supports several thousands of
@@ -41,7 +41,7 @@ JavaCV natives are extracted into the JavaCPP cache of the user, and yt-dlp and 
 of the user when they are missing; on Linux, VLC is downloaded on x86-64 only and is otherwise used from the system.
 Other Unix systems, such as FreeBSD, are detected as well: MCAV downloads nothing there and uses the VLC installed on
 the system, but the bundled FFmpeg and OpenCV natives only exist for the platforms above. QEMU for the virtual machine
-module and Google Chrome for the Selenium backend of the browser module must already be installed. Please check the
+module must already be installed; the browser module downloads its Chromium on first use and needs Xvfb on Linux. Please check the
 [documentation](https://mcav.readthedocs.io/en/latest/intro.html) for more information.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
@@ -64,7 +64,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-http`      | A module with [Spring Boot](https://spring.io/) back-end and [Typescript](https://www.typescriptlang.org/) front-end to stream PCM audio to an HTTP website. |
 | `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines.                                                                             |
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
-| `mcav-browser`   | A module using [Selenium](https://www.selenium.dev/) and [Playwright](https://playwright.dev/) to provide browser support.                                   |
+| `mcav-browser`   | A module using [JCEF](https://github.com/chromiumembedded/java-cef), an embedded Chromium, to stream web pages.                                              |
 | `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
 | `mcav-svc`       | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
 

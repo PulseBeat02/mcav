@@ -49,6 +49,8 @@ public final class PluginDataConfigurationMapper {
   private static final String HTTP_PORT_FIELD = "http-server.port";
   private static final String HTTP_ENABLED = "http-server.enabled";
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
+  private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
+  private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private final MCAVSandbox plugin;
@@ -62,6 +64,8 @@ public final class PluginDataConfigurationMapper {
   private String httpHostName;
   private int httpPort;
   private boolean simpleVoiceChatEnabled;
+  private boolean browserPrivateNetworks;
+  private boolean browserJavaScriptJit;
 
   /**
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -96,6 +100,8 @@ public final class PluginDataConfigurationMapper {
     this.httpHostName = getString(config, HTTP_HOST_FIELD, "localhost");
     this.httpPort = readPort(config);
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
+    this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
+    this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -131,6 +137,24 @@ public final class PluginDataConfigurationMapper {
       return DEFAULT_HTTP_PORT;
     }
     return port;
+  }
+
+  /**
+   * Checks whether pages of the browser may reach loopback, private and link-local addresses.
+   *
+   * @return true if {@code browser.allow-private-networks} is on
+   */
+  public synchronized boolean isBrowserPrivateNetworks() {
+    return this.browserPrivateNetworks;
+  }
+
+  /**
+   * Checks whether the browser compiles JavaScript to machine code.
+   *
+   * @return true if {@code browser.javascript-jit} is on
+   */
+  public synchronized boolean isBrowserJavaScriptJit() {
+    return this.browserJavaScriptJit;
   }
 
   /**

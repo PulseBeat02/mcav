@@ -88,10 +88,11 @@ identify a decoder failure.
 
 ### If you would like to create a browser, here are the steps to take:
 1) Use the `/mcav browser create` command to create a new browser on that screen. Browsers can only be created on maps.
-For example, running `/mcav browser create @a 640x640 100 1 5x5 0 FILTER_LITE https://www.google.com` will create a new
-browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels, full quality,
-and captures every changed browser frame with Filter Lite dithering. The frame-skip value of `1` keeps every
-captured frame; it does not set a one-second interval. It will display the Google homepage by default.
+For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE https://www.google.com` will create a new
+browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels, and streams
+every changed browser frame with Filter Lite dithering. The frame-skip value of `1` keeps every frame; it does not set
+a one-second interval. It will display the Google homepage by default. The first browser on a server downloads
+Chromium once (about 150 MB), so it takes a moment longer to start; on Linux the server needs the `Xvfb` program.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which will take all your
 chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type the
 key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse

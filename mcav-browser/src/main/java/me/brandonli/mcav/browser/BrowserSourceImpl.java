@@ -22,63 +22,51 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The default {@link BrowserSource}, created by {@link BrowserSource#uri(URI, int, int, int, int)} with validated
+ * The default {@link BrowserSource}, created by {@link BrowserSource#uri(URI, int, int, int)} with validated
  * settings. Two sources are equal when every setting is equal.
  */
 public final class BrowserSourceImpl implements BrowserSource {
 
   private final URI uri;
-  private final int quality;
   private final int width;
   private final int height;
-  private final int nthFrame;
+  private final int frameInterval;
 
-  BrowserSourceImpl(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
+  BrowserSourceImpl(final URI uri, final int width, final int height, final int frameInterval) {
     this.uri = uri;
-    this.quality = quality;
     this.width = width;
     this.height = height;
-    this.nthFrame = nthFrame;
+    this.frameInterval = frameInterval;
   }
 
   /**
-   * Gets the JPEG quality the browser encodes the frames with.
-   *
-   * @return the quality from 0 to 100
-   */
-  @Override
-  public int getScreencastQuality() {
-    return this.quality;
-  }
-
-  /**
-   * Gets the width of the browser window and of the frames.
+   * Gets the width of the page and of the frames.
    *
    * @return the width in pixels
    */
   @Override
-  public int getScreencastWidth() {
+  public int getWidth() {
     return this.width;
   }
 
   /**
-   * Gets the height of the browser window and of the frames.
+   * Gets the height of the page and of the frames.
    *
    * @return the height in pixels
    */
   @Override
-  public int getScreencastHeight() {
+  public int getHeight() {
     return this.height;
   }
 
   /**
-   * Gets how many browser frames are skipped between streamed frames.
+   * Gets how many painted frames make one streamed frame.
    *
    * @return the interval; 1 streams every frame
    */
   @Override
-  public int getScreencastNthFrame() {
-    return this.nthFrame;
+  public int getFrameInterval() {
+    return this.frameInterval;
   }
 
   /**
@@ -92,7 +80,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * Checks whether another object is a browser source with the same address and screencast settings.
+   * Checks whether another object is a browser source with the same address and settings.
    *
    * @param other the object to compare with
    * @return true if every setting is equal
@@ -107,30 +95,29 @@ public final class BrowserSourceImpl implements BrowserSource {
     }
     return (
       this.uri.equals(source.uri) &&
-      this.quality == source.quality &&
       this.width == source.width &&
       this.height == source.height &&
-      this.nthFrame == source.nthFrame
+      this.frameInterval == source.frameInterval
     );
   }
 
   /**
-   * Computes a hash code from the address and every screencast setting.
+   * Computes a hash code from the address and every setting.
    *
    * @return the hash code
    */
   @Override
   public int hashCode() {
-    return Objects.hash(this.uri, this.quality, this.width, this.height, this.nthFrame);
+    return Objects.hash(this.uri, this.width, this.height, this.frameInterval);
   }
 
   /**
-   * Describes the source by its address, frame size, and quality.
+   * Describes the source by its address, size, and frame interval.
    *
-   * @return a text such as {@code BrowserSource[https://example.org, 1280x720, q=80]}
+   * @return a text such as {@code BrowserSource[https://example.org, 1280x720, every 1]}
    */
   @Override
   public String toString() {
-    return "BrowserSource[" + this.uri + ", " + this.width + "x" + this.height + ", q=" + this.quality + "]";
+    return "BrowserSource[" + this.uri + ", " + this.width + "x" + this.height + ", every " + this.frameInterval + "]";
   }
 }

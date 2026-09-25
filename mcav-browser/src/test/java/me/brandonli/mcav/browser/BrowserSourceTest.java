@@ -20,105 +20,60 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
-import java.util.HashSet;
-import java.util.Set;
 import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link BrowserSource} and {@link BrowserSourceImpl}.
- */
-final class BrowserSourceTest {
+class BrowserSourceTest {
 
-  private static final URI PAGE = URI.create("https://example.org/page");
+  private static final URI PAGE = URI.create("https://example.com/");
 
   @Test
-  void keepsTheScreencastSettings() {
-    final BrowserSource source = BrowserSource.uri(PAGE, 55, 640, 360, 3);
-    final URI uri = source.getUri();
-    final int quality = source.getScreencastQuality();
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    final int nthFrame = source.getScreencastNthFrame();
-    assertEquals(PAGE, uri);
-    assertEquals(55, quality);
-    assertEquals(640, width);
-    assertEquals(360, height);
-    assertEquals(3, nthFrame);
-  }
-
-  @Test
-  void usesTheDefaultsForAPlainUri() {
+  void theDefaultSourceIs720pEveryFrame() {
     final BrowserSource source = BrowserSource.uri(PAGE);
-    final int quality = source.getScreencastQuality();
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    final int nthFrame = source.getScreencastNthFrame();
-    assertEquals(BrowserSource.DEFAULT_QUALITY, quality);
-    assertEquals(BrowserSource.DEFAULT_WIDTH, width);
-    assertEquals(BrowserSource.DEFAULT_HEIGHT, height);
-    assertEquals(1, nthFrame);
+    assertEquals(PAGE, source.getUri());
+    assertEquals(BrowserSource.DEFAULT_WIDTH, source.getWidth());
+    assertEquals(BrowserSource.DEFAULT_HEIGHT, source.getHeight());
+    assertEquals(1, source.getFrameInterval());
+    assertEquals("browser", source.getName());
+    assertFalse(source.isDirect());
+    assertEquals(PAGE.toString(), source.getResource());
   }
 
   @Test
-  void describesItselfAsAnIndirectBrowserSource() {
-    final BrowserSource source = BrowserSource.uri(PAGE, 80, 640, 360, 1);
-    final String name = source.getName();
-    final boolean direct = source.isDirect();
-    final String resource = source.getResource();
-    final String text = source.toString();
-    assertEquals("browser", name);
-    assertFalse(direct);
-    assertEquals("https://example.org/page", resource);
-    assertEquals("BrowserSource[https://example.org/page, 640x360, q=80]", text);
+  void everySettingIsKept() {
+    final BrowserSource source = BrowserSource.uri(PAGE, 4096, 1, 1000);
+    assertEquals(4096, source.getWidth());
+    assertEquals(1, source.getHeight());
+    assertEquals(1000, source.getFrameInterval());
+    assertEquals("BrowserSource[https://example.com/, 4096x1, every 1000]", source.toString());
   }
 
   @Test
-  void acceptsTheLimitsOfEveryRange() {
-    final BrowserSource lowest = BrowserSource.uri(PAGE, 0, 1, 1, 1);
-    final BrowserSource highest = BrowserSource.uri(PAGE, 100, 1, 1, 1);
-    final int lowestQuality = lowest.getScreencastQuality();
-    final int highestQuality = highest.getScreencastQuality();
-    assertEquals(0, lowestQuality);
-    assertEquals(100, highestQuality);
-  }
-
-  @Test
-  void rejectsInvalidSettings() {
+  void onlyWebAddressesAndSizesWithinTheLimitsAreAccepted() {
     assertThrows(NullPointerException.class, () -> BrowserSource.uri(null));
-    assertThrows(NullPointerException.class, () -> BrowserSource.uri(null, 80, 640, 360, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, -1, 640, 360, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 101, 640, 360, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 0, 360, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 640, 0, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 80, 640, 360, 0));
+    final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () ->
+      BrowserSource.uri(URI.create("file:///etc/passwd"))
+    );
+    assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", file.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
   }
 
   @Test
-  void avoidsConstantHashingAcrossRepresentativeSources() {
-    final Set<Integer> hashes = new HashSet<>();
-    for (int index = 0; index < 64; index++) {
-      final URI uri = URI.create("https://example.org/page/" + index);
-      final BrowserSource source = BrowserSource.uri(uri);
-      hashes.add(source.hashCode());
-    }
-    final int distinct = hashes.size();
-    assertTrue(distinct > 1, "source collections need useful hashing; individual collisions remain valid");
-  }
-
-  @Test
-  void comparesEverySetting() {
-    final BrowserSource source = BrowserSource.uri(PAGE, 80, 640, 360, 2);
-    final BrowserSource equal = BrowserSource.uri(PAGE, 80, 640, 360, 2);
-    final URI otherPage = URI.create("https://example.org/other");
-    final BrowserSource otherUri = BrowserSource.uri(otherPage, 80, 640, 360, 2);
-    final BrowserSource otherQuality = BrowserSource.uri(PAGE, 81, 640, 360, 2);
-    final BrowserSource otherWidth = BrowserSource.uri(PAGE, 80, 641, 360, 2);
-    final BrowserSource otherHeight = BrowserSource.uri(PAGE, 80, 640, 361, 2);
-    final BrowserSource otherInterval = BrowserSource.uri(PAGE, 80, 640, 360, 3);
-    EqualityAssertions.assertEqualityContract(source, equal, otherUri, otherQuality, otherWidth, otherHeight, otherInterval);
+  void sourcesWithTheSameSettingsAreEqual() {
+    EqualityAssertions.assertEqualityContract(
+      BrowserSource.uri(PAGE, 640, 480, 2),
+      BrowserSource.uri(PAGE, 640, 480, 2),
+      BrowserSource.uri(URI.create("https://example.org/"), 640, 480, 2),
+      BrowserSource.uri(PAGE, 641, 480, 2),
+      BrowserSource.uri(PAGE, 640, 481, 2),
+      BrowserSource.uri(PAGE, 640, 480, 3)
+    );
   }
 }

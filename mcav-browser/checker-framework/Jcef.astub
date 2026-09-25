@@ -1,0 +1,26 @@
+package org.cef.browser;
+
+import org.checkerframework.checker.nullness.qual.*;
+import org.cef.CefBrowserSettings;
+import org.cef.CefClient;
+import org.cef.handler.CefClientHandler;
+import java.awt.Component;
+import java.awt.Point;
+
+abstract class CefBrowser_N {
+  protected CefBrowser_N(CefClient client, String url, @Nullable CefRequestContext context, @Nullable CefBrowser_N parent, @Nullable Point inspectAt, @Nullable CefBrowserSettings settings);
+  protected void createBrowser(CefClientHandler clientHandler, long windowHandle, String url, boolean osr, boolean transparent, @Nullable Component canvas, @Nullable CefRequestContext context);
+  public @Nullable CefDevToolsClient getDevToolsClient();
+}
+
+interface CefBrowser {
+  @Nullable CefDevToolsClient getDevToolsClient();
+}
+
+package org.cef;
+
+import org.checkerframework.checker.nullness.qual.*;
+
+class CefApp {
+  public final @Nullable CefVersion getVersion();
+}

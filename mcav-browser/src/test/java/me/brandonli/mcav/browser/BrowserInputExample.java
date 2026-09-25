@@ -40,8 +40,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
 /**
- * Streams a web page into a window and forwards clicks and typed characters to it. Pass {@code playwright} as
- * the first argument to use the Playwright backend instead of Selenium.
+ * Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
  */
 public final class BrowserInputExample {
 
@@ -54,11 +53,11 @@ public final class BrowserInputExample {
     final JLabel label = createWindow();
     final VideoPipelineStep pipeline = createPipeline(label);
 
-    final BrowserPlayer browser = createPlayer(args);
+    final BrowserPlayer browser = BrowserPlayer.create();
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(pipeline);
     final URI uri = URI.create("https://www.wikipedia.org");
-    final BrowserSource source = BrowserSource.uri(uri, 80, WIDTH, HEIGHT, 1);
+    final BrowserSource source = BrowserSource.uri(uri, WIDTH, HEIGHT, 1);
     browser.start(source);
 
     forwardClicks(label, browser);
@@ -91,11 +90,6 @@ public final class BrowserInputExample {
     return builder.build();
   }
 
-  private static BrowserPlayer createPlayer(final String[] args) {
-    final boolean playwright = args.length > 0 && "playwright".equalsIgnoreCase(args[0]);
-    return playwright ? BrowserPlayer.playwright() : BrowserPlayer.selenium();
-  }
-
   private static void forwardClicks(final JLabel label, final BrowserPlayer browser) {
     label.addMouseListener(
       new MouseAdapter() {
@@ -108,6 +102,12 @@ public final class BrowserInputExample {
         }
       }
     );
+    label.addMouseWheelListener(event -> {
+      final int x = event.getX();
+      final int y = event.getY();
+      final int rotation = event.getWheelRotation();
+      browser.scroll(x, y, 0, rotation * 100);
+    });
   }
 
   private static void forwardKeys(final JLabel label, final BrowserPlayer browser) {

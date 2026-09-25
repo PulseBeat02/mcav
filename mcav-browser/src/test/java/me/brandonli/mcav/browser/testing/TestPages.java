@@ -93,6 +93,7 @@ public final class TestPages implements AutoCloseable {
       for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
         document.addEventListener(type, event => report(type, event));
       }
+      document.addEventListener('wheel', event => report('wheel', { clientX: event.clientX, clientY: event.clientY, key: String(Math.sign(event.deltaY)) }));
       document.addEventListener('contextmenu', event => {
         event.preventDefault();
         report('contextmenu', event);
@@ -143,6 +144,19 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/second", exchange -> pages.page(exchange, "second", SECOND_COLOR));
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
+      httpServer.createContext("/dialog", exchange ->
+        pages.script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
+      );
+      httpServer.createContext("/to-file", exchange -> pages.script(exchange, "location.href = 'file:///etc/passwd';"));
+      httpServer.createContext("/to-download", exchange -> pages.script(exchange, "location.href = '/download';"));
+      httpServer.createContext("/to-popup", exchange -> pages.script(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext("/to-popup-link", exchange ->
+        pages.script(
+          exchange,
+          "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+        )
+      );
+      httpServer.createContext("/download", TestPages::download);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -179,6 +193,15 @@ public final class TestPages implements AutoCloseable {
   public List<PageEvent> getEvents() {
     synchronized (this.events) {
       return List.copyOf(this.events);
+    }
+  }
+
+  /**
+   * Forgets the events the pages reported so far.
+   */
+  public void clearEvents() {
+    synchronized (this.events) {
+      this.events.clear();
     }
   }
 
@@ -243,6 +266,39 @@ public final class TestPages implements AutoCloseable {
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();
     headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  /**
+   * Serves the red main page with a script that runs when the page has loaded.
+   *
+   * @param exchange the request
+   * @param script   the script
+   * @throws IOException if the response fails
+   */
+  private void script(final HttpExchange exchange, final String script) throws IOException {
+    final String html =
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
+      "<body><script>window.addEventListener('load', () => setTimeout(() => { " +
+      script +
+      " }, 200));</script></body></html>";
+    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  private static void download(final HttpExchange exchange) throws IOException {
+    final byte[] body = "not for the server".getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "application/octet-stream");
+    headers.add("Content-Disposition", "attachment; filename=\"evil.exe\"");
     exchange.sendResponseHeaders(200, body.length);
     try (final OutputStream output = exchange.getResponseBody()) {
       output.write(body);

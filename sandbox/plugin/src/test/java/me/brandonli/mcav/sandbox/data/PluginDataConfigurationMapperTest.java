@@ -70,6 +70,9 @@ final class PluginDataConfigurationMapperTest {
       port: 8080
     simple-voice-chat:
       enabled: true
+    browser:
+      allow-private-networks: true
+      javascript-jit: true
     """;
 
   @TempDir
@@ -135,6 +138,8 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(discord);
     assertFalse(http);
     assertFalse(voiceChat);
+    assertFalse(this.mapper.isBrowserPrivateNetworks());
+    assertFalse(this.mapper.isBrowserJavaScriptJit());
   }
 
   @Test
@@ -169,6 +174,8 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(discord);
     assertFalse(http);
     assertFalse(voiceChat);
+    assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
+    assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
   }
 
   @Test
@@ -192,6 +199,8 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(discord);
     assertTrue(http);
     assertTrue(voiceChat);
+    assertTrue(this.mapper.isBrowserPrivateNetworks());
+    assertTrue(this.mapper.isBrowserJavaScriptJit());
   }
 
   @Test

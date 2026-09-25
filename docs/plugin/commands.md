@@ -208,18 +208,17 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 
 | **Command**                                  | `/mcav browser create`                                                                                                           |
 |----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <quality> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>` |
+| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>`           |
 | **Permission**                               | `mcav.command.browser.create`                                                                                                    |
-| **Description**                              | Creates and displays a browser on a map.                                                                                         |
+| **Description**                              | Creates and displays a browser on a map. The first browser on a server downloads Chromium once, about 150 MB.                    |
 | **Arguments**                                |                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the browser                                                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720)                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`quality`            | Quality setting for the browser from 1 to 100, where 100 denotes higher quality                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`nth`                | How often frame snapshots are taken (1 means high frame rate, 2 means take a screenshot every other frame, etc)                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720), at most 4096 on each side                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`nth`                | How many painted frames make one streamed frame (1 streams every frame, 2 every other frame, up to 1000)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full URL**.                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full `http` or `https` URL**.                                                   |
 
 ---
 

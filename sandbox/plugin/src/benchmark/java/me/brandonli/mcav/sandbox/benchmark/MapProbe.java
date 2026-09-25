@@ -75,7 +75,7 @@ final class MapProbe implements DitherResultStep {
     final int[] colors = palette.getPalette();
     for (int index = 0; index < colors.length; index++) {
       final int candidate = colors[index] & 0xFFFFFF;
-      if (candidate == (red << 16 | green << 8 | blue) && index >= 4) {
+      if (candidate == ((red << 16) | (green << 8) | blue) && index >= 4) {
         return (byte) index;
       }
     }
@@ -208,7 +208,7 @@ final class MapProbe implements DitherResultStep {
           if (colors[position] == this.index) {
             shows = true;
             final int row = y + position / width;
-            final int column = x + position % width;
+            final int column = x + (position % width);
             this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
           }
         }

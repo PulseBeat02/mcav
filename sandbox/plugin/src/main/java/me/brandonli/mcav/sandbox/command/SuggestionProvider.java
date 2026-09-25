@@ -88,16 +88,6 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   }
 
   /**
-   * Suggests JPEG qualities for the {@code <quality>} argument of {@code /mcav browser create}, from 10 to 100.
-   *
-   * @return the suggested qualities
-   */
-  @Suggestions("quality")
-  public Stream<String> suggestQuality() {
-    return Stream.of("10", "20", "30", "40", "50", "60", "70", "80", "90", "100");
-  }
-
-  /**
    * Suggests frame intervals for the {@code <nth>} argument of {@code /mcav browser create}, where 1 streams every
    * frame of the browser and 10 every tenth.
    *

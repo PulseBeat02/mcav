@@ -65,6 +65,26 @@ simple-voice-chat:
 
   # Whether or not the Simple Voice Chat extension is enabled
   enabled: false
+
+# ======================================================================
+# WEB BROWSER CONFIGURATION
+# ======================================================================
+
+# The web browser of /mcav browser create: an embedded Chromium that runs in a process of its own.
+browser:
+
+  # Whether pages may reach addresses of the server's own network: loopback (localhost), private networks such as
+  # 192.168.x.x, and link-local addresses such as the metadata service of a cloud server. Leave it off unless you
+  # want to show a page of your own network: with it on, everyone who may create a browser, every page they open,
+  # and every player who may click on it can read services that only the server can reach.
+  # Default is false
+  allow-private-networks: false
+
+  # Whether JavaScript is compiled to machine code. The browser cannot use Chromium's sandbox, so this is off: most
+  # exploits of malicious pages target the compiler. Pages with heavy scripts run slower without it. Turn it on only
+  # if you trust every page that can be opened.
+  # Default is false
+  javascript-jit: false
 ```
 
 ```{warning}
@@ -89,3 +109,9 @@ MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat pl
 ```
 
 Install the plugin or set the option to `false`, then restart the server.
+
+The browser of `/mcav browser create` reaches public addresses of the internet only. Turn on
+`browser.allow-private-networks` only to show a page of your own network: it lets everyone who may create a browser,
+every page they open and every player who may click on it reach services that only the server can reach, such as a
+router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
+scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).

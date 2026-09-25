@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Supplier;
+import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
@@ -95,9 +96,10 @@ public final class BrowserBenchmark {
         rows.add(row);
       }
     }
-    final String header = "| backend | browser size on wall | frames/s to the map encoder | latency to the first map patch / to 90% of the page on the wall (median, p90; "
-      + LATENCY_ROUNDS
-      + " rounds) |";
+    final String header =
+      "| backend | browser size on wall | frames/s to the map encoder | latency to the first map patch / to 90% of the page on the wall (median, p90; " +
+      LATENCY_ROUNDS +
+      " rounds) |";
     final List<String> lines = new ArrayList<>();
     lines.add(header);
     lines.add("|---|---|---|---|");
@@ -115,15 +117,16 @@ public final class BrowserBenchmark {
    * @return the factory of its players
    */
   static Supplier<BrowserPlayer> backends(final String backend) {
+    // the benchmark pages are served on this machine, which the browser reaches only with private networks allowed
+    final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
-      case "selenium" -> BrowserPlayer::selenium;
-      case "playwright" -> () -> BrowserPlayer.playwright();
+      case "jcef" -> () -> BrowserPlayer.create(local);
       default -> throw new IllegalArgumentException("Unknown backend " + backend);
     };
   }
 
   private static BrowserSource source(final URI page, final WallSize size) {
-    return BrowserSource.uri(page, 80, size.width(), size.height(), 1);
+    return BrowserSource.uri(page, size.width(), size.height(), 1);
   }
 
   private static MapProbe attach(final BrowserPlayer player, final WallSize size) {
@@ -156,7 +159,7 @@ public final class BrowserBenchmark {
       Thread.sleep(FRAME_RATE_MILLIS);
       final long framesAfter = probe.getFrames();
       final long elapsed = System.nanoTime() - start;
-      final double perSecond = (framesAfter - framesBefore) * 1e9 / elapsed;
+      final double perSecond = ((framesAfter - framesBefore) * 1e9) / elapsed;
       return String.format(Locale.ROOT, "%.1f", perSecond);
     } finally {
       player.release();
@@ -201,11 +204,14 @@ public final class BrowserBenchmark {
       player.release();
     }
     final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
-    final String incompleteText = incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLIS + " ms in " + incomplete + " rounds)";
+    final String incompleteText = incomplete == 0
+      ? ""
+      : " (wall incomplete after " + FULL_TIMEOUT_MILLIS + " ms in " + incomplete + " rounds)";
     return describe(first) + " / " + describe(full) + missedText + incompleteText;
   }
 
-  private static void startAndWait(final BrowserPlayer player, final BrowserSource source, final MapProbe probe) throws InterruptedException {
+  private static void startAndWait(final BrowserPlayer player, final BrowserSource source, final MapProbe probe)
+    throws InterruptedException {
     final boolean started = player.start(source);
     if (!started) {
       throw new IllegalStateException("The browser did not start");

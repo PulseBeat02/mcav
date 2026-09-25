@@ -22,15 +22,10 @@ import java.net.URI;
 import me.brandonli.mcav.media.source.uri.UriSource;
 
 /**
- * A web page to stream, together with the screencast settings: the JPEG quality of the frames, the size the
- * frames are scaled to, and how many browser frames are skipped between streamed frames.
+ * A web page to stream: its address, the size of the page and of the frames, and how many painted frames are skipped
+ * between streamed frames. Only absolute {@code http} and {@code https} addresses with a host can be shown.
  */
 public interface BrowserSource extends UriSource {
-  /**
-   * The JPEG quality used by {@link #uri(URI)}.
-   */
-  int DEFAULT_QUALITY = 80;
-
   /**
    * The frame width used by {@link #uri(URI)}.
    */
@@ -42,61 +37,77 @@ public interface BrowserSource extends UriSource {
   int DEFAULT_HEIGHT = 720;
 
   /**
+   * The largest width or height of a page.
+   */
+  int MAX_SIDE = HelperProtocol.MAX_SIDE;
+
+  /**
+   * The largest frame interval.
+   */
+  int MAX_FRAME_INTERVAL = 1000;
+
+  /**
    * Creates a source with every setting.
    *
-   * @param uri      the address of the page
-   * @param quality  the JPEG quality of the frames from 0 to 100
-   * @param width    the width of the frames in pixels
-   * @param height   the height of the frames in pixels
-   * @param nthFrame stream every n-th browser frame; 1 streams every frame
+   * @param uri           the address of the page, an absolute {@code http} or {@code https} address
+   * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
+   * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
+   * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAX_FRAME_INTERVAL}; 1 streams every frame
    * @return the source
+   * @throws IllegalArgumentException if the address is not a web address or a number is out of range
    */
-  static BrowserSource uri(final URI uri, final int quality, final int width, final int height, final int nthFrame) {
+  static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null");
-    Preconditions.checkArgument(quality >= 0 && quality <= 100, "Quality must be between 0 and 100 but was %s", quality);
+    Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "The browser shows http and https addresses only but got %s", uri);
     Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
-    Preconditions.checkArgument(nthFrame > 0, "Frame interval must be positive but was %s", nthFrame);
-    return new BrowserSourceImpl(uri, quality, width, height, nthFrame);
+    Preconditions.checkArgument(
+      width <= MAX_SIDE && height <= MAX_SIDE,
+      "Frame size must be at most %s per side but was %sx%s",
+      MAX_SIDE,
+      width,
+      height
+    );
+    Preconditions.checkArgument(
+      frameInterval > 0 && frameInterval <= MAX_FRAME_INTERVAL,
+      "Frame interval must be between 1 and %s but was %s",
+      MAX_FRAME_INTERVAL,
+      frameInterval
+    );
+    return new BrowserSourceImpl(uri, width, height, frameInterval);
   }
 
   /**
-   * Creates a source with the default settings: quality {@value #DEFAULT_QUALITY}, {@value #DEFAULT_WIDTH} by
-   * {@value #DEFAULT_HEIGHT} pixels, every frame.
+   * Creates a source with the default settings: {@value #DEFAULT_WIDTH} by {@value #DEFAULT_HEIGHT} pixels, every
+   * frame.
    *
-   * @param uri the address of the page
+   * @param uri the address of the page, an absolute {@code http} or {@code https} address
    * @return the source
+   * @throws IllegalArgumentException if the address is not a web address
    */
   static BrowserSource uri(final URI uri) {
-    return uri(uri, DEFAULT_QUALITY, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
+    return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
   }
 
   /**
-   * Gets the JPEG quality of the frames.
-   *
-   * @return the quality from 0 to 100
-   */
-  int getScreencastQuality();
-
-  /**
-   * Gets the width of the frames.
+   * Gets the width of the page and of the frames.
    *
    * @return the width in pixels
    */
-  int getScreencastWidth();
+  int getWidth();
 
   /**
-   * Gets the height of the frames.
+   * Gets the height of the page and of the frames.
    *
    * @return the height in pixels
    */
-  int getScreencastHeight();
+  int getHeight();
 
   /**
-   * Gets how many browser frames are skipped between streamed frames.
+   * Gets how many painted frames make one streamed frame.
    *
    * @return the interval; 1 streams every frame
    */
-  int getScreencastNthFrame();
+  int getFrameInterval();
 
   /**
    * Gets the name of the source type.
