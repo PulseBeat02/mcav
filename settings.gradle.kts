@@ -41,5 +41,8 @@ project(":mcav-lwjgl").name = "mcav-lwjgl"
 include("mcav-svc")
 project(":mcav-svc").name = "mcav-svc"
 
+include("mcav-jcstress")
+project(":mcav-jcstress").name = "mcav-jcstress"
+
 include(":sandbox:plugin")
 project(":sandbox:plugin").name = "plugin"
