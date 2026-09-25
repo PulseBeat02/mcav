@@ -1,7 +1,7 @@
 // The coverage lint: `coverageLint` runs the tests and prints every line or branch of production code that no test
-// covers as file:line, which IDEs turn into links, and fails when there is any. `check` enforces it only with
-// -Pmcav.coverage, because some tests skip themselves on machines without VLC, Chrome, QEMU or a display, or whose
-// OpenCV build cannot read video files (the bundled Linux build cannot), and the code they test would show up as gaps.
+// covers as file:line, which IDEs turn into links, and fails when there is any. `check`, and so `build`, enforces it
+// unless -Pmcav.coverage=false is passed: some tests skip themselves on machines without VLC, Chrome, QEMU, a display
+// or a sound device, and the code they test would show up as gaps there.
 
 import me.brandonli.mcav.gradle.CoverageLintTask
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
@@ -47,7 +47,10 @@ val coverageLint = tasks.register<CoverageLintTask>("coverageLint") {
     projectPath = project.path
 }
 
-if (providers.gradleProperty("mcav.coverage").isPresent) {
+// the gate is on unless -Pmcav.coverage=false turns it off; a bare -Pmcav.coverage, which used to be the switch that
+// turned it on, still means on. The value is read, not only its presence, so that false really means false.
+val coverageGate = providers.gradleProperty("mcav.coverage").map { !it.equals("false", ignoreCase = true) }.getOrElse(true)
+if (coverageGate) {
     tasks.check {
         dependsOn(coverageLint)
     }

@@ -38,6 +38,9 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.23.0")
     testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // property tests (*PropertyTest) run on jqwik and fuzz tests (*FuzzTest) on Jazzer, both beside JUnit Jupiter
+    testImplementation("net.jqwik:jqwik:1.9.2")
+    testImplementation("com.code-intelligence:jazzer-junit:0.30.0")
     errorprone("com.google.errorprone:error_prone_core:2.50.0")
 }
 
@@ -99,6 +102,91 @@ tasks.withType<Test>().configureEach {
         val executableSuffix = if (windows) ".exe" else ""
         executable = testJavaHome.get() + "/bin/java" + executableSuffix
     }
+    // jqwik keeps the samples of failed properties in a database, which lives in the build folder, not in the sources;
+    // a run replays nothing from it, so its result depends on the code, the pinned seeds and the tries alone
+    systemProperty("jqwik.database", "build/jqwik-database")
+    systemProperty("jqwik.failures.after.default", "PREVIOUS_SEED")
+}
+
+// Property tests are jqwik properties in classes named *PropertyTest, and fuzz tests are Jazzer fuzz tests in classes
+// named *FuzzTest tagged "fuzz", both in the test source set of their module. Every property pins its seed, so a run is
+// reproducible and a failure reports the seed and the shrunk sample. `test` runs every property too, with a few tries,
+// so a plain test run still runs everything; `propertyTest` runs them with the real budget. The fuzz tests stay out
+// of `test`: Jazzer puts an agent into the JVM that runs them. The budgets are Gradle properties, so CI can pass bigger
+// numbers to the same tasks:
+//   -Pproperty.tries=<n>       tries of every property that does not pin its own (default 200)
+//   -Pproperty.smokeTries=<n>  the same during `test` (default 10)
+//   -Pfuzz.seconds=<n>         seconds of coverage-guided fuzzing per fuzz test (default 0: only replay the inputs)
+val propertyTries = providers.gradleProperty("property.tries").getOrElse("200")
+val propertySmokeTries = providers.gradleProperty("property.smokeTries").getOrElse("10")
+val fuzzSeconds = providers.gradleProperty("fuzz.seconds").map { it.toInt() }.getOrElse(0)
+val testSourceSet = sourceSets.test.get()
+
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("fuzz")
+    }
+    systemProperty("jqwik.tries.default", propertySmokeTries)
+}
+
+// CI calls `./gradlew propertyTest`: the jqwik properties of every module, and nothing else
+val propertyTest = tasks.register<Test>("propertyTest") {
+    description = "Runs the jqwik property tests of this module"
+    group = "verification"
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
+    useJUnitPlatform {
+        includeEngines("jqwik")
+    }
+    systemProperty("jqwik.tries.default", propertyTries)
+    mustRunAfter(tasks.test, tasks.named("coverageLint"))
+}
+
+// CI calls `./gradlew fuzzTest`. By default it replays the committed inputs of every fuzz test, in
+// src/test/resources/<package>/<class>Inputs/<method>: the seed corpus and every crash reproducer. That replay is
+// deterministic, so its result is cached like any other test. With -Pfuzz.seconds=<n> each fuzz test is fuzzed for n
+// seconds on top, one JVM per test class as Jazzer requires; that run depends on the clock, so it is never cached,
+// and it fails only when Jazzer finds a crash, which it writes to build/jazzer.
+val fuzzTest = tasks.register<Test>("fuzzTest") {
+    description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test with -Pfuzz.seconds=<n>"
+    group = "verification"
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
+    useJUnitPlatform {
+        includeTags("fuzz")
+    }
+    // only the fuzz test classes are scanned, so exploring, which forks a JVM per scanned class, starts no JVM for the
+    // hundreds of other test classes
+    include("**/*FuzzTest.class")
+    val resources = layout.projectDirectory.dir("src/test/resources")
+    inputs.files(resources).withPropertyName("fuzzInputs").withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("fuzzSeconds", fuzzSeconds)
+    val jazzerDirectory = layout.buildDirectory.dir("jazzer")
+    outputs.dir(jazzerDirectory).withPropertyName("jazzerDirectory")
+    outputs.cacheIf("only the replay of the committed inputs is deterministic") { fuzzSeconds == 0 }
+    // a relative path, so the cache key does not depend on where the project lives; the JVM runs in the project folder
+    systemProperty("jazzer.internal.basedir", "build/jazzer")
+    // an input that runs longer than this is reported as a hang, both in the replay and while fuzzing
+    systemProperty("junit.jupiter.execution.timeout.testtemplate.method.default", "30s")
+    // a small heap turns an allocation sized from untrusted input into an OutOfMemoryError, which Jazzer reports
+    maxHeapSize = "1g"
+    if (fuzzSeconds > 0) {
+        environment("JAZZER_FUZZ", "1")
+        systemProperty("jazzer.max_duration", "${fuzzSeconds}s")
+        // JUnit would apply the timeout to the whole fuzzing run and fail it once the run lasts longer; Jazzer still
+        // reads the value and hands it to libFuzzer, which applies it to every single input
+        systemProperty("junit.jupiter.execution.timeout.mode", "disabled")
+        forkEvery = 1
+        outputs.upToDateWhen { false }
+        // the fuzzer writes its progress straight to the standard error of the test process, which Gradle cannot tie
+        // to a test, so the start of every input and fuzzing run is logged to tell whose progress follows
+        testLogging { events("started", "failed", "skipped") }
+    }
+    mustRunAfter(propertyTest)
+}
+
+tasks.check {
+    dependsOn(propertyTest, fuzzTest)
 }
 
 // PIT mutation testing runs on demand with `./gradlew :<module>:pitest` (it is not part of check, because mutating
