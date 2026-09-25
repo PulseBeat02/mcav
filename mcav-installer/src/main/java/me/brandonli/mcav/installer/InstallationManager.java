@@ -336,9 +336,10 @@ final class InstallationManager implements AutoCloseable {
    * @param groupId    the group id of the jar
    * @param artifactId the artifact id of the jar
    * @param fileName   the file name of the jar in the local Maven repository
-   * @return the destination inside the target folder
+   * @return the destination inside the target folder, whose last element is the file name
    * @throws IOException if the coordinates would place the jar outside the target folder, such as a group id of
-   *                     {@code ..} in a malicious POM
+   *                     {@code ..} in a malicious POM, or not under its own file name, such as a file name of
+   *                     {@code ..}, which would name a folder instead
    */
   static Path destinationOf(final Path target, final String groupId, final String artifactId, final String fileName) throws IOException {
     final Path groupFolder = target.resolve(groupId);
@@ -350,6 +351,17 @@ final class InstallationManager implements AutoCloseable {
     final boolean inside = normalizedDestination.startsWith(normalizedTarget);
     if (!inside) {
       throw new IOException("The jar " + groupId + ":" + artifactId + " (" + fileName + ") would be copied outside " + target);
+    }
+    // a path starts with itself, and an empty, . or .. element can make the destination the target folder itself or
+    // a folder in it, so the jar must also end up as a file of its own name
+    final Path destinationName = normalizedDestination.getFileName();
+    final String name = destinationName == null ? "" : destinationName.toString();
+    final boolean isTarget = normalizedDestination.equals(normalizedTarget);
+    final boolean keepsItsName = !isTarget && name.equals(fileName);
+    if (!keepsItsName) {
+      throw new IOException(
+        "The jar " + groupId + ":" + artifactId + " (" + fileName + ") would not be copied as a file of that name into " + target
+      );
     }
     return destination;
   }

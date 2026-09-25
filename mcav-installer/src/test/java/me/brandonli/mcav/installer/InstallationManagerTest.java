@@ -58,6 +58,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 
@@ -571,6 +572,22 @@ final class InstallationManagerTest {
     final String message = exception.getMessage();
     final boolean namesTheTarget = message.contains("would be copied outside " + target);
     assertTrue(namesTheTarget, message);
+  }
+
+  /**
+   * Found by {@code InstallationPathsPropertyTest}: coordinates that stay inside the target folder could still name
+   * the folder itself, or a folder in it, as the place of the jar, because a path starts with itself. The smallest
+   * case the property shrank to is the empty group, artifact and file name.
+   */
+  @ParameterizedTest
+  @CsvSource({ "'', '', ''", "., ., .", "group, artifact, ..", "group, artifact, ''", "group, artifact, nested/inner.jar" })
+  void refusesCoordinatesThatWouldNotPutTheJarUnderItsOwnName(final String groupId, final String artifactId, final String fileName) {
+    final Path target = this.directory.resolve("target");
+    // a root has no file name at all
+    final Path root = this.directory.getRoot();
+
+    assertThrows(IOException.class, () -> InstallationManager.destinationOf(target, groupId, artifactId, fileName));
+    assertThrows(IOException.class, () -> InstallationManager.destinationOf(root, groupId, artifactId, fileName));
   }
 
   @Test
