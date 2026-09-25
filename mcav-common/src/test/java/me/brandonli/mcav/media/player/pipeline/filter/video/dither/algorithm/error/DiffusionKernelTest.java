@@ -113,4 +113,27 @@ final class DiffusionKernelTest {
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 1, 0, 0 } }));
     assertThrows(NullPointerException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 1, 0, 1 }, null }));
   }
+
+  /**
+   * Found by {@code DitherFuzzTest}: a kernel accepted taps of any reach, and the error rows of a pass are as wide and
+   * as many as the kernel reaches, so a tap far away made dithering allocate until the heap ran out, and one at
+   * {@link Integer#MIN_VALUE} made the reach negative. A tap may reach at most {@value DiffusionKernel#MAX_OFFSET} pixels.
+   */
+  @Test
+  void refusesTapsThatReachFartherThanAnyNeighbourhood() {
+    final int limit = DiffusionKernel.MAX_OFFSET;
+    final int[][] widest = { { limit, 0, 1 }, { -limit, limit, 1 } };
+    final DiffusionKernel kernel = new DiffusionKernel("widest", 2, widest);
+    final int maxX = kernel.getMaxOffsetX();
+    final int maxY = kernel.getMaxOffsetY();
+
+    assertEquals(limit, maxX);
+    assertEquals(limit, maxY);
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { limit + 1, 0, 1 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { -limit - 1, 1, 1 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 0, limit + 1, 1 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { Integer.MIN_VALUE, 1, 1 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { Integer.MAX_VALUE, 0, 1 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 1, Integer.MAX_VALUE, 1 } }));
+  }
 }

@@ -36,6 +36,13 @@ import com.google.common.base.Preconditions;
 public final class DiffusionKernel {
 
   /**
+   * The farthest a tap may reach, in pixels, horizontally in either direction and down. A pass keeps as many rows of
+   * pending errors as the kernel reaches down, each padded by its horizontal reach on both sides, so the reach is
+   * bounded; the kernels of the common algorithms reach at most 3 pixels.
+   */
+  public static final int MAX_OFFSET = 64;
+
+  /**
    * Floyd-Steinberg, the classic four-tap kernel.
    */
   public static final DiffusionKernel FLOYD_STEINBERG = new DiffusionKernel(
@@ -151,7 +158,8 @@ public final class DiffusionKernel {
    * @param name    the name of the algorithm the kernel belongs to
    * @param divisor the number the weights are divided by
    * @param taps    the taps as {@code {dx, dy, weight}} triples
-   * @throws IllegalArgumentException if a tap points to an already processed pixel or has a non-positive weight
+   * @throws IllegalArgumentException if a tap points to an already processed pixel, reaches farther than
+   *                                  {@link #MAX_OFFSET} pixels, or has a non-positive weight
    * @throws NullPointerException     if the name, the taps or one of the taps is null
    */
   public DiffusionKernel(final String name, final int divisor, final int[][] taps) {
@@ -187,6 +195,10 @@ public final class DiffusionKernel {
     final int weight = tap[2];
     Preconditions.checkArgument(offsetY >= 0, "Tap %s points to a previous row", tapIndex);
     Preconditions.checkArgument(offsetY > 0 || offsetX > 0, "Tap %s points to an already processed pixel", tapIndex);
+    // widened, because the magnitude of Integer.MIN_VALUE does not fit an int
+    final long reachX = Math.abs((long) offsetX);
+    final boolean withinReach = reachX <= MAX_OFFSET && offsetY <= MAX_OFFSET;
+    Preconditions.checkArgument(withinReach, "Tap %s reaches farther than %s pixels", tapIndex, MAX_OFFSET);
     Preconditions.checkArgument(weight > 0, "Tap %s must have a positive weight", tapIndex);
   }
 
