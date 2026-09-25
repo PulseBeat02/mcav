@@ -180,6 +180,15 @@ final class Mcv2EncoderTest {
   }
 
   @Test
+  void startsAgainWithAKeyframeOnRequest() {
+    final byte[] picture = texture(64, 32, 2);
+    final Mcv2Encoder encoder = encoder(EncoderSettings.SHIP);
+    encoder.encode(picture, 64, 32, 0);
+    encoder.requestKeyframe();
+    assertTrue(keyframeAfter(encoder, picture, 64, 32));
+  }
+
+  @Test
   void followsAPanWithTheGlobalVector() throws Mcv2Exception {
     final byte[] picture = texture(128, 64, 3);
     final byte[] next = panned(picture, 128, 64, 8);

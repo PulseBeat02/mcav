@@ -33,6 +33,13 @@ public final class Mcv2Receiver {
   private long frameId = -1;
 
   /**
+   * Constructs a receiver that holds no frame yet, so it accepts a keyframe first.
+   */
+  public Mcv2Receiver() {
+    // the first accepted frame sets the state
+  }
+
+  /**
    * Validates, decodes and commits a frame.
    *
    * @param data the frame bytes

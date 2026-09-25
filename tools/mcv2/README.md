@@ -3,12 +3,15 @@
 Scripts that tie mcav's MCV2 port to the gpu-codec research repository it comes from. None of them runs during the
 build: the Java tests read only the fixtures committed under
 `mcav-common/src/test/resources/me/brandonli/mcav/media/mcv2`. They take the gpu-codec checkout as an argument, at
-commit `85445433aeb9f8a35a5ce528d47d8829976d1401`, and need a Python with numpy.
+commit `85445433aeb9f8a35a5ce528d47d8829976d1401`, and need a Python with numpy; the shader check also needs moderngl,
+the capture check Pillow.
 
 | script | what it does |
 |---|---|
 | `fixtures.py <codec> <fixture root> [conformance\|edge\|pages\|encoder\|all]` | regenerates every MCV2 test fixture with the reference itself; into an empty folder it reproduces the committed fixtures byte for byte |
 | `edge_streams.py <codec> <out> [seed]` | the edge-case streams: every leaf mode, compact class, motion form and index form, built with the reference serializer and decoded by the reference decoder, plus the syntax mcav refuses (`rejected.json`) |
+| `shader_check.py <codec> <streams...> [--slots N] [--drop K]` | runs the resource pack's post passes under OpenGL 3.3 outside Minecraft and compares every picture with the reference decoder, frame by frame, with the persistent references carried over as in the client |
+| `capture_check.py <reference.rgb> <w> <h> <captures> [--top ROWS] [--vmaf FFMPEG]` | compares screenshots of a client running the pack's debug view (server started with `-Dmcav.mcv2.debugView=true`) with the reference decode: which frames were seen byte for byte, and PSNR, SSIM and VMAF |
 
 What the fixtures are:
 

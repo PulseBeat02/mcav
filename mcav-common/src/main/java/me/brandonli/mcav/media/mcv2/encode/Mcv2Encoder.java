@@ -97,6 +97,13 @@ public final class Mcv2Encoder {
   }
 
   /**
+   * Makes the next frame a keyframe, for example because a viewer starts watching and holds no reference yet.
+   */
+  public void requestKeyframe() {
+    this.framesSinceKey = this.settings.keyInterval();
+  }
+
+  /**
    * Gets the outcome of the last encoded frame.
    *
    * @return the statistics, or null before the first frame

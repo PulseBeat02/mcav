@@ -162,6 +162,8 @@ final class MCAVSandboxTest {
     final IllegalStateException videos = assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
     final IllegalStateException audio = assertThrows(IllegalStateException.class, this.sandbox::getAudioProvider);
     final IllegalStateException images = assertThrows(IllegalStateException.class, this.sandbox::getImageManager);
+    final IllegalStateException mcv2 = assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
+    assertEquals("The MCV2 support is not available before the plugin is enabled", mcv2.getMessage());
     final String libraryMessage = library.getMessage();
     final String configurationMessage = configuration.getMessage();
     final String videosMessage = videos.getMessage();
@@ -222,6 +224,7 @@ final class MCAVSandboxTest {
     assertNotNull(audioProvider);
     assertNotNull(videoManager);
     assertNotNull(imageManager);
+    assertNotNull(this.sandbox.getMcv2Support());
     final Path iso = this.folder.resolve("iso");
     final boolean isoFolder = Files.isDirectory(iso);
     assertTrue(isoFolder);
@@ -230,7 +233,7 @@ final class MCAVSandboxTest {
   private void assertCommandsAndListenerRegistered() {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
-    assertEquals(25, count);
+    assertEquals(28, count);
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(JukeBoxListener.class), eq(this.sandbox));
   }

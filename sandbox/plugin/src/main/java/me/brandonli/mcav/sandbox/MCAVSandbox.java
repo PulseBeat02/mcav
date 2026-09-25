@@ -27,6 +27,7 @@ import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.audio.MissingVoiceChatException;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
@@ -60,6 +61,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private @Nullable AudioProvider audioProvider;
   private @Nullable ImageManager imageManager;
   private @Nullable VideoPlayerManager videoPlayerManager;
+  private @Nullable Mcv2Support mcv2Support;
   private @Nullable AnnotationParserHandler annotationParserHandler;
   private @Nullable JukeBoxListener listener;
   private boolean qemuInstalled;
@@ -148,6 +150,7 @@ public final class MCAVSandbox extends JavaPlugin {
     provider.initialize();
     this.videoPlayerManager = new VideoPlayerManager(this);
     this.imageManager = new ImageManager(this);
+    this.mcv2Support = new Mcv2Support(this.getDataFolder().toPath());
   }
 
   private void loadCommands() {
@@ -173,7 +176,9 @@ public final class MCAVSandbox extends JavaPlugin {
     final JukeBoxListener jukebox = this.listener;
     final AnnotationParserHandler commands = this.annotationParserHandler;
     final AudioProvider audio = this.audioProvider;
+    final Mcv2Support mcv2 = this.mcv2Support;
     final MCAVApi library = this.mcav;
+    this.mcv2Support = null;
     this.videoPlayerManager = null;
     this.imageManager = null;
     this.listener = null;
@@ -204,6 +209,11 @@ public final class MCAVSandbox extends JavaPlugin {
       () -> {
         if (audio != null) {
           audio.shutdown();
+        }
+      },
+      () -> {
+        if (mcv2 != null) {
+          mcv2.close();
         }
       },
       () -> {
@@ -268,6 +278,15 @@ public final class MCAVSandbox extends JavaPlugin {
    */
   public ImageManager getImageManager() {
     return require(this.imageManager, "image manager");
+  }
+
+  /**
+   * Gets what the MCV2 commands share: the served pack and who loaded it.
+   *
+   * @return the MCV2 support
+   */
+  public Mcv2Support getMcv2Support() {
+    return require(this.mcv2Support, "MCV2 support");
   }
 
   /**

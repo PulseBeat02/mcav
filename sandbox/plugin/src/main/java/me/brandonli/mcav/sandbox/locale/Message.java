@@ -45,6 +45,40 @@ public interface Message extends LocaleTools {
   NullComponent QEMU_NOT_INSTALLED = direct("mcav.qemu.error");
 
   /**
+   * Key {@code mcav.command.mcv2.pack}: sent to the viewers of an MCV2 screen right before their client is asked to
+   * load the screen's resource pack.
+   */
+  NullComponent MCV2_PACK = direct("mcav.command.mcv2.pack");
+
+  /**
+   * Key {@code mcav.command.mcv2.refused}: a viewer's client declined the MCV2 pack or could not load it, so the
+   * viewer sees the dithered maps.
+   */
+  NullComponent MCV2_REFUSED = direct("mcav.command.mcv2.refused");
+
+  /**
+   * Key {@code mcav.command.mcv2.screen.error}: no item frame holds the map id given to an MCV2 command, whose
+   * argument is inserted.
+   */
+  UniComponent<Integer> MCV2_SCREEN_ERROR = direct("mcav.command.mcv2.screen.error", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} is not an MCV2 stream; the
+   * reason is inserted.
+   */
+  UniComponent<String> MCV2_FILE_ERROR = direct("mcav.command.mcv2.file.error", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} started the stream.
+   */
+  NullComponent MCV2_PLAY = direct("mcav.command.mcv2.play");
+
+  /**
+   * Key {@code mcav.command.mcv2.stop}: confirms that {@code /mcav mcv2 stop} stopped the stream.
+   */
+  NullComponent MCV2_STOP = direct("mcav.command.mcv2.stop");
+
+  /**
    * Key {@code mcav.command.screen.build}: confirms that {@code /mcav screen} built a wall of maps.
    */
   NullComponent SCREEN_BUILD = direct("mcav.command.screen.build");

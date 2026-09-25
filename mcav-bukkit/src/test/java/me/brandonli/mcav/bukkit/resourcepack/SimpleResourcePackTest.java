@@ -238,6 +238,33 @@ final class SimpleResourcePackTest {
   }
 
   @Test
+  void packagesGeneratedContentAndKeepsTheLastSourceOfALocation() throws IOException {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.meta(88, "generated");
+    final byte[] shader = "#version 330".getBytes(StandardCharsets.US_ASCII);
+    pack.data("assets/mcav/shaders/post/a.fsh", shader);
+    shader[0] = 'X';
+    pack.data("assets/mcav/texts/credits.txt", new byte[] { 1 });
+    pack.external("assets/mcav/texts/credits.txt", this.credits);
+    pack.external("assets/mcav/texts/replaced.txt", this.credits);
+    pack.data("assets/mcav/texts/replaced.txt", new byte[] { 2 });
+    final Path zip = this.directory.resolve("generated.zip");
+    pack.zip(zip);
+
+    final Map<String, byte[]> entries = readZip(zip);
+    assertEquals(
+      List.of("pack.mcmeta", "assets/mcav/texts/credits.txt", "assets/mcav/shaders/post/a.fsh", "assets/mcav/texts/replaced.txt"),
+      entryNames(entries)
+    );
+    assertEntry("#version 330".getBytes(StandardCharsets.US_ASCII), entries, "assets/mcav/shaders/post/a.fsh");
+    assertEntry(CREDITS, entries, "assets/mcav/texts/credits.txt");
+    assertEntry(new byte[] { 2 }, entries, "assets/mcav/texts/replaced.txt");
+    assertThrows(IllegalArgumentException.class, () -> pack.data("pack.mcmeta", new byte[0]));
+    assertThrows(IllegalArgumentException.class, () -> pack.data("assets/../pack.mcmeta", new byte[0]));
+    assertThrows(IllegalArgumentException.class, () -> pack.data("/assets/a.txt", new byte[0]));
+  }
+
+  @Test
   void rejectsFileLocationsThatAreNotRelativeFiles() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
 

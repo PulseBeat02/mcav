@@ -30,11 +30,13 @@ import me.brandonli.mcav.sandbox.command.image.ImageMapCommand;
 import me.brandonli.mcav.sandbox.command.image.ImageScoreboardCommand;
 import me.brandonli.mcav.sandbox.command.interaction.BrowserCommand;
 import me.brandonli.mcav.sandbox.command.interaction.VirtualizeCommand;
+import me.brandonli.mcav.sandbox.command.video.Mcv2PlayCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoBlockCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoChatCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoControlCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoEntityCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoMapCommand;
+import me.brandonli.mcav.sandbox.command.video.VideoMcv2Command;
 import me.brandonli.mcav.sandbox.command.video.VideoScoreboardCommand;
 import me.brandonli.mcav.sandbox.locale.LocaleTools;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
@@ -115,6 +117,8 @@ public final class AnnotationParserHandler {
       new HelpCommand(manager),
       new ScreenCommand(),
       new VideoMapCommand(plugin),
+      new VideoMcv2Command(plugin),
+      new Mcv2PlayCommand(plugin),
       new VideoControlCommand(plugin),
       new VideoEntityCommand(plugin),
       new VideoChatCommand(plugin),

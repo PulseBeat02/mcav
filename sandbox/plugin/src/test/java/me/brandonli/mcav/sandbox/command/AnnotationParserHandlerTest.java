@@ -95,6 +95,9 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram set location",
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl",
+    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm flags mrl",
+    "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
+    "mcav mcv2 stop",
     "mcav browser interact",
     "mcav browser release",
     "mcav browser create playerSelector browserResolution quality nth blockDimensions mapId ditheringAlgorithm url",
@@ -155,7 +158,7 @@ final class AnnotationParserHandlerTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(25, count, registeredSyntaxes);
+    assertEquals(28, count, registeredSyntaxes);
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
       assertTrue(registered, syntax + " in " + syntaxes);
