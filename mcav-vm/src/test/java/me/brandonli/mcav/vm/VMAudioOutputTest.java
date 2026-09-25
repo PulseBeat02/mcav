@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -177,9 +178,15 @@ class VMAudioOutputTest {
     waitUntil(() -> this.output.getQueuedBytes() == 0);
     this.output.accept(new byte[8], 8);
     assertEquals(8, this.output.getQueuedBytes());
-    this.gate.countDown();
+    // the delivery thread is still inside the pipeline when the close begins, and leaves it a moment later
+    final CompletableFuture<Void> released = CompletableFuture.runAsync(
+      this.gate::countDown,
+      CompletableFuture.delayedExecutor(200, TimeUnit.MILLISECONDS)
+    );
     this.output.close();
+    assertFalse(this.output.getThread().isAlive(), "closing waits for the delivery thread");
     assertEquals(0, this.output.getQueuedBytes(), "a closed output holds no sound");
+    released.join();
   }
 
   @Test

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import me.brandonli.mcav.browser.testing.Await;
+import me.brandonli.mcav.browser.testing.StandardError;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -225,13 +226,16 @@ class CefEngineTest {
     final CountDownLatch terminated = new CountDownLatch(1);
     CefEngine.shutDown(terminated::countDown, terminated, 1_000L);
     assertEquals(0, terminated.getCount());
-    CefEngine.shutDown(
-      () -> {
-        throw new IllegalStateException("dispose failed");
-      },
-      new CountDownLatch(1),
-      1_000L
-    );
+    try (final StandardError errors = new StandardError()) {
+      CefEngine.shutDown(
+        () -> {
+          throw new IllegalStateException("dispose failed");
+        },
+        new CountDownLatch(1),
+        1_000L
+      );
+      assertTrue(errors.text().contains("Failed to shut CEF down: java.lang.IllegalStateException: dispose failed"), errors.text());
+    }
     Thread.currentThread().interrupt();
     try {
       CefEngine.shutDown(() -> {}, new CountDownLatch(1), 60_000L);
@@ -242,9 +246,34 @@ class CefEngineTest {
   }
 
   @Test
-  void anEngineThatNeverStartedIgnoresInputAndStops() {
-    final CefEngine engine = new CefEngine();
-    engine.dispatch(DevToolsInput.pressKey("Enter"));
-    engine.stop();
+  void anEngineThatNeverStartedIgnoresInputAndStops() throws Exception {
+    final List<Throwable> failures = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+    // a failure on the event thread reaches the default handler
+    Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> {
+      if (thread.getName().startsWith("AWT-EventQueue")) {
+        failures.add(failure);
+      }
+    });
+    try (final StandardError errors = new StandardError()) {
+      final CefEngine engine = new CefEngine();
+      engine.dispatch(DevToolsInput.pressKey("Enter"));
+      engine.stop();
+      // whatever was sent to the event thread before has run once this has
+      EventQueue.invokeAndWait(() -> {});
+      // other tests' helpers may still write their last words, so only this engine's are looked for
+      assertFalse(errors.text().contains("Failed to shut CEF down"), errors.text());
+    } finally {
+      Thread.setDefaultUncaughtExceptionHandler(previous);
+    }
+    assertEquals(List.of(), failures);
+  }
+
+  @Test
+  void aFailedDevToolsCallIsLogged() {
+    try (final StandardError errors = new StandardError()) {
+      assertEquals("", CefEngine.logFailedCall(new IllegalStateException("gone")));
+      assertTrue(errors.text().contains("A DevTools call failed: java.lang.IllegalStateException: gone"), errors.text());
+    }
   }
 }

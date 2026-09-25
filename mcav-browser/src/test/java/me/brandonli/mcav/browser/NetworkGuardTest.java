@@ -39,10 +39,13 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import me.brandonli.mcav.browser.testing.Await;
+import me.brandonli.mcav.browser.testing.OpenFiles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -305,6 +308,73 @@ class NetworkGuardTest {
     assertEnded(extra);
     final Socket first = idle.getFirst();
     assertArrayEquals(new byte[] { 5, 0 }, exchange(first, GREETING, 2));
+  }
+
+  @Test
+  void aTargetThatEndsEndsTheConnectionOfTheClient() throws Exception {
+    try (final ServerSocket ending = new ServerSocket(0, 1, LOOPBACK)) {
+      final CompletableFuture<Void> target = CompletableFuture.runAsync(() -> sayByeAndHangUp(ending));
+      final NetworkGuard guard = this.loopbackGuard();
+      final Socket client = this.connectThrough(guard, "echo.test", ending.getLocalPort());
+      final byte[] bye = new byte[3];
+      new DataInputStream(client.getInputStream()).readFully(bye);
+      assertArrayEquals("bye".getBytes(StandardCharsets.US_ASCII), bye);
+      // the target closed its connection, so the guard closes the client's
+      assertEnded(client);
+      target.get(5, TimeUnit.SECONDS);
+    }
+  }
+
+  private static void sayByeAndHangUp(final ServerSocket server) {
+    try (final Socket accepted = server.accept()) {
+      accepted.getOutputStream().write("bye".getBytes(StandardCharsets.US_ASCII));
+    } catch (final IOException exception) {
+      throw new java.io.UncheckedIOException(exception);
+    }
+  }
+
+  @Test
+  void aClientTurnedAwayIsDisconnected() throws IOException {
+    final NetworkGuard guard = this.loopbackGuard();
+    final Socket client = this.client(guard);
+    // a greeting that offers only authentication by user name and password
+    assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(client, new byte[] { 5, 1, 2 }, 2));
+    assertEnded(client);
+  }
+
+  @Test
+  void theSlotOfAConnectionIsFreedWhenItEnds() throws IOException {
+    final NetworkGuard guard = this.loopbackGuard();
+    // more connections one after the other than the guard holds at once
+    for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS + 44; count++) {
+      new Socket(LOOPBACK, guard.getPort()).close();
+    }
+    final Socket client = this.client(guard);
+    assertArrayEquals(new byte[] { 5, 0 }, exchange(client, GREETING, 2));
+  }
+
+  @Test
+  void theThreadOfTheGuardDoesNotKeepTheJvmAlive() throws IOException {
+    this.loopbackGuard();
+    final List<Thread> threads = Thread.getAllStackTraces()
+      .keySet()
+      .stream()
+      .filter(thread -> thread.getName().equals("mcav-browser-guard"))
+      .toList();
+    assertFalse(threads.isEmpty());
+    for (final Thread thread : threads) {
+      assertTrue(thread.isDaemon());
+    }
+  }
+
+  @Test
+  void aConnectionThatFailsLeavesNoFileOpen() throws IOException {
+    final int closedPort;
+    try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
+      closedPort = closed.getLocalPort();
+    }
+    final InetSocketAddress refusing = new InetSocketAddress(LOOPBACK, closedPort);
+    OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(ConnectException.class, () -> NetworkGuard.connect(refusing)));
   }
 
   @Test

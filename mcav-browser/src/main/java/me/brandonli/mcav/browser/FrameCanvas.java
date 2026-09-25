@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -109,6 +110,16 @@ final class FrameCanvas implements AutoCloseable {
 
   int getHeight() {
     return this.height;
+  }
+
+  /**
+   * Gets the native picture of the page, so tests can check that closing releases it.
+   *
+   * @return the picture
+   */
+  @VisibleForTesting
+  Mat getPage() {
+    return this.page;
   }
 
   /**

@@ -268,4 +268,29 @@ class PageCompositorTest {
     compositor.onPopupShow(false);
     assertNull(takeNow(compositor));
   }
+
+  @Test
+  void aWaitingTakerWakesUpForAPopupAndForItsEnd() throws Exception {
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
+    final byte[] target = new byte[compositor.getPageBytes()];
+    compositor.onPopupSize(new Rectangle(1, 1, 2, 2));
+    final CompletableFuture<FrameRegion> shown = CompletableFuture.supplyAsync(() -> waitForDamage(compositor, target));
+    Thread.sleep(100L);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 7), 2, 2);
+    assertEquals(7, pixel(shown.get(10, TimeUnit.SECONDS), 1, 1, 0));
+    final CompletableFuture<FrameRegion> hidden = CompletableFuture.supplyAsync(() -> waitForDamage(compositor, target));
+    Thread.sleep(100L);
+    compositor.onPopupShow(false);
+    final FrameRegion page = hidden.get(10, TimeUnit.SECONDS);
+    assertEquals(new Rectangle(1, 1, 2, 2), new Rectangle(page.getX(), page.getY(), page.getWidth(), page.getHeight()));
+  }
+
+  // waits much longer than the test, so only a wake-up ends the wait in time
+  private static FrameRegion waitForDamage(final PageCompositor compositor, final byte[] target) {
+    try {
+      return compositor.takeDamage(target, 60_000L);
+    } catch (final InterruptedException exception) {
+      throw new IllegalStateException(exception);
+    }
+  }
 }

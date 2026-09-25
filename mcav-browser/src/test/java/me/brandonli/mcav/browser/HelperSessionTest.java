@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
+import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
@@ -142,6 +144,10 @@ class HelperSessionTest {
     Await.until("the repeats of the settled page", () -> this.listener.frames.size() >= expected);
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 4);
     assertEquals(expected, this.listener.frames.size(), "the repeats stop");
+    // every repeat waits the repeat delay, so the last one comes that many delays after the picture itself
+    final long spanNanos = this.listener.frameNanos.get(expected - 1) - this.listener.frameNanos.get(0);
+    final long leastNanos = TimeUnit.MILLISECONDS.toNanos(HelperSession.SETTLED_REPEATS * HelperSession.REPEAT_DELAY_MILLIS);
+    assertTrue(spanNanos >= leastNanos, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanos) + " ms");
     session.sendKey(HelperProtocol.KEY_TYPE, "a");
     Await.until("the repeats of the changed page", () -> this.listener.frames.size() >= 2 * expected);
     session.close();
@@ -149,30 +155,149 @@ class HelperSessionTest {
   }
 
   @Test
-  void closingRemovesTheFolderOfTheSession() throws Exception {
+  void closingEndsTheThreadsTheConnectionAndThePictureAndRemovesTheFolder() {
+    // the folder is not read from the helper's command line: Linux shows no arguments of a command line longer than a
+    // page, which the class path of a test run is
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
-    final Path folder;
-    try (final Stream<ProcessHandle> handles = Stream.of(session.getProcess().toHandle())) {
-      final ProcessHandle handle = handles.findFirst().orElseThrow();
-      folder = Path.of(
-        handle
-          .info()
-          .arguments()
-          .map(arguments -> {
-            for (final String argument : arguments) {
-              if (argument.startsWith("-Djava.io.tmpdir=")) {
-                return argument.substring("-Djava.io.tmpdir=".length());
-              }
-            }
-            return "missing";
-          })
-          .orElse("missing")
-      );
+    Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    final List<Thread> threads = session.getThreads();
+    for (final Thread thread : threads) {
+      assertTrue(thread.isDaemon(), thread.getName() + " would keep the JVM alive");
     }
+    final Path folder = session.getFolder();
+    assertTrue(Files.isDirectory(folder), folder.toString());
+    assertTrue(session.isConnected());
     session.close();
-    if (!folder.toString().equals("missing")) {
-      assertFalse(Files.exists(folder), folder.toString());
+    for (final Thread thread : threads) {
+      assertFalse(thread.isAlive(), thread.getName() + " still runs after the close");
     }
+    assertFalse(session.isConnected());
+    assertNull(session.getCanvas().snapshot(), "the picture of the page is released");
+    assertFalse(Files.exists(folder), folder.toString());
+    assertFalse(session.isAlive());
+  }
+
+  @Test
+  void theThreadThatWritesTheInputDoesNotKeepTheJvmAlive() {
+    final Thread thread = HelperSession.createInputThread(() -> {});
+    assertTrue(thread.isDaemon());
+    assertEquals("mcav-browser-input", thread.getName());
+  }
+
+  @Test
+  void everySessionHasARandomTokenOfItsOwn() {
+    final byte[] first = HelperSession.createToken();
+    final byte[] second = HelperSession.createToken();
+    assertEquals(HelperProtocol.TOKEN_BYTES, first.length);
+    assertFalse(java.util.Arrays.equals(first, second), "two sessions got the same token");
+    assertFalse(java.util.Arrays.equals(new byte[HelperProtocol.TOKEN_BYTES], first), "the token is all zeros");
+  }
+
+  @Test
+  void theHelperGetsNoEnvironmentButWhatTheLauncherKeeps() {
+    final HelperLauncher launcher = new HelperLauncher(
+      NATIVES.resolve("java"),
+      ScriptedEngine.class.getName(),
+      List.of(),
+      List.of(),
+      OS.LINUX,
+      java.util.Map.of("PATH", "/usr/bin", "MCAV_TEST_SECRET", "hidden"),
+      1_000L
+    );
+    final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
+    // the test JVM has variables of its own, which the helper must not inherit
+    assertEquals(launcher.createEnvironment(null), builder.environment());
+    assertEquals(this.directory.toFile(), builder.directory());
+    assertTrue(builder.redirectErrorStream());
+  }
+
+  @Test
+  void theOutputOfARunningHelperIsReadWhateverItsSize() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), "/chatty");
+    // far more than a pipe holds: a helper whose output nobody reads blocks before its last line
+    Await.until("the last line of the helper", () -> session.getOutputTail().contains(RawHelperMain.CHATTY_END));
+    assertTrue(session.isAlive());
+  }
+
+  @Test
+  void aRegionAsLargeAsThePageIsAccepted() {
+    this.open(RawHelperMain.class.getName(), "/full-page");
+    Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    assertEquals(7, blue(this.listener.frames.get(0)));
+    assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
+  void aHelperThatExitsWhileItRunsEndsTheSessionWithItsExitCode() {
+    this.open(RawHelperMain.class.getName(), "/exit-later");
+    Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
+    assertEquals(List.of("The browser helper exited with code 5"), this.listener.ended);
+  }
+
+  @Test
+  void inputForAClosedSessionIsIgnoredWithoutBeingCalledDropped() {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
+    session.close();
+    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
+    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "late"));
+    assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
+  @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+  void inputThatCannotBeWrittenEndsTheSession() {
+    // the helper keeps its connection but reads no more, so Linux refuses to write to it (EPIPE); input goes on until
+    // then, since the helper shuts its side a moment after it showed the page
+    final HelperSession session = this.open(RawHelperMain.class.getName(), "/deaf");
+    Await.until("the end of the session", () -> {
+      session.sendKey(HelperProtocol.KEY_TYPE, "lost");
+      return !this.listener.ended.isEmpty();
+    });
+    final String reason = this.listener.ended.get(0);
+    assertTrue(reason.startsWith("Input could not be sent to the browser helper: "), reason);
+  }
+
+  @Test
+  void aProcessTheHelperStartedIsKilledWhenTheSessionCloses() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), "/child");
+    final java.util.Set<ProcessHandle> started = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    Await.until("the process the helper starts", () -> {
+      try (final Stream<ProcessHandle> descendants = session.getProcess().descendants()) {
+        descendants.forEach(started::add);
+      }
+      return !started.isEmpty();
+    });
+    // the helper itself exits when its input ends; its process outlives it unless the session kills it
+    session.close();
+    Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
+  }
+
+  @Test
+  void aStartThatFailsBeforeTheHelperConnectsLeavesNothingBehind() throws IOException {
+    final java.util.Set<ProcessHandle> before = liveDescendants();
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
+    final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
+    final PlayerException failure = assertThrows(PlayerException.class, () ->
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
+    );
+    assertEquals("The browser helper did not connect in time", failure.getMessage());
+    // the helper ignores the end of its input, so only a kill ends it; its display ends with it
+    assertEquals(java.util.Set.of(), newSince(before));
+    try (final Stream<Path> left = Files.list(this.directory)) {
+      assertEquals(List.of(), left.toList());
+    }
+  }
+
+  private static java.util.Set<ProcessHandle> liveDescendants() {
+    try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {
+      return descendants.filter(ProcessHandle::isAlive).collect(java.util.stream.Collectors.toSet());
+    }
+  }
+
+  private static java.util.Set<ProcessHandle> newSince(final java.util.Set<ProcessHandle> before) {
+    final java.util.Set<ProcessHandle> now = new java.util.HashSet<>(liveDescendants());
+    now.removeAll(before);
+    return now;
   }
 
   @Test
@@ -209,7 +334,7 @@ class HelperSessionTest {
   }
 
   @Test
-  void aProgramThatIsNotJavaFailsTheStart() {
+  void aProgramThatIsNotJavaFailsTheStart() throws IOException {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperLauncher broken = new HelperLauncher(
       NATIVES.resolve("no-such-java"),
@@ -220,10 +345,16 @@ class HelperSessionTest {
       System.getenv(),
       5_000L
     );
+    final java.util.Set<ProcessHandle> before = liveDescendants();
     final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener)
+      HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
     );
     assertTrue(failure.getMessage().startsWith("The browser helper could not be started"), failure.getMessage());
+    // the display that was started for the helper ends, and the folder of the session goes
+    assertEquals(java.util.Set.of(), newSince(before));
+    try (final Stream<Path> left = Files.list(this.directory)) {
+      assertEquals(List.of(), left.toList());
+    }
   }
 
   @Test
@@ -276,6 +407,7 @@ class HelperSessionTest {
       dropped = !session.sendKey(HelperProtocol.KEY_TYPE, text);
     }
     assertTrue(dropped, "the bounded queue refuses input once the helper stops reading");
+    assertFalse(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
   }
 
   @Test
@@ -338,24 +470,31 @@ class HelperSessionTest {
   }
 
   @Test
-  void aProcessTheHelperStartsWhileItDoesNotStopIsKilledWithIt() {
+  void aProcessTheHelperStartsWhileItDoesNotStopIsKilledWithIt() throws InterruptedException {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn-child");
     final Process process = session.getProcess();
-    final String command = process.info().commandLine().orElse("");
-    final java.util.regex.Matcher folder = Pattern.compile("-Djava\\.io\\.tmpdir=(\\S+)").matcher(command);
-    assumeTrue(folder.find(), "this system tells the command line of a process");
-    final String sessionFolder = folder.group(1);
-    // the helper ignores the end of its input, starts a process, and is killed after ten seconds
-    session.close();
-    assertFalse(process.isAlive());
-    Await.until("no process the helper started is left", () -> {
-      try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
-        return all.noneMatch(handle -> {
-          final String line = handle.info().commandLine().orElse("");
-          return handle.isAlive() && line.contains(GatedHelperMain.class.getName()) && line.contains(sessionFolder);
-        });
+    // the helper ignores the end of its input, starts a process two seconds later, and is killed after ten seconds;
+    // its processes are watched while the session closes, because they are no descendants once the helper is gone
+    final java.util.Set<ProcessHandle> started = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    final java.util.concurrent.atomic.AtomicBoolean closing = new java.util.concurrent.atomic.AtomicBoolean(true);
+    final Thread watcher = new Thread(() -> {
+      while (closing.get()) {
+        try (final Stream<ProcessHandle> descendants = process.descendants()) {
+          descendants.forEach(started::add);
+        }
+        java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
       }
     });
+    watcher.start();
+    try {
+      session.close();
+    } finally {
+      closing.set(false);
+      watcher.join();
+    }
+    assertFalse(process.isAlive());
+    assertFalse(started.isEmpty(), "the helper started a process while it did not stop");
+    Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
   }
 
   @Test
@@ -553,6 +692,8 @@ class HelperSessionTest {
   void aSocketPathThatIsTakenCannotBeBound() throws IOException {
     final Path taken = Files.createFile(this.directory.resolve("s"));
     assertThrows(IOException.class, () -> HelperSession.bind(taken).close());
+    // the socket that could not be bound is closed
+    OpenFiles.leaveNoneOpen("a failed bind", () -> assertThrows(IOException.class, () -> HelperSession.bind(taken).close()));
   }
 
   @Test
@@ -612,6 +753,7 @@ class HelperSessionTest {
   static final class RecordingListener implements BrowserSession.Listener {
 
     final List<ImageBuffer> frames = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Long> frameNanos = new java.util.concurrent.CopyOnWriteArrayList<>();
     final List<String> ended = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     List<Integer> blues() {
@@ -624,6 +766,7 @@ class HelperSessionTest {
 
     @Override
     public void onFrame(final ImageBuffer frame) {
+      this.frameNanos.add(System.nanoTime());
       this.frames.add(frame);
     }
 

@@ -166,4 +166,13 @@ class SocksProtocolTest {
     SocksProtocol.writeReply(out, SocksProtocol.NOT_ALLOWED);
     assertArrayEquals(new byte[] { 5, (byte) 0xFF, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 }, bytes.toByteArray());
   }
+
+  @Test
+  void aHostNameThatStartsWithABracketIsRefused() {
+    for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
+      final ProtocolException failure = assertThrows(ProtocolException.class, () -> request(domainRequest(SocksProtocol.CONNECT, host, 443))
+      );
+      assertEquals("The host name of the request holds a bracket: " + host, failure.getMessage());
+    }
+  }
 }

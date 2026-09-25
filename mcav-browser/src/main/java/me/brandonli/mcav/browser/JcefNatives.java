@@ -109,6 +109,16 @@ final class JcefNatives {
     this.extractor = extractor;
   }
 
+  /**
+   * Gets the folder the natives are installed in, so tests can check the default one.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
   private static Path defaultFolder() {
     final Path cache = IOUtils.getCachedFolder();
     return cache.resolve("jcef");

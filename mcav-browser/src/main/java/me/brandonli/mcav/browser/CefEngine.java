@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.awt.EventQueue;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -265,10 +266,16 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  private static String logFailedCall(final Throwable failure) {
-    final String message = "A DevTools call failed: " + failure;
-    System.err.println(message);
-    return message;
+  /**
+   * Writes a failed DevTools call to the log of the helper.
+   *
+   * @param failure why the call failed
+   * @return nothing, as nobody reads the result of an input call
+   */
+  @VisibleForTesting
+  static String logFailedCall(final Throwable failure) {
+    System.err.println("A DevTools call failed: " + failure);
+    return "";
   }
 
   /**

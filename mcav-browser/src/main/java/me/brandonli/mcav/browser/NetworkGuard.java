@@ -186,12 +186,11 @@ final class NetworkGuard implements Closeable {
    * @param client the client
    */
   private void serve(final Socket client) {
-    // the read timeout only limits a pause, so a client that trickles its handshake is closed once it took too long;
-    // a deadline cancelled in time never runs
+    // a client whose handshake takes too long is closed, however it trickles it; a deadline cancelled in time never
+    // runs, and after the handshake the connection may stay quiet for as long as it likes
     final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS);
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
-      client.setSoTimeout(this.handshakeTimeoutMillis);
       final InputStream rawInput = client.getInputStream();
       final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = client.getOutputStream();
@@ -217,7 +216,6 @@ final class NetworkGuard implements Closeable {
       this.sockets.add(target);
       try {
         SocksProtocol.writeReply(out, SocksProtocol.SUCCEEDED);
-        client.setSoTimeout(0);
         relay(in, client, target);
       } finally {
         this.sockets.remove(target);
@@ -278,7 +276,7 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Copies both directions of a connection until one side ends, then closes both.
+   * Copies both directions of a connection until one side ends; the caller closes both sockets then.
    *
    * @param fromClient the stream from the client, which may hold bytes the handshake read ahead
    * @param client     the client
@@ -293,21 +291,19 @@ final class NetworkGuard implements Closeable {
       .name("mcav-browser-guard-upstream")
       .start(() -> {
         pump(fromClient, toTarget);
+        // the client is done: closing the target ends the other direction too
         closeQuietly(target);
-        closeQuietly(client);
       });
     pump(fromTarget, toClient);
-    closeQuietly(client);
-    closeQuietly(target);
   }
 
   private static void pump(final InputStream in, final OutputStream out) {
     final byte[] buffer = new byte[BUFFER_BYTES];
     try {
       int count = in.read(buffer);
+      // the streams of a socket are not buffered, so every write goes out at once
       while (count >= 0) {
         out.write(buffer, 0, count);
-        out.flush();
         count = in.read(buffer);
       }
     } catch (final IOException exception) {

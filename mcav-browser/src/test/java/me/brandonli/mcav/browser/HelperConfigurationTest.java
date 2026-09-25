@@ -199,4 +199,14 @@ class HelperConfigurationTest {
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
     assertEquals("The configuration line is too long", longLine.getMessage());
   }
+
+  @Test
+  void aLineOfTheLongestLengthIsReadAndThenJudgedByItsValues() {
+    final String longest = "x".repeat(1024 * 1024);
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
+    assertTrue(failure.getMessage().startsWith("The configuration has 1 values instead of "), failure.getMessage());
+    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest + "x")
+    );
+    assertEquals("The configuration line is too long", tooLong.getMessage());
+  }
 }

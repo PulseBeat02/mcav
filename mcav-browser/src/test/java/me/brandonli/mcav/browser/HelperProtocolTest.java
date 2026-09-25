@@ -297,6 +297,38 @@ class HelperProtocolTest {
   }
 
   @Test
+  void aMessageOfTheWrongLengthIsRefusedBeforeItsContentIsRead() {
+    final int max = HelperProtocol.MAX_TEXT_BYTES;
+    final ProtocolException loading = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.LOADING, new byte[2])));
+    assertEquals("A message of type 4 has 1 bytes but announced 2", loading.getMessage());
+    final ProtocolException loadError = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.LOAD_ERROR, new byte[3])));
+    assertEquals("A message of type 5 has 8 to " + (4 + 2 * (2 + max)) + " bytes but announced 3", loadError.getMessage());
+    final ProtocolException text = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.READY, new byte[1])));
+    assertEquals("A message of type " + HelperProtocol.READY + " has 2 to " + (2 + max) + " bytes but announced 1", text.getMessage());
+  }
+
+  @Test
+  void aKeyMessageSaysHowMuchItHolds() throws IOException {
+    final byte[] padded = bytes(out -> {
+      out.writeByte(HelperProtocol.KEY);
+      out.writeInt(5);
+      out.writeByte(HelperProtocol.KEY_TYPE);
+      out.writeShort(1);
+      out.writeByte('a');
+      out.writeByte('b');
+    });
+    final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(padded));
+    assertEquals("A key message of 5 bytes holds 4", failure.getMessage());
+  }
+
+  @Test
+  void theShortestAndTheLongestTextsFit() throws IOException {
+    final String longest = "a".repeat(HelperProtocol.MAX_TEXT_BYTES);
+    assertEquals(longest, read(bytes(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, longest))).getText());
+    assertEquals("", read(bytes(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, ""))).getText());
+  }
+
+  @Test
   void aCloseCarriesNothing() throws IOException {
     assertEquals(HelperProtocol.CLOSE, read(bytes(HelperProtocol::writeClose)).getType());
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.CLOSE, new byte[1])));
@@ -389,7 +421,8 @@ class HelperProtocolTest {
     assertEquals(java.util.List.of("a".repeat(max)), HelperProtocol.split("a".repeat(max)));
     assertEquals(java.util.List.of("a".repeat(max), "a"), HelperProtocol.split("a".repeat(max + 1)));
     // two, three and four bytes per character: no character is cut, no part is too long, nothing is lost
-    for (final String character : new String[] { "\u00e9", "\u20ac", "\uD83D\uDE00" }) {
+    // the first characters of two, three and four bytes are counted right too
+    for (final String character : new String[] { "\u0080", "\u00e9", "\u0800", "\u20ac", "\uD800\uDC00", "\uD83D\uDE00" }) {
       final String text = character.repeat(max);
       final java.util.List<String> parts = HelperProtocol.split(text);
       assertEquals(text, String.join("", parts));

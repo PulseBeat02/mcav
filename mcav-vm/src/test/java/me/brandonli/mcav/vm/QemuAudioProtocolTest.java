@@ -244,6 +244,14 @@ class QemuAudioProtocolTest {
       out.write(new byte[QemuAudioProtocol.MAX_CUT_TEXT_BYTES]);
     });
     assertEquals(QemuAudioProtocol.Kind.IGNORED, clipboard.getKind());
+    final QemuAudioProtocol.Message largest = read(out -> writeData(out, new byte[QemuAudioProtocol.MAX_AUDIO_BYTES]));
+    assertEquals(QemuAudioProtocol.MAX_AUDIO_BYTES, largest.getLength());
+    final byte[] longestName = bytes(out -> {
+      out.write(new byte[4 + 16]);
+      out.writeInt(QemuAudioProtocol.MAX_TEXT_BYTES);
+      out.write(new byte[QemuAudioProtocol.MAX_TEXT_BYTES]);
+    });
+    QemuAudioProtocol.readServerInit(input(longestName));
   }
 
   @Test

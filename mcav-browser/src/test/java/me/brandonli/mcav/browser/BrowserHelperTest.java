@@ -19,16 +19,21 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PipedReader;
 import java.io.PipedWriter;
 import java.io.StringReader;
@@ -39,10 +44,13 @@ import java.nio.channels.Channels;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntFunction;
+import me.brandonli.mcav.browser.testing.OpenFiles;
+import me.brandonli.mcav.browser.testing.StandardError;
 import org.cef.browser.McavOffscreenBrowser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -415,6 +423,15 @@ class BrowserHelperTest {
   }
 
   @Test
+  void aHelperThatHaltsLogsWhy() {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> {}, 10L);
+    try (final StandardError errors = new StandardError()) {
+      helper.watchInput(new StringReader(""));
+      assertTrue(errors.text().contains("The browser helper did not stop within 10 ms and halts"), errors.text());
+    }
+  }
+
+  @Test
   void anInterruptedDeadlineStillHaltsAndKeepsTheInterrupt() {
     final List<Integer> halts = new java.util.concurrent.CopyOnWriteArrayList<>();
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 60_000L);
@@ -464,6 +481,146 @@ class BrowserHelperTest {
       release.countDown();
     }
     assertEquals(0, result.get(30, TimeUnit.SECONDS));
+  }
+
+  @Test
+  void theHelperLogsWhyItCannotRun() {
+    final String unreachable = this.configuration("/page").toLine() + "\n";
+    try (final StandardError errors = new StandardError()) {
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), BrowserHelperTest::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader(unreachable)), new ScriptedEngine(), BrowserHelperTest::neverHalts);
+      final String log = errors.text();
+      assertTrue(log.contains("The browser helper got no configuration"), log);
+      assertTrue(log.contains("The browser helper got an invalid configuration: "), log);
+      assertTrue(log.contains("The browser helper cannot reach the server: "), log);
+    }
+  }
+
+  @Test
+  void theHelperLogsWhyItStops() throws Exception {
+    try (final StandardError errors = new StandardError()) {
+      final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+      final CompletableFuture<Integer> result = this.run(helper);
+      try (final Peer peer = new Peer(this.server.accept())) {
+        peer.readUntil(HelperProtocol.READY);
+        peer.send(HelperProtocol::writeClose);
+        assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      }
+      assertTrue(errors.text().contains("The browser helper stops: the server asked to close"), errors.text());
+    }
+  }
+
+  @Test
+  void theHelperConnectsToTheSocketOfTheServer() throws IOException {
+    final Path socket = this.folder.resolve("s");
+    try (final ServerSocketChannel listening = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+      listening.bind(UnixDomainSocketAddress.of(socket));
+      try (final SocketChannel channel = BrowserHelper.connect(socket); final SocketChannel accepted = listening.accept()) {
+        assertTrue(channel.isConnected());
+        assertTrue(accepted.isConnected());
+      }
+    }
+  }
+
+  @Test
+  void aConnectionThatFailsLeavesNoFileOpen() {
+    final Path missing = this.folder.resolve("missing");
+    OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
+  }
+
+  @Test
+  void theThreadsOfTheHelperDoNotKeepItsJvmAlive() throws Exception {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      peer.readUntil(HelperProtocol.READY);
+      final List<Thread> threads = Thread.getAllStackTraces()
+        .keySet()
+        .stream()
+        .filter(thread -> thread.getName().startsWith("mcav-browser-helper-"))
+        .toList();
+      assertFalse(threads.isEmpty());
+      for (final Thread thread : threads) {
+        assertTrue(thread.isDaemon(), thread.getName());
+      }
+      peer.send(HelperProtocol::writeClose);
+      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  void theEndOfTheConnectionStopsTheHelper() {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    helper.readCommands(new DataInputStream(new ByteArrayInputStream(new byte[0])));
+    assertEquals("the server closed the connection", helper.getStopReason());
+  }
+
+  @Test
+  void theHelperReadsNothingMoreAfterACloseOrAMessageOnlyAHelperSends() {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    assertFalse(helper.handleCommand(HelperMessage.close()));
+    assertFalse(helper.handleCommand(HelperMessage.text(HelperProtocol.NOTICE, "confused server")));
+  }
+
+  @Test
+  void aStoppedHelperSendsNoMoreFramesAndClosesThePicture() throws Exception {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      peer.readUntil(HelperProtocol.READY);
+      peer.send(HelperProtocol::writeClose);
+      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+    }
+    final PageCompositor compositor = helper.getCompositor();
+    final byte[] buffer = new byte[compositor.getPageBytes()];
+    // a closed picture answers at once, with nothing; an open one would wait for damage
+    final long start = System.nanoTime();
+    assertNull(compositor.takeDamage(buffer, 10_000L));
+    assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5), "the picture of the page is still open");
+    final DataOutputStream unused = new DataOutputStream(OutputStream.nullOutputStream());
+    assertTimeoutPreemptively(Duration.ofSeconds(5), () -> helper.sendFrames(unused), "the frames go on after the stop");
+  }
+
+  @Test
+  void whatTheBrowserReportsReachesTheServer() throws Exception {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      assertEquals(1, peer.readUntil(HelperProtocol.LOADING).getNumber());
+      assertEquals("scripted notice", peer.readUntil(HelperProtocol.NOTICE).getText());
+      assertEquals(0, peer.readUntil(HelperProtocol.LOADING).getNumber());
+      peer.send(HelperProtocol::writeClose);
+      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  void aPageThatFailsToLoadIsReportedToTheServer() throws Exception {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/load-error"), new ScriptedEngine());
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      final HelperMessage error = peer.readUntil(HelperProtocol.LOAD_ERROR);
+      assertEquals(-105, error.getNumber());
+      assertEquals("ERR_NAME_NOT_RESOLVED", error.getText());
+      assertEquals("https://example.com/load-error", error.getUrl());
+      peer.send(HelperProtocol::writeClose);
+      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  void aReportThatCannotBeSentStopsTheHelper() {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final OutputStream gone = new OutputStream() {
+      @Override
+      public void write(final int value) throws IOException {
+        throw new IOException("the server is gone");
+      }
+    };
+    final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(gone));
+    reporter.onNotice("lost");
+    assertEquals("a message could not be sent: the server is gone", helper.getStopReason());
   }
 
   @Test

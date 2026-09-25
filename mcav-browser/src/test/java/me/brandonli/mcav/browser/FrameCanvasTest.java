@@ -18,6 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -111,5 +112,28 @@ class FrameCanvasTest {
     canvas.close();
     canvas.apply(new FrameRegion(2, 2, 0, 0, 1, 1, new byte[4]));
     assertNull(canvas.snapshot());
+  }
+
+  @Test
+  void everyRowOfARegionLandsOnItsOwnRow() throws ProtocolException {
+    try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
+      final byte[] pixels = new byte[2 * 2 * 4];
+      System.arraycopy(bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
+      System.arraycopy(bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
+      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, pixels));
+      try (final ImageBuffer image = snapshot(canvas)) {
+        assertEquals(10, bgr(image, 1, 1)[0]);
+        assertEquals(40, bgr(image, 1, 2)[0]);
+        assertEquals(60, bgr(image, 2, 2)[2]);
+      }
+    }
+  }
+
+  @Test
+  void closingReleasesTheNativePicture() {
+    final FrameCanvas canvas = new FrameCanvas(4, 3);
+    assertFalse(canvas.getPage().isNull());
+    canvas.close();
+    assertTrue(canvas.getPage().isNull());
   }
 }

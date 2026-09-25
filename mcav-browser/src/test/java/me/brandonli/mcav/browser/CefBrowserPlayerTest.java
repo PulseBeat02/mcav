@@ -23,11 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -340,7 +342,9 @@ class CefBrowserPlayerTest {
         "Browser input queue is full: The browser input backlog is full"
       ),
       this.reports
-    );
+    ); // a hold moves the pointer first and then presses: two more drops
+    this.player.sendMouseEvent(MouseClick.HOLD, 1, 1);
+    assertEquals(4, this.reports.size(), this.reports.toString());
   }
 
   @Test
@@ -375,6 +379,88 @@ class CefBrowserPlayerTest {
     assertThrows(NullPointerException.class, () -> other.startAsync(SOURCE, null));
   }
 
+  /**
+   * Wraps a picture and remembers whether it was closed.
+   */
+  private static final class ClosingProbe {
+
+    private final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+
+    ImageBuffer wrap(final ImageBuffer real) {
+      return (ImageBuffer) java.lang.reflect.Proxy.newProxyInstance(
+        ImageBuffer.class.getClassLoader(),
+        new Class<?>[] { ImageBuffer.class },
+        (proxy, method, arguments) -> {
+          if (method.getName().equals("close") && method.getParameterCount() == 0) {
+            this.closed.set(true);
+          }
+          try {
+            return method.invoke(real, arguments);
+          } catch (final java.lang.reflect.InvocationTargetException exception) {
+            throw exception.getCause();
+          }
+        }
+      );
+    }
+
+    boolean isClosed() {
+      return this.closed.get();
+    }
+  }
+
+  @Test
+  void aPictureIsClosedOnceThePipelineHasIt() {
+    assertTrue(this.player.start(SOURCE));
+    final ClosingProbe probe = new ClosingProbe();
+    this.listener.onFrame(probe.wrap(frame()));
+    assertEquals(1, this.processed.size());
+    assertTrue(probe.isClosed());
+  }
+
+  @Test
+  void aPictureOfTheStartIsClosedWhenItIsDropped() {
+    final ClosingProbe probe = new ClosingProbe();
+    final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      sessionListener.onFrame(probe.wrap(frame()));
+      return new FakeSession();
+    });
+    assertTrue(early.start(SOURCE));
+    assertTrue(probe.isClosed());
+  }
+
+  @Test
+  void aPlayerReleasedOnAnotherThreadCanBeUsedOnThisOne() {
+    assertTrue(this.player.start(SOURCE));
+    CompletableFuture.runAsync(() -> assertTrue(this.player.release())).join();
+    // the release gave its lock back, so a start elsewhere answers at once
+    assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertFalse(this.player.start(SOURCE)));
+  }
+
+  @Test
+  void aStoppedModuleDownloadsNothing() {
+    final List<URI> downloads = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final JcefNatives recording = new JcefNatives(
+      Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
+      (uri, destination, sha256) -> {
+        downloads.add(uri);
+        throw new IOException("offline");
+      },
+      "https://unreachable.test/",
+      new ArchiveExtractor()
+    );
+    final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(recording, List.of());
+    HelperProcesses.closeAll();
+    try {
+      final PlayerException failure = assertThrows(PlayerException.class, () ->
+        factory.open(SOURCE, BrowserOptions.DEFAULT, new HelperSessionTest.RecordingListener())
+      );
+      assertEquals("The browser module is stopped", failure.getMessage());
+    } finally {
+      HelperProcesses.open();
+    }
+    assertEquals(List.of(), downloads);
+  }
+
   @Test
   void theDefaultPlayerIsAJcefPlayer() {
     assertInstanceOf(CefBrowserPlayer.class, BrowserPlayer.create());
@@ -397,5 +483,16 @@ class CefBrowserPlayerTest {
     assertTrue(failure.getMessage().startsWith("The browser cannot be installed"), failure.getMessage());
     assertFalse(offline.isPlaying());
     assertInstanceOf(IOException.class, failure.getCause());
+  }
+
+  @Test
+  void anAsynchronousStartTellsWhetherTheBrowserStarted() {
+    assertTrue(this.player.release());
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      assertFalse(this.player.startAsync(SOURCE, executor).join());
+    } finally {
+      executor.shutdownNow();
+    }
   }
 }

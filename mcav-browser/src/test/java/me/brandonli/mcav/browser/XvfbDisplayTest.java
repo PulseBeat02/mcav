@@ -148,6 +148,44 @@ class XvfbDisplayTest {
     };
     final PlayerException unreadable = assertThrows(PlayerException.class, () -> XvfbDisplay.readDisplayNumber(broken, 5_000L));
     assertEquals("Xvfb did not report a display within 5000 ms", unreadable.getMessage());
+    // a zero byte does not end the line
+    final PlayerException zero = assertThrows(PlayerException.class, () ->
+      XvfbDisplay.readDisplayNumber(text("12" + (char) 0 + "3\n"), 5_000L)
+    );
+    assertEquals("Xvfb reported no display number: 12" + (char) 0 + "3", zero.getMessage());
+  }
+
+  @Test
+  void everyDisplayHasARandomCookieOfItsOwn() {
+    final byte[] first = XvfbDisplay.createCookie();
+    final byte[] second = XvfbDisplay.createCookie();
+    assertEquals(16, first.length);
+    assertFalse(java.util.Arrays.equals(first, second), "two displays got the same cookie");
+    assertFalse(java.util.Arrays.equals(new byte[16], first), "the cookie is all zeros");
+  }
+
+  @Test
+  void aProgramThatReportsNoDisplayIsStopped() throws IOException {
+    final boolean posix = this.folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(posix, "a shell script can stand in for Xvfb");
+    final Path fake = this.folder.resolve("chatty-xvfb");
+    Files.writeString(fake, "#!/bin/sh\necho garbage\nexec sleep 60\n");
+    Files.setPosixFilePermissions(fake, PosixFilePermissions.fromString("rwx------"));
+    final Path session = Files.createDirectory(this.folder.resolve("session"));
+    final java.util.Set<ProcessHandle> before = liveChildren();
+    final PlayerException failure = assertThrows(PlayerException.class, () ->
+      XvfbDisplay.start(fake, session, this.folder.resolve("no-sockets"))
+    );
+    assertEquals("Xvfb reported no display number: garbage", failure.getMessage());
+    final java.util.Set<ProcessHandle> left = new java.util.HashSet<>(liveChildren());
+    left.removeAll(before);
+    assertEquals(java.util.Set.of(), left);
+  }
+
+  private static java.util.Set<ProcessHandle> liveChildren() {
+    try (final java.util.stream.Stream<ProcessHandle> children = ProcessHandle.current().children()) {
+      return children.filter(ProcessHandle::isAlive).collect(java.util.stream.Collectors.toSet());
+    }
   }
 
   @Test
@@ -302,6 +340,30 @@ class XvfbDisplayTest {
       // what the death of the JVM does to the connection
       keeper.close();
       Await.until("Xvfb ended with its last client", () -> !this.runsXvfbOfThisTest());
+    } finally {
+      display.close();
+    }
+  }
+
+  @Test
+  void closingStopsXvfbEvenWhileAnotherClientKeepsTheDisplay() throws Exception {
+    final Optional<Path> program = XvfbDisplay.find(System.getenv("PATH"));
+    assumeTrue(program.isPresent(), "Xvfb is installed");
+    assumeTrue(Files.isDirectory(Path.of("/tmp/.X11-unix")), "displays have socket files");
+    final XvfbDisplay display = XvfbDisplay.start(program.get(), this.folder);
+    final java.nio.channels.SocketChannel keeper = display.getKeeper();
+    // the cookie is the last entry of the authority file
+    final byte[] authority = Files.readAllBytes(display.getAuthority());
+    final byte[] cookie = java.util.Arrays.copyOfRange(authority, authority.length - 16, authority.length);
+    final Path socket = Path.of("/tmp/.X11-unix", "X" + display.getDisplay().substring(1));
+    try (final java.nio.channels.SocketChannel other = XvfbDisplay.connectKeeper(socket, cookie)) {
+      assertNotNull(keeper);
+      assertNotNull(other);
+      Thread.sleep(500L);
+      assertTrue(this.runsXvfbOfThisTest());
+      display.close();
+      assertFalse(keeper.isOpen(), "the connection of the server is closed");
+      Await.until("Xvfb stopped although another client is connected", () -> !this.runsXvfbOfThisTest());
     } finally {
       display.close();
     }

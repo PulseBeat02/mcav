@@ -158,11 +158,14 @@ final class HelperSession implements BrowserSession {
     this.output = new DataOutputStream(new BufferedOutputStream(rawOutput));
     this.canvas = canvas;
     this.listener = listener;
-    this.input = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(MAX_QUEUED_INPUT), runnable -> {
-      final Thread thread = new Thread(runnable, "mcav-browser-input");
-      thread.setDaemon(true);
-      return thread;
-    });
+    this.input = new ThreadPoolExecutor(
+      1,
+      1,
+      0L,
+      TimeUnit.MILLISECONDS,
+      new ArrayBlockingQueue<>(MAX_QUEUED_INPUT),
+      HelperSession::createInputThread
+    );
     this.outputTail = new ArrayDeque<>();
     this.closing = new AtomicBoolean();
     this.ended = new AtomicBoolean();
@@ -190,8 +193,32 @@ final class HelperSession implements BrowserSession {
     final BrowserOptions options,
     final Listener listener
   ) {
-    HelperProcesses.requireOpen();
     final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
+    return open(launcher, natives, source, options, listener, temporary);
+  }
+
+  /**
+   * Starts a helper whose session folder lies in the given folder, so tests can see what a start leaves behind.
+   *
+   * @param launcher  the launcher
+   * @param natives   the installed CEF natives
+   * @param source    the page and its size
+   * @param options   the security profile and frame rate
+   * @param listener  receives the frames and an unexpected end
+   * @param temporary the folder the session folder is created in
+   * @return the running session
+   * @throws PlayerException as {@link #open(HelperLauncher, Path, BrowserSource, BrowserOptions, Listener)}
+   */
+  @VisibleForTesting
+  static HelperSession open(
+    final HelperLauncher launcher,
+    final Path natives,
+    final BrowserSource source,
+    final BrowserOptions options,
+    final Listener listener,
+    final Path temporary
+  ) {
+    HelperProcesses.requireOpen();
     final Path folder = createFolder(temporary);
     final Path socket = folder.resolve(SOCKET_NAME);
     final byte[] token = createToken();
@@ -292,7 +319,13 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static byte[] createToken() {
+  /**
+   * Creates the secret a helper must present when it connects.
+   *
+   * @return {@link HelperProtocol#TOKEN_BYTES} random bytes
+   */
+  @VisibleForTesting
+  static byte[] createToken() {
     final SecureRandom random = new SecureRandom();
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     random.nextBytes(token);
@@ -322,6 +355,21 @@ final class HelperSession implements BrowserSession {
 
   private static Process startProcess(final HelperLauncher launcher, final Path folder, final @Nullable XvfbDisplay display)
     throws IOException {
+    final ProcessBuilder builder = createProcessBuilder(launcher, folder, display);
+    return builder.start();
+  }
+
+  /**
+   * Prepares the process of a helper: its command, no environment but what the launcher keeps, the session folder as
+   * its working folder, and one stream for its output and its errors.
+   *
+   * @param launcher the launcher
+   * @param folder   the folder of the session
+   * @param display  the private display of the helper, or null if it needs none
+   * @return the process builder
+   */
+  @VisibleForTesting
+  static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable XvfbDisplay display) {
     final List<String> command = launcher.createCommand(folder);
     final ProcessBuilder builder = new ProcessBuilder(command);
     final Map<String, String> environment = builder.environment();
@@ -330,7 +378,7 @@ final class HelperSession implements BrowserSession {
     environment.putAll(kept);
     builder.directory(folder.toFile());
     builder.redirectErrorStream(true);
-    return builder.start();
+    return builder;
   }
 
   private static SocketChannel accept(final ServerSocketChannel server, final Process process, final long deadline) throws IOException {
@@ -369,6 +417,50 @@ final class HelperSession implements BrowserSession {
     thread.setDaemon(true);
     thread.start();
     return thread;
+  }
+
+  /**
+   * Creates the thread that writes the input to the helper, which must not keep the JVM alive.
+   *
+   * @param task what the thread runs
+   * @return the unstarted thread
+   */
+  @VisibleForTesting
+  static Thread createInputThread(final Runnable task) {
+    final Thread thread = new Thread(task, "mcav-browser-input");
+    thread.setDaemon(true);
+    return thread;
+  }
+
+  /**
+   * Gets the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
+   * can check how they run and that they end.
+   *
+   * @return the reader, delivery and output threads
+   */
+  @VisibleForTesting
+  List<Thread> getThreads() {
+    return List.of(this.reader, this.delivery, this.drain);
+  }
+
+  /**
+   * Gets the private folder of the session, so tests can check that it goes.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
+  /**
+   * Checks whether the connection to the helper is still open.
+   *
+   * @return true while it is open
+   */
+  @VisibleForTesting
+  boolean isConnected() {
+    return this.channel.isOpen();
   }
 
   /**

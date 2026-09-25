@@ -47,12 +47,23 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /exit}: exits before it connects;</li>
  *   <li>{@code /silent}: never connects, and exits when its standard input ends;</li>
  *   <li>{@code /stubborn-child}: like {@code /stubborn}, and starts a process of its own once its standard input
- *   ended, which runs for a minute.</li>
+ *   ended, which runs for a minute;</li>
+ *   <li>{@code /child}: shows the page and starts a process of its own at once, which runs for a minute;</li>
+ *   <li>{@code /chatty}: writes far more output than a pipe holds before it connects, then shows the page;</li>
+ *   <li>{@code /full-page}: shows the page with one region as large as the page;</li>
+ *   <li>{@code /exit-later}: shows the page and exits with code 5 half a second later;</li>
+ *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
+ *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes.</li>
  * </ul>
  *
  * <p>It then waits until its standard input ends.
  */
 public final class RawHelperMain {
+
+  /**
+   * The last line {@code /chatty} writes.
+   */
+  static final String CHATTY_END = "the chatty helper is done";
 
   private RawHelperMain() {}
 
@@ -73,6 +84,9 @@ public final class RawHelperMain {
         // the server gives up on this helper by closing its input
       }
       System.exit(0);
+    }
+    if (configuration.getUrl().getPath().equals("/silent-stubborn")) {
+      waitTwoMinutes();
     }
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(configuration.getSocket()));
@@ -100,7 +114,7 @@ public final class RawHelperMain {
         sleep();
         HelperProtocol.writeClose(out);
       }
-      case "/stall", "/stubborn", "/stubborn-child", "/hang-up" -> {
+      case "/stall", "/stubborn", "/stubborn-child", "/hang-up", "/child", "/chatty", "/exit-later", "/deaf" -> {
         HelperProtocol.writeHello(out, token);
         HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
@@ -109,18 +123,42 @@ public final class RawHelperMain {
         if (path.equals("/hang-up")) {
           channel.close();
         }
+        if (path.equals("/deaf")) {
+          // the server can no longer write to this helper, while the helper keeps its own side open
+          channel.shutdownInput();
+        }
+        if (path.equals("/chatty")) {
+          // a pipe holds 64 KiB on Linux: unless the server reads the output, this helper blocks here
+          final String line = "x".repeat(1023);
+          for (int count = 0; count < 256; count++) {
+            System.out.println(line);
+          }
+          System.out.println(CHATTY_END);
+          System.out.flush();
+        }
+        if (path.equals("/exit-later")) {
+          sleep();
+          System.exit(5);
+        }
+        if (path.equals("/child")) {
+          startChild();
+        }
         if (path.equals("/stubborn-child")) {
           startChildWhenTheInputEnds(input);
         }
         if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
-          // long enough for any test that kills it, and short enough that a test runner killed meanwhile leaves no
-          // helper behind for long
-          final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(2);
-          while (System.nanoTime() < deadline) {
-            sleep();
-          }
-          System.exit(0);
+          waitTwoMinutes();
         }
+      }
+      case "/full-page" -> {
+        HelperProtocol.writeHello(out, token);
+        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
+        final int width = configuration.getWidth();
+        final int height = configuration.getHeight();
+        final byte[] pixels = new byte[width * height * 4];
+        java.util.Arrays.fill(pixels, (byte) 7);
+        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, pixels));
+        HelperProtocol.writeLoading(out, false);
       }
       case "/frame-first" -> HelperProtocol.writeFrame(
         out,
@@ -157,13 +195,7 @@ public final class RawHelperMain {
         awaitTheEnd(input);
         // after the server listed the processes of this helper, while it waits for it to stop
         Thread.sleep(2_000L);
-        final String program = ProcessHandle.current().info().command().orElse("java");
-        final String classPath = System.getProperty("java.class.path");
-        final String gate = System.getProperty("java.io.tmpdir") + File.separator + "never-opens";
-        new ProcessBuilder(program, "-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate, "-cp", classPath, GatedHelperMain.class.getName())
-          .redirectErrorStream(true)
-          .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-          .start();
+        startChild();
       } catch (final IOException exception) {
         throw new java.io.UncheckedIOException(exception);
       } catch (final InterruptedException exception) {
@@ -172,6 +204,33 @@ public final class RawHelperMain {
     });
     watcher.setDaemon(true);
     watcher.start();
+  }
+
+  /**
+   * Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute.
+   *
+   * @throws IOException if the process cannot be started
+   */
+  private static void startChild() throws IOException {
+    final String program = ProcessHandle.current().info().command().orElse("java");
+    final String classPath = System.getProperty("java.class.path");
+    final String gate = System.getProperty("java.io.tmpdir") + File.separator + "never-opens";
+    new ProcessBuilder(program, "-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate, "-cp", classPath, GatedHelperMain.class.getName())
+      .redirectErrorStream(true)
+      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+      .start();
+  }
+
+  /**
+   * Keeps running for two minutes, whatever happens to the standard input: long enough for any test that kills this
+   * helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
+   */
+  private static void waitTwoMinutes() {
+    final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(2);
+    while (System.nanoTime() < deadline) {
+      sleep();
+    }
+    System.exit(0);
   }
 
   private static void awaitTheEnd(final BufferedReader input) throws IOException {

@@ -228,4 +228,17 @@ class ArchiveExtractorTest {
     final InputStream garbage = new ByteArrayInputStream("not gzip".getBytes(StandardCharsets.UTF_8));
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(garbage, this.target));
   }
+
+  @Test
+  void anArchiveWithExactlyTheLargestNumberOfEntriesIsExtracted() throws IOException {
+    final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").finish();
+    new ArchiveExtractor(2, 1000).extract(archive, this.target);
+    assertTrue(Files.isRegularFile(this.target.resolve("b")));
+  }
+
+  @Test
+  void aNameThatStartsWithABackslashIsRefused() {
+    final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(this.target, "\\evil"));
+    assertEquals("The archive entry name is not allowed: \\evil", failure.getMessage());
+  }
 }

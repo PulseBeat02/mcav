@@ -301,4 +301,21 @@ class JcefNativesTest {
       throw new java.io.UncheckedIOException(exception);
     }
   }
+
+  @Test
+  void theNativesLiveInTheCacheOfMcavByDefault() {
+    assertEquals(me.brandonli.mcav.utils.IOUtils.getCachedFolder().resolve("jcef"), new JcefNatives().getFolder());
+  }
+
+  @Test
+  void theLockOfAnInstallationIsHeldUntilItIsReleased() throws IOException {
+    final Path file = this.folder.resolve("install.lock.file");
+    try (
+      final FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+      final FileLock lock = JcefNatives.lock(channel)
+    ) {
+      assertTrue(lock.isValid());
+      assertSame(channel, lock.channel());
+    }
+  }
 }

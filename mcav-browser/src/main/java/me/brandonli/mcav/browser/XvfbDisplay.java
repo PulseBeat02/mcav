@@ -174,7 +174,13 @@ final class XvfbDisplay implements AutoCloseable {
     return List.of(programPath, "-displayfd", "1", "-auth", authorityPath, "-nolisten", "tcp", "-screen", "0", "16x16x24", "-terminate");
   }
 
-  private static byte[] createCookie() {
+  /**
+   * Creates the secret a client of the display must present.
+   *
+   * @return {@link #COOKIE_BYTES} random bytes
+   */
+  @VisibleForTesting
+  static byte[] createCookie() {
     final SecureRandom random = new SecureRandom();
     final byte[] cookie = new byte[COOKIE_BYTES];
     random.nextBytes(cookie);

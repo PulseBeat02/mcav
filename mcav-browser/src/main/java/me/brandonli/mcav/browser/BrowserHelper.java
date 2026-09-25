@@ -156,7 +156,15 @@ public final class BrowserHelper {
     return helper.run(input, BrowserHelper::connect);
   }
 
-  private static SocketChannel connect(final Path socket) throws IOException {
+  /**
+   * Connects to the socket of the server.
+   *
+   * @param socket the path of the socket
+   * @return the connected channel
+   * @throws IOException if the connection fails; the channel is closed then
+   */
+  @VisibleForTesting
+  static SocketChannel connect(final Path socket) throws IOException {
     final UnixDomainSocketAddress address = UnixDomainSocketAddress.of(socket);
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     try {

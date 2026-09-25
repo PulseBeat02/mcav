@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
@@ -81,5 +82,18 @@ class BrowserSourceTest {
       BrowserSource.uri(PAGE, 640, 481, 2),
       BrowserSource.uri(PAGE, 640, 480, 3)
     );
+  }
+
+  @Test
+  void sourcesThatDifferInASettingHashDifferently() {
+    final BrowserSource first = BrowserSource.uri(PAGE, 640, 480, 1);
+    final BrowserSource wider = BrowserSource.uri(PAGE, 641, 480, 1);
+    assertNotEquals(first.hashCode(), wider.hashCode());
+  }
+
+  @Test
+  void aSideOfZeroIsRefusedForEitherSide() {
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 480, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 640, 0, 1));
   }
 }

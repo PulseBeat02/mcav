@@ -156,10 +156,9 @@ final class SocksProtocol {
    * @throws ProtocolException if the text is not an IPv6 address
    */
   private static String readIpv6Literal(final String text) throws ProtocolException {
-    final boolean bracketed = text.startsWith("[") && text.endsWith("]");
-    final String bare = bracketed ? text.substring(1, text.length() - 1) : text;
     try {
-      final InetAddress address = InetAddress.ofLiteral(bare);
+      // InetAddress reads an IPv6 literal in brackets too
+      final InetAddress address = InetAddress.ofLiteral(text);
       return address.getHostAddress();
     } catch (final IllegalArgumentException exception) {
       final ProtocolException failure = new ProtocolException("The host name of the request is not an IPv6 address: " + text);
