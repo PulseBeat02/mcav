@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.command;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,12 +57,17 @@ import org.bukkit.plugin.PluginManager;
 import org.incendo.cloud.Command;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
+import org.incendo.cloud.component.CommandComponent;
 import org.incendo.cloud.description.CommandDescription;
 import org.incendo.cloud.description.Description;
 import org.incendo.cloud.execution.CommandExecutor;
 import org.incendo.cloud.execution.CommandResult;
 import org.incendo.cloud.minecraft.extras.RichDescription;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
+import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.parser.standard.IntegerParser;
+import org.incendo.cloud.parser.standard.StringParser;
+import org.incendo.cloud.type.range.IntRange;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,6 +164,54 @@ final class AnnotationParserHandlerTest {
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
+  }
+
+  /**
+   * Finds the parser of a named argument of a registered command.
+   */
+  private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
+    final Command<CommandSender> command = this.commands.command(syntax);
+    final List<CommandComponent<CommandSender>> components = command.components();
+    for (final CommandComponent<CommandSender> component : components) {
+      final String name = component.name();
+      if (name.equals(argument)) {
+        return component.parser();
+      }
+    }
+    throw new AssertionError("No argument " + argument + " in " + syntax);
+  }
+
+  @Test
+  void limitsTheFrameRateOfVirtualMachines() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final String syntax =
+      "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture flags";
+    final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFps");
+    final IntegerParser<?> fps = assertInstanceOf(IntegerParser.class, parser);
+    final IntRange range = fps.range();
+    final int min = range.minInt();
+    final int max = range.maxInt();
+    assertEquals(1, min);
+    assertEquals(240, max, "a capture rate above the largest suggestion only burns the CPU of the server");
+  }
+
+  @Test
+  void takesTheRestOfTheLineForFreeTextArguments() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final String vm = "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture flags";
+    final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl";
+    final String browser = "mcav browser create playerSelector browserResolution quality nth blockDimensions mapId ditheringAlgorithm url";
+    final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");
+    final ArgumentParser<CommandSender, ?> mrl = this.parserOf(image, "mrl");
+    final ArgumentParser<CommandSender, ?> url = this.parserOf(browser, "url");
+    final StringParser<?> flagsParser = assertInstanceOf(StringParser.class, flags);
+    final StringParser<?> mrlParser = assertInstanceOf(StringParser.class, mrl);
+    final StringParser<?> urlParser = assertInstanceOf(StringParser.class, url);
+    assertEquals(StringParser.StringMode.GREEDY, flagsParser.stringMode(), "QEMU options are several words, as the jukebox sends them");
+    assertEquals(StringParser.StringMode.GREEDY, mrlParser.stringMode(), "image paths may contain spaces without quotes");
+    assertEquals(StringParser.StringMode.GREEDY, urlParser.stringMode());
   }
 
   @Test

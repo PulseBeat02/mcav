@@ -345,9 +345,6 @@ final class PlaybackSession {
     throws FrameGrabber.Exception, InterruptedException {
     this.seekToStart(grabber);
     final OriginalVideoMetadata decodedVideoMetadata = createVideoMetadata(grabber);
-    if (wantVideo && decodedVideoMetadata.isEmpty()) {
-      throw new FrameGrabber.Exception("The media has no video track or the video codec is missing");
-    }
     final double frameRate = grabber.getFrameRate();
     final long length = grabber.getLengthInTime();
     final VideoTimestamps timestamps = new VideoTimestamps(frameRate, length <= 0, this.nanoClock);

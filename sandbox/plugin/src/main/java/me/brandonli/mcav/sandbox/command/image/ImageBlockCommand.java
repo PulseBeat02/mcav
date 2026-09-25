@@ -80,7 +80,7 @@ public final class ImageBlockCommand extends AbstractImageCommand {
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
     final Location location,
-    @Quoted final String mrl
+    @Greedy final String mrl
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");

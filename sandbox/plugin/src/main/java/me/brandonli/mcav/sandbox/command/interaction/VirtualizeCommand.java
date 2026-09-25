@@ -217,7 +217,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final VMPlayer.Architecture architecture,
-    @Quoted final String flags
+    @Greedy final String flags
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");

@@ -82,7 +82,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
     @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
     final Location location,
-    @Quoted final String mrl
+    @Greedy final String mrl
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
