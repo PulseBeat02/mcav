@@ -68,8 +68,9 @@ public final class DumpUtils {
   private static final Pattern WORD = Pattern.compile("\\S+");
   // the address of a player, as the server logs it when they join or leave, with or without its port
   private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
-  // the bracketed form the server logs an IPv6 address in, such as /[::1]:25565, and never a time of day
-  private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+](?::\\d{1,5})?");
+  // the bracketed form the server logs an IPv6 address in, such as /[::1]:25565, and never a time of day; a link-local
+  // address carries its zone after a percent sign, such as /[fe80:0:0:0:0:0:0:1%eth0]:25565
+  private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
   // what a player typed after a command of another plugin, which may be their password
   private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
   private static final String OWN_COMMAND_PREFIX = "mcav";

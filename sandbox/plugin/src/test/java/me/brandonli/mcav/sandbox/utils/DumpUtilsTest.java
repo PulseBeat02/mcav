@@ -338,6 +338,26 @@ final class DumpUtilsTest {
     assertTrue(redactedSixth.contains("<redacted-address>"), redactedSixth);
   }
 
+  /**
+   * Found by {@code DumpRedactionPropertyTest}: the JDK writes the zone of a link-local IPv6 address after a percent
+   * sign, as in {@code /[fe80:0:0:0:0:0:0:1%eth0]:50514}, which a player on the local network connects from. The first
+   * line is the smallest case the property shrank to.
+   */
+  @Test
+  void redactsTheAddressOfAPlayerOnALinkLocalConnection() {
+    final String shrunk = "[12:34:56 INFO]: aaa[/[0:0:0:0:0:0:0:0%0]:0] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)";
+    final String named = "[12:34:56 INFO]: Player[/[fe80:0:0:0:0:0:0:1%eth0]:50514] logged in with entity id 42";
+
+    final String redactedShrunk = DumpUtils.redactLogLine(shrunk);
+    final String redactedNamed = DumpUtils.redactLogLine(named);
+
+    assertFalse(redactedShrunk.contains("0:0:0:0:0:0:0:0%0"), redactedShrunk);
+    assertTrue(redactedShrunk.contains("<redacted-address>"), redactedShrunk);
+    assertFalse(redactedNamed.contains("fe80:"), redactedNamed);
+    assertFalse(redactedNamed.contains("%eth0"), redactedNamed);
+    assertTrue(redactedNamed.contains("<redacted-address>"), redactedNamed);
+  }
+
   @Test
   void redactsWhatPlayersTypedAfterTheCommandsOfOtherPlugins() {
     final String login = "[12:34:56 INFO]: Steve issued server command: /login hunter2";
