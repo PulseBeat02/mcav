@@ -43,3 +43,7 @@ parts:
       - file: bukkit/other.md
       - file: bukkit/image.md
       - file: bukkit/resourcepack.md
+  - caption: MCV2 Video Codec 🎞️
+    chapters:
+      - file: mcv2-integration.md
+      - file: mcv2-format.md

@@ -1,6 +1,6 @@
 # MCV2 in mcav: integration design
 
-Status: **design, written before the integration code** (2026-09-25), updated as evidence arrived. The decisions
+Status: **design, written before the integration code** (2026-09-25), updated as evidence arrived and as built. The decisions
 below cite the measurement or experiment behind them; where a decision is provisional it says what would settle it.
 Handover notes for later stages are at the end.
 
@@ -22,8 +22,9 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
   sparse child quartets, compact classes 0-8 with the static 2,048-byte residual books, pattern palettes) is kept.
 - **Not ported, rejected with `UnsupportedSyntaxException`:** MCV1 frames (magic `MCV1`), the coarse palette modes 21
   and 22 of round 3, and the motion table flag 256 with indexed motion mode 23 of round 15. These are the only inputs
-  on which the Java decoder and the reference knowingly disagree; the reference accepts modes 21/22 and ignores flag
-  256 on stored-index frames.
+  on which the Java decoder and the reference knowingly disagree: the reference decodes MCV1, modes 21/22, and flag 256
+  with mode 23 on derived-offset frames, and ignores flag 256 on stored-index frames (table in
+  [mcv2-format.md](mcv2-format.md), section 1).
 - **Profiles shipped** (owner addendum 2, rule: newest round with 1080p30 points, cheapest `wire_mbps` at VMAF mean
   >= 75, and its >= 70 alternative from the same round, in `results/frontier_1080p30.json`):
 
@@ -153,39 +154,108 @@ decoding would remove that gap and remain a stretch goal.
 
 ## 5. Client shader architecture (resource pack)
 
-- **Transport strip.** `core/text.vsh` recognises page maps (header prefix) and anchor maps (signature), reads the
-  slot from the page header in the vertex shader, and moves the quad to a fixed rectangle at the top of the screen.
-  `core/text.fsh` packs four six-bit symbols into three RGB bytes per pixel, so a page needs 4,096 pixels (3 rows at
-  1920 wide) instead of 16,384. Alpha is 1 so the `TRANSLUCENT` blend is exact; depth is nearest so nothing later
-  overdraws the strip. All other text rendering (signs, names, GUI, grayscale and see-through variants) is unchanged.
-- **Anchors.** Invisible item frames at the screen's corners hold static anchor maps (signature, the anchor's column
-  and row in the screen, the screen's size in blocks, the frame's facing, a checksum). Their vertex shader writes the
-  screen's top-left corner, right and down vectors in view space and the projection matrix into a descriptor row. Any
-  one visible anchor places the whole screen.
-- **Post chain** (`post_effect/entity_outline.json`, the vanilla outline passes kept after ours): bytes pass
-  (strip → RGBA8 frame bytes of the slot being decoded), status pass (page headers, frame ids, CRC32), decode pass (the
-  gpu-codec GLSL decoder reading the byte target and the persistent reference, writing a scratch target), commit pass
-  (scratch → persistent reference and state), screen pass (ray-cast, depth test, draw the picture into main), strip
-  restore (the strip rows are refilled from the rows below them).
-- **Trigger.** The chain runs only when a glowing entity drew outline geometry, so the data frames behind the screen
-  are visible glowing item frames on a dedicated team colour, and the first pass removes that colour from the outline
-  target so the frames never show a glow.
+As built in `mcav-bukkit/src/main/resources/mcav/mcv2/pack` and assembled by `Mcv2Pack` (pack format 88, Minecraft
+26.2). The pass sources are fixed; what depends on the screen is generated: the video size and page slots, the stream
+id, the page frames' outline colour, the transport alphabet (the RGB of map colours 4..67 from the server's own
+`MapColor` table, which is the client's) and the residual books (from the bytes the Java decoder uses).
+
+- **Transport strip.** `core/text.vsh` recognises a page map by its MCP1 header and an anchor map by its eight-symbol
+  signature (21, 3, 58, 44, 9, 37, 60, 17); every other map and all other text (signs, names, GUI, see-through and
+  grayscale variants) is drawn exactly as by vanilla. A page quad moves to the rows of the slot its header names:
+  slot p starts p·R rows from the top of the screen, R = ceil(4,096 / screen width), and `core/text.fsh` packs four
+  six-bit symbols into the three bytes of one pixel, so a page needs 4,096 pixels (three rows at 1920 wide). The
+  anchors' descriptor row follows the slots, so the strip is SLOTS·R + 1 rows (13 at 1920 wide with four slots). Alpha
+  is 1, so the `TRANSLUCENT` blend writes the bytes unchanged.
+- **Anchors.** The screen's own item frames (the wall's maps) carry small anchor patches in their top map rows: the
+  signature, the frame's column and row, the screen's size in blocks, its facing and a checksum. The vertex shader of
+  any visible anchor writes the screen's corner, right and down vectors in view space and the projection matrix into
+  the descriptor row. The matrix leaves the vertex shader as four `flat vec4` varyings: a `flat mat4` varying crashes
+  Mesa llvmpipe's shader JIT (found in-game, reduced offline to that one declaration).
+- **Post chain** (`post_effect/entity_outline.json`; the vanilla outline passes run after ours, unchanged):
+  1. `mcv2_bytes`: strip → the frame's bytes (128 wide), 2. `mcv2_pages`: every slot's header, frame id, page index
+  and CRC32, 3. `mcv2_status`: the decision for this client frame, 4. `mcv2_decode`: gpu-codec's GLSL decoder
+  (`mcvideo_codec.glsl` at the pinned commit) reading the bytes and the chosen reference into a scratch picture,
+  5. blit → persistent `mcv2_previous`, 6. `mcv2_keyframe` + blit → persistent `mcv2_key` (a decoded keyframe replaces
+  it), 7. `mcv2_state` + blit → persistent state (shown flag, last id, key id, decoded-frame counter),
+  8. `mcv2_screen` + blit → main: ray-cast every pixel onto the screen plane, depth-test against the scene, take the
+  picture's pixel, and cover the strip with the scene row below it, 9. `mcv2_outline` + blit: remove the page
+  frames' outline colour from the outline target.
+- **Two references, one pipeline.** A frame is decoded when every page of it is valid, it is newer than the last
+  decoded frame, and it is a keyframe or predicts from the last decoded frame (`mcv2_previous`) or from the last
+  keyframe (`mcv2_key`). A keyframe is accepted whenever its id differs from the last decoded id, so a stream that
+  restarts (a playlist loop, a server restart) is not refused as older. This is what lets the server choose model
+  A, B or D per screen with the same pack (§4).
+- **Trigger and outline colour.** The chain runs only while a glowing entity is drawn. The page frames hide two blocks
+  behind the wall, glow on the team `mcav_mcv2`, and are shown only to viewers whose pack loaded. Their colour
+  (default `DARK_PURPLE`) is removed from the outline target by the last pass, so no glow is ever visible. **Black is
+  rejected**: in 26.2 an outline colour of 0 is `EntityRenderState.NO_OUTLINE`, so the chain would never run (found
+  in-game).
+- **Debug view** (`-Dmcav.mcv2.debugView=true` on the server, baked into the pack): the decoded picture is also drawn
+  one to one below the strip, and to its right one square per page slot (green: a valid page, red: none), one for
+  this client frame's decision (green: decoded, blue: nothing new, red: a frame that cannot be decoded) and four grey
+  squares for the bytes of the decoded-frame counter. The in-game conformance test captures this view.
+- **Lighting.** The picture is drawn at full brightness, like a map in a glow item frame, while ordinary maps darken
+  at night: the post chain has no world light at the wall. The anchor's vertex shader does have the frame's light
+  (`UV2`, `Sampler2`), so a lit screen is possible by carrying it in the descriptor row; not done.
+- **Resource reloads** drop persistent targets; the picture returns with the next keyframe (at most the key interval,
+  2 s for the shipped profiles).
 - **Known limits.** Iris/Sodium shader pipelines, other packs overriding `core/text` or `entity_outline.json`, and the
   26.2 Vulkan backend are outside what was tested; Fabulous graphics composites translucency after our pass. One
-  MCV2 screen per client at a time.
+  MCV2 screen per client at a time. Seen from behind the wall, the page frames show a map item for a page map the
+  client has no data for yet (vanilla draws the item when a map id has no data), which is cosmetic.
+
+### 5.1 Verified on the real client (E3, 2026-09-25)
+
+Headless 26.2 client (Mesa llvmpipe, 1920x1080, display :103), Paper 26.2 with the sandbox plugin built from this
+branch, the pack served on the game port and auto-accepted. Three 30-frame 768x384 streams cut from the frontier's
+1080p30 source and encoded by the Java encoder with the ship lambda, one per model (A previous frame, B last keyframe,
+D all-intra), played on a 6x3 wall with `/mcav mcv2 play` at 40 ticks (two seconds) per frame and captured with ffmpeg
+`x11grab` at 2 fps for 70 s. Every capture of the debug view was compared with the reference decoder's pictures
+(`tools/mcv2/capture_check.py`):
+
+| stream | captures | exact captures | frames seen exactly | PSNR | SSIM |
+|---|---:|---:|---:|---:|---:|
+| A previous frame (first run) | 140 | 140 | 17 of 30 | inf | 1.0 |
+| A previous frame (rerun) | 140 | 140 | 30 of 30 | inf | 1.0 |
+| B last keyframe | 140 | 140 | 30 of 30 | inf | 1.0 |
+| D all-intra | 140 | 140 | 30 of 30 | inf | 1.0 |
+
+All 560 captured pictures equal a reference picture byte for byte (the first run started capturing after frames 2-14
+had played; its captures are still all exact). VMAF of the captures is 97.428, which is libvmaf's score for identical
+pictures without motion between compared pictures (the reference scored against itself gives 97.428 on its first
+frame). Raw strip bytes captured from the screen decode to a valid page (MCP1 header, CRC32 correct), so transport
+through the real client is byte-exact. The client log has no shader errors or warnings (its only GL error is Xvfb's missing cursor shape). Ordinary dithered maps render
+normally beside the MCV2 screen, and a screen rebuilt by `/mcav screen` faces the player (the defect 1 fix,
+`e16ab5d0`). A second opinion on four screenshots (agy) confirmed the seamless wall and the untouched ordinary maps;
+its two geometry objections were checked and refuted: gold blocks placed directly above the wall sit flush on the
+picture's top edge, and the picture's framing on the wall matches the debug view to one pixel.
 
 ## 6. Server integration
 
-- **Result step** `Mcv2Result` beside `MapResult`: frames are encoded on an encoder thread, each frame's pages are
-  mapped through the six-bit alphabet (symbol + 4) into whole map rows and sent with the existing
-  `MapPacketFactory`/bundle path, one bundle per frame so both pages of a keyframe arrive together.
-- **Configuration** `Mcv2Configuration` in the style of `MapConfiguration`: profile, key interval, prediction model,
-  the first data map id and the number of page slots, the anchor map ids, the screen size in blocks, the viewers.
-- **Players without the pack** never see a broken screen: the result tracks resource-pack status per player and sends
-  those players the existing dithered map path (or a chat message when no fallback wall exists).
-- **Pack generation** reuses `SimpleResourcePack` and every `PackHosting` strategy; the pack's description and a
-  `mcav_mcv2.json` entry name the codec profile, the gpu-codec commit and the page geometry, so a pack is matched to
-  the stream it can decode.
+- **`Mcv2Configuration`** (builder, in the style of `MapConfiguration`): viewers, the wall's top-left block and
+  facing, the first map id and size in blocks (at most 63 on a side), the video size (default 128 pixels per block),
+  the first page map id (default 2,000,000,000, far from any world's maps) and the page slots (default
+  min(4, blocks), at most 8), the stream id, the encoder settings, and the page frames' outline colour.
+- **`Mcv2Screen`** spawns the hidden, glowing, invulnerable, fixed item frames that hold the page maps (slot
+  (column + row) mod slots, so every slot is spread over the wall), shows them per player with the team packet, and
+  sends the anchor patches.
+- **`Mcv2Viewers`** follows each player's resource-pack status (`PlayerResourcePackStatusEvent`: requested, loaded,
+  refused) and forgets players who quit.
+- **`Mcv2Channel`** shows the screen to a viewer whose pack loaded (on the main thread) before that viewer receives
+  frames, starts every new viewer on a keyframe, and sends each frame's pages with the existing
+  `MapPacketFactory` path as **one bundle per frame**, so all pages of a frame arrive together. A frame with more
+  pages than the screen has slots is not sent, and the next frame is a keyframe.
+- **`Mcv2Result`** is the video filter: it resizes each frame to the video size, hands the newest frame to a dedicated
+  encoder thread (frames that arrive while it works replace each other: the previous-frame reference allows skipping
+  source frames), and gives players without the pack the dithered maps of the same wall through
+  `CompressedMapResult`, so nobody sees a screen their client cannot show.
+- **`Mcv2Pack`** builds the pack through `SimpleResourcePack` (which gained generated entries) and serves it through
+  the existing `PackHosting` strategies; its description and `mcav_mcv2.json` name the codec, the gpu-codec commit,
+  the profile and the page geometry.
+- **Sandbox commands.** `/mcav video mcv2 <players> <player> <audio> <resolution> <blocks> <mapId> <profile>
+  <dithering> <flags> <mrl>` plays media with an encoder profile (`ship`, `low`, `keyframe` = model B, `intra` = model
+  D), offering the pack to the selected players. `/mcav mcv2 play <players> <blocks> <mapId> <ticks> <file>` loops a
+  pre-encoded stream (u32 little-endian length + frame, the gpu-codec archive layout), and `/mcav mcv2 stop` stops it.
 
 ## 7. Transport and wire accounting
 
@@ -198,7 +268,8 @@ both directions, before recommending any compression threshold.
 ## 8. Hostile input
 
 Every field of a frame or page is treated as hostile: the parser validates every count, offset and length against
-the frame's own size before using it, allocates only in proportion to the input, and throws only `Mcv2Exception`.
+the frame's own size before using it, allocates in proportion to the input and to the header's dimensions (at most
+16,384 root entries, for a 4096x4096 frame), and throws only `Mcv2Exception`.
 Property tests (jqwik, `propertyTest`) and coverage-guided fuzzing (Jazzer, `fuzzTest`) run over mutated conformance
 streams, and a security review of the whole diff is in the report.
 
