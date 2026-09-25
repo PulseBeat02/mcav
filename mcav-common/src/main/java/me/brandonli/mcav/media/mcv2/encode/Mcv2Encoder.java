@@ -472,7 +472,7 @@ public final class Mcv2Encoder {
         (coders, index) -> {
           final int x = (index % columns) * ROOT_SIZE;
           final int y = (index / columns) * ROOT_SIZE;
-          descend(job, coders, 0, x, y, -1, deepest, split);
+          descend(job, coders, 0, x, y, -1, deepest, split, live.childGate(), 0);
           final List<Leaf> chosen = new ArrayList<>();
           roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
           serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
@@ -509,7 +509,9 @@ public final class Mcv2Encoder {
     final int y,
     final int parent,
     final int deepest,
-    final double[] split
+    final double[] split,
+    final double gate,
+    final double share
   ) {
     if (x >= job.width() || y >= job.height()) {
       return;
@@ -517,14 +519,16 @@ public final class Mcv2Encoder {
     final int size = ROOT_SIZE >> level;
     final int block = (y / size) * job.columns(level) + x / size;
     final BlockCoder coder = coders[level];
-    coder.code(level, block, x, y, parent);
-    if (level == deepest || coder.isSkipped() || job.cost(0, level)[block] <= split[level]) {
+    coder.code(level, block, x, y, parent, share);
+    final double cost = job.cost(0, level)[block];
+    if (level == deepest || coder.isSkipped() || cost <= split[level]) {
       return;
     }
     final int vector = coder.localVector();
     final int half = size / 2;
+    final double quarter = (cost / 4) * gate;
     for (int i = 0; i < 4; i++) {
-      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split);
+      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split, gate, quarter);
     }
   }
 

@@ -120,6 +120,14 @@ final class PaletteFit {
     final int[] colors,
     final byte[] selectors
   ) {
+    round(endpoints, quantize, colors);
+    for (int i = 0; i < count; i++) {
+      selectors[i] = nearest(source, i, colors);
+    }
+  }
+
+  /** Rounds clustered endpoints to RGB8, and optionally to RGB565. */
+  private static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
     for (int i = 0; i < 6; i++) {
       colors[i] = Reconstruction.rgb8(endpoints[i]);
     }
@@ -134,17 +142,54 @@ final class PaletteFit {
         colors[e * 3 + 2] = packed & 0xFF;
       }
     }
-    for (int i = 0; i < count; i++) {
-      final int dr0 = source[i * 3] - colors[0];
-      final int dg0 = source[i * 3 + 1] - colors[1];
-      final int db0 = source[i * 3 + 2] - colors[2];
-      final int dr1 = source[i * 3] - colors[3];
-      final int dg1 = source[i * 3 + 1] - colors[4];
-      final int db1 = source[i * 3 + 2] - colors[5];
-      final int e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
-      final int e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
-      selectors[i] = (byte) (e1 < e0 ? 1 : 0);
+  }
+
+  /** The selector of pixel i: 1 when endpoint 1 is strictly nearer in integer RGB distance, else 0. */
+  private static byte nearest(final int[] source, final int i, final int[] colors) {
+    final int dr0 = source[i * 3] - colors[0];
+    final int dg0 = source[i * 3 + 1] - colors[1];
+    final int db0 = source[i * 3 + 2] - colors[2];
+    final int dr1 = source[i * 3] - colors[3];
+    final int dg1 = source[i * 3 + 1] - colors[4];
+    final int db1 = source[i * 3 + 2] - colors[5];
+    final int e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
+    final int e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
+    return (byte) (e1 < e0 ? 1 : 0);
+  }
+
+  /**
+   * {@link #finish} for a pattern candidate, which is only valid when the selectors repeat along one axis: every row the
+   * first row, or every row a single selector. The pixels are assigned row by row, and the assignment stops at the first
+   * row after which neither can hold, which is most blocks' first or second row.
+   *
+   * @param source    the block's channels, 0..255, {@code size * size * 3} values
+   * @param size      the block size
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether the endpoints are rounded to RGB565 before the assignment
+   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors receives one selector per pixel, all of them when the selectors repeat along an axis
+   * @return whether they do
+   */
+  static boolean finishPattern(
+    final int[] source,
+    final int size,
+    final float[] endpoints,
+    final boolean quantize,
+    final int[] colors,
+    final byte[] selectors
+  ) {
+    round(endpoints, quantize, colors);
+    boolean columns = true;
+    boolean rows = true;
+    for (int y = 0; y < size && (columns || rows); y++) {
+      for (int x = 0; x < size; x++) {
+        final int i = y * size + x;
+        selectors[i] = nearest(source, i, colors);
+        columns &= selectors[i] == selectors[x];
+        rows &= selectors[i] == selectors[y * size];
+      }
     }
+    return columns || rows;
   }
 
   /** Whether endpoint 1 is strictly nearer than endpoint 0, with the reference's float32 squared distances. */

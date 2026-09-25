@@ -44,7 +44,7 @@ final class LiveSearchTest {
     final int searchBlock,
     final int fast
   ) {
-    return new LiveSearch(smallest, skip, split, fine, good, modes, keyModes, classes, quantizers, true, searchBlock, true, fast);
+    return new LiveSearch(smallest, skip, split, fine, good, 0, modes, keyModes, classes, quantizers, true, searchBlock, true, fast);
   }
 
   private static LiveSearch valid() {
@@ -80,6 +80,11 @@ final class LiveSearchTest {
     assertThrows(IllegalArgumentException.class, () -> search(8, Double.POSITIVE_INFINITY, 1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, Double.POSITIVE_INFINITY, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, 1, Double.POSITIVE_INFINITY, all, all, classes, 1, 8, 0));
+    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 0, -1, all, all, classes, 1, true, 8, true, 0));
+    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 0, Double.NaN, all, all, classes, 1, true, 8, true, 0));
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 0, Double.POSITIVE_INFINITY, all, all, classes, 1, true, 8, true, 0)
+    );
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, -1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, Double.POSITIVE_INFINITY, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, -1, 0, all, all, classes, 1, 8, 0));

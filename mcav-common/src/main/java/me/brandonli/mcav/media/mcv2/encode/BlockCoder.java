@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
+import com.google.common.base.Preconditions;
 import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.Reconstruction;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,6 +54,12 @@ final class BlockCoder {
     (1 << MODE_RESIDUAL_Y8C2) |
     (1 << MODE_COMPACT);
 
+  /** The modes whose candidates read the chroma of the source in YCoCg, whatever their classes. */
+  private static final int CHROMA_MODES = YCOCG_MODES & ~(1 << MODE_COMPACT);
+
+  /** The compact classes that fit luma alone: the DC and the luma-only 4x4 grid. */
+  private static final int LUMA_CLASSES = (1 << CompactRecord.DC_Y) | (1 << CompactRecord.GRID4_N4_Y);
+
   /** The modes whose records predict at the local vector, so they need the local motion search. */
   private static final int LOCAL_MODES =
     (1 << MODE_MOTION) | (0xF << MODE_RESIDUAL) | (1 << MODE_RESIDUAL_Y4C1) | (1 << MODE_RESIDUAL_Y8C2) | (1 << MODE_COMPACT);
@@ -67,6 +74,8 @@ final class BlockCoder {
   private final float[] rgb;
   /** Whether a candidate the search tries reads the source in YCoCg. */
   private final boolean needsYcocg;
+  /** Whether one of them reads its chroma too: all but the luma-only compact classes do. */
+  private final boolean needsChroma;
   private final int[][] globalPrediction;
   private final int[][] localPrediction;
   private final int[] localVectors;
@@ -97,6 +106,7 @@ final class BlockCoder {
   private int block;
   private double rate;
   private boolean skipped;
+  private double share;
   private @Nullable BlockCoder root;
   private int x = -ROOT_SIZE;
   private int y = -ROOT_SIZE;
@@ -115,7 +125,11 @@ final class BlockCoder {
     this.target = new float[this.count * 3];
     this.rgb = new float[this.count * 3];
     final LiveSearch live = job.settings().live();
-    this.needsYcocg = live == null || ((job.isKeyframe() ? live.keyModes() : live.modes()) & YCOCG_MODES) != 0;
+    final int modes = live == null ? 0 : job.isKeyframe() ? live.keyModes() : live.modes();
+    this.needsYcocg = live == null || (modes & YCOCG_MODES) != 0;
+    this.needsChroma = live == null ||
+    (modes & CHROMA_MODES) != 0 ||
+    (((modes >> MODE_COMPACT) & 1) != 0 && (live.compactClasses() & ~LUMA_CLASSES) != 0);
     this.globalPrediction = new int[job.vectorCount()][this.count * 3];
     this.localPrediction = new int[job.vectorCount()][this.count * 3];
     this.localVectors = new int[job.vectorCount()];
@@ -155,6 +169,22 @@ final class BlockCoder {
    * @param parent the enclosing block's local vector of the first global vector, or -1 at the root
    */
   void code(final int level, final int block, final int x, final int y, final int parent) {
+    this.code(level, block, x, y, parent, 0);
+  }
+
+  /**
+   * Evaluates one block of a live search, which may stop after SKIP and local motion when they already cost less than
+   * the given share of the enclosing block's cost.
+   *
+   * @param level  the level, 0 for 32, 1 for 16, 2 for 8
+   * @param block  the block index in raster order at that level
+   * @param x      the block's left edge
+   * @param y      the block's top edge
+   * @param parent the enclosing block's local vector of the first global vector, or -1 at the root
+   * @param share  the cost below which no dearer candidate is tried, or 0
+   */
+  void code(final int level, final int block, final int x, final int y, final int parent, final double share) {
+    this.share = share;
     this.evaluate(level, block, x, y, parent);
     final byte[] picture = this.job.levelPicture(level);
     if (picture != null) {
@@ -238,9 +268,15 @@ final class BlockCoder {
         }
       }
     }
-    if (live != null && temporal && j.cost(0, level)[block] <= live.goodThreshold() * j.settings().lambda()) {
+    if (live != null && temporal && j.cost(0, level)[block] <= Math.max(live.goodThreshold() * j.settings().lambda(), this.share)) {
       // good enough: SKIP or local motion codes the block well, so nothing dearer is tried for it
       return;
+    }
+    final boolean closer = (this.fast & LiveSearch.ONE_PREDICTION) != 0 && temporal && this.tries(live, MODE_COMPACT);
+    if (closer) {
+      // the likeliest winner on a moving block after local motion, measured before the dearer intra candidates so the
+      // measure stops those sooner; a live search is not bound to the reference's order
+      this.compact(0, this.motionCloser);
     }
     if (this.tries(live, MODE_SOLID)) {
       this.solid();
@@ -270,10 +306,8 @@ final class BlockCoder {
       this.pattern(false);
       this.pattern(true);
     }
-    if ((this.fast & LiveSearch.ONE_PREDICTION) != 0 && temporal && this.tries(live, MODE_COMPACT)) {
-      // one prediction only: the local one where local motion measured closer than SKIP
-      // local motion is only measured, and so only closer, where its vector is not the global one
-      this.compact(0, this.motionCloser);
+    if (closer) {
+      // one prediction only, measured above: the local one where local motion measured closer than SKIP
       return;
     }
     for (int v = 0; temporal && v < j.vectorCount() && this.tries(live, MODE_COMPACT); v++) {
@@ -411,8 +445,10 @@ final class BlockCoder {
         this.source[to + 2] = b;
         if (this.needsYcocg) {
           this.ycocg[to] = (r + 2 * g + b) * 0.25f;
-          this.ycocg[to + 1] = (r - b) * 0.5f;
-          this.ycocg[to + 2] = (-r + 2 * g - b) * 0.25f;
+          if (this.needsChroma) {
+            this.ycocg[to + 1] = (r - b) * 0.5f;
+            this.ycocg[to + 2] = (-r + 2 * g - b) * 0.25f;
+          }
         }
       }
     }
@@ -554,12 +590,12 @@ final class BlockCoder {
     if (!this.eligible(MODE_PATTERN, length, mask)) {
       return;
     }
-    PaletteFit.finish(this.source, this.count, this.endpoints(), coarse, this.colors, this.selectors);
-    this.writePalette(this.palette);
-    final byte[] pattern = TreeReader.patternRecord(this.palette, this.size);
-    if (pattern == null) {
+    if (!PaletteFit.finishPattern(this.source, this.size, this.endpoints(), coarse, this.colors, this.selectors)) {
       return;
     }
+    this.writePalette(this.palette);
+    // the selectors repeat along an axis, so they make a pattern record
+    final byte[] pattern = Preconditions.checkNotNull(TreeReader.patternRecord(this.palette, this.size));
     System.arraycopy(pattern, 0, this.record, 0, pattern.length);
     if (Reconstruction.palette(this.palette, 0, this.size, this.recon, this.measure)) {
       this.score(MODE_PATTERN, 0, length, mask);
@@ -609,8 +645,10 @@ final class BlockCoder {
       final float g = prediction[i + 1] * 0.25f;
       final float b = prediction[i + 2] * 0.25f;
       this.target[i] = this.ycocg[i] - (r + 2 * g + b) * 0.25f;
-      this.target[i + 1] = this.ycocg[i + 1] - (r - b) * 0.5f;
-      this.target[i + 2] = this.ycocg[i + 2] - (-r + 2 * g - b) * 0.25f;
+      if (this.needsChroma) {
+        this.target[i + 1] = this.ycocg[i + 1] - (r - b) * 0.5f;
+        this.target[i + 2] = this.ycocg[i + 2] - (-r + 2 * g - b) * 0.25f;
+      }
     }
   }
 
@@ -772,6 +810,10 @@ final class BlockCoder {
     }
     final int g = kind == CompactRecord.GRID2_YC ? 2 : 4;
     Fits.fit(t, 0, 3, this.size, g, this.fitScratch, this.fit, 0, 1);
+    if (kind == CompactRecord.GRID4_N4_Y) {
+      // luma alone: no chroma offsets to fit
+      return g * g;
+    }
     this.fit[g * g] = this.mean(1);
     this.fit[g * g + 1] = this.mean(2);
     return g * g + 2;

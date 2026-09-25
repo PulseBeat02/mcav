@@ -43,6 +43,8 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  * @param fineThreshold  a 16-pixel block whose best leaf costs at most this many times lambda is not split
  * @param goodThreshold  a block whose best leaf after SKIP and local motion costs at most this many times lambda tries
  *                       no other leaf; at 0 every candidate the rate bound allows is tried
+ * @param childGate      a quarter of a split block whose best leaf after SKIP and local motion costs at most this
+ *                       fraction of a quarter of the block's best cost tries no other leaf; 0 turns the gate off
  * @param modes          the leaf modes tried in P frames besides SKIP, as a bit set of mode numbers
  *                       ({@code 1 << MODE_SOLID} and so on)
  * @param keyModes       the leaf modes tried in keyframes, as a bit set; only intra modes apply
@@ -66,6 +68,7 @@ public record LiveSearch(
   double splitThreshold,
   double fineThreshold,
   double goodThreshold,
+  double childGate,
   int modes,
   int keyModes,
   int compactClasses,
@@ -123,6 +126,7 @@ public record LiveSearch(
     EXACT_SPLIT,
     EXACT_SPLIT,
     0,
+    0,
     ALL_MODES,
     ALL_MODES,
     ALL_CLASSES,
@@ -145,6 +149,7 @@ public record LiveSearch(
     EXACT_SKIP,
     150,
     300,
+    0,
     0,
     (1 << MODE_MOTION) |
     (1 << MODE_PALETTE) |
@@ -172,6 +177,7 @@ public record LiveSearch(
     Preconditions.checkArgument(splitThreshold >= 0 && Double.isFinite(splitThreshold), "Split threshold must be finite and non-negative");
     Preconditions.checkArgument(fineThreshold >= 0 && Double.isFinite(fineThreshold), "Fine threshold must be finite and non-negative");
     Preconditions.checkArgument(goodThreshold >= 0 && Double.isFinite(goodThreshold), "Good threshold must be finite and non-negative");
+    Preconditions.checkArgument(childGate >= 0 && Double.isFinite(childGate), "Child gate must be finite and non-negative");
     Preconditions.checkArgument(searchBlock == 8 || searchBlock == 16 || searchBlock == 32, "Search block must be 8, 16 or 32");
     Preconditions.checkArgument((modes & ~ALL_MODES) == 0, "Unknown leaf modes");
     Preconditions.checkArgument((keyModes & ~ALL_MODES) == 0, "Unknown keyframe leaf modes");

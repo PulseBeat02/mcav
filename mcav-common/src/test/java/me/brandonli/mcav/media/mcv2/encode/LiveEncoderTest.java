@@ -111,6 +111,7 @@ final class LiveEncoderTest {
       split,
       fine,
       good,
+      0,
       modes,
       keyModes,
       LiveSearch.ALL_CLASSES,
@@ -173,6 +174,24 @@ final class LiveEncoderTest {
       64,
       64,
       3,
+      2
+    );
+    // compact records of every class as the only other leaves: their chroma is loaded for them alone
+    play(
+      base.withLive(search(16, LiveSearch.EXACT_SKIP, 52.5, 52.5, 0, (1 << MODE_MOTION) | (1 << MODE_COMPACT), ALL, 1, true, 16, false, 0)),
+      64,
+      64,
+      3,
+      2
+    );
+    // quarters of split blocks that SKIP or local motion already code for their share stop there
+    play(
+      base.withLive(
+        new LiveSearch(8, LiveSearch.EXACT_SKIP, 0, 0, 0, 1.0, ALL, ALL, LiveSearch.ALL_CLASSES, LiveSearch.FROM_LAMBDA, true, 16, true, 11)
+      ),
+      100,
+      70,
+      4,
       2
     );
     // 32-pixel leaves only
