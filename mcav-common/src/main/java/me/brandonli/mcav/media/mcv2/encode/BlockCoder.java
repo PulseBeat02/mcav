@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.Reconstruction;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -60,6 +61,12 @@ final class BlockCoder {
   /** The compact classes that fit luma alone: the DC and the luma-only 4x4 grid. */
   private static final int LUMA_CLASSES = (1 << CompactRecord.DC_Y) | (1 << CompactRecord.GRID4_N4_Y);
 
+  /**
+   * A vector no search produces, x and y both -32768 half pixels, far outside the largest motion range: the local
+   * vectors of a block that has not predicted locally.
+   */
+  private static final int NO_VECTOR = 0x80008000;
+
   /** The modes whose records predict at the local vector, so they need the local motion search. */
   private static final int LOCAL_MODES =
     (1 << MODE_MOTION) | (0xF << MODE_RESIDUAL) | (1 << MODE_RESIDUAL_Y4C1) | (1 << MODE_RESIDUAL_Y8C2) | (1 << MODE_COMPACT);
@@ -72,9 +79,7 @@ final class BlockCoder {
   private final float[] target;
   /** The source channels as floats, for the intra grid fits, loaded once per block. */
   private final float[] rgb;
-  /** Whether a candidate the search tries reads the source in YCoCg. */
-  private boolean needsYcocg;
-  /** Whether one of them reads its chroma too: all but the luma-only compact classes do. */
+  /** Whether a candidate the search tries reads the chroma of the source in YCoCg: all but the luma-only compact classes do. */
   private boolean needsChroma;
   private final int[][] globalPrediction;
   private final int[][] localPrediction;
@@ -113,6 +118,7 @@ final class BlockCoder {
   private boolean clustered;
   private boolean rgbLoaded;
   private boolean celled;
+  private boolean ycocgLoaded;
   private boolean motionCloser;
   private long skipDistortion;
 
@@ -132,7 +138,6 @@ final class BlockCoder {
     this.best = new int[this.count * 3];
     this.selectors = new byte[this.count];
     this.job = job;
-    this.needsYcocg = needsYcocg(job);
     this.needsChroma = needsChroma(job);
     this.keepsBest = job.levelPicture(0) != null;
     this.fast = fast(job);
@@ -152,7 +157,6 @@ final class BlockCoder {
    */
   void bind(final FrameJob frame) {
     this.job = frame;
-    this.needsYcocg = needsYcocg(frame);
     this.needsChroma = needsChroma(frame);
     this.keepsBest = frame.levelPicture(0) != null;
     this.fast = fast(frame);
@@ -162,10 +166,6 @@ final class BlockCoder {
   private static int modes(final FrameJob frame) {
     final LiveSearch live = frame.settings().live();
     return live == null ? LiveSearch.ALL_MODES : frame.isKeyframe() ? live.keyModes() : live.modes();
-  }
-
-  private static boolean needsYcocg(final FrameJob frame) {
-    return (modes(frame) & YCOCG_MODES) != 0;
   }
 
   private static boolean needsChroma(final FrameJob frame) {
@@ -243,6 +243,9 @@ final class BlockCoder {
     this.clustered = false;
     this.rgbLoaded = false;
     this.celled = false;
+    this.ycocgLoaded = false;
+    // no local prediction yet: a smaller block never copies one this block did not make
+    Arrays.fill(this.localVectors, NO_VECTOR);
     this.motionCloser = false;
     this.level = level;
     this.block = block;
@@ -253,7 +256,7 @@ final class BlockCoder {
     final boolean temporal = !j.isKeyframe();
     if (temporal) {
       for (int v = 0; v < j.vectorCount(); v++) {
-        Reconstruction.predict(j.reference(), j.width(), j.height(), x, y, this.size, j.vectorX(v), j.vectorY(v), this.globalPrediction[v]);
+        this.predict((j.vectorX(v) << 16) | (j.vectorY(v) & 0xFFFF), this.globalPrediction[v]);
         // the first candidate of its trials, so always eligible; the call sets the rate for the score
         this.eligible(MODE_SKIP, 0, j.vectorMask(v));
         // the first candidate of its trials, whose costs are still infinite: the measure never stops it
@@ -271,17 +274,7 @@ final class BlockCoder {
           this.localVectors[v] = live != null && this.size < live.searchBlock() && parent >= 0
             ? parent
             : this.search(x, y, v, live, parent);
-          Reconstruction.predict(
-            j.reference(),
-            j.width(),
-            j.height(),
-            x,
-            y,
-            this.size,
-            this.localVectors[v] >> 16,
-            (short) this.localVectors[v],
-            this.localPrediction[v]
-          );
+          this.predict(this.localVectors[v], this.localPrediction[v]);
         }
       } else {
         // no candidate uses a local vector: the global prediction stands in for it
@@ -354,6 +347,39 @@ final class BlockCoder {
     }
   }
 
+  /**
+   * Predicts the block from the reference at a vector. A smaller block copies its pixels from the superblock's
+   * prediction when the superblock predicted at the same vector: the prediction of a pixel depends only on its position
+   * and the vector, so the copy is the same prediction.
+   */
+  private void predict(final int vector, final int[] out) {
+    final BlockCoder parent = this.root;
+    final int@Nullable[] from = parent == null ? null : parent.prediction(vector);
+    if (parent != null && from != null) {
+      final int n = this.size * 3;
+      for (int py = 0; py < this.size; py++) {
+        System.arraycopy(from, ((this.y - parent.y + py) * ROOT_SIZE + (this.x - parent.x)) * 3, out, py * n, n);
+      }
+      return;
+    }
+    final FrameJob j = this.job;
+    Reconstruction.predict(j.reference(), j.width(), j.height(), this.x, this.y, this.size, vector >> 16, (short) vector, out);
+  }
+
+  /** The superblock's prediction at a vector, when its last evaluation made one, or null. */
+  private int@Nullable[] prediction(final int vector) {
+    final FrameJob j = this.job;
+    for (int v = 0; v < j.vectorCount(); v++) {
+      if (vector == ((j.vectorX(v) << 16) | (j.vectorY(v) & 0xFFFF))) {
+        return this.globalPrediction[v];
+      }
+      if (vector == this.localVectors[v]) {
+        return this.localPrediction[v];
+      }
+    }
+    return null;
+  }
+
   /** Whether the local vector found for global vector v is that vector itself. */
   private boolean isGlobal(final int v) {
     return this.localVectors[v] == ((this.job.vectorX(v) << 16) | (this.job.vectorY(v) & 0xFFFF));
@@ -361,7 +387,7 @@ final class BlockCoder {
 
   /** Whether the search tries a mode in this frame: the reference search tries every one. */
   private boolean tries(final @Nullable LiveSearch live, final int mode) {
-    return live == null || live.tries(mode, this.job.isKeyframe());
+    return live == null || live.tries(mode, this.job.isKeyframe(), this.size);
   }
 
   /** Whether the search tries a quantizer. */
@@ -452,9 +478,6 @@ final class BlockCoder {
       for (int py = 0; py < this.size; py++) {
         final int from = ((y - parent.y + py) * ROOT_SIZE + (x - parent.x)) * 3;
         System.arraycopy(parent.source, from, this.source, py * n, n);
-        if (this.needsYcocg) {
-          System.arraycopy(parent.ycocg, from, this.ycocg, py * n, n);
-        }
       }
       this.x = x;
       this.y = y;
@@ -476,13 +499,6 @@ final class BlockCoder {
         this.source[to] = r;
         this.source[to + 1] = g;
         this.source[to + 2] = b;
-        if (this.needsYcocg) {
-          this.ycocg[to] = (r + 2 * g + b) * 0.25f;
-          if (this.needsChroma) {
-            this.ycocg[to + 1] = (r - b) * 0.5f;
-            this.ycocg[to + 2] = (-r + 2 * g - b) * 0.25f;
-          }
-        }
       }
     }
   }
@@ -666,16 +682,39 @@ final class BlockCoder {
     }
   }
 
+  /**
+   * The YCoCg of the source, converted on the block's first use: most blocks of a live search end before any candidate
+   * that needs it. The chroma is converted only when a tried candidate reads it.
+   */
+  private float[] ycocg() {
+    if (!this.ycocgLoaded) {
+      final int[] s = this.source;
+      for (int i = 0; i < this.count * 3; i += 3) {
+        final int r = s[i];
+        final int g = s[i + 1];
+        final int b = s[i + 2];
+        this.ycocg[i] = (r + 2 * g + b) * 0.25f;
+        if (this.needsChroma) {
+          this.ycocg[i + 1] = (r - b) * 0.5f;
+          this.ycocg[i + 2] = (-r + 2 * g - b) * 0.25f;
+        }
+      }
+      this.ycocgLoaded = true;
+    }
+    return this.ycocg;
+  }
+
   /** The YCoCg residual of the source against a prediction, into {@link #target}. */
   private void residualTarget(final int[] prediction) {
+    final float[] source = this.ycocg();
     for (int i = 0; i < this.count * 3; i += 3) {
       final float r = prediction[i] * 0.25f;
       final float g = prediction[i + 1] * 0.25f;
       final float b = prediction[i + 2] * 0.25f;
-      this.target[i] = this.ycocg[i] - (r + 2 * g + b) * 0.25f;
+      this.target[i] = source[i] - (r + 2 * g + b) * 0.25f;
       if (this.needsChroma) {
-        this.target[i + 1] = this.ycocg[i + 1] - (r - b) * 0.5f;
-        this.target[i + 2] = this.ycocg[i + 2] - (-r + 2 * g - b) * 0.25f;
+        this.target[i + 1] = source[i + 1] - (r - b) * 0.5f;
+        this.target[i + 2] = source[i + 2] - (-r + 2 * g - b) * 0.25f;
       }
     }
   }
@@ -721,7 +760,7 @@ final class BlockCoder {
     if (!this.eligible(mode, length, this.job.allTrials())) {
       return;
     }
-    System.arraycopy(this.ycocg, 0, this.target, 0, this.count * 3);
+    System.arraycopy(this.ycocg(), 0, this.target, 0, this.count * 3);
     this.fitReduced(luma, chroma);
     for (int i = 0; i < luma * luma; i++) {
       this.record[i] = (byte) quantize(this.grid[i], 1, 0, 255);

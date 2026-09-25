@@ -44,7 +44,24 @@ final class LiveSearchTest {
     final int searchBlock,
     final int fast
   ) {
-    return new LiveSearch(smallest, skip, split, fine, good, 0, modes, keyModes, classes, quantizers, true, searchBlock, true, fast);
+    return new LiveSearch(
+      smallest,
+      skip,
+      split,
+      split,
+      fine,
+      good,
+      0,
+      modes,
+      modes,
+      keyModes,
+      classes,
+      quantizers,
+      true,
+      searchBlock,
+      true,
+      fast
+    );
   }
 
   private static LiveSearch valid() {
@@ -56,6 +73,7 @@ final class LiveSearchTest {
     assertEquals(8, valid().smallestBlock());
     assertEquals(LiveSearch.EXACT_SKIP, LiveSearch.EXACT.skipThreshold());
     assertEquals(LiveSearch.EXACT_SPLIT, LiveSearch.EXACT.splitThreshold());
+    assertEquals(LiveSearch.EXACT_SPLIT, LiveSearch.EXACT.steadySplitThreshold());
     assertEquals(LiveSearch.EXACT_SPLIT, LiveSearch.EXACT.fineThreshold());
     assertEquals(0, LiveSearch.EXACT.goodThreshold());
     assertFalse(LiveSearch.EXACT.seededMotion());
@@ -80,11 +98,23 @@ final class LiveSearchTest {
     assertThrows(IllegalArgumentException.class, () -> search(8, Double.POSITIVE_INFINITY, 1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, Double.POSITIVE_INFINITY, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, 1, Double.POSITIVE_INFINITY, all, all, classes, 1, 8, 0));
-    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 0, -1, all, all, classes, 1, true, 8, true, 0));
-    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 0, Double.NaN, all, all, classes, 1, true, 8, true, 0));
+    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 1, 0, -1, all, all, all, classes, 1, true, 8, true, 0));
     assertThrows(IllegalArgumentException.class, () ->
-      new LiveSearch(8, 1, 1, 1, 0, Double.POSITIVE_INFINITY, all, all, classes, 1, true, 8, true, 0)
+      new LiveSearch(8, 1, 1, 1, 1, 0, Double.NaN, all, all, all, classes, 1, true, 8, true, 0)
     );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 1, 0, Double.POSITIVE_INFINITY, all, all, all, classes, 1, true, 8, true, 0)
+    );
+    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, -1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0));
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, Double.NaN, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, Double.POSITIVE_INFINITY, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0)
+    );
+    // the small blocks try a subset of the modes
+    final int motion = 1 << MODE_MOTION;
+    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 1, 0, 0, motion, all, all, classes, 1, true, 8, true, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, -1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, Double.POSITIVE_INFINITY, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, -1, 0, all, all, classes, 1, 8, 0));
@@ -105,10 +135,24 @@ final class LiveSearchTest {
   @Test
   void triesTheModesOfTheFrameType() {
     final LiveSearch live = search(8, 1, 1, 1, 0, 1 << MODE_MOTION, 1 << MODE_SOLID, 0, 1, 8, 0);
-    assertTrue(live.tries(MODE_MOTION, false));
-    assertFalse(live.tries(MODE_SOLID, false));
-    assertTrue(live.tries(MODE_SOLID, true));
-    assertFalse(live.tries(MODE_MOTION, true));
+    assertTrue(live.tries(MODE_MOTION, false, 32));
+    assertFalse(live.tries(MODE_SOLID, false, 32));
+    assertTrue(live.tries(MODE_SOLID, true, 32));
+    assertFalse(live.tries(MODE_MOTION, true, 32));
+  }
+
+  @Test
+  void triesTheSmallBlockModesBelowTheRoot() {
+    final int modes = (1 << MODE_MOTION) | (1 << MODE_PALETTE);
+    final LiveSearch live = new LiveSearch(8, 1, 1, 1, 1, 0, 0, modes, 1 << MODE_MOTION, 1 << MODE_SOLID, 0, 1, true, 8, true, 0);
+    assertTrue(live.tries(MODE_PALETTE, false, 32));
+    assertFalse(live.tries(MODE_PALETTE, false, 16));
+    assertFalse(live.tries(MODE_PALETTE, false, 8));
+    assertTrue(live.tries(MODE_MOTION, false, 8));
+    // keyframes try the keyframe modes at every size
+    assertTrue(live.tries(MODE_SOLID, true, 8));
+    assertEquals(1 << MODE_MOTION, live.smallModes());
+    assertEquals(LiveSearch.LIVE.modes(), LiveSearch.LIVE.smallModes());
   }
 
   @Test

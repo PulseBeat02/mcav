@@ -39,7 +39,11 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  * @param smallestBlock  the smallest leaf size tried: 8, 16 or 32
  * @param skipThreshold  a block whose SKIP costs at most this many times lambda is coded SKIP, and nothing else is tried
  *                       for it or inside it
- * @param splitThreshold a 32-pixel block whose best leaf costs at most this many times lambda is not split
+ * @param splitThreshold a 32-pixel block whose best leaf costs at most this many times lambda is not split, in a
+ *                       keyframe or where the previous frame split the superblock
+ * @param steadySplitThreshold the split threshold of a 32-pixel block of a P frame whose superblock the previous frame
+ *                       coded whole: a split there is rarer, so a higher threshold saves most of the searches of
+ *                       its quarters for little bandwidth
  * @param fineThreshold  a 16-pixel block whose best leaf costs at most this many times lambda is not split
  * @param goodThreshold  a block whose best leaf after SKIP and local motion costs at most this many times lambda tries
  *                       no other leaf; at 0 every candidate the rate bound allows is tried
@@ -47,6 +51,7 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  *                       fraction of a quarter of the block's best cost tries no other leaf; 0 turns the gate off
  * @param modes          the leaf modes tried in P frames besides SKIP, as a bit set of mode numbers
  *                       ({@code 1 << MODE_SOLID} and so on)
+ * @param smallModes     the leaf modes tried at the 16- and 8-pixel blocks of P frames, a subset of {@code modes}
  * @param keyModes       the leaf modes tried in keyframes, as a bit set; only intra modes apply
  * @param compactClasses the compact classes tried when compact records are, as a bit set of class numbers
  * @param quantizers     the quantizers tried by residual and compact records, as a bit set, or {@link #FROM_LAMBDA} for
@@ -66,10 +71,12 @@ public record LiveSearch(
   int smallestBlock,
   double skipThreshold,
   double splitThreshold,
+  double steadySplitThreshold,
   double fineThreshold,
   double goodThreshold,
   double childGate,
   int modes,
+  int smallModes,
   int keyModes,
   int compactClasses,
   int quantizers,
@@ -119,14 +126,25 @@ public record LiveSearch(
   /** The quantizer set that stands for the single quantizer derived from lambda. */
   public static final int FROM_LAMBDA = 0;
 
+  /** The P-frame leaf modes of {@link #LIVE}: local motion, palettes, 2x2 and 4x4 intra grids, compact and patterns. */
+  private static final int LIVE_MODES =
+    (1 << MODE_MOTION) |
+    (1 << MODE_PALETTE) |
+    (1 << (MODE_INTRA + 1)) |
+    (1 << (MODE_INTRA + 2)) |
+    (1 << MODE_COMPACT) |
+    (1 << MODE_PATTERN);
+
   /** The reference's search, restricted to one trial and searched from the top with the exact thresholds only. */
   public static final LiveSearch EXACT = new LiveSearch(
     8,
     EXACT_SKIP,
     EXACT_SPLIT,
     EXACT_SPLIT,
+    EXACT_SPLIT,
     0,
     0,
+    ALL_MODES,
     ALL_MODES,
     ALL_MODES,
     ALL_CLASSES,
@@ -148,15 +166,12 @@ public record LiveSearch(
     8,
     EXACT_SKIP,
     150,
+    150,
     300,
     0,
     0,
-    (1 << MODE_MOTION) |
-    (1 << MODE_PALETTE) |
-    (1 << (MODE_INTRA + 1)) |
-    (1 << (MODE_INTRA + 2)) |
-    (1 << MODE_COMPACT) |
-    (1 << MODE_PATTERN),
+    LIVE_MODES,
+    LIVE_MODES,
     ALL_MODES,
     1 << CompactRecord.GRID4_N4_Y,
     FROM_LAMBDA,
@@ -175,25 +190,32 @@ public record LiveSearch(
     Preconditions.checkArgument(smallestBlock == 8 || smallestBlock == 16 || smallestBlock == 32, "Smallest block must be 8, 16 or 32");
     Preconditions.checkArgument(skipThreshold >= 0 && Double.isFinite(skipThreshold), "Skip threshold must be finite and non-negative");
     Preconditions.checkArgument(splitThreshold >= 0 && Double.isFinite(splitThreshold), "Split threshold must be finite and non-negative");
+    Preconditions.checkArgument(
+      steadySplitThreshold >= 0 && Double.isFinite(steadySplitThreshold),
+      "Steady split threshold must be finite and non-negative"
+    );
     Preconditions.checkArgument(fineThreshold >= 0 && Double.isFinite(fineThreshold), "Fine threshold must be finite and non-negative");
     Preconditions.checkArgument(goodThreshold >= 0 && Double.isFinite(goodThreshold), "Good threshold must be finite and non-negative");
     Preconditions.checkArgument(childGate >= 0 && Double.isFinite(childGate), "Child gate must be finite and non-negative");
     Preconditions.checkArgument(searchBlock == 8 || searchBlock == 16 || searchBlock == 32, "Search block must be 8, 16 or 32");
     Preconditions.checkArgument((modes & ~ALL_MODES) == 0, "Unknown leaf modes");
+    Preconditions.checkArgument((smallModes & ~modes) == 0, "Small-block modes must be modes the search tries");
     Preconditions.checkArgument((keyModes & ~ALL_MODES) == 0, "Unknown keyframe leaf modes");
     Preconditions.checkArgument((compactClasses & ~ALL_CLASSES) == 0, "Unknown compact classes");
     Preconditions.checkArgument((quantizers & ~ALL_QUANTIZERS) == 0, "Quantizers must be a subset of 0 to 4");
   }
 
   /**
-   * Checks whether a leaf mode is tried.
+   * Checks whether a leaf mode is tried at a block size.
    *
    * @param mode     the mode
    * @param keyframe whether the frame is a keyframe
-   * @return true if the search tries it
+   * @param size     the block size
+   * @return true if the search tries it there
    */
-  public boolean tries(final int mode, final boolean keyframe) {
-    return (((keyframe ? this.keyModes : this.modes) >> mode) & 1) != 0;
+  public boolean tries(final int mode, final boolean keyframe, final int size) {
+    final int set = keyframe ? this.keyModes : size < 32 ? this.smallModes : this.modes;
+    return ((set >> mode) & 1) != 0;
   }
 
   /**

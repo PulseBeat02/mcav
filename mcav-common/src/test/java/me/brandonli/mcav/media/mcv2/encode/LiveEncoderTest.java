@@ -109,9 +109,11 @@ final class LiveEncoderTest {
       smallest,
       skip,
       split,
+      split,
       fine,
       good,
       0,
+      modes,
       modes,
       keyModes,
       LiveSearch.ALL_CLASSES,
@@ -187,11 +189,82 @@ final class LiveEncoderTest {
     // quarters of split blocks that SKIP or local motion already code for their share stop there
     play(
       base.withLive(
-        new LiveSearch(8, LiveSearch.EXACT_SKIP, 0, 0, 0, 1.0, ALL, ALL, LiveSearch.ALL_CLASSES, LiveSearch.FROM_LAMBDA, true, 16, true, 11)
+        new LiveSearch(
+          8,
+          LiveSearch.EXACT_SKIP,
+          0,
+          0,
+          0,
+          0,
+          1.0,
+          ALL,
+          ALL,
+          ALL,
+          LiveSearch.ALL_CLASSES,
+          LiveSearch.FROM_LAMBDA,
+          true,
+          16,
+          true,
+          11
+        )
       ),
       100,
       70,
       4,
+      2
+    );
+    // the split blocks try local motion alone, the root every mode
+    play(
+      base.withLive(
+        new LiveSearch(
+          8,
+          LiveSearch.EXACT_SKIP,
+          0,
+          0,
+          0,
+          0,
+          0,
+          ALL,
+          1 << MODE_MOTION,
+          ALL,
+          LiveSearch.ALL_CLASSES,
+          LiveSearch.FROM_LAMBDA,
+          true,
+          16,
+          true,
+          0
+        )
+      ),
+      64,
+      64,
+      3,
+      2
+    );
+    // a superblock the previous frame coded whole is split only above the steady threshold, one it split above zero
+    play(
+      base.withLive(
+        new LiveSearch(
+          8,
+          LiveSearch.EXACT_SKIP,
+          0,
+          1e9,
+          0,
+          0,
+          0,
+          ALL,
+          ALL,
+          ALL,
+          LiveSearch.ALL_CLASSES,
+          LiveSearch.FROM_LAMBDA,
+          true,
+          16,
+          true,
+          0
+        )
+      ),
+      100,
+      70,
+      5,
       2
     );
     // 32-pixel leaves only

@@ -68,6 +68,8 @@ public final class Mcv2Encoder {
   private final ArrayDeque<BlockCoder[]> idleCoders = new ArrayDeque<>();
   private final List<BlockCoder[]> busyCoders = new ArrayList<>();
   private long@Nullable[] projections;
+  /** Which superblocks the previous live frame split, in raster order, updated by every live frame. */
+  private boolean@Nullable[] splitBefore;
   private @Nullable Stats stats;
 
   /**
@@ -459,7 +461,7 @@ public final class Mcv2Encoder {
   /**
    * Evaluates the blocks of a live search on the workers: every superblock from the top, a block's quarters only when
    * it did not end at an early SKIP, the smallest block size is not reached, and its best cost is above the split
-   * threshold. A block that is not evaluated keeps an infinite cost, which {@link #select} never chooses. Each worker
+   * threshold, the steady one for a superblock of a P frame that the previous frame coded whole. A block that is not evaluated keeps an infinite cost, which {@link #select} never chooses. Each worker
    * then chooses its superblock's tree and copies the reconstructions of the chosen leaves, which are the decoder's
    * own, into the frame's picture, so the frame needs no decode.
    */
@@ -467,7 +469,18 @@ public final class Mcv2Encoder {
     final int columns = job.columns(0);
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     final int deepest = Integer.numberOfTrailingZeros(ROOT_SIZE / live.smallestBlock());
-    final double[] split = { live.splitThreshold() * this.settings.lambda(), live.fineThreshold() * this.settings.lambda() };
+    final double lambda = this.settings.lambda();
+    // the thresholds of the 32- and 16-pixel levels; the 8-pixel level is never split
+    final double[] split = { live.splitThreshold() * lambda, live.fineThreshold() * lambda, 0 };
+    final double steady = live.steadySplitThreshold() * lambda;
+    boolean[] before = this.splitBefore;
+    if (before == null || before.length != superblocks) {
+      before = new boolean[superblocks];
+      this.splitBefore = before;
+    }
+    // a keyframe is not compared with the frame before it; its own splits still guide the next frame
+    final boolean steadyApplies = !job.isKeyframe();
+    final boolean[] splits = before;
     final TreeNode[] roots = new TreeNode[superblocks];
     final TreeNode[] serialized = new TreeNode[superblocks];
     final AtomicReferenceArray<List<Leaf>> leaves = new AtomicReferenceArray<>(superblocks);
@@ -479,9 +492,12 @@ public final class Mcv2Encoder {
         (coders, index) -> {
           final int x = (index % columns) * ROOT_SIZE;
           final int y = (index / columns) * ROOT_SIZE;
-          descend(job, coders, 0, x, y, -1, deepest, split, live.childGate(), 0);
+          final double threshold = steadyApplies && !splits[index] ? steady : split[0];
+          descend(job, coders, 0, x, y, -1, deepest, threshold, split, live.childGate(), 0);
           final List<Leaf> chosen = new ArrayList<>();
           roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
+          // only this task reads and writes the superblock's entry
+          splits[index] = roots[index].isSplit();
           serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
           for (final Leaf leaf : chosen) {
             assemble(job, leaf, picture);
@@ -509,7 +525,14 @@ public final class Mcv2Encoder {
     }
   }
 
-  private static void descend(
+  /**
+   * Evaluates a block and, where the search goes deeper, its quarters, and returns the cost {@link #select} gives the
+   * block: its leaf's, or its split's when that is cheaper. The quarters are evaluated in order only while the split can
+   * still be cheaper than the leaf: once the split's index and the quarters already evaluated cost as much as the leaf,
+   * select keeps the leaf whatever the other quarters cost, so they are not evaluated. The sums are the ones select
+   * makes, in its order, so this changes no choice.
+   */
+  private static double descend(
     final FrameJob job,
     final BlockCoder[] coders,
     final int level,
@@ -517,27 +540,33 @@ public final class Mcv2Encoder {
     final int y,
     final int parent,
     final int deepest,
+    final double threshold,
     final double[] split,
     final double gate,
     final double share
   ) {
+    final double lambda = job.settings().lambda();
     if (x >= job.width() || y >= job.height()) {
-      return;
+      // select's cost of a quarter outside the picture
+      return lambda * 56;
     }
     final int size = ROOT_SIZE >> level;
     final int block = (y / size) * job.columns(level) + x / size;
     final BlockCoder coder = coders[level];
     coder.code(level, block, x, y, parent, share);
     final double cost = job.cost(0, level)[block];
-    if (level == deepest || coder.isSkipped() || cost <= split[level]) {
-      return;
+    if (level == deepest || coder.isSkipped() || cost <= threshold) {
+      return cost;
     }
     final int vector = coder.localVector();
     final int half = size / 2;
     final double quarter = (cost / 4) * gate;
-    for (int i = 0; i < 4; i++) {
-      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split, gate, quarter);
+    double splitCost = lambda * BlockCoder.INDEX_BITS;
+    for (int i = 0; i < 4 && splitCost < cost; i++) {
+      splitCost +=
+      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split[level + 1], split, gate, quarter);
     }
+    return Math.min(cost, splitCost);
   }
 
   /**
