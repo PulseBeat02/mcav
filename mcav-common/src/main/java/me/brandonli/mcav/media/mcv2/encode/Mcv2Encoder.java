@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,6 +64,9 @@ public final class Mcv2Encoder {
   private int framesSinceKey;
   private int@Nullable[] motion;
   private @Nullable LiveBuffers buffers;
+  private FrameJob.@Nullable Buffers jobBuffers;
+  private final ArrayDeque<BlockCoder[]> idleCoders = new ArrayDeque<>();
+  private final List<BlockCoder[]> busyCoders = new ArrayList<>();
   private long@Nullable[] projections;
   private @Nullable Stats stats;
 
@@ -263,8 +267,10 @@ public final class Mcv2Encoder {
       vectorsX,
       vectorsY,
       key ? null : this.motion,
-      live == null ? null : this.buffers(width, height).levels()
+      live == null ? null : this.buffers(width, height).levels(),
+      this.jobBuffers
     );
+    this.jobBuffers = job.buffers();
     final long referenceId = key ? frameId : this.referenceId;
     byte[] best = new byte[0];
     byte[] bestPicture = new byte[0];
@@ -409,9 +415,10 @@ public final class Mcv2Encoder {
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     this.workers.forEach(
         superblocks,
-        () -> coders(job),
+        () -> this.coders(job),
         (coders, index) -> superblock(job, coders, (index % columns) * ROOT_SIZE, (index / columns) * ROOT_SIZE)
       );
+    this.releaseCoders();
   }
 
   /**
@@ -468,7 +475,7 @@ public final class Mcv2Encoder {
     final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(job.reference());
     this.workers.forEach(
         superblocks,
-        () -> coders(job),
+        () -> this.coders(job),
         (coders, index) -> {
           final int x = (index % columns) * ROOT_SIZE;
           final int y = (index / columns) * ROOT_SIZE;
@@ -482,6 +489,7 @@ public final class Mcv2Encoder {
           leaves.set(index, chosen);
         }
       );
+    this.releaseCoders();
     final List<Leaf> all = new ArrayList<>();
     for (int index = 0; index < superblocks; index++) {
       all.addAll(leaves.get(index));
@@ -606,12 +614,38 @@ public final class Mcv2Encoder {
     return ((globalX + dx) << 16) | ((globalY + dy) & 0xFFFF);
   }
 
-  /** One worker's coders, the smaller ones loading their blocks from the superblock's. */
-  private static BlockCoder[] coders(final FrameJob job) {
+  /**
+   * One worker's coders for a frame, the smaller ones loading their blocks from the superblock's: the coders of an
+   * earlier frame bound to this one, or new ones.
+   */
+  private BlockCoder[] coders(final FrameJob job) {
+    BlockCoder[] coders;
+    synchronized (this.idleCoders) {
+      coders = this.idleCoders.poll();
+      if (coders == null) {
+        coders = newCoders(job);
+      }
+      this.busyCoders.add(coders);
+    }
+    for (final BlockCoder coder : coders) {
+      coder.bind(job);
+    }
+    return coders;
+  }
+
+  private static BlockCoder[] newCoders(final FrameJob job) {
     final BlockCoder[] coders = { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) };
     coders[1].loadFrom(coders[0]);
     coders[2].loadFrom(coders[0]);
     return coders;
+  }
+
+  /** Makes the coders of a finished frame's workers available to the next frame. */
+  private void releaseCoders() {
+    synchronized (this.idleCoders) {
+      this.idleCoders.addAll(this.busyCoders);
+      this.busyCoders.clear();
+    }
   }
 
   private static void superblock(final FrameJob job, final BlockCoder[] coders, final int x, final int y) {

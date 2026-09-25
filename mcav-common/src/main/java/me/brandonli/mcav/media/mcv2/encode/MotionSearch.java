@@ -31,6 +31,18 @@ final class MotionSearch {
 
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } };
 
+  /** The four sampled rows and columns of blocks of 8, 16 and 32 pixels: {@code min(k size / 4 + size / 8, size - 1)}. */
+  private static final int[][] SAMPLES = new int[3][4];
+
+  static {
+    for (int s = 0; s < 3; s++) {
+      final int size = 8 << s;
+      for (int k = 0; k < 4; k++) {
+        SAMPLES[s][k] = Math.min((k * size) / 4 + size / 8, size - 1);
+      }
+    }
+  }
+
   private MotionSearch() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -89,10 +101,7 @@ final class MotionSearch {
     final int range,
     final int[] steps
   ) {
-    final int[] samples = new int[4];
-    for (int k = 0; k < 4; k++) {
-      samples[k] = Math.min((k * size) / 4 + size / 8, size - 1);
-    }
+    final int[] samples = SAMPLES[Integer.numberOfTrailingZeros(size) - 3];
     int vx = globalX;
     int vy = globalY;
     long best = cost(reference, width, height, source, x, y, size, samples, vx, vy);
@@ -151,10 +160,7 @@ final class MotionSearch {
     final boolean halfPixel,
     final int[] seeds
   ) {
-    final int[] samples = new int[4];
-    for (int k = 0; k < 4; k++) {
-      samples[k] = Math.min((k * size) / 4 + size / 8, size - 1);
-    }
+    final int[] samples = SAMPLES[Integer.numberOfTrailingZeros(size) - 3];
     final int lowX = globalX - range * 2;
     final int highX = globalX + range * 2;
     final int lowY = globalY - range * 2;

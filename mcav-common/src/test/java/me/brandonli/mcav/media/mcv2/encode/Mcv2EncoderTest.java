@@ -279,7 +279,7 @@ final class Mcv2EncoderTest {
     // a pattern the chosen tree holds is expanded before the comparison, so an invalid one is a rejected frame too
     final TreeNode invalid = TreeNode.leaf(Mcv2Format.MODE_PATTERN, 0, new byte[] { 1, 2, 3, 4, 5, 6, 2, 0, 0, 0, 0 });
     assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, List.of(invalid)));
-    job.set(0, 2, 0, 0, Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 }, 5);
+    job.set(0, 2, 0, 0, Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 }, 3, 5);
     assertEquals(
       "MCV2 encoder/decoder disagreement at 0,0 size 8",
       assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, roots)).getMessage()

@@ -64,7 +64,7 @@ final class BlockCoder {
   private static final int LOCAL_MODES =
     (1 << MODE_MOTION) | (0xF << MODE_RESIDUAL) | (1 << MODE_RESIDUAL_Y4C1) | (1 << MODE_RESIDUAL_Y8C2) | (1 << MODE_COMPACT);
 
-  private final FrameJob job;
+  private FrameJob job;
   private final int size;
   private final int count;
   private final int[] source;
@@ -73,18 +73,18 @@ final class BlockCoder {
   /** The source channels as floats, for the intra grid fits, loaded once per block. */
   private final float[] rgb;
   /** Whether a candidate the search tries reads the source in YCoCg. */
-  private final boolean needsYcocg;
+  private boolean needsYcocg;
   /** Whether one of them reads its chroma too: all but the luma-only compact classes do. */
-  private final boolean needsChroma;
+  private boolean needsChroma;
   private final int[][] globalPrediction;
   private final int[][] localPrediction;
   private final int[] localVectors;
   private final int[] recon;
   /** The reconstruction of the best candidate of trial 0 so far. */
   private final int[] best;
-  private final boolean keepsBest;
+  private boolean keepsBest;
   /** The fits a live search does cheaply, {@link LiveSearch#fastFits}. */
-  private final int fast;
+  private int fast;
   private final int[] cells = new int[48];
   private final byte[] record = new byte[2 + 3 * 64];
   private final byte[] palette = new byte[6 + (32 * 32) / 8];
@@ -124,20 +124,18 @@ final class BlockCoder {
     this.ycocg = new float[this.count * 3];
     this.target = new float[this.count * 3];
     this.rgb = new float[this.count * 3];
-    final LiveSearch live = job.settings().live();
-    final int modes = live == null ? 0 : job.isKeyframe() ? live.keyModes() : live.modes();
-    this.needsYcocg = live == null || (modes & YCOCG_MODES) != 0;
-    this.needsChroma = live == null ||
-    (modes & CHROMA_MODES) != 0 ||
-    (((modes >> MODE_COMPACT) & 1) != 0 && (live.compactClasses() & ~LUMA_CLASSES) != 0);
-    this.globalPrediction = new int[job.vectorCount()][this.count * 3];
-    this.localPrediction = new int[job.vectorCount()][this.count * 3];
-    this.localVectors = new int[job.vectorCount()];
+    // the reference search tries at most two global vectors
+    this.globalPrediction = new int[2][this.count * 3];
+    this.localPrediction = new int[2][this.count * 3];
+    this.localVectors = new int[2];
     this.recon = new int[this.count * 3];
     this.best = new int[this.count * 3];
-    this.keepsBest = job.levelPicture(0) != null;
-    this.fast = live == null ? 0 : live.fastFits();
     this.selectors = new byte[this.count];
+    this.job = job;
+    this.needsYcocg = needsYcocg(job);
+    this.needsChroma = needsChroma(job);
+    this.keepsBest = job.levelPicture(0) != null;
+    this.fast = fast(job);
     this.axis = new float[size];
     double squares = 0;
     for (int i = 0; i < size; i++) {
@@ -145,6 +143,41 @@ final class BlockCoder {
       squares += this.axis[i] * this.axis[i];
     }
     this.meanSquare = (float) (squares / size);
+  }
+
+  /**
+   * Makes the coder evaluate the blocks of another frame, keeping its scratch space.
+   *
+   * @param frame the frame's search state
+   */
+  void bind(final FrameJob frame) {
+    this.job = frame;
+    this.needsYcocg = needsYcocg(frame);
+    this.needsChroma = needsChroma(frame);
+    this.keepsBest = frame.levelPicture(0) != null;
+    this.fast = fast(frame);
+  }
+
+  /** The modes a frame's search tries: every one in the reference search. */
+  private static int modes(final FrameJob frame) {
+    final LiveSearch live = frame.settings().live();
+    return live == null ? LiveSearch.ALL_MODES : frame.isKeyframe() ? live.keyModes() : live.modes();
+  }
+
+  private static boolean needsYcocg(final FrameJob frame) {
+    return (modes(frame) & YCOCG_MODES) != 0;
+  }
+
+  private static boolean needsChroma(final FrameJob frame) {
+    final LiveSearch live = frame.settings().live();
+    final int modes = modes(frame);
+    final int classes = live == null ? LiveSearch.ALL_CLASSES : live.compactClasses();
+    return (modes & CHROMA_MODES) != 0 || (((modes >> MODE_COMPACT) & 1) != 0 && (classes & ~LUMA_CLASSES) != 0);
+  }
+
+  private static int fast(final FrameJob frame) {
+    final LiveSearch live = frame.settings().live();
+    return live == null ? 0 : live.fastFits();
   }
 
   /**
@@ -499,17 +532,12 @@ final class BlockCoder {
     final FrameJob j = this.job;
     final long d16 = this.measure.distortion();
     final double cost = d16 / 96.0 + this.rate;
-    byte[] copy = null;
     for (int t = 0; t < j.trialCount(); t++) {
       if (((mask >> t) & 1) != 0 && cost < j.cost(t, this.level)[this.block]) {
-        if (copy == null) {
-          copy = new byte[length];
-          System.arraycopy(this.record, 0, copy, 0, length);
-          if (t == 0 && this.keepsBest) {
-            System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
-          }
+        if (t == 0 && this.keepsBest) {
+          System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
         }
-        j.set(t, this.level, this.block, cost, mode, q, copy, d16);
+        j.set(t, this.level, this.block, cost, mode, q, this.record, length, d16);
       }
     }
   }

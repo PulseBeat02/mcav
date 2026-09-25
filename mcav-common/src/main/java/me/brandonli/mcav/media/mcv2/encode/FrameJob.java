@@ -45,12 +45,72 @@ final class FrameJob {
   private final int trials;
   private final int@Nullable[] previousMotion;
   private final byte@Nullable[][] levelPictures;
-  private final double[][][] costs;
-  private final byte[][][] modes;
-  private final byte[][][] quantizers;
-  private final byte[][][][] records;
-  private final long[][][] distortions;
+  private final Buffers buffers;
   private final int[] columns = new int[3];
+
+  /** The longest record a candidate writes: a 32-pixel residual grid of 8x8 nodes after its two motion bytes. */
+  static final int MAX_RECORD = 2 + 3 * 64;
+
+  /**
+   * The arrays one frame's search fills, reused from frame to frame while the size and the number of trials stay the
+   * same, so that measuring a candidate allocates nothing: per trial and level, each block's best cost, mode,
+   * quantizer, distortion and record, the record in a flat buffer with room for the longest.
+   */
+  static final class Buffers {
+
+    private final int width;
+    private final int height;
+    private final int trials;
+    private final double[][][] costs;
+    private final byte[][][] modes;
+    private final byte[][][] quantizers;
+    private final byte[][][] records;
+    private final byte[][][] lengths;
+    private final long[][][] distortions;
+
+    /**
+     * Makes the arrays of a size and number of trials.
+     *
+     * @param width  the width
+     * @param height the height
+     * @param trials the number of trials
+     */
+    Buffers(final int width, final int height, final int trials) {
+      this.width = width;
+      this.height = height;
+      this.trials = trials;
+      this.costs = new double[trials][3][];
+      this.modes = new byte[trials][3][];
+      this.quantizers = new byte[trials][3][];
+      this.records = new byte[trials][3][];
+      this.lengths = new byte[trials][3][];
+      this.distortions = new long[trials][3][];
+      for (int level = 0; level < 3; level++) {
+        final int size = 32 >> level;
+        final int blocks = ((width + size - 1) / size) * ((height + size - 1) / size);
+        for (int t = 0; t < trials; t++) {
+          this.costs[t][level] = new double[blocks];
+          this.modes[t][level] = new byte[blocks];
+          this.quantizers[t][level] = new byte[blocks];
+          this.records[t][level] = new byte[blocks * MAX_RECORD];
+          this.lengths[t][level] = new byte[blocks];
+          this.distortions[t][level] = new long[blocks];
+        }
+      }
+    }
+
+    /**
+     * Checks whether these arrays serve a frame.
+     *
+     * @param w the frame's width
+     * @param h the frame's height
+     * @param t the frame's number of trials
+     * @return true if they do
+     */
+    boolean fits(final int w, final int h, final int t) {
+      return this.width == w && this.height == h && this.trials == t;
+    }
+  }
 
   FrameJob(
     final EncoderSettings settings,
@@ -63,6 +123,37 @@ final class FrameJob {
     final int[] vectorsY,
     final int@Nullable[] previousMotion,
     final byte@Nullable[][] levelPictures
+  ) {
+    this(settings, source, reference, width, height, keyframe, vectorsX, vectorsY, previousMotion, levelPictures, null);
+  }
+
+  /**
+   * Constructs a frame's search state, reusing the arrays of an earlier frame of the same size and trials.
+   *
+   * @param settings       the profile
+   * @param source         the picture
+   * @param reference      the picture P frames predict from, empty for a keyframe
+   * @param width          the width
+   * @param height         the height
+   * @param keyframe       whether the frame is a keyframe
+   * @param vectorsX       the global vectors' horizontal parts
+   * @param vectorsY       the global vectors' vertical parts
+   * @param previousMotion the previous frame's motion, one vector per 8x8 cell, or null
+   * @param levelPictures  the pictures of a live search's best reconstructions per level, or null
+   * @param reuse          arrays to reuse when they fit the frame, or null
+   */
+  FrameJob(
+    final EncoderSettings settings,
+    final byte[] source,
+    final byte[] reference,
+    final int width,
+    final int height,
+    final boolean keyframe,
+    final int[] vectorsX,
+    final int[] vectorsY,
+    final int@Nullable[] previousMotion,
+    final byte@Nullable[][] levelPictures,
+    final @Nullable Buffers reuse
   ) {
     this.settings = settings;
     this.source = source;
@@ -77,24 +168,24 @@ final class FrameJob {
     this.trials = vectorsX.length * this.precisions;
     this.previousMotion = previousMotion;
     this.levelPictures = levelPictures;
-    this.costs = new double[this.trials][3][];
-    this.modes = new byte[this.trials][3][];
-    this.quantizers = new byte[this.trials][3][];
-    this.records = new byte[this.trials][3][][];
-    this.distortions = new long[this.trials][3][];
+    this.buffers = reuse != null && reuse.fits(width, height, this.trials) ? reuse : new Buffers(width, height, this.trials);
     for (int level = 0; level < 3; level++) {
       final int size = 32 >> level;
       this.columns[level] = (width + size - 1) / size;
-      final int blocks = this.columns[level] * ((height + size - 1) / size);
       for (int t = 0; t < this.trials; t++) {
-        this.costs[t][level] = new double[blocks];
-        Arrays.fill(this.costs[t][level], Double.POSITIVE_INFINITY);
-        this.modes[t][level] = new byte[blocks];
-        this.quantizers[t][level] = new byte[blocks];
-        this.records[t][level] = new byte[blocks][];
-        this.distortions[t][level] = new long[blocks];
+        // no block is evaluated yet; the other arrays are only read at blocks that were
+        Arrays.fill(this.buffers.costs[t][level], Double.POSITIVE_INFINITY);
       }
     }
+  }
+
+  /**
+   * Gets the arrays this frame fills, for the next frame to reuse.
+   *
+   * @return the arrays
+   */
+  Buffers buffers() {
+    return this.buffers;
   }
 
   EncoderSettings settings() {
@@ -206,25 +297,40 @@ final class FrameJob {
   }
 
   double[] cost(final int trial, final int level) {
-    return this.costs[trial][level];
+    return this.buffers.costs[trial][level];
   }
 
   int mode(final int trial, final int level, final int block) {
-    return this.modes[trial][level][block];
+    return this.buffers.modes[trial][level][block];
   }
 
   int quantizer(final int trial, final int level, final int block) {
-    return this.quantizers[trial][level][block];
+    return this.buffers.quantizers[trial][level][block];
   }
 
+  /** A copy of the block's best record. */
   byte[] record(final int trial, final int level, final int block) {
-    return this.records[trial][level][block];
+    final int at = block * MAX_RECORD;
+    return Arrays.copyOfRange(this.buffers.records[trial][level], at, at + (this.buffers.lengths[trial][level][block] & 0xFF));
   }
 
   long distortion(final int trial, final int level, final int block) {
-    return this.distortions[trial][level][block];
+    return this.buffers.distortions[trial][level][block];
   }
 
+  /**
+   * Records a block's new best candidate.
+   *
+   * @param trial  the trial
+   * @param level  the level
+   * @param block  the block
+   * @param cost   the candidate's cost
+   * @param mode   its mode
+   * @param q      its quantizer
+   * @param record its record, copied
+   * @param length the record's length
+   * @param d16    its distortion
+   */
   void set(
     final int trial,
     final int level,
@@ -233,12 +339,15 @@ final class FrameJob {
     final int mode,
     final int q,
     final byte[] record,
+    final int length,
     final long d16
   ) {
-    this.costs[trial][level][block] = cost;
-    this.modes[trial][level][block] = (byte) mode;
-    this.quantizers[trial][level][block] = (byte) q;
-    this.records[trial][level][block] = record;
-    this.distortions[trial][level][block] = d16;
+    final Buffers b = this.buffers;
+    b.costs[trial][level][block] = cost;
+    b.modes[trial][level][block] = (byte) mode;
+    b.quantizers[trial][level][block] = (byte) q;
+    System.arraycopy(record, 0, b.records[trial][level], block * MAX_RECORD, length);
+    b.lengths[trial][level][block] = (byte) length;
+    b.distortions[trial][level][block] = d16;
   }
 }
