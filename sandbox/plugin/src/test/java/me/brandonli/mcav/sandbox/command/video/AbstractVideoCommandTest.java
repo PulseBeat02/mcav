@@ -391,6 +391,20 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void refusesUnsupportedYtdlpOptionsBeforeStartingAnything() {
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{exec=anything}");
+
+    final String supported = String.join(", ", VideoFlagsParser.supportedOptions());
+    final String reason = "Unsupported yt-dlp option exec; the video commands accept " + supported;
+    final Component refused = Message.UNSUPPORTED_FLAGS.build(reason);
+    this.assertSenderReceived(refused);
+    Mockito.verifyNoInteractions(this.viewer);
+    this.assertNotStarting();
+    this.parsers.verifyNoInteractions();
+    this.videoPlayers.verifyNoInteractions();
+  }
+
+  @Test
   void playsAUrlOfAMediaFileWithoutYtdlp() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "https://example.com/videos/clip.webm", "");
 

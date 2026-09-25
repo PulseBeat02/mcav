@@ -18,8 +18,15 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -76,8 +83,8 @@ final class VideoFlagsParserTest {
 
   @Test
   void skipsEmptyOptions() {
-    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{a,, ,b}");
-    final String[] expected = { "--a", "--b" };
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{no-playlist,, ,geo-bypass}");
+    final String[] expected = { "--no-playlist", "--geo-bypass" };
     assertArrayEquals(expected, arguments);
   }
 
@@ -104,8 +111,8 @@ final class VideoFlagsParserTest {
 
   @Test
   void keepsAnEmptyValue() {
-    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{output=}");
-    final String[] expected = { "--output", "" };
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=}");
+    final String[] expected = { "--format", "" };
     assertArrayEquals(expected, arguments);
   }
 
@@ -125,9 +132,89 @@ final class VideoFlagsParserTest {
 
   @Test
   void keepsOtherBackslashesAsTheyAre() {
-    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{output=C:\\videos\\%(title)s.mp4}");
-    final String[] expected = { "--output", "C:\\videos\\%(title)s.mp4" };
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{match-filter=title~=C:\\videos\\%(title)s.mp4}");
+    final String[] expected = { "--match-filter", "title~=C:\\videos\\%(title)s.mp4" };
     assertArrayEquals(expected, arguments);
+  }
+
+  /**
+   * Parses one option, returning no arguments when the parser refuses it.
+   */
+  private String[] parseOrEmpty(final String option) {
+    try {
+      return this.parser.parseYTDLPFlags("--yt-dlp{" + option + "}");
+    } catch (final IllegalArgumentException refused) {
+      return new String[0];
+    }
+  }
+
+  @Test
+  void acceptsEverySupportedOption() {
+    final List<String> supported = VideoFlagsParser.supportedOptions();
+    for (final String option : supported) {
+      final String[] withValue = this.parseOrEmpty(option + "=value");
+      final String[] asSwitch = this.parseOrEmpty(option);
+      final boolean takesValue = Arrays.equals(new String[] { "--" + option, "value" }, withValue);
+      final boolean isSwitch = Arrays.equals(new String[] { "--" + option }, asSwitch);
+      assertTrue(takesValue != isSwitch, option + " must be either a switch or an option with a value");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "exec", "output", "paths", "config-location", "cookies", "downloader", "load-info-json" })
+  void refusesOptionsOutsideTheSupportedList(final String option) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      this.parser.parseYTDLPFlags("--yt-dlp{" + option + "=value}")
+    );
+    final String message = refused.getMessage();
+    final boolean namesTheOption = message.startsWith("Unsupported yt-dlp option " + option);
+    assertTrue(namesTheOption, message);
+    final IllegalArgumentException asSwitch = assertThrows(IllegalArgumentException.class, () ->
+      this.parser.parseYTDLPFlags("--yt-dlp{" + option + "}")
+    );
+    final String switchMessage = asSwitch.getMessage();
+    assertTrue(switchMessage.startsWith("Unsupported yt-dlp option " + option), switchMessage);
+  }
+
+  @Test
+  void refusesAValueForASwitch() {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      this.parser.parseYTDLPFlags("--yt-dlp{no-playlist=https://example.com/other}")
+    );
+    final String message = refused.getMessage();
+    assertEquals("The yt-dlp option no-playlist takes no value", message);
+  }
+
+  @Test
+  void refusesASwitchThatNeedsAValue() {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      this.parser.parseYTDLPFlags("--yt-dlp{format}")
+    );
+    final String message = refused.getMessage();
+    assertEquals("The yt-dlp option format needs a value, written as format=value", message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "-x", "--exec", "-" })
+  void refusesValuesThatYtdlpWouldReadAsAnotherOption(final String value) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      this.parser.parseYTDLPFlags("--yt-dlp{format=" + value + "}")
+    );
+    final String message = refused.getMessage();
+    final String expected = "The value of the yt-dlp option format must not start with a dash: " + value;
+    assertEquals(expected, message);
+  }
+
+  @Test
+  void listsTheSupportedOptionsInAlphabeticalOrder() {
+    final List<String> supported = VideoFlagsParser.supportedOptions();
+    final List<String> sorted = new ArrayList<>(supported);
+    Collections.sort(sorted);
+    assertEquals(sorted, supported);
+    assertTrue(supported.contains("format"), "format selection is the reason the flags exist");
+    assertTrue(supported.contains("no-playlist"));
+    assertFalse(supported.contains("exec"), "no option may run a program of the server");
+    assertFalse(supported.contains("output"), "no option may write a file of the server");
   }
 
   @Test
