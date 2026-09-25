@@ -351,6 +351,19 @@ final class IOUtilsTest {
     assertFalse(siblingExists, "a sibling whose name starts with the destination name is outside of it");
   }
 
+  /**
+   * Found by {@code UnzipFuzzTest}: an entry named with a character the file system cannot hold, such as the NUL of the
+   * fuzzer's archive, made {@link java.nio.file.Path#resolve(String)} throw an {@link java.nio.file.InvalidPathException}
+   * out of {@link IOUtils#unzip(Path, Path)}, which documents only its own exceptions for a bad archive.
+   */
+  @Test
+  void refusesAnEntryWhoseNameTheFileSystemCannotHold() throws IOException {
+    final Path archive = this.writeZip("../\u0000escape.txt", "evil");
+    final Path destination = this.directory.resolve("safe");
+
+    assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+  }
+
   private static void createSymbolicLinkOrSkip(final Path link, final Path target) {
     try {
       Files.createSymbolicLink(link, target);

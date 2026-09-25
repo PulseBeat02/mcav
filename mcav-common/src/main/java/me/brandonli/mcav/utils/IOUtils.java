@@ -40,6 +40,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.CopyOption;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -657,7 +658,16 @@ public final class IOUtils {
   }
 
   private static Path resolveInside(final Path destination, final String name) {
-    final Path resolved = destination.resolve(name);
+    final Path resolved;
+    try {
+      resolved = destination.resolve(name);
+    } catch (final InvalidPathException exception) {
+      // a name this file system cannot hold, such as one with a NUL character, is as unsafe as one that escapes
+      final String message = "Zip entry has a name that is not a path of this system: %s".formatted(name);
+      final ZipEntryIntegrityException refused = new ZipEntryIntegrityException(message);
+      refused.initCause(exception);
+      throw refused;
+    }
     final Path target = resolved.normalize();
     final boolean insideDestination = target.startsWith(destination);
     if (!insideDestination) {
