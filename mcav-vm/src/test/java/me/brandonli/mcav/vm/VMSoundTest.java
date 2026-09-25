@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -48,7 +49,8 @@ import org.junit.jupiter.api.io.TempDir;
  * Runs real QEMU guests and listens to them through the audio pipeline of the player. The guests are boot sectors
  * whose sources lie next to them: {@code beep.asm} plays a 1000 Hz tone on the PC speaker, and {@code toggle.asm}
  * switches that tone and a red screen on and off together at irregular times, so the sound can be matched with the
- * picture. Skipped where QEMU for x86-64 is not installed.
+ * picture. Skipped where QEMU for x86-64 is not installed; the matching times real events, so it only runs with
+ * {@code -Pmcav.syncMeasurement=true}.
  */
 final class VMSoundTest {
 
@@ -134,7 +136,7 @@ final class VMSoundTest {
   @Test
   void theToneOfTheGuestsPcSpeakerReachesTheAudioPipeline() throws IOException {
     assumeQemuInstalled();
-    final java.io.ByteArrayOutputStream pcm = new java.io.ByteArrayOutputStream();
+    final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
     final VMPlayer player = VMPlayer.create();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(
@@ -187,6 +189,7 @@ final class VMSoundTest {
 
   @Test
   void theSoundOfTheGuestKeepsUpWithItsPicture() throws IOException {
+    assumeTrue(Boolean.getBoolean("mcav.syncMeasurement"), "times real events; run with -Pmcav.syncMeasurement=true on a quiet machine");
     assumeQemuInstalled();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();

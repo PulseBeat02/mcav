@@ -80,6 +80,8 @@ QEMU's audio extension, and QEMU converts it to the format of the pipeline. Othe
 the sound belong to the player: a configuration that sets `-vnc`, `-audio` or `-audiodev`, or routes the PC speaker
 itself with `pcspk-audiodev`, is refused.
 
-At most 60 ms of sound wait for the pipeline, so the sound never falls far behind the picture; while the player is
-paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to the exception handler,
-and the machine runs without sound.
+QEMU sends the sound about every 10 ms, but refreshes the picture of its VNC display 30 ms after a change at the
+earliest, and later when the screen was idle, so the player holds the sound for 70 ms to keep it with the picture. At
+most 130 ms of sound wait for the pipeline, the hold included; a slow pipeline loses the oldest sound, so the sound
+never falls further behind. While the player is paused, the sound of the guest is dropped. A sound connection that
+cannot be made is reported to the exception handler, and the machine runs without sound.

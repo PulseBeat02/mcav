@@ -27,6 +27,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
@@ -35,9 +38,9 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
  * receives the samples the guest plays through {@link QemuAudioProtocol} and hands them to a {@link Sink}.
  *
  * <p>QEMU is asked for the format of the audio pipeline, 16-bit little-endian stereo at 48 kHz, and converts to it
- * itself, so the samples need no conversion here. The handshake must finish within
+ * itself, so the samples need no conversion here. The whole handshake must finish within
  * {@value #HANDSHAKE_TIMEOUT_MILLIS} ms; afterwards a reader thread waits for as long as the guest stays silent. A
- * connection that ends or breaks the protocol while nobody closed it is reported, once.
+ * connection that ends or breaks the protocol while nobody closed it, or whose sink fails, is reported, once.
  */
 final class VMAudioClient implements Closeable {
 
@@ -78,6 +81,10 @@ final class VMAudioClient implements Closeable {
   static VMAudioClient connect(final InetSocketAddress address, final Sink sink, final BiConsumer<String, Throwable> failures)
     throws IOException {
     final Socket socket = new Socket();
+    // the read timeout only limits a pause, so a server that trickles its handshake is cut off once it took too long;
+    // a deadline cancelled in time never runs
+    final Executor later = CompletableFuture.delayedExecutor(HANDSHAKE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(socket), later);
     try {
       socket.connect(address, HANDSHAKE_TIMEOUT_MILLIS);
       socket.setSoTimeout(HANDSHAKE_TIMEOUT_MILLIS);
@@ -87,6 +94,7 @@ final class VMAudioClient implements Closeable {
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(rawOutput));
       handshake(in, out);
+      deadline.cancel(false);
       // the guest may stay silent for as long as it likes
       socket.setSoTimeout(0);
       final VMAudioClient client = new VMAudioClient(socket, in, sink, failures);
@@ -130,8 +138,10 @@ final class VMAudioClient implements Closeable {
           this.sink.accept(message.getSamples(), message.getLength());
         }
       }
-    } catch (final IOException exception) {
+    } catch (final IOException | RuntimeException exception) {
+      // a sink that fails ends the connection like a server that breaks the protocol
       if (!this.closed) {
+        closeQuietly(this.socket);
         this.failures.accept("The audio connection of the virtual machine ended", exception);
       }
     }
@@ -153,11 +163,24 @@ final class VMAudioClient implements Closeable {
   public void close() {
     this.closed = true;
     closeQuietly(this.socket);
+    join(this.reader);
+  }
+
+  /**
+   * Waits for a thread of the sound to end, at most {@value #HANDSHAKE_TIMEOUT_MILLIS} ms, unless it is the calling
+   * thread: a filter or a failure callback that releases the player runs on the thread it would wait for.
+   *
+   * @param thread the thread
+   */
+  static void join(final Thread thread) {
+    final Thread caller = Thread.currentThread();
+    if (thread.equals(caller)) {
+      return;
+    }
     try {
-      this.reader.join(HANDSHAKE_TIMEOUT_MILLIS);
+      thread.join(HANDSHAKE_TIMEOUT_MILLIS);
     } catch (final InterruptedException exception) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      caller.interrupt();
     }
   }
 

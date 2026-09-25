@@ -233,6 +233,34 @@ final class VMPlayerImplTest {
   }
 
   @Test
+  void aResumeDuringAPauseLeavesPictureAndSoundTogether() throws Exception {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    final java.util.concurrent.CountDownLatch insidePause = new java.util.concurrent.CountDownLatch(1);
+    final java.util.concurrent.CountDownLatch finishPause = new java.util.concurrent.CountDownLatch(1);
+    when(this.vnc.pause()).thenAnswer(invocation -> {
+      insidePause.countDown();
+      finishPause.await(10, java.util.concurrent.TimeUnit.SECONDS);
+      return true;
+    });
+    when(this.vnc.resume()).thenReturn(true);
+    when(this.vnc.isPlaying()).thenReturn(true);
+    final List<Integer> heard = new CopyOnWriteArrayList<>();
+    final VMPlayerImpl player = this.startedPlayer();
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
+    final java.util.concurrent.CompletableFuture<Boolean> pausing = java.util.concurrent.CompletableFuture.supplyAsync(player::pause);
+    assertTrue(insidePause.await(10, java.util.concurrent.TimeUnit.SECONDS));
+    // the picture is being paused while another thread resumes; without one lock the sound would end up paused
+    final java.util.concurrent.CompletableFuture<Boolean> resuming = java.util.concurrent.CompletableFuture.supplyAsync(player::resume);
+    Thread.sleep(200L);
+    finishPause.countDown();
+    assertTrue(pausing.get(10, java.util.concurrent.TimeUnit.SECONDS));
+    assertTrue(resuming.get(10, java.util.concurrent.TimeUnit.SECONDS));
+    this.sinks.getFirst().accept(new byte[8], 8);
+    waitUntil(() -> heard.size() == 1);
+    player.release();
+  }
+
+  @Test
   void aMachineWhoseSoundCannotBeConnectedRunsWithoutSound() {
     when(this.qemu.hasAudio()).thenReturn(true);
     this.stubConnectingStream();

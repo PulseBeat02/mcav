@@ -39,10 +39,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Every chunk is held for {@value #DELAY_MILLIS} ms before it is handed over. QEMU sends the sound of the guest
  * about every 10 ms, but it refreshes the picture of its VNC display 30 ms after a change at the earliest, and later
  * when the screen was idle, so without the delay the sound would run ahead of the picture. At most
- * {@value #MAX_QUEUED_MILLIS} ms of samples wait; when more arrive, the oldest chunks are dropped, so a slow pipeline
+ * {@value #MAX_QUEUED_MILLIS} ms of samples wait; when more arrive, the oldest samples are dropped, so a slow pipeline
  * never lets the sound fall behind by more than that. While the player is paused, samples are dropped instead of
  * queued, and pausing drops the queued ones, so no stale sound plays after a resume. A failing pipeline is reported
- * and the next chunk is handed over as usual.
+ * and the next chunk is handed over as usual, even if reporting fails too.
  */
 final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
 
@@ -134,14 +134,15 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
     if (this.paused || this.closed || length == 0) {
       return;
     }
-    final ByteBuffer copy = ByteBuffer.allocate(length).order(ByteOrder.LITTLE_ENDIAN);
-    copy.put(samples, 0, length);
+    // a chunk longer than the limit keeps its newest samples, whole frames as the limit is
+    final int kept = Math.min(length, MAX_QUEUED_BYTES);
+    final ByteBuffer copy = ByteBuffer.allocate(kept).order(ByteOrder.LITTLE_ENDIAN);
+    copy.put(samples, length - kept, kept);
     copy.flip();
     final long due = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS);
     this.queue.addLast(new Chunk(copy, due));
-    this.queuedBytes += length;
-    // the newest chunk always stays, even when it alone is longer than the limit
-    while (this.queuedBytes > MAX_QUEUED_BYTES && this.queue.size() > 1) {
+    this.queuedBytes += kept;
+    while (this.queuedBytes > MAX_QUEUED_BYTES) {
       final Chunk dropped = this.queue.removeFirst();
       this.queuedBytes -= dropped.samples().remaining();
     }
@@ -228,7 +229,16 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
     } catch (final RuntimeException | Error failure) {
       // filters are user code and native code, which can fail with any Error; only errors of the JVM are thrown
       ThrowableUtils.throwIfFatal(failure);
+      this.report(failure);
+    }
+  }
+
+  private void report(final Throwable failure) {
+    try {
       this.failures.accept("Failed to process the audio of the virtual machine", failure);
+    } catch (final RuntimeException handlerFailure) {
+      // the exception handler is user code too; the sound goes on, and nothing else is left to tell
+      failure.addSuppressed(handlerFailure);
     }
   }
 
@@ -243,12 +253,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
       this.queuedBytes = 0;
       this.notifyAll();
     }
-    try {
-      this.thread.join(VMAudioClient.HANDSHAKE_TIMEOUT_MILLIS);
-    } catch (final InterruptedException exception) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-    }
+    VMAudioClient.join(this.thread);
   }
 
   /**

@@ -10,9 +10,16 @@ dependencies {
     // test dependencies
     testImplementation(project(":mcav-common"))
     testImplementation(project(":mcav-vnc"))
+    // the tests with a real QEMU log how it was started and why it fell back to software emulation
+    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
 }
 
 tasks {
+    // the measurement of how far the sound of a guest drifts from its picture times real events, which a busy machine
+    // delays; it runs on request, on a quiet machine: -Pmcav.syncMeasurement=true
+    test {
+        systemProperty("mcav.syncMeasurement", providers.gradleProperty("mcav.syncMeasurement").getOrElse("false"))
+    }
     java {
         withSourcesJar()
         withJavadocJar()

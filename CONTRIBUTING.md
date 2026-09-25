@@ -15,8 +15,8 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
 - `./gradlew coverageLint` runs the tests of every module and prints each line or branch that no test covers as
   `file:line`, failing the build when there is any. Run `./gradlew :<module>:coverageLint` for a single module.
 - `./gradlew check -Pmcav.coverage` makes `check` enforce the lint as well. Without the property, `check` does not,
-  because some tests skip themselves on machines without VLC, Chrome, QEMU or a display, or whose OpenCV build
-  cannot read video files (the bundled Linux build cannot), and the code they test would show up as gaps there.
+  because some tests skip themselves on machines without VLC, QEMU or a display, or whose OpenCV build cannot read
+  video files (the bundled Linux build cannot), and the code they test would show up as gaps there.
 - A line that no test can run, such as a constructor only a Minecraft server may call, goes into
   `coverage-exceptions.txt` next to the build file of its module, together with the reason. The lint fails when an
   entry is no longer needed, so the list cannot hide new gaps.
@@ -24,6 +24,10 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
   the tests on another JDK.
 - Tests that download from the internet, such as the check of the bundled yt-dlp release against the checksums
   published on GitHub and a real installation of yt-dlp, only run with `-Pmcav.networkTests=true`.
+- The tests of `mcav-browser` that start a real browser download the CEF build of the machine on their first run,
+  as a server does (136–165 MB, into `~/.mcav/cache/jcef`); on Linux they need Xvfb.
+- The measurement of how far the sound of a virtual machine drifts from its picture times real events, which a busy
+  machine delays, so it only runs with `-Pmcav.syncMeasurement=true`, on a quiet machine.
 
 ## Static Analysis
 

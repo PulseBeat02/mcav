@@ -106,13 +106,67 @@ class VMAudioOutputTest {
     }
     assertEquals(MAX_BYTES, this.output.getQueuedBytes(), "at most the limit waits");
     final byte[] huge = new byte[MAX_BYTES * 3];
-    huge[0] = 42;
+    huge[huge.length - MAX_BYTES] = 41;
+    huge[huge.length - MAX_BYTES - 4] = 40;
+    huge[huge.length - 1] = 42;
     this.output.accept(huge, huge.length);
-    assertEquals(huge.length, this.output.getQueuedBytes(), "the newest chunk stays, however long");
+    assertEquals(MAX_BYTES, this.output.getQueuedBytes(), "a chunk longer than the limit keeps its newest samples");
     this.blocking = false;
     this.gate.countDown();
     waitUntil(() -> this.processed.size() == 2);
-    assertEquals(42, this.processed.get(1)[0]);
+    final byte[] kept = this.processed.get(1);
+    assertEquals(MAX_BYTES, kept.length);
+    assertEquals(41, kept[0], "the kept samples start a whole frame into the newest limit");
+    assertEquals(42, kept[MAX_BYTES - 1]);
+  }
+
+  @Test
+  void anExceptionHandlerThatFailsDoesNotStopTheSound() {
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
+    final VMAudioOutput failing = VMAudioOutput.start(
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          if (samples.get(0) == 1) {
+            throw new IllegalStateException("filter broke");
+          }
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          heard.add(copy);
+          return true;
+        }),
+      (message, failure) -> {
+        throw new IllegalStateException("handler broke too");
+      }
+    );
+    try {
+      failing.accept(new byte[] { 1, 0, 0, 0 }, 4);
+      failing.accept(new byte[] { 2, 0, 0, 0 }, 4);
+      waitUntil(() -> heard.size() == 1);
+      assertEquals(2, heard.getFirst()[0], "the chunk after the failures still plays");
+    } finally {
+      failing.close();
+    }
+  }
+
+  @Test
+  void aFilterThatClosesTheOutputDoesNotWaitForItself() {
+    final java.util.concurrent.atomic.AtomicReference<VMAudioOutput> self = new java.util.concurrent.atomic.AtomicReference<>();
+    final java.util.concurrent.atomic.AtomicLong closeNanos = new java.util.concurrent.atomic.AtomicLong(-1);
+    final VMAudioOutput closing = VMAudioOutput.start(
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          final long start = System.nanoTime();
+          self.get().close();
+          closeNanos.set(System.nanoTime() - start);
+          return true;
+        }),
+      (message, failure) -> this.failures.add(message)
+    );
+    self.set(closing);
+    closing.accept(new byte[4], 4);
+    waitUntil(() -> closeNanos.get() >= 0);
+    assertTrue(closeNanos.get() < TimeUnit.SECONDS.toNanos(1), "closed without waiting for its own thread");
+    assertEquals(List.of(), this.failures);
   }
 
   @Test

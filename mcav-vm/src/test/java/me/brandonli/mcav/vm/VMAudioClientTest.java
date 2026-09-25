@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
@@ -126,6 +127,91 @@ class VMAudioClientTest {
       waitUntil(() -> !client.isAlive());
       assertEquals(List.of("The audio connection of the virtual machine ended"), this.failures);
     }
+  }
+
+  @Test
+  void aSinkThatFailsEndsTheConnectionAndIsReported() throws Exception {
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
+      try (Socket socket = this.server.accept()) {
+        final Streams streams = handshake(socket);
+        QemuAudioProtocolTest.writeAcknowledgement(streams.out());
+        streams.out().write(new byte[] { (byte) 255, 1, 0, 1 });
+        QemuAudioProtocolTest.writeData(streams.out(), new byte[] { 1, 2, 3, 4 });
+        streams.out().flush();
+        // the client closes the connection once its sink failed
+        assertEquals(-1, streams.in().read());
+      } catch (final IOException exception) {
+        throw new java.io.UncheckedIOException(exception);
+      }
+    });
+    final VMAudioClient.Sink failing = (samples, length) -> {
+      throw new IllegalStateException("sink broke");
+    };
+    try (VMAudioClient client = VMAudioClient.connect(this.address(), failing, (message, failure) -> this.failures.add(message))) {
+      served.get(10, TimeUnit.SECONDS);
+      waitUntil(() -> !client.isAlive());
+      assertEquals(List.of("The audio connection of the virtual machine ended"), this.failures);
+    }
+  }
+
+  /**
+   * Sends the banner of RFB one byte a second: every pause is shorter than the timeout of a read, the whole banner far
+   * longer than the handshake may take.
+   *
+   * @param server the listening socket
+   */
+  private static void trickleTheBanner(final ServerSocket server) {
+    try (Socket socket = server.accept()) {
+      final OutputStream out = socket.getOutputStream();
+      for (final byte value : "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII)) {
+        out.write(value);
+        out.flush();
+        Thread.sleep(1_000L);
+      }
+    } catch (final IOException exception) {
+      // the client gave up and closed the connection
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  @Test
+  void aServerThatTricklesItsHandshakeIsCutOffAtTheDeadline() throws Exception {
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> trickleTheBanner(this.server));
+    final long start = System.nanoTime();
+    assertThrows(IOException.class, this::connect);
+    final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
+    assertTrue(seconds < VMAudioClient.HANDSHAKE_TIMEOUT_MILLIS / 1000 + 3, "the handshake took " + seconds + " s");
+    served.get(20, TimeUnit.SECONDS);
+  }
+
+  @Test
+  void aFailureCallbackThatClosesTheClientDoesNotWaitForItself() throws Exception {
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
+      try (Socket socket = this.server.accept()) {
+        final Streams streams = handshake(socket);
+        QemuAudioProtocolTest.writeAcknowledgement(streams.out());
+      } catch (final IOException exception) {
+        throw new java.io.UncheckedIOException(exception);
+      }
+    });
+    final java.util.concurrent.atomic.AtomicReference<VMAudioClient> self = new java.util.concurrent.atomic.AtomicReference<>();
+    final java.util.concurrent.atomic.AtomicLong closeNanos = new java.util.concurrent.atomic.AtomicLong(-1);
+    final VMAudioClient client = VMAudioClient.connect(
+      this.address(),
+      (samples, length) -> {},
+      (message, failure) -> {
+        final long begin = System.nanoTime();
+        waitUntil(() -> self.get() != null);
+        self.get().close();
+        closeNanos.set(System.nanoTime() - begin);
+      }
+    );
+    self.set(client);
+    served.get(10, TimeUnit.SECONDS);
+    waitUntil(() -> closeNanos.get() >= 0);
+    assertTrue(closeNanos.get() < TimeUnit.SECONDS.toNanos(1), "closed without waiting for its own reader");
+    client.close();
   }
 
   @Test

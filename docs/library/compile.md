@@ -31,6 +31,7 @@ the Checker Framework, and it must stay free of warnings.
 | `./gradlew coverageLint` | Prints every line and branch no test covers, as `file:line`. |
 | `-Pmcav.coverage` | Makes `check` enforce the coverage lint as well. |
 | `-Pmcav.networkTests=true` | Also runs the tests that download from the internet, such as the check of the bundled yt-dlp release. |
+| `-Pmcav.syncMeasurement=true` | Also measures how far the sound of a virtual machine drifts from its picture; run it on a quiet machine. |
 | `./gradlew :<module>:pitest` | Runs [PIT](https://pitest.org/) mutation testing on one module, writing its report to `build/reports/pitest`. |
 
 [CONTRIBUTING.md](https://github.com/PulseBeat02/mcav/blob/master/CONTRIBUTING.md) describes the tests, the coverage

@@ -54,6 +54,7 @@ public final class VMPlayerImpl implements VMPlayer {
   private final AudioConnector audioConnector;
   private final AudioAttachableCallback audioCallback;
   private final Lock lock;
+  private final Object controls;
   private final AtomicBoolean running;
   private final AtomicBoolean released;
 
@@ -94,6 +95,7 @@ public final class VMPlayerImpl implements VMPlayer {
     this.audioConnector = audioConnector;
     this.audioCallback = AudioAttachableCallback.create();
     this.lock = new ReentrantLock();
+    this.controls = new Object();
     this.running = new AtomicBoolean(false);
     this.released = new AtomicBoolean(false);
   }
@@ -294,25 +296,30 @@ public final class VMPlayerImpl implements VMPlayer {
 
   @Override
   public boolean pause() {
-    final boolean active = this.isActive();
-    final boolean paused = active && this.vncPlayer.pause();
-    final VMAudioOutput output = this.audioOutput;
-    if (paused && output != null) {
-      // the sound of a paused machine is dropped, so it does not play late after the resume
-      output.pause();
+    // picture and sound change together, so a resume that runs meanwhile cannot leave one of them paused
+    synchronized (this.controls) {
+      final boolean active = this.isActive();
+      final boolean paused = active && this.vncPlayer.pause();
+      final VMAudioOutput output = this.audioOutput;
+      if (paused && output != null) {
+        // the sound of a paused machine is dropped, so it does not play late after the resume
+        output.pause();
+      }
+      return paused;
     }
-    return paused;
   }
 
   @Override
   public boolean resume() {
-    final boolean active = this.isActive();
-    final boolean resumed = active && this.vncPlayer.resume();
-    final VMAudioOutput output = this.audioOutput;
-    if (resumed && output != null) {
-      output.resume();
+    synchronized (this.controls) {
+      final boolean active = this.isActive();
+      final boolean resumed = active && this.vncPlayer.resume();
+      final VMAudioOutput output = this.audioOutput;
+      if (resumed && output != null) {
+        output.resume();
+      }
+      return resumed;
     }
-    return resumed;
   }
 
   @Override
