@@ -136,7 +136,8 @@ final class VMProcessTest {
       }
       return started;
     };
-    return new VMProcess(settings, QEMU, configuration, launcher, os, this.missingKvm, SHORT_TIMEOUT_MILLIS);
+    // an architecture without sound, so these tests see the display options alone; the sound has tests of its own
+    return new VMProcess(settings, VMPlayer.Architecture.AARCH64, QEMU, configuration, launcher, os, this.missingKvm, SHORT_TIMEOUT_MILLIS);
   }
 
   private VMProcess reachable(final OS os, final Object... results) {
@@ -147,7 +148,17 @@ final class VMProcessTest {
 
   private List<String> defaults() {
     final int display = this.port - VMProcess.FIRST_VNC_PORT;
-    return List.of("-vga", "std", "-display", "none", "-vnc", "127.0.0.1:" + display, "-usb", "-device", "usb-tablet");
+    return List.of(
+      "-vga",
+      "std",
+      "-display",
+      "none",
+      "-vnc",
+      "127.0.0.1:" + display + ",share=force-shared",
+      "-usb",
+      "-device",
+      "usb-tablet"
+    );
   }
 
   private List<String> command(final String... arguments) {
@@ -172,7 +183,7 @@ final class VMProcessTest {
    */
   private static List<String> expectedOnDisplayOne(final List<String> options, final List<String> usbOptions) {
     final String program = QEMU.toString();
-    final List<String> displayDefaults = List.of("-vga", "std", "-display", "none", "-vnc", "127.0.0.1:1");
+    final List<String> displayDefaults = List.of("-vga", "std", "-display", "none", "-vnc", "127.0.0.1:1,share=force-shared");
     final List<String> expected = new ArrayList<>();
     expected.add(program);
     expected.addAll(options);
@@ -300,6 +311,7 @@ final class VMProcessTest {
     };
     final VMProcess process = new VMProcess(
       settings,
+      VMPlayer.Architecture.AARCH64,
       QEMU,
       configuration,
       launcher,
@@ -327,6 +339,7 @@ final class VMProcessTest {
     };
     final VMProcess process = new VMProcess(
       settings,
+      VMPlayer.Architecture.AARCH64,
       QEMU,
       configuration,
       launcher,
@@ -372,17 +385,143 @@ final class VMProcessTest {
 
   @Test
   void leavesOutTheDefaultsTheConfigurationSets() {
-    final VMSettings settings = this.reachableSettings();
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
     final VMConfiguration configuration = VMConfiguration.builder();
     configuration.vga("virtio");
     configuration.option("display", "gtk");
-    configuration.option("vnc", ":7");
     configuration.option("usbdevice", "tablet");
     final VMProcess process = this.process(settings, configuration, OS.LINUX);
     final List<String> command = process.buildCommand(null);
     final String program = QEMU.toString();
-    final List<String> expected = List.of(program, "-vga", "virtio", "-display", "gtk", "-vnc", ":7", "-usbdevice", "tablet");
+    final List<String> expected = List.of(
+      program,
+      "-vga",
+      "virtio",
+      "-display",
+      "gtk",
+      "-usbdevice",
+      "tablet",
+      "-vnc",
+      "127.0.0.1:7,share=force-shared"
+    );
     assertEquals(expected, command);
+  }
+
+  private List<String> x86Command(final VMConfiguration configuration) {
+    final VMSettings settings = new VMSettings(5903, 64, 48, 10);
+    final VMProcess.Launcher launcher = command -> {
+      throw new IOException("not started");
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      VMPlayer.Architecture.X86_64,
+      QEMU,
+      configuration,
+      launcher,
+      OS.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS
+    );
+    return process.buildCommand(null);
+  }
+
+  @Test
+  void aPcMachineGetsAnHdaCardThePcSpeakerAndTheSoundOnItsDisplay() {
+    final List<String> command = this.x86Command(VMConfiguration.builder());
+    final List<String> expected = List.of(
+      QEMU.toString(),
+      "-machine",
+      "pcspk-audiodev=mcav-audio",
+      "-vga",
+      "std",
+      "-display",
+      "none",
+      "-audiodev",
+      "none,id=mcav-audio,out.frequency=48000",
+      "-device",
+      "intel-hda,id=mcav-sound",
+      "-device",
+      "hda-output,bus=mcav-sound.0,audiodev=mcav-audio",
+      "-vnc",
+      "127.0.0.1:3,share=force-shared,audiodev=mcav-audio",
+      "-usb",
+      "-device",
+      "usb-tablet"
+    );
+    assertEquals(expected, command);
+  }
+
+  @Test
+  void theSpeakerJoinsTheMachineOfTheConfigurationAndQ35GetsTheIch9Card() {
+    final VMConfiguration q35 = VMConfiguration.builder();
+    q35.machine("q35,accel=tcg");
+    final List<String> command = this.x86Command(q35);
+    assertTrue(command.containsAll(List.of("-machine", "q35,accel=tcg,pcspk-audiodev=mcav-audio")), command::toString);
+    assertTrue(command.contains("ich9-intel-hda,id=mcav-sound"), command::toString);
+    final VMConfiguration typed = VMConfiguration.builder();
+    typed.machine("type=pc-q35-8.2,usb=on");
+    assertTrue(this.x86Command(typed).contains("ich9-intel-hda,id=mcav-sound"));
+    final VMConfiguration i440fx = VMConfiguration.builder();
+    i440fx.machine("pc-i440fx-8.2");
+    assertTrue(this.x86Command(i440fx).contains("intel-hda,id=mcav-sound"));
+  }
+
+  @Test
+  void machinesWithoutAPcSpeakerOrAPciBusGetNoSound() {
+    final VMConfiguration microvm = VMConfiguration.builder();
+    microvm.machine("microvm");
+    final List<String> command = this.x86Command(microvm);
+    assertFalse(command.contains("-audiodev"), command::toString);
+    assertTrue(command.contains("127.0.0.1:3,share=force-shared"), command::toString);
+    final VMConfiguration legacy = VMConfiguration.builder();
+    legacy.option("M", "pc");
+    assertFalse(this.x86Command(legacy).contains("-audiodev"), "-M is left to the configuration");
+    final List<String> arm = this.commandWithoutAccelerator(this.reachableSettings(), VMConfiguration.builder());
+    assertFalse(arm.contains("-audiodev"));
+  }
+
+  @Test
+  void theMachineTypeIsReadFromTheMachineOption() {
+    final VMConfiguration none = VMConfiguration.builder();
+    assertEquals("", VMProcess.machineType(none));
+    final VMConfiguration named = VMConfiguration.builder();
+    named.machine("Q35,usb=on");
+    assertEquals("q35", VMProcess.machineType(named));
+    final VMConfiguration typed = VMConfiguration.builder();
+    typed.machine("usb=on,type=PC");
+    assertEquals("pc", VMProcess.machineType(typed));
+    final VMConfiguration properties = VMConfiguration.builder();
+    properties.machine("accel=kvm");
+    assertEquals("", VMProcess.machineType(properties));
+    assertTrue(VMProcess.isPcMachine(""));
+    assertTrue(VMProcess.isPcMachine("pc"));
+    assertTrue(VMProcess.isPcMachine("q35"));
+    assertTrue(VMProcess.isPcMachine("pc-q35-9.0"));
+    assertFalse(VMProcess.isPcMachine("microvm"));
+    assertFalse(VMProcess.isPcMachine("isapc"));
+  }
+
+  @Test
+  void aConfigurationThatSetsTheDisplayOrTheSoundOfTheMachineIsRefused() {
+    for (final String option : List.of("vnc", "audio", "audiodev")) {
+      final VMConfiguration configuration = VMConfiguration.builder();
+      configuration.option(option, "x");
+      final PlayerException refused = assertThrows(PlayerException.class, () -> VMProcess.checkModuleOptions(configuration));
+      assertEquals("mcav sets -" + option + " of the machine itself; remove it from the configuration", refused.getMessage());
+    }
+    final VMConfiguration speaker = VMConfiguration.builder();
+    speaker.machine("pc,pcspk-audiodev=snd0");
+    final PlayerException refused = assertThrows(PlayerException.class, () -> VMProcess.checkModuleOptions(speaker));
+    assertEquals("mcav routes the PC speaker of the machine itself; remove pcspk-audiodev from -machine", refused.getMessage());
+    final VMConfiguration fine = VMConfiguration.builder();
+    fine.machine("q35");
+    VMProcess.checkModuleOptions(fine);
+    final VMSettings settings = this.reachableSettings();
+    final VMConfiguration display = VMConfiguration.builder();
+    display.option("vnc", ":7");
+    final VMProcess process = this.process(settings, display, OS.LINUX);
+    assertThrows(PlayerException.class, process::start);
+    assertEquals(List.of(), this.commands, "a refused configuration never starts QEMU");
   }
 
   @Test
@@ -401,7 +540,7 @@ final class VMProcessTest {
       "-vga",
       "std",
       "-vnc",
-      "127.0.0.1:1",
+      "127.0.0.1:1,share=force-shared",
       "-usb",
       "-device",
       "usb-tablet"

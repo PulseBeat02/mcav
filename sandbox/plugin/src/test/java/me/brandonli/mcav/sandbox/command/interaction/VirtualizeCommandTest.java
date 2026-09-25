@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,15 +39,20 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -80,6 +86,7 @@ final class VirtualizeCommandTest {
   private CommandSender sender;
   private MultiplePlayerSelector selector;
   private VMPlayer machine;
+  private AudioProvider provider;
   private VideoAttachableCallback callback;
   private FunctionalVideoFilter ditherFilter;
   private MockedStatic<VMPlayer> machines;
@@ -98,6 +105,8 @@ final class VirtualizeCommandTest {
     when(this.plugin.getServer()).thenReturn(server);
     when(this.plugin.isQemuInstalled()).thenReturn(true);
     when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
+    this.provider = mock(AudioProvider.class);
+    when(this.plugin.getAudioProvider()).thenReturn(this.provider);
     this.imageFolder = DiskImages.folderOf(this.dataFolder);
     this.command = new VirtualizeCommand(this.plugin);
     this.sender = mock(CommandSender.class);
@@ -135,6 +144,7 @@ final class VirtualizeCommandTest {
         0,
         DitheringArgument.FILTER_LITE,
         VMPlayer.Architecture.X86_64,
+        AudioArgument.NONE,
         flags
       );
   }
@@ -515,6 +525,74 @@ final class VirtualizeCommandTest {
         "-name",
         "my vm,debug-threads=on"
       );
+  }
+
+  @Test
+  void theSoundOfAMachinePlaysIntoTheChosenOutputAndIsLetGoOfOnRelease() {
+    final AudioFilter output = mock(AudioFilter.class);
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any())).thenReturn(output);
+    final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
+    when(this.machine.getAudioAttachableCallback()).thenReturn(audio);
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        "-m 256M"
+      );
+    final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
+    verify(audio).attach(pipelines.capture());
+    assertSame(output, pipelines.getValue().getFilter());
+    this.command.releaseVM(this.sender);
+    verify(this.provider).releaseAudioFilter();
+  }
+
+  @Test
+  void aMachineThatDoesNotStartSendsNoLinkToItsSound() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(start);
+    this.create("640x480", "5x4", "-m 256M");
+    verify(this.provider, never()).constructHttpUrl();
+    verify(this.provider, never()).constructVoiceChannelUrl();
+  }
+
+  @Test
+  void aSilentMachineNeitherPlaysIntoNorLetsGoOfAnOutput() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.create("640x480", "5x4", "-m 256M");
+    this.command.releaseVM(this.sender);
+    verify(this.provider, never()).constructFilter(any(), any(), any());
+    verify(this.provider, never()).releaseAudioFilter();
+  }
+
+  @Test
+  void anAudioOutputThatCannotPlayNowStartsNothing() {
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.DISCORD_BOT,
+        "-m 256M"
+      );
+    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.machines.verifyNoInteractions();
   }
 
   @Test

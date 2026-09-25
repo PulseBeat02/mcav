@@ -111,10 +111,11 @@ case, the format is `dshow` and the input is `video=OBS Virtual Camera`.
 created on maps.
 2) Follow the command argument usage in the [Commands Guide](./commands) to specify the VM parameters. You are
 on your own to provide the valid QEMU arguments for the VM to run. For some examples of valid VM arguments, here is one
-for providing an ISO image with 2 GB of RAM and 2 CPU cores. Put paths that contain spaces in double quotes.
+for providing an ISO image of the plugin's `iso` folder with 2 GB of RAM and 2 CPU cores, whose sound plays through
+Simple Voice Chat. Put names that contain spaces in double quotes.
 
 ```
-/mcav vm create @a 640x640 30 5x5 0 FILTER_LITE X86_64 -cdrom /path/to/your.iso -m 2048 -smp 2
+/mcav vm create @a 640x640 30 5x5 0 FILTER_LITE X86_64 SIMPLE_VOICE_CHAT -cdrom your.iso -m 2048M -smp 2
 ```
 
 You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on your

@@ -20,6 +20,8 @@ package me.brandonli.mcav.vm;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,6 +29,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -35,22 +38,29 @@ import me.brandonli.mcav.vnc.VNCSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The default {@link VMPlayer}: a {@link VMProcess} for QEMU plus a {@link VNCPlayer} attached to its display.
+ * The default {@link VMPlayer}: a {@link VMProcess} for QEMU plus a {@link VNCPlayer} attached to its display, and,
+ * when the machine has sound, a {@link VMAudioClient} that hands it to the audio pipeline through a
+ * {@link VMAudioOutput}.
  *
  * <p>The machine runs while QEMU runs: when QEMU exits on its own, as when the guest shuts down, the player stops
- * playing, ignores input, and can be started again.
+ * playing, ignores input, and can be started again. A sound connection that cannot be made is reported, and the
+ * machine runs without sound.
  */
 public final class VMPlayerImpl implements VMPlayer {
 
   private final VNCPlayer vncPlayer;
   private final ExecutableFinder finder;
   private final ProcessFactory processFactory;
+  private final AudioConnector audioConnector;
+  private final AudioAttachableCallback audioCallback;
   private final Lock lock;
   private final AtomicBoolean running;
   private final AtomicBoolean released;
 
   // written under the lock but read without it by isActive(), so the read must not see a stale reference
   private volatile @Nullable VMProcess process;
+  private volatile @Nullable VMAudioOutput audioOutput;
+  private volatile @Nullable VMAudioClient audioClient;
 
   /**
    * Creates a player that runs QEMU from the {@code PATH} and streams its display with a new VNC player.
@@ -60,7 +70,7 @@ public final class VMPlayerImpl implements VMPlayer {
   static VMPlayerImpl createDefault() {
     final VNCPlayer vncPlayer = VNCPlayer.create();
     final ExecutableFinder finder = new ExecutableFinder();
-    return new VMPlayerImpl(vncPlayer, finder, VMProcess::create);
+    return new VMPlayerImpl(vncPlayer, finder, VMProcess::create, VMAudioClient::connect);
   }
 
   /**
@@ -69,12 +79,20 @@ public final class VMPlayerImpl implements VMPlayer {
    * @param vncPlayer      the player that streams the display of the machine
    * @param finder         finds the QEMU program
    * @param processFactory creates the QEMU process
+   * @param audioConnector connects to the sound of the machine
    */
   @VisibleForTesting
-  VMPlayerImpl(final VNCPlayer vncPlayer, final ExecutableFinder finder, final ProcessFactory processFactory) {
+  VMPlayerImpl(
+    final VNCPlayer vncPlayer,
+    final ExecutableFinder finder,
+    final ProcessFactory processFactory,
+    final AudioConnector audioConnector
+  ) {
     this.vncPlayer = vncPlayer;
     this.finder = finder;
     this.processFactory = processFactory;
+    this.audioConnector = audioConnector;
+    this.audioCallback = AudioAttachableCallback.create();
     this.lock = new ReentrantLock();
     this.running = new AtomicBoolean(false);
     this.released = new AtomicBoolean(false);
@@ -111,12 +129,13 @@ public final class VMPlayerImpl implements VMPlayer {
    */
   private void launchMachine(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration) {
     final Path executable = this.findExecutable(architecture);
-    final VMProcess qemu = this.processFactory.create(settings, executable, configuration);
+    final VMProcess qemu = this.processFactory.create(settings, architecture, executable, configuration);
     // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
     this.process = qemu;
     try {
       qemu.start();
       this.connectDisplay(settings);
+      this.connectAudio(settings, qemu);
       this.running.set(true);
     } catch (final RuntimeException | Error failure) {
       ThrowableUtils.throwIfFatal(failure);
@@ -138,6 +157,7 @@ public final class VMPlayerImpl implements VMPlayer {
 
   /** Stops the owned machine, forgetting it only after its process has exited. The caller holds the lock. */
   private void shutdownMachine() {
+    this.disconnectAudio();
     final VMProcess qemu = this.process;
     if (qemu == null) {
       return;
@@ -181,6 +201,46 @@ public final class VMPlayerImpl implements VMPlayer {
     if (!connected) {
       throw new PlayerException("The VNC player could not be started");
     }
+  }
+
+  /**
+   * Connects to the sound of a machine that has sound. A failure is reported, and the machine runs without sound.
+   *
+   * @param settings the display settings, whose port the sound comes from as well
+   * @param qemu     the started machine
+   */
+  private void connectAudio(final VMSettings settings, final VMProcess qemu) {
+    if (!qemu.hasAudio()) {
+      return;
+    }
+    final VMAudioOutput output = VMAudioOutput.start(this.audioCallback::retrieve, this::report);
+    this.audioOutput = output;
+    final InetSocketAddress address = new InetSocketAddress(VMProcess.LOOPBACK, settings.getPort());
+    try {
+      this.audioClient = this.audioConnector.connect(address, output, this::report);
+    } catch (final IOException exception) {
+      this.disconnectAudio();
+      this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
+    }
+  }
+
+  /** Closes the sound connection and its output, if the machine has them. */
+  private void disconnectAudio() {
+    final VMAudioClient client = this.audioClient;
+    if (client != null) {
+      client.close();
+      this.audioClient = null;
+    }
+    final VMAudioOutput output = this.audioOutput;
+    if (output != null) {
+      output.close();
+      this.audioOutput = null;
+    }
+  }
+
+  private void report(final String message, final Throwable failure) {
+    final BiConsumer<String, Throwable> handler = this.getExceptionHandler();
+    handler.accept(message, failure);
   }
 
   private Path findExecutable(final Architecture architecture) {
@@ -235,13 +295,24 @@ public final class VMPlayerImpl implements VMPlayer {
   @Override
   public boolean pause() {
     final boolean active = this.isActive();
-    return active && this.vncPlayer.pause();
+    final boolean paused = active && this.vncPlayer.pause();
+    final VMAudioOutput output = this.audioOutput;
+    if (paused && output != null) {
+      // the sound of a paused machine is dropped, so it does not play late after the resume
+      output.pause();
+    }
+    return paused;
   }
 
   @Override
   public boolean resume() {
     final boolean active = this.isActive();
-    return active && this.vncPlayer.resume();
+    final boolean resumed = active && this.vncPlayer.resume();
+    final VMAudioOutput output = this.audioOutput;
+    if (resumed && output != null) {
+      output.resume();
+    }
+    return resumed;
   }
 
   @Override
@@ -279,6 +350,12 @@ public final class VMPlayerImpl implements VMPlayer {
   }
 
   @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    // the output looks the pipeline up for every chunk, so pipelines attached while running take effect
+    return this.audioCallback;
+  }
+
+  @Override
   public VideoAttachableCallback getVideoAttachableCallback() {
     // the VNC player looks the pipeline up for every frame, so pipelines attached while running take effect
     return this.vncPlayer.getVideoAttachableCallback();
@@ -304,10 +381,28 @@ public final class VMPlayerImpl implements VMPlayer {
      * Creates a process that has not started yet.
      *
      * @param settings      the display settings
+     * @param architecture  the guest architecture
      * @param executable    the QEMU program
      * @param configuration the QEMU options
      * @return the process
      */
-    VMProcess create(VMSettings settings, Path executable, VMConfiguration configuration);
+    VMProcess create(VMSettings settings, Architecture architecture, Path executable, VMConfiguration configuration);
+  }
+
+  /**
+   * Connects to the sound of a machine.
+   */
+  @FunctionalInterface
+  interface AudioConnector {
+    /**
+     * Connects to the VNC server of a machine and starts receiving its sound.
+     *
+     * @param address  the address of the VNC server
+     * @param sink     receives the samples
+     * @param failures receives an unexpected end of the connection
+     * @return the connection
+     * @throws IOException if the connection or its handshake fails
+     */
+    VMAudioClient connect(InetSocketAddress address, VMAudioClient.Sink sink, BiConsumer<String, Throwable> failures) throws IOException;
   }
 }

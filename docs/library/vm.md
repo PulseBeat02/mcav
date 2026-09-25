@@ -62,3 +62,24 @@ with the output of QEMU when the machine fails to start.
 Behind the scenes, the player starts QEMU with a VNC display bound to the local machine and connects the `mcav-vnc`
 player to it. **You are responsible for giving QEMU a valid configuration**; MCAV reports QEMU's errors but does not
 try to fix them.
+
+## Sound
+
+The player hands the sound of the guest to its audio pipeline, in the format every audio filter of MCAV takes: 16-bit
+little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one:
+
+```java
+    final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
+    audioCallback.attach(AudioPipelineStep.of(speakers));
+```
+
+Only x86-64 machines of the PC and Q35 families (the default machine, `pc`, `q35` and their versions) have sound.
+The player gives them an Intel HD Audio card (ICH9 on Q35) and routes the PC speaker, both into an audio backend that
+plays on no device of the host; QEMU's VNC server hands their sound to a second VNC connection of the player through
+QEMU's audio extension, and QEMU converts it to the format of the pipeline. Other machines stay silent. The display and
+the sound belong to the player: a configuration that sets `-vnc`, `-audio` or `-audiodev`, or routes the PC speaker
+itself with `pcspk-audiodev`, is refused.
+
+At most 60 ms of sound wait for the pipeline, so the sound never falls far behind the picture; while the player is
+paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to the exception handler,
+and the machine runs without sound.

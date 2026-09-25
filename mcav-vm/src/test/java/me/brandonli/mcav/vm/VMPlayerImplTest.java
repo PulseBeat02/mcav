@@ -58,6 +58,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.os.OS;
@@ -84,6 +85,16 @@ final class VMPlayerImplTest {
   private final List<Path> executables = new CopyOnWriteArrayList<>();
   private final List<VMSettings> createdSettings = new CopyOnWriteArrayList<>();
   private final List<VMConfiguration> createdConfigurations = new CopyOnWriteArrayList<>();
+
+  private final List<VMAudioClient.Sink> sinks = new CopyOnWriteArrayList<>();
+  private final List<java.net.InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
+  private final VMAudioClient audioClient = mock(VMAudioClient.class);
+  // a machine of the mocked QEMU has no sound unless a test says so, and then this connects to it
+  private final VMPlayerImpl.AudioConnector audio = (address, sink, failures) -> {
+    this.audioAddresses.add(address);
+    this.sinks.add(sink);
+    return this.audioClient;
+  };
 
   private VNCPlayer vnc;
   private VMProcess qemu;
@@ -139,13 +150,13 @@ final class VMPlayerImplTest {
   }
 
   private VMPlayerImpl player() {
-    final VMPlayerImpl.ProcessFactory factory = (settings, executable, configuration) -> {
+    final VMPlayerImpl.ProcessFactory factory = (settings, architecture, executable, configuration) -> {
       this.createdSettings.add(settings);
       this.executables.add(executable);
       this.createdConfigurations.add(configuration);
       return this.qemu;
     };
-    return new VMPlayerImpl(this.vnc, this.finder, factory);
+    return new VMPlayerImpl(this.vnc, this.finder, factory, this.audio);
   }
 
   private void stubConnectingStream() {
@@ -196,6 +207,70 @@ final class VMPlayerImplTest {
     assertEquals(width, sourceWidth);
     assertEquals(height, sourceHeight);
     assertEquals(frameRate, sourceFrameRate);
+  }
+
+  @Test
+  void theSoundOfAMachineWithSoundReachesTheAudioPipelineAndStopsWhilePaused() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    when(this.vnc.pause()).thenReturn(true);
+    when(this.vnc.resume()).thenReturn(true);
+    when(this.vnc.isPlaying()).thenReturn(true);
+    final List<Integer> heard = new CopyOnWriteArrayList<>();
+    final VMPlayerImpl player = this.startedPlayer();
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
+    assertEquals(List.of(new java.net.InetSocketAddress(VMProcess.LOOPBACK, 5905)), this.audioAddresses);
+    final VMAudioClient.Sink sink = this.sinks.getFirst();
+    sink.accept(new byte[8], 8);
+    waitUntil(() -> heard.size() == 1);
+    assertTrue(player.pause());
+    sink.accept(new byte[8], 8);
+    assertTrue(player.resume());
+    sink.accept(new byte[4], 4);
+    waitUntil(() -> heard.size() == 2);
+    assertEquals(List.of(8, 4), heard, "the sound of the paused machine was dropped");
+    player.release();
+    verify(this.audioClient).close();
+  }
+
+  @Test
+  void aMachineWhoseSoundCannotBeConnectedRunsWithoutSound() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    this.stubConnectingStream();
+    final List<String> reports = new CopyOnWriteArrayList<>();
+    when(this.vnc.getExceptionHandler()).thenReturn((message, failure) -> reports.add(message + ": " + failure.getMessage()));
+    final VMPlayerImpl player = new VMPlayerImpl(
+      this.vnc,
+      this.finder,
+      (settings, architecture, executable, configuration) -> this.qemu,
+      (address, sink, failures) -> {
+        throw new IOException("connection refused");
+      }
+    );
+    assertTrue(startDefaultMachine(player));
+    assertEquals(List.of("The sound of the virtual machine could not be connected, it runs without sound: connection refused"), reports);
+    when(this.vnc.pause()).thenReturn(true);
+    assertTrue(player.pause(), "a machine without sound pauses all the same");
+    when(this.vnc.resume()).thenReturn(true);
+    assertTrue(player.resume());
+    player.release();
+  }
+
+  @Test
+  void aMachineWithoutSoundNeverConnectsToIt() {
+    final VMPlayerImpl player = this.startedPlayer();
+    assertEquals(List.of(), this.sinks);
+    assertSame(player.getAudioAttachableCallback(), player.getAudioAttachableCallback());
+    player.release();
+  }
+
+  private static void waitUntil(final java.util.function.BooleanSupplier condition) {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (!condition.getAsBoolean()) {
+      if (System.nanoTime() > deadline) {
+        fail("timed out");
+      }
+      Thread.onSpinWait();
+    }
   }
 
   @Test
@@ -305,9 +380,9 @@ final class VMPlayerImplTest {
     when(next.isAlive()).thenReturn(true);
     final List<VMProcess> initialProcesses = List.of(exited, next);
     final List<VMProcess> processes = new CopyOnWriteArrayList<>(initialProcesses);
-    final VMPlayerImpl.ProcessFactory factory = (_, _, _) -> processes.removeFirst();
+    final VMPlayerImpl.ProcessFactory factory = (_, _, _, _) -> processes.removeFirst();
     this.stubRunningStream();
-    final VMPlayerImpl player = new VMPlayerImpl(this.vnc, this.finder, factory);
+    final VMPlayerImpl player = new VMPlayerImpl(this.vnc, this.finder, factory, this.audio);
     final boolean started = startDefaultMachine(player);
     final boolean playingBefore = player.isPlaying();
     assertTrue(started);
@@ -508,8 +583,8 @@ final class VMPlayerImplTest {
     })
       .when(previous)
       .shutdown();
-    final VMPlayerImpl.ProcessFactory factory = (_, _, _) -> created.getAndIncrement() == 0 ? previous : next;
-    final VMPlayerImpl player = new VMPlayerImpl(this.vnc, this.finder, factory);
+    final VMPlayerImpl.ProcessFactory factory = (_, _, _, _) -> created.getAndIncrement() == 0 ? previous : next;
+    final VMPlayerImpl player = new VMPlayerImpl(this.vnc, this.finder, factory, this.audio);
     final IllegalStateException connectionFailure = new IllegalStateException("VNC initialization failed");
     when(this.vnc.start(any(VNCSource.class))).thenThrow(connectionFailure).thenReturn(true);
     final IllegalStateException original = assertThrows(IllegalStateException.class, () -> startDefaultMachine(player));

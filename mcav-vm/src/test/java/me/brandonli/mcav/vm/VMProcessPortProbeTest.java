@@ -71,7 +71,16 @@ final class VMProcessPortProbeTest {
         final VMProcess.Launcher launcher = _ -> {
           throw new AssertionError("QEMU must not launch after the port probe fails");
         };
-        final VMProcess process = new VMProcess(display, executable, configuration, launcher, OS.LINUX, kvm, 1);
+        final VMProcess process = new VMProcess(
+          display,
+          VMPlayer.Architecture.X86_64,
+          executable,
+          configuration,
+          launcher,
+          OS.LINUX,
+          kvm,
+          1
+        );
         final PlayerException failure = assertThrows(PlayerException.class, process::start);
         assertFalse(sockets.constructed().isEmpty());
         assertSame(stopped, failure.getCause());

@@ -100,7 +100,7 @@ final class AnnotationParserHandlerTest {
     "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm url",
     "mcav vm interact",
     "mcav vm release",
-    "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture flags"
+    "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags"
   );
 
   private MCAVSandbox plugin;
@@ -186,7 +186,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String syntax =
-      "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture flags";
+      "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
     final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFps");
     final IntegerParser<?> fps = assertInstanceOf(IntegerParser.class, parser);
     final IntRange range = fps.range();
@@ -200,7 +200,7 @@ final class AnnotationParserHandlerTest {
   void takesTheRestOfTheLineForFreeTextArguments() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String vm = "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture flags";
+    final String vm = "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
     final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl";
     final String browser = "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm url";
     final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");

@@ -127,7 +127,7 @@ final class JukeBoxListenerTest {
     this.listener.onJukeboxInteract(event);
     verify(event).setCancelled(true);
     final Path absolute = image.toAbsolutePath();
-    verify(this.player).performCommand("mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 -cdrom \"" + absolute + "\" -m 2048M");
+    verify(this.player).performCommand("mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"" + absolute + "\" -m 2048M");
   }
 
   @Test
@@ -137,7 +137,7 @@ final class JukeBoxListenerTest {
       this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_PIGSTEP, "[my:disk?.iso]");
     this.listener.onJukeboxInteract(event);
     final Path absolute = image.toAbsolutePath();
-    verify(this.player).performCommand("mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 -cdrom \"" + absolute + "\" -m 2048M");
+    verify(this.player).performCommand("mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"" + absolute + "\" -m 2048M");
   }
 
   @Test

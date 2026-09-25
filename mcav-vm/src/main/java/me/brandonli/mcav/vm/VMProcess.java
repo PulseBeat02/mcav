@@ -18,6 +18,7 @@
 package me.brandonli.mcav.vm;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -38,6 +39,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -51,6 +53,12 @@ import org.slf4j.LoggerFactory;
  * happens when the accelerator cannot be used, it is started again with software emulation. Output is drained
  * on a background thread and its tail is kept for error messages.
  *
+ * <p>The display and the sound of the machine belong to mcav: a configuration that sets {@code -vnc},
+ * {@code -audio} or {@code -audiodev}, or routes the PC speaker itself, is refused. The display is shared by every
+ * client, and on x86 PC and Q35 machines an Intel HD Audio card and the PC speaker play into an audio backend without
+ * a host device, whose sound QEMU's VNC server hands to the audio connection of the player
+ * ({@link VMAudioClient}). Other machines have no sound.
+ *
  * <p>The VNC port must be free before QEMU starts, and QEMU must still run a moment after the port accepts
  * connections, so the player never connects to another server that listens on the port.
  */
@@ -58,10 +66,15 @@ final class VMProcess {
 
   static final int FIRST_VNC_PORT = 5900;
 
+  /**
+   * The id of the audio backend of the machine, which the sound cards and the VNC display name.
+   */
+  static final String AUDIO_ID = "mcav-audio";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(VMProcess.class);
   private static final String LOCALHOST = "127.0.0.1";
   // QEMU listens on the IPv4 loopback address, which is parsed from the literal rather than looked up
-  private static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
+  static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
   private static final long START_TIMEOUT_MILLIS = 60_000L;
   private static final long POLL_MILLIS = 100L;
   private static final long STOP_TIMEOUT_SECONDS = 10L;
@@ -72,6 +85,7 @@ final class VMProcess {
   private static final Path KVM_DEVICE = Path.of("/dev/kvm");
 
   private final VMSettings settings;
+  private final VMPlayer.Architecture architecture;
   private final Path executable;
   private final VMConfiguration configuration;
   private final Launcher launcher;
@@ -89,19 +103,35 @@ final class VMProcess {
    * Creates a QEMU process for the current operating system that has not started yet.
    *
    * @param settings      the display settings
+   * @param architecture  the guest architecture, which decides whether the machine has sound
    * @param executable    the QEMU program
    * @param configuration the QEMU options
    * @return the process
    */
-  static VMProcess create(final VMSettings settings, final Path executable, final VMConfiguration configuration) {
+  static VMProcess create(
+    final VMSettings settings,
+    final VMPlayer.Architecture architecture,
+    final Path executable,
+    final VMConfiguration configuration
+  ) {
     final OS currentOs = OSUtils.getOS();
-    return new VMProcess(settings, executable, configuration, VMProcess::startProcess, currentOs, KVM_DEVICE, START_TIMEOUT_MILLIS);
+    return new VMProcess(
+      settings,
+      architecture,
+      executable,
+      configuration,
+      VMProcess::startProcess,
+      currentOs,
+      KVM_DEVICE,
+      START_TIMEOUT_MILLIS
+    );
   }
 
   /**
    * Constructs a process with its environment replaced, so tests can run without QEMU.
    *
    * @param settings           the display settings
+   * @param architecture       the guest architecture
    * @param executable         the QEMU program
    * @param configuration      the QEMU options
    * @param launcher           starts the process from its command line
@@ -112,6 +142,7 @@ final class VMProcess {
   @VisibleForTesting
   VMProcess(
     final VMSettings settings,
+    final VMPlayer.Architecture architecture,
     final Path executable,
     final VMConfiguration configuration,
     final Launcher launcher,
@@ -119,13 +150,14 @@ final class VMProcess {
     final Path kvmDevice,
     final long startTimeoutMillis
   ) {
-    this(settings, executable, configuration, launcher, os, kvmDevice, startTimeoutMillis, System::nanoTime);
+    this(settings, architecture, executable, configuration, launcher, os, kvmDevice, startTimeoutMillis, System::nanoTime);
   }
 
   /** Constructs a process with a monotonic clock for deterministic startup deadline checks. */
   @VisibleForTesting
   VMProcess(
     final VMSettings settings,
+    final VMPlayer.Architecture architecture,
     final Path executable,
     final VMConfiguration configuration,
     final Launcher launcher,
@@ -135,6 +167,7 @@ final class VMProcess {
     final LongSupplier nanoClock
   ) {
     this.settings = settings;
+    this.architecture = architecture;
     this.executable = executable;
     this.configuration = configuration;
     this.launcher = launcher;
@@ -157,6 +190,7 @@ final class VMProcess {
    * @throws PlayerException if the VNC port is taken, or QEMU cannot be started, exits, or never opens its display
    */
   void start() {
+    checkModuleOptions(this.configuration);
     this.ensurePortIsFree();
 
     final boolean acceleratorConfigured = this.configuration.has("accel") || this.configuration.has("enable-kvm");
@@ -192,6 +226,70 @@ final class VMProcess {
       LOGGER.warn("QEMU failed with the {} accelerator, retrying with software emulation: {}", accelerator, reason);
       this.launch(SOFTWARE_ACCELERATOR);
     }
+  }
+
+  /**
+   * Refuses a configuration that sets the display or the sound of the machine, which mcav owns.
+   *
+   * @param configuration the QEMU options
+   * @throws PlayerException if the configuration sets {@code -vnc}, {@code -audio}, {@code -audiodev}, or routes the
+   *                         PC speaker
+   */
+  @VisibleForTesting
+  static void checkModuleOptions(final VMConfiguration configuration) {
+    for (final String option : List.of("vnc", "audio", "audiodev")) {
+      if (configuration.has(option)) {
+        throw new PlayerException("mcav sets -" + option + " of the machine itself; remove it from the configuration");
+      }
+    }
+    final String machine = Objects.requireNonNullElse(configuration.get("machine"), "");
+    if (machine.contains("pcspk-audiodev")) {
+      throw new PlayerException("mcav routes the PC speaker of the machine itself; remove pcspk-audiodev from -machine");
+    }
+  }
+
+  /**
+   * Checks whether the machine gets sound: x86 PC and Q35 machines do, others have no sound card mcav can add.
+   *
+   * @return true if the machine plays into the audio backend of mcav
+   */
+  boolean hasAudio() {
+    return (
+      this.architecture == VMPlayer.Architecture.X86_64 && !this.configuration.has("M") && isPcMachine(machineType(this.configuration))
+    );
+  }
+
+  /**
+   * Gets the machine type of a configuration: the first part of {@code -machine}, or its {@code type} property.
+   *
+   * @param configuration the QEMU options
+   * @return the type in lower case, or empty for the default machine of QEMU
+   */
+  @VisibleForTesting
+  static String machineType(final VMConfiguration configuration) {
+    final String machine = Objects.requireNonNullElse(configuration.get("machine"), "");
+    for (final String part : Splitter.on(',').split(machine)) {
+      if (part.startsWith("type=")) {
+        return part.substring("type=".length()).toLowerCase(Locale.ROOT);
+      }
+    }
+    final String first = Splitter.on(',').split(machine).iterator().next();
+    return first.contains("=") ? "" : first.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Checks whether a machine type is an x86 PC or Q35 machine, which has a PC speaker and a PCI bus for a sound card.
+   *
+   * @param type the machine type in lower case, empty for the default machine, which is a PC
+   * @return true for the default machine, {@code pc}, {@code q35} and their versions
+   */
+  @VisibleForTesting
+  static boolean isPcMachine(final String type) {
+    return type.isEmpty() || type.equals("pc") || type.equals("q35") || type.startsWith("pc-");
+  }
+
+  private static boolean isQ35(final String type) {
+    return type.equals("q35") || type.startsWith("pc-q35");
   }
 
   private void ensurePortIsFree() {
@@ -270,6 +368,9 @@ final class VMProcess {
     command.add(program);
     final List<String> arguments = this.configuration.getArguments();
     command.addAll(arguments);
+    if (this.hasAudio()) {
+      routeSpeaker(command);
+    }
     if (accelerator != null) {
       command.add("-accel");
       command.add(accelerator);
@@ -279,9 +380,27 @@ final class VMProcess {
   }
 
   /**
-   * Adds the options MCAV relies on, unless the configuration sets them itself: a standard VGA card, no window on
-   * the host, a VNC display on the configured port, and a USB tablet. The tablet reports absolute coordinates, so
-   * VNC pointer positions map straight onto the screen.
+   * Routes the PC speaker into the audio backend of mcav, in the {@code -machine} option of the configuration or in
+   * one of its own.
+   *
+   * @param command the command line so far, with the options of the configuration
+   */
+  private static void routeSpeaker(final List<String> command) {
+    final String speaker = "pcspk-audiodev=" + AUDIO_ID;
+    final int machine = command.indexOf("-machine");
+    if (machine < 0) {
+      command.add("-machine");
+      command.add(speaker);
+      return;
+    }
+    final String value = command.get(machine + 1);
+    command.set(machine + 1, value + "," + speaker);
+  }
+
+  /**
+   * Adds the options MCAV relies on: a standard VGA card and no window on the host unless the configuration sets
+   * them itself, the sound of the machine, a VNC display on the configured port that every client shares, and a USB
+   * tablet. The tablet reports absolute coordinates, so VNC pointer positions map straight onto the screen.
    */
   private void addDefaultOptions(final List<String> command) {
     this.addUnlessConfigured(command, "vga", "-vga", "std");
@@ -292,8 +411,32 @@ final class VMProcess {
     }
     final int port = this.settings.getPort();
     final int display = port - FIRST_VNC_PORT;
-    this.addUnlessConfigured(command, "vnc", "-vnc", LOCALHOST + ":" + display);
+    final String vnc = LOCALHOST + ":" + display + ",share=force-shared";
+    if (this.hasAudio()) {
+      this.addAudio(command);
+      command.add("-vnc");
+      command.add(vnc + ",audiodev=" + AUDIO_ID);
+    } else {
+      command.add("-vnc");
+      command.add(vnc);
+    }
     this.addUsbTablet(command);
+  }
+
+  /**
+   * Adds the audio backend, which plays into no host device at the rate of the audio pipeline, and an Intel HD Audio
+   * card with an output, the ICH9 variant on Q35 machines.
+   *
+   * @param command the command line so far
+   */
+  private void addAudio(final List<String> command) {
+    command.add("-audiodev");
+    command.add("none,id=" + AUDIO_ID + ",out.frequency=" + AudioFilter.SAMPLE_RATE);
+    final String card = isQ35(machineType(this.configuration)) ? "ich9-intel-hda" : "intel-hda";
+    command.add("-device");
+    command.add(card + ",id=mcav-sound");
+    command.add("-device");
+    command.add("hda-output,bus=mcav-sound.0,audiodev=" + AUDIO_ID);
   }
 
   /**

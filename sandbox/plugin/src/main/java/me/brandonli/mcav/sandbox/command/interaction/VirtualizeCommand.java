@@ -28,12 +28,21 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioOutputs;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
@@ -98,6 +107,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
+  // the machine whose sound plays into an audio output, which is let go of when the machine is released
+  private final AtomicReference<@Nullable VMPlayer> audioOwner;
+
   /**
    * Constructs the command.
    *
@@ -105,6 +117,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    */
   public VirtualizeCommand(final MCAVSandbox plugin) {
     super(plugin);
+    this.audioOwner = new AtomicReference<>();
   }
 
   /**
@@ -165,6 +178,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   protected void releasePlayer(final VMPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
     current.release();
+    // the machine lets go of the audio output it played into, and only a machine that played into one
+    final boolean owner = this.audioOwner.compareAndSet(current, null);
+    if (owner) {
+      final AudioProvider provider = this.plugin.getAudioProvider();
+      provider.releaseAudioFilter();
+    }
   }
 
   /**
@@ -212,8 +231,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   /**
    * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <architecture> <flags>}: boots a QEMU virtual machine and streams its display onto a wall
-   * of maps.
+   * <ditheringAlgorithm> <architecture> <audioType> <flags>}: boots a QEMU virtual machine and streams its display
+   * onto a wall of maps, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
+   * adds their sound card itself, and the flags cannot change it.
    *
    * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}. Build
    * the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then left
@@ -241,6 +261,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@link DitheringArgument}
    * @param architecture       the processor the guest is emulated with: {@code X86_64}, {@code ARM},
    *                           {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
+   * @param audioType          where the sound of the guest plays, as for the video commands, see
+   *                           {@link AudioArgument}; {@code NONE} keeps the machine silent
    * @param flags              the QEMU options, the rest of the command line, such as
    *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
    *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
@@ -248,7 +270,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder
    */
   @Command(
-    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
+    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
@@ -261,12 +283,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final VMPlayer.Architecture architecture,
+    final AudioArgument audioType,
     @Greedy final String flags
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
     Preconditions.checkNotNull(architecture, "Architecture must not be null");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null");
     Preconditions.checkNotNull(flags, "Flags must not be null");
 
     final boolean qemu = this.plugin.isQemuInstalled();
@@ -286,12 +310,20 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     if (vmConfiguration == null) {
       return;
     }
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    if (audioProblem != null) {
+      sender.sendMessage(audioProblem);
+      return;
+    }
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     final VMSettings vmSettings = VMSettings.of(width, height, targetFps);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
-    this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration));
+    final Player[] viewers = playerSelector.values().toArray(Player[]::new);
+    final Sound sound = new Sound(audioType, viewers);
+    this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
   }
 
   private void startMachine(
@@ -299,19 +331,76 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Screen screen,
     final VMSettings settings,
     final VMPlayer.Architecture architecture,
-    final VMConfiguration vmConfiguration
+    final VMConfiguration vmConfiguration,
+    final Sound sound
   ) {
     final VMPlayer machine = VMPlayer.create();
     this.ownCreatedPlayer(machine);
     final VideoAttachableCallback callback = machine.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
+    this.attachSound(machine, sound);
 
     final Component loading = Message.VM_LOADING.build();
     sender.sendMessage(loading);
     final ExecutorService executor = this.startExecutor(machine, screen);
     final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, executor);
     this.reportStartWhenDone(sender, machine, screen, start, "the virtual machine");
+    TaskUtils.whenComplete(start, (started, error) -> {
+      if (error == null && Boolean.TRUE.equals(started)) {
+        final AudioProvider provider = this.plugin.getAudioProvider();
+        TaskUtils.runOnMainThread(this.plugin, () -> AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers()));
+      }
+    });
+  }
+
+  /**
+   * Plays the sound of a machine into the chosen audio output, and remembers the machine as the one that owns the
+   * output, so releasing it lets go of the output.
+   *
+   * @param machine the machine
+   * @param sound   the output and the players who hear it
+   */
+  private void attachSound(final VMPlayer machine, final Sound sound) {
+    final AudioArgument type = sound.getType();
+    if (type == AudioArgument.NONE) {
+      return;
+    }
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final URLParseDump dump = new URLParseDump();
+    dump.title = "Virtual machine";
+    final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers());
+    final AudioAttachableCallback audio = machine.getAudioAttachableCallback();
+    audio.attach(AudioPipelineStep.of(filter));
+    this.audioOwner.set(machine);
+  }
+
+  /**
+   * Where the sound of a machine plays, and who hears it.
+   */
+  static final class Sound {
+
+    private final AudioArgument type;
+    private final Player[] viewers;
+
+    /**
+     * Constructs the sound of a machine.
+     *
+     * @param type    the audio output
+     * @param viewers the players who see the machine
+     */
+    Sound(final AudioArgument type, final Player[] viewers) {
+      this.type = type;
+      this.viewers = viewers.clone();
+    }
+
+    AudioArgument getType() {
+      return this.type;
+    }
+
+    Player[] getViewers() {
+      return this.viewers.clone();
+    }
   }
 
   /**
