@@ -126,7 +126,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    */
   private static @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
     try {
-      return ArgumentUtils.parseDimensions(blockDimensions);
+      return ArgumentUtils.parseScreenDimensions(blockDimensions);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
