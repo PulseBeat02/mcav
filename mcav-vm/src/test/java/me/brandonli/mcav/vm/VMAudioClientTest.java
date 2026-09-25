@@ -302,4 +302,27 @@ class VMAudioClientTest {
    * @param out to the client
    */
   private record Streams(DataInputStream in, DataOutputStream out) {}
+
+  @Test
+  void anInterruptedWaitForAThreadOfTheSoundKeepsTheInterrupt() throws InterruptedException {
+    final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+    final Thread alive = new Thread(() -> {
+      try {
+        release.await();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    alive.start();
+    Thread.currentThread().interrupt();
+    try {
+      VMAudioClient.join(alive);
+      assertTrue(Thread.currentThread().isInterrupted(), "the interrupt stays for the caller");
+    } finally {
+      Thread.interrupted();
+      release.countDown();
+    }
+    alive.join(10_000L);
+    assertFalse(alive.isAlive());
+  }
 }

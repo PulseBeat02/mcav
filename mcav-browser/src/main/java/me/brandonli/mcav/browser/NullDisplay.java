@@ -83,6 +83,12 @@ final class NullDisplay implements AutoCloseable {
   static final int MAX_CONNECTIONS = 16;
 
   /**
+   * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
+   * of the {@value #MAX_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
+   */
+  static final int SETUP_TIMEOUT_MILLIS = 10_000;
+
+  /**
    * The most atoms a display names, the predefined ones included.
    */
   static final int MAX_ATOMS = 4_096;
@@ -248,9 +254,11 @@ final class NullDisplay implements AutoCloseable {
   private final Atoms atoms;
   private final Semaphore slots;
   private final Set<Socket> clients;
+  private final int setupTimeoutMillis;
 
-  private NullDisplay(final ServerSocket server, final byte[] cookie) {
+  private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMillis) {
     this.server = server;
+    this.setupTimeoutMillis = setupTimeoutMillis;
     this.cookie = cookie.clone();
     this.atoms = new Atoms();
     this.slots = new Semaphore(MAX_CONNECTIONS);
@@ -265,11 +273,24 @@ final class NullDisplay implements AutoCloseable {
    * @throws IOException if no port is free or the file cannot be written
    */
   static NullDisplay start(final Path authority) throws IOException {
+    return start(authority, SETUP_TIMEOUT_MILLIS);
+  }
+
+  /**
+   * Starts a display with another time for the setup, so tests need not wait for it.
+   *
+   * @param authority          the authority file to write
+   * @param setupTimeoutMillis how long a client may take to introduce itself
+   * @return the running display
+   * @throws IOException if the display cannot listen or the file cannot be written
+   */
+  @VisibleForTesting
+  static NullDisplay start(final Path authority, final int setupTimeoutMillis) throws IOException {
     final ServerSocket server = bind(NullDisplay::isDisplayPort);
     try {
       final byte[] cookie = createCookie();
       writeAuthority(authority, cookie);
-      final NullDisplay display = new NullDisplay(server, cookie);
+      final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMillis);
       final Thread thread = new Thread(display::acceptConnections, "mcav-browser-null-display");
       thread.setDaemon(true);
       thread.start();
@@ -429,9 +450,12 @@ final class NullDisplay implements AutoCloseable {
 
   private void serve(final Socket client) {
     try (client) {
-      final InputStream rawInput = client.getInputStream();
-      final OutputStream rawOutput = client.getOutputStream();
-      serve(new BufferedInputStream(rawInput), new BufferedOutputStream(rawOutput), this.cookie, this.atoms);
+      client.setSoTimeout(this.setupTimeoutMillis);
+      final DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
+      final OutputStream out = new BufferedOutputStream(client.getOutputStream());
+      final ByteOrder order = readSetup(in, out, this.cookie);
+      client.setSoTimeout(0);
+      serveRequests(in, out, order, this.atoms);
     } catch (final IOException exception) {
       // the client went away or broke the protocol; either way its connection ends
     } finally {
@@ -453,6 +477,11 @@ final class NullDisplay implements AutoCloseable {
   static void serve(final InputStream input, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
     final DataInputStream in = new DataInputStream(input);
     final ByteOrder order = readSetup(in, output, cookie);
+    serveRequests(in, output, order, atoms);
+  }
+
+  private static void serveRequests(final DataInputStream in, final OutputStream output, final ByteOrder order, final Atoms atoms)
+    throws IOException {
     int sequence = 0;
     while (true) {
       final int opcode = in.read();

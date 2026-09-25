@@ -1459,7 +1459,9 @@ final class AbstractInteractiveCommandTest {
     final VideoFilter announcement = AbstractInteractiveCommand.announceFirstPicture(4, 6, messages::add);
     final ImageBuffer frame = mock(ImageBuffer.class);
     assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY), "the step leaves the frame as it is");
+    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "at the first picture");
     assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
-    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages);
+    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
+    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
   }
 }

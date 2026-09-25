@@ -587,4 +587,32 @@ class NullDisplayTest {
       Await.until("the client is gone", () -> display.countClients() == 0);
     }
   }
+
+  @Test
+  void aClientThatDoesNotIntroduceItselfInTimeLosesItsConnectionAndOneThatDidMayIdle(@TempDir final Path directory)
+    throws IOException, InterruptedException {
+    final Path authority = directory.resolve("Xauthority");
+    try (NullDisplay display = NullDisplay.start(authority, 200)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final byte[] entry = Files.readAllBytes(authority);
+      final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
+      try (
+        Socket silent = new Socket(InetAddress.getLoopbackAddress(), port);
+        Socket introduced = new Socket(InetAddress.getLoopbackAddress(), port)
+      ) {
+        silent.setSoTimeout(10_000);
+        introduced.setSoTimeout(10_000);
+        introduced.getOutputStream().write(setup(cookie));
+        final DataInputStream in = new DataInputStream(introduced.getInputStream());
+        in.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
+        assertEquals(-1, silent.getInputStream().read(), "the display ends a connection that never introduced itself");
+        // three times the time of the setup, which no longer applies
+        Thread.sleep(600L);
+        introduced.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
+        final byte[] atom = new byte[32];
+        in.readFully(atom);
+        assertEquals(1, atom[0], "a reply");
+      }
+    }
+  }
 }

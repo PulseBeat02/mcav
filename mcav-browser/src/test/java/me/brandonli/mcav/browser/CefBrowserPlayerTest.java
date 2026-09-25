@@ -247,6 +247,39 @@ class CefBrowserPlayerTest {
     assertEquals(List.of("The browser helper exited"), reports);
   }
 
+  private static java.util.Set<Thread> audioThreads() {
+    final java.util.Set<Thread> threads = new java.util.HashSet<>();
+    for (final Thread thread : Thread.getAllStackTraces().keySet()) {
+      if (thread.isAlive() && thread.getName().equals(me.brandonli.mcav.utils.audio.DelayedAudioOutput.THREAD_NAME)) {
+        threads.add(thread);
+      }
+    }
+    return threads;
+  }
+
+  @Test
+  void aHelperThatEndsTakesTheSoundOfItsSessionAlongAndLeavesNoThread() {
+    final java.util.Set<Thread> before = audioThreads();
+    final List<byte[]> heard = this.attachSoundRecorder();
+    assertTrue(this.player.start(SOURCE));
+    final BrowserSession.Listener ended = this.listener;
+    ended.onEnded("gone", new IllegalStateException("crash"));
+    Await.until("the audio thread of the failed session ended", () -> before.containsAll(audioThreads()));
+    // sound the helper sent before it went is not played after the failure was reported
+    ended.onAudio(new byte[] { 6, 0, 6, 0 });
+    this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 7, 0, 7, 0 });
+    assertEquals(List.of(), heard);
+    // an end while the session starts fails the start and leaves no thread either
+    final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
+      return new FakeSession();
+    });
+    early.setExceptionHandler((message, error) -> {});
+    assertFalse(early.start(SOURCE));
+    Await.until("the audio thread of the failed start ended", () -> before.containsAll(audioThreads()));
+    early.release();
+  }
+
   @Test
   void aFailingPipelineIsReportedAndTheFrameStillClosed() {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();

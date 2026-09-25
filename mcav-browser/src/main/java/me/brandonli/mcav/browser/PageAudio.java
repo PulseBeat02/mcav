@@ -77,8 +77,21 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       }
       Object.defineProperty(globalThis, INSTALLED, { value: true });
 
-      // the page runs after this script and may replace any of these; the originals are kept
+      // the page runs after this script and may replace any of these; the originals are kept, so a page cannot reach the
+      // tap through a method it wrapped
+      const getter = (type, name) => Object.getOwnPropertyDescriptor(type.prototype, name).get;
       const NativeAudioContext = AudioContext;
+      const nativeCreateGain = BaseAudioContext.prototype.createGain;
+      const nativeCreateScriptProcessor = BaseAudioContext.prototype.createScriptProcessor;
+      const nativeResume = AudioContext.prototype.resume;
+      const nativeAddEventListener = EventTarget.prototype.addEventListener;
+      const nativeGetChannelData = AudioBuffer.prototype.getChannelData;
+      const destinationOf = getter(BaseAudioContext, 'destination');
+      const stateOf = getter(BaseAudioContext, 'state');
+      const gainOf = getter(GainNode, 'gain');
+      const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value').set;
+      const inputBufferOf = getter(AudioProcessingEvent, 'inputBuffer');
+      const channelsOf = getter(AudioBuffer, 'numberOfChannels');
       const NativeElementSource = MediaElementAudioSourceNode;
       const nativeConnect = AudioNode.prototype.connect;
       const nativeDisconnect = AudioNode.prototype.disconnect;
@@ -109,8 +122,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         if (deliverTo === null) {
           return;
         }
-        const left = buffer.getChannelData(0);
-        const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
+        const left = nativeGetChannelData.call(buffer, 0);
+        const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
         const bytes = new Uint8Array(left.length * 4);
         const view = new DataView(bytes.buffer);
         let loud = false;
@@ -136,26 +149,26 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       let mixer = null;
       const createMixer = () => {
         const context = construct(NativeAudioContext, [{ sampleRate: RATE }], NativeAudioContext);
-        const bus = context.createGain();
-        const tap = context.createScriptProcessor(CHUNK, 2, 2);
-        const silence = context.createGain();
-        silence.gain.value = 0;
+        const bus = nativeCreateGain.call(context);
+        const tap = nativeCreateScriptProcessor.call(context, CHUNK, 2, 2);
+        const silence = nativeCreateGain.call(context);
+        setValue.call(gainOf.call(silence), 0);
         nativeConnect.call(bus, tap);
         nativeConnect.call(tap, silence);
-        nativeConnect.call(silence, context.destination);
-        tap.onaudioprocess = (event) => deliver(event.inputBuffer);
+        nativeConnect.call(silence, destinationOf.call(context));
+        nativeAddEventListener.call(tap, 'audioprocess', (event) => deliver(inputBufferOf.call(event)));
         return { context, bus };
       };
       const mixerOf = () => {
-        if (mixer === null || mixer.context.state === 'closed') {
+        if (mixer === null || stateOf.call(mixer.context) === 'closed') {
           mixer = createMixer();
         }
         return mixer;
       };
       // before the first click on the screen a page may not play sound; the click lets the context play
       const resume = () => {
-        if (mixer !== null && mixer.context.state === 'suspended') {
-          mixer.context.resume().catch(() => {});
+        if (mixer !== null && stateOf.call(mixer.context) === 'suspended') {
+          nativeResume.call(mixer.context).catch(() => {});
         }
       };
       for (const type of GESTURES) {
@@ -174,7 +187,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       globalThis.AudioContext = SharedAudioContext;
 
       // whatever the page connects to the destination also reaches the tap
-      const isOutput = (target) => mixer !== null && target === mixer.context.destination;
+      const isOutput = (target) => mixer !== null && target === destinationOf.call(mixer.context);
       AudioNode.prototype.connect = function connect(target, ...rest) {
         const result = nativeConnect.call(this, target, ...rest);
         if (isOutput(target)) {

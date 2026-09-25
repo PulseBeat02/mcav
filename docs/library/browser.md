@@ -131,7 +131,7 @@ a page can do instead:
 
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
-  second, which is nothing the page could not play anyway.
+  second. A page written to do so can therefore play sound before anyone clicked it, but nothing else.
 - On Linux, the helper's null display listens on the loopback interface only and answers only a client that presents
   the random cookie of that helper. The libraries MCAV downloads for Linux are frozen Debian 11 packages, which get
   no more security updates; they only fill in for libraries the server lacks, and only the helper uses them.

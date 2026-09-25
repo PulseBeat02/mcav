@@ -367,15 +367,15 @@ class LinuxLibrariesTest {
     );
     final Path installation = this.folder.resolve("installation");
     final Path session = Files.createDirectory(this.folder.resolve("session"));
-    final Path linked = libraries.link("linux-amd64", installation, session, List.of(host));
+    final Path linked = LinuxLibraries.link(installation, session, libraries.findMissing("linux-amd64", List.of(host)));
     assertEquals(session.resolve(LinuxLibraries.SESSION_FOLDER), linked);
     try (final Stream<Path> links = Files.list(linked)) {
       assertEquals(List.of("libmissing.so.1", "libmissingmodule.so"), links.map(link -> link.getFileName().toString()).sorted().toList());
     }
     assertEquals(installation.resolve("libmissing.so.1"), Files.readSymbolicLink(linked.resolve("libmissing.so.1")));
     final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
-    final PlayerException lacking = assertThrows(PlayerException.class, () ->
-      libraries.link("linux-amd64", installation, Files.createDirectory(this.folder.resolve("other-session")), List.of(bare))
+    final PlayerException lacking = assertThrows(BrowserUnavailableException.class, () ->
+      libraries.findMissing("linux-amd64", List.of(bare))
     );
     assertEquals("The browser needs libz.so.1, which this server lacks and mcav does not bring", lacking.getMessage());
   }
@@ -440,6 +440,21 @@ class LinuxLibrariesTest {
   }
 
   @Test
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+  void aServerThatHasEveryLibraryDownloadsNothing() throws IOException {
+    final byte[] deb = testPackage();
+    final String platform = JcefNatives.detectCurrent().getIdentifier();
+    final LinuxLibraries libraries =
+      this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb).replace("linux-amd64", platform)));
+    final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
+    final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
+    Files.write(loader.resolve("libmcavtest.so.1"), new byte[1]);
+    final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), 1_000L, OS.LINUX);
+    assertSame(linux, CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries, root));
+    assertEquals(List.of(), this.downloads, "a server behind a firewall that has every library needs no mirror");
+  }
+
+  @Test
   void aPackageWhoseNamesHaveNoPrefixAndThatHoldsFoldersIsRead() throws IOException {
     final Path plain = Files.write(
       this.folder.resolve("plain.deb"),
@@ -482,5 +497,10 @@ class LinuxLibrariesTest {
     Files.writeString(conf.resolve("a.conf"), "/opt/a");
     Files.writeString(conf.resolve("b.txt"), "/opt/b");
     assertEquals(List.of(conf.resolve("a.conf")), LinuxLibraries.glob(this.folder, "etc/ld.so.conf.d/*.conf"));
+    // a pattern without a folder is read in the root; a folder or the root itself holds no library
+    Files.writeString(this.folder.resolve("top.conf"), "/opt/top");
+    assertEquals(List.of(this.folder.resolve("top.conf")), LinuxLibraries.glob(this.folder, "*.conf"));
+    assertEquals(List.of(), LinuxLibraries.glob(this.folder, "/"));
+    assertEquals(List.of(), LinuxLibraries.glob(this.folder, "etc/"));
   }
 }

@@ -178,6 +178,7 @@ class DelayedAudioOutputTest {
   @Test
   void theOutputRunsAsADaemonAndClosingDropsWhatWaits() {
     assertTrue(this.output.getThread().isDaemon(), "the sound never keeps the JVM alive");
+    assertEquals(DelayedAudioOutput.THREAD_NAME, this.output.getThread().getName());
     this.blocking = true;
     this.output.accept(new byte[4], 4);
     waitUntil(() -> this.output.getQueuedBytes() == 0);

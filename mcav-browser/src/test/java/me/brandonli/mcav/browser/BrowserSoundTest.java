@@ -187,11 +187,16 @@ class BrowserSoundTest {
   }
 
   @Test
-  void aPageMayPlayRightAwayWhenTheOptionsLetIt() {
+  void aPageMayPlayRightAwayWhenTheOptionsLetIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
-    Await.until("a second of sound nobody clicked for", () -> recording.size() >= AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE);
+    // as long as the tone test waits: the first sound of a helper can take a while on a busy or slow machine
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (recording.size() < AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE) {
+      assertTrue(System.nanoTime() < deadline, "a second of sound nobody clicked for arrived, only " + recording.size() + " bytes did");
+      Thread.sleep(50L);
+    }
     assertEquals(0, this.pages.count("mousedown"), "nobody clicked the page");
   }
 

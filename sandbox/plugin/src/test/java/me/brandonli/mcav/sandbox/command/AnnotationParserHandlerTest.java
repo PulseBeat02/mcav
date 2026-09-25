@@ -65,6 +65,7 @@ import org.incendo.cloud.execution.CommandResult;
 import org.incendo.cloud.minecraft.extras.RichDescription;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
 import org.incendo.cloud.type.range.IntRange;
@@ -214,6 +215,27 @@ final class AnnotationParserHandlerTest {
     assertEquals(StringParser.StringMode.GREEDY, flagsParser.stringMode(), "QEMU options are several words, as the jukebox sends them");
     assertEquals(StringParser.StringMode.GREEDY, mrlParser.stringMode(), "image paths may contain spaces without quotes");
     assertEquals(StringParser.StringMode.GREEDY, urlParser.stringMode());
+  }
+
+  @Test
+  void theBrowserAndTheMachineChooseTheirAudioOutputLikeTheVideos() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final String video =
+      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl";
+    final String browser =
+      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url";
+    final String vm =
+      "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
+    final ArgumentParser<CommandSender, ?> videoAudio = this.parserOf(video, "audioType");
+    for (final String syntax : List.of(browser, vm)) {
+      final ArgumentParser<CommandSender, ?> audio = this.parserOf(syntax, "audioType");
+      final EnumParser<?, ?> outputs = assertInstanceOf(EnumParser.class, audio);
+      // tab completion offers every output, as for the videos
+      assertEquals(assertInstanceOf(EnumParser.class, videoAudio).acceptedValues(), outputs.acceptedValues(), syntax);
+    }
+    final Component description = ((RichDescription) this.commands.command(browser).commandDescription().description()).contents();
+    assertEquals("Opens a web page on a wall of maps, with its sound in an audio output", Components.plain(description));
   }
 
   @Test

@@ -40,8 +40,8 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * pinned hash), which only the browser's own process uses.
  *
  * <p>The sound the page plays through Web Audio and its audio and video elements arrives at the audio pipeline (see
- * {@link #getAudioAttachableCallback()}); sound of frames from another origin, of media from another site that does
- * not allow it (CORS), and of protected media, stays silent.
+ * {@link #getAudioAttachableCallback()}); sound of frames of another site, which Chromium runs in another process, of
+ * media from another site that does not allow it (CORS), and of protected media, stays silent.
  *
  * <pre>{@code
  *   final BrowserPlayer browser = BrowserPlayer.create();
@@ -182,7 +182,9 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Gets the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
    * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
-   * someone clicked or typed into it, such as a player who clicks the screen; nothing plays on the server's speakers.
+   * someone clicked or typed into it, such as a player who clicks the screen, unless {@link BrowserOptions#isAutoplay()};
+   * a page written to hand sound to mcav's capture itself can play earlier, but never more than sound. Nothing plays on
+   * the server's speakers.
    *
    * @return the audio pipeline slot
    */

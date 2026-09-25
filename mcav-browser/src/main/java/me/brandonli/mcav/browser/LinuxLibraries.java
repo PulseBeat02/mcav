@@ -422,18 +422,15 @@ final class LinuxLibraries {
   }
 
   /**
-   * Links the libraries a server lacks into a folder of a session. A package is linked whole, or not at all, as its
-   * first library decides: NSS, for one, loads its modules from the folder of its own library.
+   * Finds the packages whose libraries a server lacks. A package is missing whole, or not at all, as its first library
+   * decides: NSS, for one, loads its modules from the folder of its own library.
    *
-   * @param platform     the jcefmaven identifier of the platform
-   * @param installation the folder of the installation
-   * @param session      the folder of the session
-   * @param hostFolders  the folders the dynamic loader of the server searches
-   * @return the folder of the links, empty if the server has every library
+   * @param platform    the jcefmaven identifier of the platform
+   * @param hostFolders the folders the dynamic loader of the server searches
+   * @return the missing packages, empty if the server has every library
    * @throws BrowserUnavailableException if the server lacks a library that mcav expects every server to have
-   * @throws IOException     if a link cannot be created
    */
-  Path link(final String platform, final Path installation, final Path session, final List<Path> hostFolders) throws IOException {
+  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
     final List<String> missingHost = new ArrayList<>();
     for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
       if (!isPresent(soname, hostFolders)) {
@@ -445,13 +442,29 @@ final class LinuxLibraries {
         "The browser needs " + String.join(", ", missingHost) + ", which this server lacks and mcav does not bring"
       );
     }
+    final List<Pin> missing = new ArrayList<>();
+    for (final Pin pin : this.getPins(platform)) {
+      if (!isPresent(pin.sonames().getFirst(), hostFolders)) {
+        missing.add(pin);
+      }
+    }
+    return missing;
+  }
+
+  /**
+   * Links the libraries of packages a server lacks into a folder of a session.
+   *
+   * @param installation the folder of the installation, which holds them
+   * @param session      the folder of the session
+   * @param missing      the packages the server lacks, see {@link #findMissing(String, List)}
+   * @return the folder of the links
+   * @throws IOException if a link cannot be created
+   */
+  static Path link(final Path installation, final Path session, final List<Pin> missing) throws IOException {
     final Path libraries = session.resolve(SESSION_FOLDER);
     Files.createDirectory(libraries);
-    for (final Pin pin : this.getPins(platform)) {
+    for (final Pin pin : missing) {
       final List<String> sonames = pin.sonames();
-      if (isPresent(sonames.getFirst(), hostFolders)) {
-        continue;
-      }
       for (final String soname : sonames) {
         Files.createSymbolicLink(libraries.resolve(soname), installation.resolve(soname));
       }
@@ -529,14 +542,15 @@ final class LinuxLibraries {
   @VisibleForTesting
   static List<Path> glob(final Path root, final String pattern) {
     final String relative = pattern.startsWith("/") ? pattern.substring(1) : pattern;
-    final Path included = root.resolve(relative);
-    final Path parent = included.getParent();
+    final int slash = relative.lastIndexOf('/');
+    final String name = relative.substring(slash + 1);
     final List<Path> matches = new ArrayList<>();
-    if (parent == null) {
-      // the root itself, which holds no library
+    if (name.isEmpty()) {
+      // a folder, or the root itself, which holds no library
       return matches;
     }
-    final Path name = Objects.requireNonNull(included.getFileName(), "a path below the root has a name");
+    // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is resolved
+    final Path parent = slash < 0 ? root : root.resolve(relative.substring(0, slash));
     final FileSystem fileSystem = root.getFileSystem();
     final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
     try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {

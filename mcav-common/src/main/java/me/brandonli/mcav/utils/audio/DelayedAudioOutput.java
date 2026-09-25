@@ -59,6 +59,11 @@ public final class DelayedAudioOutput implements AutoCloseable {
   );
 
   /**
+   * The name of the thread of every output, which hands the samples over.
+   */
+  public static final String THREAD_NAME = "mcav-audio-output";
+
+  /**
    * How long closing waits for the thread at most, in milliseconds, should the pipeline hold it.
    */
   static final int JOIN_TIMEOUT_MILLIS = 5_000;
@@ -147,7 +152,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       delayMillis
     );
     final DelayedAudioOutput output = new DelayedAudioOutput(source, delayMillis, maxQueuedMillis, pipeline, failures, clock);
-    final Thread thread = new Thread(output::deliver, "mcav-audio-output");
+    final Thread thread = new Thread(output::deliver, THREAD_NAME);
     thread.setDaemon(true);
     output.thread = thread;
     thread.start();

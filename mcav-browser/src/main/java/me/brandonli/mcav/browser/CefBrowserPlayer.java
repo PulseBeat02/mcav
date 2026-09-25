@@ -160,6 +160,10 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current != null) {
       current.close();
     }
+    this.closeAudio();
+  }
+
+  private void closeAudio() {
     final DelayedAudioOutput output = this.audioOutput;
     this.audioOutput = null;
     if (output != null) {
@@ -345,6 +349,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
+      // the sound of a helper that ended is over, and its thread ends now; the session is closed by the next start or
+      // release, as before
+      this.closeAudio();
       this.report(reason, cause);
     }
   }
@@ -471,11 +478,31 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (base.getOs() != OS.LINUX) {
         return base;
       }
+      return withLibraries(base, libraries, Path.of("/"));
+    }
+
+    /**
+     * Gives the helpers of a Linux server the libraries it lacks, reading the server's loader configuration below a
+     * root, so tests can make up a server.
+     *
+     * @param base      the launcher
+     * @param libraries installs the libraries
+     * @param root      the root of the file system of the server
+     * @return the launcher that links the libraries into every session, or the launcher itself when the server lacks
+     *         none, which downloads nothing then
+     * @throws IOException if the libraries cannot be installed
+     */
+    @VisibleForTesting
+    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
+      final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);
+      final List<LinuxLibraries.Pin> missing = libraries.findMissing(identifier, folders);
+      if (missing.isEmpty()) {
+        return base;
+      }
       final Path bundle = libraries.install(identifier);
-      final List<Path> folders = LinuxLibraries.hostFolders(Path.of("/"), identifier);
-      return base.withLibraries(session -> libraries.link(identifier, bundle, session, folders));
+      return base.withLibraries(session -> LinuxLibraries.link(bundle, session, missing));
     }
 
     private synchronized HelperLauncher getLauncher() {

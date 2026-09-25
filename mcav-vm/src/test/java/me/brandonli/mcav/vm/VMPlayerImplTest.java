@@ -60,6 +60,7 @@ import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.vnc.VNCPlayer;
@@ -297,7 +298,7 @@ final class VMPlayerImplTest {
     return Thread.getAllStackTraces()
       .keySet()
       .stream()
-      .filter(thread -> thread.isAlive() && thread.getName().equals("mcav-vm-audio-output"))
+      .filter(thread -> thread.isAlive() && thread.getName().equals(DelayedAudioOutput.THREAD_NAME))
       .count();
   }
 

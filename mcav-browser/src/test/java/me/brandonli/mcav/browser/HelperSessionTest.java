@@ -61,6 +61,7 @@ class HelperSessionTest {
   private Path directory;
 
   private final RecordingListener listener = new RecordingListener();
+  private final List<Path> shortDirectories = new ArrayList<>();
   private final List<HelperSession> sessions = new ArrayList<>();
 
   static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis) {
@@ -99,10 +100,26 @@ class HelperSessionTest {
   }
 
   @AfterEach
-  void closeSessions() {
+  void closeSessions() throws IOException {
     for (final HelperSession session : this.sessions) {
       session.close();
     }
+    for (final Path parent : this.shortDirectories) {
+      Files.deleteIfExists(parent);
+    }
+  }
+
+  /**
+   * Creates an empty folder in the temporary folder of the system, whose path is short: macOS allows Unix domain
+   * sockets of at most 104 bytes, which a session folder inside JUnit's temporary folder there exceeds.
+   *
+   * @return the folder, deleted after the test
+   * @throws IOException if it cannot be created
+   */
+  private Path shortDirectory() throws IOException {
+    final Path parent = Files.createTempDirectory("mcav");
+    this.shortDirectories.add(parent);
+    return parent;
   }
 
   private static int blue(final ImageBuffer frame) {
@@ -296,13 +313,14 @@ class HelperSessionTest {
     final java.util.Set<ProcessHandle> before = liveDescendants();
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
+    final Path parent = this.shortDirectory();
     final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
     assertEquals("The browser helper did not connect in time", failure.getMessage());
     // the helper ignores the end of its input, so only a kill ends it; its display ends with it
     assertEquals(java.util.Set.of(), newSince(before));
-    try (final Stream<Path> left = Files.list(this.directory)) {
+    try (final Stream<Path> left = Files.list(parent)) {
       assertEquals(List.of(), left.toList());
     }
   }
@@ -473,11 +491,12 @@ class HelperSessionTest {
       throw new IOException("no space left");
     });
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final Path parent = this.shortDirectory();
     final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
     assertEquals("The browser helper could not be started: no space left", failure.getMessage());
-    try (final Stream<Path> left = Files.list(this.directory)) {
+    try (final Stream<Path> left = Files.list(parent)) {
       assertEquals(List.of(), left.toList());
     }
   }
