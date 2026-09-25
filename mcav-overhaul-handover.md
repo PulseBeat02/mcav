@@ -28,7 +28,8 @@ owner's Xvfb `:99`. `/dev/snd` is present and a real audio-line test passed; thi
 fidelity. Xvfb is environment-owned: never stop/restart it. Preserve Windows assumptions. Pass 4 closed the two
 OpenCV file-player skips: where the bundled OpenCV build has no file backend, as on Linux, the OpenCV player reads
 files with the FFmpeg reader of JavaCV, so both tests run everywhere instead of skipping. Windows/macOS/big-endian
-behavior of this final tree is untested; pass 4 could not reach either guest.
+behavior of this final tree is untested apart from the OpenCV player tests, which pass 4 ran in both guests: 6 tests,
+6 passed, 0 skipped on Windows and on macOS.
 
 Use `./gradlew`; serialize Gradle/PIT commands, cap each at 900 seconds, write background output to logs and check
 results no more often than every 10 minutes. Do not edit sources during compilation or snapshot freezing. Run one
