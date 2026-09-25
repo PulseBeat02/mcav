@@ -51,6 +51,7 @@ final class PageAudioFuzzTest {
       assertTrue(parameters.startsWith(PREFIX), "only a call of mcav's binding is sound");
       final String payload = parameters.substring(PREFIX.length(), parameters.indexOf('"', PREFIX.length()));
       assertTrue(payload.chars().allMatch(PageAudioFuzzTest::isBase64), "the payload is Base64 and nothing else");
+      assertTrue(PageAudio.leastBytes(parameters) <= chunk.samples().length, "sound is never refused for its length");
     }
   }
 
@@ -62,8 +63,10 @@ final class PageAudioFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void takesOnlyWholeFramesOfAnyPayload(final byte[] input) {
     final String payload = new String(input, StandardCharsets.ISO_8859_1);
-    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, PREFIX + payload + "\",\"executionContextId\":1}");
+    final String parameters = PREFIX + payload + "\",\"executionContextId\":1}";
+    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, parameters);
     if (chunk != null) {
+      assertTrue(PageAudio.leastBytes(parameters) <= chunk.samples().length, "sound is never refused for its length");
       check(chunk.samples());
       assertTrue(chunk.context() == 1, "the context is the one of the call");
       assertTrue(payload.chars().allMatch(PageAudioFuzzTest::isBase64), "the payload is Base64 and nothing else");

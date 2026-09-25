@@ -135,6 +135,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   protected volatile @Nullable T player;
 
+  // the provider a player's sound was attached to, which a release lets go of even while the plugin disables and no
+  // longer hands its provider out
+  private volatile @Nullable AudioProvider soundProvider;
+
   /**
    * Constructs the command and the thread that starts its players.
    *
@@ -238,6 +242,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       return;
     }
     final AudioProvider provider = this.plugin.getAudioProvider();
+    this.soundProvider = provider;
     final URLParseDump dump = new URLParseDump();
     dump.title = title;
     final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers(), owner);
@@ -273,8 +278,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param owner the released player
    */
   final void releaseSound(final Object owner) {
-    final AudioProvider provider = this.plugin.getAudioProvider();
-    provider.releaseAudioFilter(owner);
+    final AudioProvider provider = this.soundProvider;
+    if (provider != null) {
+      provider.releaseAudioFilter(owner);
+    }
   }
 
   /**

@@ -160,6 +160,22 @@ final class DependencyLoaderTest {
   }
 
   @Test
+  void toleratesTheDeviceClassThatFailedBeforeWithoutItsCause() {
+    // the JVM names the first failure only while it keeps it; the class alone says which library failed
+    final NoClassDefFoundError deviceClass = new NoClassDefFoundError("Could not initialize class org.bytedeco.ffmpeg.global.avdevice");
+    final AtomicBoolean configured = new AtomicBoolean();
+    assertDoesNotThrow(() ->
+      DependencyLoader.loadFFmpeg(
+        () -> {
+          throw deviceClass;
+        },
+        () -> configured.set(true)
+      )
+    );
+    assertTrue(configured.get(), "FFmpeg is configured without the device library");
+  }
+
+  @Test
   void reportsAnotherFFmpegClassThatFailedBefore() {
     final NoClassDefFoundError codecClass = new NoClassDefFoundError("Could not initialize class avcodec");
     codecClass.initCause(new ExceptionInInitializerError("Exception java.lang.UnsatisfiedLinkError: no jniavcodec"));

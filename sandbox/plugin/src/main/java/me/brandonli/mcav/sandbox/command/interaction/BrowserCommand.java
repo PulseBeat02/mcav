@@ -36,6 +36,7 @@ import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -135,8 +136,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
     Preconditions.checkNotNull(current, "Browser must not be null");
-    current.release();
-    this.releaseSound(current);
+    CleanupUtils.runAll(current::release, () -> this.releaseSound(current));
   }
 
   /**

@@ -196,6 +196,37 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void aPipelineThatStillHoldsTheThreadAfterTheWaitIsInterrupted() throws InterruptedException {
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch never = new CountDownLatch(1);
+    final java.util.concurrent.atomic.AtomicBoolean interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    final DelayedAudioOutput stuck = DelayedAudioOutput.start(
+      "the browser",
+      DELAY_MILLIS,
+      MAX_QUEUED_MILLIS,
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          entered.countDown();
+          try {
+            never.await(30, TimeUnit.SECONDS);
+          } catch (final InterruptedException exception) {
+            interrupted.set(true);
+          }
+          return true;
+        }),
+      (message, failure) -> this.failures.add(message),
+      System::nanoTime,
+      100
+    );
+    stuck.accept(new byte[4], 4);
+    assertTrue(entered.await(10, TimeUnit.SECONDS), "the pipeline got the samples");
+    stuck.close();
+    waitUntil(() -> !stuck.getThread().isAlive());
+    assertTrue(interrupted.get(), "the pipeline was asked to let go of the thread");
+    assertEquals(List.of(), this.failures);
+  }
+
+  @Test
   void samplesAreHeldUntilTheyAreDue() throws InterruptedException {
     final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
     this.output.close();
@@ -205,7 +236,8 @@ class DelayedAudioOutputTest {
       MAX_QUEUED_MILLIS,
       () -> this.step,
       (message, failure) -> this.failures.add(message),
-      now::get
+      now::get,
+      DelayedAudioOutput.JOIN_TIMEOUT_MILLIS
     );
     this.output.accept(new byte[4], 4);
     Thread.sleep(3L * DELAY_MILLIS);

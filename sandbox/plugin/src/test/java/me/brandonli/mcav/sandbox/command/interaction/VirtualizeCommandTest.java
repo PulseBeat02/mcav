@@ -339,6 +339,33 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void theSoundIsLetGoOfWhenTheMachineFailsToEndWhileThePluginDisables() {
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
+      mock(AudioFilter.class)
+    );
+    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    this.startsWith(CompletableFuture.completedFuture(true));
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        ""
+      );
+    // a disabling plugin hands out its provider no more, and QEMU fails to end
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
+    Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseVM(this.sender));
+    assertEquals("release broke", failure.getMessage());
+    verify(this.provider).releaseAudioFilter(this.machine);
+  }
+
+  @Test
   void releasesTheMachineWhenAsked() {
     this.command.player = this.machine;
 

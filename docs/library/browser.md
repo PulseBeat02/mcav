@@ -151,7 +151,8 @@ as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV p
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own
 scripts does it: every Web Audio context of a document is one context at 48 kHz, audio and video elements play into it
-at their own volume, and its samples go to the helper. Nothing plays on the speakers of the machine. As in a desktop
+at their own volume, and its samples go to the helper. A page that asks for another sample rate therefore gets
+48 kHz, and a page that closes a context closes it for all of its parts, which get a new one when they make one. Nothing plays on the speakers of the machine. As in a desktop
 browser, a page may play sound only once someone clicked or typed into it, such as with `sendMouseEvent`;
 `BrowserOptions.builder().autoplay(true)` lets pages play sound right away. The sound of one frame of the page plays at
 a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site

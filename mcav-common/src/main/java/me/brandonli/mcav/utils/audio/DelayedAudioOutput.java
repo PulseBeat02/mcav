@@ -69,6 +69,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   static final int JOIN_TIMEOUT_MILLIS = 5_000;
 
   private final String source;
+  private final long joinTimeoutMillis;
   private final long delayNanos;
   private final int maxQueuedBytes;
   private final Supplier<AudioPipelineStep> pipeline;
@@ -86,9 +87,11 @@ public final class DelayedAudioOutput implements AutoCloseable {
     final int maxQueuedMillis,
     final Supplier<AudioPipelineStep> pipeline,
     final BiConsumer<String, Throwable> failures,
-    final LongSupplier clock
+    final LongSupplier clock,
+    final long joinTimeoutMillis
   ) {
     this.source = source;
+    this.joinTimeoutMillis = joinTimeoutMillis;
     this.delayNanos = TimeUnit.MILLISECONDS.toNanos(delayMillis);
     this.maxQueuedBytes = (AudioFilter.SAMPLE_RATE / 1000) * maxQueuedMillis * AudioFilter.FRAME_SIZE;
     this.pipeline = pipeline;
@@ -118,7 +121,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     final Supplier<AudioPipelineStep> pipeline,
     final BiConsumer<String, Throwable> failures
   ) {
-    return start(source, delayMillis, maxQueuedMillis, pipeline, failures, System::nanoTime);
+    return start(source, delayMillis, maxQueuedMillis, pipeline, failures, System::nanoTime, JOIN_TIMEOUT_MILLIS);
   }
 
   /**
@@ -129,7 +132,8 @@ public final class DelayedAudioOutput implements AutoCloseable {
    * @param maxQueuedMillis the most sound that waits, the delay included, in milliseconds
    * @param pipeline        gives the audio pipeline of the player for every chunk
    * @param failures        receives a failure of the pipeline
-   * @param clock           a monotonic clock in nanoseconds
+   * @param clock             a monotonic clock in nanoseconds
+   * @param joinTimeoutMillis how long closing waits for a pipeline that holds the thread, in milliseconds
    * @return the running output
    */
   @VisibleForTesting
@@ -139,7 +143,8 @@ public final class DelayedAudioOutput implements AutoCloseable {
     final int maxQueuedMillis,
     final Supplier<AudioPipelineStep> pipeline,
     final BiConsumer<String, Throwable> failures,
-    final LongSupplier clock
+    final LongSupplier clock,
+    final long joinTimeoutMillis
   ) {
     Preconditions.checkNotNull(source, "Source must not be null");
     Preconditions.checkNotNull(pipeline, "Pipeline must not be null");
@@ -151,7 +156,15 @@ public final class DelayedAudioOutput implements AutoCloseable {
       maxQueuedMillis,
       delayMillis
     );
-    final DelayedAudioOutput output = new DelayedAudioOutput(source, delayMillis, maxQueuedMillis, pipeline, failures, clock);
+    final DelayedAudioOutput output = new DelayedAudioOutput(
+      source,
+      delayMillis,
+      maxQueuedMillis,
+      pipeline,
+      failures,
+      clock,
+      joinTimeoutMillis
+    );
     final Thread thread = new Thread(output::deliver, THREAD_NAME);
     thread.setDaemon(true);
     output.thread = thread;
@@ -284,7 +297,8 @@ public final class DelayedAudioOutput implements AutoCloseable {
 
   /**
    * Stops the thread, dropping the queued samples, and waits for it; a pipeline that holds the thread is waited for
-   * {@value #JOIN_TIMEOUT_MILLIS} ms at most. Called from the pipeline itself, it does not wait.
+   * {@value #JOIN_TIMEOUT_MILLIS} ms at most and then interrupted, so it can end on its own. Called from the pipeline
+   * itself, it does not wait.
    */
   @Override
   public void close() {
@@ -299,10 +313,12 @@ public final class DelayedAudioOutput implements AutoCloseable {
       return;
     }
     try {
-      current.join(JOIN_TIMEOUT_MILLIS);
+      current.join(this.joinTimeoutMillis);
     } catch (final InterruptedException exception) {
       caller.interrupt();
     }
+    // a pipeline that still holds the thread is asked to let go of it; a thread that ended ignores this
+    current.interrupt();
   }
 
   /**

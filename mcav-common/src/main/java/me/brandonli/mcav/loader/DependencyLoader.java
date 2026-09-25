@@ -57,6 +57,8 @@ public final class DependencyLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DependencyLoader.class);
   private static final String JNI_AVDEVICE = "jniavdevice";
+  // the class of the device library, which a second load names without the library when the first failure is not kept
+  private static final String AVDEVICE_CLASS = "org.bytedeco.ffmpeg.global.avdevice";
   // only the modules the filters use are loaded up front; JavaCPP loads any other module on first use
   private static final List<Class<?>> OPENCV_MODULES = List.of(opencv_core.class, opencv_imgproc.class, opencv_imgcodecs.class);
   private static final String FACE_DETECTION = "Face detection";
@@ -203,7 +205,7 @@ public final class DependencyLoader {
    * Loads FFmpeg with the specified loader and then runs the setup that needs FFmpeg. A missing device library only
    * disables capture devices, so that failure is logged instead of thrown, and the setup still runs. That holds for
    * every load in a JVM: after the first, the JVM reports the device library's class as failed, naming the first
-   * failure as the cause, as when a plugin that installs mcav is disabled and enabled again.
+   * failure as the cause while it keeps that, as when a plugin that installs mcav is disabled and enabled again.
    *
    * @param ffmpegLoader loads the FFmpeg libraries
    * @param setup        configures FFmpeg once it is loaded, such as its logging
@@ -217,7 +219,7 @@ public final class DependencyLoader {
       final boolean avdeviceOnly = Throwables.getCausalChain(exception)
         .stream()
         .map(Throwable::getMessage)
-        .anyMatch(message -> message != null && message.contains(JNI_AVDEVICE));
+        .anyMatch(message -> message != null && (message.contains(JNI_AVDEVICE) || message.endsWith(AVDEVICE_CLASS)));
       if (!avdeviceOnly) {
         throw new NativeLoadingException("Failed to load FFmpeg: " + exception.getMessage(), exception);
       }

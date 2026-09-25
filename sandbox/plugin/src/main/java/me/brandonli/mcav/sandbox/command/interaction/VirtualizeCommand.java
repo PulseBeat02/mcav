@@ -35,6 +35,7 @@ import me.brandonli.mcav.sandbox.audio.AudioOutputs;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -167,8 +168,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   @Override
   protected void releasePlayer(final VMPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    current.release();
-    this.releaseSound(current);
+    CleanupUtils.runAll(current::release, () -> this.releaseSound(current));
   }
 
   /**

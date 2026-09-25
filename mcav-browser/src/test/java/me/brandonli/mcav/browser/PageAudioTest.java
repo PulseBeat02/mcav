@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
@@ -148,6 +149,68 @@ class PageAudioTest {
     }
     assertEquals(17, passed.size());
     assertEquals(2 * SECOND_BYTES, PageAudio.BUDGET_SECONDS_PER_SECOND * SECOND_BYTES);
+  }
+
+  @Test
+  void theLengthOfACallSaysHowMuchSoundItHoldsAtLeast() {
+    for (int length = 0; length <= 300; length++) {
+      final String payload = Base64.getEncoder().encodeToString(new byte[length]);
+      final long nearest = PageAudio.leastBytes(call(PageAudio.BINDING, payload, "-1234567890"));
+      assertTrue(nearest <= length && length - nearest <= 2, length + " bytes, " + nearest + " at least");
+      for (final String context : List.of("0", "7", "1234567890")) {
+        final long least = PageAudio.leastBytes(call(PageAudio.BINDING, payload, context));
+        assertTrue(least <= length, length + " bytes, not " + least);
+      }
+    }
+    assertTrue(PageAudio.leastBytes("{}") < 0, "a short event may hold no sound");
+  }
+
+  @Test
+  void aCallOverTheBudgetIsRefusedBeforeItIsDecoded() {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger looks = new AtomicInteger();
+    final List<Integer> passed = new ArrayList<>();
+    final PageAudio audio = new PageAudio(
+      samples -> passed.add(samples.length),
+      () -> {
+        looks.incrementAndGet();
+        return now.get();
+      }
+    );
+    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    for (int count = 0; count < 5; count++) {
+      audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    }
+    assertEquals(5, passed.size());
+    // 56320 bytes are left: the sixth is refused for its length, with one look at the clock for the budget
+    looks.set(0);
+    audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    assertEquals(1, looks.get(), "the budget alone was looked at");
+    assertEquals(5, passed.size());
+    // a call that fits is decoded and then taken, which looks at the clock again
+    looks.set(0);
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[4_000]));
+    assertEquals(2, looks.get());
+    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 4_000), passed);
+  }
+
+  @Test
+  void aCallThatItsLengthLetsPassIsStillRefusedWhenItsSoundIsMoreThanIsLeft() {
+    final AtomicLong now = new AtomicLong();
+    final List<Integer> passed = new ArrayList<>();
+    final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
+    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    for (int count = 0; count < 5; count++) {
+      audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    }
+    // the 56320 bytes left of the budget, which leaves nothing
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
+    // 170664063 ns refill 65535 bytes: the length of the largest call says 65527 bytes at least, its sound is 65536
+    now.addAndGet(170_664_063L);
+    assertTrue(PageAudio.leastBytes(largest) <= 65_535);
+    audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[65_532]));
+    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 65_532), passed);
   }
 
   @Test

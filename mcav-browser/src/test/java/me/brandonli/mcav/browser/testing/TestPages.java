@@ -102,6 +102,64 @@ public final class TestPages implements AutoCloseable {
     </script>
     """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
 
+  // the tone of TONE_SCRIPT on a page that first wraps everything of Web Audio that a capture could call, keeps every
+  // script processor it sees, reports how many, and feeds each one samples of its own, without waiting for a click
+  private static final String WRAPPED_TONE_SCRIPT =
+    """
+    <script>
+      const taps = new Set();
+      const keep = (node) => {
+        if (node instanceof ScriptProcessorNode) {
+          taps.add(node);
+        }
+        return node;
+      };
+      for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
+        for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
+          const original = prototype[name];
+          if (typeof original === 'function') {
+            prototype[name] = function (...args) {
+              return keep(original.apply(this, args));
+            };
+          }
+        }
+      }
+      const connect = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (target, ...rest) {
+        keep(this);
+        keep(target);
+        return connect.call(this, target, ...rest);
+      };
+      const listen = EventTarget.prototype.addEventListener;
+      EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+        keep(this);
+        return listen.call(this, type, listener, ...rest);
+      };
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
+      forged.getChannelData(0).fill(0.5);
+      forged.getChannelData(1).fill(0.5);
+      setInterval(() => {
+        for (const tap of taps) {
+          const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+          if (typeof tap.onaudioprocess === 'function') {
+            tap.onaudioprocess(event);
+          }
+          tap.dispatchEvent(event);
+        }
+      }, 50);
+      report('taps', { clientX: taps.size });
+      addEventListener('pointerdown', () => context.resume());
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+
   // an audio element that plays the tone at the volume and muting of the address, from the first click
   private static final String ELEMENT_SCRIPT =
     """
@@ -226,6 +284,7 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/second", exchange -> pages.page(exchange, "second", SECOND_COLOR));
       httpServer.createContext("/tone", exchange -> pages.page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
       httpServer.createContext("/tone-element", exchange -> pages.page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext("/tone-wrapped", exchange -> pages.page(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
       httpServer.createContext("/av-sync", exchange -> pages.page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
       httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);

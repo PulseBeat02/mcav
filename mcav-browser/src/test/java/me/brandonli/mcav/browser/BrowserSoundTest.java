@@ -187,6 +187,27 @@ class BrowserSoundTest {
   }
 
   @Test
+  void aPageThatWrapsWebAudioBeforeItsFirstContextCannotReachTheCaptureAndPlaysOnlyAfterAClick() throws InterruptedException {
+    final BrowserPlayer player = this.player();
+    final Recording recording = Recording.attach(player);
+    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1)));
+    Await.until("the page reported what its wrappers saw", () -> this.pages.count("taps") > 0);
+    assertEquals(0, this.pages.getEvents("taps").getFirst().getX(), "no node of the capture passed the page's wrappers");
+    // the page forges samples every 50 ms for whatever it found
+    Thread.sleep(2_000L);
+    assertEquals(0, recording.size(), "no sound before the first click, neither played nor forged");
+    this.startClicking(player);
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (recording.size() < 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE) {
+      assertTrue(System.nanoTime() < deadline, "two seconds of sound arrived, only " + recording.size() + " bytes did");
+      Thread.sleep(50L);
+    }
+    final short[] left = recording.left();
+    final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
+    assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "after the click the page's own tone plays: " + frequency + " Hz");
+  }
+
+  @Test
   void aPageMayPlayRightAwayWhenTheOptionsLetIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);

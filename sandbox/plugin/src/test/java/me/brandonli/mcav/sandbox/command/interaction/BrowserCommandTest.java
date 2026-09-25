@@ -206,6 +206,22 @@ final class BrowserCommandTest {
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
+  @Test
+  void theSoundIsLetGoOfWhenTheReleaseFailsAndWhileThePluginDisables() {
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
+      mock(AudioFilter.class)
+    );
+    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+    this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
+    // a disabling plugin hands out its provider no more, and the browser fails to end
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
+    org.mockito.Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseBrowser(this.sender));
+    assertEquals("release broke", failure.getMessage());
+    verify(this.provider).releaseAudioFilter(this.browser);
+  }
+
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
     when(this.provider.isHttpEnabled()).thenReturn(true);
     when(this.provider.isHttpReady()).thenReturn(true);

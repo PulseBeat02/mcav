@@ -58,13 +58,14 @@ final class TonePage implements AutoCloseable {
   }
 
   /**
-   * Starts the page on a free port of the loopback interface.
+   * Starts the page on a free port of 127.0.0.1, the address the browser is sent to, also where Java prefers IPv6.
    *
    * @return the running page
    * @throws IOException if no port is free
    */
   static TonePage start() throws IOException {
-    final HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+    final InetAddress loopback = InetAddress.getByAddress("localhost", new byte[] { 127, 0, 0, 1 });
+    final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
     server.createContext("/tone", exchange -> {
       final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
       exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");

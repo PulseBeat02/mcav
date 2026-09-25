@@ -284,6 +284,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   // what follows the payload: the context of the call, and nothing else
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
+  // the most that follows the payload: that field, an id of ten digits with its sign, and the closing brace
+  private static final int MAX_TAIL = CONTEXT_FIELD.length() + 12;
 
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
@@ -332,10 +334,32 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    */
   @Override
   public void onEvent(final String method, final String parameters) {
+    // an event with more sound than the budget allows by now is not even decoded
+    if (!this.mayTake(leastBytes(parameters))) {
+      return;
+    }
     final Chunk chunk = parse(method, parameters);
     if (chunk != null && this.take(chunk)) {
       this.sink.accept(chunk.samples());
     }
+  }
+
+  /**
+   * Gets how many bytes of sound an event holds at least, from its length alone, so an event over the budget is refused
+   * before it is decoded.
+   *
+   * @param parameters the parameters of the event
+   * @return the least number of bytes a call of the binding this long decodes to, negative if it may hold none
+   */
+  @VisibleForTesting
+  static long leastBytes(final String parameters) {
+    // four characters of Base64 hold three bytes, and the padding of the last group takes two of them at most
+    return ((parameters.length() - PREFIX.length() - MAX_TAIL) / 4L) * 3L - 2L;
+  }
+
+  private synchronized boolean mayTake(final long bytes) {
+    this.refill(this.clock.getAsLong());
+    return bytes <= this.available;
   }
 
   private synchronized boolean take(final Chunk chunk) {
@@ -353,11 +377,15 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     return true;
   }
 
-  private boolean spend(final int bytes, final long now) {
+  private void refill(final long now) {
     // a long quiet time refills the budget, never beyond it, so the elapsed time is capped before it is multiplied
     final long elapsed = Math.min(Math.max(now - this.last, 0L), TimeUnit.SECONDS.toNanos(1));
     this.last = now;
     this.available = Math.min(BUDGET_BYTES, this.available + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
+  }
+
+  private boolean spend(final int bytes, final long now) {
+    this.refill(now);
     if (bytes > this.available) {
       return false;
     }

@@ -217,12 +217,22 @@ final class ServerProcess implements AutoCloseable {
    * Lists the running processes below the server whose program matches, such as the helpers of a browser.
    *
    * @param matcher tests the program of a process, which is all a process tells about itself on every system
-   * @return the programs of the matching processes
+   * @return the matching processes
    */
-  List<String> findDescendants(final Predicate<String> matcher) {
+  List<ProcessHandle> findDescendants(final Predicate<String> matcher) {
     try (Stream<ProcessHandle> descendants = this.process.descendants()) {
-      return descendants.filter(ProcessHandle::isAlive).map(handle -> handle.info().command().orElse("")).filter(matcher).toList();
+      return descendants.filter(ProcessHandle::isAlive).filter(handle -> matcher.test(programOf(handle))).toList();
     }
+  }
+
+  /**
+   * Gets the program a process runs, empty where the system does not tell.
+   *
+   * @param handle the process
+   * @return the program
+   */
+  static String programOf(final ProcessHandle handle) {
+    return handle.info().command().orElse("");
   }
 
   /**

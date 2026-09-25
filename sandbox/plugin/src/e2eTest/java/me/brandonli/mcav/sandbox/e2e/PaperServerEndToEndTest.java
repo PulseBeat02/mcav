@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.e2e;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -224,9 +225,12 @@ final class PaperServerEndToEndTest {
     final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
     assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the page has " + frequency + " Hz");
-    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
     // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
-    awaitNoneLeft(server, "browser", command -> isJava(command) || command.contains("jcef") || command.contains("Xvfb"));
+    final Predicate<String> browser = command -> isJava(command) || command.contains("jcef") || command.contains("Xvfb");
+    final List<ProcessHandle> running = server.findDescendants(browser);
+    assertFalse(running.isEmpty(), "the browser runs in processes of its own");
+    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
+    awaitNoneLeft(server, "browser", browser, running);
   }
 
   /**
@@ -244,24 +248,43 @@ final class PaperServerEndToEndTest {
     final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
     assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the machine has " + frequency + " Hz");
+    final Predicate<String> machine = command -> command.contains("qemu-system");
+    final List<ProcessHandle> running = server.findDescendants(machine);
+    assertFalse(running.isEmpty(), "the machine runs in a QEMU process");
     runCommand(server, "mcav vm release", "Virtual machine released!", COMMAND_TIMEOUT);
-    awaitNoneLeft(server, "virtual machine", command -> command.contains("qemu-system"));
+    awaitNoneLeft(server, "virtual machine", machine, running);
   }
 
   private static boolean isJava(final String command) {
     return command.endsWith("/java") || command.endsWith("\\java.exe");
   }
 
-  private static void awaitNoneLeft(final ServerProcess server, final String what, final Predicate<String> matcher)
-    throws InterruptedException {
+  /**
+   * Waits until no process of a player is left: none that ran before its release, even one that lost its parent and
+   * is no longer below the server, and none below the server that runs its programs.
+   */
+  private static void awaitNoneLeft(
+    final ServerProcess server,
+    final String what,
+    final Predicate<String> matcher,
+    final List<ProcessHandle> before
+  ) throws InterruptedException {
     final long deadline = System.nanoTime() + RELEASE_TIMEOUT.toNanos();
-    List<String> left = server.findDescendants(matcher);
+    List<String> left = findLeft(server, matcher, before);
     while (!left.isEmpty() && System.nanoTime() < deadline) {
       TimeUnit.MILLISECONDS.sleep(200);
-      left = server.findDescendants(matcher);
+      left = findLeft(server, matcher, before);
     }
     assertEquals(List.of(), left, "no process of the " + what + " is left after its release");
-    System.out.println("After the release of the " + what + ", no process of it is left");
+    System.out.println("After the release of the " + what + ", none of its " + before.size() + " processes is left");
+  }
+
+  private static List<String> findLeft(final ServerProcess server, final Predicate<String> matcher, final List<ProcessHandle> before) {
+    return Stream.concat(before.stream(), server.findDescendants(matcher).stream())
+      .filter(ProcessHandle::isAlive)
+      .distinct()
+      .map(handle -> handle.pid() + " " + ServerProcess.programOf(handle))
+      .toList();
   }
 
   private static boolean isStartupComplete(final String line) {
