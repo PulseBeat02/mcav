@@ -26,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.times;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -40,6 +42,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
@@ -229,6 +232,43 @@ final class NettyHostingTest {
     final ChannelPipeline pipeline = channel.pipeline();
     final ChannelHandler handler = pipeline.get(handlerName);
     assertNull(handler);
+  }
+
+  @Test
+  void readsThePackWhenItStartsSoTheNettyThreadNeverReadsIt() {
+    final NettyHosting hosting = new NettyHosting(this.zip);
+    try (final MockedStatic<Files> files = Mockito.mockStatic(Files.class, CALLS_REAL_METHODS)) {
+      hosting.start();
+      files.verify(() -> Files.readAllBytes(this.zip), times(1));
+
+      final EmbeddedChannel channel = connect();
+      final byte[] bodyBytes = downloadPack(channel, hosting);
+
+      assertArrayEquals(PACK, bodyBytes);
+      files.verify(() -> Files.readAllBytes(this.zip), times(1));
+      // the Netty thread only asks whether the file changed; the bytes came from the read that start() did
+      files.verify(() -> Files.readAttributes(this.zip, BasicFileAttributes.class), times(2));
+    } finally {
+      hosting.shutdown();
+    }
+  }
+
+  @Test
+  void startsEvenWhenThePackCannotBeReadAhead() throws IOException {
+    final Path unreadable = this.directory.resolve("unreadable.zip");
+    Files.write(unreadable, PACK);
+    final NettyHosting hosting = new NettyHosting(unreadable);
+    try (final MockedStatic<Files> files = Mockito.mockStatic(Files.class, CALLS_REAL_METHODS)) {
+      files.when(() -> Files.readAllBytes(unreadable)).thenThrow(new IOException("no permission"));
+
+      hosting.start();
+
+      final EmbeddedChannel channel = connect();
+      final ChannelHandler handler = channel.pipeline().get(hosting.getHandlerName());
+      assertNotNull(handler, "hosting starts, and the failure is reported when a download is answered");
+    } finally {
+      hosting.shutdown();
+    }
   }
 
   @Test

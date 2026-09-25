@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +32,8 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.intellij.lang.annotations.Subst;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Serves a resource pack over HTTP on the same port as the Minecraft server, so no extra port has to be opened
@@ -46,6 +49,7 @@ import org.intellij.lang.annotations.Subst;
  */
 public final class NettyHosting implements InjectorHosting {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(NettyHosting.class);
   private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
   private static final String KEY_NAMESPACE = "mcav";
 
@@ -134,8 +138,22 @@ public final class NettyHosting implements InjectorHosting {
     if (this.running) {
       return;
     }
+    this.readPackAhead();
     ChannelInitializeListenerHolder.addListener(this.listenerKey, this::installHandler);
     this.running = true;
+  }
+
+  /**
+   * Reads the pack here, on the thread that starts the hosting, so the first download does not read the whole file on
+   * the Netty thread that also carries the packets of every player. A pack that cannot be read is reported when the
+   * download is answered, exactly as before, so hosting still starts.
+   */
+  private void readPackAhead() {
+    try {
+      this.packFile.read();
+    } catch (final IOException failure) {
+      LOGGER.warn("Could not read the resource pack {} ahead of the first download", this.zip, failure);
+    }
   }
 
   /**
