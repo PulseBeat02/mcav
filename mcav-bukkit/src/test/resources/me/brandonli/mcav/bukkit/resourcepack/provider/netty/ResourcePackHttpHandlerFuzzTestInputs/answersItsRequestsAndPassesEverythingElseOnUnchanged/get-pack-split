@@ -1,0 +1,6 @@
+!GET /pack/0123456789abcdef.zip HTTP/1.1
+Host: 127.0.0.1:25565
+User-Agent: Minecraft Java/26.2
+X-Minecraft-Version: 26.2
+Accept: */*
+
