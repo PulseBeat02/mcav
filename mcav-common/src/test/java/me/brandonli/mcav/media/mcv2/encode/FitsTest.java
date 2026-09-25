@@ -19,7 +19,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import me.brandonli.mcav.media.mcv2.Reconstruction;
+import me.brandonli.mcav.media.mcv2.ReconstructionOracle;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +43,7 @@ final class FitsTest {
         final float[] values = new float[size * size * 3];
         for (int y = 0; y < size; y++) {
           for (int x = 0; x < size; x++) {
-            values[(y * size + x) * 3 + 1] = (float) Reconstruction.interpolate(nodes, 0, 1, grid, size, x, y);
+            values[(y * size + x) * 3 + 1] = (float) ReconstructionOracle.interpolate(nodes, 0, 1, grid, size, x, y);
           }
         }
         final float[] fitted = new float[grid * grid * 2];

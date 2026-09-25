@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.mcv2.encode.TreeNode;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,65 @@ final class Mcv2DecoderTest {
     // global motion of one whole pixel to the right: pixel 0 samples pixel 1, pixel 1 is clamped to itself
     final byte[] frame = predicted(2, 1, 2, 0, SHORT, TreeNode.skip());
     assertArrayEquals(new byte[] { 30, 40, 50, 30, 40, 50 }, Mcv2Decoder.decode(frame, reference, 0));
+  }
+
+  @Test
+  void decodesTheSamePictureOnAnyNumberOfWorkers() throws Mcv2Exception {
+    final String stream = Mcv2Fixtures.digests("conformance").keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
+    final ForkJoinPool pool = new ForkJoinPool(4);
+    try {
+      final Workers workers = new Workers(pool, 4);
+      byte[] reference = null;
+      for (final byte[] data : frames) {
+        final Mcv2Frame frame = FrameParser.parse(data);
+        final byte[] sequential = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());
+        assertArrayEquals(sequential, Mcv2Decoder.decode(frame, reference, frame.getReferenceId(), workers));
+        reference = sequential;
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  /**
+   * A frame the parser would refuse, built directly: 300 compact leaves on a 2400x8 keyframe, where leaf 1 has an
+   * invalid control byte and leaf 290, in another group of leaves, is truncated. Whichever group a worker finishes
+   * first, the decode reports the failure a sequential decode meets first.
+   */
+  @Test
+  void reportsTheFirstFailingLeafWhateverTheOrderOfTheWorkers() {
+    final int leaves = 300;
+    final byte[] data = new byte[64];
+    // 0x0F is class 15, which does not exist; the last byte starts a record the frame has no room for
+    data[10] = 0x0F;
+    final int[] array = new int[leaves * Mcv2Frame.LEAF_INTS];
+    for (int i = 0; i < leaves; i++) {
+      final int at = i * Mcv2Frame.LEAF_INTS;
+      array[at] = i * 8;
+      array[at + 1] = 0;
+      array[at + 2] = 8;
+      array[at + 3] = i == 1 || i == 290 ? Mcv2Format.MODE_COMPACT : Mcv2Format.MODE_SOLID;
+      array[at + 4] = 0;
+      array[at + 5] = i == 1 ? 10 : i == 290 ? data.length - 1 : 0;
+    }
+    data[data.length - 1] = 0x03;
+    final Mcv2Frame frame = new Mcv2Frame(
+      data,
+      new Mcv2Frame.Header(leaves * 8, 8, 1, 1, Mcv2Format.KEYFRAME, 0, 0, 48, 0),
+      array,
+      null,
+      null
+    );
+    final ForkJoinPool pool = new ForkJoinPool(4);
+    try {
+      for (final Workers workers : new Workers[] { Workers.SEQUENTIAL, new Workers(pool, 4) }) {
+        final Mcv2Exception failure = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, null, 0, workers));
+        assertEquals("Invalid compact class or control", failure.getMessage());
+      }
+    } finally {
+      pool.shutdownNow();
+    }
   }
 
   @Test

@@ -23,13 +23,12 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Frame;
 import me.brandonli.mcav.media.mcv2.Reconstruction;
+import me.brandonli.mcav.media.mcv2.Workers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -51,8 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class Mcv2Encoder {
 
   private final EncoderSettings settings;
-  private final ForkJoinPool pool;
-  private final int threads;
+  private final Workers workers;
   private final boolean verify;
 
   private byte@Nullable[] reference;
@@ -90,8 +88,7 @@ public final class Mcv2Encoder {
     Preconditions.checkNotNull(pool, "Pool must not be null");
     Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
     this.settings = settings;
-    this.pool = pool;
-    this.threads = threads;
+    this.workers = new Workers(pool, threads);
     this.verify = verify;
     this.framesSinceKey = settings.keyInterval();
   }
@@ -148,7 +145,7 @@ public final class Mcv2Encoder {
     int motion = 0;
     byte[] predictFrom = new byte[0];
     if (previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval()) {
-      final int estimate = GlobalMotion.estimate(rgb, previous, width, height);
+      final int estimate = GlobalMotion.estimate(rgb, previous, width, height, this.workers);
       if (!this.sceneCut(rgb, previous, width, height, estimate)) {
         key = false;
         motion = estimate;
@@ -195,7 +192,7 @@ public final class Mcv2Encoder {
         serialized,
         FrameWriter.Options.production(coarse)
       );
-      final byte[] picture = decodeChosen(data, predictFrom, this.referenceId);
+      final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
       final double cost = trialError(rgb, picture, width, height) / 96.0 + this.settings.lambda() * 8 * data.length;
       if (cost < bestCost) {
         bestCost = cost;
@@ -234,10 +231,10 @@ public final class Mcv2Encoder {
    *
    * @throws IllegalStateException if the decoder rejects it, which would be an encoder defect
    */
-  static byte[] decodeChosen(final byte[] data, final byte[] reference, final long referenceId) {
+  static byte[] decodeChosen(final byte[] data, final byte[] reference, final long referenceId, final Workers workers) {
     try {
       final Mcv2Frame frame = FrameParser.parse(data);
-      return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId);
+      return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId, workers);
     } catch (final Mcv2Exception exception) {
       throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
     }
@@ -278,23 +275,15 @@ public final class Mcv2Encoder {
     return sum / 16.0 / pixels > this.settings.sceneThreshold();
   }
 
-  /** Evaluates every block of every level on the pool, each worker pulling superblocks from a shared counter. */
+  /** Evaluates every block of every level on the workers, each worker pulling superblocks from a shared counter. */
   private void evaluate(final FrameJob job) {
     final int columns = job.columns(0);
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
-    final AtomicInteger next = new AtomicInteger();
-    this.pool.submit(() ->
-        IntStream.range(0, this.threads)
-          .parallel()
-          .forEach(_ -> {
-            final BlockCoder[] coders = { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) };
-            for (int index = next.getAndIncrement(); index < superblocks; index = next.getAndIncrement()) {
-              final int x = (index % columns) * ROOT_SIZE;
-              final int y = (index / columns) * ROOT_SIZE;
-              superblock(job, coders, x, y);
-            }
-          })
-      ).join();
+    this.workers.forEach(
+        superblocks,
+        () -> new BlockCoder[] { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) },
+        (coders, index) -> superblock(job, coders, (index % columns) * ROOT_SIZE, (index / columns) * ROOT_SIZE)
+      );
   }
 
   private static void superblock(final FrameJob job, final BlockCoder[] coders, final int x, final int y) {

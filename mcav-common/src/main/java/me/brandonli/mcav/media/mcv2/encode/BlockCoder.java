@@ -55,7 +55,7 @@ final class BlockCoder {
   private final int[] recon;
   private final byte[] record = new byte[2 + 3 * 64];
   private final byte[] palette = new byte[6 + (32 * 32) / 8];
-  private final float[] nodes = new float[3 * 64 + 16];
+  private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
   private final float[] grid = new float[3 * 64];
   private final float[] fit = new float[32];
   private final double[] fitScratch = new double[32 * 8];
@@ -337,7 +337,7 @@ final class BlockCoder {
     for (int i = 0; i < length; i++) {
       this.record[i] = (byte) Reconstruction.rgb8(this.grid[i]);
     }
-    Reconstruction.intraGrid(this.record, 0, g, this.size, this.nodes, this.recon);
+    Reconstruction.intraGrid(this.record, 0, g, this.size, this.scratch, this.recon);
     this.score(mode, 0, length, this.job.allTrials());
   }
 
@@ -372,7 +372,7 @@ final class BlockCoder {
       for (int i = 0; i < 3 * g * g; i++) {
         this.record[2 + i] = (byte) quantize(this.grid[i], 1 << q, -128, 127);
       }
-      Reconstruction.residualGrid(this.localPrediction[v], this.record, 2, g, q, this.size, this.nodes, this.recon);
+      Reconstruction.residualGrid(this.localPrediction[v], this.record, 2, g, q, this.size, this.scratch, this.recon);
       this.score(mode, q, length, mask);
     }
   }
@@ -398,7 +398,7 @@ final class BlockCoder {
     for (int i = 0; i < 2 * chroma * chroma; i++) {
       this.record[luma * luma + i] = (byte) quantize(this.grid[64 + i], 1, -128, 127);
     }
-    Reconstruction.reduced(null, this.record, 0, luma, chroma, 0, this.size, this.nodes, this.recon);
+    Reconstruction.reduced(null, this.record, 0, luma, chroma, 0, this.size, this.scratch, this.recon);
     this.score(mode, 0, length, this.job.allTrials());
   }
 
@@ -422,7 +422,7 @@ final class BlockCoder {
       for (int i = 0; i < 2 * chroma * chroma; i++) {
         this.record[2 + luma * luma + i] = (byte) quantize(this.grid[64 + i], 1 << q, -128, 127);
       }
-      Reconstruction.reduced(this.localPrediction[v], this.record, 2, luma, chroma, q, this.size, this.nodes, this.recon);
+      Reconstruction.reduced(this.localPrediction[v], this.record, 2, luma, chroma, q, this.size, this.scratch, this.recon);
       this.score(mode, q, length, mask);
     }
   }
@@ -457,7 +457,7 @@ final class BlockCoder {
           this.record[2] = (byte) dy;
         }
         this.compactBody(kind, values, q, body);
-        Reconstruction.compact(prediction, this.record, body, kind, q, this.size, this.nodes, this.recon);
+        Reconstruction.compact(prediction, this.record, body, kind, q, this.size, this.scratch, this.recon);
         this.score(MODE_COMPACT, q, length, mask);
       }
     }

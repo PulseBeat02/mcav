@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2;
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
 import com.google.common.base.Preconditions;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -35,12 +36,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Decoder {
 
+  /** Leaves decoded by one worker at a time. */
+  private static final int GROUP = 256;
+
   private Mcv2Decoder() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Decodes a validated frame.
+   * Decodes a validated frame on the calling thread.
    *
    * @param frame       the frame
    * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
@@ -49,7 +53,24 @@ public final class Mcv2Decoder {
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
    */
   public static byte[] decode(final Mcv2Frame frame, final byte@Nullable[] reference, final long referenceId) throws Mcv2Exception {
+    return decode(frame, reference, referenceId, Workers.SEQUENTIAL);
+  }
+
+  /**
+   * Decodes a validated frame. Every leaf covers its own pixels, so groups of leaves are decoded on the workers, each
+   * with its own scratch space; the picture is the same for any number of workers.
+   *
+   * @param frame       the frame
+   * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
+   * @param referenceId the id of that picture
+   * @param workers     the workers
+   * @return the decoded picture, {@code width * height * 3} bytes
+   * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
+   */
+  public static byte[] decode(final Mcv2Frame frame, final byte@Nullable[] reference, final long referenceId, final Workers workers)
+    throws Mcv2Exception {
     Preconditions.checkNotNull(frame, "Frame must not be null");
+    Preconditions.checkNotNull(workers, "Workers must not be null");
     final int width = frame.getWidth();
     final int height = frame.getHeight();
     final byte[] ref;
@@ -62,10 +83,30 @@ public final class Mcv2Decoder {
       ref = reference;
     }
     final byte[] output = new byte[width * height * 3];
-    final Context context = new Context(frame, ref, output);
     final int[] leaves = frame.leafArray();
-    for (int i = 0; i < leaves.length; i += Mcv2Frame.LEAF_INTS) {
-      context.leaf(leaves[i], leaves[i + 1], leaves[i + 2], leaves[i + 3], leaves[i + 4], leaves[i + 5]);
+    final int count = leaves.length / Mcv2Frame.LEAF_INTS;
+    final int groups = (count + GROUP - 1) / GROUP;
+    final AtomicReferenceArray<@Nullable Mcv2Exception> failures = new AtomicReferenceArray<>(groups);
+    workers.forEach(
+      groups,
+      () -> new Context(frame, ref, output),
+      (context, group) -> {
+        final int end = Math.min(count, (group + 1) * GROUP) * Mcv2Frame.LEAF_INTS;
+        try {
+          for (int i = group * GROUP * Mcv2Frame.LEAF_INTS; i < end; i += Mcv2Frame.LEAF_INTS) {
+            context.leaf(leaves[i], leaves[i + 1], leaves[i + 2], leaves[i + 3], leaves[i + 4], leaves[i + 5]);
+          }
+        } catch (final Mcv2Exception exception) {
+          failures.set(group, exception);
+        }
+      }
+    );
+    // the failure a sequential decode would meet first
+    for (int group = 0; group < groups; group++) {
+      final Mcv2Exception failure = failures.get(group);
+      if (failure != null) {
+        throw failure;
+      }
     }
     return output;
   }
@@ -92,7 +133,7 @@ public final class Mcv2Decoder {
     private final byte[] output;
     private final int width;
     private final int height;
-    private final float[] nodes = new float[3 * 64];
+    private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
     private final int[] prediction = new int[32 * 32 * 3];
     private final int[] block = new int[32 * 32 * 3];
 
@@ -148,7 +189,7 @@ public final class Mcv2Decoder {
         case MODE_COMPACT -> {
           final CompactRecord record = CompactRecord.parse(d, offset, q);
           this.predict(x, y, size, gx + record.dx(), gy + record.dy());
-          Reconstruction.compact(this.prediction, d, record.bodyOffset(), record.kind(), q, size, this.nodes, out);
+          Reconstruction.compact(this.prediction, d, record.bodyOffset(), record.kind(), q, size, this.scratch, out);
         }
         default -> {
           if (mode >= MODE_INTRA_Y4C1) {
@@ -164,14 +205,14 @@ public final class Mcv2Decoder {
               chromaGrid(mode),
               q,
               size,
-              this.nodes,
+              this.scratch,
               out
             );
           } else if (mode >= MODE_RESIDUAL) {
             this.predict(x, y, size, gx + d[offset], gy + d[offset + 1]);
-            Reconstruction.residualGrid(this.prediction, d, offset + 2, 1 << (mode - MODE_RESIDUAL), q, size, this.nodes, out);
+            Reconstruction.residualGrid(this.prediction, d, offset + 2, 1 << (mode - MODE_RESIDUAL), q, size, this.scratch, out);
           } else {
-            Reconstruction.intraGrid(d, offset, 1 << (mode - MODE_INTRA), size, this.nodes, out);
+            Reconstruction.intraGrid(d, offset, 1 << (mode - MODE_INTRA), size, this.scratch, out);
           }
         }
       }

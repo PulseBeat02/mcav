@@ -40,6 +40,7 @@ import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.Mcv2Frame;
+import me.brandonli.mcav.media.mcv2.Workers;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings.ReferencePolicy;
 import org.junit.jupiter.api.Test;
 
@@ -247,7 +248,7 @@ final class Mcv2EncoderTest {
   @Test
   void reportsAFrameTheDecoderRejects() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      Mcv2Encoder.decodeChosen(new byte[48], new byte[0], 0)
+      Mcv2Encoder.decodeChosen(new byte[48], new byte[0], 0, Workers.SEQUENTIAL)
     );
     assertEquals("The encoder wrote a frame the decoder rejects", exception.getMessage());
   }
@@ -263,7 +264,7 @@ final class Mcv2EncoderTest {
     final FrameJob job = new FrameJob(EncoderSettings.SHIP, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 });
     final List<TreeNode> roots = List.of(solid(1, 2, 3));
     final byte[] data = keyframe(8, 8, DERIVED, solid(1, 2, 3));
-    final byte[] picture = Mcv2Encoder.decodeChosen(data, new byte[0], 0);
+    final byte[] picture = Mcv2Encoder.decodeChosen(data, new byte[0], 0, Workers.SEQUENTIAL);
     final List<Mcv2Encoder.Leaf> leaves = List.of(new Mcv2Encoder.Leaf(0, 0, 8, 2, 0));
     Mcv2Encoder.check(job, 0, data, picture, leaves, roots);
     assertEquals(

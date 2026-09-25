@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Random;
+import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.media.mcv2.Workers;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -84,5 +86,31 @@ final class FftTest {
       assertEquals(plane[i] * plane.length, restored[i], 1e-6);
     }
     assertEquals(sum[0], spectrum[0][0], 1e-9);
+  }
+
+  @Test
+  void transformsTheSameOnAnyNumberOfWorkers() {
+    final int rows = 45;
+    final int columns = 64;
+    final double[] plane = new double[rows * columns];
+    final Random random = new Random(11);
+    for (int i = 0; i < plane.length; i++) {
+      plane[i] = random.nextInt(256);
+    }
+    final ForkJoinPool pool = new ForkJoinPool(4);
+    try {
+      final Workers workers = new Workers(pool, 4);
+      final double[][] sequential = Fft.forward2d(plane, rows, columns);
+      final double[][] parallel = Fft.forward2d(plane, rows, columns, workers);
+      assertArrayEquals(sequential[0], parallel[0], 0.0);
+      assertArrayEquals(sequential[1], parallel[1], 0.0);
+      assertArrayEquals(
+        Fft.inverse2dReal(sequential[0], sequential[1], rows, columns),
+        Fft.inverse2dReal(parallel[0], parallel[1], rows, columns, workers),
+        0.0
+      );
+    } finally {
+      pool.shutdownNow();
+    }
   }
 }

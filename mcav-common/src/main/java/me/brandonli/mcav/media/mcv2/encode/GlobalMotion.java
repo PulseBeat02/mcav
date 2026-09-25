@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import me.brandonli.mcav.media.mcv2.Workers;
+
 /**
  * The frame-global translation of the reference encoder ({@code encoder.estimate_global}): phase correlation of the
  * quarter-resolution luma planes gives a coarse whole-pixel estimate, then a 7x7 neighbourhood around it and the zero
@@ -28,12 +30,14 @@ final class GlobalMotion {
   /** The largest global displacement searched, in pixels. */
   static final int MAX_RANGE = 128;
 
+  private static final int CHUNK = 4096;
+
   private GlobalMotion() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Estimates the global motion from the reference to the source.
+   * Estimates the global motion from the reference to the source, on the calling thread.
    *
    * @param source    the current picture, row-major RGB
    * @param reference the previous decoded picture, the same size
@@ -42,23 +46,47 @@ final class GlobalMotion {
    * @return the vector as {@code x << 16 | (y & 0xFFFF)}, in half pixels
    */
   static int estimate(final byte[] source, final byte[] reference, final int width, final int height) {
+    return estimate(source, reference, width, height, Workers.SEQUENTIAL);
+  }
+
+  /**
+   * Estimates the global motion from the reference to the source. The transforms, the normalization and the scores of
+   * the candidates run on the workers; the peak and the best candidate are chosen in the sequential order, so the
+   * vector does not depend on the workers.
+   *
+   * @param source    the current picture, row-major RGB
+   * @param reference the previous decoded picture, the same size
+   * @param width     the width
+   * @param height    the height
+   * @param workers   the workers
+   * @return the vector as {@code x << 16 | (y & 0xFFFF)}, in half pixels
+   */
+  static int estimate(final byte[] source, final byte[] reference, final int width, final int height, final Workers workers) {
     final int rows = (height + 3) / 4;
     final int columns = (width + 3) / 4;
     final double[] luma = quarterLuma(source, width, rows, columns);
     final double[] previous = quarterLuma(reference, width, rows, columns);
-    final double[][] a = Fft.forward2d(previous, rows, columns);
-    final double[][] b = Fft.forward2d(luma, rows, columns);
+    final double[][] a = Fft.forward2d(previous, rows, columns, workers);
+    final double[][] b = Fft.forward2d(luma, rows, columns, workers);
     final double[] re = new double[rows * columns];
     final double[] im = new double[rows * columns];
-    for (int i = 0; i < re.length; i++) {
-      // previous times the conjugate of the current frame, normalized to unit magnitude
-      final double r = a[0][i] * b[0][i] + a[1][i] * b[1][i];
-      final double m = a[1][i] * b[0][i] - a[0][i] * b[1][i];
-      final double magnitude = Math.max(Math.hypot(r, m), 1e-8);
-      re[i] = r / magnitude;
-      im[i] = m / magnitude;
-    }
-    final double[] correlation = Fft.inverse2dReal(re, im, rows, columns);
+    final int chunks = (re.length + CHUNK - 1) / CHUNK;
+    workers.forEach(
+      chunks,
+      () -> re,
+      (_, chunk) -> {
+        final int end = Math.min(re.length, (chunk + 1) * CHUNK);
+        for (int i = chunk * CHUNK; i < end; i++) {
+          // previous times the conjugate of the current frame, normalized to unit magnitude
+          final double r = a[0][i] * b[0][i] + a[1][i] * b[1][i];
+          final double m = a[1][i] * b[0][i] - a[0][i] * b[1][i];
+          final double magnitude = Math.max(Math.hypot(r, m), 1e-8);
+          re[i] = r / magnitude;
+          im[i] = m / magnitude;
+        }
+      }
+    );
+    final double[] correlation = Fft.inverse2dReal(re, im, rows, columns, workers);
     int peak = 0;
     for (int i = 1; i < correlation.length; i++) {
       if (correlation[i] > correlation[peak]) {
@@ -67,25 +95,38 @@ final class GlobalMotion {
     }
     final int peakY = peak / columns;
     final int peakX = peak % columns;
-    int coarseX = (peakX <= columns / 2 ? peakX : peakX - columns) * 4;
-    int coarseY = (peakY <= rows / 2 ? peakY : peakY - rows) * 4;
-    coarseX = Math.min(Math.max(coarseX, -MAX_RANGE), MAX_RANGE);
-    coarseY = Math.min(Math.max(coarseY, -MAX_RANGE), MAX_RANGE);
+    final int coarseX = Math.min(Math.max((peakX <= columns / 2 ? peakX : peakX - columns) * 4, -MAX_RANGE), MAX_RANGE);
+    final int coarseY = Math.min(Math.max((peakY <= rows / 2 ? peakY : peakY - rows) * 4, -MAX_RANGE), MAX_RANGE);
+    // candidate 0 is the zero vector, candidates 1 to 49 the 7x7 neighbourhood of the coarse estimate
+    final long[] errors = new long[50];
+    workers.forEach(
+      errors.length,
+      () -> errors,
+      (_, candidate) -> {
+        final int dx = candidateX(candidate, coarseX);
+        final int dy = candidateY(candidate, coarseY);
+        errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
+          ? Long.MAX_VALUE
+          : sampledError(source, reference, width, height, dx, dy);
+      }
+    );
     long best = Long.MAX_VALUE;
     int vector = 0;
-    for (int candidate = -1; candidate < 49; candidate++) {
-      final int dx = candidate < 0 ? 0 : coarseX + (candidate % 7) - 3;
-      final int dy = candidate < 0 ? 0 : coarseY + candidate / 7 - 3;
-      if (Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE) {
-        continue;
-      }
-      final long error = sampledError(source, reference, width, height, dx, dy);
-      if (error < best) {
-        best = error;
-        vector = ((dx * 2) << 16) | ((dy * 2) & 0xFFFF);
+    for (int candidate = 0; candidate < errors.length; candidate++) {
+      if (errors[candidate] < best) {
+        best = errors[candidate];
+        vector = ((candidateX(candidate, coarseX) * 2) << 16) | ((candidateY(candidate, coarseY) * 2) & 0xFFFF);
       }
     }
     return vector;
+  }
+
+  private static int candidateX(final int candidate, final int coarseX) {
+    return candidate == 0 ? 0 : coarseX + ((candidate - 1) % 7) - 3;
+  }
+
+  private static int candidateY(final int candidate, final int coarseY) {
+    return candidate == 0 ? 0 : coarseY + (candidate - 1) / 7 - 3;
   }
 
   private static double[] quarterLuma(final byte[] image, final int width, final int rows, final int columns) {

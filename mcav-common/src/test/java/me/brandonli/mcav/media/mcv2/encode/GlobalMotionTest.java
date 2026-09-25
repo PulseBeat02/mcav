@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
+import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.media.mcv2.Workers;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -86,5 +88,19 @@ final class GlobalMotionTest {
   void handlesPicturesSmallerThanOneQuarterSample() {
     final byte[] picture = texture(3, 2);
     assertEquals(0, GlobalMotion.estimate(picture, picture, 3, 2));
+  }
+
+  @Test
+  void estimatesTheSameOnAnyNumberOfWorkers() {
+    final byte[] reference = texture(320, 180);
+    final byte[] source = shifted(reference, 320, 180, 9, -4);
+    final ForkJoinPool pool = new ForkJoinPool(4);
+    try {
+      final int sequential = GlobalMotion.estimate(source, reference, 320, 180);
+      assertEquals(((2 * 9) << 16) | ((2 * -4) & 0xFFFF), sequential);
+      assertEquals(sequential, GlobalMotion.estimate(source, reference, 320, 180, new Workers(pool, 4)));
+    } finally {
+      pool.shutdownNow();
+    }
   }
 }

@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Random;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
-import me.brandonli.mcav.media.mcv2.Reconstruction;
+import me.brandonli.mcav.media.mcv2.ReconstructionOracle;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -90,7 +90,7 @@ final class BlockCoderTest {
     final byte[] source = reference.clone();
     for (int y = 0; y < 8; y++) {
       for (int x = 0; x < 8; x++) {
-        final double bump = Reconstruction.interpolate(nodes, 0, 1, 4, 8, x, y);
+        final double bump = ReconstructionOracle.interpolate(nodes, 0, 1, 4, 8, x, y);
         assertEquals(Math.rint(bump), bump);
         for (int c = 0; c < 3; c++) {
           final int at = (y * 8 + x) * 3 + c;
