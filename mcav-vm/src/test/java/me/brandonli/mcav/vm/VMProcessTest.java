@@ -452,11 +452,14 @@ final class VMProcessTest {
   }
 
   @Test
-  void theSpeakerJoinsTheMachineOfTheConfigurationAndQ35GetsTheIch9Card() {
+  void theSpeakerIsAMachineOptionOfItsOwnAndQ35GetsTheIch9Card() {
     final VMConfiguration q35 = VMConfiguration.builder();
     q35.machine("q35,accel=tcg");
     final List<String> command = this.x86Command(q35);
-    assertTrue(command.containsAll(List.of("-machine", "q35,accel=tcg,pcspk-audiodev=mcav-audio")), command::toString);
+    // QEMU merges every -machine option, so the machine of the configuration keeps its value
+    assertTrue(command.containsAll(List.of("-machine", "q35,accel=tcg")), command::toString);
+    final int speaker = command.indexOf("pcspk-audiodev=mcav-audio");
+    assertEquals("-machine", command.get(speaker - 1), command::toString);
     assertTrue(command.contains("ich9-intel-hda,id=mcav-sound"), command::toString);
     final VMConfiguration typed = VMConfiguration.builder();
     typed.machine("type=pc-q35-8.2,usb=on");
@@ -473,11 +476,36 @@ final class VMProcessTest {
     final List<String> command = this.x86Command(microvm);
     assertFalse(command.contains("-audiodev"), command::toString);
     assertTrue(command.contains("127.0.0.1:3,share=force-shared"), command::toString);
-    final VMConfiguration legacy = VMConfiguration.builder();
-    legacy.option("M", "pc");
-    assertFalse(this.x86Command(legacy).contains("-audiodev"), "-M is left to the configuration");
+    // the type named last wins, as in QEMU
+    final VMConfiguration twice = VMConfiguration.builder();
+    twice.machine("type=pc,type=microvm,usb=off");
+    assertFalse(this.x86Command(twice).contains("-audiodev"));
     final List<String> arm = this.commandWithoutAccelerator(this.reachableSettings(), VMConfiguration.builder());
     assertFalse(arm.contains("-audiodev"));
+  }
+
+  @Test
+  void aMachineNamedWithMHasSoundLikeOneNamedWithMachine() {
+    final VMConfiguration legacy = VMConfiguration.builder();
+    legacy.option("M", "q35");
+    final List<String> command = this.x86Command(legacy);
+    assertTrue(command.contains("ich9-intel-hda,id=mcav-sound"), command::toString);
+    assertTrue(command.contains("pcspk-audiodev=mcav-audio"), command::toString);
+    final VMConfiguration routed = VMConfiguration.builder();
+    routed.option("M", "pc,pcspk-audiodev=snd0");
+    assertThrows(PlayerException.class, () -> VMProcess.checkModuleOptions(routed));
+    final VMConfiguration repeated = VMConfiguration.builder();
+    repeated.repeatable("machine", "pcspk-audiodev=snd0");
+    assertThrows(PlayerException.class, () -> VMProcess.checkModuleOptions(repeated));
+  }
+
+  @Test
+  void aValueThatLooksLikeTheMachineOptionDoesNotConfuseTheSpeaker() {
+    final VMConfiguration named = VMConfiguration.builder();
+    named.option("name", "-machine");
+    final List<String> command = this.x86Command(named);
+    assertTrue(command.containsAll(List.of("-name", "-machine")), command::toString);
+    assertEquals("-machine", command.get(command.indexOf("pcspk-audiodev=mcav-audio") - 1), command::toString);
   }
 
   @Test
@@ -493,6 +521,17 @@ final class VMProcessTest {
     final VMConfiguration properties = VMConfiguration.builder();
     properties.machine("accel=kvm");
     assertEquals("", VMProcess.machineType(properties));
+    final VMConfiguration last = VMConfiguration.builder();
+    last.machine("pc,type=q35");
+    assertEquals("q35", VMProcess.machineType(last));
+    final VMConfiguration both = VMConfiguration.builder();
+    both.machine("pc");
+    both.option("M", "microvm");
+    both.repeatable("machine", "usb=on");
+    assertEquals("microvm", VMProcess.machineType(both));
+    final VMConfiguration empty = VMConfiguration.builder();
+    empty.machine(",usb=on");
+    assertEquals("", VMProcess.machineType(empty));
     assertTrue(VMProcess.isPcMachine(""));
     assertTrue(VMProcess.isPcMachine("pc"));
     assertTrue(VMProcess.isPcMachine("q35"));

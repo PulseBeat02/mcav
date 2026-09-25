@@ -242,9 +242,10 @@ final class VMProcess {
         throw new PlayerException("mcav sets -" + option + " of the machine itself; remove it from the configuration");
       }
     }
-    final String machine = Objects.requireNonNullElse(configuration.get("machine"), "");
-    if (machine.contains("pcspk-audiodev")) {
-      throw new PlayerException("mcav routes the PC speaker of the machine itself; remove pcspk-audiodev from -machine");
+    for (final String machine : machineValues(configuration)) {
+      if (machine.contains("pcspk-audiodev")) {
+        throw new PlayerException("mcav routes the PC speaker of the machine itself; remove pcspk-audiodev from -machine");
+      }
     }
   }
 
@@ -254,27 +255,49 @@ final class VMProcess {
    * @return true if the machine plays into the audio backend of mcav
    */
   boolean hasAudio() {
-    return (
-      this.architecture == VMPlayer.Architecture.X86_64 && !this.configuration.has("M") && isPcMachine(machineType(this.configuration))
-    );
+    return this.architecture == VMPlayer.Architecture.X86_64 && isPcMachine(machineType(this.configuration));
   }
 
   /**
-   * Gets the machine type of a configuration: the first part of {@code -machine}, or its {@code type} property.
+   * Gets the machine type of a configuration as QEMU does: it merges every {@code -machine} and {@code -M} option, a
+   * value names the type in its first part or in {@code type=}, and the type named last wins.
    *
    * @param configuration the QEMU options
    * @return the type in lower case, or empty for the default machine of QEMU
    */
   @VisibleForTesting
   static String machineType(final VMConfiguration configuration) {
-    final String machine = Objects.requireNonNullElse(configuration.get("machine"), "");
-    for (final String part : Splitter.on(',').split(machine)) {
-      if (part.startsWith("type=")) {
-        return part.substring("type=".length()).toLowerCase(Locale.ROOT);
+    String type = "";
+    for (final String machine : machineValues(configuration)) {
+      boolean first = true;
+      for (final String part : Splitter.on(',').split(machine)) {
+        if (part.startsWith("type=")) {
+          type = part.substring("type=".length());
+        } else if (first && !part.isEmpty() && !part.contains("=")) {
+          type = part;
+        }
+        first = false;
       }
     }
-    final String first = Splitter.on(',').split(machine).iterator().next();
-    return first.contains("=") ? "" : first.toLowerCase(Locale.ROOT);
+    return type.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Gets the values of every {@code -machine} and {@code -M} option of a configuration, in the order QEMU reads them.
+   *
+   * @param configuration the QEMU options
+   * @return the values
+   */
+  private static List<String> machineValues(final VMConfiguration configuration) {
+    final List<String> values = new ArrayList<>();
+    for (final String option : List.of("machine", "M")) {
+      final String value = configuration.get(option);
+      if (value != null) {
+        values.add(value);
+      }
+      values.addAll(configuration.getAll(option));
+    }
+    return values;
   }
 
   /**
@@ -380,21 +403,14 @@ final class VMProcess {
   }
 
   /**
-   * Routes the PC speaker into the audio backend of mcav, in the {@code -machine} option of the configuration or in
-   * one of its own.
+   * Routes the PC speaker into the audio backend of mcav with a {@code -machine} option of its own, which QEMU merges
+   * with those of the configuration.
    *
    * @param command the command line so far, with the options of the configuration
    */
   private static void routeSpeaker(final List<String> command) {
-    final String speaker = "pcspk-audiodev=" + AUDIO_ID;
-    final int machine = command.indexOf("-machine");
-    if (machine < 0) {
-      command.add("-machine");
-      command.add(speaker);
-      return;
-    }
-    final String value = command.get(machine + 1);
-    command.set(machine + 1, value + "," + speaker);
+    command.add("-machine");
+    command.add("pcspk-audiodev=" + AUDIO_ID);
   }
 
   /**

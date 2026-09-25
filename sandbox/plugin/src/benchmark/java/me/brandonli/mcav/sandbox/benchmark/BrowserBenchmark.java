@@ -48,9 +48,9 @@ import me.brandonli.mcav.utils.immutable.Pair;
  * <p>Two scenarios run for every size. <b>Frame rate</b>: a page that changes its color on every animation frame is
  * streamed for a fixed time, and the frames that reach the map encoder are counted. <b>Latency</b>: a page with one
  * solid color waits for server-sent events from this program; each event names a new palette color, and the time from
- * sending the event to the first map patch that shows the new color is measured, together with the time until every
- * pixel of the wall shows it (the encoder spreads a full-screen change over several frames when it exceeds its byte
- * budget). Server-sent events reach every backend the same way, so the trigger costs the same for all of them.
+ * sending the event to the first map patch that shows the new color is measured, together with the time until 90% of
+ * the pixels of the wall show it (the encoder spreads a full-screen change over several frames when it exceeds its
+ * byte budget). Server-sent events reach every backend the same way, so the trigger costs the same for all of them.
  *
  * <p>Arguments: {@code <backend> <output file>}, where the backend is a name {@code backends} accepts. The results are
  * printed as Markdown and appended to the output file.

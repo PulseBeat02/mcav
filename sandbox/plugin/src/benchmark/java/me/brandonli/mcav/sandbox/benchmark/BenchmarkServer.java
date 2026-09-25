@@ -71,7 +71,8 @@ final class BenchmarkServer implements AutoCloseable {
   }
 
   static BenchmarkServer start() throws IOException {
-    final InetAddress loopback = InetAddress.getLoopbackAddress();
+    // the address the pages are served at, whichever loopback address Java prefers
+    final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     final HttpServer server = HttpServer.create(address, 0);
     final ExecutorService executor = Executors.newCachedThreadPool();
