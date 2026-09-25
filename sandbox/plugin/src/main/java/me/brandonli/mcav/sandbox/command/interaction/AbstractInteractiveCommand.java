@@ -29,17 +29,27 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioOutputs;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
@@ -214,6 +224,60 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /**
+   * Plays the sound of a player into the chosen audio output, which the player takes over from any video, browser or
+   * virtual machine until it is released; {@link AudioArgument#NONE} plays nothing.
+   *
+   * @param owner the player, which owns the output while its sound plays
+   * @param audio the slot of the audio pipeline of the player
+   * @param sound the output and the players who hear it
+   * @param title the title the output shows, such as {@code Virtual machine}
+   */
+  final void attachSound(final Object owner, final AudioAttachableCallback audio, final ScreenSound sound, final String title) {
+    final AudioArgument type = sound.getType();
+    if (type == AudioArgument.NONE) {
+      return;
+    }
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final URLParseDump dump = new URLParseDump();
+    dump.title = title;
+    final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers(), owner);
+    audio.attach(AudioPipelineStep.of(filter));
+  }
+
+  /**
+   * Sends the viewers the link of the audio output once the player started.
+   *
+   * @param start the start of the player
+   * @param screen the screen of the player
+   * @param sound the output and the players who hear it
+   */
+  final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
+    TaskUtils.whenComplete(start, (started, error) -> {
+      // releasing the player while it starts cancels the start, and a release before the main thread sends the links
+      // cancels the screen, which the main thread sees, as releases happen there too
+      if (error == null && Boolean.TRUE.equals(started)) {
+        final AudioProvider provider = this.plugin.getAudioProvider();
+        TaskUtils.runOnMainThread(this.plugin, () -> {
+          if (!screen.isCancelled()) {
+            AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Lets go of the audio outputs of a player that was released, unless a video or another player took them over
+   * meanwhile.
+   *
+   * @param owner the released player
+   */
+  final void releaseSound(final Object owner) {
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    provider.releaseAudioFilter(owner);
+  }
+
+  /**
    * Parses a size such as {@code 1920x1080}, telling the sender when it is not valid.
    *
    * @param sender who ran the command
@@ -281,10 +345,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     try {
       final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, maps);
       filter.start();
-      final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
       final int columns = blocks.getFirst();
       final int rows = blocks.getSecond();
       final long mapCount = (long) columns * rows;
+      final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
+      final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, filter);
       final Screen created = new Screen(maps, pipeline, mapId, mapCount);
       synchronized (this.lock) {
         this.result = maps;
@@ -296,6 +361,26 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       this.releaseAfterFailure(exception);
       throw exception;
     }
+  }
+
+  /**
+   * Creates the last step of the pipeline of a screen, which tells the log once that its maps show a picture.
+   *
+   * @param mapId    the id of the first map
+   * @param mapCount the number of maps
+   * @param log      receives the message
+   * @return the filter of the step
+   */
+  static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
+    final AtomicBoolean announced = new AtomicBoolean();
+    final String message = "Maps " + mapId + " to " + (mapId + mapCount - 1) + " show their first picture";
+    return (image, metadata) -> {
+      if (announced.compareAndSet(false, true)) {
+        log.accept(message);
+      }
+      // it only watches the frame
+      return false;
+    };
   }
 
   /** Takes ownership on the main thread before callback attachment or executor submission can fail. */

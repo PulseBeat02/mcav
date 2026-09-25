@@ -73,6 +73,7 @@ final class PluginDataConfigurationMapperTest {
     browser:
       allow-private-networks: true
       javascript-jit: true
+      autoplay-sound: true
     """;
 
   @TempDir
@@ -140,6 +141,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(voiceChat);
     assertFalse(this.mapper.isBrowserPrivateNetworks());
     assertFalse(this.mapper.isBrowserJavaScriptJit());
+    assertFalse(this.mapper.isBrowserAutoplaySound());
   }
 
   @Test
@@ -176,6 +178,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(voiceChat);
     assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
     assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
+    assertFalse(this.mapper.isBrowserAutoplaySound(), "and pages silent until a player clicked them");
   }
 
   @Test
@@ -201,6 +204,7 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(voiceChat);
     assertTrue(this.mapper.isBrowserPrivateNetworks());
     assertTrue(this.mapper.isBrowserJavaScriptJit());
+    assertTrue(this.mapper.isBrowserAutoplaySound());
   }
 
   @Test

@@ -28,11 +28,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
-import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
-import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
-import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
-import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioOutputs;
@@ -41,7 +37,6 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
-import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
@@ -173,9 +168,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   protected void releasePlayer(final VMPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
     current.release();
-    // the machine lets go of the audio outputs, unless a video or another machine took them over meanwhile
-    final AudioProvider provider = this.plugin.getAudioProvider();
-    provider.releaseAudioFilter(current);
+    this.releaseSound(current);
   }
 
   /**
@@ -320,7 +313,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
-    final Sound sound = new Sound(audioType, viewers);
+    final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
   }
 
@@ -330,80 +323,21 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final VMSettings settings,
     final VMPlayer.Architecture architecture,
     final VMConfiguration vmConfiguration,
-    final Sound sound
+    final ScreenSound sound
   ) {
     final VMPlayer machine = VMPlayer.create();
     this.ownCreatedPlayer(machine);
     final VideoAttachableCallback callback = machine.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
-    this.attachSound(machine, sound);
+    this.attachSound(machine, machine.getAudioAttachableCallback(), sound, "Virtual machine");
 
     final Component loading = Message.VM_LOADING.build();
     sender.sendMessage(loading);
     final ExecutorService executor = this.startExecutor(machine, screen);
     final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, executor);
     this.reportStartWhenDone(sender, machine, screen, start, "the virtual machine");
-    TaskUtils.whenComplete(start, (started, error) -> {
-      // releasing the machine while it starts cancels the start, and a release before the main thread sends the links
-      // cancels the screen, which the main thread sees, as releases happen there too
-      if (error == null && Boolean.TRUE.equals(started)) {
-        final AudioProvider provider = this.plugin.getAudioProvider();
-        TaskUtils.runOnMainThread(this.plugin, () -> {
-          if (!screen.isCancelled()) {
-            AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
-          }
-        });
-      }
-    });
-  }
-
-  /**
-   * Plays the sound of a machine into the chosen audio output, which the machine takes over from any video or other
-   * machine until it is released.
-   *
-   * @param machine the machine
-   * @param sound   the output and the players who hear it
-   */
-  private void attachSound(final VMPlayer machine, final Sound sound) {
-    final AudioArgument type = sound.getType();
-    if (type == AudioArgument.NONE) {
-      return;
-    }
-    final AudioProvider provider = this.plugin.getAudioProvider();
-    final URLParseDump dump = new URLParseDump();
-    dump.title = "Virtual machine";
-    final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers(), machine);
-    final AudioAttachableCallback audio = machine.getAudioAttachableCallback();
-    audio.attach(AudioPipelineStep.of(filter));
-  }
-
-  /**
-   * Where the sound of a machine plays, and who hears it.
-   */
-  static final class Sound {
-
-    private final AudioArgument type;
-    private final Player[] viewers;
-
-    /**
-     * Constructs the sound of a machine.
-     *
-     * @param type    the audio output
-     * @param viewers the players who see the machine
-     */
-    Sound(final AudioArgument type, final Player[] viewers) {
-      this.type = type;
-      this.viewers = viewers.clone();
-    }
-
-    AudioArgument getType() {
-      return this.type;
-    }
-
-    Player[] getViewers() {
-      return this.viewers.clone();
-    }
+    this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
   /**

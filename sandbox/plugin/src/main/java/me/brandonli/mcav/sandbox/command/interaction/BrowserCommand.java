@@ -22,15 +22,20 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
+import me.brandonli.mcav.browser.BrowserUnavailableException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioOutputs;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -131,6 +136,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   protected void releasePlayer(final BrowserPlayer current) {
     Preconditions.checkNotNull(current, "Browser must not be null");
     current.release();
+    this.releaseSound(current);
   }
 
   /**
@@ -176,19 +182,23 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   /**
    * Handles {@code /mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <url>}: opens a web page in mcav's embedded Chromium, which runs in a process of its own,
-   * and streams it onto a wall of maps. The first browser on a server downloads Chromium once, about 150 MB.
+   * <ditheringAlgorithm> <audioType> <url>}: opens a web page in mcav's embedded Chromium, which runs in a process of
+   * its own, streams it onto a wall of maps, and its sound into the chosen audio output. The first browser on a server
+   * downloads Chromium once, about 165 MB, and on Linux about 13 MB of the libraries it needs that the server lacks.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then
    * left click or right click the screen to click the page at that spot, and type into it after enabling
-   * {@code /mcav browser interact}. Only one browser runs at a time: creating a new one closes the running one.
+   * {@code /mcav browser interact}. As in a desktop browser, a page plays sound only once a player clicked the screen
+   * or typed into it. Only one browser runs at a time: creating a new one closes the running one, and the browser
+   * takes over the audio output from any video or virtual machine until it is released.
    *
-   * <p>Requires the permission {@code mcav.command.browser.create}; players and the console can run it. Invalid
-   * dimensions, a browser larger than {@value BrowserSource#MAX_SIDE} pixels on a side, or an address that is not an
-   * absolute {@code http} or {@code https} URL with a host, are reported
-   * with an error message and nothing starts. Otherwise the browser starts in the background, and the sender is
-   * told "Browser started!" once the page streams, or that it could not be started, with the details in the
-   * console.
+   * <p>Requires the permission {@code mcav.command.browser.create}; players and the console can run it. A server the
+   * browser does not run on, invalid dimensions, a browser larger than {@value BrowserSource#MAX_SIDE} pixels on a
+   * side, an address that is not an absolute {@code http} or {@code https} URL with a host, or an audio output that is
+   * not enabled or not ready, are reported with an error message and nothing starts. Otherwise the browser starts in
+   * the background, and the sender is told "Browser started!" once the page streams, and the viewers get the link of
+   * the audio output; or the sender is told that the browser cannot run on this server, as when its download failed,
+   * or that it could not be started, with the details in the console.
    *
    * @param sender             who ran the command
    * @param playerSelector     the players who see the browser on the maps, such as a player name or {@code @a}
@@ -200,11 +210,15 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code FILTER_LITE} gives the best results,
    *                           and {@code NEAREST_COLOR} keeps text sharp and stable, see {@link DitheringArgument}
+   * @param audioType          where the sound of the page plays, as for the video commands, see
+   *                           {@link AudioArgument}; {@code NONE} keeps the page silent
    * @param url                the address of the page, such as {@code https://example.com}; the rest of the
    *                           command line. Other schemes, such as {@code file:}, are refused so that the maps
    *                           cannot show files of the server
    */
-  @Command("mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>")
+  @Command(
+    "mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>"
+  )
   @Permission("mcav.command.browser.create")
   @CommandDescription("mcav.command.browser.create.info")
   public void createBrowser(
@@ -215,11 +229,19 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
+    final AudioArgument audioType,
     @Greedy final String url
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null");
     Preconditions.checkNotNull(url, "URL must not be null");
+
+    if (!this.plugin.isBrowserSupported()) {
+      final Component message = Message.BROWSER_UNSUPPORTED.build();
+      sender.sendMessage(message);
+      return;
+    }
 
     final Pair<Integer, Integer> resolution = parseDimensions(sender, browserResolution);
     if (resolution == null) {
@@ -242,10 +264,19 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    if (audioProblem != null) {
+      sender.sendMessage(audioProblem);
+      return;
+    }
+
     final BrowserSource source = createSource(uri, nth, resolution);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
-    this.createResource(() -> this.startBrowser(sender, screen, source));
+    final Player[] viewers = playerSelector.values().toArray(Player[]::new);
+    final ScreenSound sound = new ScreenSound(audioType, viewers);
+    this.createResource(() -> this.startBrowser(sender, screen, source, sound));
   }
 
   private static BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
@@ -263,21 +294,26 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final boolean privateNetworks = configuration.isBrowserPrivateNetworks();
     final boolean javaScriptJit = configuration.isBrowserJavaScriptJit();
-    return BrowserOptions.builder().privateNetworks(privateNetworks).javaScriptJit(javaScriptJit).build();
+    final boolean autoplay = configuration.isBrowserAutoplaySound();
+    return BrowserOptions.builder().privateNetworks(privateNetworks).javaScriptJit(javaScriptJit).autoplay(autoplay).build();
   }
 
-  private void startBrowser(final CommandSender sender, final Screen screen, final BrowserSource source) {
+  private void startBrowser(final CommandSender sender, final Screen screen, final BrowserSource source, final ScreenSound sound) {
     final BrowserOptions options = this.createOptions();
     final BrowserPlayer browser = BrowserPlayer.create(options);
     this.ownCreatedPlayer(browser);
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
+    this.attachSound(browser, browser.getAudioAttachableCallback(), sound, "Browser");
 
+    final Component loading = Message.BROWSER_LOADING.build();
+    sender.sendMessage(loading);
     final ExecutorService executor = this.startExecutor(browser, screen);
     final CompletableFuture<Boolean> start = browser.startAsync(source, executor);
     final URI uri = source.getUri();
     this.reportStartWhenDone(sender, browser, screen, start, "the browser for " + uri);
+    this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
   /**
@@ -306,17 +342,25 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   }
 
   /**
-   * Creates the message that tells the sender whether the browser started. The reason of a failure is logged, not
-   * shown, since it may contain details of the server.
+   * Creates the message that tells the sender whether the browser started. A browser that cannot run on this server,
+   * as when its download failed, gets its own message, also when wrapped in a {@link CompletionException}. The reason
+   * of a failure is logged, not shown, since it may contain details of the server.
    *
    * @param success whether the browser started
    * @param error   why the browser failed to start, if known
-   * @return "Browser started!" on success, otherwise the browser error message
+   * @return "Browser started!" on success, otherwise the message of the failure
    */
   @Override
   protected Component createStartMessage(final boolean success, final @Nullable Throwable error) {
     if (success) {
       return Message.START_BROWSER.build();
+    }
+    Throwable cause = error;
+    if (cause instanceof CompletionException) {
+      cause = cause.getCause();
+    }
+    if (cause instanceof BrowserUnavailableException) {
+      return Message.BROWSER_UNAVAILABLE.build();
     }
     return Message.BROWSER_ERROR.build();
   }

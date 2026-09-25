@@ -42,7 +42,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -55,6 +59,11 @@ import org.junit.jupiter.api.io.TempDir;
  * this build, and drives it through the server console and its audio web server. The server downloads the libraries
  * of the plugin, loads the JavaCV natives and installs VLC and yt-dlp exactly as on a production server, so this test
  * needs the internet.
+ *
+ * <p>On the running server it streams a page of this machine that plays a tone with {@code /mcav browser create}, and,
+ * when QEMU is installed, a virtual machine whose PC speaker plays a tone with {@code /mcav vm create}: the maps show
+ * their pictures, the tones arrive at the audio web page, and after the releases no process of a browser or a machine
+ * is left.
  *
  * <p>Running a Minecraft server means accepting the Minecraft EULA, so the test only runs when the build passes
  * {@code -Pmcav.acceptMinecraftEula=true}.
@@ -81,6 +90,11 @@ final class PaperServerEndToEndTest {
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration SHUTDOWN_TIMEOUT = Duration.ofMinutes(3);
+  // the first browser on a machine downloads CEF, about 165 MB, and on Linux the libraries it needs
+  private static final Duration BROWSER_TIMEOUT = Duration.ofMinutes(10);
+  private static final Duration SOUND_TIMEOUT = Duration.ofMinutes(1);
+  private static final Duration RELEASE_TIMEOUT = Duration.ofSeconds(30);
+  private static final String TONE_IMAGE = "beep.img";
   private static final int HTTP_OK = 200;
   private static final String FLAT_WORLD_SETTINGS =
     "{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2}," +
@@ -112,6 +126,15 @@ final class PaperServerEndToEndTest {
       runCommand(server, "plugins", "MCAV");
       runCommand(server, "mcav help", "mcav dump");
       final String mediaInfo = fetchMediaInfo(server, httpPort);
+      try (SoundListener sound = SoundListener.connect(httpPort); TonePage page = TonePage.start()) {
+        streamABrowser(server, sound, page);
+        final boolean qemu = server.getLines().stream().noneMatch(line -> line.contains("QEMU is not installed"));
+        if (qemu) {
+          runAMachine(server, sound);
+        } else {
+          System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
+        }
+      }
       server.command("stop");
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
@@ -189,6 +212,58 @@ final class PaperServerEndToEndTest {
     assertNoErrors(output);
   }
 
+  /**
+   * Streams the tone page onto six maps with its sound in the audio web page, and releases the browser.
+   */
+  private static void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page)
+    throws InterruptedException {
+    final int firstLine = server.getLineCount();
+    final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER " + page.getUri();
+    runCommand(server, create, "Browser started!", BROWSER_TIMEOUT);
+    server.awaitLine(firstLine, line -> line.contains("Maps 0 to 5 show their first picture"), COMMAND_TIMEOUT);
+    final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
+    System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
+    assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the page has " + frequency + " Hz");
+    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
+    // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
+    awaitNoneLeft(server, "browser", command -> isJava(command) || command.contains("jcef") || command.contains("Xvfb"));
+  }
+
+  /**
+   * Boots a machine whose PC speaker plays a tone onto six maps with its sound in the audio web page, and releases it.
+   */
+  private static void runAMachine(final ServerProcess server, final SoundListener sound) throws InterruptedException {
+    sound.clear();
+    final int firstLine = server.getLineCount();
+    final String create =
+      "mcav vm create @a 320x200 10 3x2 6 NEAREST_COLOR X86_64 HTTP_SERVER -m 16 -drive file=" +
+      TONE_IMAGE +
+      ",format=raw,if=floppy -boot a";
+    runCommand(server, create, "Created virtual machine!", COMMAND_TIMEOUT);
+    server.awaitLine(firstLine, line -> line.contains("Maps 6 to 11 show their first picture"), COMMAND_TIMEOUT);
+    final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
+    System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
+    assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the machine has " + frequency + " Hz");
+    runCommand(server, "mcav vm release", "Virtual machine released!", COMMAND_TIMEOUT);
+    awaitNoneLeft(server, "virtual machine", command -> command.contains("qemu-system"));
+  }
+
+  private static boolean isJava(final String command) {
+    return command.endsWith("/java") || command.endsWith("\\java.exe");
+  }
+
+  private static void awaitNoneLeft(final ServerProcess server, final String what, final Predicate<String> matcher)
+    throws InterruptedException {
+    final long deadline = System.nanoTime() + RELEASE_TIMEOUT.toNanos();
+    List<String> left = server.findDescendants(matcher);
+    while (!left.isEmpty() && System.nanoTime() < deadline) {
+      TimeUnit.MILLISECONDS.sleep(200);
+      left = server.findDescendants(matcher);
+    }
+    assertEquals(List.of(), left, "no process of the " + what + " is left after its release");
+    System.out.println("After the release of the " + what + ", no process of it is left");
+  }
+
   private static boolean isStartupComplete(final String line) {
     return line.contains("Done (") && line.contains("For help, type");
   }
@@ -197,9 +272,14 @@ final class PaperServerEndToEndTest {
    * Sends a console command and waits for its answer; the test fails when the expected text does not appear in time.
    */
   private static void runCommand(final ServerProcess server, final String command, final String expectedText) throws InterruptedException {
+    runCommand(server, command, expectedText, COMMAND_TIMEOUT);
+  }
+
+  private static void runCommand(final ServerProcess server, final String command, final String expectedText, final Duration timeout)
+    throws InterruptedException {
     final int firstLine = server.getLineCount();
     server.command(command);
-    server.awaitLine(firstLine, line -> line.contains(expectedText), COMMAND_TIMEOUT);
+    server.awaitLine(firstLine, line -> line.contains(expectedText), timeout);
   }
 
   /**
@@ -265,6 +345,12 @@ final class PaperServerEndToEndTest {
 
     writePluginConfiguration(pluginsDirectory, httpPort);
     writeVoiceChatConfiguration(pluginsDirectory);
+    // the boot sector of mcav-vm's sound test (beep.asm there): it plays a 1000 Hz tone on the PC speaker
+    final Path images = pluginsDirectory.resolve("MCAV").resolve("iso");
+    Files.createDirectories(images);
+    try (InputStream image = PaperServerEndToEndTest.class.getResourceAsStream(TONE_IMAGE)) {
+      Files.copy(Objects.requireNonNull(image, TONE_IMAGE), images.resolve(TONE_IMAGE));
+    }
   }
 
   /**
@@ -295,6 +381,7 @@ final class PaperServerEndToEndTest {
 
   /**
    * Turns on the audio web server and Simple Voice Chat audio; the Discord bot needs a real token, so it stays off.
+   * The browser may open the page of this machine, and plays its sound without a click, as no player is there.
    */
   private static void writePluginConfiguration(final Path pluginsDirectory, final int httpPort) throws IOException {
     final Path dataFolder = pluginsDirectory.resolve("MCAV");
@@ -313,6 +400,9 @@ final class PaperServerEndToEndTest {
       "  port: " + httpPort,
       "simple-voice-chat:",
       "  enabled: true",
+      "browser:",
+      "  allow-private-networks: true",
+      "  autoplay-sound: true",
       ""
     );
     final Path file = dataFolder.resolve("config.yml");

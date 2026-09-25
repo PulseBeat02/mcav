@@ -79,3 +79,9 @@ browser:
   # if you trust every page that can be opened.
   # Default is false
   javascript-jit: false
+
+  # Whether pages play sound right away. Off, a page plays sound only once a player clicked its screen or typed into
+  # it, as in a desktop browser, so a page cannot play sound before anyone looked at it. Turn it on for a screen that
+  # should play a video with sound as soon as it opens.
+  # Default is false
+  autoplay-sound: false

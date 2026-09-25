@@ -47,6 +47,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -1449,5 +1451,15 @@ final class AbstractInteractiveCommandTest {
     assertSame(fatal, thrown);
     this.assertReleased("browser");
     this.command.releaseFailure = null;
+  }
+
+  @Test
+  void aScreenTellsTheLogOnceThatItsMapsShowAPicture() {
+    final List<String> messages = new ArrayList<>();
+    final VideoFilter announcement = AbstractInteractiveCommand.announceFirstPicture(4, 6, messages::add);
+    final ImageBuffer frame = mock(ImageBuffer.class);
+    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY), "the step leaves the frame as it is");
+    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
+    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages);
   }
 }

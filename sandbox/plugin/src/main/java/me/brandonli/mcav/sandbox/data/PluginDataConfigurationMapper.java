@@ -51,6 +51,7 @@ public final class PluginDataConfigurationMapper {
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
   private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
   private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
+  private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private final MCAVSandbox plugin;
@@ -66,6 +67,7 @@ public final class PluginDataConfigurationMapper {
   private boolean simpleVoiceChatEnabled;
   private boolean browserPrivateNetworks;
   private boolean browserJavaScriptJit;
+  private boolean browserAutoplaySound;
 
   /**
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -102,6 +104,7 @@ public final class PluginDataConfigurationMapper {
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
+    this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -155,6 +158,15 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized boolean isBrowserJavaScriptJit() {
     return this.browserJavaScriptJit;
+  }
+
+  /**
+   * Checks whether pages of the browser play sound before a player clicked or typed into them.
+   *
+   * @return true if {@code browser.autoplay-sound} is on
+   */
+  public synchronized boolean isBrowserAutoplaySound() {
+    return this.browserAutoplaySound;
   }
 
   /**

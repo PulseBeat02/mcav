@@ -27,7 +27,8 @@ MCAV itself does not run an administrative package installer.
 The first download is about 465 MiB. Most of it is the FFmpeg, OpenCV, and OpenBLAS native libraries, which the plugin
 includes for the platforms a Paper server runs on: Linux (x86-64 and ARM64), macOS (Intel and Apple silicon), and
 Windows (x86-64). Natives for Android, iOS, and 32-bit systems are left out. The browser commands download Chromium
-separately, 136 to 165 MB depending on the platform, the first time a browser starts. Every file is checked against its
+separately, 136 to 165 MB depending on the platform, the first time a browser starts, and on Linux the libraries it
+needs that the server lacks, about 13 MB; the browser needs no X server and nothing installed. Every file is checked against its
 SHA-256 hash, and later starts reuse the downloaded files. When building the plugin yourself, the list of platforms is the `javacppPlatform` property in
 `sandbox/plugin/gradle.properties`.
 

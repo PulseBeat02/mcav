@@ -85,6 +85,12 @@ browser:
   # if you trust every page that can be opened.
   # Default is false
   javascript-jit: false
+
+  # Whether pages play sound right away. Off, a page plays sound only once a player clicked its screen or typed into
+  # it, as in a desktop browser, so a page cannot play sound before anyone looked at it. Turn it on for a screen that
+  # should play a video with sound as soon as it opens.
+  # Default is false
+  autoplay-sound: false
 ```
 
 ```{warning}
@@ -115,3 +121,12 @@ The browser of `/mcav browser create` reaches public addresses of the internet o
 every page they open and every player who may click on it reach services that only the server can reach, such as a
 router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
 scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).
+`browser.autoplay-sound` lets pages play sound before a player clicked their screen.
+
+The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
+Chromium in `~/.mcav/cache/jcef` (136 to 165 MB) and, on Linux, the libraries it needs that the server lacks in
+`~/.mcav/cache/jcef-libraries` (about 13 MB). On a Pterodactyl server that is `/home/container/.mcav/cache`. The folder
+has no setting of its own; delete it to download everything again.
+
+Virtual machines have no settings in `config.yml`: where their sound plays is chosen with the audio type of
+`/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.

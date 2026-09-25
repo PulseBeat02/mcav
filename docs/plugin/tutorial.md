@@ -88,15 +88,18 @@ identify a decoder failure.
 
 ### If you would like to create a browser, here are the steps to take:
 1) Use the `/mcav browser create` command to create a new browser on that screen. Browsers can only be created on maps.
-For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE https://www.google.com` will create a new
-browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels, and streams
-every changed browser frame with Filter Lite dithering. The frame-skip value of `1` keeps every frame; it does not set
-a one-second interval. It will display the Google homepage by default. The first browser on a server downloads
-Chromium once (about 150 MB), so it takes a moment longer to start; on Linux the server needs the `Xvfb` program.
+For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE HTTP_SERVER https://www.google.com` will
+create a new browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels,
+streams every changed browser frame with Filter Lite dithering, and plays the sound of the page on the audio web page.
+The frame-skip value of `1` keeps every frame; it does not set a one-second interval. Choose `NONE` as the audio type
+for a silent page. The first browser on a server downloads Chromium once (136 to 165 MB), and on Linux the libraries
+it needs that the server lacks (about 13 MB), so it takes a moment longer to start; nothing has to be installed.
+As in a desktop browser, a page plays sound only after a player clicked its screen or typed into it; turn on
+`browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which will take all your
 chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type the
 key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse
-clicks. For more information on possible keys, see the `KeyboardEvent.key` column [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
+clicks, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the `KeyboardEvent.key` column [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
 
 ### If you would like to stream OBS output, here are the steps to take:
@@ -117,6 +120,10 @@ Simple Voice Chat. Put names that contain spaces in double quotes.
 ```
 /mcav vm create @a 640x640 30 5x5 0 FILTER_LITE X86_64 SIMPLE_VOICE_CHAT -cdrom your.iso -m 2048M -smp 2
 ```
+
+MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio, and the PC speaker), so the guest needs no
+option for it; machines of other architectures are silent and must choose `NONE`. Its sound plays about 70 ms late on
+purpose, so that it plays with the picture of QEMU's display.
 
 You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on your
 server!

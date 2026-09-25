@@ -258,9 +258,27 @@ public interface Message extends LocaleTools {
 
   /**
    * Key {@code mcav.command.browser.error}: the browser of {@code /mcav browser create} failed to start, for example
-   * because Chrome is not installed; the console has the error.
+   * because the page could not be loaded; the console has the error.
    */
   NullComponent BROWSER_ERROR = direct("mcav.command.browser.error");
+
+  /**
+   * Key {@code mcav.command.browser.loading}: {@code /mcav browser create} accepted its arguments and is starting the
+   * browser in the background, which downloads it first on its first start on the server.
+   */
+  NullComponent BROWSER_LOADING = direct("mcav.command.browser.loading");
+
+  /**
+   * Key {@code mcav.command.browser.unsupported}: {@code /mcav browser create} was run on a server whose operating
+   * system or processor the browser does not run on.
+   */
+  NullComponent BROWSER_UNSUPPORTED = direct("mcav.command.browser.unsupported");
+
+  /**
+   * Key {@code mcav.command.browser.unavailable}: the browser cannot run on this server, because its download or the
+   * check of the download failed, or the server lacks a library it needs; the console has the details.
+   */
+  NullComponent BROWSER_UNAVAILABLE = direct("mcav.command.browser.unavailable");
 
   /**
    * Key {@code mcav.command.video.start.error}: a video command failed while starting the video; the console has the

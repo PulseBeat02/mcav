@@ -97,7 +97,7 @@ final class AnnotationParserHandlerTest {
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl",
     "mcav browser interact",
     "mcav browser release",
-    "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm url",
+    "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url",
     "mcav vm interact",
     "mcav vm release",
     "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags"
@@ -203,7 +203,8 @@ final class AnnotationParserHandlerTest {
     final String vm =
       "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
     final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl";
-    final String browser = "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm url";
+    final String browser =
+      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url";
     final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");
     final ArgumentParser<CommandSender, ?> mrl = this.parserOf(image, "mrl");
     final ArgumentParser<CommandSender, ?> url = this.parserOf(browser, "url");

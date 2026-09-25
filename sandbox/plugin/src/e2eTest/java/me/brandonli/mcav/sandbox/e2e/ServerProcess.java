@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 /**
  * A Minecraft server running as a child process, with its console output collected line by line and its console
@@ -210,6 +211,18 @@ final class ServerProcess implements AutoCloseable {
     }
     this.reader.join(millis);
     return this.process.exitValue();
+  }
+
+  /**
+   * Lists the running processes below the server whose program matches, such as the helpers of a browser.
+   *
+   * @param matcher tests the program of a process, which is all a process tells about itself on every system
+   * @return the programs of the matching processes
+   */
+  List<String> findDescendants(final Predicate<String> matcher) {
+    try (Stream<ProcessHandle> descendants = this.process.descendants()) {
+      return descendants.filter(ProcessHandle::isAlive).map(handle -> handle.info().command().orElse("")).filter(matcher).toList();
+    }
   }
 
   /**

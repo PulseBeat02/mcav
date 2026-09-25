@@ -6,9 +6,24 @@ to get a tree of all the commands available to you.
 
 ## Permissions
 
-Permissions for each command are very simple. It's just `mcav.command.<command>`. For example, the permission for the
-`/mcav screen` is just `mcav.command.screen`. You can use a permissions plugin like [LuckPerms](https://luckperms.net/),
-which will tab-complete the permission for you.
+Every command checks a permission, and the plugin declares all of them, so a permissions plugin like
+[LuckPerms](https://luckperms.net/) lists and tab-completes them. Every permission is for operators until it is
+granted.
+
+| Permission | Allows |
+|---|---|
+| `mcav.command.help` | `/mcav help` |
+| `mcav.command.dump` | `/mcav dump` |
+| `mcav.command.screen` | `/mcav screen` |
+| `mcav.command.hologram.set`, `mcav.command.hologram.disable` | `/mcav video hologram set` and `disable` |
+| `mcav.command.image.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.release` | the `/mcav image` commands of those names |
+| `mcav.command.video.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.pause`, `.resume`, `.release` | the `/mcav video` commands of those names |
+| `mcav.command.browser.create` | `/mcav browser create` |
+| `mcav.browser.release` | `/mcav browser release` |
+| `mcav.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
+| `mcav.command.vm.create` | `/mcav vm create` |
+| `mcav.vm.release` | `/mcav vm release` |
+| `mcav.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
 
 ```{important}
 `mcav.browser.interact` and `mcav.vm.interact` do not only switch chat input on: they are also what lets a player
@@ -192,7 +207,7 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 |-----------------|---------------------------------------------------------------------------------------------------------------------|
 | **Usage**       | `/mcav browser interact`                                                                                            |
 | **Permission**  | `mcav.browser.interact`                                                                                             |
-| **Description** | Activates browser interaction mode for the player. This allows players to send text and key input into the browser. |
+| **Description** | Switches browser interaction mode on or off for the player: while it is on, their chat messages are typed into the browser instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | **Arguments**   | None                                                                                                                |
 
 ---
@@ -208,9 +223,9 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 
 | **Command**                                  | `/mcav browser create`                                                                                                           |
 |----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <url>`           |
+| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>` |
 | **Permission**                               | `mcav.command.browser.create`                                                                                                    |
-| **Description**                              | Creates and displays a browser on a map. The first browser on a server downloads Chromium once, about 150 MB.                    |
+| **Description**                              | Opens a web page in an embedded Chromium, which runs in a process of its own, shows it on a wall of maps and plays its sound in the chosen audio output. Only one browser runs at a time, and it takes the audio output over from a video or virtual machine until it is released. The first browser on a server downloads Chromium once (136 to 165 MB), and on Linux the libraries it needs that the server lacks (about 13 MB); nothing has to be installed. As in a desktop browser, a page plays sound only once a player clicked its screen or typed into it, unless `browser.autoplay-sound` is on. A server Chromium does not exist for, a failed download, a size beyond the limits, an address that is not `http` or `https`, or an audio output that is off or not ready, are answered with an error message. |
 | **Arguments**                                |                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the browser                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720), at most 4096 on each side                                               |
@@ -218,7 +233,8 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full `http` or `https` URL**.                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the page plays, as for the video commands (`NONE` keeps the page silent)                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full `http` or `https` URL**. Pages of the server's own network are refused unless `browser.allow-private-networks` is on. |
 
 ---
 
@@ -232,7 +248,7 @@ You must have QEMU installed and configured to use these commands.
 |-----------------|--------------------------------------------------------------------------------------------------------------------------|
 | **Usage**       | `/mcav vm interact`                                                                                                      |
 | **Permission**  | `mcav.vm.interact`                                                                                                       |
-| **Description** | Activates VM interaction mode for the player. This allows players to send text and mouse input into the virtual machine. |
+| **Description** | Switches VM interaction mode on or off for the player: while it is on, their chat messages are typed into the virtual machine instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | **Arguments**   | None                                                                                                                     |
 
 ---
@@ -250,7 +266,7 @@ You must have QEMU installed and configured to use these commands.
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>` |
 | **Permission**                               | `mcav.command.vm.create`                                                                                                            |
-| **Description**                              | Creates and displays a virtual machine on a map.                                                                                    |
+| **Description**                              | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
 | **Arguments**                                |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |
