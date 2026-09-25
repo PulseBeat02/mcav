@@ -42,10 +42,36 @@ configurations.compileOnly {
     extendsFrom(configurations.runtimeDownload.get())
 }
 
+// The browser benchmark measures how many frames per second a browser backend brings onto a wall of maps and how long
+// a page change takes to reach the map encoder, through the pipeline of /mcav browser create. It is run by hand, never
+// by the build: ./gradlew :sandbox:plugin:browserBenchmark -Pbenchmark.backend=<backend> -Pbenchmark.output=<file>
+val benchmarkSourceSet = sourceSets.create("benchmark")
+configurations.named("benchmarkImplementation") {
+    extendsFrom(configurations.testImplementation.get())
+}
+configurations.named("benchmarkRuntimeOnly") {
+    extendsFrom(configurations.testRuntimeOnly.get())
+}
+dependencies {
+    "benchmarkImplementation"(sourceSets.main.get().output)
+}
+tasks.register<JavaExec>("browserBenchmark") {
+    description = "Measures the frame rate and latency of a browser backend: -Pbenchmark.backend=<backend> -Pbenchmark.output=<file>"
+    group = "verification"
+    classpath = benchmarkSourceSet.runtimeClasspath
+    mainClass = "me.brandonli.mcav.sandbox.benchmark.BrowserBenchmark"
+    val backend = providers.gradleProperty("benchmark.backend").orElse("")
+    val output = providers.gradleProperty("benchmark.output").orElse(layout.buildDirectory.file("browser-benchmark.md").get().asFile.absolutePath)
+    argumentProviders.add(CommandLineArgumentProvider { listOf(backend.get(), output.get()) })
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    maxHeapSize = "4g"
+    outputs.upToDateWhen { false }
+}
+
 // compile against the modules of this build so API changes show up here before they are published;
 // the server still downloads the published snapshots at runtime
 val localModules = listOf("mcav-common", "mcav-bukkit", "mcav-jda", "mcav-http", "mcav-vm", "mcav-vnc", "mcav-browser", "mcav-svc")
-listOf("compileClasspath", "testCompileClasspath", "testRuntimeClasspath").forEach { name ->
+listOf("compileClasspath", "testCompileClasspath", "testRuntimeClasspath", "benchmarkCompileClasspath", "benchmarkRuntimeClasspath").forEach { name ->
     configurations.named(name) {
         resolutionStrategy.dependencySubstitution {
             localModules.forEach { module ->
