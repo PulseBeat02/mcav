@@ -72,6 +72,11 @@ public final class HttpDownloader {
   private static final Duration RETRY_DELAY = Duration.ofSeconds(2);
   private static final int BUFFER_SIZE = 64 * 1024;
   private static final String PART_SUFFIX = ".part";
+  /**
+   * The limit of a download that names no limit of its own, which is none.
+   */
+  public static final long NO_SIZE_LIMIT = Long.MAX_VALUE;
+
   private static final int HTTP_REQUEST_TIMEOUT = 408;
   private static final int HTTP_TOO_MANY_REQUESTS = 429;
   // a fixed number of locks, so the locks of finished downloads never pile up; equal paths share a stripe
@@ -166,7 +171,23 @@ public final class HttpDownloader {
    * @throws ChecksumMismatchException if the hash does not match, which is not retried
    */
   public static void download(final URI uri, final Path destination, final @Nullable String expectedSha256) throws IOException {
-    download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT);
+    download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT, NO_SIZE_LIMIT);
+  }
+
+  /**
+   * Downloads a file, stopping as soon as it turns out to be larger than allowed. Use this for anything whose size a
+   * remote server chooses, such as a picture behind a URL a player named: a server that never stops sending would
+   * otherwise fill the disk of its client.
+   *
+   * @param uri         the URL to download
+   * @param destination the file to write, which is replaced only after a complete download
+   * @param maxBytes    the largest number of bytes the download may have, at least 1
+   * @throws DownloadTooLargeException if the download is larger than the limit
+   * @throws IOException               if the download fails
+   */
+  public static void download(final URI uri, final Path destination, final long maxBytes) throws IOException {
+    Preconditions.checkArgument(maxBytes > 0, "The size limit must be positive but was %s", maxBytes);
+    download(uri, destination, null, RETRY_DELAY, IDLE_TIMEOUT, maxBytes);
   }
 
   /**
@@ -181,17 +202,18 @@ public final class HttpDownloader {
   @VisibleForTesting
   static void download(final URI uri, final Path destination, final @Nullable String expectedSha256, final Duration retryDelay)
     throws IOException {
-    download(uri, destination, expectedSha256, retryDelay, IDLE_TIMEOUT);
+    download(uri, destination, expectedSha256, retryDelay, IDLE_TIMEOUT, NO_SIZE_LIMIT);
   }
 
   /**
-   * Downloads a file with a custom delay between attempts and a custom idle timeout.
+   * Downloads a file with a custom delay between attempts, a custom idle timeout and a custom size limit.
    *
    * @param uri            the URI to download
    * @param destination    the file to write to; its parent directories are created if needed
    * @param expectedSha256 the expected SHA-256 hash in hexadecimal, or {@code null} to skip verification
    * @param retryDelay     the delay before the second attempt; later attempts wait correspondingly longer
    * @param idleTimeout    how long a read may wait for data before the attempt fails
+   * @param maxBytes       the largest number of bytes the download may have, or {@link #NO_SIZE_LIMIT} for no limit
    * @throws IOException if every attempt fails or the file cannot be moved into place
    */
   @VisibleForTesting
@@ -200,7 +222,8 @@ public final class HttpDownloader {
     final Path destination,
     final @Nullable String expectedSha256,
     final Duration retryDelay,
-    final Duration idleTimeout
+    final Duration idleTimeout,
+    final long maxBytes
   ) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");
     Preconditions.checkNotNull(destination, "Destination must not be null");
@@ -213,7 +236,7 @@ public final class HttpDownloader {
     final String partPrefix = fileName + ".";
     final Path partFile = Files.createTempFile(parent, partPrefix, PART_SUFFIX);
     try {
-      downloadWithRetries(uri, partFile, expectedSha256, retryDelay, idleTimeout);
+      downloadWithRetries(uri, partFile, expectedSha256, retryDelay, idleTimeout, maxBytes);
       // a failed move is a problem of the file system, not of the network, so the download is not repeated
       moveIntoPlace(partFile, target);
     } finally {
@@ -243,12 +266,13 @@ public final class HttpDownloader {
     final Path partFile,
     final @Nullable String expectedSha256,
     final Duration retryDelay,
-    final Duration idleTimeout
+    final Duration idleTimeout,
+    final long maxBytes
   ) throws IOException {
     IOException lastFailure = null;
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        downloadOnce(uri, partFile, expectedSha256, idleTimeout);
+        downloadOnce(uri, partFile, expectedSha256, idleTimeout, maxBytes);
         return;
       } catch (final IOException exception) {
         lastFailure = exception;
@@ -275,6 +299,10 @@ public final class HttpDownloader {
     if (exception instanceof ChecksumMismatchException) {
       return false;
     }
+    // the same bytes would arrive again, so a download that is too large stays too large
+    if (exception instanceof DownloadTooLargeException) {
+      return false;
+    }
     if (!(exception instanceof final HttpStatusException statusException)) {
       return true;
     }
@@ -282,27 +310,45 @@ public final class HttpDownloader {
     return status >= 500 || status == HTTP_REQUEST_TIMEOUT || status == HTTP_TOO_MANY_REQUESTS;
   }
 
-  private static void downloadOnce(final URI uri, final Path partFile, final @Nullable String expectedSha256, final Duration idleTimeout)
-    throws IOException {
+  private static void downloadOnce(
+    final URI uri,
+    final Path partFile,
+    final @Nullable String expectedSha256,
+    final Duration idleTimeout,
+    final long maxBytes
+  ) throws IOException {
     final MessageDigest digest = createDigest("SHA-256");
     try (
       final InputStream response = openStream(uri);
       final InputStream body = new IdleTimeoutInputStream(response, idleTimeout);
       final OutputStream partOutput = Files.newOutputStream(partFile)
     ) {
-      copy(body, partOutput, digest);
+      copy(body, partOutput, digest, uri, maxBytes);
     }
     verifyChecksum(uri, digest, expectedSha256);
   }
 
   /**
    * Copies the body into the part file and feeds every chunk into the digest on the way, so the file is hashed
-   * without reading it a second time.
+   * without reading it a second time. A body that passes the limit stops the download at once, before the bytes
+   * beyond it are written.
    */
-  private static void copy(final InputStream body, final OutputStream partOutput, final MessageDigest digest) throws IOException {
+  private static void copy(
+    final InputStream body,
+    final OutputStream partOutput,
+    final MessageDigest digest,
+    final URI uri,
+    final long maxBytes
+  ) throws IOException {
     final byte[] chunk = new byte[BUFFER_SIZE];
+    long written = 0;
     int read = body.read(chunk);
     while (read != -1) {
+      written += read;
+      if (written > maxBytes) {
+        final String message = "The download of %s is larger than the %s bytes it may have".formatted(uri, maxBytes);
+        throw new DownloadTooLargeException(message);
+      }
       partOutput.write(chunk, 0, read);
       digest.update(chunk, 0, read);
       read = body.read(chunk);

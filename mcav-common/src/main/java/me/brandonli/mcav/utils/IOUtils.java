@@ -73,6 +73,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class IOUtils {
 
+  /**
+   * The largest picture {@link #downloadImage(UriSource)} downloads. A frame of the largest map screen is a few
+   * megabytes as a PNG, so this leaves room for an unusually large picture while a server that never stops sending
+   * cannot fill the disk.
+   */
+  public static final long MAX_IMAGE_BYTES = 64L * 1024L * 1024L;
+
   private static final String INSTALLER_RESOURCE_FOLDER = "installers/";
   private static final long MAX_ZIP_ENTRY_SIZE = 512L * 1024L * 1024L;
   private static final long MAX_ZIP_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
@@ -416,9 +423,13 @@ public final class IOUtils {
    * Downloads an image into the cache folder. The file name is derived from the URL, so downloading the same URL
    * again overwrites the cached copy.
    *
+   * <p>The download stops as soon as it passes {@link #MAX_IMAGE_BYTES}, because the server behind the URL chooses
+   * how much it sends and a picture of a map screen is far smaller than that.
+   *
    * @param source the URL of the image
    * @return the path to the downloaded image
-   * @throws UncheckedIOException if the image cannot be downloaded
+   * @throws UncheckedIOException if the image cannot be downloaded, including when it is larger than
+   *                              {@link #MAX_IMAGE_BYTES}
    */
   public static Path downloadImage(final UriSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -430,7 +441,7 @@ public final class IOUtils {
     final Path destination = cache.resolve(fileName);
     final URI uri = URI.create(url);
     try {
-      HttpDownloader.download(uri, destination);
+      HttpDownloader.download(uri, destination, MAX_IMAGE_BYTES);
     } catch (final IOException exception) {
       final String message = exception.getMessage();
       throw new UncheckedIOException(message, exception);

@@ -191,18 +191,66 @@ final class HttpDownloaderTest {
   }
 
   @Test
+  void stopsADownloadThatIsLargerThanAllowed() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      final byte[] big = new byte[256 * 1024];
+      server.respond("/big", 200, big);
+      final URI uri = server.uri("/big");
+      final Path destination = this.directory.resolve("big.bin");
+
+      final DownloadTooLargeException failure = assertThrows(DownloadTooLargeException.class, () ->
+        HttpDownloader.download(uri, destination, 64L * 1024L)
+      );
+
+      final String message = failure.getMessage();
+      final boolean namesTheLimit = message.contains("larger than the 65536 bytes");
+      assertTrue(namesTheLimit, message);
+      final boolean written = Files.exists(destination);
+      assertFalse(written, "the file is published only after a complete download");
+      final List<Path> leftovers = partFiles(this.directory);
+      assertTrue(leftovers.isEmpty(), leftovers::toString);
+      final int requests = server.getRequestCount("/big");
+      assertEquals(1, requests, "a download that is too large is not retried");
+    }
+  }
+
+  @Test
+  void downloadsAFileThatFitsTheLimit() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      final URI uri = server.uri("/file");
+      final Path destination = this.directory.resolve("small.bin");
+
+      HttpDownloader.download(uri, destination, CONTENT.length);
+
+      final byte[] content = Files.readAllBytes(destination);
+      assertArrayEquals(CONTENT, content, "a download of exactly the limit is kept");
+    }
+  }
+
+  @Test
+  void refusesANonPositiveSizeLimit() {
+    final URI uri = URI.create("http://example.com/file");
+    final Path destination = this.directory.resolve("unused.bin");
+    assertThrows(IllegalArgumentException.class, () -> HttpDownloader.download(uri, destination, 0));
+  }
+
+  @Test
   void decidesWhichFailuresAreWorthRetrying() {
     final URI uri = URI.create("http://example.com/");
     final IOException network = new IOException("connection reset");
     final IOException checksum = new ChecksumMismatchException("bad hash");
+    final IOException tooLarge = new DownloadTooLargeException("too large");
     final boolean networkRetryable = HttpDownloader.isRetryable(network);
     final boolean checksumRetryable = HttpDownloader.isRetryable(checksum);
+    final boolean tooLargeRetryable = HttpDownloader.isRetryable(tooLarge);
     final boolean serverRetryable = HttpDownloader.isRetryable(new HttpStatusException(500, uri));
     final boolean timeoutRetryable = HttpDownloader.isRetryable(new HttpStatusException(408, uri));
     final boolean throttledRetryable = HttpDownloader.isRetryable(new HttpStatusException(429, uri));
     final boolean notFoundRetryable = HttpDownloader.isRetryable(new HttpStatusException(404, uri));
     assertTrue(networkRetryable);
     assertFalse(checksumRetryable);
+    assertFalse(tooLargeRetryable, "the same bytes would arrive again");
     assertTrue(serverRetryable);
     assertTrue(timeoutRetryable);
     assertTrue(throttledRetryable);
@@ -333,7 +381,9 @@ final class HttpDownloaderTest {
       final Duration idleTimeout = Duration.ofMillis(300);
       final Duration limit = Duration.ofSeconds(30);
       final IOException exception = assertTimeoutPreemptively(limit, () ->
-        assertThrows(IOException.class, () -> HttpDownloader.download(uri, destination, null, NO_DELAY, idleTimeout))
+        assertThrows(IOException.class, () ->
+          HttpDownloader.download(uri, destination, null, NO_DELAY, idleTimeout, HttpDownloader.NO_SIZE_LIMIT)
+        )
       );
       final Throwable cause = exception.getCause();
       final int requests = server.getRequestCount("/stalled");
@@ -357,7 +407,7 @@ final class HttpDownloaderTest {
       final AtomicReference<IOException> failure = new AtomicReference<>();
       final Runnable download = () -> {
         try {
-          HttpDownloader.download(uri, destination, null, longRetryDelay, longIdleTimeout);
+          HttpDownloader.download(uri, destination, null, longRetryDelay, longIdleTimeout, HttpDownloader.NO_SIZE_LIMIT);
         } catch (final IOException exception) {
           failure.set(exception);
         }
