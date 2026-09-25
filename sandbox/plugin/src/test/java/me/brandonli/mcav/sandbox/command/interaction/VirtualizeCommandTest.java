@@ -530,7 +530,7 @@ final class VirtualizeCommandTest {
   @Test
   void theSoundOfAMachinePlaysIntoTheChosenOutputAndIsLetGoOfOnRelease() {
     final AudioFilter output = mock(AudioFilter.class);
-    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any())).thenReturn(output);
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(output);
     final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
     when(this.machine.getAudioAttachableCallback()).thenReturn(audio);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
@@ -553,27 +553,105 @@ final class VirtualizeCommandTest {
     verify(audio).attach(pipelines.capture());
     assertSame(output, pipelines.getValue().getFilter());
     this.command.releaseVM(this.sender);
-    verify(this.provider).releaseAudioFilter();
+    // the provider lets go of the outputs only if no video or other machine took them over meanwhile
+    verify(this.provider).releaseAudioFilter(this.machine);
+  }
+
+  private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
+    when(this.provider.isHttpEnabled()).thenReturn(true);
+    when(this.provider.isHttpReady()).thenReturn(true);
+    when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.machine))).thenReturn(mock(AudioFilter.class));
+    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.HTTP_SERVER,
+        "-m 256M"
+      );
+  }
+
+  @Test
+  void aMachineThatStartsWithTheWebPageSendsItsLink() {
+    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
+    verify(this.provider).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineThatFailsToStartSendsNoLink() {
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("QEMU broke")));
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineReleasedWhileItStartsSendsNoLinksToItsSound() {
+    final CompletableFuture<Boolean> start = new CompletableFuture<>();
+    this.createWithTheWebPage(start);
+    this.command.releaseVM(this.sender);
+    start.complete(true);
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineReleasedBeforeTheMainThreadSendsItsLinkSendsNone() {
+    TestServer.resetWithDeferredTasks();
+    final CompletableFuture<Boolean> start = new CompletableFuture<>();
+    this.createWithTheWebPage(start);
+    TestServer.runPendingTasks();
+    start.complete(true);
+    // the link waits for the main thread, and the machine is released before it gets there
+    this.command.releaseVM(this.sender);
+    TestServer.runPendingTasks();
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineOfAnArchitectureWithoutSoundCannotChooseAnAudioOutput() {
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.AARCH64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        "-m 256M"
+      );
+    this.assertReceived(Message.VM_NO_SOUND.build());
+    this.machines.verifyNoInteractions();
   }
 
   @Test
   void aMachineThatDoesNotStartSendsNoLinkToItsSound() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
-    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(start);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
     this.create("640x480", "5x4", "-m 256M");
     verify(this.provider, never()).constructHttpUrl();
     verify(this.provider, never()).constructVoiceChannelUrl();
   }
 
   @Test
-  void aSilentMachineNeitherPlaysIntoNorLetsGoOfAnOutput() {
+  void aSilentMachinePlaysIntoNoOutput() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
       start
     );
     this.create("640x480", "5x4", "-m 256M");
     this.command.releaseVM(this.sender);
-    verify(this.provider, never()).constructFilter(any(), any(), any());
+    verify(this.provider, never()).constructFilter(any(), any(), any(), any());
     verify(this.provider, never()).releaseAudioFilter();
   }
 

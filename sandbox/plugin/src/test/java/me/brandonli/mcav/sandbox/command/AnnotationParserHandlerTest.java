@@ -200,7 +200,8 @@ final class AnnotationParserHandlerTest {
   void takesTheRestOfTheLineForFreeTextArguments() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String vm = "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
+    final String vm =
+      "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
     final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl";
     final String browser = "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm url";
     final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");

@@ -106,7 +106,8 @@ public final class JukeBoxListener implements Listener {
     final String playerName = player.getName();
     final Path absolute = image.toAbsolutePath();
     // the disc plays without sound: which audio output is ready is up to the operator, who can start it by hand
-    final String command = "mcav vm create %s 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"%s\" -m 2048M".formatted(playerName, absolute);
+    final String command =
+      "mcav vm create %s 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"%s\" -m 2048M".formatted(playerName, absolute);
     player.performCommand(command);
   }
 

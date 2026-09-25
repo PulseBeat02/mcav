@@ -96,6 +96,12 @@ public interface Message extends LocaleTools {
   NullComponent VM_LOADING = direct("mcav.command.vm.loading");
 
   /**
+   * Key {@code mcav.command.vm.audio.unsupported}: {@code /mcav vm create} chose an audio output for an architecture
+   * whose machines get no sound card.
+   */
+  NullComponent VM_NO_SOUND = direct("mcav.command.vm.audio.unsupported");
+
+  /**
    * Key {@code mcav.command.vm.create}: the virtual machine started and now shows on the maps.
    */
   NullComponent VM_CREATE = direct("mcav.command.vm.create");

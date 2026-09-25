@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.audio;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -58,6 +59,11 @@ public final class AudioProvider {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
 
+  // the source a video plays as, as there is one video at a time
+  private static final Object VIDEO = new Object();
+  // sources are told apart by identity
+  private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private final PluginDataConfigurationMapper configuration;
   private final MCAVSandbox sandbox;
   private final ExecutorService startup;
@@ -68,6 +74,9 @@ public final class AudioProvider {
   private volatile @Nullable HttpResult httpServer;
   private volatile @Nullable SVCFilter voiceChatFilter;
   private boolean stopped;
+  // the outputs play one source at a time, a video or a virtual machine; the newest takes them over
+  private final Object outputLock;
+  private volatile @Nullable Object owner;
 
   /**
    * Constructs the provider.
@@ -92,6 +101,7 @@ public final class AudioProvider {
     this.sandbox = sandbox;
     this.startup = startup;
     this.lock = new Object();
+    this.outputLock = new Object();
   }
 
   /**
@@ -292,7 +302,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Creates the audio filter for an output.
+   * Creates the audio filter of an output for the video.
    *
    * @param argument the output chosen in the command
    * @param dump     information about the media, shown by outputs that display a title
@@ -301,15 +311,42 @@ public final class AudioProvider {
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    */
   public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object[] players) {
+    return this.constructFilter(argument, dump, players, VIDEO);
+  }
+
+  /**
+   * Creates the audio filter of an output for a source. The outputs play one source at a time: the source takes them
+   * over from any other, whose filter falls silent, and a filter plays only while its source has the outputs.
+   *
+   * @param argument the output chosen in the command
+   * @param dump     information about the media, shown by outputs that display a title
+   * @param players  the players Simple Voice Chat plays from
+   * @param source   what plays, such as a virtual machine
+   * @return the filter to attach to the audio pipeline
+   * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
+   */
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object[] players, final Object source) {
     Preconditions.checkNotNull(argument, "Audio argument must not be null");
     Preconditions.checkNotNull(dump, "Dump must not be null");
     Preconditions.checkNotNull(players, "Players must not be null");
-    return switch (argument) {
-      case NONE -> AudioFilter.NO_OP;
-      case DISCORD_BOT -> this.constructDiscordFilter(dump);
-      case HTTP_SERVER -> this.constructHttpFilter(dump);
-      case SIMPLE_VOICE_CHAT -> this.constructSVCFilter(players);
-    };
+    Preconditions.checkNotNull(source, "Source must not be null");
+    if (argument == AudioArgument.NONE) {
+      return AudioFilter.NO_OP;
+    }
+    synchronized (this.outputLock) {
+      if (!IDENTITY.equivalent(this.owner, source)) {
+        // the speakers of the previous source stop; the bot and the web page play the new one from now on
+        this.releaseSpeakers();
+        this.owner = source;
+      }
+      final AudioFilter output =
+        switch (argument) {
+          case DISCORD_BOT -> this.constructDiscordFilter(dump);
+          case HTTP_SERVER -> this.constructHttpFilter(dump);
+          default -> this.constructSVCFilter(players);
+        };
+      return (samples, metadata) -> IDENTITY.equivalent(this.owner, source) && output.applyFilter(samples, metadata);
+    }
   }
 
   private AudioFilter constructSVCFilter(final Object[] players) {
@@ -344,9 +381,30 @@ public final class AudioProvider {
   }
 
   /**
-   * Disconnects the outputs used by the last video.
+   * Disconnects the outputs, unless a virtual machine plays through them.
    */
   public void releaseAudioFilter() {
+    this.releaseAudioFilter(VIDEO);
+  }
+
+  /**
+   * Disconnects the outputs, unless another source plays through them.
+   *
+   * @param source the source that is done, such as a virtual machine
+   */
+  public void releaseAudioFilter(final Object source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    synchronized (this.outputLock) {
+      final Object current = this.owner;
+      if (current != null && !IDENTITY.equivalent(current, source)) {
+        return;
+      }
+      this.owner = null;
+      this.releaseOutputs();
+    }
+  }
+
+  private void releaseOutputs() {
     final DiscordConnection connection = this.discord;
     if (connection != null) {
       final AudioManager manager = connection.getAudioManager();
@@ -359,6 +417,10 @@ public final class AudioProvider {
     if (server != null) {
       server.setCurrentMedia(MediaInfo.EMPTY);
     }
+    this.releaseSpeakers();
+  }
+
+  private void releaseSpeakers() {
     final SVCFilter speakers = this.voiceChatFilter;
     if (speakers != null) {
       speakers.release();
@@ -373,7 +435,10 @@ public final class AudioProvider {
     synchronized (this.lock) {
       this.stopped = true;
     }
-    this.releaseAudioFilter();
+    synchronized (this.outputLock) {
+      this.owner = null;
+      this.releaseOutputs();
+    }
     final HttpResult server;
     final JDA bot;
     synchronized (this.lock) {
