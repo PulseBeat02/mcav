@@ -103,4 +103,49 @@ final class MotionSearchTest {
     // without a range there is no search at all
     assertEquals((8 << 16) | (-2 & 0xFFFF), search(source, 8, -2, 0));
   }
+
+  private static int seeded(final int[] source, final int range, final boolean halfPixel, final int... seeds) {
+    return MotionSearch.seeded(picture(), WIDTH, HEIGHT, source, 32, 32, 16, 0, 0, range, halfPixel, seeds);
+  }
+
+  private static int vector(final int x, final int y) {
+    return (x << 16) | (y & 0xFFFF);
+  }
+
+  @Test
+  void seededSearchStartsFromTheBestSeed() {
+    // the true vector is far from zero but one seed is next to it: the diamond walks the last pixel
+    final int[] source = block(picture(), 32, 32, 16, 20, -14);
+    assertEquals(vector(20, -14), seeded(source, 24, true, vector(0, 0), vector(18, -14), vector(18, -14), vector(-30, 40)));
+    // a half-pixel vector is found only by the refinement; without it the vector stays on whole pixels
+    final int[] half = block(picture(), 32, 32, 16, 7, -4);
+    assertEquals(vector(7, -4), seeded(half, 24, true, vector(6, -4)));
+    final int whole = seeded(half, 24, false, vector(6, -4));
+    assertEquals(0, (whole >> 16) & 1);
+    assertEquals(0, ((short) whole) & 1);
+  }
+
+  @Test
+  void seededSearchStaysInsideTheRange() {
+    // seeds past the range are clamped to its edge, and so is every step
+    final int[] source = block(picture(), 32, 32, 16, 20, 0);
+    final int found = seeded(source, 2, true, vector(100, 0), vector(-100, 0));
+    assertEquals(4, found >> 16);
+    // with a range of one pixel the walk takes at most two steps, both improving here
+    final int[] near = block(picture(), 32, 32, 16, 2, 2);
+    assertEquals(vector(2, 2), seeded(near, 1, false));
+  }
+
+  @Test
+  void measuresBlocksNearTheEdgeWithClamping() {
+    // a block in the corner, displaced so its samples clamp: the general sampling path
+    final byte[] rgb = picture();
+    final int[] source = new int[8 * 8 * 3];
+    for (int i = 0; i < 64; i++) {
+      System.arraycopy(new int[] { rgb[0] & 0xFF, rgb[1] & 0xFF, rgb[2] & 0xFF }, 0, source, i * 3, 3);
+    }
+    final int found = MotionSearch.seeded(rgb, WIDTH, HEIGHT, source, 0, 0, 8, 0, 0, 4, true, new int[] { vector(-8, -8) });
+    // whatever the clamped samples measure, the vector stays within the four pixels of range
+    assertEquals(true, Math.abs(found >> 16) <= 8 && Math.abs((short) found) <= 8);
+  }
 }

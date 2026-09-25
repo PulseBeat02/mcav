@@ -261,7 +261,7 @@ final class Mcv2EncoderTest {
       source[i + 1] = 2;
       source[i + 2] = 3;
     }
-    final FrameJob job = new FrameJob(EncoderSettings.SHIP, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 });
+    final FrameJob job = new FrameJob(EncoderSettings.SHIP, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
     final List<TreeNode> roots = List.of(solid(1, 2, 3));
     final byte[] data = keyframe(8, 8, DERIVED, solid(1, 2, 3));
     final byte[] picture = Mcv2Encoder.decodeChosen(data, new byte[0], 0, Workers.SEQUENTIAL);

@@ -103,4 +103,95 @@ final class GlobalMotionTest {
       pool.shutdownNow();
     }
   }
+
+  @Test
+  void projectsHalfResolutionLuma() {
+    // a 3x3 picture: the samples at even columns and rows, (0, 0), (2, 0), (0, 2) and (2, 2), each 4 times its luma
+    final byte[] rgb = new byte[3 * 3 * 3];
+    for (int i = 0; i < 9; i++) {
+      rgb[i * 3] = (byte) i;
+      rgb[i * 3 + 1] = (byte) i;
+      rgb[i * 3 + 2] = (byte) i;
+    }
+    final long[] sums = GlobalMotion.projections(rgb, 3, 3, Workers.SEQUENTIAL);
+    // columns 0 and 2 over rows 0 and 2, then rows 0 and 2 over columns 0 and 2
+    assertEquals(4 * (0 + 6), sums[0]);
+    assertEquals(4 * (2 + 8), sums[1]);
+    assertEquals(4 * (0 + 2), sums[2]);
+    assertEquals(4 * (6 + 8), sums[3]);
+  }
+
+  @Test
+  void alignsProjectionsPreferringTheSmallerShift() {
+    final long[] previous = { 5, 1, 9, 4, 7, 3, 8, 2 };
+    final long[] current = new long[8];
+    for (int i = 0; i < 8; i++) {
+      current[i] = previous[Math.min(i + 2, 7)];
+    }
+    assertEquals(2, GlobalMotion.align(previous, current, 0, 8));
+    // a flat axis matches every shift equally: no motion
+    assertEquals(0, GlobalMotion.align(new long[] { 3, 3, 3, 3 }, new long[] { 3, 3, 3, 3 }, 0, 4));
+  }
+
+  @Test
+  void estimatesLiveMotionFromProjections() {
+    final int width = 256;
+    final int height = 160;
+    final byte[] reference = texture(width, height);
+    final ForkJoinPool pool = new ForkJoinPool(3);
+    try {
+      for (final Workers workers : new Workers[] { Workers.SEQUENTIAL, new Workers(pool, 3) }) {
+        for (final int[] shift : new int[][] { { 0, 0 }, { 8, -6 }, { -12, 4 } }) {
+          final byte[] source = shifted(reference, width, height, shift[0], shift[1]);
+          final long[] before = GlobalMotion.projections(reference, width, height, workers);
+          final long[] now = GlobalMotion.projections(source, width, height, workers);
+          final int vector = GlobalMotion.estimateLive(source, reference, width, height, before, now, workers);
+          assertEquals(((2 * shift[0]) << 16) | ((2 * shift[1]) & 0xFFFF), vector);
+        }
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void keepsLiveCandidatesInsideTheLargestDisplacement() {
+    // projections that align at the edge of the range: the refinement's candidates past it are skipped
+    final int width = 512;
+    final int height = 512;
+    final byte[] reference = texture(width, height);
+    final byte[] source = shifted(reference, width, height, 132, 132);
+    final int vector = GlobalMotion.estimateLive(
+      source,
+      reference,
+      width,
+      height,
+      GlobalMotion.projections(reference, width, height, Workers.SEQUENTIAL),
+      GlobalMotion.projections(source, width, height, Workers.SEQUENTIAL),
+      Workers.SEQUENTIAL
+    );
+    assertTrue(Math.abs(vector >> 16) <= 2 * GlobalMotion.MAX_RANGE);
+    assertTrue(Math.abs((short) vector) <= 2 * GlobalMotion.MAX_RANGE);
+    // projections made to align 64 samples, the largest displacement, down and not across: the refinement's rows
+    // past the edge are skipped while its columns are measured
+    final long[] before = new long[256 + 256];
+    final long[] after = new long[256 + 256];
+    final java.util.Random random = new java.util.Random(3);
+    for (int i = 0; i < 256; i++) {
+      before[256 + i] = random.nextInt(1_000_000);
+    }
+    for (int i = 0; i < 192; i++) {
+      after[256 + i] = before[256 + i + 64];
+    }
+    final int vertical = GlobalMotion.estimateLive(
+      new byte[512 * 512 * 3],
+      new byte[512 * 512 * 3],
+      512,
+      512,
+      before,
+      after,
+      Workers.SEQUENTIAL
+    );
+    assertEquals(0, vertical);
+  }
 }

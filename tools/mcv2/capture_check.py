@@ -55,7 +55,7 @@ def vmaf(ffmpeg, reference, captured, width, height):
         dis.write_bytes(b"".join(c.tobytes() for c in captured))
         raw = lambda p: ["-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", f"{width}x{height}", "-framerate", "30", "-i", str(p)]
         graph = "[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];[dis][ref]libvmaf=n_threads=8:log_fmt=json:log_path=" + str(log)
-        subprocess.run([ffmpeg, "-v", "error", "-y", *raw(ref), *raw(dis), "-lavfi", graph, "-f", "null", "-"], check=True)
+        subprocess.run([ffmpeg, "-nostdin", "-v", "error", "-y", *raw(ref), *raw(dis), "-lavfi", graph, "-f", "null", "-"], check=True)
         frames = json.loads(log.read_text())["frames"]
         scores = [f["metrics"]["vmaf"] for f in frames]
         return float(np.mean(scores)), float(np.min(scores))

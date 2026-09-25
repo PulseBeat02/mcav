@@ -42,6 +42,20 @@ final class PaletteFit {
    * @param selectors receives one selector per pixel, 0 or 1
    */
   static void fit(final int[] source, final int count, final boolean quantize, final int[] colors, final byte[] selectors) {
+    final float[] endpoints = new float[6];
+    cluster(source, count, endpoints);
+    finish(source, count, endpoints, quantize, colors, selectors);
+  }
+
+  /**
+   * The Lloyd iterations of the fit, which do not depend on the rounding of the endpoints, so a palette and the
+   * patterns of both endpoint precisions share one run.
+   *
+   * @param source    the block's channels, 0..255, {@code count * 3} values
+   * @param count     the number of pixels
+   * @param endpoints receives the float32 endpoints: R, G, B of endpoint 0, then of endpoint 1
+   */
+  static void cluster(final int[] source, final int count, final float[] endpoints) {
     int low = 0;
     int high = 0;
     int lowLuma = Integer.MAX_VALUE;
@@ -57,14 +71,11 @@ final class PaletteFit {
         high = i;
       }
     }
-    final float[] c = {
-      source[low * 3],
-      source[low * 3 + 1],
-      source[low * 3 + 2],
-      source[high * 3],
-      source[high * 3 + 1],
-      source[high * 3 + 2],
-    };
+    final float[] c = endpoints;
+    for (int ch = 0; ch < 3; ch++) {
+      c[ch] = source[low * 3 + ch];
+      c[3 + ch] = source[high * 3 + ch];
+    }
     final long[] sums = new long[6];
     final int[] weights = new int[2];
     for (int iteration = 0; iteration < 4; iteration++) {
@@ -89,8 +100,28 @@ final class PaletteFit {
         }
       }
     }
+  }
+
+  /**
+   * Rounds clustered endpoints to RGB8, optionally to RGB565, and gives every pixel the nearer one.
+   *
+   * @param source    the block's channels, 0..255, {@code count * 3} values
+   * @param count     the number of pixels
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether the endpoints are rounded to RGB565 before the final assignment
+   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors receives one selector per pixel, 0 or 1
+   */
+  static void finish(
+    final int[] source,
+    final int count,
+    final float[] endpoints,
+    final boolean quantize,
+    final int[] colors,
+    final byte[] selectors
+  ) {
     for (int i = 0; i < 6; i++) {
-      colors[i] = Reconstruction.rgb8(c[i]);
+      colors[i] = Reconstruction.rgb8(endpoints[i]);
     }
     if (quantize) {
       for (int e = 0; e < 2; e++) {

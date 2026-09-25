@@ -21,8 +21,10 @@ import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
@@ -59,6 +61,9 @@ public final class Mcv2Encoder {
   private int height;
   private long lastFrameId = -1;
   private int framesSinceKey;
+  private int@Nullable[] motion;
+  private @Nullable LiveBuffers buffers;
+  private long@Nullable[] projections;
   private @Nullable Stats stats;
 
   /**
@@ -91,6 +96,53 @@ public final class Mcv2Encoder {
     this.workers = new Workers(pool, threads);
     this.verify = verify;
     this.framesSinceKey = settings.keyInterval();
+  }
+
+  /**
+   * The pictures a live search reuses from frame to frame: one per level, and two decoded pictures, one of which is the
+   * reference while the other receives the next frame.
+   */
+  private static final class LiveBuffers {
+
+    private final int width;
+    private final int height;
+    private final byte[][] levels;
+    private final byte[][] pictures;
+
+    LiveBuffers(final int width, final int height) {
+      this.width = width;
+      this.height = height;
+      this.levels = new byte[3][width * height * 3];
+      this.pictures = new byte[2][width * height * 3];
+    }
+
+    boolean fits(final int w, final int h) {
+      return this.width == w && this.height == h;
+    }
+
+    byte[][] levels() {
+      return this.levels;
+    }
+
+    /**
+     * The decoded picture that is not the given reference. Identity is the point: under the keyframe policy the
+     * reference stays in one buffer for many frames, so the buffers cannot simply take turns.
+     */
+    @SuppressWarnings("ReferenceEquality")
+    byte[] spare(final byte[] reference) {
+      return reference == this.pictures[0] ? this.pictures[1] : this.pictures[0];
+    }
+  }
+
+  /** The live buffers for a size, made again when the size changes. */
+  private LiveBuffers buffers(final int width, final int height) {
+    final LiveBuffers current = this.buffers;
+    if (current != null && current.fits(width, height)) {
+      return current;
+    }
+    final LiveBuffers made = new LiveBuffers(width, height);
+    this.buffers = made;
+    return made;
   }
 
   /**
@@ -141,74 +193,150 @@ public final class Mcv2Encoder {
     }
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
+    final LiveSearch live = this.settings.live();
     boolean key = true;
     int motion = 0;
     byte[] predictFrom = new byte[0];
-    if (previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval()) {
-      final int estimate = GlobalMotion.estimate(rgb, previous, width, height, this.workers);
-      if (!this.sceneCut(rgb, previous, width, height, estimate)) {
-        key = false;
-        motion = estimate;
-        predictFrom = previous;
+    final boolean predictable = width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
+    if (live == null) {
+      if (previous != null && predictable) {
+        final int estimate = GlobalMotion.estimate(rgb, previous, width, height, this.workers);
+        if (!this.sceneCut(rgb, previous, width, height, estimate)) {
+          key = false;
+          motion = estimate;
+          predictFrom = previous;
+        }
       }
+    } else {
+      // a live frame is encoded once: its vector is estimated from the projections of the source frames and chosen
+      // between it and zero by what SKIP would cost with each
+      final long[] projections = GlobalMotion.projections(rgb, width, height, this.workers);
+      final long[] before = this.projections;
+      if (previous != null && predictable) {
+        // every live frame, the keyframe before this one included, left its projections
+        final int estimate = GlobalMotion.estimateLive(
+          rgb,
+          previous,
+          width,
+          height,
+          Preconditions.checkNotNull(before),
+          projections,
+          this.workers
+        );
+        final int[] candidates = this.settings.compareGlobal() && estimate != 0 ? new int[] { 0, estimate } : new int[] { estimate };
+        final LiveAnalysis.Result analysis = LiveAnalysis.analyze(
+          rgb,
+          previous,
+          width,
+          height,
+          this.settings.lambda(),
+          this.settings.sceneThreshold(),
+          candidates,
+          this.workers
+        );
+        if (!analysis.sceneCut()) {
+          key = false;
+          motion = candidates[analysis.vector()];
+          predictFrom = previous;
+        }
+      }
+      this.projections = projections;
     }
     final int mx = motion >> 16;
     final int my = (short) motion;
     final int[] vectorsX;
     final int[] vectorsY;
-    if (!key && this.settings.compareGlobal() && motion != 0) {
+    if (!key && this.settings.compareGlobal() && motion != 0 && live == null) {
       vectorsX = new int[] { 0, mx };
       vectorsY = new int[] { 0, my };
     } else {
       vectorsX = new int[] { mx };
       vectorsY = new int[] { my };
     }
-    final FrameJob job = new FrameJob(this.settings, rgb, predictFrom, width, height, key, vectorsX, vectorsY);
-    this.evaluate(job);
+    final FrameJob job = new FrameJob(
+      this.settings,
+      rgb,
+      predictFrom,
+      width,
+      height,
+      key,
+      vectorsX,
+      vectorsY,
+      key ? null : this.motion,
+      live == null ? null : this.buffers(width, height).levels()
+    );
     final long referenceId = key ? frameId : this.referenceId;
     byte[] best = new byte[0];
     byte[] bestPicture = new byte[0];
     List<Leaf> bestLeaves = List.of();
     List<TreeNode> bestRoots = List.of();
-    int bestTrial = -1;
-    double bestCost = Double.POSITIVE_INFINITY;
-    for (int t = 0; t < job.trialCount(); t++) {
-      final List<Leaf> leaves = new ArrayList<>();
-      final List<TreeNode> roots = this.select(job, t, leaves);
-      final List<TreeNode> serialized = new ArrayList<>(roots.size());
-      for (final TreeNode root : roots) {
-        serialized.add(TreeReader.withPatterns(root, ROOT_SIZE));
+    int bestTrial = 0;
+    if (live == null) {
+      this.evaluate(job);
+      double bestCost = Double.POSITIVE_INFINITY;
+      for (int t = 0; t < job.trialCount(); t++) {
+        final List<Leaf> leaves = new ArrayList<>();
+        final List<TreeNode> roots = this.select(job, t, leaves);
+        final List<TreeNode> serialized = new ArrayList<>(roots.size());
+        for (final TreeNode root : roots) {
+          serialized.add(TreeReader.withPatterns(root, ROOT_SIZE));
+        }
+        final boolean coarse = job.isCoarse(t);
+        final int vector = job.trialVector(t);
+        final byte[] data = FrameWriter.write(
+          width,
+          height,
+          frameId,
+          referenceId,
+          key,
+          vectorsX[vector],
+          vectorsY[vector],
+          serialized,
+          FrameWriter.Options.production(coarse)
+        );
+        final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
+        final double cost = trialError(rgb, picture, width, height) / 96.0 + this.settings.lambda() * 8 * data.length;
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = data;
+          bestPicture = picture;
+          bestLeaves = leaves;
+          bestRoots = roots;
+          bestTrial = t;
+        }
       }
-      final boolean coarse = (t & 1) != 0;
-      final int vector = t / 2;
-      final byte[] data = FrameWriter.write(
+      if (this.verify) {
+        check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots);
+      }
+    } else {
+      final LiveFrame frame = this.evaluateLive(job, live);
+      best = FrameWriter.write(
         width,
         height,
         frameId,
         referenceId,
         key,
-        vectorsX[vector],
-        vectorsY[vector],
-        serialized,
-        FrameWriter.Options.production(coarse)
+        mx,
+        my,
+        frame.serialized(),
+        FrameWriter.Options.production(live.coarseEndpoints())
       );
-      final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
-      final double cost = trialError(rgb, picture, width, height) / 96.0 + this.settings.lambda() * 8 * data.length;
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = data;
-        bestPicture = picture;
-        bestLeaves = leaves;
-        bestRoots = roots;
-        bestTrial = t;
+      bestPicture = frame.picture();
+      bestLeaves = frame.leaves();
+      bestRoots = frame.roots();
+      if (this.verify) {
+        check(job, 0, best, bestPicture, bestLeaves, bestRoots);
+        // the picture was assembled from the search's reconstructions: the decoder must produce it too
+        final byte[] decoded = decodeChosen(best, predictFrom, this.referenceId, this.workers);
+        Preconditions.checkState(Arrays.equals(bestPicture, decoded), "MCV2 live picture and decoded picture disagree");
       }
-    }
-    if (this.verify) {
-      check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots);
     }
     if (key || this.settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
       this.reference = bestPicture;
       this.referenceId = frameId;
+    }
+    if (live != null) {
+      this.motion = motionField(bestRoots, width, height, vectorsX[job.trialVector(bestTrial)], vectorsY[job.trialVector(bestTrial)]);
     }
     this.width = width;
     this.height = height;
@@ -217,8 +345,8 @@ public final class Mcv2Encoder {
     this.stats = new Stats(
       best.length,
       key,
-      vectorsX[bestTrial / 2],
-      vectorsY[bestTrial / 2],
+      vectorsX[job.trialVector(bestTrial)],
+      vectorsY[job.trialVector(bestTrial)],
       bestTrial,
       bestLeaves.size(),
       System.nanoTime() - started
@@ -281,9 +409,205 @@ public final class Mcv2Encoder {
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     this.workers.forEach(
         superblocks,
-        () -> new BlockCoder[] { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) },
+        () -> coders(job),
         (coders, index) -> superblock(job, coders, (index % columns) * ROOT_SIZE, (index / columns) * ROOT_SIZE)
       );
+  }
+
+  /**
+   * What a live search produced: one tree per superblock in raster order, the same trees in the form the writer takes,
+   * their leaves, and the decoded picture.
+   */
+  private static final class LiveFrame {
+
+    private final List<TreeNode> roots;
+    private final List<TreeNode> serialized;
+    private final List<Leaf> leaves;
+    private final byte[] picture;
+
+    LiveFrame(final List<TreeNode> roots, final List<TreeNode> serialized, final List<Leaf> leaves, final byte[] picture) {
+      this.roots = roots;
+      this.serialized = serialized;
+      this.leaves = leaves;
+      this.picture = picture;
+    }
+
+    List<TreeNode> roots() {
+      return this.roots;
+    }
+
+    List<TreeNode> serialized() {
+      return this.serialized;
+    }
+
+    List<Leaf> leaves() {
+      return this.leaves;
+    }
+
+    byte[] picture() {
+      return this.picture;
+    }
+  }
+
+  /**
+   * Evaluates the blocks of a live search on the workers: every superblock from the top, a block's quarters only when
+   * it did not end at an early SKIP, the smallest block size is not reached, and its best cost is above the split
+   * threshold. A block that is not evaluated keeps an infinite cost, which {@link #select} never chooses. Each worker
+   * then chooses its superblock's tree and copies the reconstructions of the chosen leaves, which are the decoder's
+   * own, into the frame's picture, so the frame needs no decode.
+   */
+  private LiveFrame evaluateLive(final FrameJob job, final LiveSearch live) {
+    final int columns = job.columns(0);
+    final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
+    final int deepest = Integer.numberOfTrailingZeros(ROOT_SIZE / live.smallestBlock());
+    final double[] split = { live.splitThreshold() * this.settings.lambda(), live.fineThreshold() * this.settings.lambda() };
+    final TreeNode[] roots = new TreeNode[superblocks];
+    final TreeNode[] serialized = new TreeNode[superblocks];
+    final AtomicReferenceArray<List<Leaf>> leaves = new AtomicReferenceArray<>(superblocks);
+    // the other of the two pictures: the one the reference is not, which this frame's reconstruction replaces
+    final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(job.reference());
+    this.workers.forEach(
+        superblocks,
+        () -> coders(job),
+        (coders, index) -> {
+          final int x = (index % columns) * ROOT_SIZE;
+          final int y = (index / columns) * ROOT_SIZE;
+          descend(job, coders, 0, x, y, -1, deepest, split);
+          final List<Leaf> chosen = new ArrayList<>();
+          roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
+          serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
+          for (final Leaf leaf : chosen) {
+            assemble(job, leaf, picture);
+          }
+          leaves.set(index, chosen);
+        }
+      );
+    final List<Leaf> all = new ArrayList<>();
+    for (int index = 0; index < superblocks; index++) {
+      all.addAll(leaves.get(index));
+    }
+    return new LiveFrame(List.of(roots), List.of(serialized), all, picture);
+  }
+
+  /** Copies a chosen leaf's reconstruction from the picture of its level, cropped to the frame. */
+  private static void assemble(final FrameJob job, final Leaf leaf, final byte[] picture) {
+    final byte[] source = Preconditions.checkNotNull(job.levelPicture(leaf.level()));
+    final int width = job.width();
+    final int right = Math.min(leaf.x() + leaf.size(), width);
+    final int bottom = Math.min(leaf.y() + leaf.size(), job.height());
+    for (int y = leaf.y(); y < bottom; y++) {
+      final int at = (y * width + leaf.x()) * 3;
+      System.arraycopy(source, at, picture, at, (right - leaf.x()) * 3);
+    }
+  }
+
+  private static void descend(
+    final FrameJob job,
+    final BlockCoder[] coders,
+    final int level,
+    final int x,
+    final int y,
+    final int parent,
+    final int deepest,
+    final double[] split
+  ) {
+    if (x >= job.width() || y >= job.height()) {
+      return;
+    }
+    final int size = ROOT_SIZE >> level;
+    final int block = (y / size) * job.columns(level) + x / size;
+    final BlockCoder coder = coders[level];
+    coder.code(level, block, x, y, parent);
+    if (level == deepest || coder.isSkipped() || job.cost(0, level)[block] <= split[level]) {
+      return;
+    }
+    final int vector = coder.localVector();
+    final int half = size / 2;
+    for (int i = 0; i < 4; i++) {
+      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split);
+    }
+  }
+
+  /**
+   * The motion of a coded frame, one vector per 8x8 cell in raster order, for the next frame's live search: the vector
+   * each leaf predicts from, and the global vector for a leaf without prediction.
+   */
+  static int[] motionField(final List<TreeNode> roots, final int width, final int height, final int globalX, final int globalY) {
+    final int columns = (width + 7) / 8;
+    final int[] field = new int[columns * ((height + 7) / 8)];
+    final int rootColumns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
+    for (int i = 0; i < roots.size(); i++) {
+      fill(
+        field,
+        columns,
+        width,
+        height,
+        roots.get(i),
+        (i % rootColumns) * ROOT_SIZE,
+        (i / rootColumns) * ROOT_SIZE,
+        ROOT_SIZE,
+        globalX,
+        globalY
+      );
+    }
+    return field;
+  }
+
+  private static void fill(
+    final int[] field,
+    final int columns,
+    final int width,
+    final int height,
+    final TreeNode node,
+    final int x,
+    final int y,
+    final int size,
+    final int globalX,
+    final int globalY
+  ) {
+    if (node.isSplit()) {
+      final int half = size / 2;
+      for (int i = 0; i < 4; i++) {
+        fill(field, columns, width, height, node.getChild(i), x + (i % 2) * half, y + (i / 2) * half, half, globalX, globalY);
+      }
+      return;
+    }
+    final int vector = leafVector(node, globalX, globalY);
+    for (int cy = y; cy < Math.min(y + size, height); cy += 8) {
+      for (int cx = x; cx < Math.min(x + size, width); cx += 8) {
+        field[(cy / 8) * columns + cx / 8] = vector;
+      }
+    }
+  }
+
+  /** The vector a leaf predicts from, as {@code x << 16 | (y & 0xFFFF)} in half pixels. */
+  static int leafVector(final TreeNode leaf, final int globalX, final int globalY) {
+    final int mode = leaf.getMode();
+    final byte[] record = leaf.getRecord();
+    int dx = 0;
+    int dy = 0;
+    if (mode == MODE_MOTION || isResidual(mode)) {
+      dx = record[0];
+      dy = record[1];
+    } else if (mode == MODE_COMPACT) {
+      final int form = (record[0] & 0xFF) >> 4;
+      if (form == 1) {
+        dx = signed(record[1] & 15, 4);
+        dy = signed((record[1] & 0xFF) >> 4, 4);
+      } else if (form == 2) {
+        dx = record[1];
+        dy = record[2];
+      }
+    }
+    return ((globalX + dx) << 16) | ((globalY + dy) & 0xFFFF);
+  }
+
+  /** One worker's coders, the smaller ones loading their blocks from the superblock's. */
+  private static BlockCoder[] coders(final FrameJob job) {
+    final BlockCoder[] coders = { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) };
+    coders[1].loadFrom(coders[0]);
+    coders[2].loadFrom(coders[0]);
+    return coders;
   }
 
   private static void superblock(final FrameJob job, final BlockCoder[] coders, final int x, final int y) {
@@ -312,13 +636,13 @@ public final class Mcv2Encoder {
     final List<TreeNode> roots = new ArrayList<>();
     for (int y = 0; y < job.height(); y += ROOT_SIZE) {
       for (int x = 0; x < job.width(); x += ROOT_SIZE) {
-        roots.add(this.select(job, trial, x, y, 0, leaves).node());
+        roots.add(Preconditions.checkNotNull(this.select(job, trial, x, y, 0, leaves)).node());
       }
     }
     return roots;
   }
 
-  private Choice select(final FrameJob job, final int trial, final int x, final int y, final int level, final List<Leaf> leaves) {
+  private @Nullable Choice select(final FrameJob job, final int trial, final int x, final int y, final int level, final List<Leaf> leaves) {
     final double lambda = this.settings.lambda();
     if (x >= job.width() || y >= job.height()) {
       return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[3]), lambda * 56);
@@ -326,6 +650,10 @@ public final class Mcv2Encoder {
     final int size = ROOT_SIZE >> level;
     final int block = (y / size) * job.columns(level) + x / size;
     final double cost = job.cost(trial, level)[block];
+    if (cost == Double.POSITIVE_INFINITY) {
+      // a live search did not evaluate the block
+      return null;
+    }
     final TreeNode leaf = TreeNode.leaf(job.mode(trial, level, block), job.quantizer(trial, level, block), job.record(trial, level, block));
     if (level == 2) {
       leaves.add(new Leaf(x, y, size, level, block));
@@ -336,8 +664,13 @@ public final class Mcv2Encoder {
     final Choice[] children = new Choice[4];
     double splitCost = lambda * BlockCoder.INDEX_BITS;
     for (int i = 0; i < 4; i++) {
-      children[i] = this.select(job, trial, x + (i % 2) * half, y + (i / 2) * half, level + 1, childLeaves);
-      splitCost += children[i].cost();
+      final Choice child = this.select(job, trial, x + (i % 2) * half, y + (i / 2) * half, level + 1, childLeaves);
+      if (child == null) {
+        splitCost = Double.POSITIVE_INFINITY;
+        break;
+      }
+      children[i] = child;
+      splitCost += child.cost();
     }
     if (splitCost < cost) {
       leaves.addAll(childLeaves);

@@ -18,6 +18,9 @@
 package me.brandonli.mcav.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 import net.jqwik.api.ForAll;
@@ -158,5 +161,88 @@ final class ReconstructionPropertyTest {
     ReconstructionOracle.predicted(prediction, size, expected);
     Reconstruction.predicted(prediction, size, actual);
     assertArrayEquals(expected, actual);
+  }
+
+  /** One kernel call: reconstruct into out, measured by score when it is not null; returns whether it finished. */
+  @FunctionalInterface
+  private interface Kernel {
+    boolean run(int[] out, Reconstruction.Score score);
+  }
+
+  /** The source a measure compares with, and the same measure's plain distortion of a reconstruction. */
+  private static long distortion(final int[] source, final int[] out) {
+    long sum = 0;
+    for (int i = 0; i < source.length; i += 3) {
+      final int dr = source[i] - out[i];
+      final int dg = source[i + 1] - out[i + 1];
+      final int db = source[i + 2] - out[i + 2];
+      final int luma = dr + 2 * dg + db;
+      final int co = dr - db;
+      final int cg = 2 * dg - dr - db;
+      sum += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+    }
+    return sum;
+  }
+
+  /**
+   * A measured kernel reconstructs exactly what the unmeasured one does, and its distortion is the whole block's; it
+   * stops once its cost reaches the limit, and never before the whole block's cost does.
+   */
+  private static void assertMeasured(final Random random, final int size, final Kernel kernel) {
+    final int[] source = new int[size * size * 3];
+    for (int i = 0; i < source.length; i++) {
+      source[i] = random.nextInt(256);
+    }
+    final double rate = random.nextInt(4000) / 7.0;
+    final Reconstruction.Score score = new Reconstruction.Score();
+    final int[] plain = new int[source.length];
+    final int[] measured = new int[source.length];
+    kernel.run(plain, null);
+    score.start(source, rate, Double.POSITIVE_INFINITY);
+    assertTrue(kernel.run(measured, score));
+    assertArrayEquals(plain, measured);
+    final long distortion = distortion(source, plain);
+    assertEquals(distortion, score.distortion());
+    final double cost = distortion / 96.0 + rate;
+    score.start(source, rate, cost);
+    assertFalse(kernel.run(new int[source.length], score));
+    score.start(source, rate, Math.nextUp(cost));
+    assertTrue(kernel.run(new int[source.length], score));
+    assertEquals(distortion, score.distortion());
+  }
+
+  @Property(seed = SEED, tries = 300)
+  void measuredKernelsStopOnlyWhenTheyCannotWin(
+    @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
+    @ForAll @IntRange(min = 0, max = 8) final int kernel,
+    @ForAll @IntRange(min = 0, max = 3) final int q,
+    @ForAll final long seed
+  ) {
+    final int size = SIZES[sizeIndex];
+    final Random random = new Random(seed);
+    final byte[] record = record(random, 2 + 3 * 64);
+    final int[] prediction = prediction(random, size);
+    final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
+    final int grid = 1 << (q & 3);
+    final int compact = new int[] { 0, 1, 2, 3, 4, 7, 8, 5, 6 }[random.nextInt(9)];
+    final int color = random.nextInt(1 << 24);
+    if (compact == CompactRecord.VQ64) {
+      record[3] = (byte) random.nextInt(64);
+    } else if (compact == CompactRecord.PQ64) {
+      record[4] = (byte) random.nextInt(16);
+    }
+    final Kernel run =
+      switch (kernel) {
+        case 0 -> (out, score) -> Reconstruction.predicted(prediction, size, out, score);
+        case 1 -> (out, score) -> Reconstruction.solid(color, size, out, score);
+        case 2 -> (out, score) -> Reconstruction.palette(record, 0, size, out, score);
+        case 3 -> (out, score) -> Reconstruction.intraGrid(record, 0, grid, size, scratch, out, score);
+        case 4 -> (out, score) -> Reconstruction.residualGrid(prediction, record, 2, grid, q, size, scratch, out, score);
+        case 5 -> (out, score) -> Reconstruction.reduced(null, record, 0, 4, 1, 0, size, scratch, out, score);
+        case 6 -> (out, score) -> Reconstruction.reduced(prediction, record, 2, 8, 2, q, size, scratch, out, score);
+        default -> (out, score) ->
+          Reconstruction.compact(prediction, record, 0, compact, compact == CompactRecord.GAIN_BIAS ? 0 : q, size, scratch, out, score);
+      };
+    assertMeasured(random, size, run);
   }
 }

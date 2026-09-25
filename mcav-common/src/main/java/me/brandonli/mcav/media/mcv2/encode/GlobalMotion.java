@@ -32,6 +32,9 @@ final class GlobalMotion {
 
   private static final int CHUNK = 4096;
 
+  /** Rows one worker sums for the projections. */
+  private static final int BAND = 64;
+
   private GlobalMotion() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -119,6 +122,127 @@ final class GlobalMotion {
       }
     }
     return vector;
+  }
+
+  /**
+   * The luma projections a live search estimates global motion from, at half resolution: the sums of every other
+   * column over every other row, then of every other row over every other column, of four times the luma. Computed
+   * once per source frame and kept for the next.
+   *
+   * @param source  the picture, row-major RGB
+   * @param width   the width
+   * @param height  the height
+   * @param workers the workers
+   * @return {@code (width + 1) / 2} column sums, then {@code (height + 1) / 2} row sums
+   */
+  static long[] projections(final byte[] source, final int width, final int height, final Workers workers) {
+    final int columns = (width + 1) / 2;
+    final int rows = (height + 1) / 2;
+    final long[] sums = new long[columns + rows];
+    final int bands = (rows + BAND - 1) / BAND;
+    final long[][] partial = new long[bands][];
+    workers.forEach(
+      bands,
+      () -> sums,
+      (_, band) -> {
+        final long[] column = new long[columns];
+        for (int r = band * BAND; r < Math.min(rows, (band + 1) * BAND); r++) {
+          final int line = 2 * r * width;
+          long row = 0;
+          for (int c = 0; c < columns; c++) {
+            final int at = (line + 2 * c) * 3;
+            final int luma = (source[at] & 0xFF) + 2 * (source[at + 1] & 0xFF) + (source[at + 2] & 0xFF);
+            column[c] += luma;
+            row += luma;
+          }
+          sums[columns + r] = row;
+        }
+        partial[band] = column;
+      }
+    );
+    for (final long[] column : partial) {
+      for (int c = 0; c < columns; c++) {
+        sums[c] += column[c];
+      }
+    }
+    return sums;
+  }
+
+  /**
+   * Estimates the global motion of a live frame: the shifts that best align the luma projections of the previous
+   * source frame with this one's, on each axis, refined like the reference's estimate by the sampled error against the
+   * reference picture in a 5x5 neighbourhood, with the zero vector as the first candidate.
+   *
+   * @param source      the current picture, row-major RGB
+   * @param reference   the previous decoded picture, the same size
+   * @param width       the width
+   * @param height      the height
+   * @param previous    the previous source frame's projections
+   * @param current     this frame's projections
+   * @param workers     the workers
+   * @return the vector as {@code x << 16 | (y & 0xFFFF)}, in half pixels
+   */
+  static int estimateLive(
+    final byte[] source,
+    final byte[] reference,
+    final int width,
+    final int height,
+    final long[] previous,
+    final long[] current,
+    final Workers workers
+  ) {
+    final int columns = (width + 1) / 2;
+    final int coarseX = 2 * align(previous, current, 0, columns);
+    final int coarseY = 2 * align(previous, current, columns, (height + 1) / 2);
+    final long[] errors = new long[26];
+    workers.forEach(
+      errors.length,
+      () -> errors,
+      (_, candidate) -> {
+        final int dx = candidate == 0 ? 0 : coarseX + ((candidate - 1) % 5) - 2;
+        final int dy = candidate == 0 ? 0 : coarseY + (candidate - 1) / 5 - 2;
+        errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
+          ? Long.MAX_VALUE
+          : sampledError(source, reference, width, height, dx, dy);
+      }
+    );
+    long best = Long.MAX_VALUE;
+    int vector = 0;
+    for (int candidate = 0; candidate < errors.length; candidate++) {
+      if (errors[candidate] < best) {
+        best = errors[candidate];
+        final int dx = candidate == 0 ? 0 : coarseX + ((candidate - 1) % 5) - 2;
+        final int dy = candidate == 0 ? 0 : coarseY + (candidate - 1) / 5 - 2;
+        vector = ((dx * 2) << 16) | ((dy * 2) & 0xFFFF);
+      }
+    }
+    return vector;
+  }
+
+  /**
+   * The shift d, in projection samples within half the largest displacement, that minimizes the mean absolute difference between
+   * {@code current[i]} and {@code previous[i + d]} where both exist and at least half the axis overlaps; zero first.
+   */
+  static int align(final long[] previous, final long[] current, final int offset, final int length) {
+    final int range = Math.min(MAX_RANGE / 2, length / 2);
+    int best = 0;
+    double bestError = Double.POSITIVE_INFINITY;
+    for (int step = 0; step <= 2 * range; step++) {
+      // 0, 1, -1, 2, -2, ...: nearer shifts first, so a tie keeps the smaller motion
+      final int d = ((step + 1) / 2) * ((step & 1) == 0 ? -1 : 1);
+      final int from = Math.max(0, -d);
+      final int to = Math.min(length, length - d);
+      long sum = 0;
+      for (int i = from; i < to; i++) {
+        sum += Math.abs(current[offset + i] - previous[offset + i + d]);
+      }
+      final double error = sum / (double) (to - from);
+      if (error < bestError) {
+        bestError = error;
+        best = d;
+      }
+    }
+    return best;
   }
 
   private static int candidateX(final int candidate, final int coarseX) {

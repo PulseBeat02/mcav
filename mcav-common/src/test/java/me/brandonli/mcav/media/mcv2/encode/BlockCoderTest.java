@@ -54,7 +54,7 @@ final class BlockCoderTest {
 
   /** Codes the single 8x8 block of a P frame predicting from the reference at zero motion. */
   private static FrameJob code(final byte[] source, final byte[] reference) {
-    final FrameJob job = new FrameJob(STILL, source, reference, 8, 8, false, new int[] { 0 }, new int[] { 0 });
+    final FrameJob job = new FrameJob(STILL, source, reference, 8, 8, false, new int[] { 0 }, new int[] { 0 }, null, null);
     new BlockCoder(job, 8).code(2, 0, 0, 0);
     return job;
   }
@@ -115,7 +115,7 @@ final class BlockCoderTest {
       source[i + 1] = 20;
       source[i + 2] = 30;
     }
-    final FrameJob job = new FrameJob(STILL, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 });
+    final FrameJob job = new FrameJob(STILL, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
     new BlockCoder(job, 8).code(2, 0, 0, 0);
     assertEquals(Mcv2Format.MODE_SOLID, job.mode(0, 2, 0));
     assertArrayEquals(new byte[] { 10, 20, 30 }, job.record(0, 2, 0));
