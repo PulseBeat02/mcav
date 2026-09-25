@@ -1,0 +1,212 @@
+{
+ "conformance/p30r19-compact_final-65p255994.mcs#0@6": {
+  "pages": [
+   "ed4add5353b46a4744ddd0cb6aa71f3577363e24de3a0e29bfed98120d14b4e8",
+   "238841041e278f9a2895903da086089edea7c570a2af0671c4e548abc380582c"
+  ],
+  "lengths": [
+   16384,
+   10012
+  ],
+  "wire": 26532,
+  "wire_full": 32804
+ },
+ "conformance/p30r19-compact_final-65p255994.mcs#0@7": {
+  "pages": [
+   "764c989e22b2325157cedd78a1e92bdf03a1cad30588a648030b553df299f360",
+   "8de8802af19c60741cc8b147ea30c2fa8a4e985453f5906be074a90889669d0c"
+  ],
+  "lengths": [
+   16384,
+   6242
+  ],
+  "wire": 22692,
+  "wire_full": 32804
+ },
+ "conformance/p30r19-compact_final-65p255994.mcs#0@8": {
+  "pages": [
+   "f491d4f7ef7dc808ea4a868263a2d79f6dad9b1b21616e4f0313ceddbe5e464c",
+   "f2b42bc0a697df3b2d5fa0bb70dc8f19a767a0a4f8c8498d27a5088ac131c556"
+  ],
+  "lengths": [
+   16384,
+   3413
+  ],
+  "wire": 19876,
+  "wire_full": 32804
+ },
+ "conformance/p30r19-compact_final-65p255994.mcs#1@6": {
+  "pages": [
+   "4479791b966a9618bb4b0dba390d78ddd748b18ff2eefeed321045fbeb03b1d7"
+  ],
+  "lengths": [
+   13754
+  ],
+  "wire": 13842,
+  "wire_full": 16402
+ },
+ "conformance/p30r19-compact_final-65p255994.mcs#1@7": {
+  "pages": [
+   "043d9ba3c3e129991110c82f5bdb16a6a792d0e66f8405e324435d5df2798db9"
+  ],
+  "lengths": [
+   11789
+  ],
+  "wire": 11922,
+  "wire_full": 16402
+ },
+ "conformance/p30r19-compact_final-65p255994.mcs#1@8": {
+  "pages": [
+   "f6aff9b6a4fe094b64f39603e150aa2aae0daac4c5960e020b91cd2fcc053d2a"
+  ],
+  "lengths": [
+   10315
+  ],
+  "wire": 10386,
+  "wire_full": 16402
+ },
+ "edge/edge-tiny.mcs#0@6": {
+  "pages": [
+   "2b0543a7c3e3140570d1e3895588837eed39aa2aa586ebd9d761a8b3de37b052"
+  ],
+  "lengths": [
+   199
+  ],
+  "wire": 274,
+  "wire_full": 16402
+ },
+ "edge/edge-tiny.mcs#0@7": {
+  "pages": [
+   "590b99a2e9f51e6e4ff94ebe56059fa63904b89b0af21977c18fc47397e8c153"
+  ],
+  "lengths": [
+   171
+  ],
+  "wire": 274,
+  "wire_full": 16402
+ },
+ "edge/edge-tiny.mcs#0@8": {
+  "pages": [
+   "279aebb242a0a045d53a71de38beb6a728cd9190b64c8b979fc8a89d78716330"
+  ],
+  "lengths": [
+   149
+  ],
+  "wire": 274,
+  "wire_full": 16402
+ },
+ "edge/edge-wide-fallback.mcs#0@6": {
+  "pages": [
+   "12a96f46a14f7514e2853a248becfca94d8768ace9a4aa5ea5f82ab4e2bb2976",
+   "d94da068ff6e285690cd2c9c8ef7deff3c06b6956fc3d3ac95c7785751b8c278",
+   "aa5c32e180ff4885ad37fe9eac9a97199e11f0ac7b5af172239f7a4f18a00790",
+   "7986ca54e139487b7b601d575682e4721223e4162a578b194c2461b6e09da9e9",
+   "c034127979cb902b7d1d7e29bf6af37f2816e3475717fa8d955625a80aaa5015",
+   "3224eed0ecf3b8ce699493ebe01b4ff135521964345b3e57c7fe31b1f7e8d051",
+   "3dd479fb2924b4e301e4a49a690bccf58ec71e1dfdac34e23a30996e4fe5c3af",
+   "c6f8bc7a92e3f9876574c96833e6a0df3d217c44f8663b4b3c5f6d80ffc00ce2",
+   "2dc270291f2431e7cd1503f4d21ef83cef138885d7ebc8daf259843b829dc26d",
+   "73e8f8ed20e959635f33d6b7e8c066d6a6ce165aa93ed8eb095c9414726d2c40",
+   "c7bf391c630e7b61b17a310004d6f89f47138db09ed8fd4c70bd757ff03f327a",
+   "1c957496e94e4ef66e57f0280966cedacf5465b12f9411cdf50d47241e0d1a94",
+   "3b6df30bd0bd83428649d61c783d7672177af947304fba1b6fe8e9b36ec219de",
+   "b0bd73a3b284e844679359e8f1b9457a422648ae974fa7e47cef63b8793f6095",
+   "9c828406c676a09d234e1f980916cd58c6970628f94f942d00abf129585eaedc",
+   "6cb442aa3e420d6d9997bc78fde4f0f3f2b8660baf2bcfb70618f78d33d89bd9",
+   "2b021cf9111c6a1baffa7b34a2ba0a678d663376016baeebde37a270c9379bf1"
+  ],
+  "lengths": [
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   7958
+  ],
+  "wire": 270514,
+  "wire_full": 278834
+ },
+ "edge/edge-wide-fallback.mcs#0@7": {
+  "pages": [
+   "cf18d4228ddc8b08e1d35109e780f17e93c3271e177ff44a164310a9a05e1a50",
+   "68035f11ceaf24b32e8a891bf98ddf3997274e8976c7ec49dd2e0ddd39539ffa",
+   "ab3ba9edc6aaf681b787bbb979829480cdd04bccfae26ca474f96dbb9d703521",
+   "67c355dc99f33d819d719c628cb0f48fe7af983c7c53f09211f797b53ec155aa",
+   "76395b21df25243637c07fda9e5d702f8a1504c51c4e4e005907151ab6394712",
+   "0a0336efb1f6b50578edfecc15af379719f89d6db0b2ef6ba32cde9ea21b0e16",
+   "8596d091bbc69e891d77cf96604c1a7158cfd3f4d824a946a49acee0073f9cf2",
+   "ee6e760cbffa03defbb5656e981811c671714390d91cf5bbb68e7ada7cd7faf4",
+   "de088c287df61cce6a714ee07cafa3d4b7c877ec62a3b26e79ea478b4ba0f61f",
+   "49cf917720bab0b624475ef85bb1f1d83841acd9ef2303100bcbf8f197232846",
+   "b3f91391406ed243376ab1692ed8ac64c4cb4787206b79face81cd7ebef46901",
+   "11a7a85e40f7b52a96e51050720bbf50178fc0d47e587301452d772e5d120e05",
+   "f9314a9130caa69876b1cb414b90ba5f9dd9fd2363847de7eb320d297781a276",
+   "9e11a53477eaf4c4a11e3e58f0a13de1660b1bc32ffc2c21ad0b5b02eed9e893",
+   "b6bb86698c93b6ac0e764e2d00f6e3f5009b06d1251bcd06636ddc00991aedfe"
+  ],
+  "lengths": [
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   2067
+  ],
+  "wire": 231822,
+  "wire_full": 246030
+ },
+ "edge/edge-wide-fallback.mcs#0@8": {
+  "pages": [
+   "a6e7561e0403acedd4f98eeed1899a1513890a1db865a5132f0869e7dcfb7479",
+   "05803dcd1ef2e311cbf345eb28f76d4f8031261284eade6429dec6b50eb1afd3",
+   "c5664a1f5fdd2d2ea9ac9e65ebfc83af5161568129b2897eb8bedbfe98297bbb",
+   "4197b191387f065187f062deb603a1b54e292722b1666efb2370aebe25ca678b",
+   "5ea75afbd37c26c28e607cea2714265a60802aa87f11839d7a4189f98db56469",
+   "15c09ad6774a257a40eb6d8b942c61b69940d13bd0504e3ef723c7312a2ae50b",
+   "18029549bede5c299ea46d72331e9889f80757c9bb39c34331490b422e1766a0",
+   "ce9df4cf4167c832f5c1008ca8c91b3a5e79cd84344c4f5072d9800ca9e1dff8",
+   "811e971d28100c75023bf5f4b2a852d0951887c678425ac1dda71f49faf43641",
+   "daa7ee4ae700ca6eca5ee3d06f66ae92e0d7bad6f580381f0b72f2f0fb5469ad",
+   "cc8747687ac447df038aed1fdf3e9b6604554b8ff7e91558a075dfe4af5dd213",
+   "b9b84a75d6e7c3e2b2343ec780130b77d83c4edf28f3117ddf47e413ab51bda1",
+   "9d5ded437328bd6970b2f7f51b45cf5e627d070023d6be853c88cf04d483510b"
+  ],
+  "lengths": [
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   16384,
+   5840
+  ],
+  "wire": 202730,
+  "wire_full": 213226
+ }
+}
