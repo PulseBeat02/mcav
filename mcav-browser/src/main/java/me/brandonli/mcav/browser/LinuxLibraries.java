@@ -40,6 +40,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -94,6 +95,15 @@ final class LinuxLibraries {
    */
   static final List<String> MIRRORS = List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/");
 
+  /**
+   * The mirrors of Debian 11's security updates, for the pins in {@code pool/updates/}: the archive, once they reach it,
+   * and Debian's snapshot archive, which keeps every file under a permanent address.
+   */
+  static final List<String> SECURITY_MIRRORS = List.of(
+    "https://archive.debian.org/debian-security/",
+    "https://snapshot.debian.org/archive/debian-security/20260901T000000Z/"
+  );
+
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
   // every copy of mcav in this JVM shares this monitor, like the one of the CEF natives
@@ -104,7 +114,13 @@ final class LinuxLibraries {
   private static final Pattern PLATFORM = Pattern.compile("[a-z0-9]+-[a-z0-9]+");
   private static final Pattern SONAME = Pattern.compile("lib[A-Za-z0-9_+.-]+\\.so(\\.[0-9]+)*");
   private static final Pattern PACKAGE_PATH = Pattern.compile("(usr/)?lib/[a-z0-9_-]+/(nss/)?[A-Za-z0-9_+.-]+");
-  private static final Pattern POOL_PATH = Pattern.compile("pool/main/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9_+.:~-]+\\.deb");
+  private static final Pattern POOL_PATH = Pattern.compile("pool/(updates/)?main/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9_+.:~-]+\\.deb");
+  private static final String SECURITY_POOL = "pool/updates/";
+  // the start of an ELF header: its magic, the class (2, 64 bits) and the byte order (1, little-endian)
+  private static final byte[] ELF_64_LITTLE_ENDIAN = { 0x7F, 'E', 'L', 'F', 2, 1 };
+  private static final int ELF_MACHINE_OFFSET = 18;
+  private static final int MACHINE_X86_64 = 62;
+  private static final int MACHINE_AARCH64 = 183;
   private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
   private static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
   private static final int MAX_ENTRIES = 20_000;
@@ -113,6 +129,7 @@ final class LinuxLibraries {
   private final Path folder;
   private final JcefNatives.Downloader downloader;
   private final List<String> mirrors;
+  private final List<String> securityMirrors;
   private final List<Pin> pins;
   private final Map<String, List<String>> hostLibraries;
 
@@ -124,6 +141,7 @@ final class LinuxLibraries {
       defaultFolder(),
       HttpDownloader::download,
       MIRRORS,
+      SECURITY_MIRRORS,
       readResource(Objects.requireNonNull(LinuxLibraries.class.getClassLoader(), "mcav is not loaded by the boot loader"))
     );
   }
@@ -138,9 +156,31 @@ final class LinuxLibraries {
    */
   @VisibleForTesting
   LinuxLibraries(final Path folder, final JcefNatives.Downloader downloader, final List<String> mirrors, final List<String> pins) {
+    this(folder, downloader, mirrors, mirrors, pins);
+  }
+
+  /**
+   * Constructs an installer with another folder, download, mirrors of the archive and of its security updates, and
+   * pins.
+   *
+   * @param folder          the folder the libraries are installed in
+   * @param downloader      downloads a file and verifies its hash and size
+   * @param mirrors         the base addresses of the archive, each ending with a slash
+   * @param securityMirrors the base addresses of the security updates, for pins in {@code pool/updates/}
+   * @param pins            the lines of the pins
+   */
+  @VisibleForTesting
+  LinuxLibraries(
+    final Path folder,
+    final JcefNatives.Downloader downloader,
+    final List<String> mirrors,
+    final List<String> securityMirrors,
+    final List<String> pins
+  ) {
     this.folder = folder;
     this.downloader = downloader;
     this.mirrors = List.copyOf(mirrors);
+    this.securityMirrors = List.copyOf(securityMirrors);
     final List<Pin> parsed = new ArrayList<>();
     final Map<String, List<String>> host = new LinkedHashMap<>();
     for (final String line : pins) {
@@ -296,10 +336,11 @@ final class LinuxLibraries {
 
   private void download(final Pin pin, final Path destination) throws IOException {
     IOException failure = null;
-    for (final String mirror : this.mirrors) {
+    final List<String> bases = pin.pool().startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
+    for (final String mirror : bases) {
       final URI uri = URI.create(mirror + pin.pool());
       try {
-        this.downloader.download(uri, destination, pin.sha256());
+        this.downloader.download(uri, destination, pin.sha256(), pin.size());
         return;
       } catch (final IOException exception) {
         Files.deleteIfExists(destination);
@@ -433,7 +474,7 @@ final class LinuxLibraries {
   List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
     final List<String> missingHost = new ArrayList<>();
     for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
-      if (!isPresent(soname, hostFolders)) {
+      if (!isPresent(soname, hostFolders, platform)) {
         missingHost.add(soname);
       }
     }
@@ -444,7 +485,7 @@ final class LinuxLibraries {
     }
     final List<Pin> missing = new ArrayList<>();
     for (final Pin pin : this.getPins(platform)) {
-      if (!isPresent(pin.sonames().getFirst(), hostFolders)) {
+      if (!isPresent(pin.sonames().getFirst(), hostFolders, platform)) {
         missing.add(pin);
       }
     }
@@ -480,13 +521,40 @@ final class LinuxLibraries {
    * @param hostFolders the folders the loader searches
    * @return true if a folder holds it
    */
-  static boolean isPresent(final String soname, final List<Path> hostFolders) {
+  static boolean isPresent(final String soname, final List<Path> hostFolders, final String platform) {
     for (final Path folder : hostFolders) {
-      if (Files.exists(folder.resolve(soname))) {
+      final Path library = folder.resolve(soname);
+      if (Files.exists(library) && isBuiltFor(library, platform)) {
         return true;
       }
     }
     return false;
+  }
+
+  /**
+   * Checks that a shared library is built for a platform: a 64-bit little-endian ELF file of its machine. A library of
+   * another architecture, such as a 32-bit one of a multiarch system, is one the loader skips.
+   *
+   * @param library  the file
+   * @param platform the jcefmaven identifier of the platform
+   * @return true if it is a library of the platform
+   */
+  @VisibleForTesting
+  static boolean isBuiltFor(final Path library, final String platform) {
+    final byte[] header = new byte[ELF_MACHINE_OFFSET + 2];
+    final int read;
+    try (InputStream in = Files.newInputStream(library)) {
+      read = in.readNBytes(header, 0, header.length);
+    } catch (final IOException exception) {
+      return false;
+    }
+    if (read < header.length) {
+      return false;
+    }
+    final byte[] start = Arrays.copyOf(header, ELF_64_LITTLE_ENDIAN.length);
+    final int machine = (header[ELF_MACHINE_OFFSET] & 0xFF) | ((header[ELF_MACHINE_OFFSET + 1] & 0xFF) << 8);
+    final int wanted = platform.endsWith("arm64") ? MACHINE_AARCH64 : MACHINE_X86_64;
+    return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
 
   /**
@@ -523,7 +591,9 @@ final class LinuxLibraries {
       final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
       if (line.startsWith("include ")) {
         final String pattern = line.substring("include ".length()).trim();
-        for (final Path included : glob(root, pattern)) {
+        // as glibc does, a relative include lies beside the file that includes it
+        final Path base = pattern.startsWith("/") ? root : Objects.requireNonNull(file.getParent(), "a file lies in a folder");
+        for (final Path included : glob(base, pattern)) {
           readConfiguration(root, included, folders, depth + 1);
         }
       } else if (line.startsWith("/")) {

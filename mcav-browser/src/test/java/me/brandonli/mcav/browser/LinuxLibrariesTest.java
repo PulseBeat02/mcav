@@ -130,6 +130,23 @@ class LinuxLibrariesTest {
     );
   }
 
+  /**
+   * Builds the start of an ELF file: its magic, class (1 for 32 bits, 2 for 64), byte order (1 little-, 2 big-endian)
+   * and machine (62 x86-64, 183 AArch64, 3 i386).
+   */
+  static byte[] elf(final int elfClass, final int order, final int machine) {
+    final byte[] header = new byte[64];
+    header[0] = 0x7F;
+    header[1] = 'E';
+    header[2] = 'L';
+    header[3] = 'F';
+    header[4] = (byte) elfClass;
+    header[5] = (byte) order;
+    header[18] = (byte) machine;
+    header[19] = (byte) (machine >> 8);
+    return header;
+  }
+
   private static String sha256(final byte[] bytes) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
@@ -148,8 +165,9 @@ class LinuxLibrariesTest {
   private LinuxLibraries installer(final byte[] deb, final List<String> mirrors, final List<String> pins) {
     return new LinuxLibraries(
       this.folder.resolve("cache"),
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         this.downloads.add(uri);
+        assertEquals(deb.length, size, "the pinned size bounds the download");
         if (uri.getHost().equals("broken.test")) {
           throw new IOException("mirror down");
         }
@@ -167,7 +185,7 @@ class LinuxLibrariesTest {
   void theResourcePinsBothLinuxPlatformsFromTheArchiveOfDebian11() {
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder,
-      (uri, destination, sha256) -> {},
+      (uri, destination, sha256, size) -> {},
       LinuxLibraries.MIRRORS,
       LinuxLibraries.readResource(LinuxLibraries.class.getClassLoader())
     );
@@ -177,7 +195,7 @@ class LinuxLibrariesTest {
       // Chromium's X11 layer loads it by name and CHECKs that it did, which no NEEDED entry of libcef shows
       assertTrue(pins.stream().anyMatch(pin -> pin.sonames().contains("libX11-xcb.so.1")), platform);
       for (final LinuxLibraries.Pin pin : pins) {
-        assertTrue(pin.pool().startsWith("pool/main/"), pin.pool());
+        assertTrue(pin.pool().startsWith("pool/main/") || pin.pool().startsWith("pool/updates/main/"), pin.pool());
         assertFalse(pin.files().isEmpty());
       }
       final LinuxLibraries.Pin nss = pins.stream().filter(pin -> pin.name().equals("libnss3")).findFirst().orElseThrow();
@@ -230,7 +248,7 @@ class LinuxLibrariesTest {
     )) {
       assertThrows(
         IllegalArgumentException.class,
-        () -> new LinuxLibraries(this.folder, (uri, destination, sha256) -> {}, List.of(), List.of(line)),
+        () -> new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of(line)),
         line
       );
     }
@@ -272,7 +290,7 @@ class LinuxLibrariesTest {
     this.downloads.clear();
     final LinuxLibraries none = new LinuxLibraries(
       this.folder.resolve("other-cache"),
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         this.downloads.add(uri);
         Files.write(destination, new byte[1]);
         throw new IOException("down " + uri.getHost());
@@ -294,7 +312,7 @@ class LinuxLibrariesTest {
 
   @Test
   void aPlatformWithoutLibrariesIsRefused() {
-    final LinuxLibraries libraries = new LinuxLibraries(this.folder, (uri, destination, sha256) -> {}, List.of(), List.of());
+    final LinuxLibraries libraries = new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of());
     final IOException failure = assertThrows(IOException.class, () -> libraries.install("linux-riscv64"));
     assertEquals("mcav has no libraries for linux-riscv64", failure.getMessage());
   }
@@ -349,12 +367,12 @@ class LinuxLibrariesTest {
   @Test
   void onlyThePackagesTheServerLacksAreLinkedIntoTheSession() throws IOException {
     final Path host = Files.createDirectories(this.folder.resolve("host"));
-    Files.createFile(host.resolve("libpresent.so.1"));
-    Files.createFile(host.resolve("libz.so.1"));
+    Files.write(host.resolve("libpresent.so.1"), elf(2, 1, 62));
+    Files.write(host.resolve("libz.so.1"), elf(2, 1, 62));
     final String hash = "0".repeat(64);
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder,
-      (uri, destination, sha256) -> {},
+      (uri, destination, sha256, size) -> {},
       List.of(),
       List.of(
         "host linux-amd64 libz.so.1",
@@ -412,7 +430,7 @@ class LinuxLibrariesTest {
     assertEquals(this.folder.resolve("empty-root/lib/aarch64-linux-gnu"), arm.getFirst());
     assertEquals(6, arm.size(), "a system without a configuration has the default folders only");
     assertEquals(List.of(), LinuxLibraries.glob(Path.of("/"), "/"), "the root names no files");
-    assertFalse(LinuxLibraries.isPresent("libmcav-nothing.so", List.of()));
+    assertFalse(LinuxLibraries.isPresent("libmcav-nothing.so", List.of(), "linux-amd64"));
   }
 
   @Test
@@ -448,7 +466,7 @@ class LinuxLibrariesTest {
       this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb).replace("linux-amd64", platform)));
     final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
-    Files.write(loader.resolve("libmcavtest.so.1"), new byte[1]);
+    Files.write(loader.resolve("libmcavtest.so.1"), elf(2, 1, platform.endsWith("arm64") ? 183 : 62));
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), 1_000L, OS.LINUX);
     assertSame(linux, CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries, root));
     assertEquals(List.of(), this.downloads, "a server behind a firewall that has every library needs no mirror");
@@ -502,5 +520,57 @@ class LinuxLibrariesTest {
     assertEquals(List.of(this.folder.resolve("top.conf")), LinuxLibraries.glob(this.folder, "*.conf"));
     assertEquals(List.of(), LinuxLibraries.glob(this.folder, "/"));
     assertEquals(List.of(), LinuxLibraries.glob(this.folder, "etc/"));
+  }
+
+  @Test
+  void aLibraryOfTheServerCountsOnlyWhenItIsBuiltForThePlatform() throws IOException {
+    final Path folder = Files.createDirectories(this.folder.resolve("multiarch"));
+    final Path amd64 = Files.write(folder.resolve("amd64.so"), elf(2, 1, 62));
+    final Path arm64 = Files.write(folder.resolve("arm64.so"), elf(2, 1, 183));
+    assertTrue(LinuxLibraries.isBuiltFor(amd64, "linux-amd64"));
+    assertFalse(LinuxLibraries.isBuiltFor(amd64, "linux-arm64"));
+    assertTrue(LinuxLibraries.isBuiltFor(arm64, "linux-arm64"));
+    assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("i386.so"), elf(1, 1, 3)), "linux-amd64"), "32 bits");
+    assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("big.so"), elf(2, 2, 62)), "linux-amd64"), "big-endian");
+    final byte[] notElf = elf(2, 1, 62);
+    notElf[1] = 'X';
+    assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("text.so"), notElf), "linux-amd64"), "no ELF file");
+    assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("short.so"), new byte[19]), "linux-amd64"), "too short");
+    assertFalse(LinuxLibraries.isBuiltFor(folder.resolve("missing.so"), "linux-amd64"), "no file");
+    // a 32-bit copy in an earlier folder of the loader does not hide a missing 64-bit one
+    final Path i386 = Files.createDirectories(this.folder.resolve("i386"));
+    Files.write(i386.resolve("libX11.so.6"), elf(1, 1, 3));
+    assertFalse(LinuxLibraries.isPresent("libX11.so.6", List.of(i386), "linux-amd64"));
+  }
+
+  @Test
+  void aRelativeIncludeOfTheLoaderLiesBesideItsFile() throws IOException {
+    final Path root = this.folder.resolve("relative-root");
+    final Path etc = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
+    Files.writeString(root.resolve("etc/ld.so.conf"), "include ld.so.conf.d/*.conf\n");
+    Files.writeString(etc.resolve("game.conf"), "/opt/relative\n");
+    assertEquals(root.resolve("opt/relative"), LinuxLibraries.hostFolders(root, "linux-amd64").getFirst());
+  }
+
+  @Test
+  void aPackageOfTheSecurityUpdatesComesFromTheirMirrors() throws IOException {
+    final byte[] deb = testPackage();
+    final List<URI> asked = new ArrayList<>();
+    final LinuxLibraries libraries = new LinuxLibraries(
+      this.folder.resolve("security-cache"),
+      (uri, destination, sha256, size) -> {
+        asked.add(uri);
+        Files.write(destination, deb);
+      },
+      List.of("https://main.test/debian/"),
+      List.of("https://security.test/debian-security/"),
+      List.of(pin(deb).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
+    );
+    libraries.install("linux-amd64");
+    assertEquals(
+      List.of(URI.create("https://security.test/debian-security/pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb")),
+      asked
+    );
+    assertEquals("https://snapshot.debian.org/archive/debian-security/20260901T000000Z/", LinuxLibraries.SECURITY_MIRRORS.get(1));
   }
 }

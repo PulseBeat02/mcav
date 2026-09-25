@@ -384,7 +384,8 @@ class NetworkGuardTest {
     guard.close();
     assertEnded(client);
     Await.until("the target connection ended", () -> this.echoEnded.get() == 1);
-    assertThrows(ConnectException.class, () -> new Socket(LOOPBACK, guard.getPort()).close());
+    // the socket itself, not a connection attempt: another process of the machine may take the freed port at once
+    assertTrue(guard.getServer().isClosed(), "the guard stopped listening");
     assertEquals(List.of(), this.notices);
   }
 

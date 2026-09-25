@@ -191,6 +191,25 @@ public final class HttpDownloader {
   }
 
   /**
+   * Downloads a file whose hash and size are both pinned: it is verified against its SHA-256 hash, and the download
+   * stops as soon as it turns out to be larger than its size, so a mirror that sends something else cannot fill the
+   * disk before the hash tells.
+   *
+   * @param uri            the URL to download
+   * @param destination    the file to write, which is replaced only after a complete download
+   * @param expectedSha256 the expected SHA-256 hash in hexadecimal
+   * @param maxBytes       the largest number of bytes the download may have, at least 1
+   * @throws DownloadTooLargeException if the download is larger than the limit
+   * @throws ChecksumMismatchException if the hash does not match
+   * @throws IOException               if the download fails
+   */
+  public static void download(final URI uri, final Path destination, final String expectedSha256, final long maxBytes) throws IOException {
+    Preconditions.checkNotNull(expectedSha256, "Expected SHA-256 must not be null");
+    Preconditions.checkArgument(maxBytes > 0, "The size limit must be positive but was %s", maxBytes);
+    download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT, maxBytes);
+  }
+
+  /**
    * Downloads a file with a custom delay between attempts and the default idle timeout.
    *
    * @param uri            the URI to download

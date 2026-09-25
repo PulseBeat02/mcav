@@ -438,25 +438,49 @@ class NullDisplayTest {
     }
   }
 
+  private static byte[] cookieOf(final Path authority) throws IOException {
+    final byte[] entry = Files.readAllBytes(authority);
+    return Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
+  }
+
+  private static Socket introduce(final InetAddress loopback, final int port, final byte[] cookie) throws IOException {
+    final Socket client = new Socket(loopback, port);
+    client.setSoTimeout(10_000);
+    client.getOutputStream().write(setup(cookie));
+    new DataInputStream(client.getInputStream()).readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
+    return client;
+  }
+
+  private static boolean internsAnAtom(final Socket client) throws IOException {
+    client.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "PRIMARY"));
+    final byte[] reply = new byte[32];
+    new DataInputStream(client.getInputStream()).readFully(reply);
+    return reply[0] == 1;
+  }
+
   @Test
-  void connectionsBeyondTheLimitAreClosedAtOnce() throws IOException {
+  void clientsWithTheCookieBeyondTheLimitAreEndedAndOneThatLeavesFreesItsPlace() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> clients = new ArrayList<>();
     try (final NullDisplay display = NullDisplay.start(authority)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      final byte[] cookie = cookieOf(authority);
       for (int count = 0; count < NullDisplay.MAX_CONNECTIONS; count++) {
-        final Socket client = new Socket(loopback, port);
-        client.setSoTimeout(10_000);
-        clients.add(client);
+        clients.add(introduce(loopback, port, cookie));
       }
-      try (final Socket extra = new Socket(loopback, port)) {
-        extra.setSoTimeout(10_000);
+      try (final Socket extra = introduce(loopback, port, cookie)) {
         assertEnded(extra.getInputStream());
       }
       // a client that leaves frees its place
       clients.removeFirst().close();
-      Await.until("a place for another client", () -> isRefusedForItsCookie(loopback, port));
+      Await.until("a place for another client", () -> {
+        try (Socket next = introduce(loopback, port, cookie)) {
+          return internsAnAtom(next);
+        } catch (final IOException ended) {
+          return false;
+        }
+      });
     } finally {
       for (final Socket client : clients) {
         client.close();
@@ -464,19 +488,64 @@ class NullDisplayTest {
     }
   }
 
-  /**
-   * Checks whether a new client gets the answer of the display, the refusal of its wrong cookie, rather than a
-   * connection closed for want of a place.
-   */
-  private static boolean isRefusedForItsCookie(final InetAddress loopback, final int port) {
-    try (final Socket another = new Socket(loopback, port)) {
-      another.setSoTimeout(200);
-      another.getOutputStream().write(setup(new byte[16]));
-      return another.getInputStream().read() == 0;
-    } catch (final IOException exception) {
-      // closed at once: no place yet
-      return false;
+  @Test
+  void clientsWithoutTheCookieCannotKeepOneThatHasItOut() throws IOException {
+    final Path authority = this.folder.resolve("Xauthority");
+    final List<Socket> silent = new ArrayList<>();
+    try (final NullDisplay display = NullDisplay.start(authority)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      for (int count = 0; count < NullDisplay.MAX_PENDING; count++) {
+        final Socket client = new Socket(loopback, port);
+        client.setSoTimeout(10_000);
+        silent.add(client);
+      }
+      try (Socket introduced = introduce(loopback, port, cookieOf(authority))) {
+        assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
+      }
+      // it took the place of the oldest client that never introduced itself
+      assertEnded(silent.getFirst().getInputStream());
+    } finally {
+      for (final Socket client : silent) {
+        client.close();
+      }
     }
+  }
+
+  @Test
+  void aClientThatOnlyAsksWhetherAnAtomExistsCreatesNone() {
+    final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
+    final ByteBuffer asked = NullDisplay.answer(
+      16,
+      1,
+      requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
+      1,
+      ByteOrder.LITTLE_ENDIAN,
+      atoms
+    );
+    assertEquals(0, asked.getInt(8), "None for a name nobody interned");
+    assertEquals(0, atoms.find("MCAV_NEW"), "and nothing interned");
+    final ByteBuffer interned = NullDisplay.answer(
+      16,
+      0,
+      requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
+      2,
+      ByteOrder.LITTLE_ENDIAN,
+      atoms
+    );
+    final int atom = interned.getInt(8);
+    assertEquals(
+      atom,
+      NullDisplay.answer(16, 1, requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")), 3, ByteOrder.LITTLE_ENDIAN, atoms).getInt(8)
+    );
+    assertEquals(atom, atoms.find("MCAV_NEW"));
+  }
+
+  /**
+   * The body of a request: what follows its opcode, data byte and length.
+   */
+  private static ByteBuffer requestOf(final byte[] request) {
+    return ByteBuffer.wrap(Arrays.copyOfRange(request, 4, request.length)).order(ByteOrder.LITTLE_ENDIAN);
   }
 
   @Test

@@ -47,14 +47,16 @@ client presenting the helper's random cookie may use, and that answers the handf
 else.
 
 Chromium links against libraries a desktop has but a server image often lacks (the X11 client libraries, NSS, ALSA,
-ATK, cups and others). The first start on Linux downloads those the server lacks from the frozen archive of Debian 11
-(bullseye) into `~/.mcav/cache/jcef-libraries`, about 13 MB: 52 packages per architecture, each checked against a
-SHA-256 hash pinned in MCAV, of which only the shared libraries are unpacked. Debian 11 is built for glibc 2.31, so
-any server with glibc 2.31 or newer can use them (libcef itself needs glibc 2.25). A library the server has is always
-the server's own: only the missing ones are linked into the folder of each browser, and only its helper process gets
-that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig and freetype) are
-expected from the server, as every server image tested has them; a server without one of them gets a
-`BrowserUnavailableException` that names it.
+ATK, cups and others). When the server lacks any of them, the first start on Linux downloads them from Debian 11
+(bullseye) into `~/.mcav/cache/jcef-libraries`, about 13 MB: 52 packages per architecture, from the final point
+release or, where Debian's long-term support fixed a package, its last security update, each checked against the
+SHA-256 hash and size pinned in MCAV, of which only the shared libraries are unpacked. A server that has every
+library downloads nothing. Debian 11 is built for glibc 2.31, so any server with glibc 2.31 or newer can use them
+(libcef itself needs glibc 2.25). The server's own libraries win, package by package: only the packages whose main
+library the server lacks, or has only for another architecture, are linked into the folder of each browser, and only
+its helper process gets that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig
+and freetype) are expected from the server, as every server image tested has them; a server without one of them gets
+a `BrowserUnavailableException` that names it.
 
 This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
 `itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
@@ -132,9 +134,10 @@ a page can do instead:
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
   second. A page written to do so can therefore play sound before anyone clicked it, but nothing else.
-- On Linux, the helper's null display listens on the loopback interface only and answers only a client that presents
-  the random cookie of that helper. The libraries MCAV downloads for Linux are frozen Debian 11 packages, which get
-  no more security updates; they only fill in for libraries the server lacks, and only the helper uses them.
+- On Linux, the helper's null display listens on the loopback interface only and serves only clients that present
+  the random cookie of that helper; a client has ten seconds to do so, and clients without the cookie can never take
+  the place of one that has it. The libraries MCAV downloads for Linux are Debian 11 packages at their last security
+  update, which get no more updates; they only fill in for libraries the server lacks, and only the helper uses them.
 
 ## Sound
 

@@ -534,7 +534,7 @@ class CefBrowserPlayerTest {
     final List<URI> downloads = new java.util.concurrent.CopyOnWriteArrayList<>();
     final JcefNatives recording = new JcefNatives(
       Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         downloads.add(uri);
         throw new IOException("offline");
       },
@@ -564,7 +564,7 @@ class CefBrowserPlayerTest {
   void theDefaultSessionsFailWhenTheNativesCannotBeInstalled() {
     final JcefNatives broken = new JcefNatives(
       Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         throw new IOException("offline");
       },
       "https://unreachable.test/",

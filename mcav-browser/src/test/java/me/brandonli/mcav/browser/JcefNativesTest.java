@@ -53,6 +53,8 @@ import org.junit.jupiter.api.io.TempDir;
 class JcefNativesTest {
 
   private static final String REPOSITORY = "https://repository.test/me/friwi/";
+  // the size a test pins for its natives jar, which the fake downloaders here do not need
+  private static final long PINNED_SIZE = 200_000_000L;
 
   @TempDir
   Path folder;
@@ -83,7 +85,7 @@ class JcefNativesTest {
   private JcefNatives natives(final byte[] jar) {
     return new JcefNatives(
       this.folder,
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         this.downloads.incrementAndGet();
         synchronized (this.requested) {
           this.requested.add(uri);
@@ -162,7 +164,7 @@ class JcefNativesTest {
   @Test
   void theNativesAreDownloadedExtractedAndMarkedOnce() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
-    final Path installation = natives.install("linux-amd64", "pinned");
+    final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
     assertEquals(this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
     assertEquals("native", Files.readString(installation.resolve("libjcef.so")));
     assertTrue(Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER)));
@@ -174,7 +176,7 @@ class JcefNativesTest {
       this.requested.getFirst()
     );
     assertEquals(List.of(installation.getFileName().toString()), this.leftovers(), "the jar and the staging folder are gone");
-    assertEquals(installation, natives.install("linux-amd64", "pinned"));
+    assertEquals(installation, natives.install("linux-amd64", "pinned", PINNED_SIZE));
     assertEquals(1, this.downloads.get());
   }
 
@@ -183,15 +185,17 @@ class JcefNativesTest {
     final List<String> hashes = new ArrayList<>();
     final JcefNatives natives = new JcefNatives(
       this.folder,
-      (uri, destination, sha256) -> {
-        hashes.add(sha256);
+      (uri, destination, sha256, size) -> {
+        hashes.add(sha256 + " " + size);
         Files.write(destination, nativesJar(true));
       },
       REPOSITORY,
       new ArchiveExtractor()
     );
     natives.install(JcefNatives.NativePlatform.MACOS_ARM64);
-    assertEquals(List.of(JcefNatives.NativePlatform.MACOS_ARM64.getSha256()), hashes);
+    // the pinned size bounds the download, so a mirror cannot fill the disk before the hash tells
+    final JcefNatives.NativePlatform mac = JcefNatives.NativePlatform.MACOS_ARM64;
+    assertEquals(List.of(mac.getSha256() + " " + mac.getSize()), hashes);
     assertTrue(Files.isDirectory(this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-macosx-arm64")));
   }
 
@@ -199,7 +203,7 @@ class JcefNativesTest {
   void thisMachineGetsItsOwnNatives() throws IOException {
     final JcefNatives natives = new JcefNatives(
       this.folder,
-      (uri, destination, sha256) -> Files.write(destination, nativesJar(true)),
+      (uri, destination, sha256, size) -> Files.write(destination, nativesJar(true)),
       REPOSITORY,
       new ArchiveExtractor()
     );
@@ -222,7 +226,7 @@ class JcefNativesTest {
     final Path partial = this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64");
     Files.createDirectories(partial);
     Files.writeString(partial.resolve("half-written.so"), "?");
-    final Path installation = this.natives(nativesJar(true)).install("linux-amd64", "pinned");
+    final Path installation = this.natives(nativesJar(true)).install("linux-amd64", "pinned", PINNED_SIZE);
     assertFalse(Files.exists(installation.resolve("half-written.so")));
     assertTrue(Files.exists(installation.resolve("libjcef.so")));
   }
@@ -230,7 +234,7 @@ class JcefNativesTest {
   @Test
   void aFailedDownloadLeavesNothingBehind() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
-    final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "tampered"));
+    final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "tampered", PINNED_SIZE));
     assertEquals("Checksum mismatch", failure.getMessage());
     assertEquals(List.of(), this.leftovers());
   }
@@ -238,7 +242,7 @@ class JcefNativesTest {
   @Test
   void aJarWithoutTheArchiveIsRefused() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(false));
-    final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned"));
+    final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned", PINNED_SIZE));
     assertEquals("The natives jar holds no .tar.gz archive", failure.getMessage());
     assertEquals(List.of(), this.leftovers());
   }
@@ -249,7 +253,7 @@ class JcefNativesTest {
     final byte[] jar = nativesJar(true);
     final JcefNatives natives = new JcefNatives(
       this.folder,
-      (uri, destination, sha256) -> {
+      (uri, destination, sha256, size) -> {
         this.downloads.incrementAndGet();
         try {
           release.await(10, TimeUnit.SECONDS);
@@ -299,18 +303,18 @@ class JcefNativesTest {
       final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
       final FileLock held = channel.lock()
     ) {
-      final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned"));
+      final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned", PINNED_SIZE));
       assertEquals("Another copy of mcav in this server is installing the CEF natives; try again once it is done", failure.getMessage());
       assertTrue(held.isValid());
     }
     assertEquals(0, this.downloads.get());
-    natives.install("linux-amd64", "pinned");
+    natives.install("linux-amd64", "pinned", PINNED_SIZE);
     assertEquals(1, this.downloads.get());
   }
 
   private static Path install(final JcefNatives natives) {
     try {
-      return natives.install("linux-amd64", "pinned");
+      return natives.install("linux-amd64", "pinned", PINNED_SIZE);
     } catch (final IOException exception) {
       throw new java.io.UncheckedIOException(exception);
     }

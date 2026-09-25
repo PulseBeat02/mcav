@@ -218,7 +218,7 @@ final class JcefNatives {
   Path install(final NativePlatform platform) throws IOException {
     final String identifier = platform.getIdentifier();
     final String sha256 = platform.getSha256();
-    return this.install(identifier, sha256);
+    return this.install(identifier, sha256, platform.getSize());
   }
 
   /**
@@ -226,11 +226,12 @@ final class JcefNatives {
    *
    * @param identifier the jcefmaven identifier of the platform, such as {@code linux-amd64}
    * @param sha256     the pinned SHA-256 hash of the natives jar
+   * @param size       the pinned size of the natives jar
    * @return the folder of the installation
    * @throws IOException if the download, the verification or the extraction fails
    */
   @VisibleForTesting
-  Path install(final String identifier, final String sha256) throws IOException {
+  Path install(final String identifier, final String sha256, final long size) throws IOException {
     final String name = "jcef-" + JCEFMAVEN_VERSION + "-" + identifier;
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
@@ -246,7 +247,7 @@ final class JcefNatives {
       ) {
         // another process may have installed the natives while this one waited for the lock
         if (!Files.isRegularFile(marker)) {
-          this.installLocked(identifier, sha256, installation);
+          this.installLocked(identifier, sha256, size, installation);
         }
         LOGGER.debug("Released the installation lock {} of {}", lock, name);
       }
@@ -271,7 +272,7 @@ final class JcefNatives {
     }
   }
 
-  private void installLocked(final String identifier, final String sha256, final Path installation) throws IOException {
+  private void installLocked(final String identifier, final String sha256, final long size, final Path installation) throws IOException {
     final long start = System.currentTimeMillis();
     final URI uri = this.createUri(identifier);
     LOGGER.info("Downloading the CEF natives for {} ({} MB, once)", identifier, NativePlatform.approximateMegabytes(identifier));
@@ -279,7 +280,7 @@ final class JcefNatives {
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".jar");
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
     try {
-      this.downloader.download(uri, download, sha256);
+      this.downloader.download(uri, download, sha256, size);
       Files.createDirectories(staging);
       this.extractArchive(download, staging);
       final Path stagedMarker = staging.resolve(INSTALL_MARKER);
@@ -331,9 +332,10 @@ final class JcefNatives {
      * @param uri         the address
      * @param destination the file to write
      * @param sha256      the expected SHA-256 hash in hexadecimal
-     * @throws IOException if the download fails or the hash does not match
+     * @param size        the pinned size of the file, beyond which the download stops
+     * @throws IOException if the download fails, is larger than its size, or the hash does not match
      */
-    void download(URI uri, Path destination, String sha256) throws IOException;
+    void download(URI uri, Path destination, String sha256, long size) throws IOException;
   }
 
   /**

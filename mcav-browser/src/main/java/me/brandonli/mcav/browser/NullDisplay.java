@@ -38,7 +38,9 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,6 +83,12 @@ final class NullDisplay implements AutoCloseable {
    * The most connections the display serves at once.
    */
   static final int MAX_CONNECTIONS = 16;
+
+  /**
+   * The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
+   * without the cookie can never keep one that has it out.
+   */
+  static final int MAX_PENDING = 256;
 
   /**
    * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
@@ -254,6 +262,7 @@ final class NullDisplay implements AutoCloseable {
   private final Atoms atoms;
   private final Semaphore slots;
   private final Set<Socket> clients;
+  private final Deque<Socket> pending;
   private final int setupTimeoutMillis;
 
   private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMillis) {
@@ -263,6 +272,7 @@ final class NullDisplay implements AutoCloseable {
     this.atoms = new Atoms();
     this.slots = new Semaphore(MAX_CONNECTIONS);
     this.clients = ConcurrentHashMap.newKeySet();
+    this.pending = new ArrayDeque<>();
   }
 
   /**
@@ -437,30 +447,51 @@ final class NullDisplay implements AutoCloseable {
         // the display was closed
         return;
       }
-      if (!this.slots.tryAcquire()) {
-        closeQuietly(client);
-        continue;
-      }
       this.clients.add(client);
-      final Thread thread = new Thread(() -> this.serve(client), "mcav-browser-null-display-client");
-      thread.setDaemon(true);
-      thread.start();
+      final Socket evicted = this.admit(client);
+      if (evicted != null) {
+        closeQuietly(evicted);
+      }
+      // a client waits in a read most of its time, so each gets a virtual thread
+      Thread.ofVirtual().name("mcav-browser-null-display-client").start(() -> this.serve(client));
+    }
+  }
+
+  private @Nullable Socket admit(final Socket client) {
+    synchronized (this.pending) {
+      this.pending.addLast(client);
+      return this.pending.size() > MAX_PENDING ? this.pending.removeFirst() : null;
+    }
+  }
+
+  private void introduced(final Socket client) {
+    synchronized (this.pending) {
+      this.pending.remove(client);
     }
   }
 
   private void serve(final Socket client) {
+    boolean slot = false;
     try (client) {
       client.setSoTimeout(this.setupTimeoutMillis);
       final DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
       final OutputStream out = new BufferedOutputStream(client.getOutputStream());
       final ByteOrder order = readSetup(in, out, this.cookie);
-      client.setSoTimeout(0);
-      serveRequests(in, out, order, this.atoms);
+      this.introduced(client);
+      // only a client with the cookie takes a slot, and one more than the slots ends here
+      slot = this.slots.tryAcquire();
+      if (slot) {
+        client.setSoTimeout(0);
+        serveRequests(in, out, order, this.atoms);
+      }
     } catch (final IOException exception) {
       // the client went away or broke the protocol; either way its connection ends
     } finally {
+      this.introduced(client);
       this.clients.remove(client);
-      this.slots.release();
+      if (slot) {
+        this.slots.release();
+      }
     }
   }
 
@@ -679,7 +710,7 @@ final class NullDisplay implements AutoCloseable {
     final Atoms atoms
   ) {
     return switch (opcode) {
-      case INTERN_ATOM -> internAtom(request, sequence, order, atoms);
+      case INTERN_ATOM -> internAtom(data != 0, request, sequence, order, atoms);
       case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
       // no window has properties, so every property is missing: type None, format 0, nothing after, no value
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
@@ -714,7 +745,13 @@ final class NullDisplay implements AutoCloseable {
     return null;
   }
 
-  private static ByteBuffer internAtom(final ByteBuffer request, final int sequence, final ByteOrder order, final Atoms atoms) {
+  private static ByteBuffer internAtom(
+    final boolean onlyIfExists,
+    final ByteBuffer request,
+    final int sequence,
+    final ByteOrder order,
+    final Atoms atoms
+  ) {
     if (request.remaining() < 4) {
       return error(BAD_LENGTH, INTERN_ATOM, sequence, order, 0);
     }
@@ -725,8 +762,10 @@ final class NullDisplay implements AutoCloseable {
     }
     final byte[] name = new byte[length];
     request.get(name);
-    final int atom = atoms.intern(new String(name, StandardCharsets.ISO_8859_1));
-    if (atom == 0) {
+    final String text = new String(name, StandardCharsets.ISO_8859_1);
+    // a client that only asks whether an atom exists gets None for a new name, which is not interned
+    final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
+    if (atom == 0 && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
     }
     final ByteBuffer reply = reply(sequence, order, 0, 0);
@@ -851,6 +890,16 @@ final class NullDisplay implements AutoCloseable {
       for (final String name : PREDEFINED_ATOMS) {
         this.intern(name);
       }
+    }
+
+    /**
+     * Finds the atom of a name that was interned before.
+     *
+     * @param name the name
+     * @return the atom, or 0 (None) if the name has none
+     */
+    synchronized int find(final String name) {
+      return this.ids.getOrDefault(name, 0);
     }
 
     /**
