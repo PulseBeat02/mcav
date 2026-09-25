@@ -75,6 +75,12 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class MapUtils {
 
+  /**
+   * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
+   * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
+   */
+  public static final int MAX_NEW_MAPS = ArgumentUtils.MAX_SCREEN_SIDE * ArgumentUtils.MAX_SCREEN_SIDE;
+
   private MapUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -85,7 +91,8 @@ public final class MapUtils {
    *
    * @param id the id of the map, zero or more
    * @return the map item, with the id in its lore
-   * @throws IllegalArgumentException if the id is negative
+   * @throws IllegalArgumentException if the id is negative, or more than {@link #MAX_NEW_MAPS} ids past the next map
+   *                                  id the server hands out
    * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
    */
   public static ItemStack getMapFromID(final int id) {
@@ -127,13 +134,22 @@ public final class MapUtils {
    * Creates maps until the map with the id exists. The server hands out map ids in increasing order.
    *
    * @return the created map with exactly the requested id
-   * @throws IllegalStateException if the server has already advanced past a missing map id
+   * @throws IllegalArgumentException if the id is more than {@link #MAX_NEW_MAPS} ids past the next map id
+   * @throws IllegalStateException    if the server has already advanced past a missing map id
    */
   private static MapView createMapsUpTo(final int id) {
     final List<World> worlds = Bukkit.getWorlds();
     final World world = worlds.getFirst();
     MapView created = Bukkit.createMap(world);
     int currentId = created.getId();
+    final long missing = (long) id - currentId;
+    Preconditions.checkArgument(
+      missing <= MAX_NEW_MAPS,
+      "Map id %s is more than %s ids past the next map id %s",
+      id,
+      MAX_NEW_MAPS,
+      currentId
+    );
     while (currentId < id) {
       created = Bukkit.createMap(world);
       currentId = created.getId();
@@ -155,7 +171,10 @@ public final class MapUtils {
    * @param height   the height of the screen in blocks, at least 1
    * @param map      the id of the map in the top left corner, zero or more
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
-   * @throws IllegalArgumentException if the width or the height is not positive, or the map id is negative
+   * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, or the
+   *                                  last map id of the screen is more than {@link #MAX_NEW_MAPS} ids past the next
+   *                                  map id; nothing is built then
+   * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
    */
   public static void buildMapScreen(
     final CommandSender sender,
@@ -181,6 +200,10 @@ public final class MapUtils {
     if (!alongX && !alongZ) {
       return;
     }
+    // the maps up to the last id are created before the first block is placed, so an id too far past the maps of
+    // the world changes nothing in it
+    final int lastMapId = (int) lastMap;
+    findOrCreateMap(lastMapId);
 
     final World world = location.getWorld();
     final Block origin = location.getBlock();

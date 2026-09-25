@@ -52,7 +52,7 @@ final class MessageTest {
   void everyMessageHasATextInTheBundledLanguage() throws ReflectiveOperationException {
     final List<Field> fields = messageFields();
     final int fieldCount = fields.size();
-    assertEquals(41, fieldCount);
+    assertEquals(44, fieldCount);
     for (final Field field : fields) {
       final String name = field.getName();
       final Object message = field.get(null);

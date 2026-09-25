@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.sandbox.testing.FakeWorld;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.testing.UtilityClassAssertions;
@@ -182,6 +183,65 @@ final class MapUtilsTest {
     verify(this.server, times(1)).createMap(world);
     final MapMeta meta = this.metas.getFirst();
     verify(meta).setMapView(created);
+  }
+
+  /**
+   * Makes the server hand out consecutive map ids from a first id on, as the real server does. It refuses to create
+   * more than 10000 maps, over twice what the largest wall needs, so a test of an unbounded loop fails instead of
+   * hanging.
+   */
+  private void handOutMapIdsFrom(final World world, final int firstId) {
+    final AtomicInteger nextId = new AtomicInteger(firstId);
+    final long lastAllowedId = firstId + 10_000L;
+    when(this.server.getWorlds()).thenReturn(List.of(world));
+    when(this.server.createMap(world)).thenAnswer(invocation -> {
+      final int id = nextId.getAndIncrement();
+      if (id > lastAllowedId) {
+        throw new AssertionError("Created map " + id + ", far more maps than any wall needs");
+      }
+      final MapView created = mock(MapView.class);
+      when(created.getId()).thenReturn(id);
+      return created;
+    });
+  }
+
+  @Test
+  void createsAsManyMapsAsTheLargestWallNeeds() {
+    final World world = this.fakeWorld.world();
+    final int wanted = 10 + MapUtils.MAX_NEW_MAPS;
+    when(this.server.getMap(wanted)).thenReturn(null);
+    this.handOutMapIdsFrom(world, 10);
+    MapUtils.getMapFromID(wanted);
+    verify(this.server, times(MapUtils.MAX_NEW_MAPS + 1)).createMap(world);
+    assertEquals(1, this.metas.size());
+  }
+
+  @Test
+  void refusesToCreateMoreMapsThanTheLargestWallNeeds() {
+    final World world = this.fakeWorld.world();
+    final int wanted = 11 + MapUtils.MAX_NEW_MAPS;
+    when(this.server.getMap(wanted)).thenReturn(null);
+    this.handOutMapIdsFrom(world, 10);
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromID(wanted));
+    final String message = failure.getMessage();
+    assertEquals("Map id 4107 is more than 4096 ids past the next map id 10", message);
+    verify(this.server, times(1)).createMap(world);
+    assertTrue(this.metas.isEmpty(), "no map item is made for a refused id");
+  }
+
+  @Test
+  void refusesAFarAwayMapIdBeforeChangingTheWorld() {
+    final World world = this.fakeWorld.world();
+    final Player player = playerFacing(BlockFace.NORTH);
+    final Location location = this.fakeWorld.location(0, 64, 0);
+    final int farId = Integer.MAX_VALUE - 1;
+    when(this.server.getMap(Integer.MAX_VALUE)).thenReturn(null);
+    this.handOutMapIdsFrom(world, 0);
+    assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 2, 1, farId));
+    verify(this.server, times(1)).createMap(world);
+    assertEquals(0, this.fakeWorld.changedBlocks());
+    assertTrue(this.fakeWorld.spawnedFrames().isEmpty());
+    assertTrue(this.metas.isEmpty());
   }
 
   @Test

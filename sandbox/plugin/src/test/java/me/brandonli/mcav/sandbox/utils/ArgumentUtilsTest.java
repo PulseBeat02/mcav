@@ -79,6 +79,49 @@ final class ArgumentUtilsTest {
   }
 
   @Test
+  void acceptsTheLargestSides() {
+    final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions("8192x8192");
+    final int width = dimensions.getFirst();
+    final int height = dimensions.getSecond();
+    assertEquals(ArgumentUtils.MAX_SIDE, width);
+    assertEquals(ArgumentUtils.MAX_SIDE, height);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "8193x1", "1x8193", "100000x100000", "2147483647x2147483647" })
+  void rejectsSidesLargerThanTheLimit(final String text) {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
+    final String message = exception.getMessage();
+    assertEquals("Dimensions must be at most 8192 on each side: " + text, message);
+  }
+
+  @Test
+  void acceptsTheLargestWall() {
+    final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions("64x64");
+    final int width = dimensions.getFirst();
+    final int height = dimensions.getSecond();
+    final int maps = width * height;
+    assertEquals(64, width);
+    assertEquals(64, height);
+    assertEquals(4096, maps, "the largest wall fits into one bundle of map packets");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "65x1", "1x65", "65x65", "8192x1" })
+  void rejectsWallsWiderOrTallerThanTheLimit(final String text) {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseScreenDimensions(text)
+    );
+    final String message = exception.getMessage();
+    assertEquals("A wall may be at most 64 maps on each side: " + text, message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "100000x100000", "0x5", "5", "ax5" })
+  void rejectsWallsThatAreNoValidDimensions(final String text) {
+    assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseScreenDimensions(text));
+  }
+
+  @Test
   void collectsTheIdsOfTheSelectedPlayers() {
     final UUID firstId = UUID.randomUUID();
     final UUID secondId = UUID.randomUUID();
@@ -107,6 +150,7 @@ final class ArgumentUtilsTest {
   @Test
   void refusesNullArguments() {
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseDimensions(null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseScreenDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parsePlayerSelectors(null));
   }
 

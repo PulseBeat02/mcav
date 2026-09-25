@@ -109,7 +109,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
 
-    final Pair<Integer, Integer> blocks = parseDimensions(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
       return;
     }

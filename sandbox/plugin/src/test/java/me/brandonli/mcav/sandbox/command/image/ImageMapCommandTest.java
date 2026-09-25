@@ -50,6 +50,8 @@ import org.bukkit.entity.Player;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -155,9 +157,10 @@ final class ImageMapCommandTest {
     assertNotSame(first, second);
   }
 
-  @Test
-  void refusesInvalidWallSizes() {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, "3-2", MAP_ID, DitheringArgument.FILTER_LITE, MRL);
+  @ParameterizedTest
+  @ValueSource(strings = { "3-2", "65x1", "1x65" })
+  void refusesInvalidWallSizes(final String wall) {
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL);
     verify(this.command, never()).displayImage(any(), any(), any(), any());
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();

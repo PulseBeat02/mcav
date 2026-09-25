@@ -56,13 +56,16 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    * the command that shows media on it.
    *
    * <p>Requires the permission {@code mcav.command.screen}; players and the console can run it. The sender is told
-   * when the wall is built, or gets an error message if the dimensions are invalid.
+   * when the wall is built, or gets an error message if the dimensions are invalid or the map ids cannot be used. No
+   * block is placed when the dimensions are invalid or the map ids lie too far past the maps of the world.
    *
    * @param sender          who builds the screen
-   * @param blockDimensions the size of the wall as {@code <width>x<height>} in blocks, such as {@code 5x5}; each block
-   *                        holds one 128x128 pixel map
+   * @param blockDimensions the size of the wall as {@code <width>x<height>} in blocks, such as {@code 5x5}, at most
+   *                        {@value ArgumentUtils#MAX_SCREEN_SIDE} on each side; each block holds one 128x128 pixel
+   *                        map
    * @param mapId           the id of the map in the top left corner; the wall uses this id and the following
-   *                        width times height minus one ids
+   *                        width times height minus one ids, which may lie at most {@value MapUtils#MAX_NEW_MAPS} ids
+   *                        past the maps the world already has
    * @param material        the block the wall is made of, such as {@code black_concrete}
    * @param location        where the wall is built, such as {@code ~ ~ ~}
    */
@@ -82,7 +85,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(location, "Location must not be null");
     final Pair<Integer, Integer> dimensions;
     try {
-      dimensions = ArgumentUtils.parseDimensions(blockDimensions);
+      dimensions = ArgumentUtils.parseScreenDimensions(blockDimensions);
     } catch (final IllegalArgumentException exception) {
       final Component error = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(error);
@@ -91,7 +94,13 @@ public final class ScreenCommand implements AnnotationCommandFeature {
 
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    MapUtils.buildMapScreen(sender, location, material, width, height, mapId);
+    try {
+      MapUtils.buildMapScreen(sender, location, material, width, height, mapId);
+    } catch (final IllegalArgumentException | IllegalStateException exception) {
+      final Component error = Message.UNSUPPORTED_MAP_ID.build();
+      sender.sendMessage(error);
+      return;
+    }
     final Component built = Message.SCREEN_BUILD.build();
     sender.sendMessage(built);
   }

@@ -31,6 +31,19 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class ArgumentUtils {
 
+  /**
+   * The largest width or height {@link #parseDimensions(String)} accepts, in pixels or blocks. 8192 pixels is the
+   * native resolution of a wall of {@value #MAX_SCREEN_SIDE} maps, so no display of the plugin needs more.
+   */
+  public static final int MAX_SIDE = 8192;
+
+  /**
+   * The largest width or height of a wall of maps that {@link #parseScreenDimensions(String)} accepts, in maps. The
+   * largest wall, 64 by 64, has 4096 maps, which is the number of packets a client accepts in one bundle, so a whole
+   * frame of it, and clearing it, still reach every viewer at once.
+   */
+  public static final int MAX_SCREEN_SIDE = 64;
+
   private ArgumentUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -44,8 +57,8 @@ public final class ArgumentUtils {
    * @return the width as the first value and the height as the second value, both at least 1
    * @throws NullPointerException     if the argument is {@code null}
    * @throws IllegalArgumentException if the text has no {@code x}, if either side is not a whole number (reported as
-   *                                  the subclass {@link NumberFormatException}), or if either side is zero or
-   *                                  negative
+   *                                  the subclass {@link NumberFormatException}), or if either side is zero,
+   *                                  negative or larger than {@link #MAX_SIDE}
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
     Preconditions.checkNotNull(argument, "Argument must not be null");
@@ -59,7 +72,30 @@ public final class ArgumentUtils {
     if (width <= 0 || height <= 0) {
       throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
     }
+    if (width > MAX_SIDE || height > MAX_SIDE) {
+      throw new IllegalArgumentException("Dimensions must be at most %d on each side: %s".formatted(MAX_SIDE, argument));
+    }
     return Pair.pair(width, height);
+  }
+
+  /**
+   * Parses the size of a wall of maps written as {@code <width>x<height>}, such as {@code 5x5}. Besides the rules of
+   * {@link #parseDimensions(String)}, a side may have at most {@value #MAX_SCREEN_SIDE} maps, because every map of a
+   * wall is built on the main thread and sent to every viewer.
+   *
+   * @param argument the size as the player typed it
+   * @return the width as the first value and the height as the second value, both at least 1
+   * @throws NullPointerException     if the argument is {@code null}
+   * @throws IllegalArgumentException if the text is not a valid size, or the wall is larger than the limits
+   */
+  public static Pair<Integer, Integer> parseScreenDimensions(final String argument) {
+    final Pair<Integer, Integer> dimensions = parseDimensions(argument);
+    final int width = dimensions.getFirst();
+    final int height = dimensions.getSecond();
+    if (width > MAX_SCREEN_SIDE || height > MAX_SCREEN_SIDE) {
+      throw new IllegalArgumentException("A wall may be at most %d maps on each side: %s".formatted(MAX_SCREEN_SIDE, argument));
+    }
+    return dimensions;
   }
 
   /**

@@ -215,6 +215,25 @@ public interface Message extends LocaleTools {
   NullComponent UNSUPPORTED_DIMENSION = direct("mcav.command.dimension.error");
 
   /**
+   * Key {@code mcav.command.map.error}: the map ids of {@code /mcav screen} lie too far past the maps the world
+   * already has, or one of them belonged to a map that no longer exists.
+   */
+  NullComponent UNSUPPORTED_MAP_ID = direct("mcav.command.map.error");
+
+  /**
+   * Key {@code mcav.command.flags.error}: the {@code --yt-dlp} options of a video command name an option the commands
+   * do not accept. The argument is why they were refused, inserted at {@code <arg:0>}.
+   */
+  UniComponent<String> UNSUPPORTED_FLAGS = direct("mcav.command.flags.error", null);
+
+  /**
+   * Key {@code mcav.command.vm.flags.error}: the QEMU options of {@code /mcav vm create} name an option the command
+   * does not accept, or a disk image outside the image folder of the plugin. The argument is why they were refused,
+   * inserted at {@code <arg:0>}.
+   */
+  UniComponent<String> UNSUPPORTED_VM_FLAGS = direct("mcav.command.vm.flags.error", null);
+
+  /**
    * Key {@code mcav.command.dump.result}: {@code /mcav dump} uploaded the diagnostic dump. The argument is its link,
    * inserted at {@code $URL$}, to share when asking for support.
    */

@@ -59,6 +59,8 @@ import org.bukkit.entity.Player;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -249,9 +251,10 @@ final class VideoMapCommandTest {
     assertNotSame(first, second);
   }
 
-  @Test
-  void refusesInvalidWallSizes() {
-    this.playOnWall("5x", DitheringArgument.FILTER_LITE);
+  @ParameterizedTest
+  @ValueSource(strings = { "5x", "65x1", "1x65" })
+  void refusesInvalidWallSizes(final String wall) {
+    this.playOnWall(wall, DitheringArgument.FILTER_LITE);
 
     verify(this.command, never()).playVideo(
       any(AbstractVideoCommand.VideoConfigurationProvider.class),

@@ -30,6 +30,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -64,6 +66,46 @@ final class ScreenCommandTest {
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expected = List.of(error);
     assertEquals(expected, messages);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "100000x100000", "65x1", "1x65", "8193x8193" })
+  void refusesWallsLargerThanTheLimit(final String size) {
+    try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
+      this.command.buildScreen(this.sender, size, 10, Material.STONE, this.location);
+      maps.verifyNoInteractions();
+    }
+    final List<Component> messages = Components.received(this.sender);
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    final List<Component> expected = List.of(error);
+    assertEquals(expected, messages);
+  }
+
+  @Test
+  void buildsTheLargestWall() {
+    try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
+      this.command.buildScreen(this.sender, "64x64", 10, Material.STONE, this.location);
+      maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 64, 64, 10));
+    }
+    final List<Component> messages = Components.received(this.sender);
+    final Component built = Message.SCREEN_BUILD.build();
+    final List<Component> expected = List.of(built);
+    assertEquals(expected, messages);
+  }
+
+  @ParameterizedTest
+  @ValueSource(classes = { IllegalArgumentException.class, IllegalStateException.class })
+  void tellsTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
+    try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
+      maps
+        .when(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 5, 3, Integer.MAX_VALUE - 20))
+        .thenThrow(failureType);
+      this.command.buildScreen(this.sender, "5x3", Integer.MAX_VALUE - 20, Material.STONE, this.location);
+    }
+    final List<Component> messages = Components.received(this.sender);
+    final Component error = Message.UNSUPPORTED_MAP_ID.build();
+    final List<Component> expected = List.of(error);
+    assertEquals(expected, messages, "the sender is told instead of seeing an internal error");
   }
 
   @Test

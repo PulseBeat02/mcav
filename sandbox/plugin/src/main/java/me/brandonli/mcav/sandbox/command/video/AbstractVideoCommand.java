@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -145,7 +146,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (resolution == null) {
       return;
     }
-    final String[] ytdlpArguments = parseFlags(flags);
+    final String[] ytdlpArguments = parseFlags(sender, flags);
+    if (ytdlpArguments == null) {
+      return;
+    }
     final boolean ready = this.checkBackends(sender, playerType, audioType, mrl);
     if (!ready || !this.claim(sender)) {
       return;
@@ -192,6 +196,26 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   /**
+   * Parses the size of a wall of maps such as {@code 5x5}, telling the sender when it is not valid or larger than
+   * {@link ArgumentUtils#parseScreenDimensions(String)} allows.
+   *
+   * @param sender who ran the command
+   * @param text   the size as entered
+   * @return the width and height in maps, or {@code null} if the text is not a valid wall size
+   */
+  protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null");
+    try {
+      return ArgumentUtils.parseScreenDimensions(text);
+    } catch (final IllegalArgumentException exception) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
+      return null;
+    }
+  }
+
+  /**
    * Claims the right to start a video, which only one command may do at a time.
    *
    * @return true if claimed, false if another video is still starting
@@ -218,9 +242,22 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  private static String[] parseFlags(final String flags) {
+  /**
+   * Parses the yt-dlp options of the flags, telling the sender when one of them is not supported.
+   *
+   * @return the arguments for yt-dlp, or {@code null} if an option was refused
+   */
+  private static String@Nullable[] parseFlags(final CommandSender sender, final String flags) {
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
-    return flagsParser.parseYTDLPFlags(flags);
+    try {
+      return flagsParser.parseYTDLPFlags(flags);
+    } catch (final IllegalArgumentException exception) {
+      final String cause = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(cause, "The flags are not valid");
+      final Component message = Message.UNSUPPORTED_FLAGS.build(reason);
+      sender.sendMessage(message);
+      return null;
+    }
   }
 
   /**
