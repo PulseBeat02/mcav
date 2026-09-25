@@ -178,7 +178,8 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     this.respond(context, method);
   }
 
-  // the request is complete, so the client has nothing more to send while it downloads the file
+  // The request is complete, so the client has nothing more to send while it downloads the file. The write timeout of
+  // the pipeline takes over from here and closes a download that stalls.
   private static void stopReadTimeout(final ChannelHandlerContext context) {
     final ChannelPipeline pipeline = context.pipeline();
     final ChannelHandler timeout = pipeline.get(FileHttpChannelInitializer.READ_TIMEOUT_NAME);

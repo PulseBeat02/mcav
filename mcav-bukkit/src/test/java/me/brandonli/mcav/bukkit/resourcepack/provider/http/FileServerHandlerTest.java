@@ -355,12 +355,14 @@ final class FileServerHandlerTest {
   }
 
   @Test
-  void removesTheReadTimeoutOnceTheRequestIsComplete() {
+  void removesTheReadTimeoutOnceTheRequestIsCompleteAndKeepsTheWriteTimeout() {
     final FileServerHandler handler = new FileServerHandler(this.pack);
     final ChannelPipeline pipeline = mock(ChannelPipeline.class);
     final ChannelHandler timeout = mock(ChannelHandler.class);
+    final ChannelHandler writeTimeout = mock(ChannelHandler.class);
     final ChannelHandlerContext context = mockContext(pipeline);
     when(pipeline.get(FileHttpChannelInitializer.READ_TIMEOUT_NAME)).thenReturn(timeout);
+    when(pipeline.get(FileHttpChannelInitializer.WRITE_TIMEOUT_NAME)).thenReturn(writeTimeout);
     final ByteBuf requestLine = ascii("POST / HTTP/1.1\r\n");
     final ByteBuf headerEnd = ascii("\r\n");
 
@@ -371,6 +373,7 @@ final class FileServerHandlerTest {
     handler.handlerRemoved(context);
 
     verify(pipeline).remove(timeout);
+    verify(pipeline, never()).remove(writeTimeout);
   }
 
   @Test
