@@ -19,6 +19,7 @@ package me.brandonli.mcav.loader;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -200,7 +201,9 @@ public final class DependencyLoader {
 
   /**
    * Loads FFmpeg with the specified loader and then runs the setup that needs FFmpeg. A missing device library only
-   * disables capture devices, so that failure is logged instead of thrown, and the setup still runs.
+   * disables capture devices, so that failure is logged instead of thrown, and the setup still runs. That holds for
+   * every load in a JVM: after the first, the JVM reports the device library's class as failed, naming the first
+   * failure as the cause, as when a plugin that installs mcav is disabled and enabled again.
    *
    * @param ffmpegLoader loads the FFmpeg libraries
    * @param setup        configures FFmpeg once it is loaded, such as its logging
@@ -210,11 +213,13 @@ public final class DependencyLoader {
   static void loadFFmpeg(final Runnable ffmpegLoader, final Runnable setup) {
     try {
       ffmpegLoader.run();
-    } catch (final UnsatisfiedLinkError exception) {
-      final String message = exception.getMessage();
-      final boolean avdeviceOnly = message != null && message.contains(JNI_AVDEVICE);
+    } catch (final UnsatisfiedLinkError | NoClassDefFoundError exception) {
+      final boolean avdeviceOnly = Throwables.getCausalChain(exception)
+        .stream()
+        .map(Throwable::getMessage)
+        .anyMatch(message -> message != null && message.contains(JNI_AVDEVICE));
       if (!avdeviceOnly) {
-        throw new NativeLoadingException("Failed to load FFmpeg: " + message, exception);
+        throw new NativeLoadingException("Failed to load FFmpeg: " + exception.getMessage(), exception);
       }
       LOGGER.warn("The FFmpeg device library is not available, capture devices will not work");
     }

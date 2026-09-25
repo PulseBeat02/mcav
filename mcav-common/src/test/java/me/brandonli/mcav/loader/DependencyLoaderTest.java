@@ -34,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -46,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.Installer;
 import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemException;
@@ -143,6 +145,29 @@ final class DependencyLoaderTest {
     );
     final boolean setupRan = configured.get();
     assertTrue(setupRan, "the log callback is set up even without the device library");
+  }
+
+  @Test
+  void toleratesTheMissingDeviceLibraryAgainWhenFFmpegIsLoadedASecondTime() {
+    // a plugin disabled and enabled again loads FFmpeg twice in one JVM: the second load finds the class failed
+    final AtomicInteger configured = new AtomicInteger();
+    final Runnable loader = FailingDeviceLibrary::touch;
+    assertDoesNotThrow(() -> DependencyLoader.loadFFmpeg(loader, configured::incrementAndGet));
+    final NoClassDefFoundError again = assertThrows(NoClassDefFoundError.class, loader::run);
+    assertDoesNotThrow(() -> DependencyLoader.loadFFmpeg(loader, configured::incrementAndGet));
+    assertEquals(2, configured.get());
+    assertTrue(Throwables.getStackTraceAsString(again).contains("no jniavdevice"), again::toString);
+  }
+
+  @Test
+  void reportsAnotherFFmpegClassThatFailedBefore() {
+    final NoClassDefFoundError codecClass = new NoClassDefFoundError("Could not initialize class avcodec");
+    codecClass.initCause(new ExceptionInInitializerError("Exception java.lang.UnsatisfiedLinkError: no jniavcodec"));
+    final AtomicBoolean configured = new AtomicBoolean();
+    final NativeLoadingException failure = loadFFmpegFailingWith(codecClass, configured);
+    assertSame(codecClass, failure.getCause());
+    assertTrue(failure.getMessage().contains("Could not initialize class avcodec"), failure.getMessage());
+    assertFalse(configured.get(), "FFmpeg that failed to load is not configured");
   }
 
   @Test
@@ -525,12 +550,31 @@ final class DependencyLoaderTest {
     return loader.hasCapability(Capability.VLC);
   }
 
-  private static NativeLoadingException loadFFmpegFailingWith(final UnsatisfiedLinkError error, final AtomicBoolean configured) {
+  private static NativeLoadingException loadFFmpegFailingWith(final LinkageError error, final AtomicBoolean configured) {
     final Runnable failingLoader = () -> {
       throw error;
     };
     final Runnable setup = () -> configured.set(true);
     return assertThrows(NativeLoadingException.class, () -> DependencyLoader.loadFFmpeg(failingLoader, setup));
+  }
+
+  /**
+   * A class whose initializer fails as FFmpeg's device class does without its library: the first use throws that
+   * failure, and every later one a {@link NoClassDefFoundError} that names it as the cause.
+   */
+  static final class FailingDeviceLibrary {
+
+    private static final int LOADED = fail();
+
+    private FailingDeviceLibrary() {}
+
+    private static int fail() {
+      throw new UnsatisfiedLinkError("no jniavdevice in java.library.path");
+    }
+
+    static void touch() {
+      assertEquals(0, LOADED);
+    }
   }
 
   private static void restorePathsFirst(final String value) {
