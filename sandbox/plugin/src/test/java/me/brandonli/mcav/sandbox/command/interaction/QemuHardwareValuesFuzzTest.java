@@ -36,14 +36,15 @@ final class QemuHardwareValuesFuzzTest {
   private static final List<String> OPTIONS = List.of("machine", "m", "smp", "accel", "boot", "name", "rtc", "cpu", "k", "vga");
 
   private static final List<String> FILE_PROPERTIES = List.of(
-    "dumpdtb=",
-    "dtb=",
-    "kernel=",
-    "initrd=",
-    "firmware=",
-    "splash=",
-    "memory-backend=",
-    "pcspk-audiodev="
+    "dumpdtb",
+    "dtb",
+    "kernel",
+    "initrd",
+    "firmware",
+    "append",
+    "splash",
+    "memory-backend",
+    "pcspk-audiodev"
   );
 
   @FuzzTest(maxDuration = "30s")
@@ -59,8 +60,14 @@ final class QemuHardwareValuesFuzzTest {
       return;
     }
     assertFalse(value.indexOf('/') >= 0 || value.indexOf('\\') >= 0, () -> "-" + option + " accepted a path: " + value);
-    for (final String property : FILE_PROPERTIES) {
-      assertFalse(value.contains(property), () -> "-" + option + " accepted " + property + " in " + value);
+    // every file property takes a value, and properties are told apart by their whole name: a name that only contains
+    // that of a file property is another one, which QEMU refuses as unknown
+    for (final String part : value.split(",", -1)) {
+      final int equals = part.indexOf('=');
+      if (equals > 0) {
+        final String property = part.substring(0, equals);
+        assertFalse(FILE_PROPERTIES.contains(property), () -> "-" + option + " accepted the property " + property + " in " + value);
+      }
     }
   }
 }

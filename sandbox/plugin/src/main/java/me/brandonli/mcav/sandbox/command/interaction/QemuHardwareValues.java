@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 import com.google.common.base.Splitter;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -123,6 +124,18 @@ final class QemuHardwareValues {
     Pattern.compile("none|slew")
   );
   private static final Pattern CPU_FEATURE = Pattern.compile("[+-][A-Za-z0-9._-]{1,64}|[A-Za-z0-9._-]{1,64}=[A-Za-z0-9._-]{1,64}");
+  // the properties through which QEMU reads or writes a file or routes sound; no CPU has them, and none passes as one
+  private static final Set<String> FILE_PROPERTIES = Set.of(
+    "dumpdtb",
+    "dtb",
+    "kernel",
+    "initrd",
+    "firmware",
+    "append",
+    "splash",
+    "memory-backend",
+    "pcspk-audiodev"
+  );
   private static final Pattern KEYBOARD = Pattern.compile("[a-z]{2}(-[a-z]{2,3})?");
   private static final Pattern VGA = Pattern.compile("[a-z0-9]{2,16}");
   private static final Splitter PARTS = Splitter.on(',');
@@ -198,6 +211,11 @@ final class QemuHardwareValues {
     require("cpu", value, WORD.matcher(model).matches());
     for (final String feature : features) {
       require("cpu", value, CPU_FEATURE.matcher(feature).matches());
+      final int equals = feature.indexOf('=');
+      // a switch such as +avx2 has no value; a property may not use the name of one that reaches a file
+      if (equals > 0) {
+        require("cpu", value, !FILE_PROPERTIES.contains(feature.substring(0, equals)));
+      }
     }
   }
 

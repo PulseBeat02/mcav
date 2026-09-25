@@ -40,8 +40,7 @@ final class QemuHardwareValuesPropertyTest {
 
   @Provide
   Arbitrary<String> optionsWithProperties() {
-    // a -cpu value may hold any feature, which names no file and changes no sound
-    return Arbitraries.of("machine", "m", "smp", "accel", "boot", "name", "rtc", "k", "vga");
+    return Arbitraries.of("machine", "m", "smp", "accel", "boot", "name", "rtc", "cpu", "k", "vga");
   }
 
   @Provide

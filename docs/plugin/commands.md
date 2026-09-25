@@ -259,7 +259,7 @@ You must have QEMU installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the VM plays, as for the video commands (`NONE` keeps it silent); only `X86_64` PC and Q35 machines have sound    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the VM plays, as for the video commands (`NONE` keeps it silent); only `X86_64` PC and Q35 machines have sound, other architectures must choose `NONE`; a machine with sound takes the output over from a playing video    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory); see [which options are accepted](#qemu-options) |
 
 ---
