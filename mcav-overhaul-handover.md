@@ -25,9 +25,10 @@ mutation assurance is separate and remains incomplete. The large-method/class st
 
 Pass 2 ran on Linux with GraalVM 25, native VLC/plugins, QEMU, GTK2, Chrome/Playwright and software OpenGL via the
 owner's Xvfb `:99`. `/dev/snd` is present and a real audio-line test passed; this does not demonstrate audible
-fidelity. Xvfb is environment-owned: never stop/restart it. Preserve Windows assumptions. Two pre-existing OpenCV
-file-player skips reflect the bundled Linux build lacking the FFMPEG backend and are assigned to pass 4.
-Windows/macOS/big-endian behavior of this final tree is untested.
+fidelity. Xvfb is environment-owned: never stop/restart it. Preserve Windows assumptions. Pass 4 closed the two
+OpenCV file-player skips: where the bundled OpenCV build has no file backend, as on Linux, the OpenCV player reads
+files with the FFmpeg reader of JavaCV, so both tests run everywhere instead of skipping. Windows/macOS/big-endian
+behavior of this final tree is untested; pass 4 could not reach either guest.
 
 Use `./gradlew`; serialize Gradle/PIT commands, cap each at 900 seconds, write background output to logs and check
 results no more often than every 10 minutes. Do not edit sources during compilation or snapshot freezing. Run one
@@ -69,6 +70,14 @@ inspection run was available. Static text scans are not equivalent to a complete
   images/video results on disable, aggregate shutdown failures, repair help navigation, parse repeated QEMU options,
   protect translated URL components, redact space-separated secret options and bound log-tail memory; screen UUID
   identity and map-ID range validation; quoted/unquoted image MRL support and blank-source rejection.
+- Pass 4 (security): every size and map id a command may name is bounded, and a screen creates its maps before it
+  places a block; the yt-dlp options of the video commands and the QEMU options of `/mcav vm create` are allowlists,
+  and a disk image must be a file of the plugin's `iso` folder; clicks and chat reach a browser or a virtual machine
+  only from a player who has its interact permission, while the frames of a screen stay protected for everyone; the
+  dump masks player addresses and the arguments of other plugins' commands; the resource-pack server closes a
+  download that stalls and bounds how many run at once, and hosting on the Minecraft port reads the pack before the
+  Netty thread needs it; an image download is bounded to 64 MiB. What pass 4 left open, including the browser running
+  without the Chromium sandbox in a container, is in `~/mcav-pass4-report.md`.
 - Council followups: reject unsafe root installer artifact IDs before directory creation; reject/close native empty
   cascade classifiers; stop pre-start HTTP listeners; share pending website metadata requests; correct misleading
   resume failure text; build website assets as a jar prerequisite with managed Node and complete input tracking.
