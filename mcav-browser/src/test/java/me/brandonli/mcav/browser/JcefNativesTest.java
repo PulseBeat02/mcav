@@ -272,9 +272,23 @@ class JcefNativesTest {
   @Test
   void aPlatformWithoutNativesIsRefusedBeforeAnythingIsDownloaded() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
-    final IOException failure = assertThrows(IOException.class, () -> natives.install(OS.FREEBSD, Arch.X86, Bits.BITS_64));
+    final IOException failure = assertThrows(IOException.class, () ->
+      natives.install(JcefNatives.detectOrFail(OS.FREEBSD, Arch.X86, Bits.BITS_64))
+    );
     assertEquals("jcefmaven has no CEF build for FREEBSD X86 BITS_64; the browser cannot run here", failure.getMessage());
     assertEquals(0, this.downloads.get());
+  }
+
+  @Test
+  void aMachineIsSupportedWhenJcefmavenHasACefBuildForIt() {
+    assertTrue(JcefNatives.isSupported(OS.LINUX, Arch.X86, Bits.BITS_64));
+    assertTrue(JcefNatives.isSupported(OS.MAC, Arch.ARM, Bits.BITS_64));
+    assertFalse(JcefNatives.isSupported(OS.LINUX, Arch.X86, Bits.BITS_32), "no 32-bit builds");
+    assertFalse(JcefNatives.isSupported(OS.FREEBSD, Arch.X86, Bits.BITS_64));
+    // the machine of the tests runs the browser
+    assertTrue(JcefNatives.isSupported());
+    assertTrue(BrowserPlayer.isSupported());
+    assertTrue(new BrowserModule().isSupported());
   }
 
   @Test

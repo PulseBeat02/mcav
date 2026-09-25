@@ -429,6 +429,11 @@ public final class BrowserHelper {
     }
 
     @Override
+    public void onAudio(final byte[] samples) {
+      this.send(out -> HelperProtocol.writeAudio(out, samples, samples.length));
+    }
+
+    @Override
     public void onFailure(final String text) {
       this.failed = true;
       this.send(out -> HelperProtocol.writeText(out, HelperProtocol.FAILURE, text));

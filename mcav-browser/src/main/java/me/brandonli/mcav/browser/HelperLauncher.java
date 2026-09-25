@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -28,7 +29,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
@@ -39,7 +39,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
- * options of its JVM, the environment it keeps, and on Linux the Xvfb program its display comes from.
+ * options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
+ * and the folder of the libraries the server lacks.
  *
  * <p>The class path is taken from where the classes of mcav's browser module, JCEF and jcefmaven were loaded from,
  * which works whether they are separate jars, as Paper's library loader gives them, or shaded into one plugin jar.
@@ -59,9 +60,9 @@ final class HelperLauncher {
   private final List<Path> classPath;
   private final List<String> extraJvmOptions;
   private final OS os;
-  private final @Nullable String path;
   private final Map<String, String> environment;
   private final long startTimeoutMillis;
+  private final @Nullable LibraryLinker libraries;
 
   /**
    * Constructs a launcher.
@@ -84,12 +85,25 @@ final class HelperLauncher {
     final Map<String, String> environment,
     final long startTimeoutMillis
   ) {
+    this(java, mainClass, classPath, extraJvmOptions, os, environment, startTimeoutMillis, null);
+  }
+
+  private HelperLauncher(
+    final Path java,
+    final String mainClass,
+    final List<Path> classPath,
+    final List<String> extraJvmOptions,
+    final OS os,
+    final Map<String, String> environment,
+    final long startTimeoutMillis,
+    final @Nullable LibraryLinker libraries
+  ) {
+    this.libraries = libraries;
     this.java = java;
     this.mainClass = mainClass;
     this.classPath = List.copyOf(classPath);
     this.extraJvmOptions = List.copyOf(extraJvmOptions);
     this.os = os;
-    this.path = environment.get("PATH");
     this.environment = Map.copyOf(environment);
     this.startTimeoutMillis = startTimeoutMillis;
   }
@@ -176,39 +190,65 @@ final class HelperLauncher {
   }
 
   /**
-   * Builds the environment of a helper: the kept variables of the server, and on Linux the display.
+   * Builds the environment of a helper: the kept variables of the server, and on Linux the authority file of the
+   * helper's null display, which X clients read, and the libraries the server lacks. No display of the server is
+   * passed on.
    *
-   * @param display the Xvfb display on Linux, or null elsewhere
+   * @param folder    the private folder of the session
+   * @param libraries the folder of the libraries the server lacks on Linux, or null
    * @return the environment
    */
-  Map<String, String> createEnvironment(final @Nullable XvfbDisplay display) {
+  Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
-    if (display != null) {
-      final String displayName = display.getDisplay();
-      final Path authority = display.getAuthority();
-      kept.put("DISPLAY", displayName);
+    if (this.os == OS.LINUX) {
+      final Path authority = authorityOf(folder);
       kept.put("XAUTHORITY", authority.toString());
+    }
+    if (libraries != null) {
+      kept.put("LD_LIBRARY_PATH", libraries.toString());
     }
     return kept;
   }
 
   /**
-   * Finds the Xvfb program on Linux, where CEF needs an X display.
+   * Gets the X authority file of a session, which the helper writes and its X clients read.
    *
-   * @return the program, or empty on other systems
-   * @throws PlayerException on Linux without Xvfb
+   * @param folder the folder of the session
+   * @return the file
    */
-  Optional<Path> findXvfb() {
-    if (this.os != OS.LINUX) {
-      return Optional.empty();
-    }
-    final Optional<Path> found = XvfbDisplay.find(this.path);
-    if (found.isEmpty()) {
-      throw new PlayerException(
-        "The browser needs Xvfb on Linux, which is not installed; install the package xvfb (Debian, Ubuntu) or xorg-x11-server-Xvfb (Fedora, RHEL)"
-      );
-    }
-    return found;
+  static Path authorityOf(final Path folder) {
+    return folder.resolve(NullDisplay.AUTHORITY_FILE);
+  }
+
+  /**
+   * Creates a launcher like this one whose helpers also get the libraries the server lacks.
+   *
+   * @param linker links the libraries into the folder of a session
+   * @return the launcher
+   */
+  HelperLauncher withLibraries(final LibraryLinker linker) {
+    return new HelperLauncher(
+      this.java,
+      this.mainClass,
+      this.classPath,
+      this.extraJvmOptions,
+      this.os,
+      this.environment,
+      this.startTimeoutMillis,
+      linker
+    );
+  }
+
+  /**
+   * Links the libraries the server lacks into the folder of a session, if this launcher brings any.
+   *
+   * @param folder the folder of the session
+   * @return the folder of the libraries, or null if this launcher brings none
+   * @throws IOException if they cannot be linked
+   */
+  @Nullable Path linkLibraries(final Path folder) throws IOException {
+    final LibraryLinker linker = this.libraries;
+    return linker == null ? null : linker.link(folder);
   }
 
   long getStartTimeoutMillis() {
@@ -217,5 +257,20 @@ final class HelperLauncher {
 
   OS getOs() {
     return this.os;
+  }
+
+  /**
+   * Links the libraries a server lacks into a folder of a session.
+   */
+  @FunctionalInterface
+  interface LibraryLinker {
+    /**
+     * Links the libraries.
+     *
+     * @param session the folder of the session
+     * @return the folder of the links, which becomes the helper's library path
+     * @throws IOException if a link cannot be created
+     */
+    Path link(Path session) throws IOException;
   }
 }

@@ -53,7 +53,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -73,8 +72,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * One browser helper process, from its start to its end: the private folder of the session, the helper and its Xvfb,
- * the authenticated connection, the page the helper streams, and the input sent to it.
+ * One browser helper process, from its start to its end: the private folder of the session, the helper and the
+ * processes it starts, the authenticated connection, the page the helper streams, and the input sent to it.
  *
  * <p>{@link #open} creates a folder only the server's user can read, binds a Unix-domain socket in it, starts the
  * helper with its configuration on its standard input, and accepts exactly one connection, which must present the
@@ -121,7 +120,6 @@ final class HelperSession implements BrowserSession {
 
   private final Path folder;
   private final Process process;
-  private final @Nullable XvfbDisplay display;
   private final Writer standardInput;
   private final SocketChannel channel;
   private final DataOutputStream output;
@@ -143,7 +141,6 @@ final class HelperSession implements BrowserSession {
   private HelperSession(
     final Path folder,
     final Process process,
-    final @Nullable XvfbDisplay display,
     final Writer standardInput,
     final SocketChannel channel,
     final FrameCanvas canvas,
@@ -151,7 +148,6 @@ final class HelperSession implements BrowserSession {
   ) {
     this.folder = folder;
     this.process = process;
-    this.display = display;
     this.standardInput = standardInput;
     this.channel = channel;
     final OutputStream rawOutput = Channels.newOutputStream(channel);
@@ -222,14 +218,10 @@ final class HelperSession implements BrowserSession {
     final Path folder = createFolder(temporary);
     final Path socket = folder.resolve(SOCKET_NAME);
     final byte[] token = createToken();
-    XvfbDisplay display = null;
     Process process = null;
     HelperSession session = null;
     try (final ServerSocketChannel server = bind(socket)) {
-      final Optional<Path> xvfb = launcher.findXvfb();
-      if (xvfb.isPresent()) {
-        display = XvfbDisplay.start(xvfb.get(), folder);
-      }
+      final Path libraries = launcher.linkLibraries(folder);
       final Path profile = folder.resolve("profile");
       final URI uri = source.getUri();
       final HelperConfiguration configuration = new HelperConfiguration(
@@ -243,9 +235,10 @@ final class HelperSession implements BrowserSession {
         source.getFrameInterval(),
         options.getFrameRate(),
         options.isJavaScriptJit(),
-        options.isPrivateNetworks()
+        options.isPrivateNetworks(),
+        options.isAutoplay()
       );
-      process = startProcess(launcher, folder, display);
+      process = startProcess(launcher, folder, libraries);
       final OutputStream processInput = process.getOutputStream();
       final Writer standardInput = new OutputStreamWriter(processInput, StandardCharsets.UTF_8);
       standardInput.write(configuration.toLine());
@@ -256,7 +249,7 @@ final class HelperSession implements BrowserSession {
       final SocketChannel channel = accept(server, process, deadline);
       Files.deleteIfExists(socket);
       final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
-      session = new HelperSession(folder, process, display, standardInput, channel, canvas, listener);
+      session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       if (!HelperProcesses.register(session)) {
         throw new PlayerException("The browser module was stopped while the browser started");
       }
@@ -264,22 +257,17 @@ final class HelperSession implements BrowserSession {
       session.awaitStart(deadline, uri);
       return session;
     } catch (final IOException exception) {
-      closeAfterFailure(session, process, display, folder);
+      closeAfterFailure(session, process, folder);
       throw new PlayerException("The browser helper could not be started: " + exception.getMessage(), exception);
     } catch (final RuntimeException | Error failure) {
-      closeAfterFailure(session, process, display, folder);
+      closeAfterFailure(session, process, folder);
       throw failure;
     }
   }
 
-  private static void closeAfterFailure(
-    final @Nullable HelperSession session,
-    final @Nullable Process process,
-    final @Nullable XvfbDisplay display,
-    final Path folder
-  ) {
+  private static void closeAfterFailure(final @Nullable HelperSession session, final @Nullable Process process, final Path folder) {
     if (session != null) {
-      // the session owns the process, the display and the folder, and closes them once
+      // the session owns the process and the folder, and closes them once
       session.close();
       return;
     }
@@ -287,9 +275,6 @@ final class HelperSession implements BrowserSession {
       // the end of its input tells the helper to stop at once, instead of after the timeout of stopProcess
       closeQuietly(process.getOutputStream());
       stopProcess(process);
-    }
-    if (display != null) {
-      display.close();
     }
     deleteFolder(folder);
   }
@@ -353,9 +338,8 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static Process startProcess(final HelperLauncher launcher, final Path folder, final @Nullable XvfbDisplay display)
-    throws IOException {
-    final ProcessBuilder builder = createProcessBuilder(launcher, folder, display);
+  private static Process startProcess(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) throws IOException {
+    final ProcessBuilder builder = createProcessBuilder(launcher, folder, libraries);
     return builder.start();
   }
 
@@ -363,18 +347,18 @@ final class HelperSession implements BrowserSession {
    * Prepares the process of a helper: its command, no environment but what the launcher keeps, the session folder as
    * its working folder, and one stream for its output and its errors.
    *
-   * @param launcher the launcher
-   * @param folder   the folder of the session
-   * @param display  the private display of the helper, or null if it needs none
+   * @param launcher  the launcher
+   * @param folder    the folder of the session
+   * @param libraries the folder of the libraries the server lacks, or null
    * @return the process builder
    */
   @VisibleForTesting
-  static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable XvfbDisplay display) {
+  static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) {
     final List<String> command = launcher.createCommand(folder);
     final ProcessBuilder builder = new ProcessBuilder(command);
     final Map<String, String> environment = builder.environment();
     environment.clear();
-    final Map<String, String> kept = launcher.createEnvironment(display);
+    final Map<String, String> kept = launcher.createEnvironment(folder, libraries);
     environment.putAll(kept);
     builder.directory(folder.toFile());
     builder.redirectErrorStream(true);
@@ -494,6 +478,11 @@ final class HelperSession implements BrowserSession {
     } catch (final ExecutionException exception) {
       // the start only ever fails with a cause
       final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause");
+      // a helper that crashed says why only in its output, such as the check of Chromium that failed
+      final String tail = this.getOutputTail();
+      if (!tail.isEmpty()) {
+        LOGGER.warn("The browser helper wrote before its start failed:{}{}", System.lineSeparator(), tail);
+      }
       throw new PlayerException("The browser could not open " + uri + ": " + cause.getMessage(), cause);
     } catch (final TimeoutException exception) {
       final String tail = this.getOutputTail();
@@ -594,6 +583,7 @@ final class HelperSession implements BrowserSession {
         this.canvas.apply(region);
         this.onFrame();
       }
+      case HelperProtocol.AUDIO -> this.listener.onAudio(message.getSamples());
       case HelperProtocol.READY -> {
         LOGGER.debug("The browser helper runs CEF {}", message.getText());
         this.onStartEvent(StartEvent.READY);
@@ -874,10 +864,6 @@ final class HelperSession implements BrowserSession {
     join(this.reader);
     join(this.delivery);
     join(this.drain);
-    final XvfbDisplay currentDisplay = this.display;
-    if (currentDisplay != null) {
-      currentDisplay.close();
-    }
     this.canvas.close();
     deleteFolder(this.folder);
   }
@@ -933,13 +919,10 @@ final class HelperSession implements BrowserSession {
   /**
    * Closes something whose failure to close changes nothing, logging the failure.
    *
-   * @param closeable the stream or channel, or null if there is none
+   * @param closeable the stream or channel
    */
   @VisibleForTesting
-  static void closeQuietly(final @Nullable AutoCloseable closeable) {
-    if (closeable == null) {
-      return;
-    }
+  static void closeQuietly(final AutoCloseable closeable) {
     try {
       closeable.close();
     } catch (final Exception exception) {

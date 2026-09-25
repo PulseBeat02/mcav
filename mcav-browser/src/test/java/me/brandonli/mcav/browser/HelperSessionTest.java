@@ -138,6 +138,25 @@ class HelperSessionTest {
   }
 
   @Test
+  void theSoundOfThePageCrossesTheProtocolInOrderAndOnlyThroughItsBinding() throws Exception {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound");
+    Await.until("the sound", () -> this.listener.sound.size() == ScriptedEngine.SOUND_CHUNKS);
+    for (int chunk = 1; chunk <= ScriptedEngine.SOUND_CHUNKS; chunk++) {
+      final byte[] samples = this.listener.sound.get(chunk - 1);
+      assertEquals(ScriptedEngine.SOUND_FRAMES * HelperProtocol.AUDIO_FRAME_BYTES, samples.length);
+      for (int index = 0; index < samples.length; index += 2) {
+        assertEquals(chunk, samples[index], "the low byte of every sample of chunk " + chunk);
+        assertEquals(0, samples[index + 1]);
+      }
+    }
+    // the calls of another binding were dropped in the helper; nothing else arrives
+    Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
+    assertEquals(ScriptedEngine.SOUND_CHUNKS, this.listener.sound.size());
+    session.close();
+    assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
   void aSettledPageIsHandedOverAgainABoundedNumberOfTimes() throws Exception {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     final int expected = 1 + HelperSession.SETTLED_REPEATS;
@@ -206,7 +225,7 @@ class HelperSessionTest {
     );
     final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
     // the test JVM has variables of its own, which the helper must not inherit
-    assertEquals(launcher.createEnvironment(null), builder.environment());
+    assertEquals(launcher.createEnvironment(this.directory, null), builder.environment());
     assertEquals(this.directory.toFile(), builder.directory());
     assertTrue(builder.redirectErrorStream());
   }
@@ -431,16 +450,36 @@ class HelperSessionTest {
   }
 
   @Test
-  void aHelperOnAPlatformWithoutXvfbRunsWithoutADisplay() {
-    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L, OS.MAC);
+  void aHelperGetsTheLibrariesItsLauncherLinksIntoTheSession() {
+    final List<Path> linked = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L).withLibraries(session -> {
+      final Path libraries = Files.createDirectory(session.resolve("lib"));
+      linked.add(libraries);
+      return libraries;
+    });
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
     this.sessions.add(session);
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    assertEquals(List.of(session.getFolder().resolve("lib")), linked);
+    assertTrue(Files.isDirectory(linked.getFirst()));
     session.close();
-    final HelperLauncher exiting = launcher(RawHelperMain.class.getName(), 60_000L, OS.MAC);
-    final BrowserSource exit = BrowserSource.uri(URI.create("https://example.com/exit"), 4, 3, 1);
-    assertThrows(PlayerException.class, () -> HelperSession.open(exiting, NATIVES, exit, BrowserOptions.DEFAULT, this.listener));
+    assertFalse(Files.exists(linked.getFirst()));
+  }
+
+  @Test
+  void librariesThatCannotBeLinkedFailTheStartAndLeaveNothingBehind() throws IOException {
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L).withLibraries(session -> {
+      throw new IOException("no space left");
+    });
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final PlayerException failure = assertThrows(PlayerException.class, () ->
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
+    );
+    assertEquals("The browser helper could not be started: no space left", failure.getMessage());
+    try (final Stream<Path> left = Files.list(this.directory)) {
+      assertEquals(List.of(), left.toList());
+    }
   }
 
   @Test
@@ -593,6 +632,9 @@ class HelperSessionTest {
       public void onFrame(final ImageBuffer frame) {
         frame.close();
       }
+
+      @Override
+      public void onAudio(final byte[] samples) {}
 
       @Override
       public void onEnded(final String reason, final Throwable cause) {
@@ -748,11 +790,12 @@ class HelperSessionTest {
   }
 
   /**
-   * Records the frames and the end of a session.
+   * Records the frames, the sound and the end of a session.
    */
   static final class RecordingListener implements BrowserSession.Listener {
 
     final List<ImageBuffer> frames = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<byte[]> sound = new java.util.concurrent.CopyOnWriteArrayList<>();
     final List<Long> frameNanos = new java.util.concurrent.CopyOnWriteArrayList<>();
     final List<String> ended = new java.util.concurrent.CopyOnWriteArrayList<>();
 
@@ -768,6 +811,11 @@ class HelperSessionTest {
     public void onFrame(final ImageBuffer frame) {
       this.frameNanos.add(System.nanoTime());
       this.frames.add(frame);
+    }
+
+    @Override
+    public void onAudio(final byte[] samples) {
+      this.sound.add(samples);
     }
 
     @Override

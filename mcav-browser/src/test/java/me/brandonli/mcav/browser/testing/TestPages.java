@@ -71,6 +71,79 @@ public final class TestPages implements AutoCloseable {
    */
   public static final int FRAME_WIDTH = 100;
 
+  /**
+   * The frequency of the tone of the sound pages, in hertz.
+   */
+  public static final int TONE_HERTZ = 1000;
+
+  /**
+   * The amplitude of the tone of the sound pages, a share of full scale.
+   */
+  public static final double TONE_AMPLITUDE = 0.5;
+
+  /**
+   * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
+   */
+  public static final int TOGGLE_MILLIS = 400;
+
+  // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context
+  private static final String TONE_SCRIPT =
+    """
+    <script>
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      addEventListener('pointerdown', () => context.resume());
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+
+  // an audio element that plays the tone at the volume and muting of the address, from the first click
+  private static final String ELEMENT_SCRIPT =
+    """
+    <audio id="tone" src="/tone.wav" loop></audio>
+    <script>
+      const element = document.getElementById('tone');
+      const parameters = new URLSearchParams(location.search);
+      element.volume = Number(parameters.get('volume') || '1');
+      element.muted = parameters.get('muted') === '1';
+      addEventListener('pointerdown', () => element.play());
+    </script>
+    """;
+
+  // from the first click, the picture turns white and the tone plays at once, and both stop at once, in turns
+  private static final String TOGGLE_SCRIPT =
+    """
+    <script>
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      let on = false;
+      let started = false;
+      addEventListener('pointerdown', () => {
+        context.resume();
+        if (started) {
+          return;
+        }
+        started = true;
+        setInterval(() => {
+          on = !on;
+          document.body.style.background = on ? '#ffffff' : '#000000';
+          gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+        }, %d);
+      });
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLIS);
+
   private static final String SCRIPT =
     """
     <script>
@@ -151,6 +224,10 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/main", exchange -> pages.page(exchange, "main", MAIN_COLOR));
       httpServer.createContext("/popup", exchange -> pages.page(exchange, "popup", POPUP_COLOR));
       httpServer.createContext("/second", exchange -> pages.page(exchange, "second", SECOND_COLOR));
+      httpServer.createContext("/tone", exchange -> pages.page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
+      httpServer.createContext("/tone-element", exchange -> pages.page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext("/av-sync", exchange -> pages.page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
+      httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
       httpServer.createContext("/dialog", exchange ->
@@ -284,6 +361,35 @@ public final class TestPages implements AutoCloseable {
   }
 
   private void page(final HttpExchange exchange, final String name, final int color) throws IOException {
+    this.page(exchange, name, color, "");
+  }
+
+  /**
+   * Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
+   *
+   * @param exchange the request
+   * @throws IOException if the answer cannot be sent
+   */
+  private static void toneWave(final HttpExchange exchange) throws IOException {
+    final int rate = 48_000;
+    final java.nio.ByteBuffer wave = java.nio.ByteBuffer.allocate(44 + rate * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    wave.put("RIFF".getBytes(StandardCharsets.US_ASCII)).putInt(36 + rate * 4).put("WAVE".getBytes(StandardCharsets.US_ASCII));
+    wave.put("fmt ".getBytes(StandardCharsets.US_ASCII)).putInt(16).putShort((short) 1).putShort((short) 2);
+    wave.putInt(rate).putInt(rate * 4).putShort((short) 4).putShort((short) 16);
+    wave.put("data".getBytes(StandardCharsets.US_ASCII)).putInt(rate * 4);
+    for (int frame = 0; frame < rate; frame++) {
+      final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);
+      wave.putShort(sample).putShort(sample);
+    }
+    final byte[] body = wave.array();
+    exchange.getResponseHeaders().add("Content-Type", "audio/wav");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  private void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
     final String hex = String.format("#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
@@ -294,6 +400,7 @@ public final class TestPages implements AutoCloseable {
       name +
       "\">" +
       SCRIPT +
+      extra +
       "</body></html>";
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();

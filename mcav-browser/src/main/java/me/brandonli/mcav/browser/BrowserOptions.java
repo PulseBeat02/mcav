@@ -44,18 +44,20 @@ public final class BrowserOptions {
 
   /**
    * The options {@link BrowserPlayer#create()} uses: 60 frames per second at most, no JavaScript JIT, public addresses
-   * only.
+   * only, and sound only once someone clicked or typed into the page.
    */
   public static final BrowserOptions DEFAULT = builder().build();
 
   private final int frameRate;
   private final boolean javaScriptJit;
   private final boolean privateNetworks;
+  private final boolean autoplay;
 
-  private BrowserOptions(final int frameRate, final boolean javaScriptJit, final boolean privateNetworks) {
+  private BrowserOptions(final int frameRate, final boolean javaScriptJit, final boolean privateNetworks, final boolean autoplay) {
     this.frameRate = frameRate;
     this.javaScriptJit = javaScriptJit;
     this.privateNetworks = privateNetworks;
+    this.autoplay = autoplay;
   }
 
   /**
@@ -95,6 +97,15 @@ public final class BrowserOptions {
   }
 
   /**
+   * Checks whether a page may play sound before anyone clicked or typed into it.
+   *
+   * @return true if pages play sound right away
+   */
+  public boolean isAutoplay() {
+    return this.autoplay;
+  }
+
+  /**
    * Builds {@link BrowserOptions}.
    */
   public static final class Builder {
@@ -102,6 +113,7 @@ public final class BrowserOptions {
     private int frameRate = MAX_FRAME_RATE;
     private boolean javaScriptJit;
     private boolean privateNetworks;
+    private boolean autoplay;
 
     private Builder() {}
 
@@ -149,12 +161,24 @@ public final class BrowserOptions {
     }
 
     /**
+     * Lets pages play sound right away. Off by default: as in a desktop browser, a page plays sound only once someone
+     * clicked or typed into it, such as a player who clicks the screen of the browser.
+     *
+     * @param autoplay true to let pages play sound before anyone clicked or typed into them
+     * @return this builder
+     */
+    public Builder autoplay(final boolean autoplay) {
+      this.autoplay = autoplay;
+      return this;
+    }
+
+    /**
      * Builds the options.
      *
      * @return the options
      */
     public BrowserOptions build() {
-      return new BrowserOptions(this.frameRate, this.javaScriptJit, this.privateNetworks);
+      return new BrowserOptions(this.frameRate, this.javaScriptJit, this.privateNetworks, this.autoplay);
     }
   }
 }

@@ -32,12 +32,15 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
+import me.brandonli.mcav.utils.os.OS;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -57,17 +60,33 @@ final class CefBrowserPlayer implements BrowserPlayer {
    */
   static final long START_TIMEOUT_MILLIS = 180_000L;
 
+  /**
+   * How long the sound of the page is held before the audio pipeline gets it, in milliseconds: not at all. The page
+   * hands its sound over in chunks of 2048 frames (43 ms) as soon as Chromium rendered them, a little ahead of time.
+   * Timed as the sound of a virtual machine is, where the last sample of a chunk counts as played when the chunk
+   * arrives, it reaches the pipeline about 20 ms before its picture ({@code BrowserSoundTest}); but an output starts to
+   * play a chunk only when it arrives, 43 ms later than that, so a hold would only make the sound late.
+   */
+  static final int AUDIO_DELAY_MILLIS = 0;
+
+  /**
+   * The most sound of the page that waits for the audio pipeline, the delay included, in milliseconds.
+   */
+  static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 120;
+
   private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
   private final BrowserOptions options;
   private final SessionFactory sessions;
   private final VideoAttachableCallback videoCallback;
+  private final AudioAttachableCallback audioCallback;
   private final ExceptionHandler exceptionHandler;
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
   private volatile @Nullable BrowserSession session;
+  private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable BrowserSource source;
 
   /**
@@ -90,6 +109,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.options = options;
     this.sessions = sessions;
     this.videoCallback = VideoAttachableCallback.create();
+    this.audioCallback = AudioAttachableCallback.create();
     this.exceptionHandler = ExceptionHandler.createDefault();
     this.lock = new ReentrantLock();
     this.state = new AtomicReference<>(State.IDLE);
@@ -112,6 +132,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
       final SessionListener listener = new SessionListener(metadata);
       final BrowserSession started = this.sessions.open(source, this.options, listener);
       this.session = started;
+      this.audioOutput = DelayedAudioOutput.start(
+        "the browser",
+        AUDIO_DELAY_MILLIS,
+        MAX_QUEUED_AUDIO_MILLIS,
+        this.audioCallback::retrieve,
+        this::report
+      );
       this.state.set(State.PLAYING);
       // an end of the helper that arrived before the session was the player's is passed on now, and fails the start
       listener.setSession(started);
@@ -132,6 +159,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.session = null;
     if (current != null) {
       current.close();
+    }
+    final DelayedAudioOutput output = this.audioOutput;
+    this.audioOutput = null;
+    if (output != null) {
+      output.close();
     }
   }
 
@@ -286,6 +318,20 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   /**
+   * Hands sound of the current session to its audio output; sound of a session that is over is dropped.
+   *
+   * @param from    the session that played it
+   * @param samples 16-bit little-endian stereo samples at 48 kHz
+   */
+  @VisibleForTesting
+  void deliverAudio(final BrowserSession from, final byte[] samples) {
+    final DelayedAudioOutput output = this.audioOutput;
+    if (output != null && this.isCurrent(from)) {
+      output.accept(samples, samples.length);
+    }
+  }
+
+  /**
    * Marks the player as failed when its current helper ended by itself, and reports why.
    *
    * @param from   the session that ended
@@ -326,6 +372,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    return this.audioCallback;
+  }
+
+  @Override
   public BiConsumer<String, Throwable> getExceptionHandler() {
     return this.exceptionHandler.getExceptionHandler();
   }
@@ -359,6 +410,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   static final class DefaultSessionFactory implements SessionFactory {
 
     private final JcefNatives natives;
+    private final LinuxLibraries libraries;
     private final List<String> extraJvmOptions;
     private @Nullable HelperLauncher launcher;
 
@@ -374,7 +426,20 @@ final class CefBrowserPlayer implements BrowserPlayer {
      */
     @VisibleForTesting
     DefaultSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
+      this(natives, new LinuxLibraries(), extraJvmOptions);
+    }
+
+    /**
+     * Constructs a factory with other installers and JVM options for the helpers.
+     *
+     * @param natives         installs the CEF natives
+     * @param libraries       installs the libraries a Linux server may lack
+     * @param extraJvmOptions options added to the JVM of every helper
+     */
+    @VisibleForTesting
+    DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
+      this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
     }
 
@@ -383,13 +448,34 @@ final class CefBrowserPlayer implements BrowserPlayer {
       // a stopped module downloads nothing
       HelperProcesses.requireOpen();
       final Path installation;
+      final HelperLauncher current;
       try {
         installation = this.natives.install();
+        current = withLibraries(this.getLauncher(), this.libraries);
       } catch (final IOException exception) {
-        throw new PlayerException("The browser cannot be installed: " + exception.getMessage(), exception);
+        throw new BrowserUnavailableException("The browser cannot be installed: " + exception.getMessage(), exception);
       }
-      final HelperLauncher current = this.getLauncher();
       return HelperSession.open(current, installation, source, options, listener);
+    }
+
+    /**
+     * Gives the helpers of a Linux server the libraries it lacks, installing them first.
+     *
+     * @param base      the launcher
+     * @param libraries installs and links the libraries
+     * @return the launcher, with the libraries on Linux
+     * @throws IOException if the libraries cannot be installed
+     */
+    @VisibleForTesting
+    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
+      if (base.getOs() != OS.LINUX) {
+        return base;
+      }
+      final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
+      final String identifier = platform.getIdentifier();
+      final Path bundle = libraries.install(identifier);
+      final List<Path> folders = LinuxLibraries.hostFolders(Path.of("/"), identifier);
+      return base.withLibraries(session -> libraries.link(identifier, bundle, session, folders));
     }
 
     private synchronized HelperLauncher getLauncher() {
@@ -403,8 +489,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   /**
-   * Passes the frames and the end of a session to the player, once the session is known. Frames before are dropped;
-   * an end before is kept and passed on when the session becomes known.
+   * Passes the frames, the sound and the end of a session to the player, once the session is known. Frames and sound
+   * before are dropped; an end before is kept and passed on when the session becomes known.
    */
   private final class SessionListener implements BrowserSession.Listener {
 
@@ -436,6 +522,14 @@ final class CefBrowserPlayer implements BrowserPlayer {
         return;
       }
       CefBrowserPlayer.this.deliver(from, this.metadata, frame);
+    }
+
+    @Override
+    public void onAudio(final byte[] samples) {
+      final BrowserSession from = this.owner;
+      if (from != null) {
+        CefBrowserPlayer.this.deliverAudio(from, samples);
+      }
     }
 
     @Override

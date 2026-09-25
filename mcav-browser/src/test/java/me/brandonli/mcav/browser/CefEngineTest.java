@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,7 +32,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.awt.EventQueue;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +48,7 @@ import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.McavOffscreenBrowser;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 
 class CefEngineTest {
@@ -52,6 +56,10 @@ class CefEngineTest {
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
 
   private static HelperConfiguration configuration(final boolean jit) {
+    return configuration(jit, false);
+  }
+
+  private static HelperConfiguration configuration(final boolean jit, final boolean autoplay) {
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
       ROOT.resolve("s"),
@@ -63,18 +71,24 @@ class CefEngineTest {
       1,
       30,
       jit,
-      false
+      false,
+      autoplay
     );
   }
 
   @Test
   void chromiumRunsWithoutGpuSoundExtensionsOrPermissionPrompts() {
-    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0);
+    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0, null);
     assertTrue(
       switches.containsAll(
         List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
       )
     );
+    // a page plays sound once a player clicked it, as in a desktop browser; CEF's own default lets it play at once
+    assertTrue(switches.contains("--autoplay-policy=document-user-activation-required"));
+    final List<String> autoplay = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
+    assertTrue(autoplay.contains("--autoplay-policy=no-user-gesture-required"));
+    assertFalse(autoplay.contains("--autoplay-policy=document-user-activation-required"));
     assertTrue(switches.contains("--js-flags=--jitless"));
     assertFalse(switches.contains("--ozone-platform=headless"));
     assertFalse(switches.contains("--use-mock-keychain"));
@@ -85,7 +99,7 @@ class CefEngineTest {
 
   @Test
   void withAGuardEveryConnectionGoesThroughItAndNothingAroundIt() {
-    final List<String> guarded = CefEngine.createSwitches(configuration(false), false, false, 41234);
+    final List<String> guarded = CefEngine.createSwitches(configuration(false), false, false, 41234, null);
     assertTrue(
       guarded.containsAll(
         List.of(
@@ -96,7 +110,7 @@ class CefEngineTest {
         )
       )
     );
-    final List<String> open = CefEngine.createSwitches(configuration(false), false, false, 0);
+    final List<String> open = CefEngine.createSwitches(configuration(false), false, false, 0, null);
     for (final String value : open) {
       assertFalse(value.startsWith("--proxy"), value);
     }
@@ -104,17 +118,22 @@ class CefEngineTest {
 
   @Test
   void theJitStaysOnlyWhenTheConfigurationAllowsIt() {
-    assertFalse(CefEngine.createSwitches(configuration(true), false, false, 0).contains("--js-flags=--jitless"));
+    assertFalse(CefEngine.createSwitches(configuration(true), false, false, 0, null).contains("--js-flags=--jitless"));
   }
 
   @Test
-  void linuxUsesTheHeadlessPlatformAndMacosAMockKeychain() {
-    final List<String> linux = CefEngine.createSwitches(configuration(false), true, false, 0);
+  void linuxUsesTheHeadlessPlatformAndTheNullDisplayAndMacosAMockKeychain() {
+    final List<String> linux = CefEngine.createSwitches(configuration(false), true, false, 0, "127.0.0.1:26768");
     assertTrue(linux.contains("--ozone-platform=headless"));
     assertTrue(linux.contains("--password-store=basic"));
-    final List<String> mac = CefEngine.createSwitches(configuration(false), false, true, 0);
+    assertTrue(linux.contains("--disable-dev-shm-usage"));
+    assertTrue(linux.contains("--display=127.0.0.1:26768"));
+    final List<String> noDisplay = CefEngine.createSwitches(configuration(false), true, false, 0, null);
+    assertTrue(noDisplay.stream().noneMatch(entry -> entry.startsWith("--display")), noDisplay.toString());
+    final List<String> mac = CefEngine.createSwitches(configuration(false), false, true, 0, null);
     assertTrue(mac.contains("--use-mock-keychain"));
     assertFalse(mac.contains("--ozone-platform=headless"));
+    assertTrue(mac.stream().noneMatch(entry -> entry.startsWith("--display")), mac.toString());
   }
 
   @Test
@@ -148,21 +167,26 @@ class CefEngineTest {
   }
 
   @Test
-  void aNewBrowserGetsTheScriptThatOpensWindowsInPlaceBeforeItLoadsThePage() throws Exception {
+  void aNewBrowserGetsTheScriptsOfWindowsAndSoundBeforeItLoadsThePage() throws Exception {
+    final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final CefBrowser closed = mock(CefBrowser.class);
-    CefEngine.openPage(closed, "https://example.com/", 1_000L);
+    CefEngine.openPage(closed, "https://example.com/", 1_000L, audio);
     verify(closed).loadURL("https://example.com/");
     final CefBrowser browser = mock(CefBrowser.class);
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("closed"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
-    CefEngine.openPage(browser, "https://example.com/", 1_000L);
+    CefEngine.openPage(browser, "https://example.com/", 1_000L, audio);
     EventQueue.invokeAndWait(() -> {});
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     final InOrder order = inOrder(devTools, browser);
+    order.verify(devTools).addEventListener(audio);
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ENABLE_PAGE_METHOD, "{}");
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, calls.get(1).getParameters());
+    order.verify(devTools).executeDevToolsMethod("Runtime.enable", "{}");
+    order.verify(devTools).executeDevToolsMethod("Runtime.addBinding", "{\"name\":\"__mcavAudio\"}");
+    order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, PageAudio.install().get(2).getParameters());
     order.verify(browser).loadURL("https://example.com/");
   }
 
@@ -174,7 +198,7 @@ class CefEngineTest {
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
     // the deadline of a real helper, so a slow machine does not reach it before the check that nothing loaded yet
-    CefEngine.openPage(browser, "https://example.com/lost", 1_000L);
+    CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime));
     verify(browser, never()).loadURL(anyString());
     Await.until("the page loaded after the timeout", () -> {
       try {
@@ -274,6 +298,17 @@ class CefEngineTest {
     try (final StandardError errors = new StandardError()) {
       assertEquals("", CefEngine.logFailedCall(new IllegalStateException("gone")));
       assertTrue(errors.text().contains("A DevTools call failed: java.lang.IllegalStateException: gone"), errors.text());
+    }
+  }
+
+  @Test
+  void onlyLinuxGetsANullDisplay(@TempDir final Path directory) throws IOException {
+    final Path authority = directory.resolve(NullDisplay.AUTHORITY_FILE);
+    assertNull(CefEngine.startDisplay(false, authority));
+    assertFalse(Files.exists(authority), "no display, no authority file");
+    try (NullDisplay display = java.util.Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
+      assertTrue(display.getDisplay().startsWith("127.0.0.1:"));
+      assertTrue(Files.exists(authority), "the helper's X clients find the cookie there");
     }
   }
 }

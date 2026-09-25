@@ -43,6 +43,9 @@ class BrowserModuleTest {
     }
 
     @Override
+    public void onAudio(final byte[] samples) {}
+
+    @Override
     public void onEnded(final String reason, final Throwable cause) {
       BrowserModuleTest.this.ends.add(reason);
     }

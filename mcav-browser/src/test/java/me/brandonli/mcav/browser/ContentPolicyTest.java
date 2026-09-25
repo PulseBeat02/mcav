@@ -301,5 +301,10 @@ class ContentPolicyTest {
     public void onFailure(final String text) {
       this.log.add("failure: " + text);
     }
+
+    @Override
+    public void onAudio(final byte[] samples) {
+      this.log.add("audio: " + samples.length);
+    }
   }
 }

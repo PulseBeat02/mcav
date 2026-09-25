@@ -64,6 +64,11 @@ final class HelperProtocolFuzzTest {
         assertTrue(region.getY() + region.getHeight() <= region.getPageHeight(), "the region fits the page vertically");
         assertTrue(region.getWidth() >= 1 && region.getPageWidth() <= HelperProtocol.MAX_SIDE, "the sizes are in range");
       }
+      case HelperProtocol.AUDIO -> {
+        final int length = message.getSamples().length;
+        assertTrue(length > 0 && length <= HelperProtocol.MAX_AUDIO_BYTES, "the sound is within its limit");
+        assertTrue(length % HelperProtocol.AUDIO_FRAME_BYTES == 0, "the sound holds whole frames");
+      }
       case HelperProtocol.READY, HelperProtocol.NOTICE, HelperProtocol.FAILURE, HelperProtocol.KEY -> {
         final int length = message.getText().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
         assertTrue(length <= HelperProtocol.MAX_TEXT_BYTES, "the text is within its limit");

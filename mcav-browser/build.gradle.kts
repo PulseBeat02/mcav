@@ -17,6 +17,9 @@ dependencies {
         exclude(group = "me.friwi", module = "jogl-all")
         exclude(group = "me.friwi", module = "gluegen-rt")
     }
+    // the Debian packages of the libraries a Linux server may lack are xz-compressed tar archives, which
+    // commons-compress (from jcefmaven) reads with this library
+    implementation("org.tukaani:xz:1.10")
 
     // provided
     compileOnlyApi(project(":mcav-common"))
@@ -38,6 +41,9 @@ tasks {
         doFirst {
             delete(helperCoverage)
         }
+        // the measurement of how far the sound of a page drifts from its picture times real events, which a busy
+        // machine delays; it runs on request, on a quiet machine: -Pmcav.syncMeasurement=true
+        systemProperty("mcav.syncMeasurement", providers.gradleProperty("mcav.syncMeasurement").getOrElse("false"))
     }
     jacocoTestReport {
         executionData(helperCoverage)

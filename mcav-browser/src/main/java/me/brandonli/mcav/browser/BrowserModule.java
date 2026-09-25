@@ -54,6 +54,16 @@ public final class BrowserModule implements MCAVModule {
   }
 
   /**
+   * Checks whether the browser can run on the operating system and processor of this machine, see
+   * {@link BrowserPlayer#isSupported()}.
+   *
+   * @return true if there is a CEF build for this machine
+   */
+  public boolean isSupported() {
+    return BrowserPlayer.isSupported();
+  }
+
+  /**
    * Gets the name of the module.
    *
    * @return {@code browser}

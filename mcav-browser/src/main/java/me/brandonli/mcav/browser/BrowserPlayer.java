@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -34,7 +35,13 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * browser never takes the server with it. Chromium hands every painted frame over as plain pixels, so frames arrive
  * only when the page changes and need no image decoding. The first start on a machine downloads the CEF build for it
  * (about 150 MB, from Maven Central, verified against a pinned hash) into mcav's cache folder. On Linux the browser
- * needs the {@code Xvfb} program, and like any Chromium the system libraries it links against.
+ * needs no X server and nothing installed: it draws on Chromium's headless platform, and the first start also downloads
+ * the shared libraries CEF needs that the server lacks (about 13 MB of Debian 11 packages, each verified against a
+ * pinned hash), which only the browser's own process uses.
+ *
+ * <p>The sound the page plays through Web Audio and its audio and video elements arrives at the audio pipeline (see
+ * {@link #getAudioAttachableCallback()}); sound of frames from another origin, of media from another site that does
+ * not allow it (CORS), and of protected media, stays silent.
  *
  * <pre>{@code
  *   final BrowserPlayer browser = BrowserPlayer.create();
@@ -55,6 +62,17 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * pixel in a frame lands on the same spot of the page.
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
+  /**
+   * Checks whether the browser can run on the operating system and processor of this machine: there are CEF builds for
+   * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
+   * {@link BrowserUnavailableException}, for example when the download fails.
+   *
+   * @return true if there is a CEF build for this machine
+   */
+  static boolean isSupported() {
+    return JcefNatives.isSupported();
+  }
+
   /**
    * Creates a player with the {@link BrowserOptions#DEFAULT default options}.
    *
@@ -160,4 +178,13 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @return the video pipeline slot
    */
   VideoAttachableCallback getVideoAttachableCallback();
+
+  /**
+   * Gets the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
+   * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
+   * someone clicked or typed into it, such as a player who clicks the screen; nothing plays on the server's speakers.
+   *
+   * @return the audio pipeline slot
+   */
+  AudioAttachableCallback getAudioAttachableCallback();
 }

@@ -72,6 +72,16 @@ final class HelperProtocol {
    */
   static final int PIXEL_BYTES = 4;
 
+  /**
+   * The bytes of one frame of sound: a 16-bit sample for each of the two channels.
+   */
+  static final int AUDIO_FRAME_BYTES = 4;
+
+  /**
+   * The largest message of sound in bytes: 16384 frames, a third of a second at 48 kHz.
+   */
+  static final int MAX_AUDIO_BYTES = 65_536;
+
   /** The token and protocol version of a new helper: {@code byte[32] token, u16 version}. */
   static final int HELLO = 1;
   /** The browser was created: {@code string cefVersion}. */
@@ -86,6 +96,9 @@ final class HelperProtocol {
   static final int NOTICE = 6;
   /** The helper cannot go on and exits: {@code string text}. */
   static final int FAILURE = 7;
+
+  /** Sound of the page: {@code pcm}, 16-bit little-endian stereo samples at 48 kHz, whole frames. */
+  static final int AUDIO = 8;
   /** Mouse input: {@code u8 action, u16 x, u16 y, u8 button, u8 clickCount, i16 deltaX, i16 deltaY}. */
   static final int MOUSE = 16;
   /** Keyboard input: {@code u8 action, string value}. */
@@ -208,6 +221,23 @@ final class HelperProtocol {
   }
 
   /**
+   * Writes sound of the page.
+   *
+   * @param out     the stream
+   * @param samples the samples, 16-bit little-endian stereo at 48 kHz, from the start of the array
+   * @param length  the number of bytes of samples, whole frames and at most {@link #MAX_AUDIO_BYTES}
+   * @throws IOException if the stream fails
+   */
+  static void writeAudio(final DataOutput out, final byte[] samples, final int length) throws IOException {
+    if (length <= 0 || length > MAX_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
+      throw new IllegalArgumentException("Sound of " + length + " bytes cannot be sent");
+    }
+    out.writeByte(AUDIO);
+    out.writeInt(length);
+    out.write(samples, 0, length);
+  }
+
+  /**
    * Writes mouse input.
    *
    * @param out   the stream
@@ -271,6 +301,7 @@ final class HelperProtocol {
       case HELLO -> readHello(in, length);
       case READY, NOTICE, FAILURE -> readTextMessage(in, type, length);
       case FRAME -> readFrame(in, length, pixels);
+      case AUDIO -> readAudio(in, length);
       case LOADING -> readLoading(in, length);
       case LOAD_ERROR -> readLoadError(in, length);
       case MOUSE -> readMouse(in, length);
@@ -346,6 +377,16 @@ final class HelperProtocol {
     in.readFully(target, 0, size);
     final FrameRegion region = new FrameRegion(pageWidth, pageHeight, x, y, width, height, target);
     return HelperMessage.frame(region);
+  }
+
+  private static HelperMessage readAudio(final DataInput in, final int length) throws IOException {
+    checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAX_AUDIO_BYTES);
+    if (length % AUDIO_FRAME_BYTES != 0) {
+      throw new ProtocolException("Sound of " + length + " bytes does not hold whole frames of " + AUDIO_FRAME_BYTES + " bytes");
+    }
+    final byte[] samples = new byte[length];
+    in.readFully(samples);
+    return HelperMessage.audio(samples);
   }
 
   private static HelperMessage readMouse(final DataInput in, final int length) throws IOException {

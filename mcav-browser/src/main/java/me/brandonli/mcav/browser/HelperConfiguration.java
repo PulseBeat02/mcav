@@ -38,7 +38,7 @@ final class HelperConfiguration {
   static final int MAX_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
-  private static final int FIELDS = 11;
+  private static final int FIELDS = 12;
   // the longest line a configuration of the longest address and long paths makes, in three-byte characters and Base64
   private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAX_FRAME_INTERVAL = 1000;
@@ -54,6 +54,7 @@ final class HelperConfiguration {
   private final int frameRate;
   private final boolean javaScriptJit;
   private final boolean privateNetworks;
+  private final boolean autoplay;
 
   /**
    * Constructs a configuration and checks every value.
@@ -69,6 +70,7 @@ final class HelperConfiguration {
    * @param frameRate       how many frames per second CEF paints at most
    * @param javaScriptJit   true to let V8 compile JavaScript to machine code
    * @param privateNetworks true to let the page reach loopback, private and link-local addresses
+   * @param autoplay        true to let the page play sound before anyone clicked or typed into it
    * @throws IllegalArgumentException if a value is out of range
    */
   HelperConfiguration(
@@ -82,7 +84,8 @@ final class HelperConfiguration {
     final int frameInterval,
     final int frameRate,
     final boolean javaScriptJit,
-    final boolean privateNetworks
+    final boolean privateNetworks,
+    final boolean autoplay
   ) {
     requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
     requireAbsolute(socket, "socket");
@@ -104,6 +107,7 @@ final class HelperConfiguration {
     this.frameRate = frameRate;
     this.javaScriptJit = javaScriptJit;
     this.privateNetworks = privateNetworks;
+    this.autoplay = autoplay;
   }
 
   /**
@@ -125,7 +129,8 @@ final class HelperConfiguration {
       Integer.toString(this.frameInterval),
       Integer.toString(this.frameRate),
       Boolean.toString(this.javaScriptJit),
-      Boolean.toString(this.privateNetworks)
+      Boolean.toString(this.privateNetworks),
+      Boolean.toString(this.autoplay)
     );
     final Base64.Encoder encoder = Base64.getEncoder();
     final StringJoiner line = new StringJoiner(SEPARATOR);
@@ -165,6 +170,7 @@ final class HelperConfiguration {
     final int frameRate = Integer.parseInt(values[8]);
     final boolean javaScriptJit = parseBoolean(values[9]);
     final boolean privateNetworks = parseBoolean(values[10]);
+    final boolean autoplay = parseBoolean(values[11]);
     return new HelperConfiguration(
       token,
       socket,
@@ -176,7 +182,8 @@ final class HelperConfiguration {
       frameInterval,
       frameRate,
       javaScriptJit,
-      privateNetworks
+      privateNetworks,
+      autoplay
     );
   }
 
@@ -244,5 +251,9 @@ final class HelperConfiguration {
 
   boolean isPrivateNetworks() {
     return this.privateNetworks;
+  }
+
+  boolean isAutoplay() {
+    return this.autoplay;
   }
 }

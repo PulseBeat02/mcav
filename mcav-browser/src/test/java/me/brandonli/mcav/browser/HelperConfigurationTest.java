@@ -45,7 +45,20 @@ class HelperConfigurationTest {
   }
 
   private static HelperConfiguration configuration(final boolean jit) {
-    return new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, URI.create("https://example.com/page"), 640, 480, 2, 30, jit, false);
+    return new HelperConfiguration(
+      token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      URI.create("https://example.com/page"),
+      640,
+      480,
+      2,
+      30,
+      jit,
+      false,
+      false
+    );
   }
 
   @Test
@@ -54,7 +67,7 @@ class HelperConfigurationTest {
     final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
     // and long paths
     final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
-    final HelperConfiguration original = new HelperConfiguration(token(), path, path, path, longest, 640, 480, 3, 45, true, true);
+    final HelperConfiguration original = new HelperConfiguration(token(), path, path, path, longest, 640, 480, 3, 45, true, true, false);
     final HelperConfiguration read = HelperConfiguration.fromLine(original.toLine());
     assertEquals(longest, read.getUrl());
   }
@@ -72,6 +85,7 @@ class HelperConfigurationTest {
       3,
       45,
       true,
+      true,
       true
     );
     final String line = original.toLine();
@@ -88,9 +102,11 @@ class HelperConfigurationTest {
     assertEquals(45, read.getFrameRate());
     assertTrue(read.isJavaScriptJit());
     assertTrue(read.isPrivateNetworks());
+    assertTrue(read.isAutoplay());
     final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration(false).toLine());
     assertFalse(defaults.isJavaScriptJit());
     assertFalse(defaults.isPrivateNetworks());
+    assertFalse(defaults.isAutoplay());
   }
 
   @Test
@@ -107,6 +123,7 @@ class HelperConfigurationTest {
       1,
       1,
       false,
+      false,
       false
     );
     token[0] = 99;
@@ -119,48 +136,48 @@ class HelperConfigurationTest {
   void everyValueIsChecked() {
     final URI page = URI.create("https://example.com/");
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false)
+      new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), Path.of("relative"), NATIVES, PROFILE, page, 1, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), Path.of("relative"), NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, Path.of("relative"), PROFILE, page, 1, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, Path.of("relative"), PROFILE, page, 1, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, Path.of("relative"), page, 1, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, Path.of("relative"), page, 1, 1, 1, 1, false, false, false)
     );
     final URI file = URI.create("file:///etc/passwd");
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, file, 1, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, file, 1, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 0, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 0, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4097, 1, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4097, 1, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 0, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 0, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 4097, 1, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 4097, 1, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 0, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 0, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1001, 1, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1001, 1, false, false, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 0, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 0, false, false, false)
     );
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false)
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false, false)
     );
     assertEquals("The frame rate must be between 1 and 60 but was 61", tooFast.getMessage());
     // the largest values are accepted
-    new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false);
+    new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false);
   }
 
   private static String[] parts(final HelperConfiguration configuration) {
@@ -182,7 +199,7 @@ class HelperConfigurationTest {
     final String[] parts = parts(configuration(false));
     final String missing = String.join(":", java.util.Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
-    assertEquals("The configuration has 10 values instead of 11", tooFew.getMessage());
+    assertEquals("The configuration has 11 values instead of 12", tooFew.getMessage());
     final String extra = configuration(false).toLine() + ":" + encode("x");
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }

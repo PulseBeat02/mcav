@@ -34,6 +34,7 @@ final class HelperMessage {
   private final String url;
   private final @Nullable FrameRegion region;
   private final @Nullable MouseInput mouse;
+  private final byte[] samples;
 
   private HelperMessage(
     final int type,
@@ -44,6 +45,19 @@ final class HelperMessage {
     final @Nullable FrameRegion region,
     final @Nullable MouseInput mouse
   ) {
+    this(type, token, number, text, url, region, mouse, NO_TOKEN);
+  }
+
+  private HelperMessage(
+    final int type,
+    final byte[] token,
+    final int number,
+    final String text,
+    final String url,
+    final @Nullable FrameRegion region,
+    final @Nullable MouseInput mouse,
+    final byte[] samples
+  ) {
     this.type = type;
     this.token = token;
     this.number = number;
@@ -51,6 +65,17 @@ final class HelperMessage {
     this.url = url;
     this.region = region;
     this.mouse = mouse;
+    this.samples = samples;
+  }
+
+  /**
+   * Creates sound of the page.
+   *
+   * @param samples the samples, 16-bit little-endian stereo at 48 kHz, which the message owns
+   * @return the message
+   */
+  static HelperMessage audio(final byte[] samples) {
+    return new HelperMessage(HelperProtocol.AUDIO, NO_TOKEN, 0, "", "", null, null, samples);
   }
 
   static HelperMessage hello(final byte[] token, final int version) {
@@ -143,6 +168,15 @@ final class HelperMessage {
       throw new IllegalStateException("Message type " + this.type + " carries no frame");
     }
     return current;
+  }
+
+  /**
+   * Gets the samples of sound, which the receiver owns: they are not copied.
+   *
+   * @return the samples, or an empty array for other types
+   */
+  byte[] getSamples() {
+    return this.samples;
   }
 
   /**

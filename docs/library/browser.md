@@ -22,20 +22,43 @@ every painted frame over as plain pixels, so frames arrive only when the page ch
 
 ## Installation
 
-The first browser that starts on a machine downloads the CEF build for it, about 150 MB, from Maven Central into
-MCAV's cache folder (`~/.mcav/cache/jcef`). The download is checked against a SHA-256 hash pinned in MCAV and unpacked
-with checks that keep every file inside that folder; later starts reuse it. Two applications starting at the same
-time download it once.
+The first browser that starts on a machine downloads the CEF build for it, 136 to 165 MB depending on the platform,
+from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The download
+is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that folder;
+later starts reuse it. Two applications starting at the same time download it once.
 
 | Operating System | Architectures           | Notes                                                                        |
 |------------------|-------------------------|------------------------------------------------------------------------------|
-| Linux            | x86-64, ARM64           | Needs the `Xvfb` program: the package `xvfb` (Debian, Ubuntu, Alpine), `xorg-x11-server-Xvfb` (Fedora, RHEL) or `xorg-server-xvfb` (Arch), and the system libraries Chromium links against. |
+| Linux            | x86-64, ARM64           | Nothing to install: no X server, no Xvfb, no packages; see below.            |
 | Windows          | x86-64, ARM64           | ARM64 is supported by the build but untested.                                |
 | macOS            | x86-64, ARM64 (Apple)   |                                                                              |
 
-On Linux, every browser starts a private `Xvfb` display of its own, which only its helper can use; Chromium never
-draws on it, but CEF needs an X display to start. On any other platform, and on 32-bit systems, `start` fails with a
-`PlayerException` that names the platform, and nothing is downloaded.
+`BrowserPlayer.isSupported()` tells whether there is a CEF build for the machine. On any other platform, and on 32-bit
+systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so
+does a start whose download or check fails, with the reason in its message.
+
+### Linux on a stock server
+
+The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing
+installed and no JVM options. Chromium draws on its headless platform, which needs no display server. CEF's Java
+binding still asks for an X display once at the start, for a window of one pixel it never shows; the helper answers
+it itself with a null display: a minimal X11 endpoint inside the helper, on the loopback interface, that only a
+client presenting the helper's random cookie may use, and that answers the handful of questions CEF asks and nothing
+else.
+
+Chromium links against libraries a desktop has but a server image often lacks (the X11 client libraries, NSS, ALSA,
+ATK, cups and others). The first start on Linux downloads those the server lacks from the frozen archive of Debian 11
+(bullseye) into `~/.mcav/cache/jcef-libraries`, about 13 MB: 52 packages per architecture, each checked against a
+SHA-256 hash pinned in MCAV, of which only the shared libraries are unpacked. Debian 11 is built for glibc 2.31, so
+any server with glibc 2.31 or newer can use them (libcef itself needs glibc 2.25). A library the server has is always
+the server's own: only the missing ones are linked into the folder of each browser, and only its helper process gets
+that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig and freetype) are
+expected from the server, as every server image tested has them; a server without one of them gets a
+`BrowserUnavailableException` that names it.
+
+This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
+`itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
+released and started again, and no process of the browser is left.
 
 ## Playing a Page
 
@@ -68,10 +91,10 @@ unknown host, fails the start. After a page stops changing, its last frame is ha
 times, so a video filter that spreads a big change over several frames, like the map encoder with its byte budget,
 finishes it.
 
-`release` ends the helper process, its Chromium processes and its display. Stopping the module, for example when a
-plugin is disabled, ends every browser that is running or still starting, and each player hears of it through its
-exception handler; no browser starts until the module starts again. If your application dies without releasing its
-browsers, every helper notices, ends within 20 seconds, and takes its display with it.
+`release` ends the helper process and its Chromium processes. Stopping the module, for example when a plugin is
+disabled, ends every browser that is running or still starting, and each player hears of it through its exception
+handler; no browser starts until the module starts again. If your application dies without releasing its browsers,
+every helper notices and ends within 20 seconds.
 
 ## Input
 
@@ -106,4 +129,28 @@ a page can do instead:
 - The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
   user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing.
 
-Audio of the page is not captured.
+- The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
+  script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
+  second, which is nothing the page could not play anyway.
+- On Linux, the helper's null display listens on the loopback interface only and answers only a client that presents
+  the random cookie of that helper. The libraries MCAV downloads for Linux are frozen Debian 11 packages, which get
+  no more security updates; they only fill in for libraries the server lacks, and only the helper uses them.
+
+## Sound
+
+The sound a page plays through Web Audio and its audio and video elements arrives at the audio pipeline of the player,
+as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player:
+
+```java
+  final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
+  audio.attach(AudioPipelineStep.of(speakers));
+```
+
+JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own
+scripts does it: every Web Audio context of a document is one context at 48 kHz, audio and video elements play into it
+at their own volume, and its samples go to the helper. Nothing plays on the speakers of the machine. As in a desktop
+browser, a page may play sound only once someone clicked or typed into it, such as with `sendMouseEvent`;
+`BrowserOptions.builder().autoplay(true)` lets pages play sound right away. The sound of one frame of the page plays at
+a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site
+that does not allow it (CORS), and of protected media (DRM) stays silent. The sound reaches the pipeline within a few
+tens of milliseconds of its picture.

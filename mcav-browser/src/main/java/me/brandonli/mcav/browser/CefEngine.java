@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import com.google.common.annotations.VisibleForTesting;
 import java.awt.EventQueue;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -58,6 +59,7 @@ final class CefEngine implements HelperEngine {
 
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
+  private volatile @Nullable NullDisplay display;
   private volatile @Nullable CefApp app;
   private volatile @Nullable CefClient client;
   private volatile @Nullable McavOffscreenBrowser browser;
@@ -76,13 +78,25 @@ final class CefEngine implements HelperEngine {
    * @param linux         whether the helper runs on Linux
    * @param mac           whether the helper runs on macOS
    * @param guardPort     the port of the network guard on the loopback interface, or 0 if pages may reach any address
+   * @param display       the name of the helper's null display on Linux, or null elsewhere
    * @return the switches
    */
-  static List<String> createSwitches(final HelperConfiguration configuration, final boolean linux, final boolean mac, final int guardPort) {
+  static List<String> createSwitches(
+    final HelperConfiguration configuration,
+    final boolean linux,
+    final boolean mac,
+    final int guardPort,
+    final @Nullable String display
+  ) {
     final List<String> switches = new ArrayList<>();
     switches.add("--disable-gpu");
     switches.add("--disable-gpu-compositing");
+    // the page's sound reaches the server through PageAudio, never the speakers of the server; as in a desktop
+    // browser, a page may play sound only once a player clicked the screen, which reaches it as a real click, unless
+    // the options let it play right away (CEF's own default)
     switches.add("--mute-audio");
+    final boolean autoplay = configuration.isAutoplay();
+    switches.add("--autoplay-policy=" + (autoplay ? "no-user-gesture-required" : "document-user-activation-required"));
     switches.add("--hide-scrollbars");
     switches.add("--disable-extensions");
     switches.add("--disable-component-update");
@@ -106,8 +120,14 @@ final class CefEngine implements HelperEngine {
       switches.add("--disable-quic");
     }
     if (linux) {
+      // Chromium draws without any display server; only JCEF's window of one pixel needs an X display, and gets the
+      // helper's null display. The shared memory of a container is often small, so Chromium uses temporary files.
       switches.add("--ozone-platform=headless");
       switches.add("--password-store=basic");
+      switches.add("--disable-dev-shm-usage");
+      if (display != null) {
+        switches.add("--display=" + display);
+      }
     }
     if (mac) {
       switches.add("--use-mock-keychain");
@@ -153,7 +173,11 @@ final class CefEngine implements HelperEngine {
       this.guard = startedGuard;
       guardPort = startedGuard.getPort();
     }
-    final List<String> switches = createSwitches(configuration, linux, mac, guardPort);
+    // the authority file lies in the folder of the session, next to the socket, where the server told X clients
+    final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
+    final NullDisplay startedDisplay = startDisplay(linux, authority);
+    this.display = startedDisplay;
+    final List<String> switches = createSwitches(configuration, linux, mac, guardPort, NullDisplay.nameOf(startedDisplay));
     builder.addJcefArgs(switches.toArray(String[]::new));
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
@@ -164,7 +188,8 @@ final class CefEngine implements HelperEngine {
     final CefClient createdClient = created.createClient();
     this.client = createdClient;
     final String url = configuration.getUrl().toString();
-    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS));
+    final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
+    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio));
     createdClient.addLifeSpanHandler(policy);
     createdClient.addRequestHandler(policy);
     createdClient.addJSDialogHandler(policy);
@@ -193,24 +218,41 @@ final class CefEngine implements HelperEngine {
   }
 
   /**
+   * Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
+   *
+   * @param linux     whether the helper runs on Linux
+   * @param authority the authority file of the display
+   * @return the running display, or null elsewhere
+   * @throws IOException if the display cannot listen
+   */
+  static @Nullable NullDisplay startDisplay(final boolean linux, final Path authority) throws IOException {
+    return linux ? NullDisplay.start(authority) : null;
+  }
+
+  /**
    * Prepares a browser that was just created on the empty document, on CEF's thread, and then loads its page: the
-   * script that opens new windows in place is added to every document it will show first. The browser of the helper
-   * is off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously,
-   * so the page is only loaded once the script is in place; JCEF can lose the answer of a call, so after the timeout it
+   * script that opens new windows in place and the one that hands over the sound of the page are added to every
+   * document it will show, and the listener of the sound hears the DevTools events. The browser of the helper is
+   * off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously, so
+   * the page is only loaded once the scripts are in place; JCEF can lose the answer of a call, so after the timeout it
    * is loaded anyway.
    *
    * @param created       the browser
    * @param url           the address of the page
-   * @param timeoutMillis how long to wait for the script at most
+   * @param timeoutMillis how long to wait for the scripts at most
+   * @param audio         hears the sound of the page
    */
-  static void openPage(final CefBrowser created, final String url, final long timeoutMillis) {
+  static void openPage(final CefBrowser created, final String url, final long timeoutMillis, final PageAudio audio) {
     final CefDevToolsClient devTools = created.getDevToolsClient();
     if (devTools == null) {
       created.loadURL(url);
       return;
     }
+    devTools.addEventListener(audio);
+    final List<DevToolsInput.DevToolsCall> calls = new ArrayList<>(DevToolsInput.openWindowsInPlace());
+    calls.addAll(PageAudio.install());
     CompletableFuture<String> last = CompletableFuture.completedFuture("");
-    for (final DevToolsInput.DevToolsCall call : DevToolsInput.openWindowsInPlace()) {
+    for (final DevToolsInput.DevToolsCall call : calls) {
       last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
       last.exceptionally(CefEngine::logFailedCall);
     }
@@ -280,7 +322,7 @@ final class CefEngine implements HelperEngine {
 
   /**
    * Closes the network guard and the browser, disposes of the client and shuts CEF down, waiting up to ten seconds for
-   * CEF to terminate.
+   * CEF to terminate, and then closes the null display.
    */
   @Override
   public void stop() {
@@ -291,10 +333,14 @@ final class CefEngine implements HelperEngine {
     final McavOffscreenBrowser current = this.browser;
     final CefClient currentClient = this.client;
     final CefApp currentApp = this.app;
-    if (currentApp == null) {
-      return;
+    if (currentApp != null) {
+      shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLIS);
     }
-    shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLIS);
+    // the display outlives CEF: the X library ends a process whose display goes away under it
+    final NullDisplay currentDisplay = this.display;
+    if (currentDisplay != null) {
+      currentDisplay.close();
+    }
   }
 
   /**

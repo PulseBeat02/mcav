@@ -149,28 +149,63 @@ final class JcefNatives {
    * @throws IOException if the platform has no natives, or the download, the verification or the extraction fails
    */
   Path install() throws IOException {
-    final OS os = OSUtils.getOS();
-    final Arch arch = OSUtils.getArch();
-    final Bits bits = OSUtils.getBits();
-    return this.install(os, arch, bits);
+    return this.install(detectCurrent());
   }
 
   /**
-   * Installs the natives of a machine unless they are installed already.
+   * Checks whether jcefmaven has a CEF build for this machine.
+   *
+   * @return true if the natives of this machine exist
+   */
+  static boolean isSupported() {
+    return isSupported(OSUtils.getOS(), OSUtils.getArch(), OSUtils.getBits());
+  }
+
+  /**
+   * Checks whether jcefmaven has a CEF build for a machine.
+   *
+   * @param os   the operating system
+   * @param arch the processor architecture
+   * @param bits the address width
+   * @return true if the natives of the machine exist
+   */
+  static boolean isSupported(final OS os, final Arch arch, final Bits bits) {
+    try {
+      detectOrFail(os, arch, bits);
+      return true;
+    } catch (final IOException exception) {
+      return false;
+    }
+  }
+
+  /**
+   * Finds the natives of this machine.
+   *
+   * @return the platform
+   * @throws IOException if jcefmaven has no CEF build for this machine
+   */
+  static NativePlatform detectCurrent() throws IOException {
+    final OS os = OSUtils.getOS();
+    final Arch arch = OSUtils.getArch();
+    final Bits bits = OSUtils.getBits();
+    return detectOrFail(os, arch, bits);
+  }
+
+  /**
+   * Finds the natives of a machine.
    *
    * @param os   the operating system of the machine
    * @param arch the processor architecture of the machine
    * @param bits the width of its processor
-   * @return the folder of the installation
-   * @throws IOException if the platform has no natives, or the download, the verification or the extraction fails
+   * @return the platform
+   * @throws IOException if jcefmaven has no CEF build for the machine
    */
-  @VisibleForTesting
-  Path install(final OS os, final Arch arch, final Bits bits) throws IOException {
+  static NativePlatform detectOrFail(final OS os, final Arch arch, final Bits bits) throws IOException {
     final Optional<NativePlatform> platform = detect(os, arch, bits);
     if (platform.isEmpty()) {
       throw new IOException("jcefmaven has no CEF build for " + os + " " + arch + " " + bits + "; the browser cannot run here");
     }
-    return this.install(platform.get());
+    return platform.get();
   }
 
   /**

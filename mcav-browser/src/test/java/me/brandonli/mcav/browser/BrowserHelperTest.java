@@ -84,6 +84,7 @@ class BrowserHelperTest {
       1,
       30,
       false,
+      false,
       false
     );
   }

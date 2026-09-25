@@ -32,6 +32,9 @@ import org.cef.browser.McavOffscreenBrowser;
  *   page again with the blue channel counting the DevTools calls so far, so a test can see input arrive;</li>
  *   <li>{@code /load-error}: fails to load the page;</li>
  *   <li>{@code /fail}: shows the page, then, a second later, fails as a crashed renderer would;</li>
+ *   <li>{@code /sound}: shows the page, then hands {@link #SOUND_CHUNKS} chunks of {@link #SOUND_FRAMES} frames to a
+ *   {@link PageAudio} as calls of its binding, whose samples all hold the number of the chunk, with a call that is not
+ *   sound before each;</li>
  *   <li>{@code /exit}: ends the helper process during the start;</li>
  *   <li>{@code /throw}: fails to start;</li>
  *   <li>{@code /never}: never reports anything.</li>
@@ -41,6 +44,8 @@ final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
   static final int GREEN = 0x40;
+  static final int SOUND_CHUNKS = 3;
+  static final int SOUND_FRAMES = 1024;
 
   private final List<String> calls;
   private McavOffscreenBrowser.PaintListener painter = new NoPainter();
@@ -87,6 +92,22 @@ final class ScriptedEngine implements HelperEngine {
         events.onLoading(true);
         events.onLoadError(-105, "ERR_NAME_NOT_RESOLVED", url.toString());
         events.onLoading(false);
+      }
+      case "/sound" -> {
+        this.show(0);
+        final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
+        for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
+          final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+          while (samples.hasRemaining()) {
+            samples.putShort((short) chunk);
+          }
+          final String payload = java.util.Base64.getEncoder().encodeToString(samples.array());
+          audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
+          audio.onEvent(
+            PageAudio.BINDING_EVENT,
+            "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + payload + "\",\"executionContextId\":1}"
+          );
+        }
       }
       case "/fail" -> {
         this.show(0);
@@ -178,5 +199,8 @@ final class ScriptedEngine implements HelperEngine {
 
     @Override
     public void onFailure(final String text) {}
+
+    @Override
+    public void onAudio(final byte[] samples) {}
   }
 }

@@ -64,6 +64,13 @@ interface BrowserSession extends AutoCloseable {
     void onFrame(ImageBuffer frame);
 
     /**
+     * Receives sound of the page, on the thread that reads the helper, so the listener must not hold it up.
+     *
+     * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames, which the listener owns
+     */
+    void onAudio(byte[] samples);
+
+    /**
      * Receives that the browser ended without being asked to.
      *
      * @param reason why it ended

@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -130,6 +131,65 @@ class CefBrowserPlayerTest {
 
   private static ImageBuffer frame() {
     return ImageBuffer.buffer(new int[100 * 50], 100, 50);
+  }
+
+  private List<byte[]> attachSoundRecorder() {
+    final List<byte[]> heard = new java.util.concurrent.CopyOnWriteArrayList<>();
+    this.player.getAudioAttachableCallback()
+      .attach(
+        me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> {
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          heard.add(copy);
+          return true;
+        })
+      );
+    return heard;
+  }
+
+  @Test
+  void theSoundOfTheCurrentSessionReachesTheAudioPipelineAndNoOtherSound() throws InterruptedException {
+    final List<byte[]> heard = this.attachSoundRecorder();
+    assertSame(this.player.getAudioAttachableCallback(), this.player.getAudioAttachableCallback());
+    assertTrue(this.player.start(SOURCE));
+    final BrowserSession.Listener first = this.listener;
+    first.onAudio(new byte[] { 1, 0, 1, 0 });
+    Await.until("the sound of the page", () -> heard.size() == 1);
+    assertArrayEquals(new byte[] { 1, 0, 1, 0 }, heard.getFirst());
+    assertTrue(this.player.release());
+    // a released player has no output, and sound of a session that is over is dropped
+    first.onAudio(new byte[] { 2, 0, 2, 0 });
+    this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 3, 0, 3, 0 });
+    Thread.sleep(CefBrowserPlayer.MAX_QUEUED_AUDIO_MILLIS * 2L);
+    assertEquals(1, heard.size());
+  }
+
+  @Test
+  void soundBeforeTheSessionIsThePlayersOrOfAnOldSessionIsDropped() throws InterruptedException {
+    final List<byte[]> heard = this.attachSoundRecorder();
+    final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      // the helper plays sound during the start, before the session is the player's
+      sessionListener.onAudio(new byte[] { 9, 0, 9, 0 });
+      this.listener = sessionListener;
+      final FakeSession session = new FakeSession();
+      this.sessions.add(session);
+      return session;
+    });
+    final List<byte[]> earlyHeard = new java.util.concurrent.CopyOnWriteArrayList<>();
+    early
+      .getAudioAttachableCallback()
+      .attach(me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> earlyHeard.add(new byte[0])));
+    assertTrue(early.start(SOURCE));
+    early.release();
+    assertTrue(this.player.start(SOURCE));
+    final FakeSession old = new FakeSession();
+    this.player.deliverAudio(old, new byte[] { 4, 0, 4, 0 });
+    this.listener.onAudio(new byte[] { 5, 0, 5, 0 });
+    Await.until("the sound of the current session", () -> heard.size() == 1);
+    Thread.sleep(CefBrowserPlayer.MAX_QUEUED_AUDIO_MILLIS * 2L);
+    assertEquals(1, heard.size());
+    assertEquals(5, heard.getFirst()[0]);
+    assertEquals(List.of(), earlyHeard);
   }
 
   @Test

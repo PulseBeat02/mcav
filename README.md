@@ -41,7 +41,8 @@ JavaCV natives are extracted into the JavaCPP cache of the user, and yt-dlp and 
 of the user when they are missing; on Linux, VLC is downloaded on x86-64 only and is otherwise used from the system.
 Other Unix systems, such as FreeBSD, are detected as well: MCAV downloads nothing there and uses the VLC installed on
 the system, but the bundled FFmpeg and OpenCV natives only exist for the platforms above. QEMU for the virtual machine
-module must already be installed; the browser module downloads its Chromium on first use and needs Xvfb on Linux. Please check the
+module must already be installed; the browser module downloads its Chromium on first use, and on Linux the libraries it
+needs that the server lacks, so it runs on a stock headless server with nothing installed. Please check the
 [documentation](https://mcav.readthedocs.io/en/latest/intro.html) for more information.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)

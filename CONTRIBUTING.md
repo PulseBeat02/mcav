@@ -25,9 +25,10 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
 - Tests that download from the internet, such as the check of the bundled yt-dlp release against the checksums
   published on GitHub and a real installation of yt-dlp, only run with `-Pmcav.networkTests=true`.
 - The tests of `mcav-browser` that start a real browser download the CEF build of the machine on their first run,
-  as a server does (136–165 MB, into `~/.mcav/cache/jcef`); on Linux they need Xvfb.
-- The measurement of how far the sound of a virtual machine drifts from its picture times real events, which a busy
-  machine delays, so it only runs with `-Pmcav.syncMeasurement=true`, on a quiet machine.
+  as a server does (136–165 MB, into `~/.mcav/cache/jcef`), and on Linux the libraries the machine lacks (about
+  13 MB, into `~/.mcav/cache/jcef-libraries`); they need no X server.
+- The measurements of how far the sound of a virtual machine or of a browser page drifts from its picture time real
+  events, which a busy machine delays, so they only run with `-Pmcav.syncMeasurement=true`, on a quiet machine.
 
 ## Static Analysis
 

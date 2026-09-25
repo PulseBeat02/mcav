@@ -19,17 +19,32 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.constantpool.ClassEntry;
+import java.lang.classfile.constantpool.MethodTypeEntry;
+import java.lang.classfile.constantpool.NameAndTypeEntry;
+import java.lang.classfile.constantpool.PoolEntry;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
 import org.cef.CefApp;
@@ -40,6 +55,9 @@ class HelperLauncherTest {
 
   private static final Path JAVA = Path.of("/opt/java/bin/java");
   private static final List<Path> CLASS_PATH = List.of(Path.of("/libs/mcav-browser.jar"), Path.of("/libs/jcef-api.jar"));
+  private static final String BROWSER_PACKAGE = "me/brandonli/mcav/browser/";
+  // the class in a descriptor: Lme/brandonli/mcav/Foo; (arrays and generics add nothing a class entry lacks)
+  private static final Pattern DESCRIBED_TYPE = Pattern.compile("L([^;<]+)[;<]");
 
   @TempDir
   Path folder;
@@ -65,36 +83,32 @@ class HelperLauncherTest {
   }
 
   @Test
-  void theEnvironmentKeepsLittleAndGetsThePrivateDisplay() throws IOException {
-    final Map<String, String> server = Map.of("PATH", "/usr/bin", "DISCORD_TOKEN", "secret", "DISPLAY", ":0");
-    final HelperLauncher launcher = launcher(OS.LINUX, server);
-    assertEquals(Map.of("PATH", "/usr/bin"), launcher.createEnvironment(null));
-    assertEquals(OS.LINUX, launcher.getOs());
-    assertEquals(5_000L, launcher.getStartTimeoutMillis());
-  }
-
-  @Test
-  void onlyLinuxNeedsXvfb() {
-    assertEquals(Optional.empty(), launcher(OS.WINDOWS, Map.of()).findXvfb());
-    assertEquals(Optional.empty(), launcher(OS.MAC, Map.of()).findXvfb());
-  }
-
-  @Test
-  void linuxWithoutXvfbNamesThePackageToInstall() {
-    final PlayerException failure = assertThrows(PlayerException.class, () ->
-      launcher(OS.LINUX, Map.of("PATH", this.folder.toString())).findXvfb()
+  void theEnvironmentKeepsLittleAndNeverTheDisplayOfTheServer() throws IOException {
+    final Map<String, String> server = Map.of("PATH", "/usr/bin", "DISCORD_TOKEN", "secret", "DISPLAY", ":0", "LD_LIBRARY_PATH", "/opt/x");
+    final HelperLauncher linux = launcher(OS.LINUX, server);
+    final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
+    assertEquals(Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString()), linux.createEnvironment(this.folder, null));
+    final Path libraries = this.folder.resolve("lib");
+    assertEquals(
+      Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "LD_LIBRARY_PATH", libraries.toString()),
+      linux.createEnvironment(this.folder, libraries)
     );
-    assertTrue(failure.getMessage().contains("install the package xvfb"), failure.getMessage());
-    assertThrows(PlayerException.class, () -> launcher(OS.LINUX, Map.of()).findXvfb());
+    assertEquals(Map.of("PATH", "/usr/bin"), launcher(OS.WINDOWS, server).createEnvironment(this.folder, null));
+    assertEquals(OS.LINUX, linux.getOs());
+    assertEquals(5_000L, linux.getStartTimeoutMillis());
   }
 
   @Test
-  void linuxFindsXvfbOnThePath() throws IOException {
-    final Path program = Files.createFile(this.folder.resolve(XvfbDisplay.PROGRAM));
-    if (this.folder.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      Files.setPosixFilePermissions(program, PosixFilePermissions.fromString("rwx------"));
-    }
-    assertEquals(Optional.of(program), launcher(OS.LINUX, Map.of("PATH", this.folder.toString())).findXvfb());
+  void aLauncherWithLibrariesLinksThemIntoEverySession() throws IOException {
+    final HelperLauncher plain = launcher(OS.LINUX, Map.of());
+    assertNull(plain.linkLibraries(this.folder));
+    final Path linked = this.folder.resolve("lib");
+    final HelperLauncher withLibraries = plain.withLibraries(session -> Files.createDirectory(session.resolve("lib")));
+    assertEquals(linked, withLibraries.linkLibraries(this.folder));
+    assertTrue(Files.isDirectory(linked));
+    assertEquals(plain.createCommand(this.folder), withLibraries.createCommand(this.folder));
+    assertEquals(plain.getStartTimeoutMillis(), withLibraries.getStartTimeoutMillis());
+    assertEquals(OS.LINUX, withLibraries.getOs());
   }
 
   @Test
@@ -153,5 +167,73 @@ class HelperLauncherTest {
     assertTrue(classPath.contains("jcefmaven"), classPath);
     assertFalse(classPath.contains("jogl"), classPath);
     assertEquals(1_000L, launcher.getStartTimeoutMillis());
+  }
+
+  @Test
+  void theHelperReachesNoClassBeyondItsClassPath() throws IOException {
+    // the helper runs with the browser module, JCEF and the JDK only: a class of another module that it reaches, such
+    // as mcav-common's, fails there with a NoClassDefFoundError that no test JVM shows, which all have every module
+    final Set<String> reached = new HashSet<>();
+    final Deque<String> pending = new ArrayDeque<>(List.of(HelperLauncher.MAIN_CLASS.replace('.', '/')));
+    final List<String> outside = new ArrayList<>();
+    while (!pending.isEmpty()) {
+      final String name = pending.pop();
+      if (!reached.add(name)) {
+        continue;
+      }
+      for (final String used : usedClasses(name)) {
+        if (used.startsWith(BROWSER_PACKAGE)) {
+          pending.push(used);
+        } else if (!isOnTheHelperClassPath(used)) {
+          outside.add(name + " uses " + used);
+        }
+      }
+    }
+    assertEquals(List.of(), outside);
+    assertTrue(reached.contains(BROWSER_PACKAGE + "NullDisplay"), reached::toString);
+  }
+
+  private static Set<String> usedClasses(final String name) throws IOException {
+    final byte[] bytes;
+    try (InputStream in = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
+      assertNotNull(in, name);
+      bytes = in.readAllBytes();
+    }
+    final ClassModel model = ClassFile.of().parse(bytes);
+    final Set<String> used = new TreeSet<>();
+    for (final PoolEntry entry : model.constantPool()) {
+      if (entry instanceof final ClassEntry type) {
+        final String internal = type.asInternalName();
+        if (internal.startsWith("[")) {
+          addDescribed(internal, used);
+        } else {
+          used.add(internal);
+        }
+      } else if (entry instanceof final NameAndTypeEntry member) {
+        addDescribed(member.type().stringValue(), used);
+      } else if (entry instanceof final MethodTypeEntry method) {
+        addDescribed(method.descriptor().stringValue(), used);
+      }
+    }
+    model.fields().forEach(field -> addDescribed(field.fieldType().stringValue(), used));
+    model.methods().forEach(method -> addDescribed(method.methodType().stringValue(), used));
+    return used;
+  }
+
+  private static void addDescribed(final String descriptor, final Set<String> used) {
+    final Matcher matcher = DESCRIBED_TYPE.matcher(descriptor);
+    while (matcher.find()) {
+      used.add(matcher.group(1));
+    }
+  }
+
+  private static boolean isOnTheHelperClassPath(final String name) {
+    return (
+      name.startsWith("java/") ||
+      name.startsWith("javax/") ||
+      name.startsWith("jdk/") ||
+      name.startsWith("org/cef/") ||
+      name.startsWith("me/friwi/jcefmaven/")
+    );
   }
 }

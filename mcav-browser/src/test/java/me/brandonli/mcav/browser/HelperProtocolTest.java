@@ -329,6 +329,45 @@ class HelperProtocolTest {
   }
 
   @Test
+  void soundCrossesAsWholeFramesUpToItsLimit() throws IOException {
+    final byte[] samples = { 1, 2, 3, 4, 5, 6, 7, 8, 99 };
+    final HelperMessage sound = read(bytes(out -> HelperProtocol.writeAudio(out, samples, 8)));
+    assertEquals(HelperProtocol.AUDIO, sound.getType());
+    assertArrayEquals(Arrays.copyOf(samples, 8), sound.getSamples());
+    final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
+    largest[largest.length - 1] = 5;
+    assertArrayEquals(largest, read(bytes(out -> HelperProtocol.writeAudio(out, largest, largest.length))).getSamples());
+    assertArrayEquals(new byte[0], read(bytes(HelperProtocol::writeClose)).getSamples(), "other messages carry no sound");
+    // nothing, less than nothing, half a frame, more than the buffer holds, and more than a message may hold
+    assertSoundRefused(new byte[8], 0);
+    assertSoundRefused(new byte[8], -4);
+    assertSoundRefused(new byte[8], 6);
+    assertSoundRefused(new byte[8], 12);
+    assertSoundRefused(new byte[HelperProtocol.MAX_AUDIO_BYTES + 4], HelperProtocol.MAX_AUDIO_BYTES + 4);
+  }
+
+  private static void assertSoundRefused(final byte[] samples, final int length) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      bytes(out -> HelperProtocol.writeAudio(out, samples, length))
+    );
+    assertEquals("Sound of " + length + " bytes cannot be sent", refused.getMessage());
+  }
+
+  @Test
+  void soundThatIsNotWholeFramesOrTooLongIsRefused() throws IOException {
+    final ProtocolException half = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[6])));
+    assertEquals("Sound of 6 bytes does not hold whole frames of 4 bytes", half.getMessage());
+    assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[0])));
+    assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[2])));
+    final byte[] tooLong = bytes(out -> {
+      out.writeByte(HelperProtocol.AUDIO);
+      out.writeInt(HelperProtocol.MAX_AUDIO_BYTES + 4);
+    });
+    final ProtocolException refused = assertThrows(ProtocolException.class, () -> read(tooLong));
+    assertEquals("A message of type 8 has 4 to 65536 bytes but announced 65540", refused.getMessage());
+  }
+
+  @Test
   void aCloseCarriesNothing() throws IOException {
     assertEquals(HelperProtocol.CLOSE, read(bytes(HelperProtocol::writeClose)).getType());
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.CLOSE, new byte[1])));
