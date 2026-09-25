@@ -54,6 +54,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
+  /**
+   * The permission a player needs to send input to the running browser, by chat or by clicking the screen.
+   */
+  static final String INTERACT_PERMISSION = "mcav.browser.interact";
+
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
 
   /**
@@ -63,6 +68,16 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   public BrowserCommand(final MCAVSandbox plugin) {
     super(plugin);
+  }
+
+  /**
+   * Gets the permission a player needs to send input to the running browser.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
   }
 
   /**
@@ -120,8 +135,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *
    * <p>While it is on, the chat messages of the player are not sent to chat. Their text is typed into the running
    * browser instead, for example into a search box that was clicked before. Clicking the map screen does not need
-   * this mode: left and right clicks on the screen always reach the browser. Running the command again switches it
-   * off, and the player is told which state is now active.
+   * this mode: left and right clicks on the screen reach the browser for every player with this permission. Running
+   * the command again switches it off, and the player is told which state is now active.
    *
    * <p>Requires the permission {@code mcav.browser.interact}. Only players can run it, since the console has no chat
    * to forward.
@@ -129,7 +144,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param sender the player who switches their chat input
    */
   @Command("mcav browser interact")
-  @Permission("mcav.browser.interact")
+  @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.browser.interact.info")
   public void toggleInteraction(final Player sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
@@ -209,7 +224,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (resolution == null) {
       return;
     }
-    final Pair<Integer, Integer> blocks = parseDimensions(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
       return;
     }

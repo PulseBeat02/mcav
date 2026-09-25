@@ -169,6 +169,12 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void needsTheInteractPermissionForInput() {
+    final String permission = this.command.getInteractionPermission();
+    assertEquals("mcav.browser.interact", permission, "clicks and chat are the input of the interact subcommand");
+  }
+
+  @Test
   void refusesInvalidResolutions() {
     this.create("big", "5x3", "https://example.com/page");
 
@@ -180,6 +186,24 @@ final class BrowserCommandTest {
   @Test
   void refusesInvalidScreenSizes() {
     this.create("1280x720", "0x3", "https://example.com/page");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error);
+    this.browsers.verifyNoInteractions();
+  }
+
+  @Test
+  void refusesScreensLargerThanTheLimit() {
+    this.create("1280x720", "5x65", "https://example.com/page");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error);
+    this.browsers.verifyNoInteractions();
+  }
+
+  @Test
+  void refusesResolutionsLargerThanTheLimit() {
+    this.create("8193x720", "5x3", "https://example.com/page");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);

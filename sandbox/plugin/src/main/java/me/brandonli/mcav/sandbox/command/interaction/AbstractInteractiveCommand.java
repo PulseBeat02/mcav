@@ -86,6 +86,11 @@ import org.slf4j.LoggerFactory;
  * Shows an interactive player, such as a browser or a virtual machine, on a map screen and forwards clicks on the
  * screen and chat messages of players who enabled interaction.
  *
+ * <p>Input only reaches the running player from a player who has {@link #getInteractionPermission()}. The screen is
+ * built in the world, so any player can reach it, and the page or the guest desktop on it belongs to whoever started
+ * it. Protecting the frames of the screen needs no permission, so a player without it can neither break the wall nor
+ * turn the maps in their frames.
+ *
  * @param <T> the type of the interactive player
  */
 public abstract class AbstractInteractiveCommand<T> implements AnnotationCommandFeature, Listener {
@@ -220,6 +225,26 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     Preconditions.checkNotNull(text, "Text must not be null");
     try {
       return ArgumentUtils.parseDimensions(text);
+    } catch (final IllegalArgumentException exception) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
+      return null;
+    }
+  }
+
+  /**
+   * Parses the size of a wall of maps such as {@code 5x5}, telling the sender when it is not valid or larger than
+   * {@link ArgumentUtils#parseScreenDimensions(String)} allows.
+   *
+   * @param sender who ran the command
+   * @param text   the size as entered
+   * @return the width and height in maps, or {@code null} if the text is not a valid wall size
+   */
+  protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
+    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null");
+    try {
+      return ArgumentUtils.parseScreenDimensions(text);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
@@ -472,8 +497,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    *
    * <p>A left click on a map screen usually reaches the block behind the item frames. When a player is running and
    * the block the player looks at, up to 100 blocks away, has a screen frame on it, the break is
-   * cancelled so the wall stays intact, and a left click is sent at the pixel the player looks at. Other block
-   * breaks are left alone.
+   * cancelled so the wall stays intact, and a left click is sent at the pixel the player looks at if the breaker has
+   * {@link #getInteractionPermission()}. Other block breaks are left alone.
    *
    * @param event the block break
    */
@@ -495,8 +520,12 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (coordinates == null) {
       return;
     }
+    // the wall stays intact whoever breaks the block, but only a player with the permission clicks with it
     event.setCancelled(true);
-    this.handleLeftClick(current, coordinates[0], coordinates[1]);
+    final boolean allowed = this.mayInteract(breaker);
+    if (allowed) {
+      this.handleLeftClick(current, coordinates[0], coordinates[1]);
+    }
   }
 
   /**
@@ -541,9 +570,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Protects the item frames of a screen from players and turns punching one into a left click. Called by Bukkit.
    *
    * <p>Damage to a screen frame by a player, or by a projectile a player shot, is always cancelled, so the maps
-   * cannot be knocked out of their frames, even when nothing is running. When a player is running and the frame
-   * was punched directly, a left click is sent at the pixel the player looks at; hits by projectiles are not
-   * forwarded.
+   * cannot be knocked out of their frames, even when nothing is running. When a player is running, the frame was
+   * punched directly and the attacker has {@link #getInteractionPermission()}, a left click is sent at the pixel the
+   * player looks at; hits by projectiles are not forwarded.
    *
    * @param event the damage
    */
@@ -569,6 +598,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (current == null || !punched || !this.ownsScreen((ItemFrame) entity)) {
       return;
     }
+    final boolean allowed = this.mayInteract(attacker);
+    if (!allowed) {
+      return;
+    }
     final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
     if (coordinates != null) {
       this.handleLeftClick(current, coordinates[0], coordinates[1]);
@@ -592,8 +625,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Turns right clicking a screen frame into a right click on the running player. Called by Bukkit.
    *
    * <p>When a player is running and the pixel the player looks at on the wall can be found, the interaction is
-   * cancelled, so the map in the frame does not rotate, and a right click is sent at that pixel. Otherwise the
-   * right click behaves as usual.
+   * cancelled, so the map in the frame does not rotate, and a right click is sent at that pixel if the clicker has
+   * {@link #getInteractionPermission()}. Otherwise the right click behaves as usual.
    *
    * @param event the interaction
    */
@@ -612,17 +645,21 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (coordinates == null) {
       return;
     }
+    // the map keeps its rotation whoever right clicks it, but only a player with the permission clicks with it
     event.setCancelled(true);
-    this.handleRightClick(current, coordinates[0], coordinates[1]);
+    final boolean allowed = this.mayInteract(clicker);
+    if (allowed) {
+      this.handleRightClick(current, coordinates[0], coordinates[1]);
+    }
   }
 
   /**
    * Types the chat messages of players who switched on interaction into the running player. Called by Bukkit,
    * usually off the main thread.
    *
-   * <p>When the sender has switched on interaction with the {@code interact} subcommand and a player is running,
-   * the message is cancelled, so no one sees it in chat, and its plain text, without colors or formatting, is sent
-   * as typed text. Other chat messages are left alone.
+   * <p>When the sender has switched on interaction with the {@code interact} subcommand, still has
+   * {@link #getInteractionPermission()} and a player is running, the message is cancelled, so no one sees it in chat,
+   * and its plain text, without colors or formatting, is sent as typed text. Other chat messages are left alone.
    *
    * @param event the chat message
    */
@@ -633,6 +670,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final boolean active = this.activePlayers.contains(chatter);
     final T current = this.player;
     if (!active || current == null) {
+      return;
+    }
+    // the permission is checked again here, because it may have been taken away since the sender switched this on
+    final boolean allowed = this.mayInteract(chatter);
+    if (!allowed) {
       return;
     }
 
@@ -693,6 +735,22 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     this.releaseCurrent();
     sender.sendMessage(message);
   }
+
+  /**
+   * Whether a player may send input to the running player.
+   */
+  private boolean mayInteract(final Player player) {
+    final String permission = this.getInteractionPermission();
+    return player.hasPermission(permission);
+  }
+
+  /**
+   * Gets the permission a player needs to send clicks and chat messages to the running player. It is the permission
+   * of the {@code interact} subcommand of the command, so a player who may switch chat input on may also click.
+   *
+   * @return the permission
+   */
+  protected abstract String getInteractionPermission();
 
   /**
    * Forwards a left click.

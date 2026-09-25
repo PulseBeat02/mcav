@@ -108,6 +108,8 @@ import org.mockito.Mockito;
  */
 final class AbstractInteractiveCommandTest {
 
+  private static final String INTERACT_PERMISSION = "mcav.test.interact";
+
   private MCAVSandbox plugin;
   private RecordingCommand command;
   private FakeWorld fakeWorld;
@@ -133,6 +135,11 @@ final class AbstractInteractiveCommandTest {
       super(plugin, executor);
       this.forwarded = new ArrayList<>();
       this.released = new ArrayList<>();
+    }
+
+    @Override
+    protected String getInteractionPermission() {
+      return INTERACT_PERMISSION;
     }
 
     @Override
@@ -180,6 +187,7 @@ final class AbstractInteractiveCommandTest {
     this.command = new RecordingCommand(this.plugin);
     this.fakeWorld = new FakeWorld();
     this.player = mock(Player.class);
+    when(this.player.hasPermission(INTERACT_PERMISSION)).thenReturn(true);
     this.interactions = Mockito.mockStatic(InteractUtils.class);
   }
 
@@ -956,6 +964,62 @@ final class AbstractInteractiveCommandTest {
     final List<Component> replies = Components.received(this.player);
     final List<Component> expectedReplies = List.of(enable, disable);
     assertEquals(expectedReplies, replies);
+  }
+
+  @Test
+  void keepsTheScreenSafeFromAPlayerWhoMayNotInteractWithoutForwardingTheClick() {
+    this.createMockedScreen();
+    this.command.player = "browser";
+    when(this.player.hasPermission(INTERACT_PERMISSION)).thenReturn(false);
+    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.aimAtBlock(block);
+    // the frame hangs on the block the player looks at, as in the test that forwards the click
+    final ItemFrame frame = this.addScreenFrame(0.1, 64.1, -0.9);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 10, 20 });
+    final BlockBreakEvent broken = this.blockBreak();
+    final PlayerInteractEntityEvent right = this.rightClick(frame);
+    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
+
+    this.command.onBlockBreak(broken);
+    this.command.onPlayerInteractEntity(right);
+    this.command.onScreenDamage(punch);
+
+    this.assertForwarded();
+    verify(broken).setCancelled(true);
+    verify(right).setCancelled(true);
+    verify(punch).setCancelled(true);
+  }
+
+  @Test
+  void forwardsTheClicksOfAPlayerWhoMayInteract() {
+    this.createMockedScreen();
+    this.command.player = "browser";
+    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 1, 2 });
+    final PlayerInteractEntityEvent right = this.rightClick(frame);
+    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
+
+    this.command.onPlayerInteractEntity(right);
+    this.command.onScreenDamage(punch);
+
+    this.assertForwarded("browser right 1,2", "browser left 1,2");
+  }
+
+  @Test
+  void stopsForwardingTheChatOfAPlayerWhoLostThePermission() {
+    this.createMockedScreen();
+    this.command.player = "browser";
+    final Component enable = Component.text("on");
+    final Component disable = Component.text("off");
+    final Component message = Component.text("hello world");
+    this.command.toggleInteraction(this.player, enable, disable);
+    when(this.player.hasPermission(INTERACT_PERMISSION)).thenReturn(false);
+    final AsyncChatEvent event = this.chat(message);
+
+    this.command.onChatMessage(event);
+
+    verify(event, never()).setCancelled(anyBoolean());
+    this.assertForwarded();
   }
 
   @Test
