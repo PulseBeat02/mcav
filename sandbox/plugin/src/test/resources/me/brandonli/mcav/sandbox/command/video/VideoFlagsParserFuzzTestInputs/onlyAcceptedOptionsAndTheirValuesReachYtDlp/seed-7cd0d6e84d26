@@ -1,0 +1,1 @@
+--yt-dlp{match-filter=title~='{a\}',no-playlist} --muted

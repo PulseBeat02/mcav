@@ -47,6 +47,31 @@ final class VideoFlagsParserTest {
     assertArrayEquals(new String[0], arguments);
   }
 
+  /**
+   * A backslash escapes the character after it, but not the end of a line, like the regular expression the scan of
+   * the options replaced: options whose closing brace follows a backslash and a line break never end there.
+   */
+  @ParameterizedTest
+  @ValueSource(ints = { 0x0A, 0x0D, 0x85, 0x2028, 0x2029 })
+  void aBackslashDoesNotEscapeTheEndOfALine(final int lineBreak) {
+    final String character = Character.toString(lineBreak);
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=best\\" + character + "}");
+    assertArrayEquals(new String[0], arguments);
+  }
+
+  @Test
+  void optionsThatEndInABackslashNeverEnd() {
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=best\\");
+    assertArrayEquals(new String[0], arguments);
+  }
+
+  @Test
+  void looksForTheOptionsAgainAfterOptionsThatNeverEnd() {
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=worst\\\n --yt-dlp{format=best}");
+    final String[] expected = { "--format", "best" };
+    assertArrayEquals(expected, arguments);
+  }
+
   @ParameterizedTest
   @ValueSource(strings = { "--yt-dlp{}", "--yt-dlp{   }" })
   void returnsNoArgumentsForEmptyOptions(final String flags) {
@@ -222,5 +247,25 @@ final class VideoFlagsParserTest {
     final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=best}extra}");
     final String[] expected = { "--format", "best" };
     assertArrayEquals(expected, arguments);
+  }
+
+  /**
+   * Found by {@code VideoFlagsParserFuzzTest}: the options used to be found with a regular expression whose repeated
+   * alternative recursed once per character, so options of about 1600 characters overflowed the stack of a thread
+   * with the default size of 1 MB and threw a {@link StackOverflowError} out of the parser. The fuzzer's input was
+   * 2072 bytes of options; any long value shows it.
+   */
+  @Test
+  void findsOptionsOfAnyLengthWithoutOverflowingTheStack() {
+    final String value = "b".repeat(100_000);
+    final String escaped = "b\\,".repeat(20_000);
+
+    final String[] arguments = this.parser.parseYTDLPFlags("--yt-dlp{format=" + value + "}");
+    final String[] escapedArguments = this.parser.parseYTDLPFlags("--yt-dlp{format=" + escaped + "}");
+
+    final String[] expected = { "--format", value };
+    final String[] expectedEscaped = { "--format", "b,".repeat(20_000) };
+    assertArrayEquals(expected, arguments);
+    assertArrayEquals(expectedEscaped, escapedArguments);
   }
 }

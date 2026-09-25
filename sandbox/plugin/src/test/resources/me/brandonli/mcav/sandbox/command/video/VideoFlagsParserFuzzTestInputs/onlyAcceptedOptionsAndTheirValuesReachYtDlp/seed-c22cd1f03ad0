@@ -1,0 +1,1 @@
+--yt-dlp{match-filter=title~=C:\videos\%(title)s.mp4}

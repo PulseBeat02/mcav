@@ -17,14 +17,12 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import static java.util.Objects.requireNonNull;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -42,9 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class VideoFlagsParser {
 
-  private static final String YT_DLP_FLAG = "--yt-dlp";
-  private static final String QUOTED_YT_DLP_FLAG = Pattern.quote(YT_DLP_FLAG);
-  private static final Pattern YT_DLP_PATTERN = Pattern.compile(QUOTED_YT_DLP_FLAG + "\\{((?:[^\\\\}]|\\\\.)*)}");
+  private static final String YT_DLP_OPENING = "--yt-dlp{";
+  private static final char ESCAPE = '\\';
+  private static final char CLOSING_BRACE = '}';
   private static final Pattern UNESCAPED_COMMA = Pattern.compile("(?<!\\\\),");
   // keeps empty options, including a trailing one, which appendOption skips
   private static final Splitter OPTION_SPLITTER = Splitter.on(UNESCAPED_COMMA);
@@ -120,28 +118,65 @@ public final class VideoFlagsParser {
   }
 
   /**
-   * Finds the options inside {@code --yt-dlp{...}}.
+   * Finds the options inside {@code --yt-dlp{...}}: the first <code>--yt-dlp{</code> whose options end with a closing
+   * brace that is not escaped. A backslash escapes the character after it, except the end of a line. Visible for
+   * testing.
+   *
+   * <p>The options are found by scanning rather than with a regular expression: the expression that did this recursed
+   * once per character, so options of about 1600 characters overflowed the stack of a thread of the default size.
    *
    * @return the options, or {@code null} if the flags contain no yt-dlp options
    */
-  private static @Nullable String extractOptions(final @Nullable String flags) {
+  @VisibleForTesting
+  static @Nullable String extractOptions(final @Nullable String flags) {
     if (flags == null || flags.isBlank()) {
       return null;
     }
 
-    final Matcher matcher = YT_DLP_PATTERN.matcher(flags);
-    final boolean found = matcher.find();
-    if (!found) {
-      return null;
+    int opening = flags.indexOf(YT_DLP_OPENING);
+    while (opening >= 0) {
+      final int start = opening + YT_DLP_OPENING.length();
+      final int end = findClosingBrace(flags, start);
+      if (end >= 0) {
+        final String content = flags.substring(start, end);
+        return content.isBlank() ? null : content;
+      }
+      opening = flags.indexOf(YT_DLP_OPENING, opening + 1);
     }
+    return null;
+  }
 
-    // the group always takes part in a match
-    final String group = matcher.group(1);
-    final String content = requireNonNull(group);
-    if (content.isBlank()) {
-      return null;
+  /**
+   * Finds the first closing brace from an index on that is not escaped.
+   *
+   * @return the index of the brace, or -1 if the options never end, including when a backslash has nothing after it
+   * but the end of a line or of the text
+   */
+  private static int findClosingBrace(final String text, final int from) {
+    final int length = text.length();
+    int index = from;
+    while (index < length) {
+      final char current = text.charAt(index);
+      if (current == CLOSING_BRACE) {
+        return index;
+      }
+      if (current != ESCAPE) {
+        index++;
+        continue;
+      }
+      final int escaped = index + 1;
+      final boolean escapes = escaped < length && !isLineTerminator(text.charAt(escaped));
+      if (!escapes) {
+        return -1;
+      }
+      index = escaped + 1;
     }
-    return content;
+    return -1;
+  }
+
+  // the characters that end a line, which a backslash never escapes
+  private static boolean isLineTerminator(final char character) {
+    return character == '\n' || character == '\r' || character == '\u0085' || character == '\u2028' || character == '\u2029';
   }
 
   /**
