@@ -15,8 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.vm;
+package me.brandonli.mcav.utils.audio;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayDeque;
@@ -33,33 +35,22 @@ import org.bytedeco.ffmpeg.global.avutil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Hands the samples of the guest to the audio pipeline of the player on a thread of its own, so a slow pipeline never
- * holds up the audio connection.
+ * Hands the sound of a source that produces it live, such as a virtual machine or a browser, to the audio pipeline of
+ * its player on a thread of its own, so a slow pipeline never holds up the source. The samples are 16-bit
+ * little-endian PCM in the rate and the channels of the audio pipeline ({@link #METADATA}).
  *
- * <p>Every chunk is held for {@value #DELAY_MILLIS} ms before it is handed over. QEMU sends the sound of the guest
- * about every 10 ms, but it refreshes the picture of its VNC display 30 ms after a change at the earliest, and later
- * when the screen was idle, so without the delay the sound would run ahead of the picture. At most
- * {@value #MAX_QUEUED_MILLIS} ms of samples wait; when more arrive, the oldest samples are dropped, so a slow pipeline
- * never lets the sound fall behind by more than that. While the player is paused, samples are dropped instead of
- * queued, and pausing drops the queued ones, so no stale sound plays after a resume. A failing pipeline is reported
- * and the next chunk is handed over as usual, even if reporting fails too.
+ * <p>Every chunk is held for a fixed delay before it is handed over, which lets the sound wait for a picture that
+ * reaches the players later than the sound. At most the delay and a margin of samples wait; when more arrive, the
+ * oldest samples are dropped, so a slow pipeline never lets the sound fall behind by more than that. While the output
+ * is paused, samples are dropped instead of queued, and pausing drops the queued ones, so no stale sound plays after a
+ * resume. A failing pipeline is reported and the next chunk is handed over as usual, even if reporting fails too.
  */
-final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
-
-  /**
-   * How long every chunk is held before the pipeline gets it, in milliseconds.
-   */
-  static final int DELAY_MILLIS = 70;
-
-  /**
-   * The most sound that waits for the pipeline, the delay included, in milliseconds.
-   */
-  static final int MAX_QUEUED_MILLIS = DELAY_MILLIS + 60;
+public final class DelayedAudioOutput implements AutoCloseable {
 
   /**
    * The format of the samples: 16-bit little-endian PCM in the rate and the channels of the audio pipeline.
    */
-  static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of(
+  public static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of(
     "pcm_s16le",
     AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE * Byte.SIZE,
     AudioFilter.SAMPLE_RATE,
@@ -67,8 +58,14 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
     avutil.AV_SAMPLE_FMT_S16
   );
 
-  private static final int MAX_QUEUED_BYTES = (AudioFilter.SAMPLE_RATE / 1000) * MAX_QUEUED_MILLIS * AudioFilter.FRAME_SIZE;
+  /**
+   * How long closing waits for the thread at most, in milliseconds, should the pipeline hold it.
+   */
+  static final int JOIN_TIMEOUT_MILLIS = 5_000;
 
+  private final String source;
+  private final long delayNanos;
+  private final int maxQueuedBytes;
   private final Supplier<AudioPipelineStep> pipeline;
   private final BiConsumer<String, Throwable> failures;
   private final LongSupplier clock;
@@ -78,45 +75,79 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
   private boolean paused;
   private boolean closed;
 
-  private VMAudioOutput(
+  private DelayedAudioOutput(
+    final String source,
+    final int delayMillis,
+    final int maxQueuedMillis,
     final Supplier<AudioPipelineStep> pipeline,
     final BiConsumer<String, Throwable> failures,
     final LongSupplier clock
   ) {
+    this.source = source;
+    this.delayNanos = TimeUnit.MILLISECONDS.toNanos(delayMillis);
+    this.maxQueuedBytes = (AudioFilter.SAMPLE_RATE / 1000) * maxQueuedMillis * AudioFilter.FRAME_SIZE;
     this.pipeline = pipeline;
     this.failures = failures;
     this.clock = clock;
     this.queue = new ArrayDeque<>();
     // replaced by the running thread once the output exists
-    this.thread = new Thread("mcav-vm-audio-output-not-started");
+    this.thread = new Thread("mcav-audio-output-not-started");
   }
 
   /**
    * Creates an output and starts its thread.
    *
-   * @param pipeline gives the audio pipeline of the player for every chunk, so a pipeline attached later is used
-   * @param failures receives a failure of the pipeline
+   * @param source          names the source in the failures it reports, such as {@code "the virtual machine"}
+   * @param delayMillis     how long every chunk is held before the pipeline gets it, in milliseconds
+   * @param maxQueuedMillis the most sound that waits for the pipeline, the delay included, in milliseconds
+   * @param pipeline        gives the audio pipeline of the player for every chunk, so a pipeline attached later is
+   *                        used
+   * @param failures        receives a failure of the pipeline
    * @return the running output
+   * @throws IllegalArgumentException if the delay is negative or leaves no room in the queue
    */
-  static VMAudioOutput start(final Supplier<AudioPipelineStep> pipeline, final BiConsumer<String, Throwable> failures) {
-    return start(pipeline, failures, System::nanoTime);
+  public static DelayedAudioOutput start(
+    final String source,
+    final int delayMillis,
+    final int maxQueuedMillis,
+    final Supplier<AudioPipelineStep> pipeline,
+    final BiConsumer<String, Throwable> failures
+  ) {
+    return start(source, delayMillis, maxQueuedMillis, pipeline, failures, System::nanoTime);
   }
 
   /**
    * Creates an output with another clock, so tests can check the delay, and starts its thread.
    *
-   * @param pipeline gives the audio pipeline of the player for every chunk
-   * @param failures receives a failure of the pipeline
-   * @param clock    a monotonic clock in nanoseconds
+   * @param source          names the source in the failures it reports
+   * @param delayMillis     how long every chunk is held, in milliseconds
+   * @param maxQueuedMillis the most sound that waits, the delay included, in milliseconds
+   * @param pipeline        gives the audio pipeline of the player for every chunk
+   * @param failures        receives a failure of the pipeline
+   * @param clock           a monotonic clock in nanoseconds
    * @return the running output
    */
-  static VMAudioOutput start(
+  @VisibleForTesting
+  static DelayedAudioOutput start(
+    final String source,
+    final int delayMillis,
+    final int maxQueuedMillis,
     final Supplier<AudioPipelineStep> pipeline,
     final BiConsumer<String, Throwable> failures,
     final LongSupplier clock
   ) {
-    final VMAudioOutput output = new VMAudioOutput(pipeline, failures, clock);
-    final Thread thread = new Thread(output::deliver, "mcav-vm-audio-output");
+    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(pipeline, "Pipeline must not be null");
+    Preconditions.checkNotNull(failures, "Failure handler must not be null");
+    Preconditions.checkArgument(delayMillis >= 0, "The delay must not be negative but was %s", delayMillis);
+    Preconditions.checkArgument(
+      maxQueuedMillis > delayMillis,
+      "At most %s ms may wait, which leaves no room past the delay of %s ms",
+      maxQueuedMillis,
+      delayMillis
+    );
+    final DelayedAudioOutput output = new DelayedAudioOutput(source, delayMillis, maxQueuedMillis, pipeline, failures, clock);
+    final Thread thread = new Thread(output::deliver, "mcav-audio-output");
     thread.setDaemon(true);
     output.thread = thread;
     thread.start();
@@ -126,23 +157,22 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
   /**
    * Queues a copy of samples, dropping the oldest queued ones beyond the limit, or drops them while paused.
    *
-   * @param samples the buffer, which is reused by the caller
-   * @param length  the number of bytes of samples at its start
+   * @param samples the buffer, which the caller may reuse
+   * @param length  the number of bytes of samples at its start, whole frames
    */
-  @Override
   public synchronized void accept(final byte[] samples, final int length) {
     if (this.paused || this.closed || length == 0) {
       return;
     }
     // a chunk longer than the limit keeps its newest samples, whole frames as the limit is
-    final int kept = Math.min(length, MAX_QUEUED_BYTES);
+    final int kept = Math.min(length, this.maxQueuedBytes);
     final ByteBuffer copy = ByteBuffer.allocate(kept).order(ByteOrder.LITTLE_ENDIAN);
     copy.put(samples, length - kept, kept);
     copy.flip();
-    final long due = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS);
+    final long due = this.clock.getAsLong() + this.delayNanos;
     this.queue.addLast(new Chunk(copy, due));
     this.queuedBytes += kept;
-    while (this.queuedBytes > MAX_QUEUED_BYTES) {
+    while (this.queuedBytes > this.maxQueuedBytes) {
       final Chunk dropped = this.queue.removeFirst();
       this.queuedBytes -= dropped.samples().remaining();
     }
@@ -152,7 +182,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
   /**
    * Drops the queued samples and every sample that arrives until {@link #resume()}.
    */
-  synchronized void pause() {
+  public synchronized void pause() {
     this.paused = true;
     this.dropQueued();
   }
@@ -165,7 +195,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
   /**
    * Queues samples again.
    */
-  synchronized void resume() {
+  public synchronized void resume() {
     this.paused = false;
   }
 
@@ -174,6 +204,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
    *
    * @return the queued bytes
    */
+  @VisibleForTesting
   synchronized int getQueuedBytes() {
     return this.queuedBytes;
   }
@@ -183,6 +214,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
    *
    * @return the thread
    */
+  @VisibleForTesting
   Thread getThread() {
     return this.thread;
   }
@@ -239,14 +271,15 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
 
   private void report(final Throwable failure) {
     try {
-      this.failures.accept("Failed to process the audio of the virtual machine", failure);
+      this.failures.accept("Failed to process the audio of " + this.source, failure);
     } catch (final RuntimeException handlerFailure) {
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell
     }
   }
 
   /**
-   * Stops the thread, dropping the queued samples, and waits for it.
+   * Stops the thread, dropping the queued samples, and waits for it; a pipeline that holds the thread is waited for
+   * {@value #JOIN_TIMEOUT_MILLIS} ms at most. Called from the pipeline itself, it does not wait.
    */
   @Override
   public void close() {
@@ -255,7 +288,16 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
       this.dropQueued();
       this.notifyAll();
     }
-    VMAudioClient.join(this.thread);
+    final Thread current = this.thread;
+    final Thread caller = Thread.currentThread();
+    if (current.equals(caller)) {
+      return;
+    }
+    try {
+      current.join(JOIN_TIMEOUT_MILLIS);
+    } catch (final InterruptedException exception) {
+      caller.interrupt();
+    }
   }
 
   /**

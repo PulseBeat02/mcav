@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.vm;
+package me.brandonli.mcav.utils.audio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -27,16 +28,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class VMAudioOutputTest {
+class DelayedAudioOutputTest {
 
-  private static final int MAX_BYTES = (AudioFilter.SAMPLE_RATE / 1000) * VMAudioOutput.MAX_QUEUED_MILLIS * AudioFilter.FRAME_SIZE;
+  private static final int DELAY_MILLIS = 70;
+  private static final int MAX_QUEUED_MILLIS = DELAY_MILLIS + 60;
+  private static final int MAX_BYTES = (AudioFilter.SAMPLE_RATE / 1000) * MAX_QUEUED_MILLIS * AudioFilter.FRAME_SIZE;
 
   private final List<byte[]> processed = new CopyOnWriteArrayList<>();
   private final List<OriginalAudioMetadata> formats = new CopyOnWriteArrayList<>();
@@ -44,7 +49,7 @@ class VMAudioOutputTest {
   private final CountDownLatch gate = new CountDownLatch(1);
   private volatile boolean blocking;
   private volatile AudioPipelineStep step = AudioPipelineStep.of(this::filter);
-  private VMAudioOutput output = VMAudioOutput.start(
+  private DelayedAudioOutput output = start(
     () -> this.step,
     (message, failure) -> this.failures.add(message + ": " + failure.getMessage())
   );
@@ -124,7 +129,7 @@ class VMAudioOutputTest {
   @Test
   void anExceptionHandlerThatFailsDoesNotStopTheSound() {
     final List<byte[]> heard = new CopyOnWriteArrayList<>();
-    final VMAudioOutput failing = VMAudioOutput.start(
+    final DelayedAudioOutput failing = start(
       () ->
         AudioPipelineStep.of((samples, metadata) -> {
           if (samples.get(0) == 1) {
@@ -151,9 +156,9 @@ class VMAudioOutputTest {
 
   @Test
   void aFilterThatClosesTheOutputDoesNotWaitForItself() {
-    final java.util.concurrent.atomic.AtomicReference<VMAudioOutput> self = new java.util.concurrent.atomic.AtomicReference<>();
+    final java.util.concurrent.atomic.AtomicReference<DelayedAudioOutput> self = new java.util.concurrent.atomic.AtomicReference<>();
     final java.util.concurrent.atomic.AtomicLong closeNanos = new java.util.concurrent.atomic.AtomicLong(-1);
-    final VMAudioOutput closing = VMAudioOutput.start(
+    final DelayedAudioOutput closing = start(
       () ->
         AudioPipelineStep.of((samples, metadata) -> {
           final long start = System.nanoTime();
@@ -193,11 +198,18 @@ class VMAudioOutputTest {
   void samplesAreHeldUntilTheyAreDue() throws InterruptedException {
     final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
     this.output.close();
-    this.output = VMAudioOutput.start(() -> this.step, (message, failure) -> this.failures.add(message), now::get);
+    this.output = DelayedAudioOutput.start(
+      "the virtual machine",
+      DELAY_MILLIS,
+      MAX_QUEUED_MILLIS,
+      () -> this.step,
+      (message, failure) -> this.failures.add(message),
+      now::get
+    );
     this.output.accept(new byte[4], 4);
-    Thread.sleep(3L * VMAudioOutput.DELAY_MILLIS);
+    Thread.sleep(3L * DELAY_MILLIS);
     assertEquals(0, this.processed.size(), "not due before the clock passed the delay");
-    now.set(TimeUnit.MILLISECONDS.toNanos(VMAudioOutput.DELAY_MILLIS));
+    now.set(TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS));
     waitUntil(() -> this.processed.size() == 1);
   }
 
@@ -221,11 +233,11 @@ class VMAudioOutputTest {
 
   @Test
   void aFailingPipelineIsReportedAndAnEmptyOneSkipped() {
-    final VMAudioOutput empty = VMAudioOutput.start(() -> AudioPipelineStep.NO_OP, (message, failure) -> this.failures.add(message));
+    final DelayedAudioOutput empty = start(() -> AudioPipelineStep.NO_OP, (message, failure) -> this.failures.add(message));
     empty.accept(new byte[4], 4);
     waitUntil(() -> empty.getQueuedBytes() == 0);
     empty.close();
-    final VMAudioOutput failing = VMAudioOutput.start(
+    final DelayedAudioOutput failing = start(
       () ->
         AudioPipelineStep.of((samples, metadata) -> {
           throw new IllegalStateException("filter broke");
@@ -236,7 +248,7 @@ class VMAudioOutputTest {
     waitUntil(() -> !this.failures.isEmpty());
     failing.close();
     assertEquals(List.of("Failed to process the audio of the virtual machine: filter broke"), this.failures);
-    final VMAudioOutput fatal = VMAudioOutput.start(
+    final DelayedAudioOutput fatal = start(
       () ->
         AudioPipelineStep.of((samples, metadata) -> {
           throw new OutOfMemoryError("fatal");
@@ -254,12 +266,12 @@ class VMAudioOutputTest {
     assertFalse(this.output.getThread().isAlive());
     this.output.accept(new byte[4], 4);
     assertEquals(0, this.output.getQueuedBytes());
-    this.output = VMAudioOutput.start(() -> this.step, (message, failure) -> this.failures.add(message));
+    this.output = start(() -> this.step, (message, failure) -> this.failures.add(message));
     final Thread thread = this.output.getThread();
     thread.interrupt();
     thread.join(10_000L);
     assertFalse(thread.isAlive());
-    final VMAudioOutput live = VMAudioOutput.start(() -> this.step, (message, failure) -> this.failures.add(message));
+    final DelayedAudioOutput live = start(() -> this.step, (message, failure) -> this.failures.add(message));
     Thread.currentThread().interrupt();
     try {
       live.close();
@@ -269,5 +281,36 @@ class VMAudioOutputTest {
     }
     live.getThread().join(10_000L);
     assertFalse(live.getThread().isAlive());
+  }
+
+  @Test
+  void anOutputNeedsADelayAndRoomPastIt() {
+    final Supplier<AudioPipelineStep> pipeline = () -> this.step;
+    final BiConsumer<String, Throwable> ignored = (message, failure) -> {};
+    final IllegalArgumentException negative = assertThrows(IllegalArgumentException.class, () ->
+      DelayedAudioOutput.start("a source", -1, 10, pipeline, ignored)
+    );
+    assertEquals("The delay must not be negative but was -1", negative.getMessage());
+    final IllegalArgumentException full = assertThrows(IllegalArgumentException.class, () ->
+      DelayedAudioOutput.start("a source", 10, 10, pipeline, ignored)
+    );
+    assertEquals("At most 10 ms may wait, which leaves no room past the delay of 10 ms", full.getMessage());
+    assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start(null, 0, 1, pipeline, ignored));
+    assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start("a source", 0, 1, null, ignored));
+    assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start("a source", 0, 1, pipeline, null));
+    final DelayedAudioOutput immediate = DelayedAudioOutput.start("a source", 0, 1, pipeline, ignored);
+    try {
+      immediate.accept(new byte[] { 7, 0, 7, 0 }, 4);
+      waitUntil(() -> this.processed.size() == 1);
+      assertEquals(7, this.processed.getFirst()[0], "no delay hands the samples over at once");
+      immediate.accept(new byte[400], 400);
+      assertTrue(immediate.getQueuedBytes() <= 192, "1 ms holds 48 frames of 4 bytes");
+    } finally {
+      immediate.close();
+    }
+  }
+
+  private static DelayedAudioOutput start(final Supplier<AudioPipelineStep> pipeline, final BiConsumer<String, Throwable> failures) {
+    return DelayedAudioOutput.start("the virtual machine", DELAY_MILLIS, MAX_QUEUED_MILLIS, pipeline, failures);
   }
 }

@@ -32,6 +32,7 @@ import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vnc.VNCPlayer;
 import me.brandonli.mcav.vnc.VNCSource;
@@ -40,13 +41,25 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * The default {@link VMPlayer}: a {@link VMProcess} for QEMU plus a {@link VNCPlayer} attached to its display, and,
  * when the machine has sound, a {@link VMAudioClient} that hands it to the audio pipeline through a
- * {@link VMAudioOutput}.
+ * {@link DelayedAudioOutput}.
  *
  * <p>The machine runs while QEMU runs: when QEMU exits on its own, as when the guest shuts down, the player stops
  * playing, ignores input, and can be started again. A sound connection that cannot be made is reported, and the
  * machine runs without sound.
  */
 public final class VMPlayerImpl implements VMPlayer {
+
+  /**
+   * How long the sound of the guest is held before the pipeline gets it, in milliseconds. QEMU sends the sound of the
+   * guest about every 10 ms, but it refreshes the picture of its VNC display 30 ms after a change at the earliest, and
+   * later when the screen was idle, so without the delay the sound would run ahead of the picture.
+   */
+  static final int AUDIO_DELAY_MILLIS = 70;
+
+  /**
+   * The most sound of the guest that waits for the pipeline, the delay included, in milliseconds.
+   */
+  static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 60;
 
   private final VNCPlayer vncPlayer;
   private final ExecutableFinder finder;
@@ -60,7 +73,7 @@ public final class VMPlayerImpl implements VMPlayer {
 
   // written under the lock but read without it by isActive(), so the read must not see a stale reference
   private volatile @Nullable VMProcess process;
-  private volatile @Nullable VMAudioOutput audioOutput;
+  private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable VMAudioClient audioClient;
 
   /**
@@ -215,11 +228,17 @@ public final class VMPlayerImpl implements VMPlayer {
     if (!qemu.hasAudio()) {
       return;
     }
-    final VMAudioOutput output = VMAudioOutput.start(this.audioCallback::retrieve, this::report);
+    final DelayedAudioOutput output = DelayedAudioOutput.start(
+      "the virtual machine",
+      AUDIO_DELAY_MILLIS,
+      MAX_QUEUED_AUDIO_MILLIS,
+      this.audioCallback::retrieve,
+      this::report
+    );
     this.audioOutput = output;
     final InetSocketAddress address = new InetSocketAddress(VMProcess.LOOPBACK, settings.getPort());
     try {
-      this.audioClient = this.audioConnector.connect(address, output, this::report);
+      this.audioClient = this.audioConnector.connect(address, output::accept, this::report);
     } catch (final IOException exception) {
       this.disconnectAudio();
       this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
@@ -233,7 +252,7 @@ public final class VMPlayerImpl implements VMPlayer {
       client.close();
       this.audioClient = null;
     }
-    final VMAudioOutput output = this.audioOutput;
+    final DelayedAudioOutput output = this.audioOutput;
     if (output != null) {
       output.close();
       this.audioOutput = null;
@@ -300,7 +319,7 @@ public final class VMPlayerImpl implements VMPlayer {
     synchronized (this.controls) {
       final boolean active = this.isActive();
       final boolean paused = active && this.vncPlayer.pause();
-      final VMAudioOutput output = this.audioOutput;
+      final DelayedAudioOutput output = this.audioOutput;
       if (paused && output != null) {
         // the sound of a paused machine is dropped, so it does not play late after the resume
         output.pause();
@@ -314,7 +333,7 @@ public final class VMPlayerImpl implements VMPlayer {
     synchronized (this.controls) {
       final boolean active = this.isActive();
       final boolean resumed = active && this.vncPlayer.resume();
-      final VMAudioOutput output = this.audioOutput;
+      final DelayedAudioOutput output = this.audioOutput;
       if (resumed && output != null) {
         output.resume();
       }
