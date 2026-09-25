@@ -18,8 +18,12 @@
 package me.brandonli.mcav.sandbox.command.interaction;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -28,6 +32,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -50,22 +55,47 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav vm create|interact|release}: runs a QEMU virtual machine on a map screen.
+ *
+ * <p>Only the QEMU options of {@link #supportedOptions()} may be given to a machine, and a disk image must be a file
+ * of the {@value DiskImages#FOLDER_NAME} folder of the plugin. QEMU can otherwise read and write any file of the
+ * server, load a plugin library of its own, share a folder of the host with the guest and publish its display and its
+ * monitor on the network, none of which belongs in a chat command.
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer> {
 
-  private static final Set<String> REPEATABLE_OPTIONS = Set.of(
-    "drive",
-    "device",
-    "netdev",
-    "chardev",
-    "object",
-    "nic",
-    "net",
-    "fsdev",
-    "virtfs",
-    "global",
-    "usbdevice"
-  );
+  /**
+   * The permission a player needs to send input to the running virtual machine, by chat or by clicking the screen.
+   */
+  static final String INTERACT_PERMISSION = "mcav.vm.interact";
+
+  /**
+   * The options QEMU accepts more than once, of those the command supports.
+   */
+  private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
+
+  /**
+   * The options that are a switch, so they must not be given a value.
+   */
+  private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
+
+  /**
+   * The options that describe the hardware of the machine. Their value never names a file.
+   */
+  private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
+
+  /**
+   * The options whose value is a disk image of the {@value DiskImages#FOLDER_NAME} folder.
+   */
+  private static final Set<String> IMAGE_OPTIONS = Set.of("cdrom", "hda", "hdb", "hdc", "hdd", "fda", "fdb");
+
+  /**
+   * The option that describes a drive, whose {@code file} names a disk image.
+   */
+  private static final String DRIVE_OPTION = "drive";
+
+  private static final String FILE_KEY = "file=";
+
+  private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
   /**
    * Constructs the command.
@@ -74,6 +104,16 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    */
   public VirtualizeCommand(final MCAVSandbox plugin) {
     super(plugin);
+  }
+
+  /**
+   * Gets the permission a player needs to send input to the running virtual machine.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
   }
 
   /**
@@ -131,9 +171,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * it.
    *
    * <p>While it is on, the chat messages of the player are not sent to chat. Their text is typed into the virtual
-   * machine instead, as if on its keyboard. Clicking the map screen does not need this mode: left and right clicks
-   * on the screen always reach the virtual machine as mouse clicks. Running the command again switches it off, and
-   * the player is told which state is now active.
+   * machine instead, as if on its keyboard. Clicking the map screen does not need this mode: left and right clicks on
+   * the screen reach the virtual machine as mouse clicks for every player with this permission. Running the command
+   * again switches it off, and the player is told which state is now active.
    *
    * <p>Requires the permission {@code mcav.vm.interact}. Only players can run it, since the console has no chat to
    * forward.
@@ -141,7 +181,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * @param sender the player who switches their chat input
    */
   @Command("mcav vm interact")
-  @Permission("mcav.vm.interact")
+  @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vm.interact.info")
   public void toggleInteraction(final Player sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
@@ -181,7 +221,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * one.
    *
    * <p>Requires the permission {@code mcav.command.vm.create}; players and the console can run it. When QEMU is not
-   * installed or the dimensions are invalid, the sender gets an error message and nothing starts. Otherwise the
+   * installed, the dimensions are invalid, or an option is not supported, the sender gets an error message and
+   * nothing starts. Otherwise the
    * sender is told "Loading virtual machine...", and later that it was created, that the QEMU program for the
    * architecture is not on the {@code PATH}, or that it failed to start, with the details in the console.
    *
@@ -190,8 +231,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@code @a}
    * @param vmResolution       the resolution of the display of the guest as {@code <width>x<height>} in pixels,
    *                           such as {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
-   * @param targetFps          how many frames per second are captured from the display; higher values feel
-   *                           smoother but cost more CPU and bandwidth
+   * @param targetFps          how many frames per second are captured from the display, from 1 to 240; higher
+   *                           values feel smoother but cost more CPU and bandwidth
    * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
    * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text and
@@ -200,8 +241,10 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * @param architecture       the processor the guest is emulated with: {@code X86_64}, {@code ARM},
    *                           {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
    * @param flags              the QEMU options, the rest of the command line, such as
-   *                           {@code -cdrom "/isos/alpine.iso" -m 2048M}; quote values with spaces, and options QEMU
-   *                           accepts more than once, such as {@code -drive}, may be repeated
+   *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
+   *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
+   *                           {@link #supportedOptions()} are accepted, and a disk image must be a file of the
+   *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder
    */
   @Command(
     "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
@@ -212,7 +255,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String vmResolution,
-    @Argument(suggestions = "target-fps") @Range(min = "1") final int targetFps,
+    @Argument(suggestions = "target-fps") @Range(min = "1", max = "240") final int targetFps,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -233,12 +276,15 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     }
 
     final Pair<Integer, Integer> resolution = parseDimensions(sender, vmResolution);
-    final Pair<Integer, Integer> blocks = resolution == null ? null : parseDimensions(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = resolution == null ? null : parseScreenDimensions(sender, blockDimensions);
     if (resolution == null || blocks == null) {
       return;
     }
 
-    final VMConfiguration vmConfiguration = parseOptions(flags);
+    final VMConfiguration vmConfiguration = this.parseOptions(sender, flags);
+    if (vmConfiguration == null) {
+      return;
+    }
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     final VMSettings vmSettings = VMSettings.of(width, height, targetFps);
@@ -293,19 +339,44 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   }
 
   /**
-   * Parses QEMU options such as {@code -cdrom "C:/My Images/alpine.iso" -m 2048M -enable-kvm}. Quoted values may
-   * contain spaces, and options QEMU accepts more than once, such as {@code -drive}, are kept.
+   * Parses the QEMU options of the sender, telling them when an option is not supported.
+   *
+   * @param sender who ran the command
+   * @param flags  the options as entered
+   * @return the configuration, or {@code null} if an option was refused
+   */
+  private @Nullable VMConfiguration parseOptions(final CommandSender sender, final String flags) {
+    final Path dataFolder = this.plugin.getDataPath();
+    final Path imageFolder = DiskImages.folderOf(dataFolder);
+    try {
+      return parseOptions(flags, imageFolder);
+    } catch (final IllegalArgumentException exception) {
+      final String cause = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(cause, "The options are not valid");
+      final Component message = Message.UNSUPPORTED_VM_FLAGS.build(reason);
+      sender.sendMessage(message);
+      return null;
+    }
+  }
+
+  /**
+   * Parses QEMU options such as {@code -cdrom "alpine linux.iso" -m 2048M -enable-kvm}. Quoted values may contain
+   * spaces, and options QEMU accepts more than once, such as {@code -drive}, are kept. Only the options of
+   * {@link #supportedOptions()} are accepted, and every disk image is resolved in the image folder.
    *
    * @param commandLine the options
+   * @param imageFolder the folder the disk images live in
    * @return the configuration
+   * @throws IllegalArgumentException if an option is not supported, is given a value it does not take, misses the
+   *                                  value it needs, or names a disk image outside the image folder
    */
-  static VMConfiguration parseOptions(final String commandLine) {
+  static VMConfiguration parseOptions(final String commandLine, final Path imageFolder) {
     final List<String> tokens = tokenize(commandLine);
     final VMConfiguration configuration = VMConfiguration.builder();
     final int count = tokens.size();
     int index = 0;
     while (index < count) {
-      index = addOption(configuration, tokens, index);
+      index = addOption(configuration, tokens, index, imageFolder);
     }
     return configuration;
   }
@@ -316,7 +387,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *
    * @return the index of the token after the option and its value
    */
-  private static int addOption(final VMConfiguration configuration, final List<String> tokens, final int index) {
+  private static int addOption(final VMConfiguration configuration, final List<String> tokens, final int index, final Path imageFolder) {
     final String token = tokens.get(index);
     final int next = index + 1;
     if (!token.startsWith("-")) {
@@ -327,11 +398,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final int count = tokens.size();
     final boolean hasValue = next < count && isValue(tokens, next);
     if (!hasValue) {
+      requireFlagOption(name);
       configuration.flag(name);
       return next;
     }
 
-    final String value = tokens.get(next);
+    final String rawValue = tokens.get(next);
+    final String value = checkedValue(name, rawValue, imageFolder);
     final boolean repeatable = REPEATABLE_OPTIONS.contains(name);
     if (repeatable) {
       configuration.repeatable(name, value);
@@ -339,6 +412,105 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       configuration.option(name, value);
     }
     return next + 1;
+  }
+
+  private static void requireFlagOption(final String name) {
+    final boolean flag = FLAG_OPTIONS.contains(name);
+    if (flag) {
+      return;
+    }
+    final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
+    if (needsValue) {
+      throw new IllegalArgumentException("The QEMU option -" + name + " needs a value");
+    }
+    throw unsupported(name);
+  }
+
+  /**
+   * Checks the value of an option and returns the value the machine is given, which is the resolved path of a disk
+   * image and the value as written for every other option.
+   */
+  private static String checkedValue(final String name, final String value, final Path imageFolder) {
+    final boolean hardware = HARDWARE_OPTIONS.contains(name);
+    if (hardware) {
+      requireNoPath(name, value);
+      return value;
+    }
+    final boolean image = IMAGE_OPTIONS.contains(name);
+    if (image) {
+      final Path resolved = DiskImages.require(imageFolder, value);
+      return resolved.toString();
+    }
+    final boolean drive = name.equals(DRIVE_OPTION);
+    if (drive) {
+      return checkedDrive(value, imageFolder);
+    }
+    final boolean flag = FLAG_OPTIONS.contains(name);
+    if (flag) {
+      throw new IllegalArgumentException("The QEMU option -" + name + " takes no value");
+    }
+    throw unsupported(name);
+  }
+
+  /**
+   * Checks the parts of a drive, whose {@code file} names a disk image and whose other parts describe how the drive
+   * is attached.
+   */
+  private static String checkedDrive(final String value, final Path imageFolder) {
+    final List<String> parts = DRIVE_SPLITTER.splitToList(value);
+    final List<String> checked = new ArrayList<>(parts.size());
+    int files = 0;
+    for (final String part : parts) {
+      final boolean names = part.startsWith(FILE_KEY);
+      if (names) {
+        files++;
+        final String image = part.substring(FILE_KEY.length());
+        final Path resolved = DiskImages.require(imageFolder, image);
+        checked.add(FILE_KEY + resolved);
+      } else {
+        requireNoPath(DRIVE_OPTION, part);
+        checked.add(part);
+      }
+    }
+    final boolean one = files == 1;
+    Preconditions.checkArgument(one, "A drive names its disk image exactly once, as file=<image>, but got %s", value);
+    return String.join(",", checked);
+  }
+
+  /**
+   * Refuses a value that names a file, because only a disk image of the image folder may.
+   */
+  private static void requireNoPath(final String name, final String value) {
+    final boolean path = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
+    if (path) {
+      throw new IllegalArgumentException("The QEMU option -" + name + " must not name a file, but got " + value);
+    }
+  }
+
+  private static IllegalArgumentException unsupported(final String name) {
+    final String supported = String.join(", ", supportedOptions());
+    return new IllegalArgumentException("Unsupported QEMU option -" + name + "; the command accepts " + supported);
+  }
+
+  /**
+   * Gets the QEMU options the command accepts, with a dash and in alphabetical order.
+   *
+   * @return the option names, as an unmodifiable list
+   */
+  public static List<String> supportedOptions() {
+    final List<String> names = new ArrayList<>();
+    for (final String flag : FLAG_OPTIONS) {
+      names.add("-" + flag);
+    }
+    for (final String hardware : HARDWARE_OPTIONS) {
+      names.add("-" + hardware);
+    }
+    for (final String image : IMAGE_OPTIONS) {
+      names.add("-" + image);
+    }
+    names.add("-" + DRIVE_OPTION);
+    Collections.sort(names);
+    return Collections.unmodifiableList(names);
   }
 
   private static boolean isValue(final List<String> tokens, final int index) {

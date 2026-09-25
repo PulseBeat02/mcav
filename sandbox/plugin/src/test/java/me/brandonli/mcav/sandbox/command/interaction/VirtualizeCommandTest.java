@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,6 +29,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -41,6 +47,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
@@ -55,6 +62,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -76,12 +86,19 @@ final class VirtualizeCommandTest {
   private MockedStatic<DitherFilter> dithers;
   private MockedConstruction<CompressedMapResult> maps;
 
+  @TempDir
+  private Path dataFolder;
+
+  private Path imageFolder;
+
   @BeforeEach
   void createCommand() {
     final Server server = TestServer.reset();
     this.plugin = mock(MCAVSandbox.class);
     when(this.plugin.getServer()).thenReturn(server);
     when(this.plugin.isQemuInstalled()).thenReturn(true);
+    when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
+    this.imageFolder = DiskImages.folderOf(this.dataFolder);
     this.command = new VirtualizeCommand(this.plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -152,11 +169,25 @@ final class VirtualizeCommandTest {
     assertEquals(expectedMessages, messages);
   }
 
-  private static void assertArguments(final String commandLine, final String... expected) {
-    final VMConfiguration configuration = VirtualizeCommand.parseOptions(commandLine);
+  private void assertArguments(final String commandLine, final String... expected) {
+    final VMConfiguration configuration = VirtualizeCommand.parseOptions(commandLine, this.imageFolder);
     final List<String> arguments = configuration.getArguments();
     final List<String> expectedArguments = List.of(expected);
     assertEquals(expectedArguments, arguments);
+  }
+
+  /**
+   * Creates a disk image of the image folder and returns the path the machine is given for it.
+   */
+  private String image(final String name) throws IOException {
+    final Path image = this.imageFolder.resolve(name);
+    Files.createDirectories(this.imageFolder);
+    Files.writeString(image, "disk image");
+    return image.toAbsolutePath().normalize().toString();
+  }
+
+  private IllegalArgumentException assertRefusedOptions(final String commandLine) {
+    return assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions(commandLine, this.imageFolder));
   }
 
   private static void assertTokens(final String commandLine, final String... expected) {
@@ -174,11 +205,12 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void bootsTheMachineOnTheScreen() {
+  void bootsTheMachineOnTheScreen() throws IOException {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     this.startsWith(start);
+    final String image = this.image("alpine linux.iso");
 
-    this.create("640x480", "5x4", "-cdrom \"C:/My Images/alpine.iso\" -m 2048M");
+    this.create("640x480", "5x4", "-cdrom \"alpine linux.iso\" -m 2048M");
 
     this.assertDithersOntoTheScreen();
     final ArgumentCaptor<VMConfiguration> configurations = ArgumentCaptor.forClass(VMConfiguration.class);
@@ -186,7 +218,7 @@ final class VirtualizeCommandTest {
     verify(this.machine).startAsync(eq(settings), eq(VMPlayer.Architecture.X86_64), configurations.capture(), any());
     final VMConfiguration configuration = configurations.getValue();
     final List<String> arguments = configuration.getArguments();
-    final List<String> expectedArguments = List.of("-cdrom", "C:/My Images/alpine.iso", "-m", "2048M");
+    final List<String> expectedArguments = List.of("-cdrom", image, "-m", "2048M");
     assertEquals(expectedArguments, arguments);
     assertSame(this.machine, this.command.player);
     final Component loading = Message.VM_LOADING.build();
@@ -221,6 +253,12 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void needsTheInteractPermissionForInput() {
+    final String permission = this.command.getInteractionPermission();
+    assertEquals("mcav.vm.interact", permission, "clicks and chat are the input of the interact subcommand");
+  }
+
+  @Test
   void refusesInvalidResolutions() {
     this.create("640", "5x4", "");
 
@@ -232,6 +270,24 @@ final class VirtualizeCommandTest {
   @Test
   void refusesInvalidScreenSizes() {
     this.create("640x480", "5x-4", "");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error);
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
+  void refusesScreensLargerThanTheLimit() {
+    this.create("640x480", "65x4", "");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error);
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
+  void refusesResolutionsLargerThanTheLimit() {
+    this.create("100000x100000", "5x4", "");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -299,62 +355,56 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void parsesOptionsWithQuotedValues() {
-    assertArguments(
-      "-cdrom \"C:/My Images/alpine.iso\" -m 2048M -enable-kvm",
-      "-cdrom",
-      "C:/My Images/alpine.iso",
-      "-m",
-      "2048M",
-      "-enable-kvm"
-    );
+  void parsesOptionsWithQuotedValues() throws IOException {
+    final String image = this.image("alpine linux.iso");
+    this.assertArguments("-cdrom \"alpine linux.iso\" -m 2048M -enable-kvm", "-cdrom", image, "-m", "2048M", "-enable-kvm");
   }
 
   @Test
-  void keepsOptionsThatQemuAcceptsMoreThanOnce() {
-    assertArguments(
-      "-drive file=a.img -drive file=b.img -device virtio-net",
-      "-drive",
-      "file=a.img",
-      "-drive",
-      "file=b.img",
-      "-device",
-      "virtio-net"
-    );
+  void keepsOptionsThatQemuAcceptsMoreThanOnce() throws IOException {
+    final String first = this.image("a.img");
+    final String second = this.image("b.img");
+    this.assertArguments(
+        "-drive file=a.img,media=disk -drive file=b.img",
+        "-drive",
+        "file=" + first + ",media=disk",
+        "-drive",
+        "file=" + second
+      );
   }
 
   @Test
   void keepsTheLastValueOfOptionsThatQemuAcceptsOnce() {
-    assertArguments("-m 1G -m 2G", "-m", "2G");
+    this.assertArguments("-m 1G -m 2G", "-m", "2G");
   }
 
   @Test
   void treatsOptionsWithoutValueAsFlags() {
-    assertArguments("-nographic -snapshot", "-nographic", "-snapshot");
+    this.assertArguments("-no-reboot -snapshot", "-no-reboot", "-snapshot");
   }
 
   @Test
   void treatsAnOptionFollowedByAnotherOptionAsTwoFlags() {
-    final VMConfiguration configuration = VirtualizeCommand.parseOptions("-nographic -snapshot");
-    final boolean nographic = configuration.has("nographic");
+    final VMConfiguration configuration = VirtualizeCommand.parseOptions("-no-reboot -snapshot", this.imageFolder);
+    final boolean noReboot = configuration.has("no-reboot");
     final boolean snapshot = configuration.has("snapshot");
-    assertTrue(nographic);
+    assertTrue(noReboot);
     assertTrue(snapshot, "the second option is a flag of its own, not the value of the first");
   }
 
   @Test
   void skipsWordsThatAreNotOptions() {
-    assertArguments("stray -m 512M words", "-m", "512M");
+    this.assertArguments("stray -m 512M words", "-m", "512M");
   }
 
   @Test
   void keepsAnEmptyQuotedValue() {
-    assertArguments("-name \"\" -snapshot", "-name", "", "-snapshot");
+    this.assertArguments("-name \"\" -snapshot", "-name", "", "-snapshot");
   }
 
   @Test
   void parsesNothingFromAnEmptyCommandLine() {
-    assertArguments("   ");
+    this.assertArguments("   ");
   }
 
   @Test
@@ -365,6 +415,114 @@ final class VirtualizeCommandTest {
   @Test
   void tokenizesAnEmptyLineToNothing() {
     assertTokens("");
+  }
+
+  @Test
+  void refusesOptionsThatQemuWouldUseToReachTheServer() throws IOException {
+    this.image("alpine.iso");
+    final List<String> refused = List.of(
+      "-monitor tcp:0.0.0.0:4444,server,nowait",
+      "-plugin libanything.so",
+      "-virtfs local,path=/,mount_tag=host,security_model=none",
+      "-chardev file,id=c,path=anywhere",
+      "-netdev user,id=n,hostfwd=tcp::2222-:22",
+      "-vnc 0.0.0.0:1",
+      "-device usb-host",
+      "-bios firmware.bin",
+      "-daemonize",
+      "-nographic"
+    );
+    for (final String options : refused) {
+      final IllegalArgumentException failure = this.assertRefusedOptions(options);
+      final String message = failure.getMessage();
+      final boolean explained = message.startsWith("Unsupported QEMU option");
+      assertTrue(explained, options + " -> " + message);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+    strings = {
+      "-cdrom ../outside.iso",
+      "-cdrom /etc/passwd",
+      "-drive file=../outside.iso",
+      "-drive file=/etc/passwd,media=disk",
+      "-hda ../../elsewhere.img",
+    }
+  )
+  void refusesDiskImagesOutsideTheImageFolder(final String options) {
+    final IllegalArgumentException failure = this.assertRefusedOptions(options);
+    final String message = failure.getMessage();
+    final boolean explained = message.contains("lies outside the iso folder") || message.contains("no disk image");
+    assertTrue(explained, message);
+  }
+
+  @Test
+  void refusesADiskImageThatIsNotThere() throws IOException {
+    this.image("present.iso");
+    final IllegalArgumentException failure = this.assertRefusedOptions("-cdrom absent.iso");
+    final String message = failure.getMessage();
+    assertEquals("There is no disk image absent.iso in the iso folder of the plugin", message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "-machine dumpdtb=/tmp/tree.dtb", "-name C:\\windows\\name", "-drive file=a.img,logappend=/tmp/log" })
+  void refusesHardwareOptionsThatNameAFile(final String options) throws IOException {
+    this.image("a.img");
+    final IllegalArgumentException failure = this.assertRefusedOptions(options);
+    final String message = failure.getMessage();
+    final boolean explained = message.contains("must not name a file");
+    assertTrue(explained, message);
+  }
+
+  @Test
+  void refusesADriveWithoutADiskImage() {
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
+    final String message = failure.getMessage();
+    final boolean explained = message.startsWith("A drive names its disk image exactly once");
+    assertTrue(explained, message);
+  }
+
+  @Test
+  void refusesASwitchThatIsGivenAValue() {
+    final IllegalArgumentException failure = this.assertRefusedOptions("-snapshot yes");
+    final String message = failure.getMessage();
+    assertEquals("The QEMU option -snapshot takes no value", message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "-m", "-cdrom", "-drive" })
+  void refusesAnOptionThatMissesItsValue(final String options) {
+    final IllegalArgumentException failure = this.assertRefusedOptions(options);
+    final String message = failure.getMessage();
+    final String expected = "The QEMU option " + options + " needs a value";
+    assertEquals(expected, message);
+  }
+
+  @Test
+  void tellsTheSenderWhenAnOptionIsRefusedAndStartsNothing() {
+    this.create("640x480", "5x4", "-plugin libanything.so");
+
+    final List<Component> messages = Components.received(this.sender);
+    final boolean toldOnce = messages.size() == 1;
+    assertTrue(toldOnce, messages.toString());
+    this.machines.verifyNoInteractions();
+    assertNull(this.command.player);
+    assertNull(this.command.result);
+  }
+
+  @Test
+  void listsTheSupportedOptionsWithADashAndInOrder() {
+    final List<String> supported = VirtualizeCommand.supportedOptions();
+    final List<String> sorted = new ArrayList<>(supported);
+    Collections.sort(sorted);
+    assertEquals(sorted, supported);
+    assertTrue(supported.contains("-cdrom"), "booting a disk image is the reason the options exist");
+    assertTrue(supported.contains("-m"));
+    assertFalse(supported.contains("-plugin"), "no option may load a library of the server");
+    assertFalse(supported.contains("-virtfs"), "no option may share a folder of the server with the guest");
+    assertFalse(supported.contains("-monitor"), "no option may publish the monitor of QEMU");
+    assertFalse(supported.contains("-vnc"), "the display stays on the loopback address the player chose for it");
   }
 
   @Test
