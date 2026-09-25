@@ -3,6 +3,7 @@
 
 import info.solidsoft.gradle.pitest.PitestPluginExtension
 import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
     `java-library`
@@ -183,6 +184,16 @@ val fuzzTest = tasks.register<Test>("fuzzTest") {
         testLogging { events("started", "failed", "skipped") }
     }
     mustRunAfter(propertyTest)
+}
+
+// the coverage lint reads the coverage of `test` alone, so the agent of JaCoCo would only slow these runs down: it
+// instruments every class the tests load, the Minecraft server's included
+listOf(propertyTest, fuzzTest).forEach { task ->
+    task.configure {
+        extensions.configure<JacocoTaskExtension> {
+            isEnabled = false
+        }
+    }
 }
 
 tasks.check {
