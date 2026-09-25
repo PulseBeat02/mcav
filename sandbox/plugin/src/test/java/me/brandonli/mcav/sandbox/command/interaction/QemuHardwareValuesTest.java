@@ -87,6 +87,7 @@ final class QemuHardwareValuesTest {
       "name|vm,process=a/b",
       "rtc|base=tomorrow",
       "rtc|utc",
+      "rtc|base",
       "cpu|host,+sse/2",
       "cpu|../cpu",
       "cpu|pc,splash=dx",

@@ -226,6 +226,17 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void aBrowserOfTheLargestSizeTheBrowserCanPaintStarts() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create("4096x4096", "5x3", "https://example.com/page");
+    final ArgumentCaptor<BrowserSource> sources = ArgumentCaptor.forClass(BrowserSource.class);
+    verify(this.browser).startAsync(sources.capture(), any());
+    assertEquals(4096, sources.getValue().getWidth());
+    assertEquals(4096, sources.getValue().getHeight());
+  }
+
+  @Test
   void theBrowserFollowsTheConfiguration() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);

@@ -674,6 +674,14 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void refusesADrivePropertyThatStartsWithAPathSeparator() {
+    for (final String part : new String[] { "/tmp", "\\\\server" }) {
+      final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
+      assertEquals("The QEMU option -drive must not name a file, but got " + part, failure.getMessage());
+    }
+  }
+
+  @Test
   void refusesADriveWithoutADiskImage() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
     final String message = failure.getMessage();

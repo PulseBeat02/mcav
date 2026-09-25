@@ -139,6 +139,7 @@ final class QemuHardwareValues {
   private static final Pattern KEYBOARD = Pattern.compile("[a-z]{2}(-[a-z]{2,3})?");
   private static final Pattern VGA = Pattern.compile("[a-z0-9]{2,16}");
   private static final Splitter PARTS = Splitter.on(',');
+  private static final Splitter PROPERTY = Splitter.on('=').limit(2);
 
   private QemuHardwareValues() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -196,14 +197,13 @@ final class QemuHardwareValues {
     final Map<String, Pattern> properties
   ) {
     for (final String part : parts) {
-      final int equals = part.indexOf('=');
-      final String key = equals < 0 ? part : part.substring(0, equals);
-      final Pattern form = properties.get(key);
-      if (form == null || equals < 0) {
+      // every part is a property with a value, named in the list of the option
+      final List<String> nameAndValue = PROPERTY.splitToList(part);
+      final Pattern form = nameAndValue.size() == 2 ? properties.get(nameAndValue.getFirst()) : null;
+      if (form == null) {
         throw new IllegalArgumentException("The QEMU option -" + name + " does not allow " + part + " in " + value);
       }
-      final String propertyValue = part.substring(equals + 1);
-      require(name, value, form.matcher(propertyValue).matches());
+      require(name, value, form.matcher(nameAndValue.getLast()).matches());
     }
   }
 
@@ -211,10 +211,10 @@ final class QemuHardwareValues {
     require("cpu", value, WORD.matcher(model).matches());
     for (final String feature : features) {
       require("cpu", value, CPU_FEATURE.matcher(feature).matches());
-      final int equals = feature.indexOf('=');
       // a switch such as +avx2 has no value; a property may not use the name of one that reaches a file
-      if (equals > 0) {
-        require("cpu", value, !FILE_PROPERTIES.contains(feature.substring(0, equals)));
+      if (feature.contains("=")) {
+        final String property = PROPERTY.splitToList(feature).getFirst();
+        require("cpu", value, !FILE_PROPERTIES.contains(property));
       }
     }
   }

@@ -215,6 +215,23 @@ class VMAudioClientTest {
   }
 
   @Test
+  void theReaderRunsAsADaemonAndClosingWaitsForIt() throws Exception {
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
+      try (Socket socket = this.server.accept()) {
+        handshake(socket);
+        socket.getInputStream().read();
+      } catch (final IOException exception) {
+        throw new java.io.UncheckedIOException(exception);
+      }
+    });
+    final VMAudioClient client = this.connect();
+    assertTrue(client.getReader().isDaemon(), "the sound never keeps the JVM alive");
+    client.close();
+    assertFalse(client.isAlive(), "close returns once the reader ended");
+    served.get(10, TimeUnit.SECONDS);
+  }
+
+  @Test
   void closingTheClientEndsItQuietly() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
       try (Socket socket = this.server.accept()) {

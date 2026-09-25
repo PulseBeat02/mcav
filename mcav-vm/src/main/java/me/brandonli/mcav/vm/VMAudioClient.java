@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.vm;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -87,16 +88,13 @@ final class VMAudioClient implements Closeable {
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(socket), later);
     try {
       socket.connect(address, HANDSHAKE_TIMEOUT_MILLIS);
-      socket.setSoTimeout(HANDSHAKE_TIMEOUT_MILLIS);
-      socket.setTcpNoDelay(true);
       final InputStream rawInput = socket.getInputStream();
       final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(rawOutput));
       handshake(in, out);
+      // afterwards the guest may stay silent for as long as it likes
       deadline.cancel(false);
-      // the guest may stay silent for as long as it likes
-      socket.setSoTimeout(0);
       final VMAudioClient client = new VMAudioClient(socket, in, sink, failures);
       client.startReading();
       return client;
@@ -145,6 +143,16 @@ final class VMAudioClient implements Closeable {
         this.failures.accept("The audio connection of the virtual machine ended", exception);
       }
     }
+  }
+
+  /**
+   * Gets the thread that reads the connection, so tests can check how it runs.
+   *
+   * @return the reader thread
+   */
+  @VisibleForTesting
+  Thread getReader() {
+    return this.reader;
   }
 
   /**

@@ -226,6 +226,27 @@ class QemuAudioProtocolTest {
   }
 
   @Test
+  void theLimitsThemselvesAreAllowed() throws IOException {
+    final QemuAudioProtocol.Message sixteen = read(out -> {
+      out.writeByte(QemuAudioProtocol.SERVER_UPDATE);
+      out.writeByte(0);
+      out.writeShort(QemuAudioProtocol.MAX_RECTANGLES);
+      for (int index = 0; index < QemuAudioProtocol.MAX_RECTANGLES; index++) {
+        out.write(new byte[8]);
+        out.writeInt(QemuAudioProtocol.AUDIO_ENCODING);
+      }
+    });
+    assertEquals(QemuAudioProtocol.Kind.ACKNOWLEDGED, sixteen.getKind());
+    final QemuAudioProtocol.Message clipboard = read(out -> {
+      out.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
+      out.write(new byte[3]);
+      out.writeInt(QemuAudioProtocol.MAX_CUT_TEXT_BYTES);
+      out.write(new byte[QemuAudioProtocol.MAX_CUT_TEXT_BYTES]);
+    });
+    assertEquals(QemuAudioProtocol.Kind.IGNORED, clipboard.getKind());
+  }
+
+  @Test
   void audioAndClipboardLengthsAreBounded() {
     final ProtocolException audio = assertThrows(ProtocolException.class, () ->
       read(out -> {

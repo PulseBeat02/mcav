@@ -170,6 +170,19 @@ class VMAudioOutputTest {
   }
 
   @Test
+  void theOutputRunsAsADaemonAndClosingDropsWhatWaits() {
+    assertTrue(this.output.getThread().isDaemon(), "the sound never keeps the JVM alive");
+    this.blocking = true;
+    this.output.accept(new byte[4], 4);
+    waitUntil(() -> this.output.getQueuedBytes() == 0);
+    this.output.accept(new byte[8], 8);
+    assertEquals(8, this.output.getQueuedBytes());
+    this.gate.countDown();
+    this.output.close();
+    assertEquals(0, this.output.getQueuedBytes(), "a closed output holds no sound");
+  }
+
+  @Test
   void samplesAreHeldUntilTheyAreDue() throws InterruptedException {
     final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
     this.output.close();

@@ -154,6 +154,10 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
    */
   synchronized void pause() {
     this.paused = true;
+    this.dropQueued();
+  }
+
+  private void dropQueued() {
     this.queue.clear();
     this.queuedBytes = 0;
   }
@@ -238,7 +242,6 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
       this.failures.accept("Failed to process the audio of the virtual machine", failure);
     } catch (final RuntimeException handlerFailure) {
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell
-      failure.addSuppressed(handlerFailure);
     }
   }
 
@@ -249,8 +252,7 @@ final class VMAudioOutput implements VMAudioClient.Sink, AutoCloseable {
   public void close() {
     synchronized (this) {
       this.closed = true;
-      this.queue.clear();
-      this.queuedBytes = 0;
+      this.dropQueued();
       this.notifyAll();
     }
     VMAudioClient.join(this.thread);

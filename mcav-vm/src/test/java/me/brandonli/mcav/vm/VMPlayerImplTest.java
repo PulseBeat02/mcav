@@ -274,8 +274,10 @@ final class VMPlayerImplTest {
         throw new IOException("connection refused");
       }
     );
+    final long outputsBefore = countOutputThreads();
     assertTrue(startDefaultMachine(player));
     assertEquals(List.of("The sound of the virtual machine could not be connected, it runs without sound: connection refused"), reports);
+    assertEquals(outputsBefore, countOutputThreads(), "the output of the sound that never came is closed");
     when(this.vnc.pause()).thenReturn(true);
     assertTrue(player.pause(), "a machine without sound pauses all the same");
     when(this.vnc.resume()).thenReturn(true);
@@ -289,6 +291,14 @@ final class VMPlayerImplTest {
     assertEquals(List.of(), this.sinks);
     assertSame(player.getAudioAttachableCallback(), player.getAudioAttachableCallback());
     player.release();
+  }
+
+  private static long countOutputThreads() {
+    return Thread.getAllStackTraces()
+      .keySet()
+      .stream()
+      .filter(thread -> thread.isAlive() && thread.getName().equals("mcav-vm-audio-output"))
+      .count();
   }
 
   private static void waitUntil(final java.util.function.BooleanSupplier condition) {
