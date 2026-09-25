@@ -289,11 +289,14 @@ share a folder of the host with the guest and publish its display on the network
 | Kind | Options |
 |---|---|
 | Disk images | `-cdrom`, `-drive` (with `file=`), `-hda`, `-hdb`, `-hdc`, `-hdd`, `-fda`, `-fdb` |
-| Hardware | `-m`, `-smp`, `-cpu`, `-machine`, `-accel`, `-boot`, `-name`, `-k`, `-vga`, `-rtc` |
+| Hardware | `-m`, `-smp`, `-cpu`, `-machine`, `-accel`, `-boot`, `-name`, `-k`, `-vga`, `-rtc`, each with the values of its kind only |
 | Switches | `-snapshot`, `-no-reboot`, `-no-hpet`, `-no-fd-bootchk`, `-enable-kvm`, `-usb` |
 
-A disk image must be a file of the plugin's `iso` folder, named without its folder, such as
-`-cdrom "alpine linux.iso"`. Put your images there, or link them in; nothing else on the server can be booted. The
+The hardware options take machine types, accelerators, sizes, counts, CPU models and features, and their switches,
+such as `-machine q35,accel=kvm,usb=on` or `-boot order=dc,menu=on`; the properties that make QEMU read or write a
+file, such as `-machine dumpdtb=`, `firmware=` or `kernel=` and `-boot splash=`, are refused, and so is
+`pcspk-audiodev=`, because the plugin routes the sound itself. A disk image must be a file of the plugin's `iso`
+folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your images there, or link them in; nothing else on the server can be booted. The
 display of the guest always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode
 network QEMU gives it by default.
 

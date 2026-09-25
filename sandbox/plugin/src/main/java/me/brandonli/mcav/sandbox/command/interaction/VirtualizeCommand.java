@@ -79,7 +79,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
 
   /**
-   * The options that describe the hardware of the machine. Their value never names a file.
+   * The options that describe the hardware of the machine. Their values must have a form {@link QemuHardwareValues}
+   * allows, so they never name a file nor change what mcav owns.
    */
   private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
 
@@ -433,7 +434,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static String checkedValue(final String name, final String value, final Path imageFolder) {
     final boolean hardware = HARDWARE_OPTIONS.contains(name);
     if (hardware) {
-      requireNoPath(name, value);
+      QemuHardwareValues.check(name, value);
       return value;
     }
     final boolean image = IMAGE_OPTIONS.contains(name);

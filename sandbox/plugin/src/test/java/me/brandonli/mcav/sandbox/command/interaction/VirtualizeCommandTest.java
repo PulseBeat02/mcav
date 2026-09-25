@@ -466,13 +466,55 @@ final class VirtualizeCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "-machine dumpdtb=/tmp/tree.dtb", "-name C:\\windows\\name", "-drive file=a.img,logappend=/tmp/log" })
-  void refusesHardwareOptionsThatNameAFile(final String options) throws IOException {
+  @ValueSource(
+    strings = {
+      "-machine dumpdtb=/tmp/tree.dtb",
+      "-machine virt,dumpdtb=tree.dtb",
+      "-machine pc,firmware=server.properties",
+      "-machine q35,kernel=bzImage",
+      "-machine pc,pcspk-audiodev=snd0",
+      "-boot order=c,splash=logo.bmp",
+      "-name C:\\windows\\name",
+      "-drive file=a.img,logappend=/tmp/log",
+      "-drive file=a.img,logappend=C:\\temp\\log",
+    }
+  )
+  void refusesHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
     this.image("a.img");
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
-    final boolean explained = message.contains("must not name a file");
+    final boolean explained = message.contains("must not name a file") || message.contains("does not allow");
     assertTrue(explained, message);
+  }
+
+  @Test
+  void acceptsTheHardwareOfCommonMachines() {
+    this.assertArguments(
+        "-machine q35,accel=kvm,usb=on -cpu host,+ssse3,-avx -smp 4,cores=2 -m 2G,slots=2,maxmem=4G -boot order=dc,menu=on",
+        "-machine",
+        "q35,accel=kvm,usb=on",
+        "-cpu",
+        "host,+ssse3,-avx",
+        "-smp",
+        "4,cores=2",
+        "-m",
+        "2G,slots=2,maxmem=4G",
+        "-boot",
+        "order=dc,menu=on"
+      );
+    this.assertArguments(
+        "-accel tcg,thread=multi -rtc base=utc,clock=host -k en-us -vga virtio -name \"my vm\",debug-threads=on",
+        "-accel",
+        "tcg,thread=multi",
+        "-rtc",
+        "base=utc,clock=host",
+        "-k",
+        "en-us",
+        "-vga",
+        "virtio",
+        "-name",
+        "my vm,debug-threads=on"
+      );
   }
 
   @Test
