@@ -32,8 +32,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
@@ -447,11 +449,33 @@ final class PlaybackSession {
     final long timestamp = timestamps.next(frame.timestamp);
     final DecodedVideoFrame decoded = new DecodedVideoFrame(image, timestamp);
     this.videoMetadata = metadata;
+    queueFrame(this.videoQueue, decoded, this.running::get);
+  }
+
+  /**
+   * Queues a frame for the video renderer, which then owns its picture. Stopping drains the queue, which wakes a
+   * decoder that waits for room; when the wake-up comes before the decoder notices its interrupt, the put completes
+   * after all, possibly after the renderer drained the queue for the last time, and nobody would release the picture.
+   * So a decoder that finds the session stopped once its frame is queued takes the frame back and releases the picture
+   * itself, unless the renderer took the frame already.
+   *
+   * @param queue   the queue of the video renderer
+   * @param frame   the frame
+   * @param running tells whether the session still runs, asked after the frame was queued
+   * @throws InterruptedException if the decoder is interrupted while it waits for room, which releases the picture
+   */
+  @VisibleForTesting
+  static void queueFrame(final BlockingQueue<DecodedVideoFrame> queue, final DecodedVideoFrame frame, final BooleanSupplier running)
+    throws InterruptedException {
     try {
-      this.videoQueue.put(decoded);
+      queue.put(frame);
     } catch (final InterruptedException exception) {
-      releaseImage(decoded);
+      releaseImage(frame);
       throw exception;
+    }
+    final boolean stopped = !running.getAsBoolean();
+    if (stopped && queue.remove(frame)) {
+      releaseImage(frame);
     }
   }
 
@@ -709,15 +733,38 @@ final class PlaybackSession {
   }
 
   /**
+   * Counts the pictures that wait for the video renderer. Once the session ended there must be none, because nobody
+   * takes them out of the queue to release them anymore.
+   *
+   * @return the number of queued frames that carry a picture
+   */
+  @VisibleForTesting
+  long getQueuedPictureCount() {
+    final Stream<DecodedVideoFrame> frames = this.videoQueue.stream();
+    final Stream<@Nullable MatImageBuffer> pictures = frames.map(DecodedVideoFrame::getImage);
+    final Stream<@Nullable MatImageBuffer> present = pictures.filter(Objects::nonNull);
+    return present.count();
+  }
+
+  /**
    * Stops the session and waits for its threads to exit. Calling this method more than once has no effect, and it
    * may be called from a pipeline running on one of the threads of the session.
    *
    * <p>Threads are interrupted, but a decoder stuck in native code only notices at its next frame, so this method
    * blocks for up to five seconds per thread in the worst case.
+   *
+   * <p>A call from outside the session that comes while the session is already stopping, for instance because one of
+   * its renderers stopped it after a failure, waits for the threads just the same. A thread of the session returns
+   * at once instead, because the thread that is stopping the session may be waiting for it.
    */
   void stop() {
     final boolean wasRunning = this.running.getAndSet(false);
+    final Thread currentThread = Thread.currentThread();
     if (!wasRunning) {
+      final boolean ownThread = this.threads.contains(currentThread);
+      if (!ownThread) {
+        this.joinThreadsExcept(currentThread);
+      }
       return;
     }
 
@@ -729,7 +776,6 @@ final class PlaybackSession {
       }
       return;
     }
-    final Thread currentThread = Thread.currentThread();
     this.interruptThreadsExcept(currentThread);
     // a renderer that stopped the session itself is not interrupted, so it finishes through its end marker
     replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, PlaybackSession::releaseImage);

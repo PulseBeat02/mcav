@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,6 +50,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.Polling;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -849,6 +852,35 @@ final class PlaybackSessionTest {
     assertEquals(1, frameCount, "frames queued before the stop are discarded");
   }
 
+  /**
+   * A player stops its session from outside while the session may be stopping itself, which its renderers do when the
+   * exception handler throws. Found by {@code PlaybackSessionStopStressTest}: the outside stop lost the race for the
+   * running flag and returned at once, while the session was still waiting for a decoder stuck in native code, so a
+   * player could return from release while the playback still ran.
+   */
+  @Test
+  void aStopRacingTheSessionStoppingItselfStillWaitsForTheThreads() throws Exception {
+    final AtomicReference<PlaybackSession> holder = new AtomicReference<>();
+    final AtomicInteger frames = new AtomicInteger();
+    final AtomicLong stopNanos = new AtomicLong(-1L);
+    final VideoFilter stopping = stoppingItsOwnSession(holder, frames, stopNanos);
+    this.onVideo(stopping);
+    // the decoder is stuck after the first picture, so the session stopping itself waits for it
+    final Frame picture = ScriptedFrameGrabber.video(0L);
+    final ScriptedFrameGrabber.Delay stuck = new ScriptedFrameGrabber.Delay(1_000L);
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(picture, stuck);
+    final PlaybackSession session = this.session(grabber, 0L, false);
+    holder.set(session);
+    session.start();
+    awaitCondition("the filter began to stop the session", () -> !session.isActive());
+
+    session.stop();
+    final boolean closed = grabber.isClosed();
+    final long ownStopTime = stopNanos.get();
+    assertTrue(closed, "the stop returned while the decoder was still running");
+    assertTrue(ownStopTime >= 0, "the stop returned while the session was still stopping itself");
+  }
+
   @Test
   void keepsTheInterruptWhenStoppedFromAnInterruptedThread() throws Exception {
     final ScriptedFrameGrabber.Delay stuck = new ScriptedFrameGrabber.Delay(500L);
@@ -980,6 +1012,81 @@ final class PlaybackSessionTest {
     final List<String> expectedDiscarded = List.of("frame", "late frame");
     assertEquals(expectedRemaining, remaining);
     assertEquals(expectedDiscarded, discarded, "every removed element is handed on, so it can be released");
+  }
+
+  /**
+   * Creates a decoded frame whose picture is a tiny image, so a test can tell whether the picture was released.
+   */
+  private static DecodedVideoFrame frameWithPicture() {
+    final ImageBuffer picture = ImageBuffer.bytes(new byte[3], 1, 1);
+    return new DecodedVideoFrame((MatImageBuffer) picture, 0L);
+  }
+
+  @Test
+  void leavesAQueuedFrameToTheRendererWhileTheSessionRuns() throws Exception {
+    final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
+    final DecodedVideoFrame frame = frameWithPicture();
+    final MatImageBuffer picture = frame.getImage();
+    PlaybackSession.queueFrame(queue, frame, () -> true);
+
+    final DecodedVideoFrame queued = queue.poll();
+    final int width = picture.getWidth();
+    assertSame(frame, queued);
+    assertEquals(1, width, "the picture now belongs to the renderer and is not released");
+    picture.release();
+  }
+
+  /**
+   * Found by {@code PlaybackSessionStopStressTest}: a stop drains the queue, which lets a decoder waiting for room
+   * queue its frame after all, possibly after the renderer drained the queue for the last time.
+   */
+  @Test
+  void takesBackAFrameQueuedAfterTheSessionStoppedAndReleasesItsPicture() throws Exception {
+    final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
+    final DecodedVideoFrame frame = frameWithPicture();
+    final MatImageBuffer picture = frame.getImage();
+    PlaybackSession.queueFrame(queue, frame, () -> false);
+
+    final boolean empty = queue.isEmpty();
+    assertTrue(empty, "nobody takes frames out of the queue of a stopped session anymore");
+    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
+  }
+
+  @Test
+  void leavesAFrameTheRendererTookBeforeTheDecoderNoticedTheStop() throws Exception {
+    final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
+    final DecodedVideoFrame frame = frameWithPicture();
+    final MatImageBuffer picture = frame.getImage();
+    final AtomicReference<DecodedVideoFrame> taken = new AtomicReference<>();
+    // the renderer takes the frame between the put of the decoder and its look at the running flag
+    final BooleanSupplier renderedThenStopped = () -> {
+      final DecodedVideoFrame polled = queue.poll();
+      taken.set(polled);
+      return false;
+    };
+    PlaybackSession.queueFrame(queue, frame, renderedThenStopped);
+
+    final DecodedVideoFrame rendered = taken.get();
+    final int width = picture.getWidth();
+    assertSame(frame, rendered);
+    assertEquals(1, width, "the renderer owns the picture it took, so the decoder leaves it alone");
+    picture.release();
+  }
+
+  @Test
+  void releasesThePictureOfAFrameItCouldNotQueueBeforeItWasInterrupted() {
+    final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
+    final DecodedVideoFrame waiting = new DecodedVideoFrame(null, 0L);
+    queue.add(waiting);
+    final DecodedVideoFrame frame = frameWithPicture();
+    final MatImageBuffer picture = frame.getImage();
+    final Thread currentThread = Thread.currentThread();
+    currentThread.interrupt();
+
+    assertThrows(InterruptedException.class, () -> PlaybackSession.queueFrame(queue, frame, () -> true));
+    final boolean interrupted = Thread.interrupted();
+    assertFalse(interrupted, "the interrupt was thrown, not kept");
+    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
   }
 
   /**
