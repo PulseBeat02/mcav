@@ -21,26 +21,54 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import me.brandonli.mcav.media.player.PlayerException;
 
 /**
  * The browser helper sessions that are running in this JVM, so that stopping the browser module ends every helper
  * process, including those of players nobody released.
+ *
+ * <p>Once {@link #closeAll()} has run, no session may start until {@link #open()}: a browser that was still starting,
+ * for example while the browser was downloaded, is refused when its helper connects, and ends.
  */
 final class HelperProcesses {
 
   private static final Set<HelperSession> SESSIONS = new LinkedHashSet<>();
+  private static boolean stopped;
 
   private HelperProcesses() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   /**
-   * Remembers a running session.
+   * Lets sessions start again, once the browser module starts.
+   */
+  static synchronized void open() {
+    stopped = false;
+  }
+
+  /**
+   * Checks that sessions may start, before anything is installed or launched for one.
+   *
+   * @throws PlayerException if the browser module has been stopped
+   */
+  static synchronized void requireOpen() {
+    if (stopped) {
+      throw new PlayerException("The browser module is stopped");
+    }
+  }
+
+  /**
+   * Remembers a running session, unless the browser module has been stopped since the session began to start.
    *
    * @param session the session
+   * @return true if the session is remembered, false if it must end because the module has been stopped
    */
-  static synchronized void register(final HelperSession session) {
+  static synchronized boolean register(final HelperSession session) {
+    if (stopped) {
+      return false;
+    }
     SESSIONS.add(session);
+    return true;
   }
 
   /**
@@ -62,15 +90,16 @@ final class HelperProcesses {
   }
 
   /**
-   * Closes every running session.
+   * Ends every running session, which its player hears of, and lets no session start until {@link #open()}.
    */
   static void closeAll() {
     final List<HelperSession> running;
     synchronized (HelperProcesses.class) {
+      stopped = true;
       running = new ArrayList<>(SESSIONS);
     }
     for (final HelperSession session : running) {
-      session.close();
+      session.endAndClose("The browser module was stopped");
     }
   }
 }

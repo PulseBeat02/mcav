@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -51,8 +52,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The helper reads its {@link HelperConfiguration} from the first line of its standard input, connects to the
  * server's Unix-domain socket, proves who it is with the session token, starts CEF and streams the page as
  * {@link HelperProtocol} frames while it forwards the server's input to the page. It exits when the server asks it
- * to, when the connection ends, or when its standard input ends, which happens when the server process dies. It is
- * not meant to be started by hand.
+ * to, when the connection ends, or when its standard input ends, which happens when the server process dies. Once its
+ * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLIS} ms, so a browser that hangs
+ * never outlives the server. It is not meant to be started by hand.
  */
 public final class BrowserHelper {
 
@@ -61,21 +63,46 @@ public final class BrowserHelper {
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
+  /**
+   * How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then,
+   * and CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
+   */
+  static final long STOP_DEADLINE_MILLIS = 20_000L;
+
   private final HelperConfiguration configuration;
   private final HelperEngine engine;
+  private final Halter halter;
+  private final long stopDeadlineMillis;
   private final PageCompositor compositor;
   private final CountDownLatch stopped;
   private final AtomicReference<String> stopReason;
+  // the mouse buttons the page sees held; only the thread that reads the commands of the server touches them
+  private int heldButtons;
 
   /**
-   * Constructs a helper.
+   * Constructs a helper that never halts, for tests that run it inside their own JVM.
    *
    * @param configuration the configuration
    * @param engine        the browser
    */
+  @VisibleForTesting
   BrowserHelper(final HelperConfiguration configuration, final HelperEngine engine) {
+    this(configuration, engine, status -> {}, 0L);
+  }
+
+  /**
+   * Constructs a helper.
+   *
+   * @param configuration      the configuration
+   * @param engine             the browser
+   * @param halter             ends the JVM at once if the helper does not stop in time after its standard input ended
+   * @param stopDeadlineMillis how long the helper may take to stop then
+   */
+  BrowserHelper(final HelperConfiguration configuration, final HelperEngine engine, final Halter halter, final long stopDeadlineMillis) {
     this.configuration = configuration;
     this.engine = engine;
+    this.halter = halter;
+    this.stopDeadlineMillis = stopDeadlineMillis;
     final int width = configuration.getWidth();
     final int height = configuration.getHeight();
     final int frameInterval = configuration.getFrameInterval();
@@ -97,7 +124,8 @@ public final class BrowserHelper {
     final InputStream standardInput = System.in;
     final Reader reader = new InputStreamReader(standardInput, StandardCharsets.UTF_8);
     final BufferedReader input = new BufferedReader(reader);
-    final int status = runFromInput(input, new CefEngine());
+    final Runtime runtime = Runtime.getRuntime();
+    final int status = runFromInput(input, new CefEngine(), runtime::halt);
     // the JVM must end even while threads of CEF or AWT still run
     System.exit(status);
     throw new AssertionError("System.exit returned");
@@ -108,9 +136,10 @@ public final class BrowserHelper {
    *
    * @param input  the standard input
    * @param engine the browser
+   * @param halter ends the JVM at once if the helper does not stop in time after its standard input ended
    * @return the exit status
    */
-  static int runFromInput(final BufferedReader input, final HelperEngine engine) {
+  static int runFromInput(final BufferedReader input, final HelperEngine engine, final Halter halter) {
     final HelperConfiguration configuration;
     try {
       final String line = input.readLine();
@@ -123,7 +152,7 @@ public final class BrowserHelper {
       System.err.println("The browser helper got an invalid configuration: " + exception.getMessage());
       return EXIT_BAD_CONFIGURATION;
     }
-    final BrowserHelper helper = new BrowserHelper(configuration, engine);
+    final BrowserHelper helper = new BrowserHelper(configuration, engine, halter, STOP_DEADLINE_MILLIS);
     return helper.run(input, BrowserHelper::connect);
   }
 
@@ -206,7 +235,8 @@ public final class BrowserHelper {
   }
 
   /**
-   * Waits for the end of the standard input, which the server keeps open while it lives.
+   * Waits for the end of the standard input, which the server keeps open while it lives, stops the helper, and halts
+   * the JVM if the helper has not ended once the stop deadline has passed.
    *
    * @param standardInput the standard input
    */
@@ -220,6 +250,16 @@ public final class BrowserHelper {
       // a broken input means the server is gone as well
     }
     this.stop("the standard input ended");
+    try {
+      Thread.sleep(this.stopDeadlineMillis);
+    } catch (final InterruptedException exception) {
+      // nothing interrupts this thread but a test; the helper still must not outlive the server
+      final Thread thread = Thread.currentThread();
+      thread.interrupt();
+    }
+    // still running: the browser hangs in its start or its shutdown, or a shutdown hook of the JVM does
+    System.err.println("The browser helper did not stop within " + this.stopDeadlineMillis + " ms and halts");
+    this.halter.halt(EXIT_FAILURE);
   }
 
   /**
@@ -255,7 +295,8 @@ public final class BrowserHelper {
     return switch (type) {
       case HelperProtocol.MOUSE -> {
         final MouseInput input = message.getMouse();
-        final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.mouse(input);
+        final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.mouse(input, this.heldButtons);
+        this.heldButtons = DevToolsInput.heldAfter(input, this.heldButtons);
         this.engine.dispatch(calls);
         yield true;
       }
@@ -313,6 +354,19 @@ public final class BrowserHelper {
    */
   PageCompositor getCompositor() {
     return this.compositor;
+  }
+
+  /**
+   * Ends the JVM at once, without running its shutdown hooks.
+   */
+  @FunctionalInterface
+  interface Halter {
+    /**
+     * Ends the JVM.
+     *
+     * @param status the exit status
+     */
+    void halt(int status);
   }
 
   /**

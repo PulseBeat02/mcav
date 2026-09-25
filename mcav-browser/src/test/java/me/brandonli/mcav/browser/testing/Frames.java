@@ -177,6 +177,28 @@ public final class Frames {
   }
 
   /**
+   * Describes the last frame for a failure message: how many frames arrived, and the size and the center color of
+   * the last one.
+   *
+   * @return the description
+   */
+  public String describeLast() {
+    final Frame frame = this.last();
+    if (frame == null) {
+      return "no frame";
+    }
+    return (
+      this.count() +
+      " frames, the last " +
+      frame.getWidth() +
+      "x" +
+      frame.getHeight() +
+      " with center " +
+      String.format("%06x", frame.getCenter())
+    );
+  }
+
+  /**
    * A delivered frame.
    */
   public static final class Frame {

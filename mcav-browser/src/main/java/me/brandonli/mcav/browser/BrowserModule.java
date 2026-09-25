@@ -36,15 +36,17 @@ public final class BrowserModule implements MCAVModule {
   public BrowserModule() {}
 
   /**
-   * Does nothing; browsers are installed and started on demand.
+   * Lets browsers start again after {@link #stop()}; the browser itself is installed by the first browser that
+   * starts.
    */
   @Override
   public void start() {
-    // the natives are installed by the first browser that starts
+    HelperProcesses.open();
   }
 
   /**
-   * Ends the helper process of every browser that is still running.
+   * Ends the helper process of every browser that is still running, and of every browser that is still starting, and
+   * lets no browser start until the module starts again.
    */
   @Override
   public void stop() {

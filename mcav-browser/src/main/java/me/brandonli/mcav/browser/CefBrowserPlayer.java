@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -110,9 +111,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
       final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
       final SessionListener listener = new SessionListener(metadata);
       final BrowserSession started = this.sessions.open(source, this.options, listener);
-      listener.setSession(started);
       this.session = started;
       this.state.set(State.PLAYING);
+      // an end of the helper that arrived before the session was the player's is passed on now, and fails the start
+      listener.setSession(started);
+      if (this.state.get() != State.PLAYING) {
+        return false;
+      }
       // the frames of the start arrived before the session was the player's; the page is sent once more, so a page
       // that never changes again still reaches the pipeline
       started.requestFrame();
@@ -375,6 +380,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     @Override
     public BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener) {
+      // a stopped module downloads nothing
+      HelperProcesses.requireOpen();
       final Path installation;
       try {
         installation = this.natives.install();
@@ -396,19 +403,28 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   /**
-   * Passes the frames and the end of a session to the player, once the session is known.
+   * Passes the frames and the end of a session to the player, once the session is known. Frames before are dropped;
+   * an end before is kept and passed on when the session becomes known.
    */
   private final class SessionListener implements BrowserSession.Listener {
 
     private final OriginalVideoMetadata metadata;
     private volatile @Nullable BrowserSession owner;
+    private @Nullable Consumer<BrowserSession> earlyEnd;
 
     SessionListener(final OriginalVideoMetadata metadata) {
       this.metadata = metadata;
     }
 
     void setSession(final BrowserSession session) {
-      this.owner = session;
+      final Consumer<BrowserSession> end;
+      synchronized (this) {
+        this.owner = session;
+        end = this.earlyEnd;
+      }
+      if (end != null) {
+        end.accept(session);
+      }
     }
 
     @Override
@@ -424,10 +440,16 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     @Override
     public void onEnded(final String reason, final Throwable cause) {
-      final BrowserSession from = this.owner;
-      if (from != null) {
-        CefBrowserPlayer.this.onEnded(from, reason, cause);
+      final BrowserSession from;
+      synchronized (this) {
+        from = this.owner;
+        if (from == null) {
+          // the session is still starting; the player hears of the end once the session is its own
+          this.earlyEnd = session -> CefBrowserPlayer.this.onEnded(session, reason, cause);
+          return;
+        }
       }
+      CefBrowserPlayer.this.onEnded(from, reason, cause);
     }
   }
 

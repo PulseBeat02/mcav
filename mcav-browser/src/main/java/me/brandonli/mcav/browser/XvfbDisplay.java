@@ -22,7 +22,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +52,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code Xvfb}, which listens on no TCP port and accepts only clients that know the random cookie written into its
  * authority file, which only the owner can read. The display number is chosen by Xvfb ({@code -displayfd}), and Xvfb
  * exits when its last client disconnects ({@code -terminate}), besides being stopped by {@link #close()}.
+ *
+ * <p>The JVM that starts the display connects to it as a client itself and stays connected until {@link #close()}, so
+ * Xvfb also ends when that JVM dies without closing it, even if the browser never connected. That connection goes
+ * through the socket file of the display in {@code /tmp/.X11-unix}; where that folder is missing, as in some
+ * containers, the display still works, but only {@link #close()} ends it.
  */
 final class XvfbDisplay implements AutoCloseable {
 
@@ -63,15 +71,19 @@ final class XvfbDisplay implements AutoCloseable {
   private static final int FAMILY_WILD = 0xFFFF;
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
   private static final Set<PosixFilePermission> OWNER_ONLY = PosixFilePermissions.fromString("rw-------");
+  private static final Path SOCKET_FOLDER = Path.of("/tmp/.X11-unix");
+  private static final int X11_MAJOR_VERSION = 11;
 
   private final Process process;
   private final String display;
   private final Path authority;
+  private final @Nullable SocketChannel keeper;
 
-  private XvfbDisplay(final Process process, final String display, final Path authority) {
+  private XvfbDisplay(final Process process, final String display, final Path authority, final @Nullable SocketChannel keeper) {
     this.process = process;
     this.display = display;
     this.authority = authority;
+    this.keeper = keeper;
   }
 
   /**
@@ -107,9 +119,24 @@ final class XvfbDisplay implements AutoCloseable {
    * @throws PlayerException if Xvfb cannot be started or does not report its display in time
    */
   static XvfbDisplay start(final Path program, final Path folder) {
+    return start(program, folder, SOCKET_FOLDER);
+  }
+
+  /**
+   * Starts a display, connecting to it through the socket files of another folder, for tests.
+   *
+   * @param program       the Xvfb program
+   * @param folder        the private folder of the session, where the authority file is written
+   * @param socketFolder  the folder of the socket files of the displays
+   * @return the running display
+   * @throws PlayerException if Xvfb cannot be started or does not report its display in time
+   */
+  @VisibleForTesting
+  static XvfbDisplay start(final Path program, final Path folder, final Path socketFolder) {
     final Path authority = folder.resolve("Xauthority");
+    final byte[] cookie = createCookie();
     try {
-      writeAuthority(authority, createCookie());
+      writeAuthority(authority, cookie);
     } catch (final IOException exception) {
       throw new PlayerException("The X authority file cannot be written: " + exception.getMessage(), exception);
     }
@@ -125,7 +152,8 @@ final class XvfbDisplay implements AutoCloseable {
     }
     try {
       final String number = readDisplayNumber(process.getInputStream(), START_TIMEOUT_MILLIS);
-      return new XvfbDisplay(process, ":" + number, authority);
+      final SocketChannel keeper = connectKeeper(socketFolder.resolve("X" + number), cookie);
+      return new XvfbDisplay(process, ":" + number, authority, keeper);
     } catch (final PlayerException exception) {
       stopProcess(process, STOP_TIMEOUT_MILLIS);
       throw exception;
@@ -191,6 +219,68 @@ final class XvfbDisplay implements AutoCloseable {
   }
 
   /**
+   * Connects to a display as a client that stays connected, authenticated with the cookie of the display. The X
+   * server is not waited for: a connection it refuses only fails to keep the display alive.
+   *
+   * @param socket the socket file of the display
+   * @param cookie the cookie
+   * @return the connection, or null if the socket file cannot be reached
+   */
+  @VisibleForTesting
+  static @Nullable SocketChannel connectKeeper(final Path socket, final byte[] cookie) {
+    SocketChannel connected = null;
+    try {
+      connected = SocketChannel.open(UnixDomainSocketAddress.of(socket));
+      // a blocking channel writes the whole setup
+      connected.write(ByteBuffer.wrap(createConnectionSetup(cookie)));
+      return connected;
+    } catch (final IOException exception) {
+      HelperSession.closeQuietly(connected);
+      return null;
+    }
+  }
+
+  /**
+   * Encodes the setup of an X11 client connection with a cookie: byte order, protocol 11.0, the lengths of the method
+   * name and the cookie, then both, each padded to four bytes.
+   *
+   * @param cookie the cookie
+   * @return the setup
+   */
+  @VisibleForTesting
+  static byte[] createConnectionSetup(final byte[] cookie) {
+    final byte[] name = COOKIE_NAME.getBytes(StandardCharsets.US_ASCII);
+    final int nameLength = padded(name.length);
+    final int cookieLength = padded(cookie.length);
+    final ByteBuffer setup = ByteBuffer.allocate(12 + nameLength + cookieLength).order(ByteOrder.LITTLE_ENDIAN);
+    setup.put((byte) 'l');
+    setup.put((byte) 0);
+    setup.putShort((short) X11_MAJOR_VERSION);
+    setup.putShort((short) 0);
+    setup.putShort((short) name.length);
+    setup.putShort((short) cookie.length);
+    setup.putShort((short) 0);
+    setup.put(name);
+    setup.position(12 + nameLength);
+    setup.put(cookie);
+    return setup.array();
+  }
+
+  private static int padded(final int length) {
+    return (length + 3) & ~3;
+  }
+
+  /**
+   * Gets the connection that keeps the display alive while this JVM runs, for tests.
+   *
+   * @return the connection, or null if there is none
+   */
+  @VisibleForTesting
+  @Nullable SocketChannel getKeeper() {
+    return this.keeper;
+  }
+
+  /**
    * Reads the display number Xvfb writes once it accepts connections.
    *
    * @param output        the standard output of Xvfb
@@ -249,10 +339,11 @@ final class XvfbDisplay implements AutoCloseable {
   }
 
   /**
-   * Stops Xvfb, forcibly if it does not stop in time.
+   * Leaves the display and stops Xvfb, forcibly if it does not stop in time.
    */
   @Override
   public void close() {
+    HelperSession.closeQuietly(this.keeper);
     stopProcess(this.process, STOP_TIMEOUT_MILLIS);
   }
 

@@ -146,6 +146,19 @@ class SocksProtocolTest {
   }
 
   @Test
+  void anIpv6AddressNamedAsAHostIsReadAsTheAddress() throws IOException {
+    // Chromium sends the text of an IPv6 address, as it does for a host name
+    assertEquals("2606:4700:4700:0:0:0:0:1111", request(domainRequest(1, "2606:4700:4700::1111", 80)).getHost());
+    assertEquals("2606:4700:4700:0:0:0:0:1111", request(domainRequest(1, "[2606:4700:4700::1111]", 80)).getHost());
+    assertEquals("0:0:0:0:0:0:0:1", request(domainRequest(1, "::1", 80)).getHost());
+    // an IPv4 address mapped into IPv6 is the IPv4 address
+    assertEquals("10.0.0.1", request(domainRequest(1, "::ffff:10.0.0.1", 80)).getHost());
+    for (final String bad : new String[] { "2606::zz::1", "1.2.3.4:80", "[::1", "exa[mple]", "exam]ple", "fe80::1%eth0" }) {
+      assertThrows(ProtocolException.class, () -> request(domainRequest(1, bad, 80)), bad);
+    }
+  }
+
+  @Test
   void answersHaveTheFormOfTheProtocol() throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     final DataOutputStream out = new DataOutputStream(bytes);

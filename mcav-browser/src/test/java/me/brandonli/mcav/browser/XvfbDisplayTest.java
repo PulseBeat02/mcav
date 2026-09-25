@@ -20,6 +20,8 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -34,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Optional;
+import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -64,14 +67,16 @@ class XvfbDisplayTest {
 
   @Test
   void theCommandListensOnNoTcpPortAndUsesTheAuthorityFile() {
-    final List<String> command = XvfbDisplay.createCommand(Path.of("/usr/bin/Xvfb"), Path.of("/tmp/s/Xauthority"));
+    final Path program = Path.of("/usr/bin/Xvfb");
+    final Path authority = Path.of("/tmp/s/Xauthority");
+    final List<String> command = XvfbDisplay.createCommand(program, authority);
     assertEquals(
       List.of(
-        "/usr/bin/Xvfb",
+        program.toString(),
         "-displayfd",
         "1",
         "-auth",
-        "/tmp/s/Xauthority",
+        authority.toString(),
         "-nolisten",
         "tcp",
         "-screen",
@@ -100,13 +105,13 @@ class XvfbDisplayTest {
 
   @Test
   void theAuthorityFileIsReadableByTheOwnerOnly() throws IOException {
+    // Xvfb runs on Linux only, where the file gets its permissions as it is created
+    final boolean posix = this.folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(posix, "the file system has POSIX permissions");
     final Path authority = this.folder.resolve("Xauthority");
     XvfbDisplay.writeAuthority(authority, new byte[16]);
     assertArrayEquals(XvfbDisplay.createAuthorityEntry(new byte[16]), Files.readAllBytes(authority));
-    final boolean posix = this.folder.getFileSystem().supportedFileAttributeViews().contains("posix");
-    if (posix) {
-      assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(authority));
-    }
+    assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(authority));
     assertThrows(IOException.class, () -> XvfbDisplay.writeAuthority(authority, new byte[16]), "an existing file is never reused");
   }
 
@@ -240,6 +245,69 @@ class XvfbDisplayTest {
   }
 
   @Test
+  void theConnectionSetupOfTheServerCarriesTheCookie() {
+    final byte[] cookie = new byte[16];
+    java.util.Arrays.fill(cookie, (byte) 7);
+    final byte[] expected = new byte[48];
+    // little-endian, protocol 11.0, a name of 18 bytes padded to 20, a cookie of 16 bytes
+    expected[0] = 'l';
+    expected[2] = 11;
+    expected[6] = 18;
+    expected[8] = 16;
+    final byte[] name = "MIT-MAGIC-COOKIE-1".getBytes(StandardCharsets.US_ASCII);
+    System.arraycopy(name, 0, expected, 12, name.length);
+    java.util.Arrays.fill(expected, 32, 48, (byte) 7);
+    assertArrayEquals(expected, XvfbDisplay.createConnectionSetup(cookie));
+  }
+
+  @Test
+  void aDisplayWithoutASocketFileHasNoConnectionOfTheServer() {
+    assertNull(XvfbDisplay.connectKeeper(this.folder.resolve("X4242"), new byte[16]));
+  }
+
+  @Test
+  void aDisplayStartsWithoutAConnectionOfTheServerWhereItsSocketFileIsMissing() throws IOException {
+    final boolean posix = this.folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(posix, "a shell script can stand in for Xvfb");
+    final Path fake = this.folder.resolve("fake-xvfb");
+    Files.writeString(fake, "#!/bin/sh\necho 4242\nexec sleep 60\n");
+    Files.setPosixFilePermissions(fake, PosixFilePermissions.fromString("rwx------"));
+    final Path session = Files.createDirectory(this.folder.resolve("session"));
+    final XvfbDisplay display = XvfbDisplay.start(fake, session, this.folder.resolve("no-sockets"));
+    try {
+      assertEquals(":4242", display.getDisplay());
+      assertNull(display.getKeeper());
+    } finally {
+      display.close();
+    }
+  }
+
+  private boolean runsXvfbOfThisTest() {
+    try (final java.util.stream.Stream<ProcessHandle> children = ProcessHandle.current().children()) {
+      return children.anyMatch(child -> child.isAlive() && child.info().commandLine().orElse("").contains(this.folder.toString()));
+    }
+  }
+
+  @Test
+  void aRealXvfbEndsOnceTheJvmThatStartedItLeavesIt() throws Exception {
+    final Optional<Path> program = XvfbDisplay.find(System.getenv("PATH"));
+    assumeTrue(program.isPresent(), "Xvfb is installed");
+    assumeTrue(Files.isDirectory(Path.of("/tmp/.X11-unix")), "displays have socket files");
+    final XvfbDisplay display = XvfbDisplay.start(program.get(), this.folder);
+    try {
+      final java.nio.channels.SocketChannel keeper = display.getKeeper();
+      assertNotNull(keeper);
+      Thread.sleep(500L);
+      assertTrue(this.runsXvfbOfThisTest(), "the connection of the server keeps the display");
+      // what the death of the JVM does to the connection
+      keeper.close();
+      Await.until("Xvfb ended with its last client", () -> !this.runsXvfbOfThisTest());
+    } finally {
+      display.close();
+    }
+  }
+
+  @Test
   void aRealXvfbStartsWithAPrivateDisplayAndStops() throws Exception {
     final Optional<Path> program = XvfbDisplay.find(System.getenv("PATH"));
     assumeTrue(program.isPresent(), "Xvfb is installed");
@@ -255,6 +323,8 @@ class XvfbDisplayTest {
 
   @Test
   void aProgramThatIsNotXvfbFailsTheStart() throws IOException {
+    final boolean posix = this.folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(posix, "Xvfb runs on Linux only, where the authority file gets POSIX permissions");
     final Path authorityTaken = this.folder.resolve("taken");
     Files.createDirectories(authorityTaken);
     Files.createFile(authorityTaken.resolve("Xauthority"));

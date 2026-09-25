@@ -55,14 +55,17 @@ final class DevToolsInput {
   /**
    * Opens new windows in place. An off-screen JCEF browser cancels every popup before the helper hears of it, so
    * {@code window.open} and links and forms that target another window would do nothing. This script, which runs in
-   * every frame before the page's own scripts, sends them to the page itself instead: {@code window.open} during a
-   * click or key, as Chromium's popup blocker allows it, and a click on such a link navigate the top frame, for
-   * {@code http} and {@code https} addresses only, and such a form is submitted into its own frame. Every navigation
-   * still goes through the navigation policy of the helper.
+   * every frame before the page's own scripts, sends them to the page itself instead, but only during a click or a
+   * key, as Chromium's popup blocker allows a popup: {@code window.open} and a click on such a link navigate the top
+   * frame, for {@code http} and {@code https} addresses only, and such a form, or a form sent by a button that targets
+   * another window, is submitted into its own frame. A link or form that targets a frame of the page by its name is left
+   * to the page. Every navigation still goes through the navigation policy of the helper.
    */
   static final String OPEN_IN_PLACE_SCRIPT =
     """
     (() => {
+      // like Chromium's popup blocker, only a click or a key lets a page open a window
+      const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
       const openInPlace = address => {
         let target;
         try {
@@ -71,20 +74,47 @@ final class DevToolsInput {
           return;
         }
         if (target.protocol === 'http:' || target.protocol === 'https:') {
-          window.top.location.assign(target.href);
+          // a frame of another origin may set the address of the top frame, but not call its methods
+          window.top.location.href = target.href;
         }
       };
+      const namesAFrame = (view, name) => {
+        let found;
+        try {
+          found = view[name];
+        } catch (error) {
+          found = undefined;
+        }
+        // the window of a frame is its own window property, which an element of the page named so is not
+        if (found !== undefined && found !== null && found !== view && found.window === found) {
+          return true;
+        }
+        let count = 0;
+        try {
+          count = view.frames.length;
+        } catch (error) {
+          return false;
+        }
+        for (let index = 0; index < count; index++) {
+          if (namesAFrame(view.frames[index], name)) {
+            return true;
+          }
+        }
+        return false;
+      };
       const opensElsewhere = name => {
-        const lower = String(name || '').toLowerCase();
-        return lower !== '' && lower !== '_self' && lower !== '_top' && lower !== '_parent';
+        const text = String(name || '');
+        const lower = text.toLowerCase();
+        if (lower === '' || lower === '_self' || lower === '_top' || lower === '_parent') {
+          return false;
+        }
+        return lower === '_blank' || !namesAFrame(window.top, text);
       };
       Object.defineProperty(window, 'open', {
         configurable: true,
         writable: true,
         value: function (address) {
-          // like Chromium's popup blocker, only a click or a key lets a page open a window
-          const active = navigator.userActivation === undefined || navigator.userActivation.isActive;
-          if (active && address !== undefined && address !== null && String(address) !== '') {
+          if (isActive() && address !== undefined && address !== null && String(address) !== '') {
             openInPlace(address);
           }
           return null;
@@ -92,14 +122,23 @@ final class DevToolsInput {
       });
       window.addEventListener('click', event => {
         const origin = event.target instanceof Element ? event.target.closest('a[href], area[href]') : null;
-        if (origin !== null && !event.defaultPrevented && opensElsewhere(origin.target)) {
+        if (origin !== null && !event.defaultPrevented && isActive() && opensElsewhere(origin.target)) {
           event.preventDefault();
           openInPlace(origin.href);
         }
       });
       window.addEventListener('submit', event => {
         const form = event.target;
-        if (form instanceof HTMLFormElement && opensElsewhere(form.target)) {
+        if (!(form instanceof HTMLFormElement) || !isActive()) {
+          return;
+        }
+        // the target of the button that sends the form wins over the target of the form
+        const button = event.submitter;
+        if (button instanceof HTMLElement && button.hasAttribute('formtarget')) {
+          if (opensElsewhere(button.getAttribute('formtarget'))) {
+            button.setAttribute('formtarget', '_self');
+          }
+        } else if (opensElsewhere(form.target)) {
           form.target = '_self';
         }
       }, true);
@@ -107,6 +146,9 @@ final class DevToolsInput {
     """;
 
   private static final String[] BUTTON_NAMES = { "left", "middle", "right" };
+
+  // the bits of the buttons in the DevTools "buttons" field, in the order of the button numbers: left, middle, right
+  private static final int[] BUTTON_BITS = { 1, 4, 2 };
   private static final Map<String, KeyDefinition> KEYS = createKeys();
 
   private DevToolsInput() {
@@ -150,34 +192,62 @@ final class DevToolsInput {
   }
 
   /**
-   * Builds the DevTools calls of one mouse event.
+   * Builds the DevTools calls of one mouse event. Every event carries the buttons that are held while it happens, so a
+   * page sees a move with a held button as a drag.
    *
    * @param input the event
+   * @param held  the buttons held before the event, as the bits of the DevTools {@code buttons} field
    * @return the calls, in order
    */
-  static List<DevToolsCall> mouse(final MouseInput input) {
+  static List<DevToolsCall> mouse(final MouseInput input, final int held) {
     final int x = input.getX();
     final int y = input.getY();
     final String button = BUTTON_NAMES[input.getButton()];
     final int clickCount = input.getClickCount();
+    final int after = heldAfter(input, held);
     final String parameters =
       switch (input.getAction()) {
-        case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", x, y) + buttonParameters(button, clickCount) + "}";
-        case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", x, y) + buttonParameters(button, clickCount) + "}";
-        case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", x, y) +
+        case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", x, y, after) + buttonParameters(button, clickCount) + "}";
+        case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", x, y, after) + buttonParameters(button, clickCount) + "}";
+        case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", x, y, after) +
         ",\"deltaX\":" +
         input.getDeltaX() +
         ",\"deltaY\":" +
         input.getDeltaY() +
         "}";
-        default -> mouseParameters("mouseMoved", x, y) + "}";
+        default -> mouseParameters("mouseMoved", x, y, after) + ",\"button\":\"" + heldButtonName(after) + "\"}";
       };
     final DevToolsCall call = new DevToolsCall(MOUSE_METHOD, parameters);
     return List.of(call);
   }
 
-  private static String mouseParameters(final String type, final int x, final int y) {
-    return "{\"type\":\"" + type + "\",\"x\":" + x + ",\"y\":" + y;
+  /**
+   * Gets the buttons held after a mouse event: a press adds its button, a release takes it away.
+   *
+   * @param input the event
+   * @param held  the buttons held before, as the bits of the DevTools {@code buttons} field
+   * @return the buttons held after
+   */
+  static int heldAfter(final MouseInput input, final int held) {
+    final int bit = BUTTON_BITS[input.getButton()];
+    return switch (input.getAction()) {
+      case HelperProtocol.MOUSE_PRESS -> held | bit;
+      case HelperProtocol.MOUSE_RELEASE -> held & ~bit;
+      default -> held;
+    };
+  }
+
+  private static String heldButtonName(final int held) {
+    for (int button = 0; button < BUTTON_BITS.length; button++) {
+      if ((held & BUTTON_BITS[button]) != 0) {
+        return BUTTON_NAMES[button];
+      }
+    }
+    return "none";
+  }
+
+  private static String mouseParameters(final String type, final int x, final int y, final int held) {
+    return "{\"type\":\"" + type + "\",\"x\":" + x + ",\"y\":" + y + ",\"buttons\":" + held;
   }
 
   private static String buttonParameters(final String button, final int clickCount) {
@@ -225,7 +295,8 @@ final class DevToolsInput {
   }
 
   /**
-   * Builds the DevTools calls that type a text, one key press per character. Line breaks press Enter.
+   * Builds the DevTools calls that type a text, one key press per character. A line break presses Enter, once for
+   * {@code \r\n}.
    *
    * @param text the text
    * @return the calls, in order
@@ -233,7 +304,13 @@ final class DevToolsInput {
   static List<DevToolsCall> typeText(final String text) {
     final List<DevToolsCall> calls = new ArrayList<>();
     final int[] codePoints = text.codePoints().toArray();
+    int previous = 0;
     for (final int codePoint : codePoints) {
+      final boolean secondHalfOfCrLf = codePoint == '\n' && previous == '\r';
+      previous = codePoint;
+      if (secondHalfOfCrLf) {
+        continue;
+      }
       if (codePoint == '\n' || codePoint == '\r') {
         final List<DevToolsCall> enter = pressKey("Enter");
         calls.addAll(enter);

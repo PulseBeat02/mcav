@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.StandardProtocolFamily;
@@ -38,11 +39,15 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /server-message}: introduces itself, is ready and loaded, then sends a close, which only the server
  *   sends;</li>
  *   <li>{@code /wrong-page}: introduces itself and sends a frame of a page of another size;</li>
+ *   <li>{@code /oversized}: introduces itself and sends a region larger than the page of the session;</li>
  *   <li>{@code /stall}: shows the page but never reads what the server sends;</li>
- *   <li>{@code /stubborn}: shows the page and ignores the end of its standard input;</li>
+ *   <li>{@code /stubborn}: shows the page and ignores the end of its standard input for two minutes;</li>
  *   <li>{@code /frame-first}: sends a frame before it introduces itself;</li>
  *   <li>{@code /hang-up}: shows the page, then closes the connection but keeps running;</li>
- *   <li>{@code /exit}: exits before it connects.</li>
+ *   <li>{@code /exit}: exits before it connects;</li>
+ *   <li>{@code /silent}: never connects, and exits when its standard input ends;</li>
+ *   <li>{@code /stubborn-child}: like {@code /stubborn}, and starts a process of its own once its standard input
+ *   ended, which runs for a minute.</li>
  * </ul>
  *
  * <p>It then waits until its standard input ends.
@@ -62,6 +67,12 @@ public final class RawHelperMain {
     final HelperConfiguration configuration = HelperConfiguration.fromLine(input.readLine());
     if (configuration.getUrl().getPath().equals("/exit")) {
       System.exit(4);
+    }
+    if (configuration.getUrl().getPath().equals("/silent")) {
+      while (input.read() >= 0) {
+        // the server gives up on this helper by closing its input
+      }
+      System.exit(0);
     }
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(configuration.getSocket()));
@@ -89,7 +100,7 @@ public final class RawHelperMain {
         sleep();
         HelperProtocol.writeClose(out);
       }
-      case "/stall", "/stubborn", "/hang-up" -> {
+      case "/stall", "/stubborn", "/stubborn-child", "/hang-up" -> {
         HelperProtocol.writeHello(out, token);
         HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
@@ -98,10 +109,17 @@ public final class RawHelperMain {
         if (path.equals("/hang-up")) {
           channel.close();
         }
-        if (path.equals("/stubborn")) {
-          while (true) {
+        if (path.equals("/stubborn-child")) {
+          startChildWhenTheInputEnds(input);
+        }
+        if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
+          // long enough for any test that kills it, and short enough that a test runner killed meanwhile leaves no
+          // helper behind for long
+          final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(2);
+          while (System.nanoTime() < deadline) {
             sleep();
           }
+          System.exit(0);
         }
       }
       case "/frame-first" -> HelperProtocol.writeFrame(
@@ -112,6 +130,12 @@ public final class RawHelperMain {
         HelperProtocol.writeHello(out, token);
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth() + 1, configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
       }
+      case "/oversized" -> {
+        HelperProtocol.writeHello(out, token);
+        final int width = configuration.getWidth() + 1;
+        final int height = configuration.getHeight();
+        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * 4]));
+      }
       default -> throw new IllegalArgumentException("Unknown scenario " + path);
     }
     out.flush();
@@ -119,6 +143,41 @@ public final class RawHelperMain {
       // wait until the server is done with this helper
     }
     channel.close();
+  }
+
+  /**
+   * Starts a process of this helper two seconds after its standard input ended, while the server waits for the helper
+   * to stop: a JVM that waits for a gate that never opens, for a minute.
+   *
+   * @param input the standard input
+   */
+  private static void startChildWhenTheInputEnds(final BufferedReader input) {
+    final Thread watcher = new Thread(() -> {
+      try {
+        awaitTheEnd(input);
+        // after the server listed the processes of this helper, while it waits for it to stop
+        Thread.sleep(2_000L);
+        final String program = ProcessHandle.current().info().command().orElse("java");
+        final String classPath = System.getProperty("java.class.path");
+        final String gate = System.getProperty("java.io.tmpdir") + File.separator + "never-opens";
+        new ProcessBuilder(program, "-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate, "-cp", classPath, GatedHelperMain.class.getName())
+          .redirectErrorStream(true)
+          .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+          .start();
+      } catch (final IOException exception) {
+        throw new java.io.UncheckedIOException(exception);
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    watcher.setDaemon(true);
+    watcher.start();
+  }
+
+  private static void awaitTheEnd(final BufferedReader input) throws IOException {
+    while (input.read() >= 0) {
+      // the server is still using this helper
+    }
   }
 
   private static void sleep() {

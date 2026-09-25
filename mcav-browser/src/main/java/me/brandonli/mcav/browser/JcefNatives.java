@@ -76,7 +76,10 @@ final class JcefNatives {
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
   private static final String REPOSITORY = "https://repo.maven.apache.org/maven2/me/friwi/";
   private static final String ARCHIVE_SUFFIX = ".tar.gz";
-  private static final Object INSTALL_LOCK = new Object();
+  // every copy of mcav in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
+  // object in the whole JVM, and a text without a package name is not renamed when mcav is shaded. So a copy never
+  // opens the lock file while another one holds it, which would release the lock of the process on some systems.
+  private static final Object INSTALL_LOCK = "the installation of the CEF natives of mcav";
 
   private final Path folder;
   private final Downloader downloader;

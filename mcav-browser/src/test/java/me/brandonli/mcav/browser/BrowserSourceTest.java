@@ -63,6 +63,12 @@ class BrowserSourceTest {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
+    final String start = "https://example.com/";
+    final URI longest = URI.create(start + "a".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
+    assertEquals(longest, BrowserSource.uri(longest).getUri());
+    final URI tooLong = URI.create(longest + "a");
+    final IllegalArgumentException length = assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(tooLong));
+    assertEquals("An address has at most 65536 characters but had 65537", length.getMessage());
   }
 
   @Test

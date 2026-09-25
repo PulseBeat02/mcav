@@ -90,6 +90,12 @@ class ContentPolicyTest {
   }
 
   @Test
+  void aNewTabWithoutAClickOrAKeyIsCancelled() {
+    assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", false));
+    verify(this.browser, never()).loadURL(org.mockito.ArgumentMatchers.anyString());
+  }
+
+  @Test
   void theCreatedBrowserIsPreparedAndReportsItsEngine() {
     this.policy.onAfterCreated(this.browser);
     this.policy.onAfterParentChanged(this.browser);
@@ -233,6 +239,10 @@ class ContentPolicyTest {
   @Test
   void theBlankDocumentBeforeThePageAndAbortedLoadsAreNotReported() {
     final CefBrowser blank = mock(CefBrowser.class);
+    when(blank.getURL()).thenReturn("");
+    this.policy.onLoadingStateChange(blank, true, false, false);
+    when(blank.getURL()).thenReturn(null);
+    this.policy.onLoadingStateChange(blank, false, false, false);
     when(blank.getURL()).thenReturn("about:blank");
     this.policy.onLoadingStateChange(blank, true, false, false);
     this.policy.onLoadingStateChange(blank, false, false, false);
@@ -244,6 +254,7 @@ class ContentPolicyTest {
 
   @Test
   void theLoadStateAndErrorsOfThePageAreReported() {
+    when(this.browser.getURL()).thenReturn("https://x.invalid/");
     this.policy.onLoadingStateChange(this.browser, true, false, false);
     this.policy.onLoadStart(this.browser, frame(true), CefRequest.TransitionType.TT_EXPLICIT);
     this.policy.onLoadEnd(this.browser, frame(true), 200);

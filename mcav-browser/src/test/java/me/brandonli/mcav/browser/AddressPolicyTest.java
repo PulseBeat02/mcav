@@ -17,14 +17,17 @@
  */
 package me.brandonli.mcav.browser;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class AddressPolicyTest {
@@ -111,6 +114,77 @@ class AddressPolicyTest {
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 1, 0, 0, 0, 0, 8, 8, 8, 8 }));
     // 64:ff9b::1:0:808:808
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 0, 0, 0, 0, 1, 8, 8, 8, 8 }));
+  }
+
+  private static InetAddress[] addresses(final String... texts) throws UnknownHostException {
+    final InetAddress[] addresses = new InetAddress[texts.length];
+    for (int index = 0; index < texts.length; index++) {
+      addresses[index] = InetAddress.getByName(texts[index]);
+    }
+    return addresses;
+  }
+
+  private static boolean isPublic(final String text, final List<AddressPolicy.TranslationPrefix> prefixes) throws UnknownHostException {
+    return AddressPolicy.isPublic(InetAddress.getByName(text), prefixes);
+  }
+
+  // the addresses a translator with the network-specific prefix 2a01:4f8:1:2:3:4::/<length> gives 192.0.0.170,
+  // 192.0.0.171, 10.0.0.1, 169.254.169.254 and 8.8.8.8, laid out as in RFC 6052 section 2.2
+  @ParameterizedTest
+  @CsvSource(
+    {
+      "32, 2a01:4f8:c000:aa::, 2a01:4f8:c000:ab::, 2a01:4f8:a00:1::, 2a01:4f8:a9fe:a9fe::, 2a01:4f8:808:808::",
+      "40, 2a01:4f8:c0:0:aa::, 2a01:4f8:c0:0:ab::, 2a01:4f8:a:0:1::, 2a01:4f8:a9:fea9:fe::, 2a01:4f8:8:808:8::",
+      "48, 2a01:4f8:1:c000:0:aa00::, 2a01:4f8:1:c000:0:ab00::, 2a01:4f8:1:a00:0:100::, 2a01:4f8:1:a9fe:a9:fe00::, 2a01:4f8:1:808:8:800::",
+      "56, 2a01:4f8:1:c0:0:aa::, 2a01:4f8:1:c0:0:ab::, 2a01:4f8:1:a:0:1::, 2a01:4f8:1:a9:fe:a9fe::, 2a01:4f8:1:8:8:808::",
+      "64, 2a01:4f8:1:2:c0:0:aa00:0, 2a01:4f8:1:2:c0:0:ab00:0, 2a01:4f8:1:2:a:0:100:0, 2a01:4f8:1:2:a9:fea9:fe00:0, 2a01:4f8:1:2:8:808:800:0",
+      "96, 2a01:4f8:1:2:3:4:c000:aa, 2a01:4f8:1:2:3:4:c000:ab, 2a01:4f8:1:2:3:4:a00:1, 2a01:4f8:1:2:3:4:a9fe:a9fe, 2a01:4f8:1:2:3:4:808:808",
+    }
+  )
+  void theNat64PrefixOfTheNetworkIsFoundAndItsPrivateAddressesAreRefused(
+    final int length,
+    final String first,
+    final String second,
+    final String privateAddress,
+    final String metadataService,
+    final String publicAddress
+  ) throws UnknownHostException {
+    final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(
+      addresses("192.0.0.170", first, "192.0.0.171", second)
+    );
+    assertEquals(1, prefixes.size(), "both well-known addresses give the same prefix");
+    assertEquals(length, prefixes.getFirst().getLength());
+    assertTrue(AddressPolicy.isPublic(InetAddress.getByName(privateAddress)), "without the prefix it looks like any address");
+    assertFalse(isPublic(privateAddress, prefixes), privateAddress);
+    assertFalse(isPublic(metadataService, prefixes), metadataService);
+    assertTrue(isPublic(publicAddress, prefixes), publicAddress);
+    assertTrue(isPublic("2606:4700:4700::1111", prefixes), "an address outside the prefix is judged as before");
+    assertFalse(isPublic("10.0.0.1", prefixes));
+    assertTrue(isPublic("8.8.8.8", prefixes));
+  }
+
+  @Test
+  void aNetworkWithoutTranslationHasNoPrefix() throws UnknownHostException {
+    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("192.0.0.170", "192.0.0.171")).size());
+    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")).size());
+    // the byte RFC 6052 keeps zero is 1: no prefix of 64 bits, and no other length finds 192.0.0.170
+    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size());
+  }
+
+  @Test
+  void anAddressInsideSeveralPrefixesMustEmbedAPublicAddressInEach() throws UnknownHostException {
+    final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
+      addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
+    );
+    assertEquals(2, nested.size());
+    // inside both: 8.8.8.8 after 96 bits, but 0.1.0.2 after 32 bits
+    assertFalse(isPublic("2a01:4f8:1:2:3:4:808:808", nested));
+    final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
+      addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
+    );
+    assertEquals(2, separate.size());
+    assertTrue(isPublic("2a01:4f9:1:2:3:4:808:808", separate));
+    assertFalse(isPublic("2a01:4f9:1:2:3:4:a00:1", separate));
   }
 
   @Test

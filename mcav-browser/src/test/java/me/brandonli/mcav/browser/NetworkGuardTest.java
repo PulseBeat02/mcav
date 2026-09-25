@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -265,6 +266,35 @@ class NetworkGuardTest {
   }
 
   @Test
+  void aClientThatTricklesItsHandshakeIsDroppedOnceTheWholeHandshakeTookTooLong() throws Exception {
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 600);
+    final Socket client = this.client(guard);
+    final OutputStream out = client.getOutputStream();
+    final int port = this.echo.getLocalPort();
+    // a complete greeting and request, every pause shorter than the timeout, the whole handshake far longer
+    final byte[] handshake = { 5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, (byte) (port >> 8), (byte) port };
+    try {
+      for (final byte value : handshake) {
+        out.write(value);
+        out.flush();
+        Thread.sleep(150L);
+      }
+    } catch (final SocketException closed) {
+      // the guard closed the connection while the client still wrote
+    }
+    // the answer to the greeting may come before the end; a relayed connection would never end and time out instead
+    final InputStream in = client.getInputStream();
+    try {
+      while (in.read() >= 0) {
+        // skip the answer to the greeting
+      }
+    } catch (final SocketException reset) {
+      // a guard that closed with unread bytes resets the connection
+    }
+    assertEquals(0, this.echoConnections.get(), "the request was never carried out");
+  }
+
+  @Test
   void connectionsBeyondTheLimitAreClosedAtOnce() throws IOException {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 30_000);
     final List<Socket> idle = new ArrayList<>();
@@ -294,6 +324,78 @@ class NetworkGuardTest {
     guard.getServer().close();
     Await.until("the report", () -> !this.notices.isEmpty());
     assertTrue(this.notices.getFirst().startsWith("The network guard stopped: "), this.notices.getFirst());
+  }
+
+  // a network whose translator has the prefix 2a01:4f8:1:2:3:4::/96: 2a01:4f8:1:2:3:4:a00:1 is 10.0.0.1
+  private static final class TranslatingResolver implements NetworkGuard.Resolver {
+
+    private final AtomicInteger questions = new AtomicInteger();
+    private final AtomicInteger failuresLeft;
+
+    TranslatingResolver(final int failures) {
+      this.failuresLeft = new AtomicInteger(failures);
+    }
+
+    @Override
+    public InetAddress[] resolve(final String host) throws UnknownHostException {
+      if (!host.equals(AddressPolicy.IPV4_ONLY_HOST)) {
+        return new InetAddress[] { InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1") };
+      }
+      this.questions.incrementAndGet();
+      if (this.failuresLeft.getAndDecrement() > 0) {
+        throw new UnknownHostException(host);
+      }
+      return new InetAddress[] {
+        InetAddress.getByName("192.0.0.170"),
+        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:aa"),
+        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:ab"),
+      };
+    }
+  }
+
+  @Test
+  void theDefaultPolicyAsksForTheNat64PrefixesOnceAnIpv6AddressIsJudged() throws UnknownHostException {
+    final TranslatingResolver resolver = new TranslatingResolver(0);
+    final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
+    assertTrue(policy.test(InetAddress.getByName("8.8.8.8")));
+    assertFalse(policy.test(InetAddress.getByName("10.0.0.1")));
+    assertEquals(0, resolver.questions.get(), "an IPv4 address needs no prefix");
+    assertFalse(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1")), "10.0.0.1 through the translator");
+    assertTrue(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:808:808")), "8.8.8.8 through the translator");
+    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1111")));
+    assertFalse(policy.test(InetAddress.getByName("fd00::1")));
+    assertEquals(1, resolver.questions.get(), "the answer is kept");
+  }
+
+  @Test
+  void theDefaultPolicyAsksAgainWhileTheResolverFails() throws UnknownHostException {
+    final TranslatingResolver resolver = new TranslatingResolver(1);
+    final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
+    final InetAddress translatedPrivate = InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1");
+    assertEquals(List.of(), policy.getPrefixes());
+    assertFalse(policy.test(translatedPrivate));
+    assertFalse(policy.test(translatedPrivate));
+    assertEquals(2, resolver.questions.get());
+  }
+
+  @Test
+  void aNameThatTheTranslatorOfTheNetworkTurnsIntoAPrivateAddressIsRefused() throws IOException {
+    final TranslatingResolver resolver = new TranslatingResolver(0);
+    final NetworkGuard guard = NetworkGuard.start(
+      resolver,
+      new NetworkGuard.PublicAddresses(resolver),
+      address -> {
+        throw new AssertionError("connected to " + address);
+      },
+      this.notices::add,
+      5_000
+    );
+    this.closeables.add(guard);
+    final Socket client = this.client(guard);
+    exchange(client, GREETING, 2);
+    final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "internal.test", 80), 10);
+    assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
+    assertEquals(List.of("Refused a connection to internal.test, which is not a public address"), this.notices);
   }
 
   @Test

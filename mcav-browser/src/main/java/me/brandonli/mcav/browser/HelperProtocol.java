@@ -27,6 +27,8 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.IntFunction;
 
 /**
@@ -339,7 +341,7 @@ final class HelperProtocol {
     final int size = (int) pixelBytes;
     final byte[] target = pixels.apply(size);
     if (target.length < size) {
-      throw new ProtocolException("A frame of " + size + " bytes arrived where frames are not expected");
+      throw new ProtocolException("A frame of " + size + " bytes arrived where no frame of that size is expected");
     }
     in.readFully(target, 0, size);
     final FrameRegion region = new FrameRegion(pageWidth, pageHeight, x, y, width, height, target);
@@ -409,6 +411,52 @@ final class HelperProtocol {
   private static void writeString(final DataOutput out, final byte[] bytes) throws IOException {
     out.writeShort(bytes.length);
     out.write(bytes);
+  }
+
+  /**
+   * Splits a text into parts that each fit into one message, at character boundaries and never between the two
+   * characters of a line break {@code \r\n}, so a long text can be sent as several messages without losing any of it.
+   *
+   * @param text the text
+   * @return the parts, in order; an empty text is one empty part
+   */
+  static List<String> split(final String text) {
+    final List<String> parts = new ArrayList<>();
+    int start = 0;
+    int bytes = 0;
+    int index = 0;
+    while (index < text.length()) {
+      final int codePoint = text.codePointAt(index);
+      final int size = utf8Length(codePoint);
+      if (bytes + size > MAX_TEXT_BYTES) {
+        // the part is far longer than a line break, so moving its \r into the next part leaves it not empty
+        final boolean lineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
+        final int end = lineBreak ? index - 1 : index;
+        parts.add(text.substring(start, end));
+        start = end;
+        bytes = index - end;
+      }
+      bytes += size;
+      index += Character.charCount(codePoint);
+    }
+    parts.add(text.substring(start));
+    return parts;
+  }
+
+  /**
+   * Counts the bytes of a character in UTF-8; an unpaired surrogate, which Java encodes as one byte, counts three.
+   *
+   * @param codePoint the character
+   * @return the bytes, from 1 to 4
+   */
+  private static int utf8Length(final int codePoint) {
+    if (codePoint < 0x80) {
+      return 1;
+    }
+    if (codePoint < 0x800) {
+      return 2;
+    }
+    return codePoint < 0x10000 ? 3 : 4;
   }
 
   /**

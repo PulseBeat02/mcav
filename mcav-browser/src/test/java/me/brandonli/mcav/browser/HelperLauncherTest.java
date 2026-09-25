@@ -59,7 +59,7 @@ class HelperLauncherTest {
     assertTrue(command.contains("-Djava.io.tmpdir=" + session));
     assertTrue(command.contains("-javaagent:/agent.jar"));
     final int classPath = command.indexOf("-cp");
-    assertEquals("/libs/mcav-browser.jar" + File.pathSeparator + "/libs/jcef-api.jar", command.get(classPath + 1));
+    assertEquals(Path.of("/libs/mcav-browser.jar") + File.pathSeparator + Path.of("/libs/jcef-api.jar"), command.get(classPath + 1));
     assertEquals(HelperLauncher.MAIN_CLASS, command.getLast());
     assertEquals(BrowserHelper.class.getName(), HelperLauncher.MAIN_CLASS);
   }

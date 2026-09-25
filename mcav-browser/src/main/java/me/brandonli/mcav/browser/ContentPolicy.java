@@ -165,13 +165,16 @@ final class ContentPolicy
   }
 
   /**
-   * Opens a link meant for a new tab in place, if its address may be shown.
+   * Opens a link meant for a new tab in place, if a click or a key opened it and its address may be shown.
    *
    * @return true, so no tab opens
    */
   @Override
   public boolean onOpenURLFromTab(final CefBrowser browser, final CefFrame frame, final String targetUrl, final boolean userGesture) {
-    this.openInPlace(browser, targetUrl);
+    // like a popup, a new tab needs a click or a key
+    if (userGesture) {
+      this.openInPlace(browser, targetUrl);
+    }
     return true;
   }
 
@@ -392,9 +395,9 @@ final class ContentPolicy
    */
   @Override
   public void onLoadingStateChange(final CefBrowser browser, final boolean isLoading, final boolean canGoBack, final boolean canGoForward) {
-    // the blank document the browser is created with is not the page
+    // the blank document the browser is created with is not the page, nor is the empty address before it
     final String url = browser.getURL();
-    if (!NavigationPolicy.BLANK.equals(url)) {
+    if (url != null && !url.isEmpty() && !NavigationPolicy.BLANK.equals(url)) {
       this.events.onLoading(isLoading);
     }
   }

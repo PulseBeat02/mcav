@@ -47,6 +47,11 @@ public interface BrowserSource extends UriSource {
   int MAX_FRAME_INTERVAL = 1000;
 
   /**
+   * The longest address, in characters.
+   */
+  int MAX_ADDRESS_LENGTH = 65_536;
+
+  /**
    * Creates a source with every setting.
    *
    * @param uri           the address of the page, an absolute {@code http} or {@code https} address
@@ -54,11 +59,19 @@ public interface BrowserSource extends UriSource {
    * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
    * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAX_FRAME_INTERVAL}; 1 streams every frame
    * @return the source
-   * @throws IllegalArgumentException if the address is not a web address or a number is out of range
+   * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAX_ADDRESS_LENGTH}
+   *                                  characters, or a number is out of range
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null");
     Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "The browser shows http and https addresses only but got %s", uri);
+    final int length = uri.toString().length();
+    Preconditions.checkArgument(
+      length <= MAX_ADDRESS_LENGTH,
+      "An address has at most %s characters but had %s",
+      MAX_ADDRESS_LENGTH,
+      length
+    );
     Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
     Preconditions.checkArgument(
       width <= MAX_SIDE && height <= MAX_SIDE,

@@ -65,13 +65,17 @@ class CefBrowserPlayerTest {
 
   CefBrowserPlayerTest() {
     this.player.setExceptionHandler((message, error) -> this.reports.add(message + ": " + error.getMessage()));
+    this.attachRecorder(this.player);
+  }
+
+  private void attachRecorder(final CefBrowserPlayer target) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
     builder.then((samples, metadata) -> {
       this.processed.add(samples);
       return false;
     });
     final VideoPipelineStep pipeline = builder.build();
-    this.player.getVideoAttachableCallback().attach(pipeline);
+    target.getVideoAttachableCallback().attach(pipeline);
   }
 
   /**
@@ -147,16 +151,38 @@ class CefBrowserPlayerTest {
 
   @Test
   void framesOfTheStartBeforeTheSessionIsKnownAreDropped() {
-    final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
-      sessionListener.onFrame(frame());
-      sessionListener.onEnded("too early", new IllegalStateException("x"));
+    final ImageBuffer early = frame();
+    final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      sessionListener.onFrame(early);
       return new FakeSession();
     });
-    final List<String> earlyReports = new ArrayList<>();
-    early.setExceptionHandler((message, error) -> earlyReports.add(message));
-    assertTrue(early.start(SOURCE));
-    assertTrue(early.isPlaying());
-    assertEquals(List.of(), earlyReports);
+    this.attachRecorder(player);
+    assertTrue(player.start(SOURCE));
+    assertTrue(player.isPlaying());
+    assertEquals(List.of(), this.processed);
+  }
+
+  @Test
+  void anEndOfTheHelperWhileTheSessionStartsFailsTheStartAndIsReported() {
+    final List<FakeSession> opened = new ArrayList<>();
+    final List<String> reports = new ArrayList<>();
+    final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      final FakeSession session = new FakeSession();
+      if (opened.isEmpty()) {
+        // the helper ends after it showed the page, before the player took the session
+        sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
+      }
+      opened.add(session);
+      return session;
+    });
+    player.setExceptionHandler((message, error) -> reports.add(message));
+    assertFalse(player.start(SOURCE));
+    assertFalse(player.isPlaying());
+    assertEquals(List.of("The browser helper exited"), reports);
+    assertTrue(player.start(SOURCE), "a failed player starts again");
+    assertTrue(player.isPlaying());
+    assertEquals(1, opened.getFirst().closed, "the dead session is closed");
+    assertEquals(List.of("The browser helper exited"), reports);
   }
 
   @Test

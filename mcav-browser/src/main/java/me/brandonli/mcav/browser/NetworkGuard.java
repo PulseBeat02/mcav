@@ -25,14 +25,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,6 +51,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * whose answer changes between two lookups, does not lead past it. Loopback goes through the proxy too, WebRTC may
  * only use proxied connections and QUIC is off (see {@link CefEngine#createSwitches}), so no connection of a page
  * leaves the helper around the guard.
+ *
+ * <p>The default guard judges addresses by {@link AddressPolicy}. Once a page connects to an IPv6 address, it asks the
+ * resolver for the NAT64 prefixes of the network ({@link AddressPolicy#findTranslationPrefixes}), so an address that
+ * a translator of the network turns into a private IPv4 address is refused too.
  *
  * <p>The guard holds at most {@value #MAX_CONNECTIONS} connections, closes a client that has not finished its
  * handshake in time, and closes both sides of a connection as soon as one side ends. Each refused host is reported
@@ -98,7 +107,8 @@ final class NetworkGuard implements Closeable {
    * @throws IOException if no port of the loopback interface can be bound
    */
   static NetworkGuard start(final Consumer<String> notices) throws IOException {
-    return start(InetAddress::getAllByName, AddressPolicy::isPublic, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
+    final Resolver resolver = InetAddress::getAllByName;
+    return start(resolver, new PublicAddresses(resolver), NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
   }
 
   /**
@@ -176,6 +186,10 @@ final class NetworkGuard implements Closeable {
    * @param client the client
    */
   private void serve(final Socket client) {
+    // the read timeout only limits a pause, so a client that trickles its handshake is closed once it took too long;
+    // a deadline cancelled in time never runs
+    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS);
+    final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
       client.setSoTimeout(this.handshakeTimeoutMillis);
       final InputStream rawInput = client.getInputStream();
@@ -195,6 +209,7 @@ final class NetworkGuard implements Closeable {
         SocksProtocol.writeReply(out, refusal.getReply());
         return;
       }
+      deadline.cancel(false);
       final Socket target = this.open(request, out);
       if (target == null) {
         return;
@@ -253,7 +268,11 @@ final class NetworkGuard implements Closeable {
   }
 
   private void report(final String host) {
-    if (this.reported.size() < MAX_REPORTED_HOSTS && this.reported.add(host)) {
+    final boolean first;
+    synchronized (this.reported) {
+      first = this.reported.size() < MAX_REPORTED_HOSTS && this.reported.add(host);
+    }
+    if (first) {
       this.notices.accept("Refused a connection to " + host + ", which is not a public address");
     }
   }
@@ -345,6 +364,57 @@ final class NetworkGuard implements Closeable {
     closeQuietly(this.server);
     for (final Socket socket : this.sockets) {
       closeQuietly(socket);
+    }
+  }
+
+  /**
+   * The policy of the default guard: public addresses only, judged with the NAT64 prefixes of the network.
+   *
+   * <p>The prefixes are asked for when the first IPv6 address is judged, since an IPv4 address needs none, and kept
+   * once the resolver answered; while it fails, the next IPv6 address asks again.
+   */
+  static final class PublicAddresses implements Predicate<InetAddress> {
+
+    private final Resolver resolver;
+    private @Nullable List<AddressPolicy.TranslationPrefix> prefixes;
+
+    /**
+     * Constructs the policy.
+     *
+     * @param resolver asked for {@value AddressPolicy#IPV4_ONLY_HOST}
+     */
+    PublicAddresses(final Resolver resolver) {
+      this.resolver = resolver;
+    }
+
+    @Override
+    public boolean test(final InetAddress address) {
+      if (address instanceof Inet4Address) {
+        return AddressPolicy.isPublic(address);
+      }
+      return AddressPolicy.isPublic(address, this.getPrefixes());
+    }
+
+    /**
+     * Gets the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
+     *
+     * @return the prefixes, empty while the resolver fails
+     */
+    synchronized List<AddressPolicy.TranslationPrefix> getPrefixes() {
+      final List<AddressPolicy.TranslationPrefix> known = this.prefixes;
+      if (known != null) {
+        return known;
+      }
+      final InetAddress[] answer;
+      try {
+        answer = this.resolver.resolve(AddressPolicy.IPV4_ONLY_HOST);
+      } catch (final UnknownHostException exception) {
+        // no answer this time; the next IPv6 address asks again
+        return List.of();
+      }
+      final List<AddressPolicy.TranslationPrefix> found = AddressPolicy.findTranslationPrefixes(answer);
+      this.prefixes = found;
+      return found;
     }
   }
 

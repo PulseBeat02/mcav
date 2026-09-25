@@ -39,7 +39,8 @@ final class HelperConfiguration {
 
   private static final String SEPARATOR = ":";
   private static final int FIELDS = 11;
-  private static final int MAX_LINE_CHARACTERS = 64 * 1024;
+  // the longest line a configuration of the longest address and long paths makes, in three-byte characters and Base64
+  private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAX_FRAME_INTERVAL = 1000;
 
   private final byte[] token;

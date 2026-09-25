@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,8 +45,10 @@ class SpecialKeysTest {
   }
 
   @Test
-  void theListIsReadFromJson() {
-    assertEquals(Set.of("A", "B"), SpecialKeys.parse(new StringReader("[\"A\", \"B\"]")));
+  void theListIsReadFromJsonIntoAnUnmodifiableSet() {
+    final Set<String> keys = SpecialKeys.parse(new StringReader("[\"A\", \"B\", \"A\"]"));
+    assertEquals(Set.of("A", "B"), keys);
+    assertThrows(UnsupportedOperationException.class, keys::clear);
   }
 
   @Test
@@ -64,6 +67,7 @@ class SpecialKeysTest {
     };
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(throwing));
     assertEquals("Failed to read the key list resource: disk gone", failure.getMessage());
+    assertInstanceOf(IOException.class, failure.getCause());
   }
 
   @Test

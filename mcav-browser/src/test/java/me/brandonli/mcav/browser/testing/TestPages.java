@@ -44,7 +44,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code n} on the popup opens the second page and closes the popup a second later; pressing {@code w} on the
  * second page closes it 300 milliseconds later.
  * {@code /hooked} is the main page, but the server runs a hook before answering, so tests can act while the browser
- * is still loading.
+ * is still loading. The red pages {@code /to-popup-synthetic} (a script clicks a link to the popup without a click of
+ * the user), {@code /named-frame} (a link in the upper left quarter opens the second page in a frame named
+ * {@code inner}) and {@code /form-target} (a button over the whole page sends a form to the second page, targeting a
+ * new window) test how windows open in place.
  */
 public final class TestPages implements AutoCloseable {
 
@@ -63,6 +66,11 @@ public final class TestPages implements AutoCloseable {
    */
   public static final int SECOND_COLOR = 0x00FF00;
 
+  /**
+   * The width of the frame of {@code /named-frame}, in CSS pixels.
+   */
+  public static final int FRAME_WIDTH = 100;
+
   private static final String SCRIPT =
     """
     <script>
@@ -76,6 +84,7 @@ public final class TestPages implements AutoCloseable {
           x: String(Math.round(event.clientX || 0)),
           y: String(Math.round(event.clientY || 0)),
           button: String(event.button || 0),
+          buttons: String(event.buttons || 0),
           key: event.key || ''
         });
         const address = '/event?' + parameters.toString();
@@ -154,6 +163,29 @@ public final class TestPages implements AutoCloseable {
         pages.script(
           exchange,
           "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+        )
+      );
+      httpServer.createContext("/to-popup-synthetic", exchange ->
+        pages.script(
+          exchange,
+          "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
+          " document.getElementById('link').click();"
+        )
+      );
+      httpServer.createContext("/named-frame", exchange ->
+        pages.html(
+          exchange,
+          "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
+          FRAME_WIDTH +
+          "px;height:60px;border:0\"></iframe>" +
+          "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+        )
+      );
+      httpServer.createContext("/form-target", exchange ->
+        pages.html(
+          exchange,
+          "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
+          " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
         )
       );
       httpServer.createContext("/download", TestPages::download);
@@ -273,6 +305,27 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
+   * Serves a red page with more elements.
+   *
+   * @param exchange the request
+   * @param elements the HTML of the elements
+   * @throws IOException if the answer cannot be sent
+   */
+  private void html(final HttpExchange exchange, final String elements) throws IOException {
+    final String html =
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
+      elements +
+      "</body></html>";
+    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  /**
    * Serves the red main page with a script that runs when the page has loaded.
    *
    * @param exchange the request
@@ -329,11 +382,13 @@ public final class TestPages implements AutoCloseable {
     final String rawX = parameters.getOrDefault("x", "0");
     final String rawY = parameters.getOrDefault("y", "0");
     final String rawButton = parameters.getOrDefault("button", "0");
+    final String rawButtons = parameters.getOrDefault("buttons", "0");
     final String key = parameters.getOrDefault("key", "");
     final int x = Integer.parseInt(rawX);
     final int y = Integer.parseInt(rawY);
     final int button = Integer.parseInt(rawButton);
-    return new PageEvent(page, type, x, y, button, key);
+    final int buttons = Integer.parseInt(rawButtons);
+    return new PageEvent(page, type, x, y, button, buttons, key);
   }
 
   private static Map<String, String> parse(final String query) {
@@ -372,14 +427,16 @@ public final class TestPages implements AutoCloseable {
     private final int x;
     private final int y;
     private final int button;
+    private final int buttons;
     private final String key;
 
-    PageEvent(final String page, final String type, final int x, final int y, final int button, final String key) {
+    PageEvent(final String page, final String type, final int x, final int y, final int button, final int buttons, final String key) {
       this.page = page;
       this.type = type;
       this.x = x;
       this.y = y;
       this.button = button;
+      this.buttons = buttons;
       this.key = key;
     }
 
@@ -429,6 +486,15 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
+     * Gets the buttons held during a mouse event, 1 for the left and 2 for the right button.
+     *
+     * @return the buttons
+     */
+    public int getButtons() {
+      return this.buttons;
+    }
+
+    /**
      * Gets the key of a keyboard event.
      *
      * @return the key, or an empty string for mouse events
@@ -439,7 +505,22 @@ public final class TestPages implements AutoCloseable {
 
     @Override
     public String toString() {
-      return this.page + " " + this.type + " " + this.x + "," + this.y + " button " + this.button + " key '" + this.key + "'";
+      return (
+        this.page +
+        " " +
+        this.type +
+        " " +
+        this.x +
+        "," +
+        this.y +
+        " button " +
+        this.button +
+        " buttons " +
+        this.buttons +
+        " key '" +
+        this.key +
+        "'"
+      );
     }
   }
 }

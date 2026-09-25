@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -32,6 +33,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
@@ -62,13 +66,17 @@ class HelperSessionTest {
   }
 
   static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis, final OS os) {
+    return launcher(mainClass, startTimeoutMillis, os, List.of());
+  }
+
+  static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis, final OS os, final List<String> jvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Path java = Path.of(javaHome, "bin", File.separatorChar == '\\' ? "java.exe" : "java");
     final List<Path> classPath = new ArrayList<>();
     for (final String entry : System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1)) {
       classPath.add(Path.of(entry));
     }
-    return new HelperLauncher(java, mainClass, classPath, List.of(), os, System.getenv(), startTimeoutMillis);
+    return new HelperLauncher(java, mainClass, classPath, jvmOptions, os, System.getenv(), startTimeoutMillis);
   }
 
   private HelperSession open(final String mainClass, final String path) {
@@ -287,7 +295,7 @@ class HelperSessionTest {
   @Test
   void aHelperThatSendsAFrameBeforeItsHelloIsRefused() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/frame-first", 60_000L);
-    assertTrue(failure.getMessage().contains("arrived where frames are not expected"), failure.getMessage());
+    assertTrue(failure.getMessage().contains("arrived where no frame of that size is expected"), failure.getMessage());
   }
 
   @Test
@@ -301,6 +309,98 @@ class HelperSessionTest {
     final HelperLauncher exiting = launcher(RawHelperMain.class.getName(), 60_000L, OS.MAC);
     final BrowserSource exit = BrowserSource.uri(URI.create("https://example.com/exit"), 4, 3, 1);
     assertThrows(PlayerException.class, () -> HelperSession.open(exiting, NATIVES, exit, BrowserOptions.DEFAULT, this.listener));
+  }
+
+  @Test
+  void aRegionLargerThanThePageIsRefusedBeforeItsPixelsAreRead() {
+    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", 60_000L);
+    // a 5x3 region for a 4x3 page: 60 bytes where at most 48 fit
+    assertTrue(failure.getMessage().contains("A frame of 60 bytes arrived where no frame of that size is expected"), failure.getMessage());
+  }
+
+  @Test
+  void aTextLongerThanOneMessageArrivesWhole() {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
+    Await.until("the first frame", () -> !this.listener.blues().isEmpty());
+    // 5000 characters are 10000 DevTools calls in two messages; the scripted page turns the count into its blue
+    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "a".repeat(5_000)));
+    Await.until("every character typed", () -> this.listener.blues().contains(10_000 & 0xFF));
+  }
+
+  @Test
+  void aHelperThatNeverConnectsIsStoppedAtOnceWhenItsStartTimesOut() {
+    final long start = System.nanoTime();
+    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
+    assertTrue(failure.getMessage().contains("The browser helper did not connect in time"), failure.getMessage());
+    final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
+    // the end of its input stops it, instead of the ten seconds it would be given to stop by itself
+    assertTrue(seconds < 8, "the failed start took " + seconds + " s");
+  }
+
+  @Test
+  void aProcessTheHelperStartsWhileItDoesNotStopIsKilledWithIt() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn-child");
+    final Process process = session.getProcess();
+    final String command = process.info().commandLine().orElse("");
+    final java.util.regex.Matcher folder = Pattern.compile("-Djava\\.io\\.tmpdir=(\\S+)").matcher(command);
+    assumeTrue(folder.find(), "this system tells the command line of a process");
+    final String sessionFolder = folder.group(1);
+    // the helper ignores the end of its input, starts a process, and is killed after ten seconds
+    session.close();
+    assertFalse(process.isAlive());
+    Await.until("no process the helper started is left", () -> {
+      try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
+        return all.noneMatch(handle -> {
+          final String line = handle.info().commandLine().orElse("");
+          return handle.isAlive() && line.contains(GatedHelperMain.class.getName()) && line.contains(sessionFolder);
+        });
+      }
+    });
+  }
+
+  @Test
+  void noHelperStartsWhileTheModuleIsStopped() {
+    HelperProcesses.closeAll();
+    try {
+      final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/page", 60_000L);
+      assertEquals("The browser module is stopped", failure.getMessage());
+    } finally {
+      HelperProcesses.open();
+    }
+    assertTrue(this.open(ScriptedEngine.class.getName(), "/page").isAlive(), "a started module lets helpers start again");
+  }
+
+  @Test
+  void aHelperThatConnectsAfterTheModuleStoppedEndsAndItsStartFails() throws IOException {
+    final Path gate = this.directory.resolve("gate");
+    final HelperLauncher gated = launcher(
+      GatedHelperMain.class.getName(),
+      60_000L,
+      OSUtils.getOS(),
+      List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
+    );
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() ->
+      HelperSession.open(gated, NATIVES, source, BrowserOptions.DEFAULT, this.listener)
+    );
+    final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
+    try {
+      // the server waits for the helper to connect, past every check before it
+      Await.until("the helper runs", () -> Files.exists(started));
+      HelperProcesses.closeAll();
+      Files.createFile(gate);
+      final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
+      final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
+      assertEquals("The browser module was stopped while the browser started", cause.getMessage());
+    } finally {
+      HelperProcesses.open();
+    }
+    assertEquals(0, HelperProcesses.count());
+    Await.until("the helper ended", () ->
+      ProcessHandle.current()
+        .descendants()
+        .noneMatch(process -> process.info().commandLine().orElse("").contains(GatedHelperMain.class.getName()))
+    );
   }
 
   @Test

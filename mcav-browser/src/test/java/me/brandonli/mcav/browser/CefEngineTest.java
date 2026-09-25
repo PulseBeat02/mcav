@@ -172,7 +172,8 @@ class CefEngineTest {
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
-    CefEngine.openPage(browser, "https://example.com/lost", 50L);
+    // the deadline of a real helper, so a slow machine does not reach it before the check that nothing loaded yet
+    CefEngine.openPage(browser, "https://example.com/lost", 1_000L);
     verify(browser, never()).loadURL(anyString());
     Await.until("the page loaded after the timeout", () -> {
       try {

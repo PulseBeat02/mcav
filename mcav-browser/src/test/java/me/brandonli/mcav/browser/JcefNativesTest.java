@@ -19,6 +19,8 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,6 +103,30 @@ class JcefNativesTest {
   private List<String> leftovers() throws IOException {
     try (final Stream<Path> files = Files.list(this.folder)) {
       return files.map(path -> path.getFileName().toString()).filter(name -> !name.endsWith(".lock")).sorted().toList();
+    }
+  }
+
+  private static Object installLockOf(final ClassLoader loader) throws ReflectiveOperationException {
+    final Class<?> natives = Class.forName(JcefNatives.class.getName(), true, loader);
+    final java.lang.reflect.Field field = natives.getDeclaredField("INSTALL_LOCK");
+    field.setAccessible(true);
+    return field.get(null);
+  }
+
+  @Test
+  void everyCopyOfMcavInTheJvmSharesTheLockOfTheInstallation() throws Exception {
+    // two plugins that each shade mcav load it in class loaders of their own
+    final String[] entries = System.getProperty("java.class.path").split(java.util.regex.Pattern.quote(java.io.File.pathSeparator), -1);
+    final java.net.URL[] urls = new java.net.URL[entries.length];
+    for (int index = 0; index < entries.length; index++) {
+      urls[index] = Path.of(entries[index]).toUri().toURL();
+    }
+    try (
+      final java.net.URLClassLoader first = new java.net.URLClassLoader(urls, null);
+      final java.net.URLClassLoader second = new java.net.URLClassLoader(urls, null)
+    ) {
+      assertNotSame(first.loadClass(JcefNatives.class.getName()), second.loadClass(JcefNatives.class.getName()));
+      assertSame(installLockOf(first), installLockOf(second));
     }
   }
 

@@ -44,6 +44,11 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  * links and special files are refused, and the number of entries and the bytes written are bounded. The permissions
  * of the archive are not copied, because the macOS archive marks everything as writable by every user; files are
  * readable by everyone and writable by the owner only, and executable where the archive marks them so.
+ *
+ * <p>The bounds count the entries the archive library hands over. The library reads the metadata of an entry, such as
+ * a GNU long name or a PAX header, whole and without a bound before that, so a crafted archive could exhaust the heap
+ * there. That is acceptable only because of the pinned hash: an archive that passes it is the published build of CEF,
+ * whose native code runs anyway.
  */
 final class ArchiveExtractor {
 

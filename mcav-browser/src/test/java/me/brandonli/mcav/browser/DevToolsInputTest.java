@@ -40,24 +40,47 @@ class DevToolsInputTest {
 
   @Test
   void mouseEventsBecomeDispatchMouseEventCalls() {
-    final List<DevToolsInput.DevToolsCall> move = DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 4, 0, 0, 0, 0));
+    final List<DevToolsInput.DevToolsCall> move = DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 4, 0, 0, 0, 0), 0);
     assertEquals(1, move.size());
     assertEquals(DevToolsInput.MOUSE_METHOD, move.getFirst().getMethod());
-    assertEquals("{\"type\":\"mouseMoved\",\"x\":3,\"y\":4}", move.getFirst().getParameters());
+    assertEquals("{\"type\":\"mouseMoved\",\"x\":3,\"y\":4,\"buttons\":0,\"button\":\"none\"}", move.getFirst().getParameters());
     final List<String> press = parameters(
-      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
+      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0), 0)
     );
-    assertEquals(List.of("{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"button\":\"left\",\"clickCount\":1}"), press);
+    assertEquals(List.of("{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"buttons\":1,\"button\":\"left\",\"clickCount\":1}"), press);
     final List<String> release = parameters(
-      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 2, HelperProtocol.BUTTON_RIGHT, 2, 0, 0))
+      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 2, HelperProtocol.BUTTON_RIGHT, 2, 0, 0), 2)
     );
-    assertEquals(List.of("{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"button\":\"right\",\"clickCount\":2}"), release);
+    assertEquals(List.of("{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"buttons\":0,\"button\":\"right\",\"clickCount\":2}"), release);
     final List<String> middle = parameters(
-      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 0, 0, HelperProtocol.BUTTON_MIDDLE, 1, 0, 0))
+      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 0, 0, HelperProtocol.BUTTON_MIDDLE, 1, 0, 0), 0)
     );
-    assertTrue(middle.getFirst().contains("\"button\":\"middle\""));
-    final List<String> wheel = parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120)));
-    assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"deltaX\":-10,\"deltaY\":120}"), wheel);
+    assertTrue(middle.getFirst().contains("\"buttons\":4,\"button\":\"middle\""));
+    final List<String> wheel = parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120), 0));
+    assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}"), wheel);
+  }
+
+  @Test
+  void aMoveWhileAButtonIsHeldIsADrag() {
+    final MouseInput pressLeft = new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0);
+    final MouseInput pressRight = new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_RIGHT, 1, 0, 0);
+    final MouseInput move = new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0);
+    final MouseInput releaseLeft = new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0);
+    final MouseInput wheel = new MouseInput(HelperProtocol.MOUSE_WHEEL, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 120);
+    int held = DevToolsInput.heldAfter(pressLeft, 0);
+    assertEquals(1, held);
+    assertEquals(
+      List.of("{\"type\":\"mouseMoved\",\"x\":6,\"y\":6,\"buttons\":1,\"button\":\"left\"}"),
+      parameters(DevToolsInput.mouse(move, held))
+    );
+    assertEquals(1, DevToolsInput.heldAfter(move, held));
+    assertEquals(1, DevToolsInput.heldAfter(wheel, held));
+    held = DevToolsInput.heldAfter(pressRight, held);
+    assertEquals(3, held);
+    held = DevToolsInput.heldAfter(releaseLeft, held);
+    assertEquals(2, held, "the right button stays held");
+    assertTrue(parameters(DevToolsInput.mouse(move, held)).getFirst().endsWith("\"buttons\":2,\"button\":\"right\"}"));
+    assertEquals(0, DevToolsInput.heldAfter(releaseLeft, 0), "releasing a button that is not held changes nothing");
   }
 
   @Test
@@ -134,6 +157,21 @@ class DevToolsInputTest {
   }
 
   @Test
+  void aWindowsLineBreakPressesEnterOnce() {
+    final java.util.regex.Pattern key = java.util.regex.Pattern.compile("\"key\":(\"[^\"]*\")");
+    final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
+      .stream()
+      .filter(call -> call.contains("keyDown"))
+      .map(call -> {
+        final java.util.regex.Matcher matcher = key.matcher(call);
+        assertTrue(matcher.find(), call);
+        return matcher.group(1);
+      })
+      .toList();
+    assertEquals(List.of("\"a\"", "\"Enter\"", "\"b\"", "\"Enter\"", "\"Enter\""), keys);
+  }
+
+  @Test
   void onlyLettersAndDigitsHaveAVirtualKeyCode() {
     assertEquals('A', DevToolsInput.virtualKeyCode('a'));
     assertEquals('Z', DevToolsInput.virtualKeyCode('z'));
@@ -169,7 +207,7 @@ class DevToolsInputTest {
     final JsonObject parameters = JsonParser.parseString(call.getParameters()).getAsJsonObject();
     assertEquals(DevToolsInput.OPEN_IN_PLACE_SCRIPT, parameters.get("source").getAsString());
     assertEquals(1, parameters.size());
-    assertTrue(DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("window.top.location.assign"));
+    assertTrue(DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("window.top.location.href = target.href"));
   }
 
   @Test

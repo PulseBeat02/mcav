@@ -133,11 +133,39 @@ final class SocksProtocol {
     final byte[] bytes = new byte[length];
     in.readFully(bytes);
     for (final byte value : bytes) {
-      if (!isHostNameCharacter(value)) {
+      if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
         throw new ProtocolException("The host name of the request holds the byte " + (value & 0xFF));
       }
     }
-    return new String(bytes, StandardCharsets.US_ASCII);
+    final String host = new String(bytes, StandardCharsets.US_ASCII);
+    // Chromium names an IPv6 address by its text, in the field of a host name
+    if (host.indexOf(':') >= 0) {
+      return readIpv6Literal(host);
+    }
+    if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
+      throw new ProtocolException("The host name of the request holds a bracket: " + host);
+    }
+    return host;
+  }
+
+  /**
+   * Reads an IPv6 address written as text, with or without brackets, without asking a resolver.
+   *
+   * @param text the text
+   * @return the address in its full text form
+   * @throws ProtocolException if the text is not an IPv6 address
+   */
+  private static String readIpv6Literal(final String text) throws ProtocolException {
+    final boolean bracketed = text.startsWith("[") && text.endsWith("]");
+    final String bare = bracketed ? text.substring(1, text.length() - 1) : text;
+    try {
+      final InetAddress address = InetAddress.ofLiteral(bare);
+      return address.getHostAddress();
+    } catch (final IllegalArgumentException exception) {
+      final ProtocolException failure = new ProtocolException("The host name of the request is not an IPv6 address: " + text);
+      failure.initCause(exception);
+      throw failure;
+    }
   }
 
   /**

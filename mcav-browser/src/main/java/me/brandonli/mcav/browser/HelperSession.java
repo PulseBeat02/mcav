@@ -47,6 +47,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.EnumSet;
 import java.util.List;
@@ -62,6 +63,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -101,6 +103,9 @@ final class HelperSession implements BrowserSession {
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
   private static final long STOP_TIMEOUT_MILLIS = 10_000L;
   private static final long KILL_TIMEOUT_MILLIS = 5_000L;
+  private static final long EXIT_GRACE_MILLIS = 1_000L;
+  private static final byte[] NO_PIXELS = new byte[0];
+  private static final long EXIT_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(10L);
   private static final String SOCKET_NAME = "s";
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
@@ -175,7 +180,8 @@ final class HelperSession implements BrowserSession {
    * @param options  the security profile and frame rate
    * @param listener receives the frames and an unexpected end
    * @return the running session
-   * @throws PlayerException if the helper cannot be started, fails, or does not show the page in time
+   * @throws PlayerException if the browser module is stopped or stops meanwhile, or the helper cannot be started, fails,
+   *                         or does not show the page in time
    */
   static HelperSession open(
     final HelperLauncher launcher,
@@ -184,6 +190,7 @@ final class HelperSession implements BrowserSession {
     final BrowserOptions options,
     final Listener listener
   ) {
+    HelperProcesses.requireOpen();
     final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
     final Path folder = createFolder(temporary);
     final Path socket = folder.resolve(SOCKET_NAME);
@@ -223,7 +230,9 @@ final class HelperSession implements BrowserSession {
       Files.deleteIfExists(socket);
       final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
       session = new HelperSession(folder, process, display, standardInput, channel, canvas, listener);
-      HelperProcesses.register(session);
+      if (!HelperProcesses.register(session)) {
+        throw new PlayerException("The browser module was stopped while the browser started");
+      }
       session.startThreads(token);
       session.awaitStart(deadline, uri);
       return session;
@@ -248,6 +257,8 @@ final class HelperSession implements BrowserSession {
       return;
     }
     if (process != null) {
+      // the end of its input tells the helper to stop at once, instead of after the timeout of stopProcess
+      closeQuietly(process.getOutputStream());
       stopProcess(process);
     }
     if (display != null) {
@@ -407,11 +418,17 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   void read(final DataInputStream in, final byte[] token) {
     final byte[][] buffer = { new byte[0] };
+    // a region is never larger than the page, so a helper cannot make the server hold more than one page of pixels
+    final int pageBytes = this.canvas.getWidth() * this.canvas.getHeight() * HelperProtocol.PIXEL_BYTES;
     try {
-      final HelperMessage hello = HelperProtocol.read(in, size -> new byte[0]);
+      final HelperMessage hello = HelperProtocol.read(in, size -> NO_PIXELS);
       checkHello(hello, token);
       while (true) {
         final HelperMessage message = HelperProtocol.read(in, size -> {
+          if (size > pageBytes) {
+            // too small, so the protocol refuses the frame before any pixel is read
+            return NO_PIXELS;
+          }
           if (buffer[0].length < size) {
             buffer[0] = new byte[size];
           }
@@ -420,10 +437,31 @@ final class HelperSession implements BrowserSession {
         this.handle(message);
       }
     } catch (final EOFException exception) {
-      this.end("The browser helper closed the connection", null);
+      this.end(this.describeEnd("The browser helper closed the connection"), null);
     } catch (final IOException exception) {
-      this.end("The connection to the browser helper failed: " + exception.getMessage(), exception);
+      this.end(this.describeEnd("The connection to the browser helper failed: " + exception.getMessage()), exception);
     }
+  }
+
+  /**
+   * Describes the end of the connection by the exit of the helper if it exits right after: a helper that exits ends
+   * its connection, which Windows reports as a reset rather than an end.
+   *
+   * @param connectionEnd how the connection ended, if the helper keeps running
+   * @return the description
+   */
+  private String describeEnd(final String connectionEnd) {
+    if (this.closing.get()) {
+      return connectionEnd;
+    }
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLIS);
+    while (this.process.isAlive() && System.nanoTime() < deadline) {
+      LockSupport.parkNanos(EXIT_POLL_NANOS);
+    }
+    if (this.process.isAlive()) {
+      return connectionEnd;
+    }
+    return "The browser helper exited with code " + this.process.exitValue();
   }
 
   /**
@@ -619,6 +657,17 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
+   * Ends the session although its player did not ask for it, so the player hears of it as of a failure, and closes
+   * it; this happens when the browser module stops.
+   *
+   * @param reason why the session ends
+   */
+  void endAndClose(final String reason) {
+    this.end(reason, null);
+    this.close();
+  }
+
+  /**
    * Reports an end of the helper that nobody asked for, once.
    *
    * @param reason why the helper ended
@@ -653,7 +702,13 @@ final class HelperSession implements BrowserSession {
    */
   @Override
   public boolean sendKey(final int action, final String value) {
-    return this.send(out -> HelperProtocol.writeKey(out, action, value));
+    // a text longer than one message goes as several, in order
+    final List<String> parts = HelperProtocol.split(value);
+    return this.send(out -> {
+        for (final String part : parts) {
+          HelperProtocol.writeKey(out, action, part);
+        }
+      });
   }
 
   private boolean send(final MessageWriter writer) {
@@ -742,14 +797,18 @@ final class HelperSession implements BrowserSession {
    */
   @VisibleForTesting
   static void stopProcess(final Process process) {
-    final List<ProcessHandle> descendants;
+    final List<ProcessHandle> descendants = new ArrayList<>();
     try (final Stream<ProcessHandle> started = process.descendants()) {
-      descendants = started.toList();
+      started.forEach(descendants::add);
     }
     try {
       final boolean exited = process.waitFor(STOP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       if (!exited) {
         LOGGER.warn("The browser helper did not stop within {} ms and is killed", STOP_TIMEOUT_MILLIS);
+        // the helper may have started more processes while it did not stop
+        try (final Stream<ProcessHandle> later = process.descendants()) {
+          later.forEach(descendants::add);
+        }
         process.destroyForcibly();
         process.waitFor(KILL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       }
@@ -782,10 +841,13 @@ final class HelperSession implements BrowserSession {
   /**
    * Closes something whose failure to close changes nothing, logging the failure.
    *
-   * @param closeable the stream or channel
+   * @param closeable the stream or channel, or null if there is none
    */
   @VisibleForTesting
-  static void closeQuietly(final AutoCloseable closeable) {
+  static void closeQuietly(final @Nullable AutoCloseable closeable) {
+    if (closeable == null) {
+      return;
+    }
     try {
       closeable.close();
     } catch (final Exception exception) {

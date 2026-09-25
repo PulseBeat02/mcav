@@ -39,9 +39,11 @@ import java.nio.channels.Channels;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntFunction;
+import org.cef.browser.McavOffscreenBrowser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -251,7 +253,29 @@ class BrowserHelperTest {
       peer.send(out -> HelperProtocol.writeFrame(out, new FrameRegion(4, 3, 0, 0, 2, 2, new byte[16])));
       assertEquals(0, result.get(10, TimeUnit.SECONDS));
     }
-    assertEquals("the connection failed: A frame of 16 bytes arrived where frames are not expected", helper.getStopReason());
+    assertEquals("the connection failed: A frame of 16 bytes arrived where no frame of that size is expected", helper.getStopReason());
+  }
+
+  @Test
+  void theHelperRemembersTheHeldButtonsSoAMoveIsADrag() {
+    final ScriptedEngine engine = new ScriptedEngine();
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), engine);
+    assertTrue(
+      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0)))
+    );
+    assertTrue(
+      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0)))
+    );
+    assertTrue(
+      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0)))
+    );
+    assertTrue(
+      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 7, 7, HelperProtocol.BUTTON_LEFT, 0, 0, 0)))
+    );
+    final List<String> calls = engine.getCalls();
+    assertTrue(calls.get(1).contains("\"buttons\":1,\"button\":\"left\""), calls.get(1));
+    assertTrue(calls.get(2).contains("\"type\":\"mouseReleased\",\"x\":6,\"y\":6,\"buttons\":0"), calls.get(2));
+    assertTrue(calls.get(3).contains("\"buttons\":0,\"button\":\"none\""), calls.get(3));
   }
 
   @Test
@@ -357,13 +381,89 @@ class BrowserHelperTest {
     assertEquals(1, status);
   }
 
+  private static void neverHalts(final int status) {
+    throw new AssertionError("the helper halted with " + status);
+  }
+
   @Test
   void theConfigurationComesFromTheFirstLine() throws Exception {
-    assertEquals(2, BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine()));
-    assertEquals(2, BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine()));
+    assertEquals(
+      2,
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    );
+    assertEquals(
+      2,
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    );
     final String line = this.configuration("/page").toLine() + "\n";
     // nothing listens on the socket, so the helper cannot connect
-    assertEquals(1, BrowserHelper.runFromInput(new BufferedReader(new StringReader(line)), new ScriptedEngine()));
+    assertEquals(
+      1,
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader(line)), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    );
+  }
+
+  @Test
+  void aHelperThatHasNotStoppedByTheDeadlineAfterItsInputEndedHalts() {
+    final List<Integer> halts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 100L);
+    final long start = System.nanoTime();
+    helper.watchInput(new StringReader(""));
+    assertTrue(System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(100L), "it waits for the deadline first");
+    assertEquals(List.of(1), halts);
+    assertEquals("the standard input ended", helper.getStopReason());
+  }
+
+  @Test
+  void anInterruptedDeadlineStillHaltsAndKeepsTheInterrupt() {
+    final List<Integer> halts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 60_000L);
+    Thread.currentThread().interrupt();
+    try {
+      helper.watchInput(new StringReader(""));
+      assertTrue(Thread.currentThread().isInterrupted(), "the interrupt is kept");
+    } finally {
+      Thread.interrupted();
+    }
+    assertEquals(List.of(1), halts);
+  }
+
+  @Test
+  void aHelperWhoseBrowserHangsInItsStartHaltsOnceTheServerIsGone() throws Exception {
+    final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+    final java.util.concurrent.CountDownLatch halted = new java.util.concurrent.CountDownLatch(1);
+    final HelperEngine hanging = new HelperEngine() {
+      @Override
+      public void start(
+        final HelperConfiguration configuration,
+        final McavOffscreenBrowser.PaintListener painter,
+        final HelperEvents events
+      ) throws InterruptedException {
+        // CEF that never finishes its initialization
+        release.await();
+      }
+
+      @Override
+      public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {
+        // no page to send input to
+      }
+
+      @Override
+      public void stop() {
+        // nothing started
+      }
+    };
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), hanging, status -> halted.countDown(), 200L);
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      peer.readUntil(HelperProtocol.HELLO);
+      // the server dies: its end of the standard input closes
+      this.standardInput.close();
+      assertTrue(halted.await(30, TimeUnit.SECONDS), "the helper halts although its browser never started");
+    } finally {
+      release.countDown();
+    }
+    assertEquals(0, result.get(30, TimeUnit.SECONDS));
   }
 
   @Test
@@ -374,6 +474,6 @@ class BrowserHelperTest {
         throw new IOException("closed");
       }
     };
-    assertEquals(2, BrowserHelper.runFromInput(broken, new ScriptedEngine()));
+    assertEquals(2, BrowserHelper.runFromInput(broken, new ScriptedEngine(), BrowserHelperTest::neverHalts));
   }
 }

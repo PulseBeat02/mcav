@@ -49,6 +49,17 @@ class HelperConfigurationTest {
   }
 
   @Test
+  void theLongestAddressInCharactersOfThreeBytesSurvivesTheLine() {
+    final String start = "https://example.com/";
+    final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
+    // and long paths
+    final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
+    final HelperConfiguration original = new HelperConfiguration(token(), path, path, path, longest, 640, 480, 3, 45, true, true);
+    final HelperConfiguration read = HelperConfiguration.fromLine(original.toLine());
+    assertEquals(longest, read.getUrl());
+  }
+
+  @Test
   void aConfigurationSurvivesTheLine() {
     final HelperConfiguration original = new HelperConfiguration(
       token(),
@@ -184,7 +195,7 @@ class HelperConfigurationTest {
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(0, "zz")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine("not base64!:a:b:c:d:e:f:g:h:i:j"));
-    final String tooLong = "A".repeat(64 * 1024 + 1);
+    final String tooLong = "A".repeat(1024 * 1024 + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
     assertEquals("The configuration line is too long", longLine.getMessage());
   }

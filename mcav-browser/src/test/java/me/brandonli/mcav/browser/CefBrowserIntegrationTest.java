@@ -118,12 +118,17 @@ class CefBrowserIntegrationTest {
    */
   static long countBrowserProcesses() {
     final ProcessHandle self = ProcessHandle.current();
+    // Windows does not tell the command line of another process, only its program, which for a helper is the Java of
+    // this JVM and for a CEF process lies in the jcef folder
+    final String java = self.info().command().orElse("");
     try (final Stream<ProcessHandle> descendants = self.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
         .filter(handle -> {
-          final String command = handle.info().commandLine().orElse("");
-          return command.contains(HelperLauncher.MAIN_CLASS) || command.contains("jcef") || command.contains("Xvfb");
+          final ProcessHandle.Info info = handle.info();
+          final String command = info.commandLine().orElse(info.command().orElse(""));
+          final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
+          return helper || command.contains("jcef") || command.contains("Xvfb");
         })
         .count();
     }
@@ -161,6 +166,10 @@ class CefBrowserIntegrationTest {
     player.sendMouseEvent(MouseClick.HOLD, 5, 5);
     player.sendMouseEvent(MouseClick.RELEASE, 6, 6);
     Await.until("the held button released", () -> this.pages.getEvents("mouseup").stream().anyMatch(event -> event.getX() == 6));
+    // the move to the release happens while the button is held, which makes it a drag
+    final TestPages.PageEvent drag =
+      this.pages.getEvents("mousemove").stream().filter(event -> event.getX() == 6 && event.getY() == 6).findFirst().orElseThrow();
+    assertEquals(1, drag.getButtons(), drag::toString);
     player.sendKeyEvent("hi");
     player.sendKeyEvent("Enter");
     player.sendKeyEvent("PageDown");
@@ -201,6 +210,55 @@ class CefBrowserIntegrationTest {
     assertTrue(player.isPlaying());
   }
 
+  /**
+   * Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
+   *
+   * @param player      the player
+   * @param description what the click achieves, for the failure message
+   * @param condition   whether it has been achieved
+   */
+  private static void clickUntil(final BrowserPlayer player, final String description, final java.util.function.BooleanSupplier condition) {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (!condition.getAsBoolean()) {
+      assertTrue(System.nanoTime() < deadline, description + " never happened");
+      player.sendMouseEvent(MouseClick.LEFT, 20, 20);
+      final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+      while (System.nanoTime() < pause && !condition.getAsBoolean()) {
+        Thread.onSpinWait();
+      }
+    }
+  }
+
+  @Test
+  void aLinkIntoAFrameOfThePageOpensInThatFrame() throws InterruptedException {
+    final BrowserPlayer player = this.player(LOCAL);
+    final Frames frames = this.start(player, "/named-frame");
+    clickUntil(player, "the second page in the frame", () ->
+      this.pages.getEvents("size").stream().anyMatch(event -> event.getPage().equals("second"))
+    );
+    final TestPages.PageEvent size =
+      this.pages.getEvents("size").stream().filter(event -> event.getPage().equals("second")).findFirst().orElseThrow();
+    assertEquals(TestPages.FRAME_WIDTH, size.getX(), "the second page fills the frame, not the page");
+    Thread.sleep(500L);
+    assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "the page itself stays");
+  }
+
+  @Test
+  void aFormSentByAButtonThatTargetsANewWindowIsSentInPlace() {
+    final BrowserPlayer player = this.player(LOCAL);
+    final Frames frames = this.start(player, "/form-target");
+    clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
+    assertTrue(player.isPlaying());
+  }
+
+  @Test
+  void aLinkToANewWindowThatAScriptClicksIsBlocked() throws InterruptedException {
+    final BrowserPlayer player = this.player(LOCAL);
+    final Frames frames = this.start(player, "/to-popup-synthetic");
+    Thread.sleep(1_500L);
+    assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "still the page, not the popup");
+  }
+
   @Test
   void aPopupThePageOpensByItselfIsBlocked() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
@@ -223,8 +281,8 @@ class CefBrowserIntegrationTest {
     final BrowserPlayer toDownload = this.player(LOCAL);
     final Frames downloadFrames = this.start(toDownload, "/to-download");
     Thread.sleep(1_500L);
-    assertTrue(fileFrames.lastShows(TestPages.MAIN_COLOR), "still the page, not the file");
-    assertTrue(downloadFrames.lastShows(TestPages.MAIN_COLOR), "still the page, not a download");
+    assertTrue(fileFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not the file: " + fileFrames.describeLast());
+    assertTrue(downloadFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not a download: " + downloadFrames.describeLast());
     assertTrue(toFile.isPlaying());
     assertTrue(toDownload.isPlaying());
   }
@@ -278,8 +336,18 @@ class CefBrowserIntegrationTest {
     final BrowserPlayer player = this.player(LOCAL);
     this.start(player, "/main");
     assertEquals(1, HelperProcesses.count());
-    new BrowserModule().stop();
-    assertEquals(0, HelperProcesses.count());
-    Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
+    final BrowserModule module = new BrowserModule();
+    try {
+      module.stop();
+      assertEquals(0, HelperProcesses.count());
+      assertFalse(player.isPlaying(), "the player knows its browser ended");
+      assertEquals(List.of("The browser module was stopped: The browser module was stopped"), this.failures);
+      Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
+    } finally {
+      module.start();
+    }
+    // the same player starts again once the module runs again
+    final Frames frames = this.start(player, "/second");
+    Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 }

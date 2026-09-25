@@ -62,7 +62,8 @@ final class ScriptedEngine implements HelperEngine {
     final java.io.BufferedReader input = new java.io.BufferedReader(
       new java.io.InputStreamReader(System.in, java.nio.charset.StandardCharsets.UTF_8)
     );
-    final int status = BrowserHelper.runFromInput(input, new ScriptedEngine());
+    final Runtime runtime = Runtime.getRuntime();
+    final int status = BrowserHelper.runFromInput(input, new ScriptedEngine(), runtime::halt);
     System.exit(status);
   }
 

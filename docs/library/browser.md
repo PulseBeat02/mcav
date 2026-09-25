@@ -39,8 +39,8 @@ draws on it, but CEF needs an X display to start. On any other platform, and on 
 
 ## Playing a Page
 
-Describe the page with a `BrowserSource`: an absolute `http` or `https` address, the size of the page and its frames
-(at most 4096 pixels per side), and how many painted frames make one streamed frame. `BrowserPlayer.create()` uses the
+Describe the page with a `BrowserSource`: an absolute `http` or `https` address of at most 65 536 characters, the size
+of the page and its frames (at most 4096 pixels per side), and how many painted frames make one streamed frame. `BrowserPlayer.create()` uses the
 default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
@@ -69,15 +69,18 @@ times, so a video filter that spreads a big change over several frames, like the
 finishes it.
 
 `release` ends the helper process, its Chromium processes and its display. Stopping the module, for example when a
-plugin is disabled, ends every browser that is still running; installing the module again starts browsers as before.
+plugin is disabled, ends every browser that is running or still starting, and each player hears of it through its
+exception handler; no browser starts until the module starts again. If your application dies without releasing its
+browsers, every helper notices, ends within 20 seconds, and takes its display with it.
 
 ## Input
 
 Input coordinates are pixels of the page, which has the size of the frames. `sendMouseEvent` clicks with the left or
-right button, double clicks, or holds and releases the left button, `scroll` turns the mouse wheel at a position, and
-`sendKeyEvent` presses a key when given the name of a
+right button, double clicks, or holds and releases the left button, and a move while the button is held drags,
+`scroll` turns the mouse wheel at a position, and `sendKeyEvent` presses a key when given the name of a
 [KeyboardEvent key](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values), such as
-`Enter`, `Backspace`, or `ArrowLeft`, and types any other text character by character. Input goes through Chromium's
+`Enter`, `Backspace`, or `ArrowLeft`, and types any other text character by character, however long it is; a line
+break presses Enter, once for `\r\n`. Input goes through Chromium's
 DevTools protocol inside the helper; no debugging port is ever opened. Like every Chromium, the browser ignores clicks
 and keys for a moment right after a page appears.
 
@@ -90,15 +93,17 @@ a page can do instead:
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
   that resolves the host itself and refuses loopback, private, link-local (such as the metadata service of a cloud
-  machine) and other special addresses, also when a public name resolves to one. WebRTC may only use proxied
-  connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
+  machine) and other special addresses, also when a public name resolves to one, and also behind a NAT64 prefix of
+  the network, which the guard learns from `ipv4only.arpa`. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
   a dashboard of your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.
-- New windows open in place, as long as their address may be shown; a page cannot open one without a click or key.
+- New windows open in place, as long as their address may be shown: `window.open`, links and forms that target
+  another window, but only during a click or a key, as a popup blocker allows; links into a named frame of the page
+  stay in that frame.
 - Downloads, file choosers, logins and invalid certificates are refused, JavaScript dialogs are dismissed (alerts are
   confirmed, questions answered with cancel, pages may always be left), and permission prompts are denied.
-- The helper gets a minimal environment, a folder only the user running MCAV can read, which is deleted when the
-  browser is released, and a profile that keeps nothing.
+- The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
+  user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing.
 
 Audio of the page is not captured.
