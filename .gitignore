@@ -254,3 +254,6 @@ dmypy.json
 
 # log folders that servers and tests write, including rotated archives
 logs/
+
+# the database jqwik writes into the module folder when PIT runs the property tests (the tests keep theirs in build/)
+.jqwik-database
