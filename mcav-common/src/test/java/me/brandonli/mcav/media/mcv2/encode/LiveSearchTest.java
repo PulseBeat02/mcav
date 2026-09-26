@@ -85,6 +85,14 @@ final class LiveSearchTest {
     assertTrue(LiveSearch.LIVE.seededMotion());
     assertTrue(LiveSearch.LIVE.coarseEndpoints());
     assertEquals(16, LiveSearch.LIVE.searchBlock());
+    // a superblock the previous frame coded whole is split only above 450 lambda, one it split above 150
+    assertEquals(150, LiveSearch.LIVE.splitThreshold());
+    assertEquals(450, LiveSearch.LIVE.steadySplitThreshold());
+    // P frames leave the intra grids to keyframes
+    assertFalse(LiveSearch.LIVE.tries(MODE_INTRA + 1, false, 32));
+    assertFalse(LiveSearch.LIVE.tries(MODE_INTRA + 2, false, 16));
+    assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 2, true, 32));
+    assertTrue(LiveSearch.LIVE.tries(MODE_PATTERN, false, 8));
   }
 
   @Test

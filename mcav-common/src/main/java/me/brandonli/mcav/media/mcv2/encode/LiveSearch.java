@@ -126,14 +126,11 @@ public record LiveSearch(
   /** The quantizer set that stands for the single quantizer derived from lambda. */
   public static final int FROM_LAMBDA = 0;
 
-  /** The P-frame leaf modes of {@link #LIVE}: local motion, palettes, 2x2 and 4x4 intra grids, compact and patterns. */
-  private static final int LIVE_MODES =
-    (1 << MODE_MOTION) |
-    (1 << MODE_PALETTE) |
-    (1 << (MODE_INTRA + 1)) |
-    (1 << (MODE_INTRA + 2)) |
-    (1 << MODE_COMPACT) |
-    (1 << MODE_PATTERN);
+  /**
+   * The P-frame leaf modes of {@link #LIVE}: local motion, palettes, compact and patterns. The intra grids are left to
+   * keyframes: in P frames they cost 12% of the search for 0.8 points of rate at equal VMAF.
+   */
+  private static final int LIVE_MODES = (1 << MODE_MOTION) | (1 << MODE_PALETTE) | (1 << MODE_COMPACT) | (1 << MODE_PATTERN);
 
   /** The reference's search, restricted to one trial and searched from the top with the exact thresholds only. */
   public static final LiveSearch EXACT = new LiveSearch(
@@ -157,16 +154,17 @@ public record LiveSearch(
 
   /**
    * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p60 source (the report's lever
-   * table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda and a 32-pixel one above 150, local
-   * motion searched from the previous frame's vectors down to 16 pixels, P frames choosing between local motion,
-   * palettes, 2x2 and 4x4 intra grids, compact luma grids at the quantizer lambda suggests, and patterns with RGB565
-   * endpoints, keyframes from every intra mode, and the cheap fits of intra grids and palettes.
+   * table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one above 150 where the
+   * previous frame split its superblock and above 450 where it coded it whole, local motion searched from the previous
+   * frame's vectors down to 16 pixels, P frames choosing between local motion, palettes, compact luma grids at the
+   * quantizer lambda suggests, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits
+   * of intra grids and palettes.
    */
   public static final LiveSearch LIVE = new LiveSearch(
     8,
     EXACT_SKIP,
     150,
-    150,
+    450,
     300,
     0,
     0,
