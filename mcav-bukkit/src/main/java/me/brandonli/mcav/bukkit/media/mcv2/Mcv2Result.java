@@ -60,7 +60,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Object lock;
   private final Statistics statistics;
 
-  private byte@Nullable[] pending;
+  private @Nullable Arrival pending;
   private boolean running;
   private @Nullable Thread worker;
   private @Nullable Thread sender;
@@ -70,17 +70,31 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
 
-  /** An encoded frame on its way to the viewers, with its encoder statistics. */
+  /** A frame the video handed over, with the wall-clock time it arrived. */
+  static final class Arrival {
+
+    private final byte[] rgb;
+    private final long arrived;
+
+    Arrival(final byte[] rgb, final long arrived) {
+      this.rgb = rgb;
+      this.arrived = arrived;
+    }
+  }
+
+  /** An encoded frame on its way to the viewers, with its encoder statistics and where it came from. */
   private static final class Delivery {
 
     private final byte[] frame;
     private final Mcv2Encoder.Stats stats;
     private final long frameId;
+    private final Arrival source;
 
-    Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId) {
+    Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId, final Arrival source) {
       this.frame = frame;
       this.stats = stats;
       this.frameId = frameId;
+      this.source = source;
     }
   }
 
@@ -266,9 +280,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       new ResizeFilter(width, height).applyFilter(data);
     }
     if (!this.channel.getRecipients().isEmpty()) {
-      final byte[] rgb = rgb(data.getPixels(), width * height);
+      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), System.currentTimeMillis());
       synchronized (this.lock) {
-        this.pending = rgb;
+        this.pending = arrival;
         this.lock.notifyAll();
       }
     }
@@ -288,6 +302,43 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       rgb[i * 3 + 2] = (byte) pixel;
     }
     return rgb;
+  }
+
+  /** The frames the viewers' links sent, held back for the backlog and held back for a reference, summed. */
+  private long[] linkCounts() {
+    final long[] counts = new long[3];
+    for (final Mcv2Link link : this.channel.getLinks().values()) {
+      counts[0] += link.getSent();
+      counts[1] += link.getBehind();
+      counts[2] += link.getUndecodable();
+    }
+    return counts;
+  }
+
+  /** Commits a frame's flight recorder event, with what the viewers' links did with it. */
+  private void record(final Mcv2FrameEvent event, final Delivery delivery, final int colors, final long[] before) {
+    final long[] after = this.linkCounts();
+    long backlog = 0;
+    for (final Mcv2Link link : this.channel.getLinks().values()) {
+      backlog = Math.max(backlog, link.getBacklog());
+    }
+    event.frameId = delivery.frameId;
+    event.keyframe = delivery.stats.keyframe();
+    event.bytes = delivery.frame.length;
+    event.colors = colors;
+    event.arrived = delivery.source.arrived;
+    event.sent = System.currentTimeMillis();
+    event.encode = delivery.stats.nanoseconds();
+    event.sentTo = (int) (after[0] - before[0]);
+    event.behind = (int) (after[1] - before[1]);
+    event.waiting = (int) (after[2] - before[2]);
+    event.backlog = backlog;
+    event.fingerprint = Mcv2FrameEvent.fingerprint(
+      delivery.source.rgb,
+      this.configuration.getVideoWidth(),
+      this.configuration.getVideoHeight()
+    );
+    event.commit();
   }
 
   /**
@@ -316,8 +367,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   void encodeLoop(final Mcv2Encoder encoder) {
     long frameId = 0;
     try {
-      for (byte[] rgb = this.take(); rgb != null; rgb = this.take()) {
-        this.send(encoder, rgb, frameId);
+      for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
+        this.send(encoder, arrival, frameId);
         frameId = (frameId + 1) & 0xFFFFFFFFL;
       }
     } catch (final InterruptedException exception) {
@@ -331,14 +382,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @return the frame, or null once the result is released
    * @throws InterruptedException if the thread is interrupted while it waits
    */
-  byte@Nullable[] take() throws InterruptedException {
+  @Nullable Arrival take() throws InterruptedException {
     synchronized (this.lock) {
       while (this.running && this.pending == null) {
         this.lock.wait();
       }
-      final byte[] rgb = this.pending;
+      final Arrival arrival = this.pending;
       this.pending = null;
-      return this.running ? rgb : null;
+      return this.running ? arrival : null;
     }
   }
 
@@ -346,16 +397,16 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * Encodes one frame and hands it to the sender thread, or sends it on this thread when the result was not started.
    *
    * @param encoder the encoder
-   * @param rgb     the frame
+   * @param arrival the frame and when it arrived
    * @param frameId the frame's id
    * @throws InterruptedException if the thread is interrupted while it waits for the sender to take the frame
    */
-  void send(final Mcv2Encoder encoder, final byte[] rgb, final long frameId) throws InterruptedException {
+  void send(final Mcv2Encoder encoder, final Arrival arrival, final long frameId) throws InterruptedException {
     if (this.channel.takeKeyframeRequest()) {
       encoder.requestKeyframe();
     }
-    final byte[] frame = encoder.encode(rgb, this.configuration.getVideoWidth(), this.configuration.getVideoHeight(), frameId);
-    final Delivery delivery = new Delivery(frame, Preconditions.checkNotNull(encoder.getStats()), frameId);
+    final byte[] frame = encoder.encode(arrival.rgb, this.configuration.getVideoWidth(), this.configuration.getVideoHeight(), frameId);
+    final Delivery delivery = new Delivery(frame, Preconditions.checkNotNull(encoder.getStats()), frameId, arrival);
     final BlockingQueue<Delivery> queue;
     synchronized (this.lock) {
       queue = this.deliveries;
@@ -387,7 +438,13 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final byte[] frame = delivery.frame;
     final long frameId = delivery.frameId;
     final Mcv2Encoder.Stats stats = delivery.stats;
+    final Mcv2FrameEvent event = new Mcv2FrameEvent();
+    final boolean recorded = event.isEnabled();
+    final long[] before = recorded ? this.linkCounts() : new long[3];
     final int colors = this.channel.send(frame);
+    if (recorded) {
+      this.record(event, delivery, colors, before);
+    }
     if (colors < 0) {
       LOGGER.warn(
         "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent",

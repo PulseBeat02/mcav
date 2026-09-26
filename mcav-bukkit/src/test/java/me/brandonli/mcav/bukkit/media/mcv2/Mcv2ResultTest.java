@@ -31,9 +31,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
@@ -49,6 +53,7 @@ import org.bukkit.block.BlockFace;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 final class Mcv2ResultTest {
 
@@ -136,6 +141,53 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void recordsEveryFrameForTheFlightRecorder(@TempDir final Path directory) throws Exception {
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    try (Recording recording = new Recording()) {
+      recording.enable("me.brandonli.mcav.Mcv2Frame");
+      recording.start();
+      final long before = System.currentTimeMillis();
+      result.start();
+      result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
+      this.server.runTasks();
+      result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
+      awaitFrames(result, 1);
+      result.release();
+      recording.stop();
+      final Path file = directory.resolve("frames.jfr");
+      recording.dump(file);
+      final List<RecordedEvent> frames = RecordingFile.readAllEvents(file)
+        .stream()
+        .filter(event -> event.getEventType().getName().equals("me.brandonli.mcav.Mcv2Frame"))
+        .toList();
+      assertEquals(1, frames.size());
+      final RecordedEvent frame = frames.getFirst();
+      assertEquals(0, frame.getLong("frameId"));
+      assertTrue(frame.getBoolean("keyframe"));
+      assertEquals(1, frame.getInt("sentTo"));
+      assertEquals(0, frame.getInt("behind") + frame.getInt("waiting"));
+      assertTrue(frame.getInt("colors") > 0 && frame.getInt("bytes") > 48);
+      assertTrue(frame.getLong("arrived") >= before && frame.getLong("sent") >= frame.getLong("arrived"));
+      // two block centres fit a 64-pixel-wide video: the luma of 0x336699 is (0x33 + 2 * 0x66 + 0x99) / 4 = 0x66
+      assertEquals("6666", frame.getString("fingerprint"));
+    }
+  }
+
+  @Test
+  void fingerprintsTheCentresOfTheFirstBlocks() {
+    final byte[] rgb = new byte[1024 * 32 * 3];
+    // block 1's centre white, the others black
+    final int at = (16 * 1024 + 48) * 3;
+    rgb[at] = rgb[at + 1] = rgb[at + 2] = (byte) 255;
+    final String fingerprint = Mcv2FrameEvent.fingerprint(rgb, 1024, 32);
+    assertEquals(2 * Mcv2FrameEvent.FINGERPRINT_PIXELS, fingerprint.length());
+    assertEquals("00ff00", fingerprint.substring(0, 6));
+    // a video narrower than the blocks, or too short for row 16, has fewer samples
+    assertEquals(2, Mcv2FrameEvent.fingerprint(new byte[20 * 20 * 3], 20, 20).length());
+    assertEquals("", Mcv2FrameEvent.fingerprint(new byte[64 * 16 * 3], 64, 16));
+  }
+
+  @Test
   void resizesFramesToTheVideoSizeAndCanLeaveOthersWithout() {
     final Mcv2Result result = this.result(this.configuration, null);
     final ImageBuffer wide = Images.solid(128, 64, 0xFF000000);
@@ -197,7 +249,7 @@ final class Mcv2ResultTest {
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
     when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1));
     result.getChannel().requestKeyframe();
-    result.send(encoder, new byte[128 * 128 * 3], 0);
+    result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 0), 0);
     verify(encoder).requestKeyframe();
     assertEquals(1, result.getStatistics().getDropped());
     assertEquals(0, result.getStatistics().getFrames());
