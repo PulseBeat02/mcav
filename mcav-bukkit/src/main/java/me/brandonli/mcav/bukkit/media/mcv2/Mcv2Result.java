@@ -25,7 +25,12 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.bukkit.BukkitModule;
@@ -47,7 +52,10 @@ import org.slf4j.LoggerFactory;
  * Displays video on an MCV2 screen: players with the MCV2 resource pack receive every frame encoded as MCV2 pages,
  * which their shader decodes; every other viewer receives the video dithered onto the wall's maps, like
  * {@link CompressedMapResult}, so a player without the pack never sees a screen their client cannot show. Which
- * players have the pack, and when they start receiving frames, is decided by the {@link Mcv2Channel}.
+ * players have the pack, and when they start receiving frames, is decided by the {@link Mcv2Channel}. The maps are
+ * dithered on a thread of their own, one frame at a time, the frames that arrive meanwhile left out: dithering a 1080p
+ * frame onto a wall of maps takes a large part of a second, and done on the video's thread it would hold the video, and
+ * every viewer's frame rate, to the dithering's.
  *
  * <p>Frames are encoded one at a time, inside the screen's encoder budget ({@link Mcv2Configuration#getEncoderPool()}),
  * which every screen of the server shares unless it was given its own; a thread of the screen only waits for the
@@ -71,6 +79,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Mcv2Configuration requested;
   private final @Nullable Fallback fallback;
   private final Set<UUID> fallbackViewers;
+  private final Executor dithering;
+  private final @Nullable ExecutorService ditheringThread;
+  private final AtomicBoolean ditheringBusy = new AtomicBoolean();
   private final Object lock;
   private final Statistics statistics;
   private final LongSupplier clock;
@@ -238,14 +249,21 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   Mcv2Result(final Mcv2Configuration configuration, final Mcv2Channel channel, final @Nullable DitherAlgorithm fallbackAlgorithm) {
-    this(configuration, channel, fallbackAlgorithm, System::nanoTime);
+    this(configuration, channel, fallbackAlgorithm, System::nanoTime, null);
   }
 
+  /**
+   * Constructs a result with the clock its pacer reads and the executor that dithers the maps of the viewers without
+   * the pack.
+   *
+   * @param dithering runs the dithering, or null for a thread of the result's own, stopped on release
+   */
   Mcv2Result(
     final Mcv2Configuration configuration,
     final Mcv2Channel channel,
     final @Nullable DitherAlgorithm fallbackAlgorithm,
-    final LongSupplier clock
+    final LongSupplier clock,
+    final @Nullable Executor dithering
   ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(channel, "Channel must not be null");
@@ -255,6 +273,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.fallback = fallbackAlgorithm == null
       ? null
       : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
+    if (dithering == null) {
+      final ExecutorService thread = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-dither").factory());
+      this.ditheringThread = thread;
+      this.dithering = thread;
+    } else {
+      this.ditheringThread = null;
+      this.dithering = dithering;
+    }
     this.lock = new Object();
     this.statistics = new Statistics();
     this.clock = clock;
@@ -412,10 +438,26 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       }
     }
     final Fallback dithered = this.fallback;
-    if (dithered != null && !others.isEmpty()) {
-      dithered.result().process(data, dithered.algorithm());
+    if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
+      // the dithering's own copy of the frame, which the video reuses once this returns
+      final int[] argb = data.getPixels().clone();
+      try {
+        this.dithering.execute(() -> this.dither(dithered, argb, width, height));
+      } catch (final RejectedExecutionException released) {
+        // the result was released: the dithered maps are gone
+        this.ditheringBusy.set(false);
+      }
     }
     return true;
+  }
+
+  /** Dithers one frame onto the maps of the viewers without the pack, then lets the next frame be dithered. */
+  private void dither(final Fallback dithered, final int[] argb, final int width, final int height) {
+    try (ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
+      dithered.result().process(frame, dithered.algorithm());
+    } finally {
+      this.ditheringBusy.set(false);
+    }
   }
 
   static byte[] rgb(final int[] argb, final int pixels) {
@@ -708,6 +750,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     stop(delivery);
     this.screen.channel().close();
     this.opened = false;
+    final ExecutorService ditheringOwn = this.ditheringThread;
+    if (ditheringOwn != null) {
+      ditheringOwn.shutdown();
+    }
     final Fallback dithered = this.fallback;
     if (dithered != null) {
       dithered.result().release();

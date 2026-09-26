@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +39,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import jdk.jfr.Recording;
@@ -60,6 +62,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 final class Mcv2ResultTest {
 
@@ -126,9 +129,9 @@ final class Mcv2ResultTest {
     result.start();
     verify(this.screen).build();
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
-    // the first frame only schedules showing the screen, so both viewers are dithered for
+    // the first frame only schedules showing the screen, so both viewers are dithered for, on the dithering thread
     result.applyFilter(frame, this.metadata);
-    verify(this.algorithm).ditherIntoBytes(frame);
+    verify(this.algorithm, timeout(5000)).ditherIntoBytes(any());
     this.server.runTasks();
     assertTrue(result.applyFilter(frame, this.metadata));
     awaitFrames(result, 1);
@@ -221,13 +224,55 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       .build();
-    final Mcv2Result result = this.result(onlyPack, this.algorithm);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
     final ImageBuffer frame = Images.solid(64, 32, 0xFF000000);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
-    verify(this.algorithm).ditherIntoBytes(frame);
+    verify(this.algorithm).ditherIntoBytes(any());
     result.release();
+  }
+
+  @Test
+  void dithersOffTheVideoThreadAndLeavesOutTheFramesMeanwhile() throws InterruptedException {
+    final CountDownLatch dithering = new CountDownLatch(1);
+    final CountDownLatch finish = new CountDownLatch(1);
+    Mockito.doAnswer(invocation -> {
+      dithering.countDown();
+      finish.await();
+      final ImageBuffer image = invocation.getArgument(0);
+      return new byte[image.getWidth() * image.getHeight()];
+    })
+      .when(this.algorithm)
+      .ditherIntoBytes(any());
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    // the frame is handed over and the video goes on while it is dithered; the frames meanwhile are left out
+    assertTrue(result.applyFilter(frame, this.metadata));
+    assertTrue(dithering.await(5, TimeUnit.SECONDS));
+    assertTrue(result.applyFilter(frame, this.metadata));
+    assertTrue(result.applyFilter(frame, this.metadata));
+    finish.countDown();
+    verify(this.algorithm, timeout(5000).times(1)).ditherIntoBytes(any());
+    // once the dithering is done, the next frame is dithered again
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (Mockito.mockingDetails(this.algorithm).getInvocations().size() < 2 && System.nanoTime() < deadline) {
+      result.applyFilter(frame, this.metadata);
+      Thread.sleep(10);
+    }
+    verify(this.algorithm, Mockito.atLeast(2)).ditherIntoBytes(any());
+    // a released result dithers nothing more
+    result.release();
+    clearInvocations(this.algorithm);
+    result.applyFilter(frame, this.metadata);
+    Thread.sleep(100);
+    verify(this.algorithm, never()).ditherIntoBytes(any());
   }
 
   @Test
@@ -314,7 +359,13 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       .build();
-    final Mcv2Result result = new Mcv2Result(onlyPack, new Mcv2Channel(onlyPack, this.viewers, this.screen), this.algorithm, clock::get);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
     final List<Mcv2Pacer.Change> changes = new ArrayList<>();
     result.setPacingListener(changes::add);
     assertNull(result.getRung());
@@ -376,7 +427,13 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       .build();
-    final Mcv2Result result = new Mcv2Result(onlyPack, new Mcv2Channel(onlyPack, this.viewers, this.screen), this.algorithm, clock::get);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
     // the owner offers a 32x16 screen: its own channel and page frames
     final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
     when(smallScreen.anchors()).thenReturn(List.of());
@@ -439,7 +496,8 @@ final class Mcv2ResultTest {
       this.configuration,
       new Mcv2Channel(this.configuration, this.viewers, this.screen),
       null,
-      clock::get
+      clock::get,
+      Runnable::run
     );
     result.pace();
     final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
