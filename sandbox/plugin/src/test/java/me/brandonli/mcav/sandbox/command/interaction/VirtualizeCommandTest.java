@@ -709,6 +709,25 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void keepsTheAttachmentPropertiesOfADrive() throws IOException {
+    final String image = this.image("disk.img");
+    this.assertArguments(
+        "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
+        "-drive",
+        "file=" + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+      );
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
+  void refusesADrivePropertyOutsideTheList(final String part) throws IOException {
+    this.image("disk.img");
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
+    final String message = failure.getMessage();
+    assertEquals("The QEMU option -drive does not allow " + part + " in file=disk.img," + part, message);
+  }
+
+  @Test
   void refusesADriveWithoutADiskImage() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
     final String message = failure.getMessage();

@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Set;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
@@ -27,11 +28,32 @@ import net.jqwik.api.Provide;
 
 /**
  * Properties of {@link QemuHardwareValues}: whatever a player types, a value that holds a path separator, or a
- * property QEMU uses to read or write a file, is refused for every hardware option.
+ * property QEMU uses to read or write a file, is refused for every hardware option, and a property of {@code -drive}
+ * outside its list is refused whatever its value.
  */
 final class QemuHardwareValuesPropertyTest {
 
   private static final String SEED = "20260925";
+
+  private static final Set<String> DRIVE_PROPERTIES = Set.of(
+    "format",
+    "if",
+    "media",
+    "index",
+    "bus",
+    "unit",
+    "id",
+    "serial",
+    "cache",
+    "aio",
+    "snapshot",
+    "readonly",
+    "copy-on-read",
+    "discard",
+    "detect-zeroes",
+    "werror",
+    "rerror"
+  );
 
   @Provide
   Arbitrary<String> options() {
@@ -67,5 +89,23 @@ final class QemuHardwareValuesPropertyTest {
   ) {
     final String value = "pc," + property + "=" + prefix.replace(",", "") + "file";
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(option, value));
+  }
+
+  @Provide
+  Arbitrary<String> unlistedDriveProperties() {
+    return Arbitraries.strings()
+      .withChars("abcdefghijklmnopqrstuvwxyz.-_")
+      .ofMinLength(1)
+      .ofMaxLength(24)
+      .filter(name -> !DRIVE_PROPERTIES.contains(name));
+  }
+
+  @Property(seed = SEED, tries = 1000)
+  void aDrivePropertyOutsideTheListIsRefusedWhateverItsValue(
+    @ForAll("unlistedDriveProperties") final String property,
+    @ForAll final String value
+  ) {
+    final String part = property + "=" + value.replace(",", "");
+    assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part));
   }
 }

@@ -32,7 +32,9 @@ import java.util.regex.Pattern;
  * working folder of the server; {@code -boot splash=} reads a picture, and {@code -machine pcspk-audiodev=} would route
  * the sound of the guest, which mcav owns. A check for path separators lets all of them through, so the values are
  * checked against a positive list instead: machine types, accelerators, sizes, counts, CPU models and features, and
- * the switches of each option.
+ * the switches of each option. The parts of {@code -drive} besides its disk image are checked the same way: only the
+ * properties that say how the drive is attached, cached and reported are allowed, none that opens another file or
+ * block node.
  */
 final class QemuHardwareValues {
 
@@ -136,6 +138,27 @@ final class QemuHardwareValues {
     "memory-backend",
     "pcspk-audiodev"
   );
+  // the properties of -drive besides file=, whose image the command resolves in the image folder: how the drive is
+  // attached, cached and reported; everything else, such as another driver or a property of another node, is refused
+  private static final Map<String, Pattern> DRIVE_PROPERTIES = Map.ofEntries(
+    Map.entry("format", Pattern.compile("raw|qcow2|vmdk|vdi|vhdx|vpc")),
+    Map.entry("if", Pattern.compile("ide|scsi|sd|floppy|pflash|virtio|none")),
+    Map.entry("media", Pattern.compile("disk|cdrom")),
+    Map.entry("index", NUMBER),
+    Map.entry("bus", NUMBER),
+    Map.entry("unit", NUMBER),
+    Map.entry("id", WORD),
+    Map.entry("serial", WORD),
+    Map.entry("cache", Pattern.compile("none|writeback|writethrough|directsync|unsafe")),
+    Map.entry("aio", Pattern.compile("threads|native|io_uring")),
+    Map.entry("snapshot", SWITCH),
+    Map.entry("readonly", SWITCH),
+    Map.entry("copy-on-read", SWITCH),
+    Map.entry("discard", Pattern.compile("ignore|unmap|off|on")),
+    Map.entry("detect-zeroes", Pattern.compile("on|off|unmap")),
+    Map.entry("werror", Pattern.compile("ignore|stop|report|enospc")),
+    Map.entry("rerror", Pattern.compile("ignore|stop|report"))
+  );
   private static final Pattern KEYBOARD = Pattern.compile("[a-z]{2}(-[a-z]{2,3})?");
   private static final Pattern VGA = Pattern.compile("[a-z0-9]{2,16}");
   private static final Splitter PARTS = Splitter.on(',');
@@ -169,6 +192,17 @@ final class QemuHardwareValues {
       case "vga" -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
       default -> throw new IllegalArgumentException("The QEMU option -" + name + " is not a hardware option");
     }
+  }
+
+  /**
+   * Checks a part of a {@code -drive} value other than its disk image.
+   *
+   * @param part  the part, such as {@code media=disk}
+   * @param value the whole value as entered, for the message
+   * @throws IllegalArgumentException if the part is not a property of the list, or its value has another form
+   */
+  static void checkDriveProperty(final String part, final String value) {
+    checkProperties("drive", value, List.of(part), DRIVE_PROPERTIES);
   }
 
   /**

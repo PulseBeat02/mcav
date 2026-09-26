@@ -313,7 +313,11 @@ The hardware options take machine types, accelerators, sizes, counts, CPU models
 such as `-machine q35,accel=kvm,usb=on` or `-boot order=dc,menu=on`; the properties that make QEMU read or write a
 file, such as `-machine dumpdtb=`, `firmware=` or `kernel=` and `-boot splash=`, are refused, and so is
 `pcspk-audiodev=`, because the plugin routes the sound itself. A disk image must be a file of the plugin's `iso`
-folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your images there, or link them in; nothing else on the server can be booted. The
+folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your images there, or link them in; nothing else on the server can be booted. Besides
+`file=`, a `-drive` takes only the properties that say how the drive is attached: `format` (`raw`, `qcow2`, `vmdk`,
+`vdi`, `vhdx`, `vpc`), `if`, `media`, `index`, `bus`, `unit`, `id`, `serial`, `cache`, `aio`, `snapshot`, `readonly`,
+`copy-on-read`, `discard`, `detect-zeroes`, `werror` and `rerror`, such as `-drive file=disk.img,format=raw,if=virtio`;
+any other property is refused. The
 display of the guest always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode
 network QEMU gives it by default.
 

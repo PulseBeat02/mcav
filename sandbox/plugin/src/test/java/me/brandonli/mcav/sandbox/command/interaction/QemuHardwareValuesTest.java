@@ -103,6 +103,70 @@ final class QemuHardwareValuesTest {
     assertEquals(true, refused.getMessage().startsWith("The QEMU option -" + name + " does not allow"), refused.getMessage());
   }
 
+  @ParameterizedTest
+  @CsvSource(
+    delimiter = '|',
+    value = {
+      "format=raw",
+      "format=qcow2",
+      "format=vmdk",
+      "format=vdi",
+      "format=vhdx",
+      "format=vpc",
+      "if=ide",
+      "if=virtio",
+      "if=floppy",
+      "if=none",
+      "media=disk",
+      "media=cdrom",
+      "index=1",
+      "bus=0",
+      "unit=1",
+      "id=disk0",
+      "serial=ABC-1",
+      "cache=none",
+      "cache=writeback",
+      "aio=io_uring",
+      "snapshot=on",
+      "readonly=off",
+      "copy-on-read=on",
+      "discard=unmap",
+      "detect-zeroes=unmap",
+      "werror=enospc",
+      "rerror=report",
+    }
+  )
+  void acceptsThePropertiesThatSayHowADriveIsAttached(final String part) {
+    QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part);
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    delimiter = '|',
+    value = {
+      "driver=file",
+      "node-name=disk",
+      "backing=none",
+      "file.locking=off",
+      "throttling.iops-total=100",
+      "format=json",
+      "format=",
+      "if=mtd",
+      "media",
+      "index=one",
+      "cache=fast",
+      "snapshot=yes",
+      "werror=enospc,rerror=enospc",
+    }
+  )
+  void refusesEveryOtherPropertyOfADrive(final String part) {
+    final String value = "file=disk.img," + part;
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      QemuHardwareValues.checkDriveProperty(part, value)
+    );
+    assertEquals(true, refused.getMessage().startsWith("The QEMU option -drive does not allow"), refused.getMessage());
+  }
+
   @Test
   void onlyHardwareOptionsAreChecked() {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check("fda", "a"));

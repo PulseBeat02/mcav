@@ -481,7 +481,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   /**
    * Checks the parts of a drive, whose {@code file} names a disk image and whose other parts describe how the drive
-   * is attached.
+   * is attached, as {@link QemuHardwareValues#checkDriveProperty} allows.
    */
   private static String checkedDrive(final String value, final Path imageFolder) {
     final List<String> parts = DRIVE_SPLITTER.splitToList(value);
@@ -496,6 +496,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
         checked.add(FILE_KEY + resolved);
       } else {
         requireNoPath(DRIVE_OPTION, part);
+        QemuHardwareValues.checkDriveProperty(part, value);
         checked.add(part);
       }
     }
