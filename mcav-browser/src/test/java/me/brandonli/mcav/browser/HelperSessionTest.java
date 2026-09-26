@@ -152,6 +152,9 @@ class HelperSessionTest {
     assertTrue(reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5, "logged " + reports + " of " + sent + " reports");
     // the helper is not trusted to hide the secrets of an address; the server hides them again
     assertFalse(log.contains("token=secret"), log);
+    // a moment later the budget passes a line again, after the number of those it did not
+    assertTrue(log.contains("more notices of the page were not logged"), log);
+    assertTrue(log.contains("Browser: noise after a pause"), log);
   }
 
   @Test

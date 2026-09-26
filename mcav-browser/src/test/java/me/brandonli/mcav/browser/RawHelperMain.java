@@ -55,8 +55,8 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
  *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes;</li>
  *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_LOAD_ERRORS} load errors of addresses with a secret in
- *   their query and {@value #NOISY_NOTICES} notices at once, as a page can make a helper do, and then one frame of
- *   sound.</li>
+ *   their query and {@value #NOISY_NOTICES} notices at once, as a page can make a helper do, one more notice a moment
+ *   later, and then one frame of sound.</li>
  * </ul>
  *
  * <p>It then waits until its standard input ends.
@@ -175,6 +175,12 @@ public final class RawHelperMain {
         for (int count = 0; count < NOISY_NOTICES; count++) {
           HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
         }
+        out.flush();
+        // a notice after the budget refilled, which the server logs after the number of those it did not
+        sleep();
+        sleep();
+        sleep();
+        HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise after a pause");
         // the sound arrives after everything above, so a test knows the server read it all
         HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
       }

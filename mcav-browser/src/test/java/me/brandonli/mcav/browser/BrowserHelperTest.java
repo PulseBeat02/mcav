@@ -30,6 +30,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -73,6 +74,10 @@ class BrowserHelperTest {
   }
 
   private HelperConfiguration configuration(final String path) {
+    return this.configuration(path, false);
+  }
+
+  private HelperConfiguration configuration(final String path, final boolean autoplay) {
     return new HelperConfiguration(
       token(),
       this.folder.resolve("s"),
@@ -85,8 +90,29 @@ class BrowserHelperTest {
       30,
       false,
       false,
-      false
+      autoplay
     );
+  }
+
+  @Test
+  void pageSoundReachesTheServerOnlyAfterAPressOrAKeyUnlessAutoplayIsOn() throws IOException {
+    final byte[] chunk = new byte[HelperProtocol.AUDIO_FRAME_BYTES];
+    final int message = 1 + 4 + chunk.length;
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final ByteArrayOutputStream sent = new ByteArrayOutputStream();
+    final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(sent));
+    reporter.onAudio(chunk);
+    assertEquals(0, sent.size(), "no sound before anyone pressed a button or a key");
+    helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
+    reporter.onAudio(chunk);
+    assertEquals(0, sent.size(), "a move presses nothing");
+    helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
+    reporter.onAudio(chunk);
+    assertEquals(message, sent.size(), "a key lets the sound pass");
+    final BrowserHelper autoplay = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
+    final ByteArrayOutputStream played = new ByteArrayOutputStream();
+    autoplay.new Reporter(new DataOutputStream(played)).onAudio(chunk);
+    assertEquals(message, played.size(), "with autoplay the sound passes at once");
   }
 
   private static SocketChannel connectTo(final Path socket) throws IOException {

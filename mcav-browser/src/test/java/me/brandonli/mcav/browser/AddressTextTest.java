@@ -59,6 +59,17 @@ final class AddressTextTest {
       "about:blank|about:<hidden>",
       "no address|<hidden>",
       "://example.com|<hidden>",
+      "HTTPS://Example.com/x?y|HTTPS://Example.com/x?<hidden>",
+      "svn+ssh://host/repo?x|svn+ssh://host/repo?<hidden>",
+      "coap.tcp://host|coap.tcp://host",
+      "x-y://host|x-y://host",
+      "Z9://host|Z9://host",
+      "a_b://host|<hidden>",
+      "{x://host|<hidden>",
+      "a{b://host|<hidden>",
+      "a b://host|<hidden>",
+      "@x://host|<hidden>",
+      "`x://host|<hidden>",
     }
   )
   void describesAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
