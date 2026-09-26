@@ -681,6 +681,31 @@ class HelperSessionTest {
   }
 
   @Test
+  void aHelperThatConnectsAfterTheModuleStoppedAndStartedAgainEndsAndItsStartFails() throws IOException {
+    final Path gate = this.directory.resolve("gate-restart");
+    final HelperLauncher gated = launcher(
+      GatedHelperMain.class.getName(),
+      60_000L,
+      OSUtils.getOS(),
+      List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
+    );
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() ->
+      HelperSession.open(gated, NATIVES, source, BrowserOptions.DEFAULT, this.listener)
+    );
+    final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
+    Await.until("the helper runs", () -> Files.exists(started));
+    // a plugin disable and enable while the browser starts: the start belongs to the plugin that was disabled
+    HelperProcesses.closeAll();
+    HelperProcesses.open();
+    Files.createFile(gate);
+    final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
+    final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
+    assertEquals("The browser module was stopped while the browser started", cause.getMessage());
+    assertEquals(0, HelperProcesses.count());
+  }
+
+  @Test
   void anInterruptedStartFailsAndLeavesNothingBehind() throws InterruptedException {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/never"), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L);

@@ -28,12 +28,15 @@ import me.brandonli.mcav.media.player.PlayerException;
  * process, including those of players nobody released.
  *
  * <p>Once {@link #closeAll()} has run, no session may start until {@link #open()}: a browser that was still starting,
- * for example while the browser was downloaded, is refused when its helper connects, and ends.
+ * for example while the browser was downloaded, is refused when its helper connects, and ends. A stop also begins a
+ * new generation, so a session that began to start before it is refused even when the module has started again
+ * meanwhile, as after a plugin disable and enable.
  */
 final class HelperProcesses {
 
   private static final Set<HelperSession> SESSIONS = new LinkedHashSet<>();
   private static boolean stopped;
+  private static long generation;
 
   private HelperProcesses() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -49,22 +52,25 @@ final class HelperProcesses {
   /**
    * Checks that sessions may start, before anything is installed or launched for one.
    *
+   * @return the generation of the module, which a session that starts now registers with
    * @throws PlayerException if the browser module has been stopped
    */
-  static synchronized void requireOpen() {
+  static synchronized long requireOpen() {
     if (stopped) {
       throw new PlayerException("The browser module is stopped");
     }
+    return generation;
   }
 
   /**
    * Remembers a running session, unless the browser module has been stopped since the session began to start.
    *
    * @param session the session
-   * @return true if the session is remembered, false if it must end because the module has been stopped
+   * @param started the generation {@link #requireOpen()} gave when the session began to start
+   * @return true if the session is remembered, false if it must end because the module has been stopped since
    */
-  static synchronized boolean register(final HelperSession session) {
-    if (stopped) {
+  static synchronized boolean register(final HelperSession session, final long started) {
+    if (stopped || started != generation) {
       return false;
     }
     SESSIONS.add(session);
@@ -97,6 +103,7 @@ final class HelperProcesses {
     final List<HelperSession> running;
     synchronized (HelperProcesses.class) {
       stopped = true;
+      generation++;
       running = new ArrayList<>(SESSIONS);
     }
     // every helper ends, also when the listener of one fails; the first failure is thrown afterwards

@@ -217,7 +217,7 @@ final class HelperSession implements BrowserSession {
     final Listener listener,
     final Path temporary
   ) {
-    HelperProcesses.requireOpen();
+    final long generation = HelperProcesses.requireOpen();
     final Path folder = createFolder(temporary);
     final Path socket = folder.resolve(SOCKET_NAME);
     final byte[] token = createToken();
@@ -253,7 +253,7 @@ final class HelperSession implements BrowserSession {
       Files.deleteIfExists(socket);
       final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
-      if (!HelperProcesses.register(session)) {
+      if (!HelperProcesses.register(session, generation)) {
         throw new PlayerException("The browser module was stopped while the browser started");
       }
       session.startThreads(token);
