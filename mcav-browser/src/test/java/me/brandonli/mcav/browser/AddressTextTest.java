@@ -70,6 +70,11 @@ final class AddressTextTest {
       "a b://host|<hidden>",
       "@x://host|<hidden>",
       "`x://host|<hidden>",
+      "https://example.com/@user|https://example.com/@user",
+      "http://host/@x?y|http://host/@x?<hidden>",
+      "http://@host/|http://<hidden>@host/",
+      "a0://host|a0://host",
+      "Az://host|Az://host",
     }
   )
   void describesAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {

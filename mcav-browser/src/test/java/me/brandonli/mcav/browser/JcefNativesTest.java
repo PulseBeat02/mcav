@@ -84,8 +84,12 @@ class JcefNativesTest {
   }
 
   private JcefNatives natives(final byte[] jar) {
+    return this.natives(jar, this.folder);
+  }
+
+  private JcefNatives natives(final byte[] jar, final Path installFolder) {
     return new JcefNatives(
-      this.folder,
+      installFolder,
       (uri, destination, sha256, size) -> {
         this.downloads.incrementAndGet();
         synchronized (this.requested) {
@@ -160,6 +164,18 @@ class JcefNativesTest {
       assertEquals(platform.getSize() / (1024L * 1024L), JcefNatives.NativePlatform.approximateMegabytes(platform.getIdentifier()));
     }
     assertEquals(0L, JcefNatives.NativePlatform.approximateMegabytes("amiga-m68k"));
+  }
+
+  @Test
+  void theCacheFolderIsCreatedWritableByItsOwnerOnly() throws IOException {
+    final Path cache = this.folder.resolve("home/.mcav/cache/jcef");
+    final Path installation = this.natives(nativesJar(true), cache).install("linux-amd64", "pinned", PINNED_SIZE);
+    assertEquals(cache.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
+    if (cache.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      // the folders above the installation, the lock file's included, are created by the installer too
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(cache));
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(cache.getParent()));
+    }
   }
 
   @Test
