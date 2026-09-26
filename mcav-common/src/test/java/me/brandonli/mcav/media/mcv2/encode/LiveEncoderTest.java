@@ -527,5 +527,5 @@ final class LiveEncoderTest {
   }
 
   /** The SHA-256 of the eight frames {@link #pinsTheOutputOfTheLiveProfile} encodes. */
-  static final String LIVE_DIGEST = "6058a5a5cd6df2519203d140d3bb96efb26f545850a3e9353e99a95c61124d90";
+  static final String LIVE_DIGEST = "c37ca3de6262d05a0b2c257f50437acc793db7dc05ea4a8032ce0d55c548cd73";
 }

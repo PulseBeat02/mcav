@@ -1024,13 +1024,13 @@ final class BlockCoder {
         values = this.compactFit(kind);
       }
       final int body = 1 + form;
-      final boolean fitted = (this.shortcuts & LiveSearch.FIT_PAIR) != 0;
+      final boolean fitted = (this.shortcuts & LiveSearch.FIT_ONE) != 0;
       final int needed = fitted ? neededQuantizer(kind, this.fit, values) : 0;
       for (int q = 0; q <= LiveSearch.COARSEST_QUANTIZER; q++) {
         if (!this.eligible(MODE_COMPACT, length, mask)) {
           break;
         }
-        if (!this.triesQuantizer(live, q) || (fitted && (q < needed - 1 || q > needed))) {
+        if (!this.triesQuantizer(live, q) || (fitted && q != needed)) {
           continue;
         }
         this.record[0] = (byte) (kind | (form << NIBBLE_BITS));

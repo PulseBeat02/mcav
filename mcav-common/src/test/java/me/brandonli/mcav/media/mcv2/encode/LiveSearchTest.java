@@ -99,11 +99,11 @@ final class LiveSearchTest {
     assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 2, true, 32));
     assertTrue(LiveSearch.LIVE.tries(MODE_PATTERN, false, 8));
     // of the compact classes the reference chooses on gameplay, the ones that pay for their search: DC and both 4-bit
-    // 4x4 grids, each at the two quantizers its fitted values suggest; local motion first at half resolution
+    // 4x4 grids, each at the quantizer its fitted values need; local motion first at half resolution
     assertEquals(0xD, LiveSearch.LIVE.compactClasses());
     assertEquals(LiveSearch.ALL_QUANTIZERS, LiveSearch.LIVE.quantizers());
     assertEquals(
-      LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION | LiveSearch.FIT_PAIR | LiveSearch.HALF_MOTION,
+      LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION | LiveSearch.FIT_ONE | LiveSearch.HALF_MOTION,
       LiveSearch.LIVE.shortcuts()
     );
   }

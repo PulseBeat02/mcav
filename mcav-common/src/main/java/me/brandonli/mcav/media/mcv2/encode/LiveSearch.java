@@ -65,9 +65,9 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  * @param shortcuts      the search's shortcuts, as a bit set: {@link #FAST_GRIDS} intra grid nodes as cell means,
  *                       {@link #FAST_PALETTES} two integer Lloyd iterations on sampled pixels ({@link FastFits}),
  *                       {@link #FAST_COMPACT} compact luma nodes as cell means, {@link #ONE_PREDICTION} compact
- *                       records tried on the closer of the global and the local prediction only, {@link #FIT_PAIR}
- *                       compact records at the two quantizers their fitted values suggest only, {@link #HALF_MOTION}
- *                       local motion searched at half resolution first
+ *                       records tried on the closer of the global and the local prediction only, {@link #FIT_ONE}
+ *                       compact records at the quantizer their fitted values need only, {@link #HALF_MOTION} local
+ *                       motion searched at half resolution first
  */
 public record LiveSearch(
   int smallestBlock,
@@ -101,10 +101,10 @@ public record LiveSearch(
 
   /**
    * A compact record tries, of its class's quantizers, only the finest that holds the values fitted to the block without
-   * clipping them and the one below it, which clips a few for finer steps: a record's length does not depend on its
-   * quantizer, so a coarser one only adds error.
+   * clipping them: a record's length does not depend on its quantizer, so a coarser one only adds error, and trying the
+   * next finer one too, which clips a few values for finer steps, cost a tenth more CPU for no measurable gain.
    */
-  public static final int FIT_PAIR = 16;
+  public static final int FIT_ONE = 16;
 
   /**
    * The local motion of 32- and 16-pixel blocks is first searched on the pictures at half resolution, then refined at
@@ -200,8 +200,8 @@ public record LiveSearch(
    * (the report's lever table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one
    * above 150 where the previous frame split its superblock and above 450 where it coded it whole, local motion searched
    * from the previous frame's vectors down to 16 pixels and first at half resolution, P frames choosing between local
-   * motion, solid colours, palettes, the 2x2 and reduced intra grids, three compact classes at the two quantizers their
-   * fitted values suggest, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits of
+   * motion, solid colours, palettes, the 2x2 and reduced intra grids, three compact classes at the quantizer their fitted
+   * values need, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits of
    * intra grids and palettes.
    */
   public static final LiveSearch LIVE = new LiveSearch(
@@ -220,7 +220,7 @@ public record LiveSearch(
     true,
     LIVE_SEARCH_BLOCK,
     true,
-    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_PAIR | HALF_MOTION
+    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_ONE | HALF_MOTION
   );
 
   /**

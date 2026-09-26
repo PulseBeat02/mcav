@@ -87,9 +87,9 @@ public record EncoderSettings(
 
   /**
    * The live profile: the live search ({@link LiveSearch#LIVE}) and a keyframe every 120 frames, four seconds at 30
-   * frames per second, at lambda 72, the largest that keeps the 1080p30 proxy at a VMAF mean of 75 (75.6; gameplay scores
-   * 88.8 there). It spends bits differently from {@link #SHIP} - a few percent fewer at the same VMAF on the proxy, under
-   * a tenth more on gameplay - and the resource pack decodes both.
+   * frames per second, at lambda 72, the largest that keeps the 1080p30 proxy at a VMAF mean of 75 (75.65; gameplay
+   * scores 88.8 there). It spends bits differently from {@link #SHIP} - a few percent fewer at the same VMAF on the
+   * proxy, under a tenth more on gameplay - and the resource pack decodes both.
    */
   public static final EncoderSettings LIVE = new EncoderSettings(
     LIVE_LAMBDA,
