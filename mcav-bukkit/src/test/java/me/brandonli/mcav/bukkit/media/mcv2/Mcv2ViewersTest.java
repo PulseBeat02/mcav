@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
@@ -97,9 +98,7 @@ final class Mcv2ViewersTest {
     viewers.handleStatus(this.status(PACK, Status.DISCARDED));
     assertEquals(Mcv2Viewers.PackState.REFUSED, viewers.getState(uuid));
     assertEquals(List.of(this.player), this.refused, "the refusal is reported once");
-    viewers.handleQuit(
-      new PlayerQuitEvent(this.player, (net.kyori.adventure.text.Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED)
-    );
+    viewers.handleQuit(new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     assertNull(viewers.getState(uuid));
     assertThrows(NullPointerException.class, () -> viewers.requested(null));
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
@@ -136,7 +135,7 @@ final class Mcv2ViewersTest {
     final EventExecutor quit = quits.getAllValues().get(quitListeners.getAllValues().lastIndexOf(listener));
     executors.getValue().execute(listener, this.status(PACK, Status.SUCCESSFULLY_LOADED));
     assertTrue(viewers.isLoaded(PLAYER));
-    final Event left = new PlayerQuitEvent(this.player, (net.kyori.adventure.text.Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED);
+    final Event left = new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED);
     quit.execute(listener, left);
     assertNull(viewers.getState(PLAYER));
     viewers.unregister();

@@ -30,7 +30,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -69,7 +71,7 @@ final class Mcv2ScreenTest {
   private World world;
   private final List<Location> spawned = new ArrayList<>();
   private final List<ItemFrame> frames = new ArrayList<>();
-  private final java.util.Map<Integer, ItemStack> items = new java.util.HashMap<>();
+  private final Map<Integer, ItemStack> items = new HashMap<>();
   private MockedStatic<Mcv2Screen> statics;
 
   @BeforeEach
@@ -78,17 +80,17 @@ final class Mcv2ScreenTest {
     this.player = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = mock(World.class);
-    when(
-      this.world.spawn(any(Location.class), eq(ItemFrame.class), org.mockito.ArgumentMatchers.<Consumer<? super ItemFrame>>any())
-    ).thenAnswer(invocation -> {
-      final ItemFrame frame = mock(ItemFrame.class);
-      when(frame.getUniqueId()).thenReturn(UUID.randomUUID());
-      final Consumer<? super ItemFrame> configurator = invocation.getArgument(2);
-      configurator.accept(frame);
-      this.spawned.add(invocation.getArgument(0));
-      this.frames.add(frame);
-      return frame;
-    });
+    when(this.world.spawn(any(Location.class), eq(ItemFrame.class), ArgumentMatchers.<Consumer<? super ItemFrame>>any())).thenAnswer(
+      invocation -> {
+        final ItemFrame frame = mock(ItemFrame.class);
+        when(frame.getUniqueId()).thenReturn(UUID.randomUUID());
+        final Consumer<? super ItemFrame> configurator = invocation.getArgument(2);
+        configurator.accept(frame);
+        this.spawned.add(invocation.getArgument(0));
+        this.frames.add(frame);
+        return frame;
+      }
+    );
     // item components are only bound on a running server, so the tests that build a screen get mock page items
     this.statics = Mockito.mockStatic(Mcv2Screen.class, Mockito.CALLS_REAL_METHODS);
     this.statics.when(() -> Mcv2Screen.pageItem(ArgumentMatchers.anyInt())).thenAnswer(invocation ->
@@ -166,10 +168,10 @@ final class Mcv2ScreenTest {
     this.statics.close();
     final ItemStack copy = mock(ItemStack.class);
     try (
-      MockedConstruction<net.minecraft.world.item.ItemStack> stacks = Mockito.mockConstruction(net.minecraft.world.item.ItemStack.class);
+      MockedConstruction<net.minecraft.world.item.ItemStack> stacks = Mockito.mockConstruction(net.minecraft.world.item.ItemStack.class); // fqn: Minecraft's ItemStack beside the imported Bukkit one
       MockedStatic<CraftItemStack> crafts = Mockito.mockStatic(CraftItemStack.class)
     ) {
-      crafts.when(() -> CraftItemStack.asBukkitCopy(ArgumentMatchers.any(net.minecraft.world.item.ItemStack.class))).thenReturn(copy);
+      crafts.when(() -> CraftItemStack.asBukkitCopy(ArgumentMatchers.any(net.minecraft.world.item.ItemStack.class))).thenReturn(copy); // fqn: Minecraft's ItemStack beside the imported Bukkit one
       assertSame(copy, Mcv2Screen.pageItem(2_000_000_123));
       verify(stacks.constructed().getFirst()).set(DataComponents.MAP_ID, new MapId(2_000_000_123));
     }

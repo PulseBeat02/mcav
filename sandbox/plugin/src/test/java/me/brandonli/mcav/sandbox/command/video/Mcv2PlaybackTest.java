@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,7 +59,7 @@ final class Mcv2PlaybackTest {
 
   private long[] sent(final int times) {
     final ArgumentCaptor<byte[]> frames = ArgumentCaptor.forClass(byte[].class);
-    verify(this.channel, org.mockito.Mockito.times(times)).send(frames.capture());
+    verify(this.channel, times(times)).send(frames.capture());
     final List<byte[]> all = frames.getAllValues();
     final byte[] last = all.getLast();
     return new long[] { Mcv2Format.u32(last, 12), Mcv2Format.u32(last, 16) };

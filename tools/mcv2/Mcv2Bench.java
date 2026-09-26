@@ -16,11 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import com.sun.management.OperatingSystemMXBean;
+import com.sun.management.ThreadMXBean;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
+import java.lang.ref.Reference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -137,8 +140,8 @@ public final class Mcv2Bench {
     final long[] times = new long[frames];
     final long[] cpu = new long[frames];
     final long[] allocated = new long[frames];
-    final com.sun.management.OperatingSystemMXBean os = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-    final com.sun.management.ThreadMXBean threadBean = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+    final OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+    final ThreadMXBean threadBean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
     long logical = 0;
     long wire = 0;
     long zlib = 0;
@@ -202,7 +205,7 @@ public final class Mcv2Bench {
     }
     System.gc();
     final long heapAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-    java.lang.ref.Reference.reachabilityFence(encoder);
+    Reference.reachabilityFence(encoder);
     if (out != null) {
       out.close();
     }

@@ -39,6 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pack;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
@@ -198,7 +199,7 @@ final class Mcv2SupportTest {
       MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
       MockedConstruction<Mcv2Viewers> trackers = Mockito.mockConstruction(Mcv2Viewers.class, (_, context) -> {
         @SuppressWarnings("unchecked")
-        final java.util.function.Consumer<Player> onRefused = (java.util.function.Consumer<Player>) context.arguments().get(1);
+        final Consumer<Player> onRefused = (Consumer<Player>) context.arguments().get(1);
         final Player player = mock(Player.class);
         onRefused.accept(player);
         verify(player).sendMessage(Message.MCV2_REFUSED.build());

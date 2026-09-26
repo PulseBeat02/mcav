@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import java.util.Arrays;
+
 /**
  * The cheap fits of a live search. The reference fits grids by least squares against the decoder's interpolation and
  * clusters palettes with four float Lloyd iterations over every pixel, which is what makes its records good and its
@@ -40,7 +42,7 @@ final class FastFits {
    * @param sums   receives the channel sums of the 16 cells, cell-major: {@code (row * 4 + column) * 3 + channel}
    */
   static void cellSums(final int[] source, final int size, final int[] sums) {
-    java.util.Arrays.fill(sums, 0, 48, 0);
+    Arrays.fill(sums, 0, 48, 0);
     final int cell = size / 4;
     for (int y = 0; y < size; y++) {
       final int row = (y / cell) * 4;
@@ -94,7 +96,7 @@ final class FastFits {
    */
   static void lumaResidual(final int[] source, final int[] prediction, final int size, final int[] sums, final float[] nodes) {
     final int cell = size / 4;
-    java.util.Arrays.fill(sums, 0, 16, 0);
+    Arrays.fill(sums, 0, 16, 0);
     for (int y = 0; y < size; y++) {
       final int row = (y / cell) * 4;
       for (int x = 0; x < size; x++) {
@@ -151,7 +153,7 @@ final class FastFits {
       final int r1 = (int) endpoints[3];
       final int g1 = (int) endpoints[4];
       final int b1 = (int) endpoints[5];
-      java.util.Arrays.fill(sums, 0, 8, 0);
+      Arrays.fill(sums, 0, 8, 0);
       for (int y = 0; y < size; y += step) {
         for (int x = 0; x < size; x += step) {
           final int at = (y * size + x) * 3;

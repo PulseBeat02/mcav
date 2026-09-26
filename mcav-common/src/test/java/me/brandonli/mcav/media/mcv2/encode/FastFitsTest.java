@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Arrays;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -108,7 +109,7 @@ final class FastFitsTest {
   void keepsTheSeedsOfAnEmptyCluster() {
     // one colour everywhere: both seeds are that colour, every pixel joins the first, the second keeps its seed
     final int[] source = new int[8 * 8 * 3];
-    java.util.Arrays.fill(source, 77);
+    Arrays.fill(source, 77);
     final float[] endpoints = new float[6];
     FastFits.cluster(source, 8, new long[8], endpoints);
     assertArrayEquals(new float[] { 77, 77, 77, 77, 77, 77 }, endpoints);

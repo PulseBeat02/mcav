@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.function.IntBinaryOperator;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
@@ -50,7 +51,7 @@ final class TreeReaderTest {
   }
 
   /** A full palette record of an 8x8 block whose selector at (x, y) is {@code bit(x, y)}. */
-  private static byte[] palette(final java.util.function.IntBinaryOperator bit) {
+  private static byte[] palette(final IntBinaryOperator bit) {
     final byte[] record = new byte[6 + 8];
     System.arraycopy(ENDPOINTS, 0, record, 0, 6);
     for (int y = 0; y < 8; y++) {

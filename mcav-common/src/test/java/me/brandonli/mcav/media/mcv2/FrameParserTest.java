@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.mcv2.encode.TreeNode;
@@ -122,7 +123,7 @@ final class FrameParserTest {
   @Test
   void rejectsFramesOfTheWrongLength() {
     final byte[] frame = keyframe(8, 8, DERIVED, solid(1, 1, 1));
-    assertEquals("Invalid frame length", message(java.util.Arrays.copyOf(frame, 40)));
+    assertEquals("Invalid frame length", message(Arrays.copyOf(frame, 40)));
     final byte[] huge = new byte[Mcv2Format.MAX_FRAME_BYTES + 1];
     System.arraycopy(frame, 0, huge, 0, 4);
     assertEquals("Invalid frame length", message(huge));
@@ -169,7 +170,7 @@ final class FrameParserTest {
   @Test
   void rejectsAShortIndexFrameBeyondSixteenBitAddresses() {
     final byte[] frame = predicted(32, 32, 0, 0, SHORT, motion(1, 1));
-    final byte[] padded = java.util.Arrays.copyOf(frame, 65536);
+    final byte[] padded = Arrays.copyOf(frame, 65536);
     Mcv2Format.putU32(padded, 32, padded.length);
     assertEquals("Short index frame exceeds the address range", message(padded));
   }

@@ -19,6 +19,8 @@ package me.brandonli.mcav.media.mcv2;
 
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * The reconstruction kernels as the reference decoder writes them, in float32 and float64, kept as the oracle the
  * integer kernels of {@link Reconstruction} are tested against: this is the first Java form of the kernels, the one the
@@ -335,7 +337,7 @@ public final class ReconstructionOracle {
    * @param out        the reconstructed channels
    */
   public static void reduced(
-    final int@org.checkerframework.checker.nullness.qual.Nullable[] prediction,
+    final int@Nullable[] prediction,
     final byte[] record,
     final int offset,
     final int luma,

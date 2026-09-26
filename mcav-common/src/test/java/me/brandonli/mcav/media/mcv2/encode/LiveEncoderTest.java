@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -452,7 +453,7 @@ final class LiveEncoderTest {
     final byte[] reference = scene(64, 64, 0, 0);
     final byte[] source = scene(64, 64, 2, 3);
     final int[] field = new int[8 * 8];
-    java.util.Arrays.fill(field, 6 << 16);
+    Arrays.fill(field, 6 << 16);
     final EncoderSettings settings = EncoderSettings.LIVE;
     final FrameJob job = new FrameJob(settings, source, reference, 64, 64, false, new int[] { 0 }, new int[] { 0 }, field, null);
     assertEquals(6 << 16, job.previousMotion(-5, 100));

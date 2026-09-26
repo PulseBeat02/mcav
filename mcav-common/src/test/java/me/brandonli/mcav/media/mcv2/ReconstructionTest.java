@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Arrays;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -58,6 +59,6 @@ final class ReconstructionTest {
     assertEquals(4 * 120, out[(7 * 8 + 7) * 3]);
     final int[] rounded = new int[8 * 8 * 3];
     Reconstruction.predicted(new int[] { 2, 6, 5 }, 1, rounded);
-    assertArrayEquals(new int[] { 1, 2, 1 }, java.util.Arrays.copyOf(rounded, 3));
+    assertArrayEquals(new int[] { 1, 2, 1 }, Arrays.copyOf(rounded, 3));
   }
 }

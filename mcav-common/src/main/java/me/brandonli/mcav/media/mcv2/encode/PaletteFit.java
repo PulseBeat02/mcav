@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import java.util.Arrays;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.Reconstruction;
 
@@ -79,7 +80,7 @@ final class PaletteFit {
     final long[] sums = new long[6];
     final int[] weights = new int[2];
     for (int iteration = 0; iteration < 4; iteration++) {
-      java.util.Arrays.fill(sums, 0);
+      Arrays.fill(sums, 0);
       weights[0] = 0;
       weights[1] = 0;
       for (int i = 0; i < count; i++) {

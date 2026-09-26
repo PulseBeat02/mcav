@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.media.mcv2.encode.FrameWriter;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ final class Mcv2ReceiverTest {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(keyframeWithId(0xFFFFFFFFL, 1));
     final byte[] picture = receiver.accept(keyframeWithId(0, 9));
-    assertArrayEquals(new byte[] { 9, 9, 9 }, java.util.Arrays.copyOf(picture, 3));
+    assertArrayEquals(new byte[] { 9, 9, 9 }, Arrays.copyOf(picture, 3));
     assertEquals(0, receiver.getFrameId());
   }
 

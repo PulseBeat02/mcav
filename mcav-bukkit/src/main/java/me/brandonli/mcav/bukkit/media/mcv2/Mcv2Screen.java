@@ -130,7 +130,7 @@ public final class Mcv2Screen {
 
   /** A filled map item naming a map id, which need not exist on the server. */
   static ItemStack pageItem(final int mapId) {
-    final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(Items.FILLED_MAP);
+    final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(Items.FILLED_MAP); // fqn: Minecraft's ItemStack beside the imported Bukkit one
     stack.set(DataComponents.MAP_ID, new MapId(mapId));
     return CraftItemStack.asBukkitCopy(stack);
   }

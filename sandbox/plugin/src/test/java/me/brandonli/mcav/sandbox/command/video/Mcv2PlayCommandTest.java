@@ -178,7 +178,7 @@ final class Mcv2PlayCommandTest {
       verify(channel, never()).send(any());
       // a stream that cannot be read is reported like one to play: the play and stop messages, then the error
       this.command.stream(this.sender, this.selector, "5x3", 20, 60, this.streams.resolve("missing.mcs").toString());
-      verify(this.sender, Mockito.times(3)).sendMessage(any(net.kyori.adventure.text.Component.class));
+      verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
     }
   }
 
@@ -188,7 +188,7 @@ final class Mcv2PlayCommandTest {
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.streams.resolve("missing.mcs").toString());
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.archive(List.of(new byte[48])).toString());
     // the wall size, the missing file and the frame that is not MCV2 are each reported
-    verify(this.sender, Mockito.times(3)).sendMessage(any(net.kyori.adventure.text.Component.class));
+    verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
     this.command.play(this.sender, this.selector, "5x3", 21, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
     verify(this.support, never()).offer(any(), any());

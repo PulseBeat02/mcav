@@ -176,7 +176,7 @@ final class GlobalMotionTest {
     // past the edge are skipped while its columns are measured
     final long[] before = new long[256 + 256];
     final long[] after = new long[256 + 256];
-    final java.util.Random random = new java.util.Random(3);
+    final Random random = new Random(3);
     for (int i = 0; i < 256; i++) {
       before[256 + i] = random.nextInt(1_000_000);
     }

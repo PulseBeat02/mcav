@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -66,7 +67,7 @@ final class CompactRecordTest {
     }
   )
   void rejectsBrokenRecords(final String hex, final int offset, final int q, final String name) {
-    final byte[] data = java.util.HexFormat.of().parseHex(hex);
+    final byte[] data = HexFormat.of().parseHex(hex);
     assertThrows(Mcv2Exception.class, () -> CompactRecord.parse(data, offset, q), name);
   }
 
