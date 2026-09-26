@@ -205,8 +205,15 @@ public final class Mcv2Channel {
     } catch (final Mcv2Exception exception) {
       throw new IllegalArgumentException("Not a valid MCV2 frame: " + exception.getMessage(), exception);
     }
+    final Mcv2SendEvent event = new Mcv2SendEvent();
+    event.frameId = header.getFrameId();
+    event.referenceId = header.getReferenceId();
+    event.keyframe = header.isKeyframe();
+    event.bytes = frame.length;
     if (pages.size() > this.configuration.getPageSlots()) {
       this.keyframeRequested = true;
+      event.colors = -1;
+      event.commit();
       return -1;
     }
     final List<MapTilePatch> patches = new ArrayList<>();
@@ -229,13 +236,23 @@ public final class Mcv2Channel {
     for (final Map.Entry<UUID, Mcv2Link> recipient : this.recipients.entrySet()) {
       final UUID viewer = recipient.getKey();
       final Mcv2Link link = recipient.getValue();
+      final long behind = link.getBehind();
       if (link.offer(header.getFrameId(), header.getReferenceId(), keyframe, bytes)) {
+        event.sentTo++;
         // the bundle's bytes leave the backlog once written, or at once for a viewer who left
         for (final MapPacketFactory.Bundle bundle : bundles) {
           bundle.send(viewer, () -> link.written(bundle.bytes()));
         }
+      } else if (link.getBehind() > behind) {
+        event.behind++;
+      } else {
+        event.waiting++;
       }
+      event.backlog = Math.max(event.backlog, link.getBacklog());
     }
+    event.colors = colors;
+    event.sent = System.currentTimeMillis();
+    event.commit();
     return colors;
   }
 }

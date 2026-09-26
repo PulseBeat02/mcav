@@ -26,11 +26,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
@@ -46,6 +50,7 @@ import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 final class Mcv2ChannelTest {
 
@@ -218,6 +223,52 @@ final class Mcv2ChannelTest {
     assertEquals(3, this.server.getSentPackets(LOADED).size());
     assertEquals(5, this.server.getSentPackets(other).size());
     assertEquals(0, channel.getLinks().get(other).getBehind());
+  }
+
+  @Test
+  void recordsEverySendForTheFlightRecorder(@TempDir final Path directory) throws Exception {
+    final Mcv2Configuration tight = Mcv2Configuration.builder()
+      .viewers(List.of(LOADED))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .pageMap(500)
+      .pageSlots(1)
+      .backlogLimit(400)
+      .build();
+    final Mcv2Channel channel = new Mcv2Channel(tight, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    try (Recording recording = new Recording()) {
+      recording.enable("me.brandonli.mcav.Mcv2Send");
+      recording.start();
+      // sent, sent, held back by the backlog, then waiting for its reference, and one too large for the slot
+      channel.send(frame(0, 0, true));
+      channel.send(frame(1, 0, false));
+      channel.send(frame(2, 1, false));
+      this.server.completeWrites(LOADED);
+      channel.send(frame(3, 2, false));
+      channel.send(large());
+      recording.stop();
+      final Path file = directory.resolve("sends.jfr");
+      recording.dump(file);
+      final List<RecordedEvent> sends = RecordingFile.readAllEvents(file)
+        .stream()
+        .filter(event -> event.getEventType().getName().equals("me.brandonli.mcav.Mcv2Send"))
+        .toList();
+      assertEquals(5, sends.size());
+      assertTrue(sends.get(0).getBoolean("keyframe"));
+      assertEquals(1, sends.get(1).getInt("sentTo"));
+      assertEquals(0, sends.get(1).getLong("referenceId"));
+      assertEquals(1, sends.get(2).getInt("behind"));
+      assertTrue(sends.get(2).getLong("backlog") > 400);
+      assertEquals(1, sends.get(3).getInt("waiting"));
+      assertEquals(-1, sends.get(4).getInt("colors"));
+      assertTrue(sends.get(0).getLong("sent") > 0 && sends.get(0).getInt("bytes") > 48);
+    }
   }
 
   @Test
