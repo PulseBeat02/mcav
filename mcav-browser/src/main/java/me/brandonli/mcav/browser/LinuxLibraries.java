@@ -202,6 +202,16 @@ final class LinuxLibraries {
     this.hostLibraries = Map.copyOf(host);
   }
 
+  /**
+   * Gets the folder the libraries are installed in.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
   private static Path defaultFolder() {
     final Path cache = IOUtils.getCachedFolder();
     return cache.resolve("jcef-libraries");
@@ -615,25 +625,25 @@ final class LinuxLibraries {
     final int slash = relative.lastIndexOf('/');
     final String name = relative.substring(slash + 1);
     final List<Path> matches = new ArrayList<>();
-    if (name.isEmpty()) {
-      // a folder, or the root itself, which holds no library
-      return matches;
-    }
-    // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is resolved
-    final Path parent = slash < 0 ? root : root.resolve(relative.substring(0, slash));
-    final FileSystem fileSystem = root.getFileSystem();
-    final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
-    try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
-      for (final Path entry : entries) {
-        final Path entryName = Objects.requireNonNull(entry.getFileName(), "an entry of a folder has a name");
-        if (matcher.matches(entryName)) {
-          matches.add(entry);
+    // a pattern that ends with a slash names a folder, or the root itself, which holds no library
+    if (!name.isEmpty()) {
+      // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is
+      // resolved; the folder of a name without one is the root, which the empty text resolves to
+      final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
+      final FileSystem fileSystem = root.getFileSystem();
+      final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
+      try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
+        for (final Path entry : entries) {
+          final Path entryName = Objects.requireNonNull(entry.getFileName(), "an entry of a folder has a name");
+          if (matcher.matches(entryName)) {
+            matches.add(entry);
+          }
         }
+      } catch (final IOException exception) {
+        // an include of a folder that is not there includes nothing
       }
-    } catch (final IOException exception) {
-      // an include of a folder that is not there includes nothing
+      Collections.sort(matches);
     }
-    Collections.sort(matches);
     return matches;
   }
 

@@ -177,24 +177,37 @@ public final class Frames {
   }
 
   /**
-   * Describes the last frame for a failure message: how many frames arrived, and the size and the center color of
-   * the last one.
+   * Describes the last frame for a failure message: how many frames arrived, the size and the center color of the
+   * last one, and the center colors in the order they arrived, each with how many frames in a row showed it.
    *
    * @return the description
    */
   public String describeLast() {
-    final Frame frame = this.last();
-    if (frame == null) {
+    final List<Frame> all = this.getFrames();
+    if (all.isEmpty()) {
       return "no frame";
     }
+    final Frame frame = all.getLast();
+    final StringBuilder centers = new StringBuilder();
+    int run = 0;
+    for (int index = 0; index < all.size(); index++) {
+      run++;
+      final int center = all.get(index).getCenter();
+      if (index == all.size() - 1 || all.get(index + 1).getCenter() != center) {
+        centers.append(centers.isEmpty() ? "" : ", ").append(String.format("%06x", center)).append(" x").append(run);
+        run = 0;
+      }
+    }
     return (
-      this.count() +
+      all.size() +
       " frames, the last " +
       frame.getWidth() +
       "x" +
       frame.getHeight() +
       " with center " +
-      String.format("%06x", frame.getCenter())
+      String.format("%06x", frame.getCenter()) +
+      "; centers in order: " +
+      centers
     );
   }
 

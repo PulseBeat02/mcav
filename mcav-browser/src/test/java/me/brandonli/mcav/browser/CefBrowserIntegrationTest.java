@@ -189,7 +189,18 @@ class CefBrowserIntegrationTest {
     final Frames frames = this.start(player, "/main");
     this.awaitInput(player);
     player.sendKeyEvent("o");
-    Await.until("the popup shown in place", () -> frames.lastShows(TestPages.POPUP_COLOR));
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (!frames.lastShows(TestPages.POPUP_COLOR)) {
+      assertTrue(
+        System.nanoTime() < deadline,
+        () ->
+          "the popup is shown in place: " +
+          frames.describeLast() +
+          "; the pages reported " +
+          this.pages.getEvents().stream().map(TestPages.PageEvent::getType).toList()
+      );
+      Thread.onSpinWait();
+    }
     assertTrue(player.isPlaying());
   }
 

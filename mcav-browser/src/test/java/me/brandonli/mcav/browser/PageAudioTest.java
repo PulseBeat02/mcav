@@ -108,10 +108,12 @@ class PageAudioTest {
     final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
     largest[largest.length - 1] = 9;
     assertArrayEquals(largest, samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(largest))));
-    // decoded, as its text is within one group of the limit, and then refused
+    // refused for the length of its text alone, which is longer than that of any sound within the limit
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 4])), "a frame more");
-    // refused before it is decoded
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 8])), "longer still");
+    // within the length of the largest sound, but more bytes than a message holds: refused once decoded
+    final String longest = "A".repeat(87_384);
+    assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, longest, "7")), "65538 bytes");
   }
 
   @Test
@@ -214,6 +216,46 @@ class PageAudioTest {
   }
 
   @Test
+  void aCallThatTheBudgetFitsExactlyPasses() {
+    final AtomicLong now = new AtomicLong();
+    final List<Integer> passed = new ArrayList<>();
+    final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
+    // one context throughout, whose id is as long as an id can be, so the length of a call tells its sound exactly
+    final String context = "-1234567890";
+    final String largest = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAX_AUDIO_BYTES]), context);
+    for (int count = 0; count < 5; count++) {
+      audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    }
+    audio.onEvent(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[56_320]), context));
+    // 10417 ns refill 4 bytes; a frame of sound says from its length alone that it holds 4 bytes at least, which is
+    // what is left
+    now.addAndGet(10_417L);
+    final String frame = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), context);
+    assertEquals(4, PageAudio.leastBytes(frame));
+    audio.onEvent(PageAudio.BINDING_EVENT, frame);
+    audio.onEvent(PageAudio.BINDING_EVENT, frame);
+    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 4), passed, "the budget is spent after the first");
+  }
+
+  @Test
+  void theBudgetGrowsUntilTheSoundIsTaken() {
+    final AtomicLong now = new AtomicLong();
+    final AtomicLong step = new AtomicLong();
+    final List<Integer> passed = new ArrayList<>();
+    final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), () -> now.addAndGet(step.get()));
+    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    for (int count = 0; count < 5; count++) {
+      audio.onEvent(PageAudio.BINDING_EVENT, largest);
+    }
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
+    // every look at the clock now finds 10417 ns more, 4 bytes of budget: the look before decoding leaves 4 bytes,
+    // and the look when the sound is taken 8, which two frames need
+    step.set(10_417L);
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[8]));
+    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 8), passed);
+  }
+
+  @Test
   void aPageGetsTheBindingAndTheScriptInThatOrder() {
     final List<DevToolsInput.DevToolsCall> calls = PageAudio.install();
     assertEquals(3, calls.size());
@@ -231,5 +273,6 @@ class PageAudioTest {
     assertTrue(script.contains("const BINDING = '" + PageAudio.BINDING + "';"), "the script uses the binding's name");
     assertTrue(script.contains("delete globalThis[BINDING]"), "the page cannot send through it once it is taken");
     assertTrue(script.contains("const RATE = 48000;"), "the sound has the rate of mcav's audio pipeline");
+    assertTrue(script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {"), "placed twice, it runs once");
   }
 }

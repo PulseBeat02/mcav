@@ -110,14 +110,17 @@ class HelperSessionTest {
   }
 
   /**
-   * Creates an empty folder in the temporary folder of the system, whose path is short: macOS allows Unix domain
-   * sockets of at most 104 bytes, which a session folder inside JUnit's temporary folder there exceeds.
+   * Creates an empty folder with a short path: macOS allows Unix domain sockets of at most 104 bytes, which a session
+   * folder exceeds one level below its temporary folder ({@code /var/folders/…/T/}, 49 characters), so {@code /tmp} is
+   * used where it exists.
    *
    * @return the folder, deleted after the test
    * @throws IOException if it cannot be created
    */
   private Path shortDirectory() throws IOException {
-    final Path parent = Files.createTempDirectory("mcav");
+    final Path tmp = Path.of("/tmp");
+    final boolean posix = Files.isDirectory(tmp) && Files.isWritable(tmp);
+    final Path parent = posix ? Files.createTempDirectory(tmp, "m") : Files.createTempDirectory("m");
     this.shortDirectories.add(parent);
     return parent;
   }

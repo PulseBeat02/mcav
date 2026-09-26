@@ -258,6 +258,18 @@ class CefBrowserPlayerTest {
   }
 
   @Test
+  void aReleaseEndsTheAudioThreadAndNeitherAPlayingNorAReleasedPlayerStarts() {
+    final java.util.Set<Thread> before = audioThreads();
+    assertTrue(this.player.start(SOURCE));
+    assertFalse(before.containsAll(audioThreads()), "a started player hands its sound over on a thread of its own");
+    assertFalse(this.player.start(SOURCE), "a playing player does not start twice");
+    assertTrue(this.player.release());
+    Await.until("the audio thread of the released player ended", () -> before.containsAll(audioThreads()));
+    assertFalse(this.player.start(SOURCE), "a released player does not start again");
+    assertEquals(1, this.sessions.size());
+  }
+
+  @Test
   void aHelperThatEndsTakesTheSoundOfItsSessionAlongAndLeavesNoThread() {
     final java.util.Set<Thread> before = audioThreads();
     final List<byte[]> heard = this.attachSoundRecorder();

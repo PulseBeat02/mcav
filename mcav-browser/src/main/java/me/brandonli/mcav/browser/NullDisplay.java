@@ -790,7 +790,8 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer keyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
-    if (request.remaining() < 2) {
+    // the first key code, the count and two unused bytes
+    if (request.remaining() < 4) {
       return error(BAD_LENGTH, GET_KEYBOARD_MAPPING, sequence, order, 0);
     }
     request.get();

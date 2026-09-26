@@ -169,15 +169,18 @@ class CefEngineTest {
   @Test
   void aNewBrowserGetsTheScriptsOfWindowsAndSoundBeforeItLoadsThePage() throws Exception {
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
+    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
     final CefBrowser closed = mock(CefBrowser.class);
-    CefEngine.openPage(closed, "https://example.com/", 1_000L, audio);
+    CefEngine.openPage(closed, "https://example.com/", 1_000L, audio, notices::add);
     verify(closed).loadURL("https://example.com/");
     final CefBrowser browser = mock(CefBrowser.class);
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("closed"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
-    CefEngine.openPage(browser, "https://example.com/", 1_000L, audio);
+    CefEngine.openPage(browser, "https://example.com/", 1_000L, audio, notices::add);
+    // the second attempt, and then the load
+    EventQueue.invokeAndWait(() -> {});
     EventQueue.invokeAndWait(() -> {});
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     final InOrder order = inOrder(devTools, browser);
@@ -188,6 +191,55 @@ class CefEngineTest {
     order.verify(devTools).executeDevToolsMethod("Runtime.addBinding", "{\"name\":\"__mcavAudio\"}");
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, PageAudio.install().get(2).getParameters());
     order.verify(browser).loadURL("https://example.com/");
+    // the calls failed twice, the second time through a new client, so the page loads without the confirmation
+    verify(devTools).close();
+    verify(devTools, times(10)).executeDevToolsMethod(anyString(), anyString());
+    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
+  }
+
+  @Test
+  void aClientThatLosesItsAnswersIsReplacedAndTheScriptsArePlacedAgain() throws Exception {
+    final CefBrowser browser = mock(CefBrowser.class);
+    final CefDevToolsClient lost = mock(CefDevToolsClient.class);
+    final CefDevToolsClient working = mock(CefDevToolsClient.class);
+    when(browser.getDevToolsClient()).thenReturn(lost, working);
+    when(lost.executeDevToolsMethod(anyString(), anyString())).thenReturn(new CompletableFuture<>());
+    when(working.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture("{}"));
+    final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
+    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    CefEngine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
+    Await.until("the page loaded", () -> {
+      try {
+        EventQueue.invokeAndWait(() -> {});
+      } catch (final InterruptedException | java.lang.reflect.InvocationTargetException exception) {
+        throw new IllegalStateException(exception);
+      }
+      return mockingDetails(browser).getInvocations().stream().anyMatch(call -> call.getMethod().getName().equals("loadURL"));
+    });
+    verify(lost).close();
+    verify(working).addEventListener(audio);
+    verify(working, times(5)).executeDevToolsMethod(anyString(), anyString());
+    verify(browser).loadURL("https://example.com/again");
+    assertEquals(List.of(), notices, "the new client answered");
+  }
+
+  @Test
+  void aPageWaitsForTheAnswerThatItsScriptsArePlacedEvenWhenItIsSlow() throws Exception {
+    final CefBrowser browser = mock(CefBrowser.class);
+    final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
+    when(browser.getDevToolsClient()).thenReturn(devTools);
+    final CompletableFuture<String> slow = new CompletableFuture<>();
+    when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(slow);
+    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    CefEngine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    // a slow machine answered after more than a second, when the page used to be loaded without its scripts
+    Thread.sleep(1_500L);
+    EventQueue.invokeAndWait(() -> {});
+    verify(browser, never()).loadURL(anyString());
+    slow.complete("{}");
+    EventQueue.invokeAndWait(() -> {});
+    verify(browser).loadURL("https://example.com/slow");
+    assertEquals(List.of(), notices);
   }
 
   @Test
@@ -197,8 +249,9 @@ class CefEngineTest {
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
-    // the deadline of a real helper, so a slow machine does not reach it before the check that nothing loaded yet
-    CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime));
+    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    // a second, so a slow machine does not reach it before the check that nothing loaded yet
+    CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     verify(browser, never()).loadURL(anyString());
     Await.until("the page loaded after the timeout", () -> {
       try {
@@ -209,6 +262,8 @@ class CefEngineTest {
       return mockingDetails(browser).getInvocations().stream().anyMatch(call -> call.getMethod().getName().equals("loadURL"));
     });
     verify(browser).loadURL("https://example.com/lost");
+    verify(devTools).close();
+    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
   }
 
   @Test

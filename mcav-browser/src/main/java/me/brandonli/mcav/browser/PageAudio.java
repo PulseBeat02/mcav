@@ -67,6 +67,12 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     // the DevTools binding, and nothing reaches the speakers of the server: the tap outputs silence.
     (() => {
       'use strict';
+      // the helper places the script again when it could not tell whether the first time worked; once is enough
+      const PLACED = Symbol.for('mcav.audio');
+      if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+        return;
+      }
+      Object.defineProperty(globalThis, PLACED, { value: true });
       const BINDING = '__mcavAudio';
       const INSTALLED = Symbol.for('mcav.audio.installed');
       const RATE = 48000;
@@ -279,8 +285,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
   private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
-  // one group of Base64 past the limit, so a payload is decoded before its bytes are counted, never before its length
-  private static final int MAX_PAYLOAD_CHARS = (HelperProtocol.MAX_AUDIO_BYTES / 3 + 2) * 4;
+  // the Base64 of the most sound a message holds; a longer payload holds more and is refused before it is decoded
+  private static final int MAX_PAYLOAD_CHARS = ((HelperProtocol.MAX_AUDIO_BYTES + 2) / 3) * 4;
   // what follows the payload: the context of the call, and nothing else
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
@@ -408,7 +414,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
     final int start = PREFIX.length();
     final int end = parameters.indexOf('"', start);
-    if (end < 0 || end - start > MAX_PAYLOAD_CHARS) {
+    if (end == -1 || end - start > MAX_PAYLOAD_CHARS) {
       return null;
     }
     if (!CONTEXT.matcher(parameters).region(end, parameters.length()).matches()) {
@@ -421,9 +427,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     } catch (final IllegalArgumentException exception) {
       return null;
     }
+    // the length of the text leaves at most two bytes past the largest message, so whole frames never exceed it
     final int length = samples.length;
-    final boolean frames = length > 0 && length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
-    if (!frames || length > HelperProtocol.MAX_AUDIO_BYTES) {
+    if (length == 0 || length % HelperProtocol.AUDIO_FRAME_BYTES != 0) {
       return null;
     }
     // the id of the context is what lies between the name of its field and the closing brace

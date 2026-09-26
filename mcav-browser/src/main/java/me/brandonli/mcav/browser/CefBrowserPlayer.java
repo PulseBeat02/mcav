@@ -121,37 +121,39 @@ final class CefBrowserPlayer implements BrowserPlayer {
     Preconditions.checkNotNull(source, "Source must not be null");
     this.lock.lock();
     try {
-      if (this.released.get() || this.state.get() == State.PLAYING) {
-        return false;
-      }
-      this.closeSession();
-      this.source = source;
-      final int width = source.getWidth();
-      final int height = source.getHeight();
-      final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
-      final SessionListener listener = new SessionListener(metadata);
-      final BrowserSession started = this.sessions.open(source, this.options, listener);
-      this.session = started;
-      this.audioOutput = DelayedAudioOutput.start(
-        "the browser",
-        AUDIO_DELAY_MILLIS,
-        MAX_QUEUED_AUDIO_MILLIS,
-        this.audioCallback::retrieve,
-        this::report
-      );
-      this.state.set(State.PLAYING);
-      // an end of the helper that arrived before the session was the player's is passed on now, and fails the start
-      listener.setSession(started);
-      if (this.state.get() != State.PLAYING) {
-        return false;
-      }
-      // the frames of the start arrived before the session was the player's; the page is sent once more, so a page
-      // that never changes again still reaches the pipeline
-      started.requestFrame();
-      return true;
+      final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
+      return idle && this.startSession(source);
     } finally {
       this.lock.unlock();
     }
+  }
+
+  private boolean startSession(final BrowserSource source) {
+    this.closeSession();
+    this.source = source;
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
+    final SessionListener listener = new SessionListener(metadata);
+    final BrowserSession started = this.sessions.open(source, this.options, listener);
+    this.session = started;
+    this.audioOutput = DelayedAudioOutput.start(
+      "the browser",
+      AUDIO_DELAY_MILLIS,
+      MAX_QUEUED_AUDIO_MILLIS,
+      this.audioCallback::retrieve,
+      this::report
+    );
+    this.state.set(State.PLAYING);
+    // an end of the helper that arrived before the session was the player's is passed on now, and fails the start
+    listener.setSession(started);
+    final boolean playing = this.state.get() == State.PLAYING;
+    if (playing) {
+      // the frames of the start arrived before the session was the player's; the page is sent once more, so a page
+      // that never changes again still reaches the pipeline
+      started.requestFrame();
+    }
+    return playing;
   }
 
   private void closeSession() {
@@ -176,12 +178,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.lock.lock();
     try {
       final boolean first = this.released.compareAndSet(false, true);
-      if (!first) {
-        return false;
+      if (first) {
+        this.state.set(State.IDLE);
+        this.closeSession();
       }
-      this.state.set(State.IDLE);
-      this.closeSession();
-      return true;
+      return first;
     } finally {
       this.lock.unlock();
     }

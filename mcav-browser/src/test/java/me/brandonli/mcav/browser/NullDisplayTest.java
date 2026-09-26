@@ -180,6 +180,11 @@ class NullDisplayTest {
       assertEquals(0, answer[0], "failed");
       final String reason = new String(answer, 8, answer[1], StandardCharsets.US_ASCII);
       assertEquals("the cookie of the display is missing", reason);
+      assertEquals(
+        (answer.length - 8) / 4,
+        ByteBuffer.wrap(answer).order(ByteOrder.LITTLE_ENDIAN).getShort(6),
+        "the reason's length in units"
+      );
     }
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final byte[] tenPointZero = setup(ByteOrder.LITTLE_ENDIAN, 10, COOKIE_NAME, COOKIE);
@@ -318,6 +323,67 @@ class NullDisplayTest {
     assertEquals(NullDisplay.BAD_REQUEST, answers.get(32 + 1), "no extension was announced");
     assertEquals(4, answers.getShort(32 + 2));
     assertEquals(140, answers.get(32 + 10) & 0xFF);
+  }
+
+  @Test
+  void aRequestOfNoOpcodeIsSkippedAnAtomMayHaveAnEmptyNameAndTheFirstExtensionOpcodeFails() throws IOException {
+    final ByteBuffer answers = converse(
+      request(ByteOrder.LITTLE_ENDIAN, 0, 0, new byte[0]),
+      internAtom(ByteOrder.LITTLE_ENDIAN, ""),
+      request(ByteOrder.LITTLE_ENDIAN, 128, 0, new byte[0])
+    );
+    assertEquals(64, answers.limit(), "the request of no opcode has no answer, and the connection goes on");
+    assertEquals(1, answers.get(0), "a reply for the atom of the empty name");
+    assertEquals(2, answers.getShort(2));
+    assertEquals(0, answers.get(32), "an error for the first opcode of an extension");
+    assertEquals(NullDisplay.BAD_REQUEST, answers.get(32 + 1));
+    assertEquals(3, answers.getShort(32 + 2));
+    assertEquals(128, answers.get(32 + 10) & 0xFF);
+  }
+
+  @Test
+  void theDisplayServesOnADaemonThreadAndCountsItsClients() throws IOException {
+    final Path authority = this.folder.resolve("Xauthority");
+    try (final NullDisplay display = NullDisplay.start(authority)) {
+      final List<Thread> threads = Thread.getAllStackTraces()
+        .keySet()
+        .stream()
+        .filter(thread -> thread.getName().equals("mcav-browser-null-display"))
+        .toList();
+      assertFalse(threads.isEmpty());
+      assertTrue(threads.stream().allMatch(Thread::isDaemon), "the display never keeps the helper alive");
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      try (Socket client = introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, cookieOf(authority))) {
+        Await.until("the client is counted", () -> display.countClients() == 1);
+        assertTrue(internsAnAtom(client));
+      }
+      Await.until("the client is gone", () -> display.countClients() == 0);
+    }
+  }
+
+  @Test
+  void aClientThatLeavesFreesItsPlaceForTheNextOne() throws IOException, InterruptedException {
+    final Path authority = this.folder.resolve("Xauthority");
+    final List<Socket> clients = new ArrayList<>();
+    try (final NullDisplay display = NullDisplay.start(authority)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      final byte[] cookie = cookieOf(authority);
+      for (int count = 0; count < NullDisplay.MAX_CONNECTIONS; count++) {
+        clients.add(introduce(loopback, port, cookie));
+      }
+      clients.removeFirst().close();
+      Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAX_CONNECTIONS - 1);
+      // its place is given back right after it is no longer counted
+      Thread.sleep(200L);
+      try (Socket next = introduce(loopback, port, cookie)) {
+        assertTrue(internsAnAtom(next), "one try is enough, with no client refused before");
+      }
+    } finally {
+      for (final Socket client : clients) {
+        client.close();
+      }
+    }
   }
 
   @Test
@@ -503,8 +569,11 @@ class NullDisplayTest {
       try (Socket introduced = introduce(loopback, port, cookieOf(authority))) {
         assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
       }
-      // it took the place of the oldest client that never introduced itself
+      // it took the place of the oldest client that never introduced itself, and of that one only
       assertEnded(silent.getFirst().getInputStream());
+      final Socket second = silent.get(1);
+      second.setSoTimeout(300);
+      assertThrows(java.net.SocketTimeoutException.class, () -> second.getInputStream().read(), "the second client still waits");
     } finally {
       for (final Socket client : silent) {
         client.close();
@@ -561,8 +630,15 @@ class NullDisplayTest {
   void onlyPortsThatADisplayNumberCanNameAreUsed() throws IOException {
     assertFalse(NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT - 1));
     assertTrue(NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT));
-    final IOException none = assertThrows(IOException.class, () -> NullDisplay.bind(port -> false));
+    final AtomicInteger asked = new AtomicInteger();
+    final IOException none = assertThrows(IOException.class, () ->
+      NullDisplay.bind(port -> {
+        asked.incrementAndGet();
+        return false;
+      })
+    );
     assertEquals("The system gives out no port of at least 6000 for the display", none.getMessage());
+    assertEquals(64, asked.get(), "64 ports are tried");
     final AtomicInteger tries = new AtomicInteger();
     final List<Integer> refused = new ArrayList<>();
     try (

@@ -208,6 +208,10 @@ class DevToolsInputTest {
     assertEquals(DevToolsInput.OPEN_IN_PLACE_SCRIPT, parameters.get("source").getAsString());
     assertEquals(1, parameters.size());
     assertTrue(DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("window.top.location.href = target.href"));
+    assertTrue(
+      DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("const PLACED = Symbol.for('mcav.open-in-place');"),
+      "placed twice, it runs once"
+    );
   }
 
   @Test

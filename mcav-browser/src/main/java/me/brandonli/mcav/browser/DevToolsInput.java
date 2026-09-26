@@ -64,6 +64,12 @@ final class DevToolsInput {
   static final String OPEN_IN_PLACE_SCRIPT =
     """
     (() => {
+      // the helper places the script again when it could not tell whether the first time worked; once is enough
+      const PLACED = Symbol.for('mcav.open-in-place');
+      if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+        return;
+      }
+      Object.defineProperty(globalThis, PLACED, { value: true });
       // like Chromium's popup blocker, only a click or a key lets a page open a window
       const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
       const openInPlace = address => {

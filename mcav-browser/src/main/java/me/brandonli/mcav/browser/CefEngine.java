@@ -29,6 +29,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import me.friwi.jcefmaven.CefAppBuilder;
 import me.friwi.jcefmaven.MavenCefAppHandlerAdapter;
 import org.cef.CefApp;
@@ -55,7 +56,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class CefEngine implements HelperEngine {
 
   private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  private static final long SCRIPT_TIMEOUT_MILLIS = 1_000L;
+  // the answers to the calls that place the scripts of a page arrive at once, but a slow or busy machine takes seconds
+  private static final long SCRIPT_TIMEOUT_MILLIS = 5_000L;
+  // a DevTools client can lose every answer, and a new one gets them, so the scripts are placed twice at most
+  private static final int PLACING_ATTEMPTS = 2;
+  // what the placing of the scripts completes with when no answer arrived in time, which no JSON answer can be
+  private static final String NOT_CONFIRMED = "not confirmed";
 
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
@@ -189,7 +195,9 @@ final class CefEngine implements HelperEngine {
     this.client = createdClient;
     final String url = configuration.getUrl().toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio));
+    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared ->
+      openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio, events::onNotice)
+    );
     createdClient.addLifeSpanHandler(policy);
     createdClient.addRequestHandler(policy);
     createdClient.addJSDialogHandler(policy);
@@ -234,15 +242,36 @@ final class CefEngine implements HelperEngine {
    * script that opens new windows in place and the one that hands over the sound of the page are added to every
    * document it will show, and the listener of the sound hears the DevTools events. The browser of the helper is
    * off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously, so
-   * the page is only loaded once the scripts are in place; JCEF can lose the answer of a call, so after the timeout it
-   * is loaded anyway.
+   * the page is only loaded once the answer to the last of them says the scripts are in place: a page loaded before
+   * would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
+   * an answer in time the client is closed and a new one places the scripts again, which run once in a document
+   * however often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says
+   * so; the page then may lack its sound and open new windows nowhere.
    *
    * @param created       the browser
    * @param url           the address of the page
-   * @param timeoutMillis how long to wait for the scripts at most
+   * @param timeoutMillis how long to wait for the answer of one attempt at most
    * @param audio         hears the sound of the page
+   * @param notices       hears that the page was loaded without the confirmation
    */
-  static void openPage(final CefBrowser created, final String url, final long timeoutMillis, final PageAudio audio) {
+  static void openPage(
+    final CefBrowser created,
+    final String url,
+    final long timeoutMillis,
+    final PageAudio audio,
+    final Consumer<String> notices
+  ) {
+    placeScripts(created, url, timeoutMillis, audio, notices, 1);
+  }
+
+  private static void placeScripts(
+    final CefBrowser created,
+    final String url,
+    final long timeoutMillis,
+    final PageAudio audio,
+    final Consumer<String> notices,
+    final int attempt
+  ) {
     final CefDevToolsClient devTools = created.getDevToolsClient();
     if (devTools == null) {
       created.loadURL(url);
@@ -256,8 +285,19 @@ final class CefEngine implements HelperEngine {
       last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
       last.exceptionally(CefEngine::logFailedCall);
     }
-    final CompletableFuture<String> placed = last.completeOnTimeout("", timeoutMillis, TimeUnit.MILLISECONDS);
-    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> EventQueue.invokeLater(() -> created.loadURL(url)));
+    final CompletableFuture<String> placed = last.completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
+    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
+      final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
+      if (!confirmed && attempt < PLACING_ATTEMPTS) {
+        devTools.close();
+        EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMillis, audio, notices, attempt + 1));
+        return;
+      }
+      if (!confirmed) {
+        notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
+      }
+      EventQueue.invokeLater(() -> created.loadURL(url));
+    });
     loading.exceptionally(CefEngine::logFailedCall);
   }
 

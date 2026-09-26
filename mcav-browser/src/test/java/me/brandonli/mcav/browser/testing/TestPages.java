@@ -86,11 +86,23 @@ public final class TestPages implements AutoCloseable {
    */
   public static final int TOGGLE_MILLIS = 400;
 
-  // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context
+  // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context; the
+  // page reports every state its context takes, so a test that hears nothing can tell why
   private static final String TONE_SCRIPT =
     """
     <script>
       const context = new AudioContext();
+      context.addEventListener('statechange', () => {
+        report('state', { key: context.state });
+        // whether the clock of the context runs: without an audio device that renders, it stands still
+        let times = 0;
+        const clock = setInterval(() => {
+          report('time', { key: context.currentTime.toFixed(2) });
+          if (++times === 10) {
+            clearInterval(clock);
+          }
+        }, 1000);
+      });
       const oscillator = context.createOscillator();
       oscillator.frequency.value = %d;
       const gain = context.createGain();
@@ -98,7 +110,7 @@ public final class TestPages implements AutoCloseable {
       oscillator.connect(gain);
       gain.connect(context.destination);
       oscillator.start();
-      addEventListener('pointerdown', () => context.resume());
+      addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
     </script>
     """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
 
@@ -169,7 +181,9 @@ public final class TestPages implements AutoCloseable {
       const parameters = new URLSearchParams(location.search);
       element.volume = Number(parameters.get('volume') || '1');
       element.muted = parameters.get('muted') === '1';
-      addEventListener('pointerdown', () => element.play());
+      addEventListener('pointerdown', () =>
+        element.play().then(() => report('play', { key: 'playing' })).catch((error) => report('play', { key: error.name }))
+      );
     </script>
     """;
 

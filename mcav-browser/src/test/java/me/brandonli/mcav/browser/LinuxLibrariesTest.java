@@ -544,6 +544,60 @@ class LinuxLibrariesTest {
   }
 
   @Test
+  void aPlatformMayExpectNoLibraryOfTheServerAndTheLibrariesLieInTheCacheOfMcav() {
+    final LinuxLibraries nothingExpected = new LinuxLibraries(
+      this.folder,
+      (uri, destination, sha256, size) -> {},
+      List.of(),
+      List.of("host linux-amd64")
+    );
+    assertEquals(List.of(), nothingExpected.getPins("linux-amd64"));
+    assertEquals(me.brandonli.mcav.utils.IOUtils.getCachedFolder().resolve("jcef-libraries"), new LinuxLibraries().getFolder());
+  }
+
+  @Test
+  void anInstallationThatWasNeverFinishedIsReplaced() throws IOException {
+    final byte[] deb = testPackage();
+    final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
+    final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
+    // a crash before the marker was written left the folder of the installation behind
+    final Path unfinished = Files.createDirectories(this.folder.resolve("cache").resolve(name));
+    Files.writeString(unfinished.resolve("left-over"), "partial");
+    final Path installation = libraries.install("linux-amd64");
+    assertEquals(unfinished, installation);
+    assertTrue(Files.isRegularFile(installation.resolve("libmcavtest.so.1")));
+    assertFalse(Files.exists(installation.resolve("left-over")), "nothing of the unfinished installation is kept");
+  }
+
+  @Test
+  void includesAreFollowedEightDeep() throws IOException {
+    final Path root = this.folder.resolve("deep-root");
+    final Path etc = Files.createDirectories(root.resolve("etc"));
+    Files.writeString(etc.resolve("ld.so.conf"), "include /etc/1.conf\n");
+    for (int depth = 1; depth <= 9; depth++) {
+      Files.writeString(etc.resolve(depth + ".conf"), "/opt/depth" + depth + "\ninclude /etc/" + (depth + 1) + ".conf\n");
+    }
+    final List<Path> folders = LinuxLibraries.hostFolders(root, "linux-amd64");
+    assertTrue(folders.contains(root.resolve("opt/depth8")), folders::toString);
+    assertFalse(folders.contains(root.resolve("opt/depth9")), "an include nine deep is beyond the limit");
+  }
+
+  @Test
+  void includedFilesAreReadInTheOrderOfTheirNames() throws IOException {
+    final Path root = this.folder.resolve("sorted-root");
+    final Path configuration = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
+    Files.writeString(root.resolve("etc/ld.so.conf"), "include /etc/ld.so.conf.d/*.conf\n");
+    // created out of order, so the order of the folder's entries is not that of the names
+    final List<String> names = List.of("zeta", "alpha", "mike", "delta", "kilo", "bravo", "yankee", "echo");
+    for (final String name : names) {
+      Files.writeString(configuration.resolve(name + ".conf"), "/opt/" + name + "\n");
+    }
+    final List<Path> folders = LinuxLibraries.hostFolders(root, "linux-amd64");
+    final List<Path> expected = names.stream().sorted().map(name -> root.resolve("opt/" + name)).toList();
+    assertEquals(expected, folders.subList(0, names.size()));
+  }
+
+  @Test
   void aRelativeIncludeOfTheLoaderLiesBesideItsFile() throws IOException {
     final Path root = this.folder.resolve("relative-root");
     final Path etc = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));

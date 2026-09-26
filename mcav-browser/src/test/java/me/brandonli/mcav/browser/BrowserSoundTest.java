@@ -82,6 +82,16 @@ class BrowserSoundTest {
     this.pages.close();
     assertEquals(0, HelperProcesses.count());
     Await.until("every browser process of this test has ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
+    // a CEF process that lost its parent is no longer below this JVM; they are only told, as other programs may run CEF
+    try (final java.util.stream.Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
+      final List<String> stray = all
+        .filter(handle -> handle.info().command().orElse("").contains("jcef"))
+        .map(handle -> handle.pid() + " " + handle.info().command().orElse(""))
+        .toList();
+      if (!stray.isEmpty()) {
+        System.out.println("CEF processes on this machine after the test: " + stray);
+      }
+    }
     assertEquals(List.of(), this.failures);
   }
 
@@ -126,6 +136,37 @@ class BrowserSoundTest {
     }
   }
 
+  /**
+   * Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
+   * sound, and fails with what the page reported about its sound.
+   *
+   * @param recording the sound of a player
+   * @param bytes     how many bytes must arrive
+   * @param what      the sound that is waited for
+   * @throws InterruptedException if the wait is interrupted
+   */
+  private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+    while (recording.size() < bytes) {
+      assertTrue(
+        System.nanoTime() < deadline,
+        () -> what + " arrived, only " + recording.size() + " bytes did; the page reported " + this.soundReports()
+      );
+      Thread.sleep(50L);
+    }
+  }
+
+  private List<String> soundReports() {
+    final List<String> reports = new ArrayList<>();
+    for (final TestPages.PageEvent event : this.pages.getEvents()) {
+      final String type = event.getType();
+      if (type.equals("state") || type.equals("time") || type.equals("play") || type.equals("mousedown")) {
+        reports.add(type + " " + event.getKey());
+      }
+    }
+    return reports;
+  }
+
   private void startAndClick(final BrowserPlayer player, final String path) {
     assertTrue(player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1)));
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
@@ -142,11 +183,7 @@ class BrowserSoundTest {
     Thread.sleep(2_000L);
     assertEquals(0, recording.size(), "no sound before the first click");
     this.startClicking(player);
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    while (recording.size() < 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE) {
-      assertTrue(System.nanoTime() < deadline, "two seconds of sound arrived, only " + recording.size() + " bytes did");
-      Thread.sleep(50L);
-    }
+    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     // the last second, after the tone started
     final int start = left.length - AudioFilter.SAMPLE_RATE;
@@ -197,11 +234,7 @@ class BrowserSoundTest {
     Thread.sleep(2_000L);
     assertEquals(0, recording.size(), "no sound before the first click, neither played nor forged");
     this.startClicking(player);
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    while (recording.size() < 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE) {
-      assertTrue(System.nanoTime() < deadline, "two seconds of sound arrived, only " + recording.size() + " bytes did");
-      Thread.sleep(50L);
-    }
+    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
     assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "after the click the page's own tone plays: " + frequency + " Hz");
@@ -213,11 +246,7 @@ class BrowserSoundTest {
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
     // as long as the tone test waits: the first sound of a helper can take a while on a busy or slow machine
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    while (recording.size() < AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE) {
-      assertTrue(System.nanoTime() < deadline, "a second of sound nobody clicked for arrived, only " + recording.size() + " bytes did");
-      Thread.sleep(50L);
-    }
+    this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
     assertEquals(0, this.pages.count("mousedown"), "nobody clicked the page");
   }
 
@@ -226,7 +255,7 @@ class BrowserSoundTest {
     final BrowserPlayer half = this.player();
     final Recording halfRecording = Recording.attach(half);
     this.startAndClick(half, "/tone-element?volume=0.5");
-    Await.until("a second of the element's sound", () -> halfRecording.size() >= AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE);
+    this.awaitSound(halfRecording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of the element's sound");
     Thread.sleep(1_000L);
     final short[] left = halfRecording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE / 2;
