@@ -132,7 +132,8 @@ final class Mcv2PlayCommandTest {
       this.command.stop(this.sender);
       verify(channels.constructed().getLast()).close();
       verify(this.sender).sendMessage(Message.MCV2_STOP.build());
-      verify(this.support, Mockito.times(3)).close();
+      // the pack stays served for the next stream
+      verify(this.support, never()).close();
     }
   }
 

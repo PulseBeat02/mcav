@@ -207,7 +207,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     sender.sendMessage(Message.MCV2_STOP.build());
   }
 
-  /** Stops the stream played before, if any. Call on the main thread. */
+  /**
+   * Stops the stream played before, if any. The pack stays served and loaded, so the players' clients do not reload
+   * their resources when the next stream on the same screen starts. Call on the main thread.
+   */
   void stop() {
     final BukkitTask running = this.task;
     if (running != null) {
@@ -229,7 +232,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       opened.close();
       this.channel = null;
     }
-    this.plugin.getMcv2Support().close();
   }
 
   /**

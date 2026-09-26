@@ -27,6 +27,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +45,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.netty.InjectorHosting;
 import me.brandonli.mcav.sandbox.locale.Message;
+import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -99,32 +102,48 @@ final class Mcv2SupportTest {
     assertTrue(Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 7), 7));
   }
 
+  /** Makes the mocked pack writer write the given content to the path it is asked to write. */
+  private static void writing(final MockedStatic<Mcv2Pack> packs, final Mcv2Configuration configuration, final String content) {
+    packs
+      .when(() -> Mcv2Pack.write(eq(configuration), anyBoolean(), any()))
+      .thenAnswer(invocation -> {
+        final Path target = invocation.getArgument(2);
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, content, StandardCharsets.US_ASCII);
+        return null;
+      });
+  }
+
   @Test
   void writesServesAndOffersThePack() throws IOException {
     final Mcv2Support support = new Mcv2Support(this.folder);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    final Mcv2Configuration other = mock(Mcv2Configuration.class);
     final Player player = mock(Player.class);
     final UUID uuid = UUID.randomUUID();
     when(player.getUniqueId()).thenReturn(uuid);
+    final Player watching = mock(Player.class);
+    final UUID watchingId = UUID.randomUUID();
+    when(watching.getUniqueId()).thenReturn(watchingId);
     final InjectorHosting hosting = mock(InjectorHosting.class);
     when(hosting.getRawUrl()).thenReturn("http://127.0.0.1:25565/mcav/resourcepack_1.zip");
+    final Path next = this.folder.resolve("mcv2").resolve("mcav-mcv2-next.zip");
     final Path zip = this.folder.resolve("mcv2").resolve("mcav-mcv2.zip");
     try (
       MockedStatic<Mcv2Pack> packs = Mockito.mockStatic(Mcv2Pack.class);
       MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
-      MockedConstruction<Mcv2Viewers> trackers = Mockito.mockConstruction(Mcv2Viewers.class)
+      MockedConstruction<Mcv2Viewers> trackers = Mockito.mockConstruction(Mcv2Viewers.class, (tracker, _) ->
+        when(tracker.isLoaded(watchingId)).thenReturn(true)
+      )
     ) {
-      packs
-        .when(() -> Mcv2Pack.write(eq(configuration), anyBoolean(), eq(zip)))
-        .thenAnswer(_ -> {
-          Files.createDirectories(zip.getParent());
-          Files.writeString(zip, "pack", StandardCharsets.US_ASCII);
-          return null;
-        });
+      writing(packs, configuration, "pack");
+      writing(packs, other, "other pack");
       hostings.when(() -> PackHosting.injector(zip)).thenReturn(hosting);
-      final Mcv2Viewers viewers = support.offer(configuration, List.of(player));
+      final Mcv2Viewers viewers = support.offer(configuration, List.of(player, watching));
       assertSame(trackers.constructed().getFirst(), viewers);
-      packs.verify(() -> Mcv2Pack.write(configuration, false, zip));
+      packs.verify(() -> Mcv2Pack.write(configuration, false, next));
+      assertEquals("pack", Files.readString(zip, StandardCharsets.US_ASCII));
+      assertFalse(Files.exists(next));
       verify(hosting).start();
       verify(viewers).register();
       verify(viewers).requested(uuid);
@@ -133,14 +152,36 @@ final class Mcv2SupportTest {
       verify(player).sendResourcePacks(requests.capture());
       final ResourcePackRequest request = requests.getValue();
       assertFalse(request.required());
-      assertEquals("http://127.0.0.1:25565/mcav/resourcepack_1.zip", request.packs().getFirst().uri().toString());
-      assertEquals(Mcv2Support.hash(zip, "SHA-1"), request.packs().getFirst().hash());
-      // a second offer replaces the pack served before
-      support.offer(configuration, List.of());
+      assertFalse(request.replace());
+      final ResourcePackInfo info = request.packs().getFirst();
+      assertEquals("http://127.0.0.1:25565/mcav/resourcepack_1.zip", info.uri().toString());
+      assertEquals(Mcv2Support.hash(zip, "SHA-1"), info.hash());
+      assertEquals(UUID.nameUUIDFromBytes(("mcav-mcv2:" + info.hash()).getBytes(StandardCharsets.UTF_8)), info.id());
+      // a player whose client loaded the pack already is not asked again
+      verify(watching, never()).sendResourcePacks(any(ResourcePackRequest.class));
+      // the same pack offered again is the one served: nothing restarts, and the pack is only asked for again
+      assertSame(viewers, support.offer(configuration, List.of(player, watching)));
+      assertFalse(Files.exists(next));
+      assertEquals(1, trackers.constructed().size());
+      verify(hosting).start();
+      verify(hosting, never()).shutdown();
+      verify(player, times(2)).sendResourcePacks(any(ResourcePackRequest.class));
+      verify(watching, never()).sendResourcePacks(any(ResourcePackRequest.class));
+      // a different pack replaces it, and the players are asked to remove the pack before
+      final Mcv2Viewers replaced = support.offer(other, List.of(player));
+      assertSame(trackers.constructed().get(1), replaced);
       verify(hosting).shutdown();
       verify(viewers).unregister();
+      verify(player).removeResourcePacks(info.id());
+      assertEquals("other pack", Files.readString(zip, StandardCharsets.US_ASCII));
+      // once closed, the same pack is served anew under its id, which the players keep
       support.close();
       support.close();
+      verify(replaced).unregister();
+      support.offer(other, List.of(player));
+      assertEquals(3, trackers.constructed().size());
+      verify(hosting, times(3)).start();
+      verify(player, times(1)).removeResourcePacks(any(UUID.class));
     }
     assertThrows(NullPointerException.class, () -> support.offer(null, List.of()));
     assertThrows(NullPointerException.class, () -> support.offer(mock(Mcv2Configuration.class), null));
@@ -152,7 +193,6 @@ final class Mcv2SupportTest {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     final InjectorHosting hosting = mock(InjectorHosting.class);
     when(hosting.getRawUrl()).thenReturn("http://localhost/pack.zip");
-    final Path zip = this.folder.resolve("mcv2").resolve("mcav-mcv2.zip");
     try (
       MockedStatic<Mcv2Pack> packs = Mockito.mockStatic(Mcv2Pack.class);
       MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
@@ -164,17 +204,27 @@ final class Mcv2SupportTest {
         verify(player).sendMessage(Message.MCV2_REFUSED.build());
       })
     ) {
-      packs
-        .when(() -> Mcv2Pack.write(any(), anyBoolean(), any()))
-        .thenAnswer(_ -> {
-          Files.createDirectories(zip.getParent());
-          Files.writeString(zip, "pack", StandardCharsets.US_ASCII);
-          return null;
-        });
+      writing(packs, configuration, "pack");
       hostings.when(() -> PackHosting.injector(any())).thenReturn(hosting);
       new Mcv2Support(this.folder).offer(configuration, List.of());
       assertEquals(1, trackers.constructed().size());
     }
+  }
+
+  @Test
+  void movesAndDeletesPacks() throws IOException {
+    final Path missing = this.folder.resolve("missing.zip");
+    final Path target = this.folder.resolve("pack.zip");
+    assertThrows(UncheckedIOException.class, () -> Mcv2Support.move(missing, target));
+    final Path full = this.folder.resolve("full");
+    Files.createDirectories(full.resolve("inside"));
+    // a folder that is not empty cannot be deleted; that is not an error
+    Mcv2Support.deleteQuietly(full);
+    assertTrue(Files.exists(full));
+    final Path file = this.folder.resolve("file.zip");
+    Files.writeString(file, "x", StandardCharsets.US_ASCII);
+    Mcv2Support.deleteQuietly(file);
+    assertFalse(Files.exists(file));
   }
 
   @Test

@@ -43,6 +43,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -262,6 +263,30 @@ final class SimpleResourcePackTest {
     assertThrows(IllegalArgumentException.class, () -> pack.data("pack.mcmeta", new byte[0]));
     assertThrows(IllegalArgumentException.class, () -> pack.data("assets/../pack.mcmeta", new byte[0]));
     assertThrows(IllegalArgumentException.class, () -> pack.data("/assets/a.txt", new byte[0]));
+  }
+
+  @Test
+  void zipsTheSamePackToTheSameBytes() throws IOException {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.meta(88, "stable");
+    pack.sound("mcav:first", this.firstSound);
+    pack.external("assets/mcav/texts/credits.txt", this.credits);
+    pack.data("assets/mcav/shaders/post/a.fsh", "#version 330".getBytes(StandardCharsets.US_ASCII));
+    final Path first = this.directory.resolve("first.zip");
+    final Path second = this.directory.resolve("second.zip");
+    pack.zip(first);
+    pack.zip(second);
+    assertArrayEquals(Files.readAllBytes(first), Files.readAllBytes(second));
+    final LocalDateTime fixed = LocalDateTime.of(1980, 2, 1, 0, 0);
+    try (final InputStream input = Files.newInputStream(first); final ZipInputStream zip = new ZipInputStream(input)) {
+      int entries = 0;
+      for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+        assertEquals(fixed, entry.getTimeLocal(), entry.getName());
+        entries++;
+      }
+      assertEquals(5, entries);
+    }
+    assertEquals(fixed, SimpleResourcePack.entry("a.txt").getTimeLocal());
   }
 
   @Test

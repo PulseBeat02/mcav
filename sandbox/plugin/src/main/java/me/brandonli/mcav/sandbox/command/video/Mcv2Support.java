@@ -22,8 +22,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
@@ -61,8 +63,18 @@ public final class Mcv2Support {
   public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
 
   private final Path folder;
-  private @Nullable PackHosting hosting;
-  private @Nullable Mcv2Viewers viewers;
+  private @Nullable Served served;
+  private @Nullable UUID lastId;
+
+  /**
+   * The pack being served.
+   *
+   * @param hosting where the players download it
+   * @param viewers who loaded it
+   * @param id      its id, derived from its hash
+   * @param hash    its SHA-1
+   */
+  private record Served(PackHosting hosting, Mcv2Viewers viewers, UUID id, String hash) {}
 
   /**
    * Constructs the support.
@@ -101,8 +113,11 @@ public final class Mcv2Support {
   }
 
   /**
-   * Writes the screen's pack, serves it, and asks the players' clients to load it, replacing any pack served before.
-   * Call on the main thread.
+   * Writes the screen's pack, serves it, and asks the players' clients to load it. A pack is known by its content: its
+   * id is derived from its hash, so the same screen offered again is the pack already served, and it is only sent to
+   * the players who have not loaded it yet - a client that loads a pack again reloads all its resources, which takes
+   * seconds, and would stack another copy. A different pack replaces the one served before, which the players are
+   * asked to remove. Call on the main thread.
    *
    * @param configuration the screen
    * @param players       the players to ask
@@ -111,39 +126,84 @@ public final class Mcv2Support {
   public Mcv2Viewers offer(final Mcv2Configuration configuration, final Collection<? extends Player> players) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(players, "Players must not be null");
-    this.close();
-    final Path zip = this.folder.resolve("mcv2").resolve("mcav-mcv2.zip");
-    Mcv2Pack.write(configuration, Boolean.getBoolean(DEBUG_VIEW), zip);
-    final PackHosting server = PackHosting.injector(zip);
-    server.start();
-    this.hosting = server;
-    final UUID packId = UUID.randomUUID();
-    final Mcv2Viewers tracker = new Mcv2Viewers(packId, player -> player.sendMessage(Message.MCV2_REFUSED.build()));
-    tracker.register();
-    this.viewers = tracker;
-    final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(packId, URI.create(server.getRawUrl()), hash(zip, "SHA-1"));
+    final Path directory = this.folder.resolve("mcv2");
+    final Path next = directory.resolve("mcav-mcv2-next.zip");
+    Mcv2Pack.write(configuration, Boolean.getBoolean(DEBUG_VIEW), next);
+    final String sha1 = hash(next, "SHA-1");
+    final Served current = this.served;
+    final Served pack;
+    if (current != null && current.hash().equals(sha1)) {
+      deleteQuietly(next);
+      pack = current;
+    } else {
+      this.close();
+      final UUID packId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
+      final UUID previous = this.lastId;
+      if (previous != null && !previous.equals(packId)) {
+        for (final Player player : players) {
+          player.removeResourcePacks(previous);
+        }
+      }
+      final Path zip = directory.resolve("mcav-mcv2.zip");
+      move(next, zip);
+      final PackHosting server = PackHosting.injector(zip);
+      server.start();
+      final Mcv2Viewers tracker = new Mcv2Viewers(packId, player -> player.sendMessage(Message.MCV2_REFUSED.build()));
+      tracker.register();
+      pack = new Served(server, tracker, packId, sha1);
+      this.served = pack;
+      this.lastId = packId;
+    }
+    final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(pack.id(), URI.create(pack.hosting().getRawUrl()), sha1);
     final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(info).required(false).replace(false).build();
     for (final Player player : players) {
-      tracker.requested(player.getUniqueId());
+      final UUID uuid = player.getUniqueId();
+      if (pack.viewers().isLoaded(uuid)) {
+        continue;
+      }
+      pack.viewers().requested(uuid);
       player.sendMessage(Message.MCV2_PACK.build());
       player.sendResourcePacks(request);
     }
-    return tracker;
+    return pack.viewers();
   }
 
   /**
-   * Stops serving the pack and listening to the players' answers.
+   * Stops serving the pack and listening to the players' answers; the next offer serves its pack anew.
    */
   public void close() {
-    final Mcv2Viewers tracker = this.viewers;
-    if (tracker != null) {
-      tracker.unregister();
-      this.viewers = null;
+    final Served pack = this.served;
+    if (pack != null) {
+      pack.viewers().unregister();
+      pack.hosting().shutdown();
+      this.served = null;
     }
-    final PackHosting server = this.hosting;
-    if (server != null) {
-      server.shutdown();
-      this.hosting = null;
+  }
+
+  /**
+   * Moves the pack just written into the place it is served from.
+   *
+   * @param source the pack just written
+   * @param target where it is served from
+   */
+  static void move(final Path source, final Path target) {
+    try {
+      Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException("Cannot move the MCV2 pack into place", exception);
+    }
+  }
+
+  /**
+   * Deletes a pack that is not needed because the same pack is already served.
+   *
+   * @param file the pack
+   */
+  static void deleteQuietly(final Path file) {
+    try {
+      Files.deleteIfExists(file);
+    } catch (final IOException exception) {
+      // a leftover file is overwritten by the next offer
     }
   }
 

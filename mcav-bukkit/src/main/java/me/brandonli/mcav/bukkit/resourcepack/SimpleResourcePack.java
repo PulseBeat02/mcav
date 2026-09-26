@@ -35,6 +35,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +71,12 @@ public final class SimpleResourcePack {
   private static final String TEMP_PREFIX = "mcav-pack";
   private static final String TEMP_SUFFIX = ".zip.part";
   private static final String READABLE_PERMISSIONS = "rw-r--r--";
+  /**
+   * The modification time of every entry, fixed so the same pack always zips to the same bytes, and so to the same
+   * hash, which lets clients keep the pack they downloaded before. It is a local time in the zip format's range, so the
+   * bytes do not depend on the server's time zone either.
+   */
+  private static final LocalDateTime ENTRY_TIME = LocalDateTime.of(1980, 2, 1, 0, 0);
 
   private final Map<String, Map<String, Path>> sounds;
   private final Map<String, Path> files;
@@ -308,8 +315,7 @@ public final class SimpleResourcePack {
         writeFile(zip, name, file);
       }
       for (final Map.Entry<String, byte[]> entry : this.contents.entrySet()) {
-        final ZipEntry zipEntry = new ZipEntry(entry.getKey());
-        zip.putNextEntry(zipEntry);
+        zip.putNextEntry(entry(entry.getKey()));
         zip.write(entry.getValue());
         zip.closeEntry();
       }
@@ -360,17 +366,28 @@ public final class SimpleResourcePack {
     return event;
   }
 
-  private static void writeEntry(final ZipOutputStream zip, final String name, final String content) throws IOException {
+  /**
+   * Creates a zip entry with the fixed modification time.
+   *
+   * @param name the entry's name
+   * @return the entry
+   */
+  @VisibleForTesting
+  static ZipEntry entry(final String name) {
     final ZipEntry entry = new ZipEntry(name);
+    entry.setTimeLocal(ENTRY_TIME);
+    return entry;
+  }
+
+  private static void writeEntry(final ZipOutputStream zip, final String name, final String content) throws IOException {
     final byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-    zip.putNextEntry(entry);
+    zip.putNextEntry(entry(name));
     zip.write(bytes);
     zip.closeEntry();
   }
 
   private static void writeFile(final ZipOutputStream zip, final String name, final Path file) throws IOException {
-    final ZipEntry entry = new ZipEntry(name);
-    zip.putNextEntry(entry);
+    zip.putNextEntry(entry(name));
     Files.copy(file, zip);
     zip.closeEntry();
   }
