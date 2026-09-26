@@ -197,9 +197,12 @@ final class VideoMcv2CommandTest {
       );
       assertEquals(8, Objects.requireNonNull(limited).getPageSlots());
       assertEquals(65536, limited.getBacklogLimit());
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, limited.getUnsentLimit());
       assertEquals(EncoderSettings.LIVE, limited.getSettings());
       System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
       assertEquals(Long.MAX_VALUE, VideoMcv2Command.backlogLimit());
+      // no backpressure at all: no cap on a viewer's unsent bytes either
+      assertEquals(0, VideoMcv2Command.unsentLimit());
     } finally {
       System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);

@@ -60,6 +60,12 @@ public final class Mcv2Configuration {
   /** The first page map id when none is set. */
   public static final int DEFAULT_PAGE_MAP = 2_000_000_000;
 
+  /**
+   * The cap on the bytes a viewer's operating system may hold unsent when none is set: 32 KiB, so a slow viewer's video
+   * waits where the backlog limit sees it, and a game packet waits behind at most this much of it in the system.
+   */
+  public static final int DEFAULT_UNSENT_LIMIT = 32 * 1024;
+
   private final Collection<UUID> viewers;
   private final Location origin;
   private final BlockFace facing;
@@ -75,6 +81,7 @@ public final class Mcv2Configuration {
   private final NamedTextColor outlineColor;
   private final long backlogLimit;
   private final @Nullable EncoderPool encoderPool;
+  private final int unsentLimit;
 
   private Mcv2Configuration(
     final Builder builder,
@@ -98,6 +105,7 @@ public final class Mcv2Configuration {
     this.outlineColor = builder.outlineColor;
     this.backlogLimit = builder.backlogLimit;
     this.encoderPool = builder.encoderPool;
+    this.unsentLimit = builder.unsentLimit;
   }
 
   /**
@@ -271,6 +279,16 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Gets the cap on the bytes a viewer's operating system may hold unsent, which is set on a viewer's connection when
+   * it starts receiving the screen (on Linux, where Paper uses the epoll transport).
+   *
+   * @return the cap in bytes, or 0 to leave the system's own
+   */
+  public int getUnsentLimit() {
+    return this.unsentLimit;
+  }
+
+  /**
    * Gets the encoder budget the screen encodes in: the one it was given, or the server's shared budget.
    *
    * @return the budget
@@ -299,6 +317,7 @@ public final class Mcv2Configuration {
     private long streamId = 1;
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
     private @Nullable EncoderPool encoderPool;
+    private int unsentLimit = DEFAULT_UNSENT_LIMIT;
     private EncoderSettings settings = EncoderSettings.SHIP;
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
@@ -462,6 +481,17 @@ public final class Mcv2Configuration {
     }
 
     /**
+     * Sets the cap on the bytes a viewer's operating system may hold unsent, {@link #DEFAULT_UNSENT_LIMIT} unless set.
+     *
+     * @param unsentLimit the cap in bytes, or 0 to leave the system's own, for example with no backlog limit either
+     * @return this builder
+     */
+    public Builder unsentLimit(final int unsentLimit) {
+      this.unsentLimit = unsentLimit;
+      return this;
+    }
+
+    /**
      * Sets the encoder budget the screen encodes in, instead of the server's shared budget, {@link EncoderPool#shared()}.
      * Screens that encode at the same time share a budget's threads.
      *
@@ -492,6 +522,7 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
       Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= 0xFFFFFFFFL, "Stream id must be an unsigned 32-bit value");
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
+      Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
       final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(4, this.columns * this.rows);
       final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
       final long lastPage = (long) this.pageMap + slots - 1;

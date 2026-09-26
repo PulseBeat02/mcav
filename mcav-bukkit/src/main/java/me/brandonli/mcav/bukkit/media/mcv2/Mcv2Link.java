@@ -28,15 +28,21 @@ import java.util.concurrent.atomic.AtomicLong;
  * the others back, nor let a growing backlog of video delay its own game packets. A frame therefore reaches a viewer
  * only when both hold: the viewer can decode it - it is a keyframe, or a P frame whose reference is the last frame or
  * the last keyframe the viewer was sent, which are the pictures its client holds - and the video handed to the
- * viewer's connection and not yet written is at most the backlog limit. A viewer over the limit misses frames until
- * one it can decode comes with its backlog under the limit again: the next frame when P frames predict from the last
- * keyframe, the next keyframe when each predicts from the frame before. Its client keeps the last picture it decoded
- * meanwhile. No frame whose reference the viewer lacks is ever sent: its client could not decode it anyway, and it
- * would only add to the backlog.
+ * viewer's connection and not yet written is at most the backlog limit, or {@link #KEYFRAME_ALLOWANCE} times it for a
+ * keyframe. A keyframe is where a viewer who missed frames starts over, and missing one costs the frames up to the
+ * next: every P frame after it when P frames predict from it, and when each predicts from the frame before, the P
+ * frames that follow a held one wait for a keyframe anyway. A viewer over the limit misses frames until one it can
+ * decode comes with its backlog under the limit again: the next frame when P frames predict from the last keyframe,
+ * the next keyframe when each predicts from the frame before. Its client keeps the last picture it decoded meanwhile.
+ * No frame whose reference the viewer lacks is ever sent: its client could not decode it anyway, and it would only
+ * add to the backlog.
  *
  * <p>Offers come from the thread that sends frames, one at a time; writes complete on the connection's thread.
  */
 public final class Mcv2Link {
+
+  /** How many times the backlog limit a keyframe may still go out over. */
+  public static final int KEYFRAME_ALLOWANCE = 2;
 
   /** The id no frame has: frame ids are unsigned 32-bit numbers. */
   private static final long NONE = -1;
@@ -85,7 +91,7 @@ public final class Mcv2Link {
   public synchronized boolean offer(final long frameId, final long referenceId, final boolean keyframe, final long bytes) {
     Preconditions.checkArgument(frameId >= 0 && frameId <= 0xFFFFFFFFL, "Frame id must be an unsigned 32-bit value");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative");
-    if (this.backlog.get() > this.limit) {
+    if (this.backlog.get() > (keyframe ? allowance(this.limit) : this.limit)) {
       this.behind++;
       return false;
     }
@@ -100,6 +106,17 @@ public final class Mcv2Link {
     this.backlog.addAndGet(bytes);
     this.sent++;
     return true;
+  }
+
+  /**
+   * Gets the backlog a keyframe may still go out over: {@link #KEYFRAME_ALLOWANCE} times the limit, as far as a long
+   * holds it.
+   *
+   * @param limit the backlog limit
+   * @return the keyframes' limit
+   */
+  static long allowance(final long limit) {
+    return limit > Long.MAX_VALUE / KEYFRAME_ALLOWANCE ? Long.MAX_VALUE : limit * KEYFRAME_ALLOWANCE;
   }
 
   /**

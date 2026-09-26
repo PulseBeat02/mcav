@@ -79,9 +79,22 @@ final class Mcv2LinkTest {
     // exactly at the limit is not behind
     assertTrue(link.offer(1, 0, false, 1));
     assertFalse(link.offer(2, 1, false, 1));
+    // a keyframe still goes out up to twice the limit, the P frames after it only under the limit again
+    assertTrue(link.offer(3, 3, true, 60));
+    assertFalse(link.offer(4, 3, false, 1));
+    assertFalse(link.offer(5, 5, true, 1));
+    link.written(62);
+    assertTrue(link.offer(6, 3, false, 1));
+    assertEquals(3, link.getBehind());
     final Mcv2Link none = new Mcv2Link(0);
     assertTrue(none.offer(0, 0, true, 5));
     assertFalse(none.offer(1, 0, false, 5));
+    assertFalse(none.offer(2, 2, true, 5));
+    // no limit stays no limit for keyframes
+    assertEquals(Long.MAX_VALUE, Mcv2Link.allowance(Long.MAX_VALUE));
+    assertEquals(Long.MAX_VALUE, Mcv2Link.allowance(Long.MAX_VALUE / 2 + 1));
+    assertEquals(Long.MAX_VALUE - 1, Mcv2Link.allowance(Long.MAX_VALUE / 2));
+    assertEquals(100, Mcv2Link.allowance(50));
   }
 
   @Test

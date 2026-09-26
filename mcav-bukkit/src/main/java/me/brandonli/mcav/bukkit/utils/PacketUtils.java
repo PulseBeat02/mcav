@@ -18,12 +18,15 @@
 package me.brandonli.mcav.bukkit.utils;
 
 import com.google.common.base.Preconditions;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.epoll.EpollChannelOption;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.bukkit.BukkitModule;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -151,6 +154,29 @@ public final class PacketUtils {
     }
     connection.send(packet, listener);
     return true;
+  }
+
+  /**
+   * Caps how many bytes the operating system may hold unsent for a player (TCP_NOTSENT_LOWAT), on Linux with the
+   * epoll transport Paper uses there. Above the cap the bytes wait in the connection's own queue, where
+   * {@link #sendPacket(UUID, Packet, ChannelFutureListener)}'s listener sees how far writing got; without it the
+   * system takes up to megabytes of a slow viewer's video at once and hides the backlog, and the player's game
+   * packets wait behind all of it. Bytes already sent and waiting for their acknowledgement do not count, so the cap
+   * does not slow a connection down. May be called from any thread.
+   *
+   * @param player the UUID of the player
+   * @param bytes  the most unsent bytes the system may hold, positive
+   * @return true if the cap was set; false for a player who is not online, a connection not open yet, or a transport
+   *     without the option
+   */
+  public static boolean limitUnsent(final UUID player, final int bytes) {
+    Preconditions.checkNotNull(player, "Player must not be null");
+    Preconditions.checkArgument(bytes > 0, "Bytes must be positive");
+    final ServerGamePacketListenerImpl listener = PLAYER_CONNECTIONS.get(player);
+    // a game connection's network connection is only missing where there is no network, as in tests
+    final Connection connection = listener == null ? null : listener.connection;
+    final Channel channel = connection == null ? null : connection.channel;
+    return channel != null && channel.config().setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, (long) bytes);
   }
 
   private static void handleJoin(final Event event) {

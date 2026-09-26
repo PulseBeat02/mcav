@@ -30,13 +30,23 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.papermc.paper.configuration.GlobalConfiguration;
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.server.network.ServerCommonPacketListenerImpl;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
@@ -181,6 +191,46 @@ final class PacketUtilsTest {
     final List<Packet<?>> packets = this.server.getSentPackets(FIRST);
     final List<Packet<?>> expected = List.of(first, second);
     assertEquals(expected, packets);
+  }
+
+  /**
+   * Creates a network connection without a server: its class reads Paper's global configuration when it is loaded,
+   * which only a running server has, so the configuration is stubbed while the class loads.
+   */
+  private static Connection connection() {
+    final GlobalConfiguration configuration = mock(GlobalConfiguration.class);
+    configuration.misc = mock(GlobalConfiguration.Misc.class);
+    try (MockedStatic<GlobalConfiguration> global = Mockito.mockStatic(GlobalConfiguration.class)) {
+      global.when(GlobalConfiguration::get).thenReturn(configuration);
+      return mock(Connection.class);
+    }
+  }
+
+  @Test
+  void capsTheUnsentBytesOfAConnectionThatTakesTheOption() throws ReflectiveOperationException {
+    this.server.addPlayer(FIRST);
+    this.server.injectModule();
+    // a player who is not online, and one whose game connection has no network connection
+    assertFalse(PacketUtils.limitUnsent(SECOND, 1024));
+    assertFalse(PacketUtils.limitUnsent(FIRST, 1024));
+    // a network connection that is not open yet, one on a transport without the option, and one with it
+    final Connection connection = connection();
+    final Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
+    field.setAccessible(true);
+    final CraftPlayer player = (CraftPlayer) Objects.requireNonNull(Bukkit.getPlayer(FIRST));
+    field.set(player.getHandle().connection, connection);
+    assertFalse(PacketUtils.limitUnsent(FIRST, 1024));
+    connection.channel = new EmbeddedChannel();
+    assertFalse(PacketUtils.limitUnsent(FIRST, 1024));
+    final Channel epoll = mock(Channel.class);
+    final ChannelConfig config = mock(ChannelConfig.class);
+    when(epoll.config()).thenReturn(config);
+    when(config.setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, 1024L)).thenReturn(true);
+    connection.channel = epoll;
+    assertTrue(PacketUtils.limitUnsent(FIRST, 1024));
+    verify(config).setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, 1024L);
+    assertThrows(NullPointerException.class, () -> PacketUtils.limitUnsent(null, 1));
+    assertThrows(IllegalArgumentException.class, () -> PacketUtils.limitUnsent(FIRST, 0));
   }
 
   @Test

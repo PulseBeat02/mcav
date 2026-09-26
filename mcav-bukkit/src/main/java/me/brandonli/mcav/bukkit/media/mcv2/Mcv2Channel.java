@@ -30,6 +30,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
+import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Frame;
@@ -144,6 +145,11 @@ public final class Mcv2Channel {
       return;
     }
     this.screen.show(player);
+    // the rest of the viewer's video waits where its backlog limit sees it
+    final int unsent = this.configuration.getUnsentLimit();
+    if (unsent > 0) {
+      PacketUtils.limitUnsent(viewer, unsent);
+    }
     // a viewer shown the screen again starts over: its client holds no picture of this stream yet
     this.links.put(viewer, new Mcv2Link(this.configuration.getBacklogLimit()));
     this.keyframeRequested = true;

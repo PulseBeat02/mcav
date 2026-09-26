@@ -45,8 +45,8 @@ final class Mcv2LinkPropertyTest {
 
   /**
    * Simulates an encoder with either reference policy and a client model, and checks that every frame sent is one
-   * the client could decode, that nothing is sent while the backlog is over the limit, and that the backlog is what
-   * was sent and not yet written.
+   * the client could decode, that nothing is sent while the backlog is over the limit (twice it for a keyframe), and
+   * that the backlog is what was sent and not yet written.
    */
   @Property(tries = 400)
   boolean sendsOnlyFramesTheViewerCanDecode(
@@ -76,7 +76,7 @@ final class Mcv2LinkPropertyTest {
       if (keyframe) {
         lastKey = id;
       }
-      final boolean over = outstanding > limit;
+      final boolean over = outstanding > (keyframe ? Mcv2Link.allowance(limit) : limit);
       final boolean sent = link.offer(id, reference, keyframe, step.bytes());
       if (sent) {
         // the client must hold the frame's reference, and the connection must have been at or under the limit

@@ -135,7 +135,8 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
-   * limit, for a measurement; unset for mcav's default.
+   * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
+   * default.
    */
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
 
@@ -174,6 +175,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       .settings(profile.getSettings())
       .pageSlots(Integer.getInteger(PAGE_SLOTS_PROPERTY, 0))
       .backlogLimit(backlogLimit())
+      .unsentLimit(unsentLimit())
       .build();
   }
 
@@ -189,6 +191,16 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     }
     return value.equals("none") ? Long.MAX_VALUE : Long.parseLong(value);
+  }
+
+  /**
+   * The cap on a viewer's unsent bytes of new screens: none when the {@link #BACKLOG_PROPERTY} system property is
+   * {@code none}, a measurement without backpressure, and mcav's default otherwise.
+   *
+   * @return the cap in bytes, 0 for none
+   */
+  static int unsentLimit() {
+    return "none".equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
   }
 
   /**

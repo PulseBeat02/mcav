@@ -195,6 +195,7 @@ final class Mcv2ChannelTest {
       .rows(1)
       .pageMap(500)
       .backlogLimit(400)
+      .unsentLimit(0)
       .build();
     final Mcv2Channel channel = new Mcv2Channel(tight, this.viewers, this.screen);
     channel.update();
