@@ -96,12 +96,12 @@ Send the client log, a screenshot and the server log's lines around `MCV2` if so
 
 | what | measured on the devbox | how to see it on yours |
 | --- | --- | --- |
-| upload per viewer, live 1080p60 | 5.38 Mbit/s of map packets, 3.50 after the game's zlib (-35%); TCP payload measured 3.4-3.6 Mbit/s | the server's network monitor, or `nload` on the server |
+| upload per viewer, live 1080p30 (default lambda 72) | quiet content 2.85 Mbit/s of map packets, 1.86 after the game's zlib (-35%); fast gameplay 27.7 and 17.0 | the server's network monitor, or `nload` on the server |
 | upload per viewer, ship 1080p30 | 3.40 Mbit/s, 2.19 after zlib | as above |
-| compression CPU per viewer | 2.0% of a core (live 60 fps), 1.3% (ship 30 fps) | a profiler on the server's Netty threads |
-| decode per new video frame, UHD 630 | 7.9 ms (P frame), 8.8 ms (keyframe), 6.6 ms without new video | F3 frame time, wall in view and out |
+| compression CPU per viewer | 2.0% of a core (the first live profile, 60 fps, 5.4 Mbit/s), 1.3% (ship 30 fps) | a profiler on the server's Netty threads |
+| decode per new video frame, UHD 630 | live: 7.4 ms (quiet content) and 8.7 ms (gameplay) per new frame, 5.7-5.9 ms without new video; ship 7.9 / 8.8 / 6.6 | F3 frame time, wall in view and out |
 | server tick with 1 or 2 live screens | TPS 20.0; MSPT p95 0.63 / 0.83 ms at the default budget | `/mspt` (Paper) |
-| live encode, 1080p | see the report's LIVE 1080p60 section: short of 60 fps on a 6-core machine | the screen's pacing messages |
+| live encode, 1080p30 | 35 ms mean per frame of quiet content, 70 of gameplay, on a 6-core machine's 12 threads: about 28 and 14 fps (the report's LIVE 1080p60 section) | the screen's pacing messages |
 
 ## 7. What was verified on the devbox, and what needs your client
 

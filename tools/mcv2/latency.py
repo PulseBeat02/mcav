@@ -73,23 +73,29 @@ def events(path, jfr):
 
 
 def captures(path):
-    """(wall-clock ms, number or None) for every captured frame."""
+    """(wall-clock ms, number or None) for every captured frame, decoded one frame at a time: a 10-minute capture is
+    2.6 GB of pixels."""
     probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                             "stream=width,height:frame=pts_time", "-of", "json", str(path)],
                            check=True, capture_output=True, text=True).stdout
     info = json.loads(probe)
     width, height = info["streams"][0]["width"], info["streams"][0]["height"]
     times = [float(frame["pts_time"]) * 1000.0 for frame in info["frames"]]
-    raw = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24",
-                          "-"], check=True, capture_output=True).stdout
-    frames = np.frombuffer(raw, np.uint8).reshape(-1, height, width, 3)
     row = min(BLOCK // 2, height - 1)
     xs = [BLOCK // 2 + BLOCK * i for i in range(SAMPLES) if BLOCK // 2 + BLOCK * i < width]
+    size = width * height * 3
     result = []
-    for time, frame in zip(times, frames):
-        pixels = frame[row, xs].astype(int)
-        luma = ((pixels[:, 0] + 2 * pixels[:, 1] + pixels[:, 2]) // 4).tolist()
-        result.append((time, read(luma)))
+    with subprocess.Popen(["ffmpeg", "-nostdin", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24",
+                           "-"], stdout=subprocess.PIPE) as decoder:
+        # every frame is read, those past the probed times too, so the decoder never blocks on a full pipe
+        for index, raw in enumerate(iter(lambda: decoder.stdout.read(size), b"")):
+            if index >= len(times) or len(raw) < size:
+                continue
+            pixels = np.frombuffer(raw, np.uint8).reshape(height, width, 3)[row, xs].astype(int)
+            luma = ((pixels[:, 0] + 2 * pixels[:, 1] + pixels[:, 2]) // 4).tolist()
+            result.append((times[index], read(luma)))
+    if decoder.returncode != 0:
+        raise subprocess.CalledProcessError(decoder.returncode, decoder.args)
     return result
 
 

@@ -282,10 +282,12 @@ Each frame is split into pages of 16,384 six-bit symbols (12,256 payload bytes a
 A page is sent as whole 128-symbol map rows, so the charged map rate is `rows * 128 + 18` bytes per page, which is the
 frontier's accounting. Minecraft compresses packets with zlib; because map bytes carry at most six bits each, it
 saves about a third, measured on the map packets mcav sends (every page as its map-data packet, deflated as Paper does at
-its default level, inflated as the client does): **`live` 1080p60 5.38 -> 3.50 Mbit/s (-34.9%), `ship` 1080p30 3.40 ->
-2.19 (-35.5%)**, for 2.0% and 1.3% of a core per viewer on the server (331 and 440 us of deflate per frame) and 55-76 us
-of inflate per frame on the client. The TCP payload measured on the lab's far listener agrees (3.4-3.6 Mbit/s for
-`live`). No compression threshold is recommended: skipping the map packets would give up a third of the bandwidth to
+its default level, inflated as the client does): **the first `live` profile at 1080p60 5.38 -> 3.50 Mbit/s (-34.9%),
+`ship` 1080p30 3.40 -> 2.19 (-35.5%)**, for 2.0% and 1.3% of a core per viewer on the server (331 and 440 us of deflate
+per frame) and 55-76 us of inflate per frame on the client. The TCP payload measured on the lab's far listener agrees (3.4-3.6 Mbit/s for
+that `live` stream, the first live profile's). The shipped `live` at its default lambda 72 and 1080p30: **2.85 -> 1.86
+Mbit/s on the 1080p30 proxy (-35%) and 27.7 -> 17.0 on real gameplay (-39%)** (600 frames each, the same compression
+model). No compression threshold is recommended: skipping the map packets would give up a third of the bandwidth to
 save 1-2% of a core per viewer.
 
 ## 8. Hostile input
@@ -323,7 +325,8 @@ the shipped lambda), warm:
 On Mesa llvmpipe (the headless client's renderer; CPU, measured under a machine load of 10-17, so noisier): new P
 frame 262 -> 68 ms, keyframe 348 -> 36 ms, a frame without new video 85 -> 51 ms; decode 175 -> 18 ms, screen 54 ->
 12 ms. On llvmpipe every full-screen blit costs about 4 ms of CPU, so the chain's structural copies dominate there.
-With the final pack the live stream costs 8.0 ms per new frame on the UHD 630 and low_bandwidth 8.3 ms.
+With the final pack the first live profile's stream cost 8.0 ms per new frame on the UHD 630 and low_bandwidth 8.3 ms; the
+shipped `live` (§12) costs 7.4 ms on quiet content and 8.7 ms on gameplay.
 
 **Reconciling 15.065 and 27 ms.** gpu-codec's 15.065 ms is its own harness (`scripts/gpu_v2.py`: one decode draw
 with uniforms, a 1024-wide byte texture, 30 repeats per frame averaged over 30 frames) on its lambda-44.86 ship
@@ -342,8 +345,8 @@ rendered frame runs the chain with a copy in place of the decode - 6.6 ms on the
 cast is 1.9 ms and the chain's own copies about 2.8 ms (each persistent target is updated through a blit, because a
 pass cannot write the target it reads).
 
-**Does 1080p60 fit the UHD 630?** The chain now takes 7.9-8.8 ms of a 16.7 ms frame when every rendered frame brings a
-new video frame, leaving about 8 ms for Minecraft's own rendering, which at 1080p on a UHD 630 usually needs more:
+**Does 1080p60 fit the UHD 630?** The chain now takes 7.4-8.8 ms of a 16.7 ms frame when every rendered frame brings a
+new video frame (a 30 fps video brings one every other frame at 60 fps), leaving about 8 ms for Minecraft's own rendering, which at 1080p on a UHD 630 usually needs more:
 expect 35-50 fps on that GPU. A GPU about twice as fast (Intel Iris Xe with 80-96 EUs, AMD 680M, or any discrete GPU
 since a GTX 1050) runs the chain in under 4 ms and fits 60 fps with room for the game. A client that renders fewer
 frames per second than the video has decodes at most one video frame per rendered frame; the others are overwritten
@@ -385,7 +388,7 @@ stream is encoded once for all its viewers; each viewer receives it through its 
 **Measured** on four simulated links (the host's netem on the lab server's port, the real 26.2 client, pre-encoded
 1080p streams, backpressure on and off; the full table is in the report's FAR VIEWERS section):
 
-| link | live 1080p60, backpressure on: frames held, game round trip p95 | backpressure off |
+| link | the first `live` profile's 1080p60 proxy stream (5.4 Mbit/s of map packets), backpressure on: frames held, game round trip p95 | backpressure off |
 | --- | --- | --- |
 | nearby (15 ms, no loss) | 0%, 36 ms (game alone 35) | 0%, 37 ms |
 | other continent (100 ms ±10) | 6.6%, 239 ms (game alone 217) | 0%, 259 ms, max 759 |
@@ -396,8 +399,9 @@ On the lossy link CUBIC instead of BBR delivered only 19% of the frames (BBR 92.
 keyframe-reference variant, 9.5 Mbit/s, on 6 Mbit/s) keeps the server's backlog bounded but not what TCP already has in
 flight: game packets then waited seconds; bounding in-flight bytes as well is a next step.
 
-**For server owners:** a viewer needs about **3.6 Mbit/s for `live` 1080p60 and 2.3 Mbit/s for `ship` 1080p30** after
-the game's compression, with headroom; run the server with BBR (`net.ipv4.tcp_congestion_control=bbr`); keep
+**For server owners:** after the game's compression a viewer needs about **1.9 Mbit/s for `live` 1080p30 on quiet
+content and 17 Mbit/s on fast gameplay** at the default lambda (8 Mbit/s at lambda 210), and **2.2 Mbit/s for `ship`
+1080p30** on quiet content, with headroom; run the server with BBR (`net.ipv4.tcp_congestion_control=bbr`); keep
 backpressure on (the default): it costs nothing nearby and keeps a far viewer's game playable.
 
 ## 11. Server viability
@@ -431,31 +435,33 @@ ms a frame has at 60 fps with the encoder threads it has` - and the sandbox send
 
 **Measured** (Temurin 25; details in the report's SERVER VIABILITY section). The server's tick with live 1080p
 screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83 with two
-(all 12 processors: 1.08 and 2.21). Encode time of `live` per frame (mean / p95 ms) by encoder threads, verified as a
-screen encodes:
+(all 12 processors: 1.08 and 2.21; measured with the first `live` profile, whose encoder threads load the machine the
+same way). Encode time of the shipped `live` per frame (mean / p95 ms, and CPU ms per frame) by encoder threads,
+verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up frames left out), the host quiet (load 4-12):
 
-| source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 10 threads | CPU ms per frame (1 thread) |
-| --- | --- | --- | --- | --- | --- | --- | ---: |
-| 1920x1080 at 60 fps | 100.0 / 118.2 (104) | 55.7 / 65.7 (113) | 40.2 / 48.8 (117) | 33.8 / 44.5 (127) | 26.4 / 32.2 (143) | 22.9 / 29.3 (176) | 104 |
-| 1920x1080 at 30 fps | 111.5 / 131.8 (114) | 62.1 / 73.3 (125) | 45.4 / 58.1 (130) | 35.7 / 45.2 (133) | 29.3 / 34.4 (156) | 27.5 / 36.1 (197) | 114 |
-| 1280x720 at 60 fps | 51.6 / 62.4 (57) | 31.7 / 45.1 (66) | 22.2 / 30.1 (70) | 17.7 / 23.9 (71) | 14.4 / 17.5 (79) | 12.5 / 15.8 (93) | 57 |
-| 1280x720 at 30 fps | 57.7 / 74.7 (59) | 30.7 / 38.0 (66) | 27.2 / 35.2 (82) | 23.8 / 35.2 (86) | 16.2 / 20.9 (86) | 13.8 / 17.7 (103) | 59 |
+| source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 10 threads | 12 threads |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1920x1080 proxy | 177.1 / 206.6 (179) | 100.0 / 166.8 (193) | 70.0 / 95.7 (200) | 54.3 / 69.0 (207) | 43.4 / 50.0 (245) | 37.8 / 45.1 (313) | 36.4 / 41.7 (316) |
+| 1920x1080 gameplay | 364.6 / 478.2 (367) | 213.1 / 342.0 (396) | 149.3 / 218.1 (416) | 114.4 / 161.8 (423) | 89.4 / 120.3 (501) | 77.8 / 105.6 (650) | 75.4 / 99.7 (660) |
+| 1280x720 proxy | 91.4 / 108.0 (102) | 52.1 / 65.2 (112) | 39.6 / 52.3 (125) | 31.0 / 39.6 (124) | 24.1 / 28.8 (139) | 21.9 / 27.7 (173) | 21.4 / 27.1 (175) |
+| 1280x720 gameplay | 179.5 / 237.5 (188) | 104.0 / 157.3 (203) | 70.8 / 95.1 (208) | 55.7 / 76.6 (220) | 46.1 / 62.5 (262) | 40.4 / 55.6 (325) | 38.1 / 51.7 (332) |
 
-**Cores needed ~= CPU-ms x fps / 1000** (1080p: 104 ms per frame on one thread, so ~6.3 cores for 60 fps and 3.1 for
-30; 720p: 57 ms). What a server encodes live with the default budget (half its processors), the pacer stepping down to
-fit:
+**Cores needed ~= CPU-ms x fps / 1000** with the one-thread CPU time (1080p30: ~5.4 cores of this CPU on quiet content,
+~11 on fast gameplay; 720p30: ~3.1 and ~5.6); more threads cost more CPU per frame on shared cores (hyperthreads,
+memory bandwidth). The frames per second a server encodes live with the default budget (half its processors, `1000 /
+mean ms`, at most the source's 30), the pacer stepping to the rungs that fit:
 
-| server | default encoder threads | 1080p (60 fps source) | 1080p (30 fps source) | 720p (60 fps source) | 720p (30 fps source) |
+| server | default encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 | --- | ---: | --- | --- | --- | --- |
-| 2 cores | 1 | 10 fps | 9 fps | 19 fps | 17 fps |
-| 4 cores | 2 | 18 fps | 16 fps | 32 fps | 30 fps (full rate) |
-| 6 cores | 3 | 25 fps | 22 fps | 45 fps | 30 fps (full rate) |
-| 8 cores | 4 | 30 fps | 28 fps | 56 fps | 30 fps (full rate) |
-| 12 cores | 6 | 38 fps | 30 fps (full rate) | 60 fps (full rate) | 30 fps (full rate) |
-| 20 cores | 10 | 44 fps | 30 fps (full rate) | 60 fps (full rate) | 30 fps (full rate) |
+| 2 processors | 1 | 6 fps | 3 fps | 11 fps | 6 fps |
+| 4 processors | 2 | 10 fps | 5 fps | 19 fps | 10 fps |
+| 6 processors | 3 | 14 fps | 7 fps | 25 fps | 14 fps |
+| 8 processors | 4 | 18 fps | 9 fps | 30 fps (full rate) | 18 fps |
+| 12 processors | 6 | 23 fps | 11 fps | 30 fps (full rate) | 22 fps |
+| 20 processors | 10 | 26 fps | 13 fps | 30 fps (full rate) | 25 fps |
 
-A 2-core server should pre-encode (`ship`: a minute of 1080p30 takes 57 minutes on 2 threads, 26 on 4; `live` at 30
-fps runs in real time on 4 threads). ARM64 hosts are untested (no ARM machine here); the encoder is plain Java.
+A small server should pre-encode (`ship`: a minute of 1080p30 takes 57 minutes on 2 threads, 26 on 4; `live` a minute
+of 1080p30 in ~3 minutes of quiet content or ~6.5 of gameplay on 2 threads). ARM64 hosts are untested (no ARM machine here); the encoder is plain Java.
 
 **Pre-encoding** is the path for a server too small to encode live: `Mcv2FileEncoder` decodes a video file with FFmpeg
 and encodes it frame by frame inside a budget into a stream file; the sandbox's `/mcav mcv2 encode <file> <output>
@@ -465,39 +471,58 @@ progress every thirty seconds, and `/mcav mcv2 cancel` stops it; `/mcav mcv2 pla
 ## 12. LIVE 1080p60: the `live` profile
 
 A separate profile beside `ship` and `low_bandwidth` (which stay byte-identical to the reference), for sources that
-play while they are encoded. The same pack decodes it; no format change.
+play while they are encoded. The same pack decodes it; no format change. The owner's gate (revised 2026-09-26) is
+1080p at 30 fps with a p95 under 32 ms per frame, 1080p60 a stretch goal; the quality rule is VMAF mean >= 75 at the
+default setting on the 1080p30 source and on real gameplay, and at most 10% more bandwidth than `ship` at equal VMAF.
 
-**The profile** (`EncoderSettings.LIVE`, `LiveSearch.LIVE`): the shipped lambda 65.26, a keyframe every 120 frames (2 s
-at 60 fps), scene cut at a mean absolute luma change of 45 after prediction, P frames predicting from the previous frame;
-**one trial** instead of the reference's four (the global vector, zero or the projection estimate, chosen before the
-search by what SKIP would cost with each on a 1-in-16 sample, `LiveAnalysis`; RGB565 endpoints); the tree searched **from
-the top**: a block whose SKIP costs at most **26.5 lambda** is SKIP without a search (the largest threshold proven never to
-change a decision), a 32-pixel block is split only above **150 lambda** where the previous frame split that superblock and
-above **450 lambda** where it did not (the steady split), a 16-pixel block above **300 lambda**, down to 8 pixels; P-frame
-leaves are local **motion** (a diamond seeded from the previous frame's 8x8 vectors, searched down to 16-pixel blocks,
-smaller blocks inherit their parent's vector), **palette**, one **compact** class (`GRID4_N4_Y`) at the quantizer lambda
-suggests, and **pattern**; keyframes try every intra mode; palettes and intra grids use the cheaper fits (`FastFits`).
-The early-exit thresholds have property tests (monotonic in lambda; SKIP exactly at or below the threshold,
-`LiveSearchPropertyTest`) and the profile's output is pinned by a digest on a small scene (`LiveEncoderTest`).
-**Verification** is on by default: the tree the bytes describe, and the decoder's picture equal to the one the search
-assembled. An optional **frame budget** (`Mcv2Encoder.setFrameBudget`) ends a frame that runs long by giving the
-superblocks not yet searched their cheapest choice (SKIP, or one colour in a keyframe); it is off by default because the
-output then depends on the machine's speed.
+**The profile** (`EncoderSettings.LIVE`, `LiveSearch.LIVE`): **lambda 72**, a keyframe every 120 frames (4 s at 30 fps),
+scene cut at a mean absolute luma change of 45 after prediction, P frames predicting from the previous frame; **one
+trial** instead of the reference's four (the global vector, zero or the projection estimate, chosen before the search by
+what SKIP would cost with each on a 1-in-16 sample, `LiveAnalysis`; RGB565 endpoints); the tree searched **from the
+top**: a block whose SKIP costs at most **26.5 lambda** is SKIP without a search (the largest threshold proven never to
+change a decision), a 32-pixel block is split only above **150 lambda** where the previous frame split that superblock
+and above **450 lambda** where it did not, a 16-pixel block above **300 lambda**, down to 8 pixels. P-frame leaves are
+the modes `ship` uses on real gameplay: local **motion**, **solid** colours, **palettes**, the **2x2 intra grid**, the
+**reduced intra grid** (luma 4x4, chroma 1x1), **compact** records and **patterns**. Compact records use three classes
+(the luma offset and the two 4-bit 4x4 luma grids, with and without chroma) at **the one quantizer their fitted values
+need** (`FIT_ONE`: the finest that holds them unclipped; a compact record's length does not depend on its quantizer, so
+a coarser one only adds error). Local motion is a diamond seeded from the previous frame's 8x8 vectors, searched down to
+16-pixel blocks, **first on the pictures at half resolution** (`HALF_MOTION`: a half-resolution half pixel is a whole
+pixel), then refined at full resolution to half pixels; smaller blocks inherit their parent's vector. Keyframes try
+every intra mode; palettes and intra grids use the cheaper fits (`FastFits`); compact records are tried on the closer
+of the global and the local prediction only. The early-exit thresholds have property tests (monotonic in lambda; SKIP
+exactly at or below the threshold, `LiveSearchPropertyTest`) and the profile's output is pinned by a digest on a small
+scene (`LiveEncoderTest`). **Verification** is on by default: the tree the bytes describe, and the decoder's picture
+equal to the one the search assembled. An optional **frame budget** (`Mcv2Encoder.setFrameBudget`) ends a frame that runs
+long by giving the superblocks not yet searched their cheapest choice (SKIP, or one colour in a keyframe); it is off by
+default: it bounds the worst frame, but on busy video it gives up most of the picture, and the output then depends on
+the machine's speed.
 
-**Keyframes, scene cuts and resync.** A keyframe (every 2 s, or at a scene cut) runs the full intra search and costs
-about as much as a P frame; the slowest frames of 600 are 113-176 ms on a quiet machine, 55-64 ms with a 33 ms frame
-budget. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from the frame before, so
-it cannot let a viewer back in. **A viewer who fell behind** (its backlog over the limit, §10) or starts watching is sent
-nothing more until the next keyframe - at most 2 s at 60 fps - and from it every frame; its client holds the last picture
-it decoded meanwhile.
+Why these choices (the report's lever table has every measurement): a candidate set chosen on the SKIP-heavy 1080p60
+proxy alone needed 80% more rate than `ship` on real gameplay, whose P frames `ship` codes with solid colours and intra
+grids; the owner's levers then took the CPU back down inside the quality cap - the fitted quantizer (lever 5) and the
+half-resolution motion search (lever 6), which is what brings gameplay inside the cap; three compact classes instead of
+five cost the same rate for 15% less CPU. Rejected by measurement: content-adaptive pre-selection (lever 1, no speed-up),
+reusing the previous frame's decision (lever 2, +18% rate on gameplay).
 
-**Measured** (Temurin 25, 12 threads, verify on, the host quiet; the report's LIVE 1080p60 section has every run and the
-lever table): on the 1080p60 proxy 22.1 ms per frame mean, **26.5 ms p95** (20.0 ms p95 without verification), on the
-high-motion gameplay clip 48.0 / 66.7 ms; **the 16 ms p95 target is not met** on this 6-core machine. Quality against
-`ship` on the 1080p60 proxy (600 frames, five lambdas, VMAF): **-14.8% map rate, -13.8% after compression at equal VMAF
-mean** (-4.7% / -4.0% at equal VMAF min); at the default lambda VMAF 79.19 mean / 69.80 min against ship's 77.78 / 70.12.
-Decode on the Intel UHD 630: 8.0 ms per new frame. Transport: 60 frames a second leave the server off its 20 ticks
-(9,619 frames to one viewer in 160 s), 5.4 Mbit/s of map packets, 3.5 after compression.
+**Lambda 72** is the largest round value that keeps the 1080p30 proxy at VMAF mean >= 75; gameplay scores ~89 there.
+The revised rule also asks for gameplay at ~75, which one lambda cannot give together with >= 75 on the proxy (gameplay
+reaches 75 near lambda 210, where the proxy is at ~58); a per-content lambda (a quality target) would.
+
+**Keyframes, scene cuts and resync.** A keyframe (every 4 s, or at a scene cut) runs the full intra search and costs
+about as much as a P frame. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from
+the frame before, so it cannot let a viewer back in. **A viewer who fell behind** (its backlog over the limit, §10) or
+starts watching is sent nothing more until the next keyframe - at most 4 s at 30 fps - and from it every frame; its
+client holds the last picture it decoded meanwhile.
+
+**Measured** (Temurin 25, 12 threads of the i7-8700, verify on, as a screen encodes, 660 frames with 60 warm-up
+frames left out; the report's LIVE 1080p60 section has every run): **35-36 ms mean, 41.5-44.2 ms p95 per 1080p30 frame
+of quiet content (the 1080p30 proxy) and 70 ms mean, 92-94 ms p95 of fast gameplay: the 32 ms p95 gate is not met** on
+this 6-core machine (720p30 of quiet content meets it from 6 threads; the hardware guide is §11). Quality against `ship`
+(600 frames, BD-rate at equal VMAF mean, map / after compression): **-3.2% / -1.4% on the 1080p30 proxy, +9.3% / +7.9%
+on gameplay**; VMAF mean at the default 75.65 and 88.76. Per viewer at the default lambda: 2.85 Mbit/s of map colours,
+1.86 after compression, on the proxy; 27.7 and 17.0 on gameplay (86 KB per frame: 8 page slots). Decode on the Intel
+UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new frame, 5.7-5.9 ms per rendered frame without new video.
 
 ## Handover notes
 
