@@ -59,3 +59,17 @@ simple-voice-chat:
 
   # Whether or not the Simple Voice Chat extension is enabled
   enabled: false
+
+# ======================================================================
+# MCV2 VIDEO CONFIGURATION
+# ======================================================================
+
+# The MCV2 encoder turns video into what the MCV2 resource pack decodes. Every MCV2 screen of the server encodes
+# on one shared set of threads, so the game keeps the rest of the processors.
+mcv2:
+
+  # How many threads the MCV2 encoders share, from 1 to 256, or 0 for half the processors the server may use (at
+  # least one). A screen whose frames take longer than the video gives them encodes fewer frames a second, and at
+  # worst shows the dithered maps, and the server log says what it chose and why.
+  # Default is 0
+  encoder-threads: 0

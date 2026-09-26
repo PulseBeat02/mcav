@@ -69,6 +69,49 @@ public interface Message extends LocaleTools {
   UniComponent<String> MCV2_FILE_ERROR = direct("mcav.command.mcv2.file.error", null);
 
   /**
+   * Key {@code mcav.command.mcv2.pacing}: an MCV2 screen stepped down or back up the frame rates its encoder budget
+   * sustains; what it chose and why is inserted.
+   */
+  UniComponent<String> MCV2_PACING = direct("mcav.command.mcv2.pacing", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.start}: {@code /mcav mcv2 encode} started; what it encodes, how and on how many
+   * threads is inserted.
+   */
+  UniComponent<String> MCV2_ENCODE_START = direct("mcav.command.mcv2.encode.start", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.progress}: how far a file encode got; the frames and the time per frame are
+   * inserted.
+   */
+  UniComponent<String> MCV2_ENCODE_PROGRESS = direct("mcav.command.mcv2.encode.progress", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.done}: a file encode finished; what it made and how long it took is inserted.
+   */
+  UniComponent<String> MCV2_ENCODE_DONE = direct("mcav.command.mcv2.encode.done", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.error}: a file encode failed; the reason is inserted.
+   */
+  UniComponent<String> MCV2_ENCODE_ERROR = direct("mcav.command.mcv2.encode.error", null);
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.busy}: {@code /mcav mcv2 encode} was run while another encode runs.
+   */
+  NullComponent MCV2_ENCODE_BUSY = direct("mcav.command.mcv2.encode.busy");
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.cancelled}: a file encode stopped before it finished.
+   */
+  NullComponent MCV2_ENCODE_CANCELLED = direct("mcav.command.mcv2.encode.cancelled");
+
+  /**
+   * Key {@code mcav.command.mcv2.encode.none}: {@code /mcav mcv2 cancel} found no encode running.
+   */
+  NullComponent MCV2_ENCODE_NONE = direct("mcav.command.mcv2.encode.none");
+
+  /**
    * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} started the stream.
    */
   NullComponent MCV2_PLAY = direct("mcav.command.mcv2.play");

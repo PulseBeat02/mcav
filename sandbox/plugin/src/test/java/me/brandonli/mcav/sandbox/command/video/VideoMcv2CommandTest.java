@@ -34,7 +34,9 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
@@ -150,18 +152,33 @@ final class VideoMcv2CommandTest {
     assertSame(configuration, settings.configuration());
     assertSame(this.viewers, settings.viewers());
     assertEquals(DitheringArgument.FILTER_LITE, settings.dithering());
+    assertSame(this.sender, settings.sender());
   }
 
   @Test
   void startsTheResultOnThePlayerManager() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     final AbstractVideoCommand.VideoConfigurationProvider provider = _ ->
-      new VideoMcv2Command.Mcv2Settings(configuration, this.viewers, DitheringArgument.FILTER_LITE);
+      new VideoMcv2Command.Mcv2Settings(configuration, this.viewers, DitheringArgument.FILTER_LITE, this.sender);
     try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       final VideoPipelineStep step = this.command.createVideoFilter(Pair.pair(640, 384), provider);
       final Mcv2Result result = results.constructed().getFirst();
       verify(this.manager).startFilter(result);
       assertSame(result, step.getFilter());
+      // the screen's steps are told to whoever started it
+      @SuppressWarnings("unchecked")
+      final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
+      verify(result).setPacingListener(listeners.capture());
+      final Mcv2Pacer.Change change = new Mcv2Pacer.Change(
+        new Mcv2Pacer.Rung(640, 384, 1),
+        new Mcv2Pacer.Rung(640, 384, 2),
+        true,
+        20,
+        16.7,
+        60
+      );
+      listeners.getValue().accept(change);
+      verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
     }
   }
 

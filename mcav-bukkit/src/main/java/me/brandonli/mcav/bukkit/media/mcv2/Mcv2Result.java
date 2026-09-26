@@ -18,21 +18,26 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.LongSupplier;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import org.bukkit.Bukkit;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +48,17 @@ import org.slf4j.LoggerFactory;
  * {@link CompressedMapResult}, so a player without the pack never sees a screen their client cannot show. Which
  * players have the pack, and when they start receiving frames, is decided by the {@link Mcv2Channel}.
  *
- * <p>Frames are encoded on a dedicated thread, one at a time. When the encoder is slower than the video, frames that
- * arrive while it works replace each other and only the newest is encoded, which the encoder's previous-frame
- * reference allows. A frame with more pages than the screen has page slots is not sent, and the next is a keyframe.
+ * <p>Frames are encoded one at a time, inside the screen's encoder budget ({@link Mcv2Configuration#getEncoderPool()}),
+ * which every screen of the server shares unless it was given its own; a thread of the screen only waits for the
+ * budget. When the encoder is slower than the video, frames that arrive while it works replace each other and only the
+ * newest is encoded, which the encoder's previous-frame reference allows. A frame with more pages than the screen has
+ * page slots is not sent, and the next is a keyframe.
+ *
+ * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
+ * gives them, it encodes fewer of them, down to {@link Mcv2Pacer#MIN_FPS} a second, and when even that is too much,
+ * every viewer is shown the dithered maps, which need no encoder, until a later try finds room again. Every step is
+ * logged, a step down as a warning, and handed to the {@linkplain #setPacingListener(Consumer) pacing listener}, so
+ * the operator learns what was chosen and why. A result without dithered maps stays at its lowest frame rate instead.
  *
  * <p>Call {@link #start()} and {@link #release()} on the main thread.
  */
@@ -59,13 +72,17 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Set<UUID> fallbackViewers;
   private final Object lock;
   private final Statistics statistics;
+  private final LongSupplier clock;
 
   private @Nullable Arrival pending;
   private boolean running;
   private @Nullable Thread worker;
   private @Nullable Thread sender;
   private @Nullable BlockingQueue<Delivery> deliveries;
-  private @Nullable ForkJoinPool pool;
+  private @Nullable EncoderPool budget;
+  private @Nullable Mcv2Pacer pacer;
+  private boolean ditheredForAll;
+  private Consumer<Mcv2Pacer.Change> pacingListener = _ -> {};
 
   /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
@@ -193,6 +210,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   Mcv2Result(final Mcv2Configuration configuration, final Mcv2Channel channel, final @Nullable DitherAlgorithm fallbackAlgorithm) {
+    this(configuration, channel, fallbackAlgorithm, System::nanoTime);
+  }
+
+  Mcv2Result(
+    final Mcv2Configuration configuration,
+    final Mcv2Channel channel,
+    final @Nullable DitherAlgorithm fallbackAlgorithm,
+    final LongSupplier clock
+  ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(channel, "Channel must not be null");
     this.configuration = configuration;
@@ -203,6 +229,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
     this.lock = new Object();
     this.statistics = new Statistics();
+    this.clock = clock;
   }
 
   private static MapConfiguration fallbackConfiguration(final Mcv2Configuration configuration, final Set<UUID> viewers) {
@@ -233,6 +260,28 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
+   * Sets who is told of the pacer's steps besides the server log, for example the operator who started the screen.
+   *
+   * @param listener called with every step, on the thread that caused it
+   */
+  public void setPacingListener(final Consumer<Mcv2Pacer.Change> listener) {
+    Preconditions.checkNotNull(listener, "Listener must not be null");
+    this.pacingListener = listener;
+  }
+
+  /**
+   * Gets the rung of the ladder the screen is on.
+   *
+   * @return the rung, or null before the result is started
+   */
+  public Mcv2Pacer.@Nullable Rung getRung() {
+    synchronized (this.lock) {
+      final Mcv2Pacer screenPacer = this.pacer;
+      return screenPacer == null ? null : screenPacer.getRung();
+    }
+  }
+
+  /**
    * Spawns the screen's page frames and starts the encoder. Call on the main thread.
    */
   @Override
@@ -242,15 +291,17 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (dithered != null) {
       dithered.result().start();
     }
-    final ForkJoinPool encoderPool = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
-    final Mcv2Encoder encoder = new Mcv2Encoder(this.configuration.getSettings(), encoderPool, encoderPool.getParallelism(), true);
-    final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-encoder").unstarted(() -> this.encodeLoop(encoder));
+    final EncoderPool encoderPool = this.configuration.getEncoderPool();
+    final Mcv2Encoder encoder = encoderPool.encoder(this.configuration.getSettings(), true);
+    // the screen's own thread only hands frames to the budget and waits for them
+    final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-screen").unstarted(() -> this.encodeLoop(encoder));
     // the frames go out on their own thread, so the encoder starts the next frame while the last is being sent; one
     // frame waits at most, and the encoder waits for its turn when sending falls behind
     final BlockingQueue<Delivery> queue = new ArrayBlockingQueue<>(1);
     final Thread delivery = Thread.ofPlatform().daemon().name("mcav-mcv2-sender").unstarted(() -> this.deliverLoop(queue));
+    this.pace();
     synchronized (this.lock) {
-      this.pool = encoderPool;
+      this.budget = encoderPool;
       this.worker = thread;
       this.sender = delivery;
       this.deliveries = queue;
@@ -271,7 +322,26 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     Preconditions.checkNotNull(data, "Frame must not be null");
     Preconditions.checkNotNull(metadata, "Metadata must not be null");
-    final Set<UUID> others = this.channel.update();
+    final boolean encode;
+    final boolean everyoneDithered;
+    Mcv2Pacer.Change tried = null;
+    synchronized (this.lock) {
+      final Mcv2Pacer screenPacer = this.pacer;
+      if (screenPacer != null) {
+        tried = screenPacer.arrive(this.clock.getAsLong());
+        if (tried != null) {
+          this.follow(tried);
+        }
+        encode = screenPacer.isEncoded();
+      } else {
+        encode = true;
+      }
+      everyoneDithered = this.ditheredForAll;
+    }
+    if (tried != null) {
+      this.announce(tried);
+    }
+    final Set<UUID> others = everyoneDithered ? Set.copyOf(this.configuration.getViewers()) : this.channel.update();
     this.fallbackViewers.retainAll(others);
     this.fallbackViewers.addAll(others);
     final int width = this.configuration.getVideoWidth();
@@ -279,7 +349,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (data.getWidth() != width || data.getHeight() != height) {
       new ResizeFilter(width, height).applyFilter(data);
     }
-    if (!this.channel.getRecipients().isEmpty()) {
+    // on the dithered maps the pacer encodes no frame
+    if (encode && !this.channel.getRecipients().isEmpty()) {
       final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), System.currentTimeMillis());
       synchronized (this.lock) {
         this.pending = arrival;
@@ -376,6 +447,29 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
+  /** Starts pacing the screen's frames from the top of its ladder, which {@link #start()} does. */
+  void pace() {
+    final int[] size = { this.configuration.getVideoWidth(), this.configuration.getVideoHeight() };
+    final Mcv2Pacer screenPacer = new Mcv2Pacer(List.of(size), this.fallback != null);
+    synchronized (this.lock) {
+      this.pacer = screenPacer;
+      this.ditheredForAll = false;
+    }
+  }
+
+  /**
+   * Takes the newest frame that was not encoded yet, without waiting.
+   *
+   * @return the frame, or null if there is none
+   */
+  @Nullable Arrival poll() {
+    synchronized (this.lock) {
+      final Arrival arrival = this.pending;
+      this.pending = null;
+      return arrival;
+    }
+  }
+
   /**
    * Waits for the newest frame that was not encoded yet.
    *
@@ -405,11 +499,33 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (this.channel.takeKeyframeRequest()) {
       encoder.requestKeyframe();
     }
-    final byte[] frame = encoder.encode(arrival.rgb, this.configuration.getVideoWidth(), this.configuration.getVideoHeight(), frameId);
-    final Delivery delivery = new Delivery(frame, Preconditions.checkNotNull(encoder.getStats()), frameId, arrival);
+    final int width = this.configuration.getVideoWidth();
+    final int height = this.configuration.getVideoHeight();
+    final EncoderPool encoderPool;
+    synchronized (this.lock) {
+      encoderPool = this.budget;
+    }
+    final long started = this.clock.getAsLong();
+    final byte[] frame = encoderPool == null
+      ? encoder.encode(arrival.rgb, width, height, frameId)
+      : encoderPool.run(() -> encoder.encode(arrival.rgb, width, height, frameId));
+    final long finished = this.clock.getAsLong();
+    final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
+    final Delivery delivery = new Delivery(frame, stats, frameId, arrival);
     final BlockingQueue<Delivery> queue;
+    Mcv2Pacer.Change change = null;
     synchronized (this.lock) {
       queue = this.deliveries;
+      final Mcv2Pacer screenPacer = this.pacer;
+      if (screenPacer != null) {
+        change = screenPacer.encoded((finished - started) / 1e6, stats.keyframe(), finished);
+        if (change != null) {
+          this.follow(change);
+        }
+      }
+    }
+    if (change != null) {
+      this.announce(change);
     }
     if (queue == null) {
       this.deliver(delivery);
@@ -459,29 +575,51 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
+   * Carries out a step of the pacer, under the lock: to the dithered maps, the page frames go and every viewer is
+   * dithered for; back from them, the page frames return and the viewers with the pack are shown the screen again. The
+   * frames exist in the world, so both happen on the main thread.
+   */
+  private void follow(final Mcv2Pacer.Change change) {
+    if (change.to().isDithered()) {
+      this.ditheredForAll = true;
+      this.pending = null;
+      Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this.channel::close);
+    } else if (change.from().isDithered()) {
+      this.ditheredForAll = false;
+      Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this.channel::open);
+    }
+  }
+
+  /** Tells the server log and the pacing listener of a step, outside the lock. */
+  private void announce(final Mcv2Pacer.Change change) {
+    if (change.down()) {
+      LOGGER.warn(change.describe());
+    } else {
+      LOGGER.info(change.describe());
+    }
+    this.pacingListener.accept(change);
+  }
+
+  /**
    * Stops the encoder, removes the page frames and clears the dithered maps. Call on the main thread.
    */
   @Override
   public void release() {
     final Thread thread;
     final Thread delivery;
-    final ForkJoinPool encoderPool;
     synchronized (this.lock) {
       this.running = false;
       this.lock.notifyAll();
       thread = this.worker;
       delivery = this.sender;
-      encoderPool = this.pool;
       this.worker = null;
       this.sender = null;
       this.deliveries = null;
-      this.pool = null;
+      this.budget = null;
+      this.pacer = null;
     }
     stop(thread);
     stop(delivery);
-    if (encoderPool != null) {
-      encoderPool.shutdownNow();
-    }
     this.channel.close();
     final Fallback dithered = this.fallback;
     if (dithered != null) {

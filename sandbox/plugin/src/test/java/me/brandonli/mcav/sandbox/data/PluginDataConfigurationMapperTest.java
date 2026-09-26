@@ -70,6 +70,8 @@ final class PluginDataConfigurationMapperTest {
       port: 8080
     simple-voice-chat:
       enabled: true
+    mcv2:
+      encoder-threads: 3
     """;
 
   @TempDir
@@ -135,6 +137,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(discord);
     assertFalse(http);
     assertFalse(voiceChat);
+    assertEquals(0, this.mapper.getMcv2EncoderThreads());
   }
 
   @Test
@@ -169,6 +172,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(discord);
     assertFalse(http);
     assertFalse(voiceChat);
+    assertEquals(0, this.mapper.getMcv2EncoderThreads());
   }
 
   @Test
@@ -192,6 +196,7 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(discord);
     assertTrue(http);
     assertTrue(voiceChat);
+    assertEquals(3, this.mapper.getMcv2EncoderThreads());
   }
 
   @Test
@@ -217,6 +222,14 @@ final class PluginDataConfigurationMapperTest {
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();
     assertEquals(expected, port);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0" })
+  void acceptsOnlyValidEncoderThreads(final int configured, final int expected) throws IOException {
+    this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
+    this.mapper.deserialize();
+    assertEquals(expected, this.mapper.getMcv2EncoderThreads());
   }
 
   @Test

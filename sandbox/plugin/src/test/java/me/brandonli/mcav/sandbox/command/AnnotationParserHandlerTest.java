@@ -159,7 +159,7 @@ final class AnnotationParserHandlerTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(29, count, registeredSyntaxes);
+    assertEquals(31, count, registeredSyntaxes);
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
       assertTrue(registered, syntax + " in " + syntaxes);

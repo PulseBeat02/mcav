@@ -23,6 +23,7 @@ import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.audio.MissingVoiceChatException;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -142,6 +143,10 @@ public final class MCAVSandbox extends JavaPlugin {
     final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this);
     mapper.deserialize();
     this.configurationMapper = mapper;
+    // one encoder budget for every MCV2 screen of the server
+    EncoderPool.setSharedThreads(mapper.getMcv2EncoderThreads());
+    final int processors = Runtime.getRuntime().availableProcessors();
+    this.requireLogger().info("MCV2 encoders share {} of {} processors", EncoderPool.shared().getThreads(), processors);
   }
 
   private void loadManagers() {

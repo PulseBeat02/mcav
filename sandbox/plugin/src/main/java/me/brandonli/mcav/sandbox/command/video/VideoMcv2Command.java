@@ -123,7 +123,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     }
     final List<Player> players = List.copyOf(playerSelector.values());
     final Mcv2Viewers viewers = this.plugin.getMcv2Support().offer(configuration, players);
-    final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, viewers, ditheringAlgorithm);
+    final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, viewers, ditheringAlgorithm, sender);
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
@@ -207,6 +207,9 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
     final Mcv2Result result = new Mcv2Result(settings.configuration(), settings.viewers(), settings.dithering().createAlgorithm());
+    // whoever started the screen learns when it steps down to what its encoder budget sustains, and back up
+    final CommandSender sender = settings.sender();
+    result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
     this.manager.startFilter(result);
     return VideoPipelineStep.of(result);
   }
@@ -217,6 +220,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param configuration the screen
    * @param viewers       who loaded the pack
    * @param dithering     the fallback dithering
+   * @param sender        who started the screen, who is told when it steps down or back up
    */
-  record Mcv2Settings(Mcv2Configuration configuration, Mcv2Viewers viewers, DitheringArgument dithering) {}
+  record Mcv2Settings(Mcv2Configuration configuration, Mcv2Viewers viewers, DitheringArgument dithering, CommandSender sender) {}
 }

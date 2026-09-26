@@ -21,11 +21,13 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Describes an MCV2 screen: a wall of maps in item frames, as {@code /mcav screen} builds it, on which players with
@@ -72,6 +74,7 @@ public final class Mcv2Configuration {
   private final EncoderSettings settings;
   private final NamedTextColor outlineColor;
   private final long backlogLimit;
+  private final @Nullable EncoderPool encoderPool;
 
   private Mcv2Configuration(
     final Builder builder,
@@ -94,6 +97,7 @@ public final class Mcv2Configuration {
     this.settings = builder.settings;
     this.outlineColor = builder.outlineColor;
     this.backlogLimit = builder.backlogLimit;
+    this.encoderPool = builder.encoderPool;
   }
 
   /**
@@ -267,6 +271,16 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Gets the encoder budget the screen encodes in: the one it was given, or the server's shared budget.
+   *
+   * @return the budget
+   */
+  public EncoderPool getEncoderPool() {
+    final EncoderPool pool = this.encoderPool;
+    return pool != null ? pool : EncoderPool.shared();
+  }
+
+  /**
    * Builds MCV2 screen configurations. The viewers, the origin, the facing, the map id and the wall size are
    * required.
    */
@@ -284,6 +298,7 @@ public final class Mcv2Configuration {
     private int pageSlots;
     private long streamId = 1;
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
+    private @Nullable EncoderPool encoderPool;
     private EncoderSettings settings = EncoderSettings.SHIP;
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
@@ -443,6 +458,18 @@ public final class Mcv2Configuration {
      */
     public Builder backlogLimit(final long backlogLimit) {
       this.backlogLimit = backlogLimit;
+      return this;
+    }
+
+    /**
+     * Sets the encoder budget the screen encodes in, instead of the server's shared budget, {@link EncoderPool#shared()}.
+     * Screens that encode at the same time share a budget's threads.
+     *
+     * @param encoderPool the budget
+     * @return this builder
+     */
+    public Builder encoderPool(final EncoderPool encoderPool) {
+      this.encoderPool = Preconditions.checkNotNull(encoderPool, "Encoder pool must not be null");
       return this;
     }
 

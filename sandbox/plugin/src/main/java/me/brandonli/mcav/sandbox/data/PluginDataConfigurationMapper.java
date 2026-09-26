@@ -23,6 +23,7 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
@@ -49,6 +50,7 @@ public final class PluginDataConfigurationMapper {
   private static final String HTTP_PORT_FIELD = "http-server.port";
   private static final String HTTP_ENABLED = "http-server.enabled";
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
+  private static final String MCV2_ENCODER_THREADS = "mcv2.encoder-threads";
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private final MCAVSandbox plugin;
@@ -62,6 +64,7 @@ public final class PluginDataConfigurationMapper {
   private String httpHostName;
   private int httpPort;
   private boolean simpleVoiceChatEnabled;
+  private int mcv2EncoderThreads;
 
   /**
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -96,6 +99,7 @@ public final class PluginDataConfigurationMapper {
     this.httpHostName = getString(config, HTTP_HOST_FIELD, "localhost");
     this.httpPort = readPort(config);
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
+    this.mcv2EncoderThreads = readEncoderThreads(config);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -131,6 +135,15 @@ public final class PluginDataConfigurationMapper {
       return DEFAULT_HTTP_PORT;
     }
     return port;
+  }
+
+  private static int readEncoderThreads(final FileConfiguration config) {
+    final int threads = config.getInt(MCV2_ENCODER_THREADS, 0);
+    if (threads < 0 || threads > EncoderPool.MAX_THREADS) {
+      LOGGER.warn("Invalid {} {}, using half the processors", MCV2_ENCODER_THREADS, threads);
+      return 0;
+    }
+    return threads;
   }
 
   /**
@@ -221,5 +234,14 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized boolean isSimpleVoiceChatEnabled() {
     return this.simpleVoiceChatEnabled;
+  }
+
+  /**
+   * Gets how many threads the MCV2 encoders of the server share.
+   *
+   * @return the thread count, or 0 for half the processors
+   */
+  public synchronized int getMcv2EncoderThreads() {
+    return this.mcv2EncoderThreads;
   }
 }
