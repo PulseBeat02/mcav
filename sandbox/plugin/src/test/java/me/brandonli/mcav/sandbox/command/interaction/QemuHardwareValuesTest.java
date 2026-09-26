@@ -167,6 +167,28 @@ final class QemuHardwareValuesTest {
     assertEquals(true, refused.getMessage().startsWith("The QEMU option -drive does not allow"), refused.getMessage());
   }
 
+  @ParameterizedTest
+  @CsvSource(
+    delimiter = '|',
+    value = {
+      "512|536870912",
+      "512M|536870912",
+      "512m|536870912",
+      "2G|2147483648",
+      "2g|2147483648",
+      "4194304K|4294967296",
+      "1T|1099511627776",
+      "size=1024M,slots=2,maxmem=4G|1073741824",
+      "2G,slots=2,maxmem=8G|2147483648",
+      "slots=2,maxmem=8G|134217728",
+      "999999999T|9223372036854775807",
+      "999999999|1048575998951424",
+    }
+  )
+  void theMemoryOfAMachineIsReadAsQemuReadsIt(final String value, final long bytes) {
+    assertEquals(bytes, QemuHardwareValues.memoryBytes(value));
+  }
+
   @Test
   void onlyHardwareOptionsAreChecked() {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check("fda", "a"));

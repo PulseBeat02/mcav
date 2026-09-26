@@ -195,6 +195,37 @@ final class QemuHardwareValues {
   }
 
   /**
+   * Gets the memory an {@code -m} value gives the machine, as QEMU reads it: a number of MiB, or of the unit its suffix
+   * names, as the value itself or as its {@code size} property.
+   *
+   * @param value an {@code -m} value that {@link #check} accepted
+   * @return the size in bytes, {@link Long#MAX_VALUE} for a size beyond it, or QEMU's default of 128 MiB for a value
+   *         that sets no size
+   */
+  static long memoryBytes(final String value) {
+    String size = "128";
+    for (final String part : PARTS.split(value)) {
+      if (!part.contains("=")) {
+        size = part;
+      } else if (part.startsWith("size=")) {
+        size = part.substring("size=".length());
+      }
+    }
+    final char last = size.charAt(size.length() - 1);
+    final boolean suffix = Character.isLetter(last);
+    final long number = Long.parseLong(suffix ? size.substring(0, size.length() - 1) : size);
+    final int shift =
+      switch (Character.toUpperCase(last)) {
+        case 'K' -> 10;
+        case 'G' -> 30;
+        case 'T' -> 40;
+        default -> 20;
+      };
+    // a number of at most nine digits shifted by at most 40 bits fits a long unless it is beyond 2^63 bytes
+    return number > (Long.MAX_VALUE >> shift) ? Long.MAX_VALUE : number << shift;
+  }
+
+  /**
    * Checks a part of a {@code -drive} value other than its disk image.
    *
    * @param part  the part, such as {@code media=disk}

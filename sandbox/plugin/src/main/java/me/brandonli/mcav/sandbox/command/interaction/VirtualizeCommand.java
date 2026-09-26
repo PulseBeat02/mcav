@@ -19,6 +19,8 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.sun.management.OperatingSystemMXBean;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -99,6 +101,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final String DRIVE_OPTION = "drive";
 
   private static final String FILE_KEY = "file=";
+  // the least memory a machine may always have, whatever the memory of the server
+  private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
@@ -376,7 +380,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     try {
-      return parseOptions(flags, imageFolder);
+      return parseOptions(flags, imageFolder, maxMemoryBytes());
     } catch (final IllegalArgumentException exception) {
       final String cause = exception.getMessage();
       final String reason = Objects.requireNonNullElse(cause, "The options are not valid");
@@ -398,6 +402,53 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                                  value it needs, or names a disk image outside the image folder
    */
   static VMConfiguration parseOptions(final String commandLine, final Path imageFolder) {
+    return parseOptions(commandLine, imageFolder, Long.MAX_VALUE);
+  }
+
+  /**
+   * Parses QEMU options as {@link #parseOptions(String, Path)} does, and refuses a machine with more memory than the
+   * server lets one have: a guest can use all of it, and the memory of a machine is memory of the server.
+   *
+   * @param commandLine    the options
+   * @param imageFolder    the folder the disk images live in
+   * @param maxMemoryBytes the most memory a machine may have, in bytes
+   * @return the configuration
+   * @throws IllegalArgumentException if an option is refused, or the machine would have more memory than allowed
+   */
+  static VMConfiguration parseOptions(final String commandLine, final Path imageFolder, final long maxMemoryBytes) {
+    final VMConfiguration configuration = parseAllowedOptions(commandLine, imageFolder);
+    final String memory = Objects.requireNonNullElse(configuration.get("m"), "128");
+    final long requested = QemuHardwareValues.memoryBytes(memory);
+    if (requested > maxMemoryBytes) {
+      throw new IllegalArgumentException(
+        "The QEMU option -m " + memory + " asks for more memory than a machine may have on this server, " + (maxMemoryBytes >> 20) + " MiB"
+      );
+    }
+    return configuration;
+  }
+
+  /**
+   * Gets the most memory a machine may have on this server: half of the memory of the server, or of its container, as
+   * the JVM sees it, and at least 512 MiB.
+   *
+   * @return the most memory in bytes
+   */
+  static long maxMemoryBytes() {
+    final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+    return maxMemoryBytes(system.getTotalMemorySize());
+  }
+
+  /**
+   * Gets the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
+   *
+   * @param totalMemoryBytes the memory of the server in bytes
+   * @return the most memory in bytes
+   */
+  static long maxMemoryBytes(final long totalMemoryBytes) {
+    return Math.max(MIN_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
+  }
+
+  private static VMConfiguration parseAllowedOptions(final String commandLine, final Path imageFolder) {
     final List<String> tokens = tokenize(commandLine);
     final VMConfiguration configuration = VMConfiguration.builder();
     final int count = tokens.size();

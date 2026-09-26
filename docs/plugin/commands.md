@@ -321,7 +321,8 @@ folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your 
 `file=`, a `-drive` takes only the properties that say how the drive is attached: `format` (`raw`, `qcow2`, `vmdk`,
 `vdi`, `vhdx`, `vpc`), `if`, `media`, `index`, `bus`, `unit`, `id`, `serial`, `cache`, `aio`, `snapshot`, `readonly`,
 `copy-on-read`, `discard`, `detect-zeroes`, `werror` and `rerror`, such as `-drive file=disk.img,format=raw,if=virtio`;
-any other property is refused. The
+any other property is refused. A machine may have at most half of the memory of the server (or of its container),
+and at least 512 MiB, since a guest can use all the memory it is given; a larger `-m` is refused. The
 display of the guest always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode
 network QEMU gives it by default.
 

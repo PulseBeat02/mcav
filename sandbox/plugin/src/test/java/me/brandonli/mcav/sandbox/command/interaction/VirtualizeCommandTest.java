@@ -728,6 +728,26 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void refusesAMachineWithMoreMemoryThanTheServerLetsOneHave() {
+    final long limit = 4L << 30;
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
+      VirtualizeCommand.parseOptions("-m 64G", this.imageFolder, limit)
+    );
+    assertEquals("The QEMU option -m 64G asks for more memory than a machine may have on this server, 4096 MiB", failure.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions("-m size=5G,slots=2", this.imageFolder, limit));
+    assertEquals("4G", VirtualizeCommand.parseOptions("-m 4G", this.imageFolder, limit).get("m"));
+    assertEquals(List.of(), VirtualizeCommand.parseOptions("", this.imageFolder, limit).getArguments(), "QEMU's default of 128 MiB");
+  }
+
+  @Test
+  void aMachineMayHaveHalfOfTheMemoryOfTheServerAndAtLeast512MiB() {
+    assertEquals(8L << 30, VirtualizeCommand.maxMemoryBytes(16L << 30));
+    assertEquals(512L << 20, VirtualizeCommand.maxMemoryBytes(256L << 20));
+    final long limit = VirtualizeCommand.maxMemoryBytes();
+    assertTrue(limit >= 512L << 20, "at least 512 MiB: " + limit);
+  }
+
+  @Test
   void refusesADriveWithoutADiskImage() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
     final String message = failure.getMessage();
