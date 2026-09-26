@@ -10,7 +10,10 @@ below the transport strip, and the capture is ffmpeg's x11grab of that picture's
     ffmpeg -f x11grab -framerate 60 -video_size 768x32 -use_wallclock_as_timestamps 1 -i :103.0+0,<top> \\
         -copyts -c:v rawvideo -pix_fmt rgb24 -f nut capture.nut
 
---top is where the picture starts on the screen (the strip's rows: slots * ceil(4096 / screen width) + 1). The report:
+--top is where the picture starts on the screen (the strip's rows: slots * ceil(4096 / screen width) + 1). A run of a
+pre-encoded stream (the sandbox's /mcav mcv2 stream, no encoder) has no Mcv2Frame events: --stream SPAN reads the
+channel's me.brandonli.mcav.Mcv2Send events instead, takes a frame's number as its id modulo the stream's length in
+frames (the playback shifts ids by whole lengths), and measures from when the frame was sent. The report:
 frames the source had, encoded and sent to the viewer, the frames the viewer displayed and at what rate, the
 glass-to-glass latency of each displayed frame (first capture showing it, less its arrival at the server), and the
 frames held back by the backlog limit or a missing reference. Both clocks are the same machine's.
@@ -36,6 +39,21 @@ def millis(value):
     if isinstance(value, (int, float)):
         return float(value)
     return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000.0
+
+
+def sends(path, jfr, span):
+    """The Mcv2Send events of a recording, in frame order, numbered by id modulo the stream length."""
+    output = subprocess.run([jfr, "print", "--json", "--events", "me.brandonli.mcav.Mcv2Send", str(path)],
+                            check=True, capture_output=True, text=True).stdout
+    found = []
+    for event in json.loads(output)["recording"]["events"]:
+        values = event["values"]
+        sent = millis(values["sent"]) if values["colors"] >= 0 else float("nan")
+        found.append(dict(frame=values["frameId"], keyframe=values["keyframe"], bytes=values["bytes"],
+                          colors=values["colors"], arrived=sent, sent=sent, sent_to=values["sentTo"],
+                          behind=values["behind"], waiting=values["waiting"], backlog=values["backlog"],
+                          number=values["frameId"] % span))
+    return sorted(found, key=lambda e: e["frame"])
 
 
 def events(path, jfr):
@@ -85,18 +103,26 @@ def main():
     parser.add_argument("capture")
     parser.add_argument("--json", type=Path)
     parser.add_argument("--jfr", default="jfr")
+    parser.add_argument("--stream", type=int, default=0, help="the frames of a pre-encoded stream played by /mcav mcv2 stream")
     arguments = parser.parse_args()
-    frames = events(arguments.recording, arguments.jfr)
+    frames = sends(arguments.recording, arguments.jfr, arguments.stream) if arguments.stream else events(arguments.recording, arguments.jfr)
     shots = captures(arguments.capture)
-    numbered = [e for e in frames if e["number"] is not None]
-    arrived = {}
+    numbered = [e for e in frames if e["number"] is not None and e["arrived"] == e["arrived"]]
+    # a displayed picture is matched with the latest frame of its number that left before it was seen, since a
+    # stream's numbers repeat every loop; its first capture is its display time
+    by_number = {}
     for e in numbered:
-        arrived.setdefault(e["number"], e)
+        by_number.setdefault(e["number"], []).append(e["arrived"])
     first_seen = {}
+    previous = None
     for time, number in shots:
-        if number is not None and number not in first_seen:
-            first_seen[number] = time
-    latencies = [first_seen[n] - arrived[n]["arrived"] for n in first_seen if n in arrived]
+        if number is not None and number != previous:
+            candidates = [t for t in by_number.get(number, []) if t <= time]
+            if candidates:
+                first_seen[(number, max(candidates))] = time
+        previous = number if number is not None else previous
+    latencies = [time - arrival for (number, arrival), time in first_seen.items()]
+    arrived = {e["number"]: e for e in numbered}
     server = [e["sent"] - e["arrived"] for e in frames]
     duration = (shots[-1][0] - shots[0][0]) / 1000.0 if len(shots) > 1 else float("nan")
     source = (max(arrived) - min(arrived) + 1) if arrived else 0
