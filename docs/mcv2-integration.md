@@ -76,11 +76,15 @@ pseudo-inverse matrices, loaded from `fitting_matrices.bin` and applied separabl
   pattern candidates once per endpoint precision; temporal candidates once per vector. Each trial's winner is the first
   minimum of its own candidate sequence, which is what the reference computes; the exact rate bound only prunes
   candidates that cannot win any trial.
-- **GOP parallelism** for files: keyframes every 60 frames make GOPs independent, so a pre-encode job runs GOPs
-  concurrently on top of block parallelism. Live sources cannot use it.
-- **Measurement:** warm JIT (the first frames of a run are discarded), best of three runs, mean and median ms/frame,
-  thread scaling at 1, 2, 4, 8 and 12 threads, and the machine load recorded (`pgrep -fc GradleWorkerMain`). The
-  measurement command is committed; it is not part of CI.
+- **GOP parallelism** for files was measured and not built: at the budgets a pre-encode gets on a server (2-4 threads),
+  block parallelism already keeps every thread busy (CPU time / wall time / threads = 1.06 and 1.00), and a GOP run
+  beside another would move keyframes (a scene cut depends on the reconstruction), so the stream would no longer be
+  byte-identical to a sequential encode.
+- **Measurement:** warm JIT (the first frames of a run are discarded), best of three runs, mean, p50 and p95 ms/frame,
+  CPU and allocation per frame, thread scaling at 1, 2, 4, 8 and 12 threads, and the machine load and running Gradle
+  workers recorded, on Temurin 25. The harness is `tools/mcv2/Mcv2Bench.java`; it is not part of CI. Measured: `ship`
+  570 ms and `low_bandwidth` 463 ms per 1080p30 frame on 12 threads (1,899 ms on 2, 878 on 4); the live profile is
+  §12.
 - **Feasibility probe (item 4c):** a naive Java version of the inner loop (full candidate set, one trial,
   superblock-parallel) ran at 1.05–1.28 s per frame on 12 shared threads and 6.4 s on one. Real time at 1080p30 with
   the shipped search is therefore not expected on this machine; the speed campaign reports what it reaches.
@@ -172,14 +176,21 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   the descriptor row. The matrix leaves the vertex shader as four `flat vec4` varyings: a `flat mat4` varying crashes
   Mesa llvmpipe's shader JIT (found in-game, reduced offline to that one declaration).
 - **Post chain** (`post_effect/entity_outline.json`; the vanilla outline passes run after ours, unchanged):
-  1. `mcv2_bytes`: strip → the frame's bytes (128 wide), 2. `mcv2_pages`: every slot's header, frame id, page index
-  and CRC32, 3. `mcv2_status`: the decision for this client frame, 4. `mcv2_decode`: gpu-codec's GLSL decoder
-  (`mcvideo_codec.glsl` at the pinned commit) reading the bytes and the chosen reference into a scratch picture,
-  5. blit → persistent `mcv2_previous`, 6. `mcv2_keyframe` + blit → persistent `mcv2_key` (a decoded keyframe replaces
-  it), 7. `mcv2_state` + blit → persistent state (shown flag, last id, key id, decoded-frame counter),
-  8. `mcv2_screen` + blit → main: ray-cast every pixel onto the screen plane, depth-test against the scene, take the
-  picture's pixel, and cover the strip with the scene row below it, 9. `mcv2_outline` + blit: remove the page
-  frames' outline colour from the outline target.
+  1. `mcv2_bytes`: strip → the frame's bytes (128 wide), 2. `mcv2_crc`: the CRC of every 192-byte chunk of every
+  slot, one fragment per chunk, 3. `mcv2_pages`: every slot's header, frame id, page index, and its CRC32 chained from
+  the chunks, 4. `mcv2_status`: the decision for this client frame, 5. `mcv2_resolve`: one fragment per 8x8 cell
+  resolves the cell's leaf once - the frame's header checks and gpu-codec's descriptor, split and payload-cursor
+  walk - into a cells target (one texel: the descriptor word and the leaf size; local motion unpacked to its two
+  bytes) with a row of frame facts, 6. `mcv2_decode` (with its own vertex shader, which reads the status and the frame
+  facts once for all pixels): gpu-codec's reconstruction (`mcvideo_codec.glsl` at the pinned commit, split into
+  `mcvideoFrame`, `mcvideoResolve` and `mcvideoLeaf` with its arithmetic unchanged) of every pixel from its cell's
+  leaf, with a short path for SKIP and local motion, 7. blit → persistent `mcv2_previous`, 8. `mcv2_keyframe` + blit →
+  persistent `mcv2_key` (a decoded keyframe replaces it), 9. `mcv2_state` + blit → persistent state (shown flag, last
+  id, key id, decoded-frame counter), 10. `mcv2_view`: the anchor descriptor's 28 floats and the box of pixels the
+  screen can cover, once per frame, 11. `mcv2_screen` (with its own vertex shader, which passes the geometry and the
+  projection as flat varyings) + blit → main: ray-cast every pixel in the box onto the screen plane, depth-test
+  against the scene, take the picture's pixel, and cover the strip with the scene row below it, 12. `mcv2_outline` +
+  blit: remove the page frames' outline colour from the outline target.
 - **Two references, one pipeline.** A frame is decoded when every page of it is valid, it is newer than the last
   decoded frame, and it is a keyframe or predicts from the last decoded frame (`mcv2_previous`) or from the last
   keyframe (`mcv2_key`). A keyframe is accepted whenever its id differs from the last decoded id, so a stream that
@@ -244,34 +255,249 @@ picture's top edge, and the picture's framing on the wall matches the debug view
 - **`Mcv2Channel`** shows the screen to a viewer whose pack loaded (on the main thread) before that viewer receives
   frames, starts every new viewer on a keyframe, and sends each frame's pages with the existing
   `MapPacketFactory` path as **one bundle per frame**, so all pages of a frame arrive together. A frame with more
-  pages than the screen has slots is not sent, and the next frame is a keyframe.
+  pages than the screen has slots is not sent, and the next frame is a keyframe. Each viewer receives the stream
+  through its own **`Mcv2Link`** (§10): a frame only when the viewer can decode it and its connection's unwritten
+  video is within the backlog limit.
 - **`Mcv2Result`** is the video filter: it resizes each frame to the video size, hands the newest frame to a dedicated
   encoder thread (frames that arrive while it works replace each other: the previous-frame reference allows skipping
-  source frames), and gives players without the pack the dithered maps of the same wall through
-  `CompressedMapResult`, so nobody sees a screen their client cannot show.
+  source frames), which hands each encoded frame to a sender thread (one frame queued, in order), and gives players
+  without the pack the dithered maps of the same wall through `CompressedMapResult`, so nobody sees a screen their
+  client cannot show.
 - **`Mcv2Pack`** builds the pack through `SimpleResourcePack` (which gained generated entries) and serves it through
   the existing `PackHosting` strategies; its description and `mcav_mcv2.json` name the codec, the gpu-codec commit,
   the profile and the page geometry.
 - **Sandbox commands.** `/mcav video mcv2 <players> <player> <audio> <resolution> <blocks> <mapId> <profile>
   <dithering> <flags> <mrl>` plays media with an encoder profile (`ship`, `low`, `keyframe` = model B, `intra` = model
-  D), offering the pack to the selected players. `/mcav mcv2 play <players> <blocks> <mapId> <ticks> <file>` loops a
-  pre-encoded stream (u32 little-endian length + frame, the gpu-codec archive layout), and `/mcav mcv2 stop` stops it.
+  D, `live`, `live_keyframe`), offering the pack to the selected players. `/mcav mcv2 play <players> <blocks> <mapId>
+  <ticks> <file>` loops a pre-encoded stream (u32 little-endian length + frame, the gpu-codec archive layout) every few
+  ticks, `/mcav mcv2 stream ... <fps> <file>` at a frame rate from its own thread, and `/mcav mcv2 stop` stops it;
+  `/mcav mcv2 encode <video> <output> <resolution> <profile>` pre-encodes a file in the shared encoder budget and
+  `/mcav mcv2 cancel` stops that. Stream files live in `plugins/MCAV/mcv2`: a name that leads out of that folder is
+  refused, and only a regular file of at most 1 GiB is read. How to test all this on your own client:
+  `docs/mcv2-testing.md`.
 
 ## 7. Transport and wire accounting
 
 Each frame is split into pages of 16,384 six-bit symbols (12,256 payload bytes after a 32-byte header with a CRC32).
 A page is sent as whole 128-symbol map rows, so the charged map rate is `rows * 128 + 18` bytes per page, which is the
-frontier's accounting. Minecraft compresses packets with zlib; because map bytes carry at most six bits each, the
-owner's measurement on archive pages found a **35% saving**, and mcav measures it on the real packets it sends, in
-both directions, before recommending any compression threshold.
+frontier's accounting. Minecraft compresses packets with zlib; because map bytes carry at most six bits each, it
+saves about a third, measured on the map packets mcav sends (every page as its map-data packet, deflated as Paper does at
+its default level, inflated as the client does): **`live` 1080p60 5.38 -> 3.50 Mbit/s (-34.9%), `ship` 1080p30 3.40 ->
+2.19 (-35.5%)**, for 2.0% and 1.3% of a core per viewer on the server (331 and 440 us of deflate per frame) and 55-76 us
+of inflate per frame on the client. The TCP payload measured on the lab's far listener agrees (3.4-3.6 Mbit/s for
+`live`). No compression threshold is recommended: skipping the map packets would give up a third of the bandwidth to
+save 1-2% of a core per viewer.
 
 ## 8. Hostile input
 
 Every field of a frame or page is treated as hostile: the parser validates every count, offset and length against
 the frame's own size before using it, allocates in proportion to the input and to the header's dimensions (at most
 16,384 root entries, for a 4096x4096 frame), and throws only `Mcv2Exception`.
-Property tests (jqwik, `propertyTest`) and coverage-guided fuzzing (Jazzer, `fuzzTest`) run over mutated conformance
-streams, and a security review of the whole diff is in the report.
+Property tests (jqwik, `propertyTest`) run over mutated frames of every index form, random frames behind a plausible
+header, and pages in any order; coverage-guided fuzzing (Jazzer, `fuzzTest`) covers the frame parser and decoder, the page
+checks (CRC included) and the page assembler, seeded from the committed edge streams; `tools/mcv2/differential.py`
+compares the decoder with the reference on generated streams outside the build (24,864 frames, no disagreement). The
+security review of the whole diff is in the report.
+
+## 9. Decoder speed
+
+The resource pack's chain measured pass by pass with GPU timer queries (`GL_TIME_ELAPSED`,
+`tools/mcv2/shader_timing.py`), with the harness running the pack's own `entity_outline.json` pass for pass, a 6x3
+screen three blocks in front of the camera (57% of the view) so the ray cast runs as it does while a player watches,
+and the GPU kept busy between chains as a rendering client keeps it. Per 1080p frame, ship stream (mcav's encoder,
+the shipped lambda), warm:
+
+| pass (ms), Intel UHD 630, EGL | original | now |
+|---|---:|---:|
+| pages CRC (`mcv2_crc` + `mcv2_pages`) | 5.71 | 0.25 |
+| resolve (new) | - | 0.33 |
+| decode, new P frame | 41.56 | 2.14 |
+| decode, keyframe | 52.56 | 3.1 |
+| decode without new video (a copy) | 1.11 | 0.46 |
+| screen (`mcv2_view` + `mcv2_screen`) | 11.50 | 1.88 |
+| the blits, keyframe, state and outline passes | 2.8 | 2.8 |
+| **chain, new P frame** | **61.5** | **7.9** |
+| **chain, new keyframe** | **77.4** | **8.8** |
+| **chain, rendered frame without new video** | **21.7** | **6.6** |
+
+On Mesa llvmpipe (the headless client's renderer; CPU, measured under a machine load of 10-17, so noisier): new P
+frame 262 -> 68 ms, keyframe 348 -> 36 ms, a frame without new video 85 -> 51 ms; decode 175 -> 18 ms, screen 54 ->
+12 ms. On llvmpipe every full-screen blit costs about 4 ms of CPU, so the chain's structural copies dominate there.
+With the final pack the live stream costs 8.0 ms per new frame on the UHD 630 and low_bandwidth 8.3 ms.
+
+**Reconciling 15.065 and 27 ms.** gpu-codec's 15.065 ms is its own harness (`scripts/gpu_v2.py`: one decode draw
+with uniforms, a 1024-wide byte texture, 30 repeats per frame averaged over 30 frames) on its lambda-44.86 ship
+stream, and that harness gives 15.28 ms on the same stream here. The same harness gives 27.16 ms on mcav's ship
+stream: that stream is the round-19 format with derived offsets, packed symbols, the two-level walk and endpoint and
+selector tables, whose bytes are saved by every pixel recovering its record address with checkpoint popcounts, the
+split-prefix walk and the payload-cursor walk, where gpu-codec's stream stores three-byte descriptors. mcav's chain
+then added about 55% on top (41.6 ms): the frame facts came from texels at every pixel instead of uniforms. The
+resolve pass removes the per-pixel walk altogether: what the derived form still costs is 0.33 ms of resolve against
+0.17 ms for the stored-descriptor stream, so **a format change back to stored offsets could buy about 0.16 ms per frame
+on the UHD 630 now**; no format change is made.
+
+**When the decode runs.** The chain runs on every rendered frame (the page frames glow on every frame). The decode
+proper runs once per video frame, on the first rendered frame whose strip carries a complete new frame; every other
+rendered frame runs the chain with a copy in place of the decode - 6.6 ms on the UHD 630, of which the screen ray
+cast is 1.9 ms and the chain's own copies about 2.8 ms (each persistent target is updated through a blit, because a
+pass cannot write the target it reads).
+
+**Does 1080p60 fit the UHD 630?** The chain now takes 7.9-8.8 ms of a 16.7 ms frame when every rendered frame brings a
+new video frame, leaving about 8 ms for Minecraft's own rendering, which at 1080p on a UHD 630 usually needs more:
+expect 35-50 fps on that GPU. A GPU about twice as fast (Intel Iris Xe with 80-96 EUs, AMD 680M, or any discrete GPU
+since a GTX 1050) runs the chain in under 4 ms and fits 60 fps with room for the game. A client that renders fewer
+frames per second than the video has decodes at most one video frame per rendered frame; the others are overwritten
+on the page maps before the chain sees them (see §10 for what that does to a previous-frame reference).
+
+**What was measured and kept**, each change output-neutral (the conformance and edge fixtures, the A/B/D clips,
+crops, ship, low_bandwidth and live streams exact on the UHD 630 and llvmpipe, drop-every-7th unchanged, the composed
+screen byte-identical in four camera views): (1) the per-cell resolve pass; (2) motion bytes unpacked into the cell;
+(3) page CRCs in 192-byte chunks, three bytes per fetch, chained with the exact GF(2) advance; (4) a SKIP and
+local-motion path that reads the cell and the reference only; (5) the facts all pixels share read once in the passes'
+vertex shaders (the Intel compiler reported 776 instructions per SIMD8 thread for the screen pass, most of them
+converting 27 RGBA8 texels into floats at every pixel), no `floor` in UNORM-to-byte conversions (exact), and a constant
+bytes-target size. **Measured and rejected**: a stored projection inverse (16 more fetches, 13.5 ms instead of 6.8, and
+not byte-identical: it rounds differently from the inline inverse) and a vertex-stage inverse (fast, but it moved
+the screen's edge by a pixel in grazing views).
+
+## 10. Far viewers
+
+Everything reaches a player over its one Minecraft TCP connection, so a viewer whose connection cannot keep up with the
+stream must not hold the other viewers back, nor let a growing backlog of video delay its own game packets. A screen's
+stream is encoded once for all its viewers; each viewer receives it through its own **`Mcv2Link`**:
+
+- **Only frames the viewer can decode.** A keyframe, or a P frame whose reference is the last frame or the last keyframe
+  that viewer was sent - the two pictures its client holds. A viewer who missed a frame therefore waits for the next
+  frame it can decode: the next keyframe when P frames predict from the frame before (the shipped profiles), the next
+  frame when they predict from the last keyframe. Its client keeps showing the last picture it decoded; it never
+  receives a frame it could not decode, which would only add to its backlog.
+- **A bounded backlog.** Mcv2Link counts the video bytes handed to the viewer's connection and not yet written (a Netty
+  write listener takes them off); a frame goes out only while the backlog is at most `Mcv2Configuration.backlogLimit`
+  (128 KiB by default), or twice that for a keyframe: a keyframe is where a viewer who missed frames starts over, and
+  holding one costs every frame up to the next.
+- **No backlog hidden in the operating system.** Linux takes up to megabytes of unsent data into a socket's buffer at
+  once (measured: 1.2 MB queued in the kernel on a 200 ms link, with the backlog limit seeing nothing), so a viewer
+  that starts receiving a screen has its connection's unsent bytes capped with `TCP_NOTSENT_LOWAT`
+  (`Mcv2Configuration.unsentLimit`, 32 KiB; on Linux, where Paper uses the epoll transport). Bytes in flight do not
+  count, so the cap does not slow a connection down; the rest waits in the connection's own queue, where the backlog
+  limit sees it, and a game packet waits behind at most the cap in the system.
+
+**Measured** on four simulated links (the host's netem on the lab server's port, the real 26.2 client, pre-encoded
+1080p streams, backpressure on and off; the full table is in the report's FAR VIEWERS section):
+
+| link | live 1080p60, backpressure on: frames held, game round trip p95 | backpressure off |
+| --- | --- | --- |
+| nearby (15 ms, no loss) | 0%, 36 ms (game alone 35) | 0%, 37 ms |
+| other continent (100 ms ±10) | 6.6%, 239 ms (game alone 217) | 0%, 259 ms, max 759 |
+| lossy far (100 ms ±20, 1% loss) | 7.5%, 412 ms (game alone 335) | 0%, **1,572 ms, max 3.2 s, backlog 6 MB** |
+| thin (40 ms, 0.2% loss, 6 Mbit/s) | 8.2%, 182 ms (game alone 90) | 0%, 319 ms, max 1.2 s |
+
+On the lossy link CUBIC instead of BBR delivered only 19% of the frames (BBR 92.5%). A stream faster than the link (the
+keyframe-reference variant, 9.5 Mbit/s, on 6 Mbit/s) keeps the server's backlog bounded but not what TCP already has in
+flight: game packets then waited seconds; bounding in-flight bytes as well is a next step.
+
+**For server owners:** a viewer needs about **3.6 Mbit/s for `live` 1080p60 and 2.3 Mbit/s for `ship` 1080p30** after
+the game's compression, with headroom; run the server with BBR (`net.ipv4.tcp_congestion_control=bbr`); keep
+backpressure on (the default): it costs nothing nearby and keeps a far viewer's game playable.
+
+## 11. Server viability
+
+A Minecraft server is usually a 2-8 core machine or a container with a CPU limit, runs HotSpot (Temurin), and must
+keep its own tick at 20 per second. Everything below is measured on Temurin 25.0.4 (C2), the JVM the common server
+images ship.
+
+**One encoder budget per server.** `EncoderPool` is the threads MCV2 encoding may use; every screen, and every
+pre-encode, of a server shares `EncoderPool.shared()`: half the processors the JVM may use, at least one, unless
+`mcv2.encoder-threads` in the sandbox's `config.yml` (1-256, 0 for the default) says otherwise.
+`Runtime.availableProcessors()` follows a container's CPU quota and CPU set on JDK 25, so a 4-CPU container gets two
+encoder threads on a 64-core host. A whole encode runs inside the budget - its sequential steps too - and the pool never
+starts a spare thread beyond its size, not even while a thread waits in a join (maximumPoolSize = the size, a
+saturation predicate that lets the waiter block). Two screens share the threads, taking turns frame by frame, instead of
+each taking the machine. The threads are daemon threads in a thread group capped at the lowest priority, which
+Windows honours; HotSpot on Linux ignores Java priorities unless run as root with `-XX:ThreadPriorityPolicy=1`, so on
+Linux the size of the budget is what keeps processors free for the game.
+
+**Adaptive, never overload.** `Mcv2Pacer` watches the encode time of every P frame (keyframes, which come every few
+seconds and cost more, are left out) against the time the video gives a frame. When the smoothed time has been over it
+for a second, the screen steps down to the first rung that the measured time predicts to fit in 85% of its frame time:
+first the frame rate (every second, third, fourth or sixth frame of the video, not below 10 fps), then a smaller video
+size the screen offers, then the dithered maps every other viewer sees, which need no encoder (the page frames are
+removed, so a viewer with the pack sees the dithered wall). It climbs back when a rung above has been predicted to fit
+in 70% of its frame time for five seconds, keeps off a rung it had to leave for ten seconds (twice as long each time it
+has to leave it again, up to ten minutes), and from the dithered maps tries encoding again after 30 seconds (twice as
+long after every failed try). Each step is logged, a step down as a warning, with the numbers that decided it - for
+example `MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7
+ms a frame has at 60 fps with the encoder threads it has` - and the sandbox sends it to whoever started the screen.
+
+**Measured** (Temurin 25; details in the report's SERVER VIABILITY section). The server's tick with live 1080p
+screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83 with two
+(all 12 processors: 1.08 and 2.21). Encode time of `live` per frame (mean / p95 ms) by encoder threads, verified as a
+screen encodes:
+
+| source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 10 threads | CPU ms per frame (1 thread) |
+| --- | --- | --- | --- | --- | --- | --- | ---: |
+| 1920x1080 at 60 fps | 100.0 / 118.2 (104) | 55.7 / 65.7 (113) | 40.2 / 48.8 (117) | 33.8 / 44.5 (127) | 26.4 / 32.2 (143) | 22.9 / 29.3 (176) | 104 |
+| 1920x1080 at 30 fps | 111.5 / 131.8 (114) | 62.1 / 73.3 (125) | 45.4 / 58.1 (130) | 35.7 / 45.2 (133) | 29.3 / 34.4 (156) | 27.5 / 36.1 (197) | 114 |
+| 1280x720 at 60 fps | 51.6 / 62.4 (57) | 31.7 / 45.1 (66) | 22.2 / 30.1 (70) | 17.7 / 23.9 (71) | 14.4 / 17.5 (79) | 12.5 / 15.8 (93) | 57 |
+| 1280x720 at 30 fps | 57.7 / 74.7 (59) | 30.7 / 38.0 (66) | 27.2 / 35.2 (82) | 23.8 / 35.2 (86) | 16.2 / 20.9 (86) | 13.8 / 17.7 (103) | 59 |
+
+**Cores needed ~= CPU-ms x fps / 1000** (1080p: 104 ms per frame on one thread, so ~6.3 cores for 60 fps and 3.1 for
+30; 720p: 57 ms). What a server encodes live with the default budget (half its processors), the pacer stepping down to
+fit:
+
+| server | default encoder threads | 1080p (60 fps source) | 1080p (30 fps source) | 720p (60 fps source) | 720p (30 fps source) |
+| --- | ---: | --- | --- | --- | --- |
+| 2 cores | 1 | 10 fps | 9 fps | 19 fps | 17 fps |
+| 4 cores | 2 | 18 fps | 16 fps | 32 fps | 30 fps (full rate) |
+| 6 cores | 3 | 25 fps | 22 fps | 45 fps | 30 fps (full rate) |
+| 8 cores | 4 | 30 fps | 28 fps | 56 fps | 30 fps (full rate) |
+| 12 cores | 6 | 38 fps | 30 fps (full rate) | 60 fps (full rate) | 30 fps (full rate) |
+| 20 cores | 10 | 44 fps | 30 fps (full rate) | 60 fps (full rate) | 30 fps (full rate) |
+
+A 2-core server should pre-encode (`ship`: a minute of 1080p30 takes 57 minutes on 2 threads, 26 on 4; `live` at 30
+fps runs in real time on 4 threads). ARM64 hosts are untested (no ARM machine here); the encoder is plain Java.
+
+**Pre-encoding** is the path for a server too small to encode live: `Mcv2FileEncoder` decodes a video file with FFmpeg
+and encodes it frame by frame inside a budget into a stream file; the sandbox's `/mcav mcv2 encode <file> <output>
+<resolution> <profile>` runs it on a thread of its own in the shared budget, never on the server tick, tells its
+progress every thirty seconds, and `/mcav mcv2 cancel` stops it; `/mcav mcv2 play` and `stream` play the result.
+
+## 12. LIVE 1080p60: the `live` profile
+
+A separate profile beside `ship` and `low_bandwidth` (which stay byte-identical to the reference), for sources that
+play while they are encoded. The same pack decodes it; no format change.
+
+**The profile** (`EncoderSettings.LIVE`, `LiveSearch.LIVE`): the shipped lambda 65.26, a keyframe every 120 frames (2 s
+at 60 fps), scene cut at a mean absolute luma change of 45 after prediction, P frames predicting from the previous frame;
+**one trial** instead of the reference's four (the global vector, zero or the projection estimate, chosen before the
+search by what SKIP would cost with each on a 1-in-16 sample, `LiveAnalysis`; RGB565 endpoints); the tree searched **from
+the top**: a block whose SKIP costs at most **26.5 lambda** is SKIP without a search (the largest threshold proven never to
+change a decision), a 32-pixel block is split only above **150 lambda** where the previous frame split that superblock and
+above **450 lambda** where it did not (the steady split), a 16-pixel block above **300 lambda**, down to 8 pixels; P-frame
+leaves are local **motion** (a diamond seeded from the previous frame's 8x8 vectors, searched down to 16-pixel blocks,
+smaller blocks inherit their parent's vector), **palette**, one **compact** class (`GRID4_N4_Y`) at the quantizer lambda
+suggests, and **pattern**; keyframes try every intra mode; palettes and intra grids use the cheaper fits (`FastFits`).
+The early-exit thresholds have property tests (monotonic in lambda; SKIP exactly at or below the threshold,
+`LiveSearchPropertyTest`) and the profile's output is pinned by a digest on a small scene (`LiveEncoderTest`).
+**Verification** is on by default: the tree the bytes describe, and the decoder's picture equal to the one the search
+assembled. An optional **frame budget** (`Mcv2Encoder.setFrameBudget`) ends a frame that runs long by giving the
+superblocks not yet searched their cheapest choice (SKIP, or one colour in a keyframe); it is off by default because the
+output then depends on the machine's speed.
+
+**Keyframes, scene cuts and resync.** A keyframe (every 2 s, or at a scene cut) runs the full intra search and costs
+about as much as a P frame; the slowest frames of 600 are 113-176 ms on a quiet machine, 55-64 ms with a 33 ms frame
+budget. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from the frame before, so
+it cannot let a viewer back in. **A viewer who fell behind** (its backlog over the limit, §10) or starts watching is sent
+nothing more until the next keyframe - at most 2 s at 60 fps - and from it every frame; its client holds the last picture
+it decoded meanwhile.
+
+**Measured** (Temurin 25, 12 threads, verify on, the host quiet; the report's LIVE 1080p60 section has every run and the
+lever table): on the 1080p60 proxy 22.1 ms per frame mean, **26.5 ms p95** (20.0 ms p95 without verification), on the
+high-motion gameplay clip 48.0 / 66.7 ms; **the 16 ms p95 target is not met** on this 6-core machine. Quality against
+`ship` on the 1080p60 proxy (600 frames, five lambdas, VMAF): **-14.8% map rate, -13.8% after compression at equal VMAF
+mean** (-4.7% / -4.0% at equal VMAF min); at the default lambda VMAF 79.19 mean / 69.80 min against ship's 77.78 / 70.12.
+Decode on the Intel UHD 630: 8.0 ms per new frame. Transport: 60 frames a second leave the server off its 20 ticks
+(9,619 frames to one viewer in 160 s), 5.4 Mbit/s of map packets, 3.5 after compression.
 
 ## Handover notes
 
