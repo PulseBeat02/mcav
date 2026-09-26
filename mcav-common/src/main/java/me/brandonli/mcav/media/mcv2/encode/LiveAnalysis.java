@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.ROOT_SIZE;
 
 import me.brandonli.mcav.media.mcv2.Reconstruction;
@@ -32,7 +33,7 @@ import me.brandonli.mcav.media.mcv2.Workers;
 final class LiveAnalysis {
 
   /** The most a block counts, in units of lambda: about a local motion leaf with some distortion. */
-  static final double CLIP = 64.0;
+  private static final double CLIP = 64.0;
 
   /** The distance between the pixels sampled in each direction: one pixel in sixteen is measured. */
   private static final int STEP = 4;
@@ -85,8 +86,8 @@ final class LiveAnalysis {
         final int x = (index % columns) * ROOT_SIZE;
         final int y = (index / columns) * ROOT_SIZE;
         for (int v = 0; v < vectors.length; v++) {
-          final int mx = vectors[v] >> 16;
-          final int my = (short) vectors[v];
+          final int mx = MotionSearch.unpackX(vectors[v]);
+          final int my = MotionSearch.unpackY(vectors[v]);
           long distortion = 0;
           long change = 0;
           for (int py = STEP / 2; py < ROOT_SIZE; py += STEP) {
@@ -95,7 +96,7 @@ final class LiveAnalysis {
             for (int px = STEP / 2; px < ROOT_SIZE; px += STEP) {
               final int sx = Math.min(x + px, width - 1);
               final int hx = Math.min(Math.max(2 * (x + px) + mx, 0), 2 * (width - 1));
-              final int at = (sy * width + sx) * 3;
+              final int at = (sy * width + sx) * CHANNELS;
               final int r = source[at] & 0xFF;
               final int g = source[at + 1] & 0xFF;
               final int b = source[at + 2] & 0xFF;
@@ -105,17 +106,11 @@ final class LiveAnalysis {
               if (v == estimate) {
                 change += Math.abs(4 * (r + 2 * g + b) - (pr + 2 * pg + pb));
               }
-              final int dr = r - ((pr + 2) >> 2);
-              final int dg = g - ((pg + 2) >> 2);
-              final int db = b - ((pb + 2) >> 2);
-              final int luma = dr + 2 * dg + db;
-              final int co = dr - db;
-              final int cg = 2 * dg - dr - db;
-              distortion += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+              distortion += Reconstruction.pixelError(r - ((pr + 2) >> 2), g - ((pg + 2) >> 2), b - ((pb + 2) >> 2));
             }
           }
           // every sample stands for STEP * STEP pixels
-          costs[v][index] = Math.min((distortion * (STEP * STEP)) / 96.0 + lambda, CLIP * lambda);
+          costs[v][index] = Math.min((distortion * (STEP * STEP)) / Reconstruction.DISTORTION_SCALE + lambda, CLIP * lambda);
           if (v == estimate) {
             changes[index] = change * (STEP * STEP);
           }
@@ -139,7 +134,7 @@ final class LiveAnalysis {
         best = v;
       }
     }
-    return new Result(best, change / 16.0 / pixels > threshold);
+    return new Result(best, change / Mcv2Encoder.SCENE_LUMA_SCALE / pixels > threshold);
   }
 
   /** Four times the reference's channel at a position in half pixels, sampled as {@link Reconstruction#predict} does. */
@@ -148,21 +143,21 @@ final class LiveAnalysis {
     final int y0 = hy >> 1;
     final int x1 = Math.min(x0 + 1, width - 1);
     final int y1 = Math.min(y0 + 1, height - 1);
-    final int a = reference[(y0 * width + x0) * 3 + c] & 0xFF;
+    final int a = reference[(y0 * width + x0) * CHANNELS + c] & 0xFF;
     if ((hx & 1) == 0 && (hy & 1) == 0) {
       return 4 * a;
     }
     if ((hy & 1) == 0) {
-      return 2 * (a + (reference[(y0 * width + x1) * 3 + c] & 0xFF));
+      return 2 * (a + (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF));
     }
     if ((hx & 1) == 0) {
-      return 2 * (a + (reference[(y1 * width + x0) * 3 + c] & 0xFF));
+      return 2 * (a + (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF));
     }
     return (
       a +
-      (reference[(y0 * width + x1) * 3 + c] & 0xFF) +
-      (reference[(y1 * width + x0) * 3 + c] & 0xFF) +
-      (reference[(y1 * width + x1) * 3 + c] & 0xFF)
+      (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
+      (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
+      (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF)
     );
   }
 }

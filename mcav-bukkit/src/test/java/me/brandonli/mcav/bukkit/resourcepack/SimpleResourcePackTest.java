@@ -62,17 +62,24 @@ import org.junit.jupiter.api.io.TempDir;
 final class SimpleResourcePackTest {
 
   private static final byte[] FIRST_SOUND = "first sound".getBytes(StandardCharsets.US_ASCII);
+
   private static final byte[] SECOND_SOUND = "second sound".getBytes(StandardCharsets.US_ASCII);
+
   private static final byte[] CREDITS = "credits".getBytes(StandardCharsets.US_ASCII);
+
   private static final String DESCRIPTION = "MCAV <audio> & \"more\"";
+
   private static final List<CopyOption> ATOMIC_MOVE = List.of(StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+
   private static final List<CopyOption> REGULAR_MOVE = List.of(StandardCopyOption.REPLACE_EXISTING);
 
   @TempDir
   private Path directory;
 
   private Path firstSound;
+
   private Path secondSound;
+
   private Path credits;
 
   @BeforeEach

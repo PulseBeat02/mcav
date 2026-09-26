@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
@@ -53,28 +54,54 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Encoder {
 
+  /** The rate, in bits at lambda, the reference's selection charges a quarter outside the picture. */
+  private static final int OUTSIDE_BITS = 56;
+
+  /** The deepest level: 8-pixel leaves. */
+  private static final int DEEPEST = BLOCK_SIZES - 1;
+
+  /** The scene cut's luma differences are 16 times Y's: (r + 2 g + b) is four Y, against four-times predictions. */
+  static final double SCENE_LUMA_SCALE = 16.0;
+
   private final EncoderSettings settings;
+
   private final Workers workers;
+
   private final boolean verify;
+
   /** The picture the live search's check decodes into, kept from frame to frame. */
   private byte@Nullable[] verified;
+
   /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
   private long frameBudget;
 
   private byte@Nullable[] reference;
+
   private long referenceId;
+
   private int width;
+
   private int height;
+
   private long lastFrameId = -1;
+
   private int framesSinceKey;
+
   private int@Nullable[] motion;
+
   private @Nullable LiveBuffers buffers;
+
   private FrameJob.@Nullable Buffers jobBuffers;
+
   private final ArrayDeque<BlockCoder[]> idleCoders = new ArrayDeque<>();
+
   private final List<BlockCoder[]> busyCoders = new ArrayList<>();
+
   private long@Nullable[] projections;
+
   /** Which superblocks the previous live frame split, in raster order, updated by every live frame. */
   private boolean@Nullable[] splitBefore;
+
   private @Nullable Stats stats;
 
   /**
@@ -116,15 +143,18 @@ public final class Mcv2Encoder {
   private static final class LiveBuffers {
 
     private final int width;
+
     private final int height;
+
     private final byte[][] levels;
+
     private final byte[][] pictures;
 
-    LiveBuffers(final int width, final int height) {
+    private LiveBuffers(final int width, final int height) {
       this.width = width;
       this.height = height;
-      this.levels = new byte[3][width * height * 3];
-      this.pictures = new byte[2][width * height * 3];
+      this.levels = new byte[BLOCK_SIZES][width * height * CHANNELS];
+      this.pictures = new byte[2][width * height * CHANNELS];
     }
 
     boolean fits(final int w, final int h) {
@@ -140,7 +170,7 @@ public final class Mcv2Encoder {
      * reference stays in one buffer for many frames, so the buffers cannot simply take turns.
      */
     @SuppressWarnings("ReferenceEquality")
-    byte[] spare(final byte[] reference) {
+    private byte[] spare(final byte[] reference) {
       return reference == this.pictures[0] ? this.pictures[1] : this.pictures[0];
     }
   }
@@ -211,12 +241,9 @@ public final class Mcv2Encoder {
   public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
     Preconditions.checkNotNull(rgb, "Picture must not be null");
     Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
-    Preconditions.checkArgument(rgb.length == width * height * 3, "Picture size does not match the dimensions");
-    Preconditions.checkArgument(frameId >= 0 && frameId <= 0xFFFFFFFFL, "Frame id must be an unsigned 32-bit value");
-    if (this.lastFrameId >= 0) {
-      final long distance = (frameId - this.lastFrameId) & 0xFFFFFFFFL;
-      Preconditions.checkArgument(distance != 0 && distance < 0x80000000L, "Stale or ambiguous frame number");
-    }
+    Preconditions.checkArgument(rgb.length == width * height * CHANNELS, "Picture size does not match the dimensions");
+    Preconditions.checkArgument(frameId >= 0 && frameId <= MAX_U32, "Frame id must be an unsigned 32-bit value");
+    Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
     final LiveSearch live = this.settings.live();
@@ -268,8 +295,8 @@ public final class Mcv2Encoder {
       }
       this.projections = projections;
     }
-    final int mx = motion >> 16;
-    final int my = (short) motion;
+    final int mx = MotionSearch.unpackX(motion);
+    final int my = MotionSearch.unpackY(motion);
     final int[] vectorsX;
     final int[] vectorsY;
     if (!key && this.settings.compareGlobal() && motion != 0 && live == null) {
@@ -299,6 +326,7 @@ public final class Mcv2Encoder {
     List<Leaf> bestLeaves = List.of();
     List<TreeNode> bestRoots = List.of();
     int bestTrial = 0;
+    int[] liveMotion = null;
     if (live == null) {
       this.evaluate(job);
       double bestCost = Double.POSITIVE_INFINITY;
@@ -323,7 +351,8 @@ public final class Mcv2Encoder {
           FrameWriter.Options.production(coarse)
         );
         final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
-        final double cost = trialError(rgb, picture, width, height) / 96.0 + this.settings.lambda() * 8 * data.length;
+        final double cost =
+          trialError(rgb, picture, width, height) / Reconstruction.DISTORTION_SCALE + this.settings.lambda() * Byte.SIZE * data.length;
         if (cost < bestCost) {
           bestCost = cost;
           best = data;
@@ -352,13 +381,15 @@ public final class Mcv2Encoder {
       bestPicture = frame.picture();
       bestLeaves = frame.leaves();
       bestRoots = frame.roots();
+      liveMotion = frame.motion();
       if (this.verify) {
         // the bytes must describe the chosen tree, and the picture assembled from the search's reconstructions must be
         // the one the decoder produces, into a picture the encoder keeps for the check alone: the picture a client
         // decodes. The distortions the search measured only steered its choices, so they are not measured again here,
         // where a pass over every pixel costs a live frame more than its decode; the encoder's tests check them.
-        checkTree(best, bestRoots);
-        final byte[] decoded = decodeChosen(best, predictFrom, this.referenceId, this.workers, this.verified);
+        final Mcv2Frame written = parseChosen(best);
+        checkTree(written, bestRoots);
+        final byte[] decoded = decodeChosen(written, predictFrom, this.referenceId, this.workers, this.verified);
         this.verified = decoded;
         Preconditions.checkState(Arrays.equals(bestPicture, decoded), "MCV2 live picture and decoded picture disagree");
       }
@@ -367,8 +398,8 @@ public final class Mcv2Encoder {
       this.reference = bestPicture;
       this.referenceId = frameId;
     }
-    if (live != null) {
-      this.motion = motionField(bestRoots, width, height, vectorsX[job.trialVector(bestTrial)], vectorsY[job.trialVector(bestTrial)]);
+    if (liveMotion != null) {
+      this.motion = liveMotion;
     }
     this.width = width;
     this.height = height;
@@ -389,25 +420,37 @@ public final class Mcv2Encoder {
   /**
    * Decodes a frame the encoder has just written.
    *
-   * @throws IllegalStateException if the decoder rejects it, which would be an encoder defect
+   * @throws IllegalStateException if the parser or the decoder rejects it, which would be an encoder defect
    */
   static byte[] decodeChosen(final byte[] data, final byte[] reference, final long referenceId, final Workers workers) {
-    return decodeChosen(data, reference, referenceId, workers, null);
+    return decodeChosen(parseChosen(data), reference, referenceId, workers, null);
   }
 
-  /** Decodes a frame the encoder wrote, into a picture it may reuse; see {@link Mcv2Decoder#decode}. */
+  /** Decodes a frame the encoder wrote and parsed, into a picture it may reuse; see {@link Mcv2Decoder#decode}. */
   static byte[] decodeChosen(
-    final byte[] data,
+    final Mcv2Frame frame,
     final byte[] reference,
     final long referenceId,
     final Workers workers,
     final byte@Nullable[] into
   ) {
     try {
-      final Mcv2Frame frame = FrameParser.parse(data);
       return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId, workers, into);
     } catch (final Mcv2Exception exception) {
       throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
+    }
+  }
+
+  /**
+   * Parses a frame the encoder wrote.
+   *
+   * @throws IllegalStateException if the parser rejects it, which would be an encoder defect
+   */
+  private static Mcv2Frame parseChosen(final byte[] data) {
+    try {
+      return FrameParser.parse(data);
+    } catch (final Mcv2Exception exception) {
+      throw new IllegalStateException("The encoder wrote a frame the parser rejects", exception);
     }
   }
 
@@ -415,7 +458,7 @@ public final class Mcv2Encoder {
   private boolean sceneCut(final byte[] rgb, final byte[] previous, final int width, final int height, final int motion) {
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
     final int rows = (height + ROOT_SIZE - 1) / ROOT_SIZE;
-    final int[] prediction = new int[ROOT_SIZE * ROOT_SIZE * 3];
+    final int[] prediction = new int[ROOT_SIZE * ROOT_SIZE * CHANNELS];
     long sum = 0;
     for (int by = 0; by < rows; by++) {
       for (int bx = 0; bx < columns; bx++) {
@@ -426,16 +469,16 @@ public final class Mcv2Encoder {
           bx * ROOT_SIZE,
           by * ROOT_SIZE,
           ROOT_SIZE,
-          motion >> 16,
-          (short) motion,
+          MotionSearch.unpackX(motion),
+          MotionSearch.unpackY(motion),
           prediction
         );
         for (int py = 0; py < ROOT_SIZE; py++) {
           final int sy = Math.min(by * ROOT_SIZE + py, height - 1);
           for (int px = 0; px < ROOT_SIZE; px++) {
             final int sx = Math.min(bx * ROOT_SIZE + px, width - 1);
-            final int s = (sy * width + sx) * 3;
-            final int p = (py * ROOT_SIZE + px) * 3;
+            final int s = (sy * width + sx) * CHANNELS;
+            final int p = (py * ROOT_SIZE + px) * CHANNELS;
             final int luma16 = 4 * ((rgb[s] & 0xFF) + 2 * (rgb[s + 1] & 0xFF) + (rgb[s + 2] & 0xFF));
             sum += Math.abs(luma16 - (prediction[p] + 2 * prediction[p + 1] + prediction[p + 2]));
           }
@@ -443,7 +486,7 @@ public final class Mcv2Encoder {
       }
     }
     final double pixels = (double) columns * rows * ROOT_SIZE * ROOT_SIZE;
-    return sum / 16.0 / pixels > this.settings.sceneThreshold();
+    return sum / SCENE_LUMA_SCALE / pixels > this.settings.sceneThreshold();
   }
 
   /** Evaluates every block of every level on the workers, each worker pulling superblocks from a shared counter. */
@@ -460,36 +503,52 @@ public final class Mcv2Encoder {
 
   /**
    * What a live search produced: one tree per superblock in raster order, the same trees in the form the writer takes,
-   * their leaves, and the decoded picture.
+   * their leaves, the decoded picture, and the motion field the next frame's search starts from.
    */
   private static final class LiveFrame {
 
     private final List<TreeNode> roots;
+
     private final List<TreeNode> serialized;
+
     private final List<Leaf> leaves;
+
     private final byte[] picture;
 
-    LiveFrame(final List<TreeNode> roots, final List<TreeNode> serialized, final List<Leaf> leaves, final byte[] picture) {
+    private final int[] motion;
+
+    private LiveFrame(
+      final List<TreeNode> roots,
+      final List<TreeNode> serialized,
+      final List<Leaf> leaves,
+      final byte[] picture,
+      final int[] motion
+    ) {
       this.roots = roots;
       this.serialized = serialized;
       this.leaves = leaves;
       this.picture = picture;
+      this.motion = motion;
     }
 
-    List<TreeNode> roots() {
+    private List<TreeNode> roots() {
       return this.roots;
     }
 
-    List<TreeNode> serialized() {
+    private List<TreeNode> serialized() {
       return this.serialized;
     }
 
-    List<Leaf> leaves() {
+    private List<Leaf> leaves() {
       return this.leaves;
     }
 
-    byte[] picture() {
+    private byte[] picture() {
       return this.picture;
+    }
+
+    private int[] motion() {
+      return this.motion;
     }
   }
 
@@ -522,6 +581,10 @@ public final class Mcv2Encoder {
     // the other of the two pictures: the one the reference is not, which this frame's reconstruction replaces
     final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(job.reference());
     final long budget = this.frameBudget;
+    final int[] motion = new int[FrameJob.motionColumns(job.width()) * FrameJob.motionColumns(job.height())];
+    if ((live.shortcuts() & LiveSearch.HALF_MOTION) != 0 && !job.isKeyframe()) {
+      job.halfReference(half(job.reference(), job.width(), job.height(), this.workers));
+    }
     this.workers.forEach(
         superblocks,
         () -> this.coders(job),
@@ -539,6 +602,7 @@ public final class Mcv2Encoder {
           // only this task reads and writes the superblock's entry
           splits[index] = roots[index].isSplit();
           serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
+          fillMotion(motion, job.width(), job.height(), roots[index], index, job.vectorX(0), job.vectorY(0));
           for (final Leaf leaf : chosen) {
             assemble(job, leaf, picture);
           }
@@ -550,7 +614,38 @@ public final class Mcv2Encoder {
     for (int index = 0; index < superblocks; index++) {
       all.addAll(leaves.get(index));
     }
-    return new LiveFrame(List.of(roots), List.of(serialized), all, picture);
+    return new LiveFrame(List.of(roots), List.of(serialized), all, picture, motion);
+  }
+
+  /**
+   * A picture at half resolution: each pixel the rounded mean of a 2x2 square, the last row and column of an odd size
+   * repeated.
+   */
+  static byte[] half(final byte[] picture, final int width, final int height, final Workers workers) {
+    final int w = (width + 1) / 2;
+    final int h = (height + 1) / 2;
+    final byte[] out = new byte[w * h * CHANNELS];
+    workers.forEach(
+      h,
+      () -> out,
+      (target, row) -> {
+        final int y0 = 2 * row;
+        final int y1 = Math.min(y0 + 1, height - 1);
+        for (int column = 0; column < w; column++) {
+          final int x0 = 2 * column;
+          final int x1 = Math.min(x0 + 1, width - 1);
+          for (int c = 0; c < CHANNELS; c++) {
+            final int sum =
+              (picture[(y0 * width + x0) * CHANNELS + c] & 0xFF) +
+              (picture[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
+              (picture[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
+              (picture[(y1 * width + x1) * CHANNELS + c] & 0xFF);
+            target[(row * w + column) * CHANNELS + c] = (byte) ((sum + 2) >> 2);
+          }
+        }
+      }
+    );
+    return out;
   }
 
   /** Copies a chosen leaf's reconstruction from the picture of its level, cropped to the frame. */
@@ -560,8 +655,8 @@ public final class Mcv2Encoder {
     final int right = Math.min(leaf.x() + leaf.size(), width);
     final int bottom = Math.min(leaf.y() + leaf.size(), job.height());
     for (int y = leaf.y(); y < bottom; y++) {
-      final int at = (y * width + leaf.x()) * 3;
-      System.arraycopy(source, at, picture, at, (right - leaf.x()) * 3);
+      final int at = (y * width + leaf.x()) * CHANNELS;
+      System.arraycopy(source, at, picture, at, (right - leaf.x()) * CHANNELS);
     }
   }
 
@@ -587,8 +682,7 @@ public final class Mcv2Encoder {
   ) {
     final double lambda = job.settings().lambda();
     if (x >= job.width() || y >= job.height()) {
-      // select's cost of a quarter outside the picture
-      return lambda * 56;
+      return lambda * OUTSIDE_BITS;
     }
     final int size = ROOT_SIZE >> level;
     final int block = (y / size) * job.columns(level) + x / size;
@@ -600,9 +694,9 @@ public final class Mcv2Encoder {
     }
     final int vector = coder.localVector();
     final int half = size / 2;
-    final double quarter = (cost / 4) * gate;
+    final double quarter = (cost / QUARTERS) * gate;
     double splitCost = lambda * BlockCoder.INDEX_BITS;
-    for (int i = 0; i < 4 && splitCost < cost; i++) {
+    for (int i = 0; i < QUARTERS && splitCost < cost; i++) {
       splitCost +=
       descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split[level + 1], split, gate, quarter);
     }
@@ -610,28 +704,39 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * The motion of a coded frame, one vector per 8x8 cell in raster order, for the next frame's live search: the vector
-   * each leaf predicts from, and the global vector for a leaf without prediction.
+   * Fills one superblock's part of a coded frame's motion, one vector per 8x8 cell in raster order, for the next frame's
+   * live search: the vector each leaf predicts from, and the global vector for a leaf without prediction.
+   *
+   * @param field   the frame's field, {@code ceil(width / 8) * ceil(height / 8)} vectors
+   * @param width   the frame's width
+   * @param height  the frame's height
+   * @param root    the superblock's tree
+   * @param index   the superblock's index in raster order
+   * @param globalX the global vector's horizontal part, in half pixels
+   * @param globalY the global vector's vertical part, in half pixels
    */
-  static int[] motionField(final List<TreeNode> roots, final int width, final int height, final int globalX, final int globalY) {
-    final int columns = (width + 7) / 8;
-    final int[] field = new int[columns * ((height + 7) / 8)];
+  static void fillMotion(
+    final int[] field,
+    final int width,
+    final int height,
+    final TreeNode root,
+    final int index,
+    final int globalX,
+    final int globalY
+  ) {
     final int rootColumns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-    for (int i = 0; i < roots.size(); i++) {
-      fill(
-        field,
-        columns,
-        width,
-        height,
-        roots.get(i),
-        (i % rootColumns) * ROOT_SIZE,
-        (i / rootColumns) * ROOT_SIZE,
-        ROOT_SIZE,
-        globalX,
-        globalY
-      );
-    }
-    return field;
+    fill(
+      field,
+      FrameJob.motionColumns(width),
+      width,
+      height,
+      root,
+      (index % rootColumns) * ROOT_SIZE,
+      (index / rootColumns) * ROOT_SIZE,
+      ROOT_SIZE,
+      globalX,
+      globalY
+    );
   }
 
   private static void fill(
@@ -648,15 +753,15 @@ public final class Mcv2Encoder {
   ) {
     if (node.isSplit()) {
       final int half = size / 2;
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < QUARTERS; i++) {
         fill(field, columns, width, height, node.getChild(i), x + (i % 2) * half, y + (i / 2) * half, half, globalX, globalY);
       }
       return;
     }
     final int vector = leafVector(node, globalX, globalY);
-    for (int cy = y; cy < Math.min(y + size, height); cy += 8) {
-      for (int cx = x; cx < Math.min(x + size, width); cx += 8) {
-        field[(cy / 8) * columns + cx / 8] = vector;
+    for (int cy = y; cy < Math.min(y + size, height); cy += FrameJob.MOTION_CELL) {
+      for (int cx = x; cx < Math.min(x + size, width); cx += FrameJob.MOTION_CELL) {
+        field[(cy / FrameJob.MOTION_CELL) * columns + cx / FrameJob.MOTION_CELL] = vector;
       }
     }
   }
@@ -671,16 +776,10 @@ public final class Mcv2Encoder {
       dx = record[0];
       dy = record[1];
     } else if (mode == MODE_COMPACT) {
-      final int form = (record[0] & 0xFF) >> 4;
-      if (form == 1) {
-        dx = signed(record[1] & 15, 4);
-        dy = signed((record[1] & 0xFF) >> 4, 4);
-      } else if (form == 2) {
-        dx = record[1];
-        dy = record[2];
-      }
+      dx = CompactRecord.deltaX(record, 0);
+      dy = CompactRecord.deltaY(record, 0);
     }
-    return ((globalX + dx) << 16) | ((globalY + dy) & 0xFFFF);
+    return MotionSearch.pack(globalX + dx, globalY + dy);
   }
 
   /**
@@ -703,7 +802,7 @@ public final class Mcv2Encoder {
   }
 
   private static BlockCoder[] newCoders(final FrameJob job) {
-    final BlockCoder[] coders = { new BlockCoder(job, 32), new BlockCoder(job, 16), new BlockCoder(job, 8) };
+    final BlockCoder[] coders = { new BlockCoder(job, ROOT_SIZE), new BlockCoder(job, ROOT_SIZE / 2), new BlockCoder(job, SMALLEST_BLOCK) };
     coders[1].loadFrom(coders[0]);
     coders[2].loadFrom(coders[0]);
     return coders;
@@ -718,7 +817,7 @@ public final class Mcv2Encoder {
   }
 
   private static void superblock(final FrameJob job, final BlockCoder[] coders, final int x, final int y) {
-    for (int level = 0; level < 3; level++) {
+    for (int level = 0; level < BLOCK_SIZES; level++) {
       final int size = ROOT_SIZE >> level;
       final int span = ROOT_SIZE / size;
       for (int j = 0; j < span; j++) {
@@ -752,7 +851,7 @@ public final class Mcv2Encoder {
   private @Nullable Choice select(final FrameJob job, final int trial, final int x, final int y, final int level, final List<Leaf> leaves) {
     final double lambda = this.settings.lambda();
     if (x >= job.width() || y >= job.height()) {
-      return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[3]), lambda * 56);
+      return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[CHANNELS]), lambda * OUTSIDE_BITS);
     }
     final int size = ROOT_SIZE >> level;
     final int block = (y / size) * job.columns(level) + x / size;
@@ -762,15 +861,15 @@ public final class Mcv2Encoder {
       return null;
     }
     final TreeNode leaf = TreeNode.leaf(job.mode(trial, level, block), job.quantizer(trial, level, block), job.record(trial, level, block));
-    if (level == 2) {
+    if (level == DEEPEST) {
       leaves.add(new Leaf(x, y, size, level, block));
       return new Choice(leaf, cost);
     }
     final List<Leaf> childLeaves = new ArrayList<>();
     final int half = size / 2;
-    final Choice[] children = new Choice[4];
+    final Choice[] children = new Choice[QUARTERS];
     double splitCost = lambda * BlockCoder.INDEX_BITS;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < QUARTERS; i++) {
       final Choice child = this.select(job, trial, x + (i % 2) * half, y + (i / 2) * half, level + 1, childLeaves);
       if (child == null) {
         splitCost = Double.POSITIVE_INFINITY;
@@ -796,14 +895,8 @@ public final class Mcv2Encoder {
       final int weightY = y == height - 1 ? 1 + extraY : 1;
       for (int x = 0; x < width; x++) {
         final int weight = weightY * (x == width - 1 ? 1 + extraX : 1);
-        final int at = (y * width + x) * 3;
-        final int dr = (source[at] & 0xFF) - (picture[at] & 0xFF);
-        final int dg = (source[at + 1] & 0xFF) - (picture[at + 1] & 0xFF);
-        final int db = (source[at + 2] & 0xFF) - (picture[at + 2] & 0xFF);
-        final int luma = dr + 2 * dg + db;
-        final int co = dr - db;
-        final int cg = 2 * dg - dr - db;
-        sum += weight * (4L * luma * luma + 4L * co * co + (long) cg * cg);
+        final int at = (y * width + x) * CHANNELS;
+        sum += (long) weight * pixelError(source, picture, at);
       }
     }
     return sum;
@@ -828,11 +921,16 @@ public final class Mcv2Encoder {
   }
 
   /** Checks that a frame's bytes describe exactly the chosen tree, which the parser must accept. */
-  static void checkTree(final byte[] data, final List<TreeNode> roots) {
+  private static void checkTree(final byte[] data, final List<TreeNode> roots) {
+    checkTree(parseChosen(data), roots);
+  }
+
+  /** Checks that a written and parsed frame describes the chosen trees; see {@link #checkTree(byte[], List)}. */
+  private static void checkTree(final Mcv2Frame frame, final List<TreeNode> roots) {
     final List<TreeNode> written = new ArrayList<>(roots.size());
     final List<TreeNode> expected = new ArrayList<>(roots.size());
     try {
-      written.addAll(TreeReader.roots(FrameParser.parse(data)));
+      written.addAll(TreeReader.roots(frame));
       for (final TreeNode root : roots) {
         expected.add(TreeReader.withPalettes(root, ROOT_SIZE));
       }
@@ -848,7 +946,13 @@ public final class Mcv2Encoder {
    * Checks that every leaf inside the picture has exactly the distortion the search measured for it, on the workers;
    * the first leaf that disagrees, in the order of the list, is reported.
    */
-  static void checkLeaves(final FrameJob job, final int trial, final byte[] picture, final List<Leaf> leaves, final Workers workers) {
+  private static void checkLeaves(
+    final FrameJob job,
+    final int trial,
+    final byte[] picture,
+    final List<Leaf> leaves,
+    final Workers workers
+  ) {
     final int width = job.width();
     final int height = job.height();
     final AtomicInteger first = new AtomicInteger(leaves.size());
@@ -863,14 +967,7 @@ public final class Mcv2Encoder {
         long d16 = 0;
         for (int py = leaf.y(); py < leaf.y() + leaf.size(); py++) {
           for (int px = leaf.x(); px < leaf.x() + leaf.size(); px++) {
-            final int at = (py * width + px) * 3;
-            final int dr = (job.source()[at] & 0xFF) - (picture[at] & 0xFF);
-            final int dg = (job.source()[at + 1] & 0xFF) - (picture[at + 1] & 0xFF);
-            final int db = (job.source()[at + 2] & 0xFF) - (picture[at + 2] & 0xFF);
-            final int luma = dr + 2 * dg + db;
-            final int co = dr - db;
-            final int cg = 2 * dg - dr - db;
-            d16 += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+            d16 += pixelError(job.source(), picture, (py * width + px) * CHANNELS);
           }
         }
         if (d16 != job.distortion(trial, leaf.level(), leaf.block())) {
@@ -883,5 +980,14 @@ public final class Mcv2Encoder {
       final Leaf leaf = leaves.get(failed);
       throw new IllegalStateException("MCV2 encoder/decoder disagreement at " + leaf.x() + "," + leaf.y() + " size " + leaf.size());
     }
+  }
+
+  /** The error of one pixel of two pictures of bytes, in the units of {@link Reconstruction#DISTORTION_SCALE}. */
+  private static int pixelError(final byte[] source, final byte[] picture, final int at) {
+    return Reconstruction.pixelError(
+      (source[at] & 0xFF) - (picture[at] & 0xFF),
+      (source[at + 1] & 0xFF) - (picture[at + 1] & 0xFF),
+      (source[at + 2] & 0xFF) - (picture[at + 2] & 0xFF)
+    );
   }
 }

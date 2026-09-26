@@ -40,30 +40,57 @@ import org.slf4j.LoggerFactory;
 public final class PluginDataConfigurationMapper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PluginDataConfigurationMapper.class);
+
   private static final String CONFIG_FILE = "config.yml";
+
   private static final String PLUGIN_LANGUAGE = "language";
+
   private static final String DISCORD_BOT_TOKEN_FIELD = "discord-bot.token";
+
   private static final String DISCORD_BOT_CHANNEL_FIELD = "discord-bot.channel-id";
+
   private static final String DISCORD_BOT_GUILD_ID_FIELD = "discord-bot.guild-id";
+
   private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
+
   private static final String HTTP_HOST_FIELD = "http-server.host-name";
+
   private static final String HTTP_PORT_FIELD = "http-server.port";
+
   private static final String HTTP_ENABLED = "http-server.enabled";
+
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
+
   private static final String MCV2_ENCODER_THREADS = "mcv2.encoder-threads";
+
   private static final int DEFAULT_HTTP_PORT = 3000;
+
+  private static final int MAX_PORT = 65535;
+
+  private static final String INVALID_PORT = "Invalid {} {}, using {}";
+
+  private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
   private final MCAVSandbox plugin;
 
   private Locale locale;
+
   private boolean discordBotEnabled;
+
   private String discordBotToken;
+
   private String discordBotChannelId;
+
   private String discordBotGuildId;
+
   private boolean httpEnabled;
+
   private String httpHostName;
+
   private int httpPort;
+
   private boolean simpleVoiceChatEnabled;
+
   private int mcv2EncoderThreads;
 
   /**
@@ -130,8 +157,8 @@ public final class PluginDataConfigurationMapper {
 
   private static int readPort(final FileConfiguration config) {
     final int port = config.getInt(HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
-    if (port < 1 || port > 65535) {
-      LOGGER.warn("Invalid {} {}, using {}", HTTP_PORT_FIELD, port, DEFAULT_HTTP_PORT);
+    if (port < 1 || port > MAX_PORT) {
+      LOGGER.warn(INVALID_PORT, HTTP_PORT_FIELD, port, DEFAULT_HTTP_PORT);
       return DEFAULT_HTTP_PORT;
     }
     return port;
@@ -140,7 +167,7 @@ public final class PluginDataConfigurationMapper {
   private static int readEncoderThreads(final FileConfiguration config) {
     final int threads = config.getInt(MCV2_ENCODER_THREADS, 0);
     if (threads < 0 || threads > EncoderPool.MAX_THREADS) {
-      LOGGER.warn("Invalid {} {}, using half the processors", MCV2_ENCODER_THREADS, threads);
+      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, threads);
       return 0;
     }
     return threads;

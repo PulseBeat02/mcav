@@ -56,8 +56,11 @@ public final class Mcv2Viewers {
   }
 
   private final UUID packId;
+
   private final Consumer<Player> onRefused;
+
   private final Map<UUID, PackState> states;
+
   private @Nullable Listener listener;
 
   /**

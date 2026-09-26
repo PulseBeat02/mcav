@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.GRID_WIDTHS;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.sizeIndex;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import me.brandonli.mcav.media.mcv2.Mcv2Resources;
@@ -31,7 +36,10 @@ import me.brandonli.mcav.media.mcv2.Mcv2Resources;
  */
 final class Fits {
 
-  static final String SHA256 = "b575fd1ec9fc6ac77e12e89dc569d0b9386b929e185a12ba84dd35148adbaf0e";
+  /** The size of the matrices: a float per grid node and pixel of each size and grid width. */
+  private static final int BYTES = 3360;
+
+  private static final String SHA256 = "b575fd1ec9fc6ac77e12e89dc569d0b9386b929e185a12ba84dd35148adbaf0e";
 
   /** Matrices for block sizes 8, 16, 32 and grids 1, 2, 4, 8: {@code grid} rows of {@code size} weights. */
   private static final float[][][] MATRICES = load();
@@ -41,16 +49,16 @@ final class Fits {
   }
 
   private static float[][][] load() {
-    return parse(Mcv2Resources.load("fitting_matrices.bin", SHA256, 3360));
+    return parse(Mcv2Resources.load("fitting_matrices.bin", SHA256, BYTES));
   }
 
   /** Splits the checked resource into its twelve matrices. */
   private static float[][][] parse(final byte[] bytes) {
     final ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-    final float[][][] matrices = new float[3][4][];
-    for (int s = 0; s < 3; s++) {
-      final int size = 8 << s;
-      for (int g = 0; g < 4; g++) {
+    final float[][][] matrices = new float[BLOCK_SIZES][GRID_WIDTHS][];
+    for (int s = 0; s < BLOCK_SIZES; s++) {
+      final int size = SMALLEST_BLOCK << s;
+      for (int g = 0; g < GRID_WIDTHS; g++) {
         final int grid = 1 << g;
         final float[] matrix = new float[grid * size];
         for (int i = 0; i < matrix.length; i++) {
@@ -86,7 +94,7 @@ final class Fits {
     final int outOffset,
     final int outStride
   ) {
-    final float[] matrix = MATRICES[Integer.numberOfTrailingZeros(size) - 3][Integer.numberOfTrailingZeros(grid)];
+    final float[] matrix = MATRICES[sizeIndex(size)][Integer.numberOfTrailingZeros(grid)];
     for (int y = 0; y < size; y++) {
       for (int j = 0; j < grid; j++) {
         double sum = 0;

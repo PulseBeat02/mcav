@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
+
 import me.brandonli.mcav.media.mcv2.Workers;
 
 /**
@@ -34,6 +36,21 @@ final class GlobalMotion {
 
   /** Rows one worker sums for the projections. */
   private static final int BAND = 64;
+
+  /** The phase correlation runs on the luma at a quarter of the resolution. */
+  private static final int DECIMATION = 4;
+
+  /** The smallest cross-power magnitude normalized by, so a zero bin does not divide by zero. */
+  private static final double MIN_MAGNITUDE = 1e-8;
+
+  /** The side of the window of whole-pixel candidates around the phase correlation's estimate. */
+  private static final int PHASE_WINDOW = 7;
+
+  /** The side of the window of candidates around the projections' estimate, in half-resolution pixels. */
+  private static final int PROJECTION_WINDOW = 5;
+
+  /** The candidates' error samples every twelfth pixel of every twelfth row. */
+  private static final int SAMPLE_STEP = 12;
 
   private GlobalMotion() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -65,8 +82,8 @@ final class GlobalMotion {
    * @return the vector as {@code x << 16 | (y & 0xFFFF)}, in half pixels
    */
   static int estimate(final byte[] source, final byte[] reference, final int width, final int height, final Workers workers) {
-    final int rows = (height + 3) / 4;
-    final int columns = (width + 3) / 4;
+    final int rows = (height + DECIMATION - 1) / DECIMATION;
+    final int columns = (width + DECIMATION - 1) / DECIMATION;
     final double[] luma = quarterLuma(source, width, rows, columns);
     final double[] previous = quarterLuma(reference, width, rows, columns);
     final double[][] a = Fft.forward2d(previous, rows, columns, workers);
@@ -83,7 +100,7 @@ final class GlobalMotion {
           // previous times the conjugate of the current frame, normalized to unit magnitude
           final double r = a[0][i] * b[0][i] + a[1][i] * b[1][i];
           final double m = a[1][i] * b[0][i] - a[0][i] * b[1][i];
-          final double magnitude = Math.max(Math.hypot(r, m), 1e-8);
+          final double magnitude = Math.max(Math.hypot(r, m), MIN_MAGNITUDE);
           re[i] = r / magnitude;
           im[i] = m / magnitude;
         }
@@ -98,16 +115,16 @@ final class GlobalMotion {
     }
     final int peakY = peak / columns;
     final int peakX = peak % columns;
-    final int coarseX = Math.min(Math.max((peakX <= columns / 2 ? peakX : peakX - columns) * 4, -MAX_RANGE), MAX_RANGE);
-    final int coarseY = Math.min(Math.max((peakY <= rows / 2 ? peakY : peakY - rows) * 4, -MAX_RANGE), MAX_RANGE);
-    // candidate 0 is the zero vector, candidates 1 to 49 the 7x7 neighbourhood of the coarse estimate
-    final long[] errors = new long[50];
+    final int coarseX = Math.min(Math.max((peakX <= columns / 2 ? peakX : peakX - columns) * DECIMATION, -MAX_RANGE), MAX_RANGE);
+    final int coarseY = Math.min(Math.max((peakY <= rows / 2 ? peakY : peakY - rows) * DECIMATION, -MAX_RANGE), MAX_RANGE);
+    // candidate 0 is the zero vector, the others the neighbourhood of the coarse estimate
+    final long[] errors = new long[1 + PHASE_WINDOW * PHASE_WINDOW];
     workers.forEach(
       errors.length,
       () -> errors,
       (_, candidate) -> {
-        final int dx = candidateX(candidate, coarseX);
-        final int dy = candidateY(candidate, coarseY);
+        final int dx = windowX(candidate, coarseX, PHASE_WINDOW);
+        final int dy = windowY(candidate, coarseY, PHASE_WINDOW);
         errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
           ? Long.MAX_VALUE
           : sampledError(source, reference, width, height, dx, dy);
@@ -118,7 +135,7 @@ final class GlobalMotion {
     for (int candidate = 0; candidate < errors.length; candidate++) {
       if (errors[candidate] < best) {
         best = errors[candidate];
-        vector = ((candidateX(candidate, coarseX) * 2) << 16) | ((candidateY(candidate, coarseY) * 2) & 0xFFFF);
+        vector = MotionSearch.pack(windowX(candidate, coarseX, PHASE_WINDOW) * 2, windowY(candidate, coarseY, PHASE_WINDOW) * 2);
       }
     }
     return vector;
@@ -150,7 +167,7 @@ final class GlobalMotion {
           final int line = 2 * r * width;
           long row = 0;
           for (int c = 0; c < columns; c++) {
-            final int at = (line + 2 * c) * 3;
+            final int at = (line + 2 * c) * CHANNELS;
             final int luma = (source[at] & 0xFF) + 2 * (source[at + 1] & 0xFF) + (source[at + 2] & 0xFF);
             column[c] += luma;
             row += luma;
@@ -194,13 +211,13 @@ final class GlobalMotion {
     final int columns = (width + 1) / 2;
     final int coarseX = 2 * align(previous, current, 0, columns);
     final int coarseY = 2 * align(previous, current, columns, (height + 1) / 2);
-    final long[] errors = new long[26];
+    final long[] errors = new long[1 + PROJECTION_WINDOW * PROJECTION_WINDOW];
     workers.forEach(
       errors.length,
       () -> errors,
       (_, candidate) -> {
-        final int dx = candidate == 0 ? 0 : coarseX + ((candidate - 1) % 5) - 2;
-        final int dy = candidate == 0 ? 0 : coarseY + (candidate - 1) / 5 - 2;
+        final int dx = windowX(candidate, coarseX, PROJECTION_WINDOW);
+        final int dy = windowY(candidate, coarseY, PROJECTION_WINDOW);
         errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
           ? Long.MAX_VALUE
           : sampledError(source, reference, width, height, dx, dy);
@@ -211,9 +228,7 @@ final class GlobalMotion {
     for (int candidate = 0; candidate < errors.length; candidate++) {
       if (errors[candidate] < best) {
         best = errors[candidate];
-        final int dx = candidate == 0 ? 0 : coarseX + ((candidate - 1) % 5) - 2;
-        final int dy = candidate == 0 ? 0 : coarseY + (candidate - 1) / 5 - 2;
-        vector = ((dx * 2) << 16) | ((dy * 2) & 0xFFFF);
+        vector = MotionSearch.pack(windowX(candidate, coarseX, PROJECTION_WINDOW) * 2, windowY(candidate, coarseY, PROJECTION_WINDOW) * 2);
       }
     }
     return vector;
@@ -245,19 +260,21 @@ final class GlobalMotion {
     return best;
   }
 
-  private static int candidateX(final int candidate, final int coarseX) {
-    return candidate == 0 ? 0 : coarseX + ((candidate - 1) % 7) - 3;
+  /** The horizontal displacement of a candidate: 0 for candidate 0, else a column of the window around the estimate. */
+  private static int windowX(final int candidate, final int coarseX, final int window) {
+    return candidate == 0 ? 0 : coarseX + ((candidate - 1) % window) - window / 2;
   }
 
-  private static int candidateY(final int candidate, final int coarseY) {
-    return candidate == 0 ? 0 : coarseY + (candidate - 1) / 7 - 3;
+  /** The vertical displacement of a candidate: 0 for candidate 0, else a row of the window around the estimate. */
+  private static int windowY(final int candidate, final int coarseY, final int window) {
+    return candidate == 0 ? 0 : coarseY + (candidate - 1) / window - window / 2;
   }
 
   private static double[] quarterLuma(final byte[] image, final int width, final int rows, final int columns) {
     final double[] plane = new double[rows * columns];
     for (int y = 0; y < rows; y++) {
       for (int x = 0; x < columns; x++) {
-        final int at = (y * 4 * width + x * 4) * 3;
+        final int at = (y * DECIMATION * width + x * DECIMATION) * CHANNELS;
         plane[y * columns + x] = ((image[at] & 0xFF) + 2 * (image[at + 1] & 0xFF) + (image[at + 2] & 0xFF)) * 0.25;
       }
     }
@@ -274,13 +291,13 @@ final class GlobalMotion {
     final int dy
   ) {
     long sum = 0;
-    for (int y = 0; y < height; y += 12) {
+    for (int y = 0; y < height; y += SAMPLE_STEP) {
       final int ry = Math.min(Math.max(y + dy, 0), height - 1);
-      for (int x = 0; x < width; x += 12) {
+      for (int x = 0; x < width; x += SAMPLE_STEP) {
         final int rx = Math.min(Math.max(x + dx, 0), width - 1);
-        final int s = (y * width + x) * 3;
-        final int r = (ry * width + rx) * 3;
-        for (int c = 0; c < 3; c++) {
+        final int s = (y * width + x) * CHANNELS;
+        final int r = (ry * width + rx) * CHANNELS;
+        for (int c = 0; c < CHANNELS; c++) {
           sum += Math.abs((reference[r + c] & 0xFF) - (source[s + c] & 0xFF));
         }
       }

@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 final class FrameWriterConformanceTest {
 
   private static final FrameWriter.Options DERIVED = new FrameWriter.Options(true, true, true, true, true, true, true, true, true, false);
+
   private static final FrameWriter.Options DERIVED_565 = new FrameWriter.Options(
     true,
     true,
@@ -52,6 +53,7 @@ final class FrameWriterConformanceTest {
     true,
     true
   );
+
   private static final Map<String, FrameWriter.Options> EDGE_OPTIONS = Map.ofEntries(
     Map.entry("edge-derived-tables.mcs", DERIVED),
     Map.entry("edge-derived-565.mcs", DERIVED_565),

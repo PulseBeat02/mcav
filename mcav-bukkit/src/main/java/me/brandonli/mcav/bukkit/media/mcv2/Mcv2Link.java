@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicLong;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 
 /**
  * One viewer's side of an MCV2 stream: which frames the viewer can decode, and how much video its connection has not
@@ -48,11 +49,17 @@ public final class Mcv2Link {
   private static final long NONE = -1;
 
   private final long limit;
+
   private final AtomicLong backlog = new AtomicLong();
+
   private long lastFrame = NONE;
+
   private long lastKeyframe = NONE;
+
   private long sent;
+
   private long behind;
+
   private long undecodable;
 
   /**
@@ -89,7 +96,7 @@ public final class Mcv2Link {
    * @return true if the frame is to be sent to the viewer
    */
   public synchronized boolean offer(final long frameId, final long referenceId, final boolean keyframe, final long bytes) {
-    Preconditions.checkArgument(frameId >= 0 && frameId <= 0xFFFFFFFFL, "Frame id must be an unsigned 32-bit value");
+    Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Format.MAX_U32, "Frame id must be an unsigned 32-bit value");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative");
     if (this.backlog.get() > (keyframe ? allowance(this.limit) : this.limit)) {
       this.behind++;

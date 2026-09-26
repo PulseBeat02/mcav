@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.media.mcv2.transport;
 
-import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -42,7 +41,9 @@ public final class PageAssembler {
   public static final int MAX_PENDING = 4;
 
   private final long streamId;
+
   private final int symbolBits;
+
   private final Map<Long, Map<Integer, TransportPage>> pending = new LinkedHashMap<>();
 
   /**
@@ -52,7 +53,7 @@ public final class PageAssembler {
    * @param symbolBits the negotiated symbol width
    */
   public PageAssembler(final long streamId, final int symbolBits) {
-    Preconditions.checkArgument(symbolBits >= 6 && symbolBits <= 8, "Unsupported symbol width: %s", symbolBits);
+    TransportPages.checkSymbolBits(symbolBits);
     this.streamId = streamId;
     this.symbolBits = symbolBits;
   }

@@ -51,6 +51,7 @@ import org.junit.jupiter.api.io.TempDir;
 final class Mcv2FileEncoderTest {
 
   private static final int WIDTH = 64;
+
   private static final int HEIGHT = 48;
 
   @TempDir

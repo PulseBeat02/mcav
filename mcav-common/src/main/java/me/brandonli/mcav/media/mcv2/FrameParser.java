@@ -37,7 +37,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class FrameParser {
 
-  private static final int ROOT_TABLE_LIMIT = 65535;
+  /** The largest frame a short index can address: its descriptors hold 16-bit offsets. */
+  private static final int ROOT_TABLE_LIMIT = HALF_WORD;
+
+  /** The address space an immediate motion record takes beside the frame when it is decoded. */
+  private static final int IMMEDIATE_RECORD_BYTES = MOTION_BYTES;
+
+  private static final int INITIAL_LEAVES = 64;
+
+  /** A descriptor's block in the derived form's positions: its x, y and size. */
+  private static final int POSITION_INTS = 3;
+
+  private static final long WORD_MASK = 0xFFFFFFFFL;
+
+  /** The bytes of a selector word of the table of block size {@code 8 << index}: a byte of the axis, then the bits. */
+  private static int selectorEntry(final int index) {
+    return 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
+  }
 
   private FrameParser() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -53,36 +69,37 @@ public final class FrameParser {
    */
   public static Mcv2Frame parse(final byte[] bytes) throws Mcv2Exception {
     Preconditions.checkNotNull(bytes, "Frame bytes must not be null");
-    if (bytes.length >= 4 && u32(bytes, 0) == MCV1_MAGIC) {
+    if (bytes.length >= WORD_BYTES && u32(bytes, 0) == MCV1_MAGIC) {
       throw new UnsupportedSyntaxException("MCV1 frames are not supported");
     }
-    if (bytes.length < 4 || u32(bytes, 0) != MAGIC) {
+    if (bytes.length < WORD_BYTES || u32(bytes, 0) != MAGIC) {
       throw new Mcv2Exception("Not an MCV2 frame");
     }
     if (bytes.length < HEADER_BYTES || bytes.length > MAX_FRAME_BYTES) {
       throw new Mcv2Exception("Invalid frame length");
     }
     final byte[] data = bytes.clone();
-    final long config = u32(data, 4);
-    final long dimensions = u32(data, 8);
-    final long frameId = u32(data, 12);
-    final long referenceId = u32(data, 16);
-    final long motion = u32(data, 20);
-    final long count = u32(data, 24);
-    final long start = u32(data, 28);
-    final long total = u32(data, 32);
-    final long color = u32(data, 36);
-    final int width = (int) (dimensions & 0xFFFF);
-    final int height = (int) (dimensions >>> 16);
-    final int flags = (int) (config >>> 16);
-    if ((config & 0xFFFF) != CONFIGURATION || (flags & ~ALL_FLAGS) != 0 || u32(data, 40) != 0 || u32(data, 44) != 0) {
+    final long config = u32(data, CONFIGURATION_OFFSET);
+    final long dimensions = u32(data, DIMENSIONS_OFFSET);
+    final long frameId = u32(data, FRAME_ID_OFFSET);
+    final long referenceId = u32(data, REFERENCE_ID_OFFSET);
+    final long motion = u32(data, MOTION_OFFSET);
+    final long count = u32(data, ROOT_COUNT_OFFSET);
+    final long start = u32(data, PAYLOAD_START_OFFSET);
+    final long total = u32(data, TOTAL_OFFSET);
+    final long color = u32(data, DEFAULT_COLOR_OFFSET);
+    final int width = (int) (dimensions & HALF_WORD);
+    final int height = (int) (dimensions >>> HALF_WORD_BITS);
+    final int flags = (int) (config >>> HALF_WORD_BITS);
+    final boolean reserved = u32(data, RESERVED_OFFSET) != 0 || u32(data, RESERVED_OFFSET + WORD_BYTES) != 0;
+    if ((config & HALF_WORD) != CONFIGURATION || (flags & ~ALL_FLAGS) != 0 || reserved) {
       throw new Mcv2Exception("Unsupported MCV2 header");
     }
     if (width < 1 || width > MAX_DIMENSION || height < 1 || height > MAX_DIMENSION || total != data.length) {
       throw new Mcv2Exception("Invalid dimensions or total");
     }
-    final int stride = (flags & SHORT_INDEX) != 0 ? 3 : 4;
-    if (stride == 3 && total > ROOT_TABLE_LIMIT) {
+    final int stride = (flags & SHORT_INDEX) != 0 ? SHORT_DESCRIPTOR_BYTES : WORD_BYTES;
+    if (stride == SHORT_DESCRIPTOR_BYTES && total > ROOT_TABLE_LIMIT) {
       throw new Mcv2Exception("Short index frame exceeds the address range");
     }
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
@@ -95,7 +112,7 @@ public final class FrameParser {
       throw new Mcv2Exception("Invalid reference metadata");
     }
     final boolean defaultSolid = (flags & DEFAULT_SOLID) != 0;
-    if (color > 0xFFFFFF || (defaultSolid && !keyframe) || (!defaultSolid && color != 0)) {
+    if (color > OFFSET_MASK || (defaultSolid && !keyframe) || (!defaultSolid && color != 0)) {
       throw new Mcv2Exception("Invalid default color");
     }
     if ((flags & TWO_LEVEL_WALK) != 0 && (flags & DERIVED_OFFSETS) == 0) {
@@ -107,16 +124,17 @@ public final class FrameParser {
     if ((flags & MOTION_TABLE) != 0) {
       throw new UnsupportedSyntaxException("The motion table of round 15 is not supported");
     }
-    final int packedColor = (int) color;
-    final int rgb = ((packedColor & 0xFF) << 16) | (((packedColor >> 8) & 0xFF) << 8) | ((packedColor >> 16) & 0xFF);
+    final int bgr = (int) color;
+    // the header stores the colour's bytes as blue, green, red; the frame hands it on as RGB
+    final int rgb = ((bgr & 0xFF) << 16) | (bgr & 0xFF00) | ((bgr >> 16) & 0xFF);
     final Mcv2Frame.Header header = new Mcv2Frame.Header(
       width,
       height,
       frameId,
       referenceId,
       flags,
-      signed((int) (motion & 0xFFFF), 16),
-      signed((int) (motion >>> 16), 16),
+      signed((int) (motion & HALF_WORD), HALF_WORD_BITS),
+      signed((int) (motion >>> HALF_WORD_BITS), HALF_WORD_BITS),
       (int) start,
       rgb
     );
@@ -130,9 +148,10 @@ public final class FrameParser {
   }
 
   /** A growable list of leaves, six integers each. */
-  static final class Leaves {
+  private static final class Leaves {
 
-    private int[] values = new int[64 * Mcv2Frame.LEAF_INTS];
+    private int[] values = new int[INITIAL_LEAVES * Mcv2Frame.LEAF_INTS];
+
     private int size;
 
     void add(final int x, final int y, final int size, final int mode, final int q, final int offset) {
@@ -141,12 +160,12 @@ public final class FrameParser {
       }
       final int[] v = this.values;
       final int at = this.size;
-      v[at] = x;
-      v[at + 1] = y;
-      v[at + 2] = size;
-      v[at + 3] = mode;
-      v[at + 4] = q;
-      v[at + 5] = offset;
+      v[at + Mcv2Frame.LEAF_X] = x;
+      v[at + Mcv2Frame.LEAF_Y] = y;
+      v[at + Mcv2Frame.LEAF_SIZE] = size;
+      v[at + Mcv2Frame.LEAF_MODE] = mode;
+      v[at + Mcv2Frame.LEAF_Q] = q;
+      v[at + Mcv2Frame.LEAF_OFFSET] = offset;
       this.size += Mcv2Frame.LEAF_INTS;
     }
 
@@ -173,16 +192,24 @@ public final class FrameParser {
   private static final class StoredParser {
 
     private final byte[] data;
+
     private final Mcv2Frame.Header header;
+
     private final int roots;
+
     private final int columns;
+
     private final int stride;
+
     private final int start;
+
     private final int flags;
+
     private final Leaves leaves = new Leaves();
+
     private int cursor;
 
-    StoredParser(final byte[] data, final Mcv2Frame.Header header, final int roots, final int columns, final int stride) {
+    private StoredParser(final byte[] data, final Mcv2Frame.Header header, final int roots, final int columns, final int stride) {
       this.data = data;
       this.header = header;
       this.roots = roots;
@@ -193,8 +220,9 @@ public final class FrameParser {
     }
 
     private int word(final int offset) {
-      if (this.stride == 3) {
-        return u16(this.data, offset) | ((this.data[offset + 2] & 0xFF) << 24);
+      if (this.stride == SHORT_DESCRIPTOR_BYTES) {
+        // a short descriptor holds the offset in its first two bytes and the mode and quantizer byte in its third
+        return u16(this.data, offset) | ((this.data[offset + 2] & 0xFF) << MODE_SHIFT);
       }
       return (int) u32(this.data, offset);
     }
@@ -226,10 +254,10 @@ public final class FrameParser {
     }
 
     private void readSparseRoots(final int[] words) throws Mcv2Exception {
-      final int groups = (this.roots + 31) / 32;
+      final int groups = (this.roots + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final boolean derived = (this.flags & DERIVED_DIRECTORY) != 0;
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
-      this.cursor = HEADER_BYTES + (derived ? groups * 4 + checkpoints * 4 : groups * 8);
+      this.cursor = HEADER_BYTES + (derived ? groups * WORD_BYTES + checkpoints * WORD_BYTES : groups * STORED_GROUP_BYTES);
       if (this.cursor > this.start) {
         throw new Mcv2Exception("Short root directory");
       }
@@ -238,16 +266,16 @@ public final class FrameParser {
         final long mask;
         long pointer;
         if (derived) {
-          mask = u32(this.data, HEADER_BYTES + group * 4);
+          mask = u32(this.data, HEADER_BYTES + group * WORD_BYTES);
           pointer = this.cursor;
           if (group % CHECKPOINT_GROUPS == 0) {
-            pointer = u32(this.data, HEADER_BYTES + groups * 4 + (group / CHECKPOINT_GROUPS) * 4);
+            pointer = u32(this.data, HEADER_BYTES + groups * WORD_BYTES + (group / CHECKPOINT_GROUPS) * WORD_BYTES);
           }
         } else {
-          mask = u32(this.data, HEADER_BYTES + group * 8);
-          pointer = u32(this.data, HEADER_BYTES + group * 8 + 4);
+          mask = u32(this.data, HEADER_BYTES + group * STORED_GROUP_BYTES);
+          pointer = u32(this.data, HEADER_BYTES + group * STORED_GROUP_BYTES + WORD_BYTES);
         }
-        final int valid = Math.min(32, this.roots - group * 32);
+        final int valid = Math.min(GROUP_ROOTS, this.roots - group * GROUP_ROOTS);
         if (pointer != this.cursor || mask >>> valid != 0 || this.cursor + (long) Long.bitCount(mask) * this.stride > this.start) {
           throw new Mcv2Exception("Bad root directory");
         }
@@ -266,16 +294,17 @@ public final class FrameParser {
     }
 
     private void walk(final int word, final int x, final int y, final int size) throws Mcv2Exception {
-      final int mode = (word >>> 24) & 31;
-      final int q = word >>> 29;
-      final int offset = word & 0xFFFFFF;
+      final int mode = (word >>> MODE_SHIFT) & MODE_MASK;
+      final int q = word >>> QUANTIZER_SHIFT;
+      final int offset = word & OFFSET_MASK;
       if (mode == MODE_SPLIT || mode == MODE_SPARSE_SPLIT) {
-        if (size == 8 || q != 0 || offset != this.cursor) {
+        if (size == SMALLEST_BLOCK || q != 0 || offset != this.cursor) {
           throw new Mcv2Exception("Invalid split address or depth");
         }
-        final int[] children = new int[4];
+        final int[] children = new int[QUARTERS];
         if (mode == MODE_SPARSE_SPLIT) {
-          if (this.stride != 3 || this.cursor >= this.start || (this.data[this.cursor] & 0xFF) >= 15) {
+          // a sparse split lists at most three children: with all four it would be a plain split
+          if (this.stride != SHORT_DESCRIPTOR_BYTES || this.cursor >= this.start || (this.data[this.cursor] & 0xFF) >= ALL_QUARTERS) {
             throw new Mcv2Exception("Invalid sparse child mask or layout");
           }
           final int mask = this.data[this.cursor] & 0xFF;
@@ -283,7 +312,7 @@ public final class FrameParser {
           if (this.cursor + Integer.bitCount(mask) * this.stride > this.start) {
             throw new Mcv2Exception("Truncated sparse children");
           }
-          for (int i = 0; i < 4; i++) {
+          for (int i = 0; i < QUARTERS; i++) {
             if (((mask >> i) & 1) != 0) {
               children[i] = this.word(this.cursor);
               if (children[i] == 0) {
@@ -293,16 +322,16 @@ public final class FrameParser {
             }
           }
         } else {
-          if (this.cursor + 4 * this.stride > this.start) {
+          if (this.cursor + QUARTERS * this.stride > this.start) {
             throw new Mcv2Exception("Truncated children");
           }
-          for (int i = 0; i < 4; i++) {
+          for (int i = 0; i < QUARTERS; i++) {
             children[i] = this.word(this.cursor + i * this.stride);
           }
-          this.cursor += 4 * this.stride;
+          this.cursor += QUARTERS * this.stride;
         }
         final int half = size / 2;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < QUARTERS; i++) {
           this.walk(children[i], x + (i % 2) * half, y + (i / 2) * half, half);
         }
         return;
@@ -312,7 +341,7 @@ public final class FrameParser {
       if (!leafMode || (q != 0 && !isResidual(mode) && mode != MODE_COMPACT) || (mode == MODE_SKIP && word != 0)) {
         throw new Mcv2Exception("Invalid leaf descriptor");
       }
-      if (mode == MODE_IMMEDIATE_MOTION && offset >> 16 != 0) {
+      if (mode == MODE_IMMEDIATE_MOTION && offset >> HALF_WORD_BITS != 0) {
         throw new Mcv2Exception("Invalid leaf descriptor");
       }
       if ((this.flags & KEYFRAME) != 0 && isTemporalInKeyframe(mode, this.flags)) {
@@ -325,23 +354,23 @@ public final class FrameParser {
       final int count = this.leaves.count();
       int immediates = 0;
       for (int i = 0; i < count; i++) {
-        if (this.leaves.get(i, 3) == MODE_IMMEDIATE_MOTION) {
+        if (this.leaves.get(i, Mcv2Frame.LEAF_MODE) == MODE_IMMEDIATE_MOTION) {
           immediates++;
         }
       }
       // an immediate record is materialized beside the frame when decoding, so it is charged the address space a
       // stored record would have occupied
-      if ((long) this.data.length + 2L * immediates > MAX_FRAME_BYTES) {
+      if ((long) this.data.length + (long) IMMEDIATE_RECORD_BYTES * immediates > MAX_FRAME_BYTES) {
         throw new Mcv2Exception("Immediate records exceed the frame address range");
       }
       for (int i = 0; i < count; i++) {
-        final int mode = this.leaves.get(i, 3);
+        final int mode = this.leaves.get(i, Mcv2Frame.LEAF_MODE);
         if (mode == MODE_IMMEDIATE_MOTION) {
           continue;
         }
-        final int size = this.leaves.get(i, 2);
-        final int q = this.leaves.get(i, 4);
-        final int offset = this.leaves.get(i, 5);
+        final int size = this.leaves.get(i, Mcv2Frame.LEAF_SIZE);
+        final int q = this.leaves.get(i, Mcv2Frame.LEAF_Q);
+        final int offset = this.leaves.get(i, Mcv2Frame.LEAF_OFFSET);
         final int length;
         if (mode == MODE_PATTERN) {
           length = patternSize(size, false, false);
@@ -376,17 +405,26 @@ public final class FrameParser {
   private static final class DerivedParser {
 
     private final byte[] data;
+
     private final Mcv2Frame.Header header;
+
     private final int roots;
+
     private final int columns;
+
     private final int start;
+
     private final int total;
+
     private final int flags;
+
     private int base;
+
     private byte@Nullable[] symbols;
+
     private int width;
 
-    DerivedParser(final byte[] data, final Mcv2Frame.Header header, final int roots, final int columns) {
+    private DerivedParser(final byte[] data, final Mcv2Frame.Header header, final int roots, final int columns) {
       this.data = data;
       this.header = header;
       this.roots = roots;
@@ -394,45 +432,106 @@ public final class FrameParser {
       this.start = header.payloadStart();
       this.total = data.length;
       this.flags = header.flags();
-      this.width = 8;
+      // until a symbol table says otherwise, a descriptor is a byte
+      this.width = Byte.SIZE;
     }
 
     Mcv2Frame parse() throws Mcv2Exception {
-      final int groups = (this.roots + 31) / 32;
+      final int groups = (this.roots + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final int stored = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
-      final int head = HEADER_BYTES + groups * 4 + stored * 4;
-      if (head + 6 > this.start) {
+      final int head = HEADER_BYTES + (groups + stored) * WORD_BYTES;
+      if (head + BLOCK_SIZES * Short.BYTES > this.start) {
         throw new Mcv2Exception("Short derived index");
       }
-      final int n0 = u16(this.data, head);
-      final int n1 = u16(this.data, head + 2);
-      final int n2 = u16(this.data, head + 4);
-      this.base = head + 6;
-      final int descriptors = n0 + n1 + n2;
-      final int walkpoints = (descriptors + WALK_SPAN - 1) / WALK_SPAN;
+      final int[] levels = new int[BLOCK_SIZES];
+      for (int level = 0; level < BLOCK_SIZES; level++) {
+        levels[level] = u16(this.data, head + level * Short.BYTES);
+      }
+      this.base = head + BLOCK_SIZES * Short.BYTES;
+      final int descriptors = levels[0] + levels[1] + levels[2];
       if ((this.flags & PACKED_SYMBOLS) != 0) {
         this.readSymbolTable();
       }
-      final int plane = (descriptors * this.width + 7) / 8;
-      final int walkBase = this.base + plane;
-      int cursorBits = 0;
-      int splitsBits = 0;
-      final boolean twoLevel = (this.flags & TWO_LEVEL_WALK) != 0;
-      if (twoLevel) {
-        if (walkBase + 2 > this.start) {
-          throw new Mcv2Exception("Short walk widths");
-        }
-        cursorBits = this.data[walkBase] & 0xFF;
-        splitsBits = this.data[walkBase + 1] & 0xFF;
-        if (cursorBits < 1 || cursorBits > 16 || splitsBits < 1 || splitsBits > 16 || cursorBits + splitsBits > DELTA_BITS) {
-          throw new Mcv2Exception("Invalid walk delta widths");
-        }
+      final Walk walk = this.readWalk(this.base + (descriptors * this.width + Byte.SIZE - 1) / Byte.SIZE, descriptors);
+      final Tables tables = this.readTableSizes(walk);
+      final int wordBytes = tables.wordBytes();
+      final int endpointBytes = tables.pairCount * tables.pairEntry;
+      final byte[] book = tables.pairCount > 0 ? this.readEndpointTable(tables.pairCount, tables.pairEntry, wordBytes) : null;
+      final byte[][] books = (this.flags & SELECTOR_TABLE) != 0
+        ? this.readSelectorTables(tables.wordCounts, endpointBytes, wordBytes)
+        : null;
+      final int[] present = this.readDirectory(groups, levels[0]);
+      final byte[] modes = new byte[descriptors];
+      final byte[] quantizers = new byte[descriptors];
+      for (int i = 0; i < descriptors; i++) {
+        final int symbol = this.descriptor(i);
+        modes[i] = (byte) (symbol & MODE_MASK);
+        quantizers[i] = (byte) (symbol >> SYMBOL_QUANTIZER_SHIFT);
       }
-      int region = walkBytes(walkpoints, twoLevel);
+      final int split = levels[0] + levels[1];
+      if (QUARTERS * countSplits(modes, 0, levels[0]) != levels[1] || QUARTERS * countSplits(modes, levels[0], split) != levels[2]) {
+        throw new Mcv2Exception("Level counts disagree with the split descriptors");
+      }
+      if (countSplits(modes, split, descriptors) != 0) {
+        throw new Mcv2Exception("Split below the bounded depth");
+      }
+      final int[] positions = this.positions(present, modes, levels[0], split, descriptors);
+      final Leaves leaves = new Leaves();
+      this.readLeaves(walk, modes, quantizers, positions, book, books, leaves, this.total - wordBytes - endpointBytes);
+      this.addUnlistedRoots(present, levels[0], leaves);
+      return new Mcv2Frame(this.data, this.header, leaves.toArray(), book, books);
+    }
+
+    /** The walk checkpoints' plane: where it starts, how many there are, and the delta widths of the two-level form. */
+    private record Walk(int base, int points, boolean twoLevel, int cursorBits, int splitsBits) {}
+
+    /** The sizes the index gives the endpoint table and the selector tables of the three block sizes. */
+    private static final class Tables {
+
+      private final int pairCount;
+
+      private final int pairEntry;
+
+      private final int[] wordCounts;
+
+      private Tables(final int pairCount, final int pairEntry, final int[] wordCounts) {
+        this.pairCount = pairCount;
+        this.pairEntry = pairEntry;
+        this.wordCounts = wordCounts;
+      }
+
+      private int wordBytes() {
+        int bytes = 0;
+        for (int i = 0; i < BLOCK_SIZES; i++) {
+          bytes += this.wordCounts[i] * selectorEntry(i);
+        }
+        return bytes;
+      }
+    }
+
+    private Walk readWalk(final int walkBase, final int descriptors) throws Mcv2Exception {
+      final int points = (descriptors + WALK_SPAN - 1) / WALK_SPAN;
+      if ((this.flags & TWO_LEVEL_WALK) == 0) {
+        return new Walk(walkBase, points, false, 0, 0);
+      }
+      if (walkBase + 2 > this.start) {
+        throw new Mcv2Exception("Short walk widths");
+      }
+      final int cursorBits = this.data[walkBase] & 0xFF;
+      final int splitsBits = this.data[walkBase + 1] & 0xFF;
+      if (cursorBits < 1 || cursorBits > Short.SIZE || splitsBits < 1 || splitsBits > Short.SIZE || cursorBits + splitsBits > DELTA_BITS) {
+        throw new Mcv2Exception("Invalid walk delta widths");
+      }
+      return new Walk(walkBase, points, true, cursorBits, splitsBits);
+    }
+
+    /** Reads the table sizes after the walk plane, and checks that the index ends exactly where the payload starts. */
+    private Tables readTableSizes(final Walk walk) throws Mcv2Exception {
+      int region = walkBytes(walk.points(), walk.twoLevel());
       final boolean endpointTable = (this.flags & ENDPOINT_TABLE) != 0;
       int pairCount = 0;
       if (endpointTable) {
-        final int at = walkBase + region;
+        final int at = walk.base() + region;
         if (at >= this.start) {
           throw new Mcv2Exception("Short endpoint table");
         }
@@ -441,14 +540,14 @@ public final class FrameParser {
           throw new Mcv2Exception("Invalid endpoint table size");
         }
       }
-      final int[] wordCounts = new int[3];
+      final int[] wordCounts = new int[BLOCK_SIZES];
       final boolean selectorTable = (this.flags & SELECTOR_TABLE) != 0;
       if (selectorTable) {
-        final int at = walkBase + region + (endpointTable ? 1 : 0);
-        if (at + 3 > this.start) {
+        final int at = walk.base() + region + (endpointTable ? 1 : 0);
+        if (at + BLOCK_SIZES > this.start) {
           throw new Mcv2Exception("Short selector table sizes");
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < BLOCK_SIZES; i++) {
           wordCounts[i] = this.data[at + i] & 0xFF;
           final boolean flagged = (this.flags & (SELECTOR_TABLE_8 << i)) != 0;
           if ((wordCounts[i] != 0) != flagged) {
@@ -457,70 +556,72 @@ public final class FrameParser {
         }
       }
       final boolean coarseEndpoints = (this.flags & ENDPOINT_565) != 0;
-      final int pairEntry = coarseEndpoints ? 4 : 6;
       if (endpointTable) {
         region += 1;
       }
       if (selectorTable) {
-        region += 3;
+        region += BLOCK_SIZES;
       }
       if (coarseEndpoints && !endpointTable) {
         throw new Mcv2Exception("565 endpoints without an endpoint table");
       }
-      if (walkBase + region != this.start) {
+      if (walk.base() + region != this.start) {
         throw new Mcv2Exception("Noncanonical derived index length");
       }
-      final int wordBytes = wordCounts[0] * 2 + wordCounts[1] * 3 + wordCounts[2] * 5;
-      final int endpointBytes = pairCount * pairEntry;
-      final byte[] book = endpointTable ? this.readEndpointTable(pairCount, pairEntry, wordBytes) : null;
-      final byte[][] books = selectorTable ? this.readSelectorTables(wordCounts, endpointBytes, wordBytes) : null;
-      final int[] present = this.readDirectory(groups, n0);
-      final byte[] modes = new byte[descriptors];
-      final byte[] quantizers = new byte[descriptors];
-      for (int i = 0; i < descriptors; i++) {
-        final int symbol = this.descriptor(i);
-        modes[i] = (byte) (symbol & 31);
-        quantizers[i] = (byte) (symbol >> 5);
-      }
-      if (4 * countSplits(modes, 0, n0) != n1 || 4 * countSplits(modes, n0, n0 + n1) != n2) {
-        throw new Mcv2Exception("Level counts disagree with the split descriptors");
-      }
-      if (countSplits(modes, n0 + n1, descriptors) != 0) {
-        throw new Mcv2Exception("Split below the bounded depth");
-      }
-      final int[] positions = new int[descriptors * 3];
-      for (int index = 0; index < n0; index++) {
+      return new Tables(pairCount, coarseEndpoints ? ENDPOINT_565_PAIR_BYTES : ENDPOINT_PAIR_BYTES, wordCounts);
+    }
+
+    /** Every descriptor's block: the listed roots first, then the quarters of every split, level by level. */
+    private int[] positions(final int[] present, final byte[] modes, final int roots, final int splittable, final int descriptors) {
+      final int[] positions = new int[descriptors * POSITION_INTS];
+      for (int index = 0; index < roots; index++) {
         final int root = present[index];
-        positions[index * 3] = (root % this.columns) * ROOT_SIZE;
-        positions[index * 3 + 1] = (root / this.columns) * ROOT_SIZE;
-        positions[index * 3 + 2] = ROOT_SIZE;
+        this.position(positions, index, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE);
       }
-      int child = n0;
-      for (int index = 0; index < n0 + n1; index++) {
+      int child = roots;
+      for (int index = 0; index < splittable; index++) {
         if (modes[index] != MODE_SPLIT) {
           continue;
         }
-        final int x = positions[index * 3];
-        final int y = positions[index * 3 + 1];
-        final int half = positions[index * 3 + 2] / 2;
-        for (int corner = 0; corner < 4; corner++) {
-          positions[child * 3] = x + (corner % 2) * half;
-          positions[child * 3 + 1] = y + (corner / 2) * half;
-          positions[child * 3 + 2] = half;
-          child++;
+        final int x = positions[index * POSITION_INTS];
+        final int y = positions[index * POSITION_INTS + 1];
+        final int half = positions[index * POSITION_INTS + 2] / 2;
+        for (int corner = 0; corner < QUARTERS; corner++) {
+          this.position(positions, child++, x + (corner % 2) * half, y + (corner / 2) * half, half);
         }
       }
-      final Leaves leaves = new Leaves();
-      final int[] pairs = new int[walkpoints * 2];
+      return positions;
+    }
+
+    private void position(final int[] positions, final int index, final int x, final int y, final int size) {
+      positions[index * POSITION_INTS] = x;
+      positions[index * POSITION_INTS + 1] = y;
+      positions[index * POSITION_INTS + 2] = size;
+    }
+
+    /**
+     * Walks the descriptors in order, checking every walk checkpoint against the payload cursor and the splits before
+     * it, validates and lists every leaf, and checks that the records end where the tables begin.
+     */
+    private void readLeaves(
+      final Walk walk,
+      final byte[] modes,
+      final byte[] quantizers,
+      final int[] positions,
+      final byte@Nullable[] book,
+      final byte@Nullable[][] books,
+      final Leaves leaves,
+      final int payloadEnd
+    ) throws Mcv2Exception {
+      final int[] pairs = new int[walk.points() * 2];
       int splits = 0;
       int cursor = 0;
-      for (int index = 0; index < descriptors; index++) {
+      for (int index = 0; index < modes.length; index++) {
         final int mode = modes[index];
-        final int q = quantizers[index];
         if (index % WALK_SPAN == 0) {
           final int point = index / WALK_SPAN;
-          final long entry = this.walkEntry(walkBase, walkpoints, twoLevel, cursorBits, splitsBits, point);
-          if (entry >>> 32 != cursor || (entry & 0xFFFFFFFFL) != splits) {
+          final long entry = this.walkEntry(walk, point);
+          if (entry >>> Integer.SIZE != cursor || (entry & WORD_MASK) != splits) {
             throw new Mcv2Exception("Noncanonical walk checkpoint");
           }
           pairs[point * 2] = cursor;
@@ -530,24 +631,30 @@ public final class FrameParser {
           splits++;
           continue;
         }
-        final int size = positions[index * 3 + 2];
-        final byte[] words = books == null ? null : books[Integer.numberOfTrailingZeros(size) - 3];
+        final int size = positions[index * POSITION_INTS + 2];
+        final byte[] words = books == null ? null : books[sizeIndex(size)];
         final int offset = this.start + cursor;
-        final int length = this.validateLeaf(mode, q, size, offset, book, words);
-        leaves.add(positions[index * 3], positions[index * 3 + 1], size, mode, q, mode == MODE_SKIP ? 0 : offset);
+        final int length = this.validateLeaf(mode, quantizers[index], size, offset, book, words);
+        final int x = positions[index * POSITION_INTS];
+        final int y = positions[index * POSITION_INTS + 1];
+        leaves.add(x, y, size, mode, quantizers[index], mode == MODE_SKIP ? 0 : offset);
         cursor += length;
         if (this.start + (long) cursor > this.total) {
           throw new Mcv2Exception("Invalid leaf payload");
         }
       }
-      if (this.start + cursor != this.total - wordBytes - endpointBytes) {
+      if (this.start + cursor != payloadEnd) {
         throw new Mcv2Exception("Noncanonical payload length");
       }
-      if (twoLevel && !minimalWidths(pairs, walkpoints, cursorBits, splitsBits)) {
+      if (walk.twoLevel() && !minimalWidths(pairs, walk.points(), walk.cursorBits(), walk.splitsBits())) {
         throw new Mcv2Exception("Walk delta widths are not minimal");
       }
+    }
+
+    /** Adds the roots the directory leaves out, which SKIP, or a keyframe's default colour fills. */
+    private void addUnlistedRoots(final int[] present, final int listedCount, final Leaves leaves) throws Mcv2Exception {
       final boolean[] listed = new boolean[this.roots];
-      for (int i = 0; i < n0; i++) {
+      for (int i = 0; i < listedCount; i++) {
         listed[present[i]] = true;
       }
       for (int root = 0; root < this.roots; root++) {
@@ -558,7 +665,6 @@ public final class FrameParser {
           leaves.add((root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE, MODE_SKIP, 0, 0);
         }
       }
-      return new Mcv2Frame(this.data, this.header, leaves.toArray(), book, books);
     }
 
     private void readSymbolTable() throws Mcv2Exception {
@@ -586,10 +692,10 @@ public final class FrameParser {
         return this.data[this.base + index] & 0xFF;
       }
       final int position = index * this.width;
-      final int at = this.base + (position >> 3);
+      final int at = this.base + position / Byte.SIZE;
       // two bytes always cover a symbol; the second can lie past the plane, in the walk region that always follows it
-      final int word = (this.data[at] & 0xFF) | ((this.data[at + 1] & 0xFF) << 8);
-      final int symbol = (word >> (position & 7)) & ((1 << this.width) - 1);
+      final int word = (this.data[at] & 0xFF) | ((this.data[at + 1] & 0xFF) << Byte.SIZE);
+      final int symbol = (word >> (position % Byte.SIZE)) & ((1 << this.width) - 1);
       if (symbol >= table.length) {
         throw new Mcv2Exception("Symbol index outside the table");
       }
@@ -612,26 +718,25 @@ public final class FrameParser {
       if (pairsAt - wordBytes < this.start) {
         throw new Mcv2Exception("Truncated endpoint table");
       }
-      final byte[] book = new byte[pairCount * 6];
+      final byte[] book = new byte[pairCount * ENDPOINT_PAIR_BYTES];
       for (int i = 0; i < pairCount; i++) {
-        if (pairEntry == 4) {
-          final int a = unpack565(this.data[pairsAt + i * 4], this.data[pairsAt + i * 4 + 1]);
-          final int b = unpack565(this.data[pairsAt + i * 4 + 2], this.data[pairsAt + i * 4 + 3]);
-          putRgb(book, i * 6, a);
-          putRgb(book, i * 6 + 3, b);
+        if (pairEntry == ENDPOINT_565_PAIR_BYTES) {
+          final int at = pairsAt + i * ENDPOINT_565_PAIR_BYTES;
+          putRgb(book, i * ENDPOINT_PAIR_BYTES, unpack565(this.data[at], this.data[at + 1]));
+          putRgb(book, i * ENDPOINT_PAIR_BYTES + CHANNELS, unpack565(this.data[at + RGB565_BYTES], this.data[at + RGB565_BYTES + 1]));
         } else {
-          System.arraycopy(this.data, pairsAt + i * 6, book, i * 6, 6);
+          System.arraycopy(this.data, pairsAt + i * ENDPOINT_PAIR_BYTES, book, i * ENDPOINT_PAIR_BYTES, ENDPOINT_PAIR_BYTES);
         }
       }
-      if (distinctEntries(book, 6) != pairCount) {
+      if (distinctEntries(book, ENDPOINT_PAIR_BYTES) != pairCount) {
         throw new Mcv2Exception("Noncanonical endpoint table");
       }
       return book;
     }
 
     private static void putRgb(final byte[] target, final int at, final int rgb) {
-      target[at] = (byte) (rgb >> 16);
-      target[at + 1] = (byte) (rgb >> 8);
+      target[at] = (byte) (rgb >> (2 * Byte.SIZE));
+      target[at + 1] = (byte) (rgb >> Byte.SIZE);
       target[at + 2] = (byte) rgb;
     }
 
@@ -648,9 +753,9 @@ public final class FrameParser {
       if (at < this.start) {
         throw new Mcv2Exception("Truncated selector table");
       }
-      final byte[][] books = new byte[3][];
-      for (int i = 0; i < 3; i++) {
-        final int entry = 1 + (8 << i) / 8;
+      final byte[][] books = new byte[BLOCK_SIZES][];
+      for (int i = 0; i < BLOCK_SIZES; i++) {
+        final int entry = selectorEntry(i);
         final int n = wordCounts[i];
         if (n != 0) {
           final byte[] chunk = Arrays.copyOfRange(this.data, at, at + n * entry);
@@ -668,20 +773,20 @@ public final class FrameParser {
       final int[] present = new int[this.roots];
       int seen = 0;
       for (int group = 0; group < groups; group++) {
-        final long mask = u32(this.data, HEADER_BYTES + group * 4);
-        final int valid = Math.min(32, this.roots - group * 32);
+        final long mask = u32(this.data, HEADER_BYTES + group * WORD_BYTES);
+        final int valid = Math.min(GROUP_ROOTS, this.roots - group * GROUP_ROOTS);
         if (mask >>> valid != 0) {
           throw new Mcv2Exception("Bad root directory");
         }
         if (group % CHECKPOINT_GROUPS == 0) {
-          final long checkpoint = u32(this.data, HEADER_BYTES + groups * 4 + (group / CHECKPOINT_GROUPS) * 4);
+          final long checkpoint = u32(this.data, HEADER_BYTES + groups * WORD_BYTES + (group / CHECKPOINT_GROUPS) * WORD_BYTES);
           if (checkpoint != seen) {
             throw new Mcv2Exception("Noncanonical descriptor checkpoint");
           }
         }
         for (int bit = 0; bit < valid; bit++) {
           if (((mask >>> bit) & 1) != 0) {
-            present[seen++] = group * 32 + bit;
+            present[seen++] = group * GROUP_ROOTS + bit;
           }
         }
       }
@@ -692,32 +797,30 @@ public final class FrameParser {
     }
 
     /** The (payload cursor, split prefix) pair of a walk checkpoint, as the high and low halves of a long. */
-    private long walkEntry(
-      final int walkBase,
-      final int walkpoints,
-      final boolean twoLevel,
-      final int cursorBits,
-      final int splitsBits,
-      final int index
-    ) throws Mcv2Exception {
-      if (!twoLevel) {
-        return ((long) u16(this.data, walkBase + index * 4) << 32) | u16(this.data, walkBase + index * 4 + 2);
+    private long walkEntry(final Walk walk, final int index) throws Mcv2Exception {
+      if (!walk.twoLevel()) {
+        final int at = walk.base() + index * WALK_PAIR_BYTES;
+        return pair(u16(this.data, at), u16(this.data, at + Short.BYTES));
       }
-      final int anchor = walkBase + 2 + (index / WALK_STRIDE) * 4;
+      // after the two delta widths: the absolute pairs of every WALK_STRIDE-th checkpoint, then the others' deltas
+      final int anchor = walk.base() + 2 + (index / WALK_STRIDE) * WALK_PAIR_BYTES;
       final int baseCursor = u16(this.data, anchor);
-      final int baseSplits = u16(this.data, anchor + 2);
+      final int baseSplits = u16(this.data, anchor + Short.BYTES);
       if (index % WALK_STRIDE == 0) {
-        return ((long) baseCursor << 32) | baseSplits;
+        return pair(baseCursor, baseSplits);
       }
-      final int coarse = (walkpoints + WALK_STRIDE - 1) / WALK_STRIDE;
-      final int at = walkBase + 2 + coarse * 4 + (index - 1 - (index - 1) / WALK_STRIDE) * 2;
+      final int coarse = (walk.points() + WALK_STRIDE - 1) / WALK_STRIDE;
+      final int at = walk.base() + 2 + coarse * WALK_PAIR_BYTES + (index - 1 - (index - 1) / WALK_STRIDE) * Short.BYTES;
       final int entry = u16(this.data, at);
-      if (entry >>> (cursorBits + splitsBits) != 0) {
+      if (entry >>> (walk.cursorBits() + walk.splitsBits()) != 0) {
         throw new Mcv2Exception("Noncanonical walk delta padding");
       }
-      final long cursor = (long) baseCursor + (entry & ((1 << cursorBits) - 1));
-      final long splits = (long) baseSplits + (entry >>> cursorBits);
-      return (cursor << 32) | splits;
+      return pair(baseCursor + (entry & ((1 << walk.cursorBits()) - 1)), baseSplits + (entry >>> walk.cursorBits()));
+    }
+
+    /** A walk checkpoint's payload cursor and split prefix as the high and low halves of a long. */
+    private static long pair(final long cursor, final long splits) {
+      return (cursor << Integer.SIZE) | splits;
     }
 
     private static boolean minimalWidths(final int[] pairs, final int walkpoints, final int cursorBits, final int splitsBits) {
@@ -732,7 +835,7 @@ public final class FrameParser {
     }
 
     private static int bitLength(final int value) {
-      return Math.max(1, 32 - Integer.numberOfLeadingZeros(value));
+      return Math.max(1, Integer.SIZE - Integer.numberOfLeadingZeros(value));
     }
 
     /** Validates one leaf of the derived form and returns the length of its record. */

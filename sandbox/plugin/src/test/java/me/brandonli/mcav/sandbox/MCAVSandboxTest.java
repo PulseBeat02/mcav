@@ -42,6 +42,7 @@ import static org.mockito.Mockito.withSettings;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -53,9 +54,11 @@ import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
@@ -92,12 +95,19 @@ final class MCAVSandboxTest {
   private Path folder;
 
   private MCAVSandbox sandbox;
+
   private ComponentLogger logger;
+
   private MCAVApi api;
+
   private BukkitModule bukkitModule;
+
   private VMModule vmModule;
+
   private TestCommandManager commands;
+
   private MockedStatic<JavaPlugin> javaPlugins;
+
   private MockedStatic<MCAV> libraries;
 
   private MockedStatic<LegacyPaperCommandManager<CommandSender>> paperManagers;
@@ -239,14 +249,35 @@ final class MCAVSandboxTest {
   }
 
   @Test
+  void appliesAndLogsTheMcv2EncoderBudget() throws IOException {
+    // a configured budget of three threads, the rest of the configuration its default
+    final String defaults;
+    try (InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+      defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+    }
+    assertTrue(defaults.contains("  encoder-threads: 0\n"));
+    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
+    try {
+      this.sandbox.onEnable();
+      assertEquals(3, EncoderPool.shared().getThreads());
+      verify(this.logger).info("MCV2 encoders share {} of {} processors", 3, Runtime.getRuntime().availableProcessors());
+      this.sandbox.onDisable();
+    } finally {
+      EncoderPool.setSharedThreads(0);
+    }
+  }
+
+  @Test
   void stopsTheListenerTheCommandsAndTheAudioWhenDisabled() {
     try (
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
-      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class)
+      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class);
+      final MockedConstruction<Mcv2Support> supports = Mockito.mockConstruction(Mcv2Support.class)
     ) {
       this.sandbox.onEnable();
       this.sandbox.onDisable();
+      verify(supports.constructed().getFirst()).close();
 
       final List<JukeBoxListener> constructedListeners = listeners.constructed();
       final List<AnnotationParserHandler> constructedHandlers = handlers.constructed();

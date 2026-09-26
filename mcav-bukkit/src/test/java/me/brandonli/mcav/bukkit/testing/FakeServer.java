@@ -62,13 +62,21 @@ import org.mockito.stubbing.Answer;
 public final class FakeServer implements AutoCloseable {
 
   private final MockedStatic<Bukkit> bukkit;
+
   private final Plugin plugin;
+
   private final PluginManager pluginManager;
+
   private final BukkitScheduler scheduler;
+
   private final ScoreboardManager scoreboardManager;
+
   private final List<Player> onlinePlayers;
+
   private final Map<UUID, List<Packet<?>>> sentPackets;
+
   private final Map<UUID, List<ChannelFutureListener>> pendingWrites;
+
   private final List<ScheduledTask> tasks;
 
   private volatile boolean primaryThread;
@@ -345,7 +353,9 @@ public final class FakeServer implements AutoCloseable {
   private static final class ScheduledTask {
 
     private final Runnable runnable;
+
     private final boolean repeating;
+
     private final BukkitTask task;
 
     ScheduledTask(final Runnable runnable, final boolean repeating, final BukkitTask task) {

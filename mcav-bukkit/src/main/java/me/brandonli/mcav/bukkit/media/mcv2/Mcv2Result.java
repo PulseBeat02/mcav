@@ -37,6 +37,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -76,28 +77,67 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Result.class);
 
+  /** How long a release waits for the encoding thread to stop. */
+  private static final long JOIN_SECONDS = 10;
+
+  private static final double NANOS_PER_MILLISECOND = 1e6;
+
+  /** The link counts {@link #linkCounts} sums, and where each is. */
+  private static final int LINK_COUNTS = 3;
+
+  private static final int SENT = 0;
+
+  private static final int BEHIND = 1;
+
+  private static final int UNDECODABLE = 2;
+
+  private static final String FRAME_TOO_LARGE = "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent";
+
+  /** A pacing step, as the pacer describes it to the pacing listener too. */
+  private static final String PACING_STEP = "{}";
+
   private final Mcv2Configuration requested;
+
   private final @Nullable Fallback fallback;
+
   private final Set<UUID> fallbackViewers;
+
   private final Executor dithering;
+
   private final @Nullable ExecutorService ditheringThread;
+
   private final AtomicBoolean ditheringBusy = new AtomicBoolean();
+
   private final Object lock;
+
   private final Statistics statistics;
+
   private final LongSupplier clock;
 
   private @Nullable Arrival pending;
+
   private boolean running;
+
   private @Nullable Thread worker;
+
   private @Nullable Thread sender;
+
   private @Nullable BlockingQueue<Delivery> deliveries;
+
   private @Nullable EncoderPool budget;
+
   private @Nullable Mcv2Pacer pacer;
+
   private boolean ditheredForAll;
+
   private Consumer<Mcv2Pacer.Change> pacingListener = _ -> {};
+
   private volatile Screen screen;
+
   private boolean opened = true;
+
   private List<int[]> smaller = List.of();
+
   private @Nullable Resizer resizer;
 
   /** The screen the video is shown on now: its configuration, whose video size may change, and its channel. */
@@ -126,8 +166,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   static final class Arrival {
 
     private final byte[] rgb;
+
     private final int width;
+
     private final int height;
+
     private final long arrived;
 
     Arrival(final byte[] rgb, final int width, final int height, final long arrived) {
@@ -142,11 +185,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private static final class Delivery {
 
     private final byte[] frame;
+
     private final Mcv2Encoder.Stats stats;
+
     private final long frameId;
+
     private final Arrival source;
 
-    Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId, final Arrival source) {
+    private Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId, final Arrival source) {
       this.frame = frame;
       this.stats = stats;
       this.frameId = frameId;
@@ -160,10 +206,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   public static final class Statistics {
 
     private long frames;
+
     private long keyframes;
+
     private long dropped;
+
     private long bytes;
+
     private long mapBytes;
+
     private long nanoseconds;
 
     Statistics() {
@@ -178,7 +229,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.nanoseconds += stats.nanoseconds();
     }
 
-    synchronized void drop() {
+    private synchronized void drop() {
       this.dropped++;
     }
 
@@ -461,23 +512,24 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   static byte[] rgb(final int[] argb, final int pixels) {
-    final byte[] rgb = new byte[pixels * 3];
+    final byte[] rgb = new byte[pixels * Mcv2Format.CHANNELS];
     for (int i = 0; i < pixels; i++) {
       final int pixel = argb[i];
-      rgb[i * 3] = (byte) (pixel >> 16);
-      rgb[i * 3 + 1] = (byte) (pixel >> 8);
-      rgb[i * 3 + 2] = (byte) pixel;
+      final int at = i * Mcv2Format.CHANNELS;
+      rgb[at] = (byte) (pixel >> 16);
+      rgb[at + 1] = (byte) (pixel >> 8);
+      rgb[at + 2] = (byte) pixel;
     }
     return rgb;
   }
 
   /** The frames the viewers' links sent, held back for the backlog and held back for a reference, summed. */
   private long[] linkCounts() {
-    final long[] counts = new long[3];
+    final long[] counts = new long[LINK_COUNTS];
     for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
-      counts[0] += link.getSent();
-      counts[1] += link.getBehind();
-      counts[2] += link.getUndecodable();
+      counts[SENT] += link.getSent();
+      counts[BEHIND] += link.getBehind();
+      counts[UNDECODABLE] += link.getUndecodable();
     }
     return counts;
   }
@@ -496,9 +548,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     event.arrived = delivery.source.arrived;
     event.sent = System.currentTimeMillis();
     event.encode = delivery.stats.nanoseconds();
-    event.sentTo = (int) (after[0] - before[0]);
-    event.behind = (int) (after[1] - before[1]);
-    event.waiting = (int) (after[2] - before[2]);
+    event.sentTo = (int) (after[SENT] - before[SENT]);
+    event.behind = (int) (after[BEHIND] - before[BEHIND]);
+    event.waiting = (int) (after[UNDECODABLE] - before[UNDECODABLE]);
     event.backlog = backlog;
     event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.rgb, delivery.source.width, delivery.source.height);
     event.commit();
@@ -516,7 +568,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     thread.interrupt();
     try {
-      thread.join(TimeUnit.SECONDS.toMillis(10));
+      thread.join(TimeUnit.SECONDS.toMillis(JOIN_SECONDS));
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
@@ -532,7 +584,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     try {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
         this.send(encoder, arrival, frameId);
-        frameId = (frameId + 1) & 0xFFFFFFFFL;
+        frameId = (frameId + 1) & Mcv2Format.MAX_U32;
       }
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
@@ -612,7 +664,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       queue = this.deliveries;
       final Mcv2Pacer screenPacer = this.pacer;
       if (screenPacer != null) {
-        change = screenPacer.encoded((finished - started) / 1e6, stats.keyframe(), finished);
+        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, stats.keyframe(), finished);
         if (change != null) {
           this.follow(change);
         }
@@ -650,19 +702,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Mcv2Encoder.Stats stats = delivery.stats;
     final Mcv2FrameEvent event = new Mcv2FrameEvent();
     final boolean recorded = event.isEnabled();
-    final long[] before = recorded ? this.linkCounts() : new long[3];
+    final long[] before = recorded ? this.linkCounts() : new long[LINK_COUNTS];
     final Screen current = this.screen;
     final int colors = current.channel().send(frame);
     if (recorded) {
       this.record(event, delivery, colors, before);
     }
     if (colors < 0) {
-      LOGGER.warn(
-        "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent",
-        frameId,
-        frame.length,
-        current.configuration().getPageSlots()
-      );
+      LOGGER.warn(FRAME_TOO_LARGE, frameId, frame.length, current.configuration().getPageSlots());
       this.statistics.drop();
       return;
     }
@@ -697,8 +744,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     final Screen current = this.screen;
     final Mcv2Configuration configuration = current.configuration();
-    final long shown = ((long) configuration.getVideoWidth() << 32) | configuration.getVideoHeight();
-    final boolean resized = !rung.isDithered() && (((long) rung.width() << 32) | rung.height()) != shown;
+    final boolean resized =
+      !rung.isDithered() && size(rung.width(), rung.height()) != size(configuration.getVideoWidth(), configuration.getVideoHeight());
     if (this.opened && (rung.isDithered() || resized)) {
       current.channel().close();
       this.opened = false;
@@ -721,9 +768,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** Tells the server log and the pacing listener of a step, outside the lock. */
   private void announce(final Mcv2Pacer.Change change) {
     if (change.down()) {
-      LOGGER.warn(change.describe());
+      LOGGER.warn(PACING_STEP, change.describe());
     } else {
-      LOGGER.info(change.describe());
+      LOGGER.info(PACING_STEP, change.describe());
     }
     this.pacingListener.accept(change);
   }
@@ -758,5 +805,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (dithered != null) {
       dithered.result().release();
     }
+  }
+
+  /** A width and a height in one value, for comparing sizes. */
+  private static long size(final int width, final int height) {
+    return ((long) width << Integer.SIZE) | height;
   }
 }

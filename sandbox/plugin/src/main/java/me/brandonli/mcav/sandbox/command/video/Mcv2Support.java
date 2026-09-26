@@ -62,8 +62,12 @@ public final class Mcv2Support {
    */
   public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
 
+  private static final int HASH_BUFFER = 8192;
+
   private final Path folder;
+
   private @Nullable Served served;
+
   private @Nullable UUID lastId;
 
   /**
@@ -217,7 +221,7 @@ public final class Mcv2Support {
   static String hash(final Path file, final String algorithm) {
     try (final InputStream input = Files.newInputStream(file)) {
       final MessageDigest digest = MessageDigest.getInstance(algorithm);
-      final byte[] buffer = new byte[8192];
+      final byte[] buffer = new byte[HASH_BUFFER];
       for (int read = input.read(buffer); read >= 0; read = input.read(buffer)) {
         digest.update(buffer, 0, read);
       }

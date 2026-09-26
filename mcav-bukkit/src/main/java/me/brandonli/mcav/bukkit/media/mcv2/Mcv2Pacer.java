@@ -52,7 +52,7 @@ public final class Mcv2Pacer {
   public static final double MIN_FPS = 10;
 
   /** The share of its frame time over which a rung does not keep up. */
-  static final double HIGH = 1.0;
+  private static final double HIGH = 1.0;
 
   /** The share of its frame time a rung stepped down to must be predicted to take at most. */
   static final double FIT = 0.85;
@@ -73,24 +73,31 @@ public final class Mcv2Pacer {
   static final double UP_SECONDS = 5.0;
 
   /** How long the pacer waits on the dithered maps before it tries encoding again. */
-  static final double RETRY_SECONDS = 30.0;
+  private static final double RETRY_SECONDS = 30.0;
 
   /** The longest wait on the dithered maps between tries. */
-  static final double MAX_RETRY_SECONDS = 600.0;
+  private static final double MAX_RETRY_SECONDS = 600.0;
 
   /**
    * How long the pacer keeps off a rung it had to leave downwards, twice as long every time it has to leave it again,
    * up to {@link #MAX_RETRY_SECONDS}; a rung that holds for {@link #UP_SECONDS} is free again.
    */
-  static final double BLOCK_SECONDS = 10.0;
+  private static final double BLOCK_SECONDS = 10.0;
 
   /** The weight of the newest measurement in the smoothed times. */
-  static final double SMOOTHING = 0.2;
+  private static final double SMOOTHING = 0.2;
 
   /** The divisors of the video's frame rate a size is tried at, in order. */
   private static final int[] DIVISORS = { 1, 2, 3, 4, 6 };
 
   private static final long NANOS_PER_SECOND = 1_000_000_000L;
+
+  private static final double NANOS_PER_MILLISECOND = 1e6;
+
+  /** How near a whole number a frame rate is shown whole, and how near the lowest rate a rung counts as reaching it. */
+  private static final double WHOLE_RATE = 0.05;
+
+  private static final double NEAR_MIN_FPS = 0.95;
 
   /** A time that never came: {@link System#nanoTime()} may be negative, so no other value can mark it. */
   private static final long NEVER = Long.MIN_VALUE;
@@ -143,7 +150,7 @@ public final class Mcv2Pacer {
   /** A frame rate for a message: whole when it is within a twentieth of a whole number, else to a tenth. */
   static String rate(final double fps) {
     final long whole = Math.round(fps);
-    return Math.abs(fps - whole) < 0.05 ? Long.toString(whole) : String.format(Locale.ROOT, "%.1f", fps);
+    return Math.abs(fps - whole) < WHOLE_RATE ? Long.toString(whole) : String.format(Locale.ROOT, "%.1f", fps);
   }
 
   /**
@@ -183,19 +190,33 @@ public final class Mcv2Pacer {
   }
 
   private final List<Rung> ladder;
+
   private final long[] blockedUntil;
+
   private final double[] blockSeconds;
+
   private int current;
+
   private double videoInterval = Double.NaN;
+
   private long lastArrival = NEVER;
+
   private long arrivals;
+
   private long firstArrival = NEVER;
+
   private int samples;
+
   private double smoothed = Double.NaN;
+
   private long overSince = NEVER;
+
   private long roomSince = NEVER;
+
   private long retryAt = NEVER;
+
   private double retrySeconds = RETRY_SECONDS;
+
   private long settledSince = NEVER;
 
   /**
@@ -394,7 +415,7 @@ public final class Mcv2Pacer {
 
   /** The time a frame has on a rung, in milliseconds. */
   private double frameMs(final Rung rung) {
-    return (rung.divisor() * this.videoInterval) / 1e6;
+    return (rung.divisor() * this.videoInterval) / NANOS_PER_MILLISECOND;
   }
 
   /** The encode time the measurements on the current rung predict for another rung: it grows with the pixels. */
@@ -407,7 +428,7 @@ public final class Mcv2Pacer {
    * measured wavers around its nominal one, so a rung within a twentieth of the lowest rate counts as reaching it.
    */
   private boolean isAllowed(final Rung rung) {
-    return rung.divisor() == 1 || rung.fps(this.getVideoFps()) >= MIN_FPS * 0.95;
+    return rung.divisor() == 1 || rung.fps(this.getVideoFps()) >= MIN_FPS * NEAR_MIN_FPS;
   }
 
   /**

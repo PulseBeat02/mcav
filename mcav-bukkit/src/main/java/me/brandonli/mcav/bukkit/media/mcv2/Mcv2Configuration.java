@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -51,6 +52,9 @@ public final class Mcv2Configuration {
   /** The most page slots a pack reserves. */
   public static final int MAX_PAGE_SLOTS = 8;
 
+  /** The page slots of a screen that configures none, when it has that many maps. */
+  private static final int DEFAULT_PAGE_SLOTS = 4;
+
   /**
    * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about
    * 170 milliseconds of a 6 Mbit/s link.
@@ -67,20 +71,35 @@ public final class Mcv2Configuration {
   public static final int DEFAULT_UNSENT_LIMIT = 32 * 1024;
 
   private final Collection<UUID> viewers;
+
   private final Location origin;
+
   private final BlockFace facing;
+
   private final int map;
+
   private final int columns;
+
   private final int rows;
+
   private final int videoWidth;
+
   private final int videoHeight;
+
   private final int pageMap;
+
   private final int pageSlots;
+
   private final long streamId;
+
   private final EncoderSettings settings;
+
   private final NamedTextColor outlineColor;
+
   private final long backlogLimit;
+
   private final @Nullable EncoderPool encoderPool;
+
   private final int unsentLimit;
 
   private Mcv2Configuration(
@@ -337,20 +356,35 @@ public final class Mcv2Configuration {
   public static final class Builder {
 
     private @MonotonicNonNull Collection<UUID> viewers;
+
     private @MonotonicNonNull Location origin;
+
     private @MonotonicNonNull BlockFace facing;
+
     private int map = -1;
+
     private int columns;
+
     private int rows;
+
     private int videoWidth;
+
     private int videoHeight;
+
     private int pageMap = DEFAULT_PAGE_MAP;
+
     private int pageSlots;
+
     private long streamId = 1;
+
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
+
     private @Nullable EncoderPool encoderPool;
+
     private int unsentLimit = DEFAULT_UNSENT_LIMIT;
+
     private EncoderSettings settings = EncoderSettings.SHIP;
+
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
     Builder() {
@@ -549,13 +583,13 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative");
       Preconditions.checkArgument(this.columns >= 1 && this.columns <= MAX_SIDE, "Columns must be 1 to %s", MAX_SIDE);
       Preconditions.checkArgument(this.rows >= 1 && this.rows <= MAX_SIDE, "Rows must be 1 to %s", MAX_SIDE);
-      Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= 4096, "Video width must be 0 to 4096");
-      Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= 4096, "Video height must be 0 to 4096");
+      Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Format.MAX_DIMENSION, "Video width must be 0 to 4096");
+      Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Format.MAX_DIMENSION, "Video height must be 0 to 4096");
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
-      Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= 0xFFFFFFFFL, "Stream id must be an unsigned 32-bit value");
+      Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= Mcv2Format.MAX_U32, "Stream id must be an unsigned 32-bit value");
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
-      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(4, this.columns * this.rows);
+      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, this.columns * this.rows);
       final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
       final long lastPage = (long) this.pageMap + slots - 1;
       Preconditions.checkArgument(this.pageMap >= 0 && lastPage <= Integer.MAX_VALUE, "Page map ids must be non-negative ints");

@@ -63,14 +63,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class SimpleResourcePack {
 
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
+
   private static final Pattern FILE_PATTERN = Pattern.compile("[a-zA-Z0-9_./-]+");
+
   private static final Pattern UNSAFE_SEGMENT_PATTERN = Pattern.compile("(?:^|/)(?:\\.{1,2})?(?:/|$)");
+
   private static final Pattern RESERVED_PATTERN = Pattern.compile("pack\\.mcmeta|assets/[^/]+/sounds\\.json|assets/[^/]+/sounds/.+\\.ogg");
+
   private static final Gson GSON = createGson();
+
   private static final String PACK_META_ENTRY = "pack.mcmeta";
+
   private static final String TEMP_PREFIX = "mcav-pack";
+
   private static final String TEMP_SUFFIX = ".zip.part";
+
   private static final String READABLE_PERMISSIONS = "rw-r--r--";
+
   /**
    * The modification time of every entry, fixed so the same pack always zips to the same bytes, and so to the same
    * hash, which lets clients keep the pack they downloaded before. It is a local time in the zip format's range, so the
@@ -79,10 +88,13 @@ public final class SimpleResourcePack {
   private static final LocalDateTime ENTRY_TIME = LocalDateTime.of(1980, 2, 1, 0, 0);
 
   private final Map<String, Map<String, Path>> sounds;
+
   private final Map<String, Path> files;
+
   private final Map<String, byte[]> contents;
 
   private int format;
+
   private @Nullable String description;
 
   SimpleResourcePack() {

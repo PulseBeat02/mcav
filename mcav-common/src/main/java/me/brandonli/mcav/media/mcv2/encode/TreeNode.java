@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
+import java.util.Objects;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -35,8 +36,11 @@ public final class TreeNode {
   private static final TreeNode SKIP = new TreeNode(Mcv2Format.MODE_SKIP, 0, new byte[0], null);
 
   private final int mode;
+
   private final int q;
+
   private final byte[] record;
+
   private final TreeNode@Nullable[] children;
 
   private TreeNode(final int mode, final int q, final byte[] record, final TreeNode@Nullable[] children) {
@@ -65,8 +69,8 @@ public final class TreeNode {
    */
   public static TreeNode leaf(final int mode, final int q, final byte[] record) {
     Preconditions.checkNotNull(record, "Record must not be null");
-    Preconditions.checkArgument(mode != Mcv2Format.MODE_SPLIT && mode >= 0 && mode < 32, "Invalid leaf mode %s", mode);
-    Preconditions.checkArgument(q >= 0 && q <= 7, "Invalid quantizer %s", q);
+    Preconditions.checkArgument(mode != Mcv2Format.MODE_SPLIT && mode >= 0 && mode <= Mcv2Format.MODE_MASK, "Invalid leaf mode %s", mode);
+    Preconditions.checkArgument(q >= 0 && q <= Mcv2Format.MAX_QUANTIZER, "Invalid quantizer %s", q);
     return new TreeNode(mode, q, record.clone(), null);
   }
 
@@ -154,7 +158,7 @@ public final class TreeNode {
 
   @Override
   public int hashCode() {
-    return 31 * (31 * (31 * this.mode + this.q) + Arrays.hashCode(this.record)) + Arrays.hashCode(this.children);
+    return Objects.hash(this.mode, this.q, Arrays.hashCode(this.record), Arrays.hashCode(this.children));
   }
 
   @Override

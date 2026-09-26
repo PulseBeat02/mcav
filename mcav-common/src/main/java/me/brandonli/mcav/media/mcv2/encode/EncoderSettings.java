@@ -44,33 +44,60 @@ public record EncoderSettings(
   ReferencePolicy reference,
   @Nullable LiveSearch live
 ) {
+  /** The largest local motion range, in pixels: a motion record's signed bytes are half pixels. */
+  private static final int MAX_MOTION_RANGE = 63;
+
+  /** The reference's keyframe interval, local motion range and scene-cut threshold, which every profile keeps. */
+  private static final int KEY_INTERVAL = 60;
+
+  private static final int MOTION_RANGE = 24;
+
+  private static final double SCENE_THRESHOLD = 45.0;
+
+  private static final double SHIP_LAMBDA = 65.255994022;
+
+  private static final double LOW_LAMBDA = 137.730758207;
+
+  private static final double LIVE_LAMBDA = 72;
+
+  /** The live profile's keyframe interval: four seconds at 30 frames per second. */
+  private static final int LIVE_KEY_INTERVAL = 120;
+
   /** The shipped profile: {@code p30r19-compact_final-65p255994}, 3.458 map Mbps at VMAF 77.93 on the 1080p30 source. */
-  public static final EncoderSettings SHIP = new EncoderSettings(65.255994022, 60, 24, true, true, 45.0, ReferencePolicy.PREVIOUS_FRAME);
+  public static final EncoderSettings SHIP = new EncoderSettings(
+    SHIP_LAMBDA,
+    KEY_INTERVAL,
+    MOTION_RANGE,
+    true,
+    true,
+    SCENE_THRESHOLD,
+    ReferencePolicy.PREVIOUS_FRAME
+  );
 
   /** The low-bandwidth profile: {@code p30r19-compact_final-137p730758}, 2.122 map Mbps at VMAF 70.58. */
   public static final EncoderSettings LOW_BANDWIDTH = new EncoderSettings(
-    137.730758207,
-    60,
-    24,
+    LOW_LAMBDA,
+    KEY_INTERVAL,
+    MOTION_RANGE,
     true,
     true,
-    45.0,
+    SCENE_THRESHOLD,
     ReferencePolicy.PREVIOUS_FRAME
   );
 
   /**
-   * The live profile: the live search ({@link LiveSearch#LIVE}) and a keyframe every 120 frames, two seconds at 60 frames
-   * per second, at lambda 56, where its VMAF on the 1080p60 proxy matches {@link #SHIP}'s at the shipped lambda (77.8;
-   * the live search at the shipped lambda would be 1.6 points below). It spends bits differently from {@link #SHIP} - a
-   * few percent fewer at the same VMAF on the proxy, a few percent more on gameplay - and the resource pack decodes both.
+   * The live profile: the live search ({@link LiveSearch#LIVE}) and a keyframe every 120 frames, four seconds at 30
+   * frames per second, at lambda 72, the largest that keeps the 1080p30 proxy at a VMAF mean of 75 (75.6; gameplay scores
+   * 88.8 there). It spends bits differently from {@link #SHIP} - a few percent fewer at the same VMAF on the proxy, under
+   * a tenth more on gameplay - and the resource pack decodes both.
    */
   public static final EncoderSettings LIVE = new EncoderSettings(
-    56,
-    120,
-    24,
+    LIVE_LAMBDA,
+    LIVE_KEY_INTERVAL,
+    MOTION_RANGE,
     true,
     true,
-    45.0,
+    SCENE_THRESHOLD,
     ReferencePolicy.PREVIOUS_FRAME,
     LiveSearch.LIVE
   );
@@ -115,7 +142,7 @@ public record EncoderSettings(
   public EncoderSettings {
     Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
     Preconditions.checkArgument(keyInterval >= 1, "Key interval must be positive");
-    Preconditions.checkArgument(motionRange >= 0 && motionRange <= 63, "Motion range must be 0 to 63");
+    Preconditions.checkArgument(motionRange >= 0 && motionRange <= MAX_MOTION_RANGE, "Motion range must be 0 to 63");
     Preconditions.checkArgument(sceneThreshold > 0 && Double.isFinite(sceneThreshold), "Scene threshold must be positive");
     Preconditions.checkNotNull(reference, "Reference policy must not be null");
   }

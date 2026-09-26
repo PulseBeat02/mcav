@@ -59,8 +59,11 @@ public final class AnnotationParserHandler {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private final CommandManager<CommandSender> manager;
+
   private final AnnotationParser<CommandSender> parser;
+
   private final List<AnnotationCommandFeature> features;
+
   private boolean shutDown;
 
   /**

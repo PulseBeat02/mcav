@@ -40,7 +40,9 @@ import org.junit.jupiter.api.Test;
 final class MapPacketFactoryTest {
 
   private static final UUID FIRST = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
   private static final UUID SECOND = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
   private static final UUID OFFLINE = UUID.fromString("00000000-0000-0000-0000-000000000003");
 
   private FakeServer server;
@@ -181,8 +183,18 @@ final class MapPacketFactoryTest {
   @Test
   void clearsTheExtremeMapIdsAndRejectsOverflowBeforeSending() {
     final List<UUID> viewers = List.of(FIRST);
-    assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, Integer.MAX_VALUE, 2));
-    assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 0));
+    assertEquals(
+      "Map ids exceed the integer range",
+      assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, Integer.MAX_VALUE, 2)).getMessage()
+    );
+    assertEquals(
+      "Map id must be non-negative",
+      assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 0)).getMessage()
+    );
+    assertEquals(
+      "Map count must be non-negative",
+      assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, 0, -1)).getMessage()
+    );
     final List<Packet<?>> before = this.server.getSentPackets(FIRST);
     assertTrue(before.isEmpty());
     MapPacketFactory.clear(viewers, 0, 1);

@@ -27,11 +27,23 @@ import org.junit.jupiter.api.Test;
 final class MotionSearchTest {
 
   private static final int WIDTH = 96;
+
   private static final int HEIGHT = 96;
 
   @Test
   void isAUtilityClass() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(MotionSearch.class);
+  }
+
+  @Test
+  void packsBothPartsOfAVectorIntoOneInt() {
+    assertEquals(0x0005FFFD, MotionSearch.pack(5, -3));
+    final int[][] vectors = { { 0, 0 }, { 5, -3 }, { -7, 12 }, { -32768, 32767 }, { 32767, -32768 } };
+    for (final int[] vector : vectors) {
+      final int packed = MotionSearch.pack(vector[0], vector[1]);
+      assertEquals(vector[0], MotionSearch.unpackX(packed));
+      assertEquals(vector[1], MotionSearch.unpackY(packed));
+    }
   }
 
   @Test

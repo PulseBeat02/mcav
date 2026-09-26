@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.PALETTE_COLORS;
+
 import java.util.Arrays;
 
 /**
@@ -28,6 +31,26 @@ import java.util.Arrays;
  * bandwidth or picture, never correctness.
  */
 final class FastFits {
+
+  /** The side of the grid of cells {@link #cellSums} sums: the finest grid the fast fits make. */
+  static final int CELL_GRID = 4;
+
+  /** The channel sums of the cells. */
+  static final int CELL_SUMS = CHANNELS * CELL_GRID * CELL_GRID;
+
+  /** The scratch of {@link #cluster}: the channel sums of both clusters, then their pixel counts. */
+  static final int CLUSTER_SUMS = PALETTE_COLORS * (CHANNELS + 1);
+
+  /** Where the pixel counts start in the cluster scratch. */
+  private static final int COUNTS = PALETTE_COLORS * CHANNELS;
+
+  private static final int ITERATIONS = 2;
+
+  /** The luma of the compact grids is 16 times the difference: four times the channels against four-times predictions. */
+  private static final float LUMA_SCALE = 16.0f;
+
+  /** Blocks this large are clustered on every other pixel of every other row. */
+  private static final int SAMPLED_SIZE = 16;
 
   private FastFits() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -42,13 +65,13 @@ final class FastFits {
    * @param sums   receives the channel sums of the 16 cells, cell-major: {@code (row * 4 + column) * 3 + channel}
    */
   static void cellSums(final int[] source, final int size, final int[] sums) {
-    Arrays.fill(sums, 0, 48, 0);
-    final int cell = size / 4;
+    Arrays.fill(sums, 0, CELL_SUMS, 0);
+    final int cell = size / CELL_GRID;
     for (int y = 0; y < size; y++) {
-      final int row = (y / cell) * 4;
+      final int row = (y / cell) * CELL_GRID;
       for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * 3;
-        final int to = (row + x / cell) * 3;
+        final int at = (y * size + x) * CHANNELS;
+        final int to = (row + x / cell) * CHANNELS;
         sums[to] += source[at];
         sums[to + 1] += source[at + 1];
         sums[to + 2] += source[at + 2];
@@ -65,20 +88,20 @@ final class FastFits {
    * @param nodes receives {@code grid * grid * 3} interleaved means
    */
   static void grid(final int[] sums, final int size, final int grid, final float[] nodes) {
-    final int span = 4 / grid;
+    final int span = CELL_GRID / grid;
     // the grid divides the block exactly
     final int side = size / grid;
     final float pixels = side * side;
     for (int j = 0; j < grid; j++) {
       for (int i = 0; i < grid; i++) {
-        for (int c = 0; c < 3; c++) {
+        for (int c = 0; c < CHANNELS; c++) {
           int sum = 0;
           for (int cy = j * span; cy < (j + 1) * span; cy++) {
             for (int cx = i * span; cx < (i + 1) * span; cx++) {
-              sum += sums[(cy * 4 + cx) * 3 + c];
+              sum += sums[(cy * CELL_GRID + cx) * CHANNELS + c];
             }
           }
-          nodes[(j * grid + i) * 3 + c] = sum / pixels;
+          nodes[(j * grid + i) * CHANNELS + c] = sum / pixels;
         }
       }
     }
@@ -95,19 +118,19 @@ final class FastFits {
    * @param nodes      receives 16 nodes, row-major
    */
   static void lumaResidual(final int[] source, final int[] prediction, final int size, final int[] sums, final float[] nodes) {
-    final int cell = size / 4;
-    Arrays.fill(sums, 0, 16, 0);
+    final int cell = size / CELL_GRID;
+    final int cells = CELL_GRID * CELL_GRID;
+    Arrays.fill(sums, 0, cells, 0);
     for (int y = 0; y < size; y++) {
-      final int row = (y / cell) * 4;
+      final int row = (y / cell) * CELL_GRID;
       for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * 3;
-        // sixteen times the luma difference: 4 (r + 2 g + b) against the prediction's four-times channels
+        final int at = (y * size + x) * CHANNELS;
         sums[row + x / cell] +=
         4 * (source[at] + 2 * source[at + 1] + source[at + 2]) - (prediction[at] + 2 * prediction[at + 1] + prediction[at + 2]);
       }
     }
-    final float scale = 16.0f * cell * cell;
-    for (int i = 0; i < 16; i++) {
+    final float scale = LUMA_SCALE * cell * cell;
+    for (int i = 0; i < cells; i++) {
       nodes[i] = sums[i] / scale;
     }
   }
@@ -123,14 +146,14 @@ final class FastFits {
    * @param endpoints receives the endpoints, whole numbers: R, G, B of endpoint 0, then of endpoint 1
    */
   static void cluster(final int[] source, final int size, final long[] sums, final float[] endpoints) {
-    final int step = size >= 16 ? 2 : 1;
+    final int step = size >= SAMPLED_SIZE ? 2 : 1;
     int low = 0;
     int high = 0;
     int lowLuma = Integer.MAX_VALUE;
     int highLuma = Integer.MIN_VALUE;
     for (int y = 0; y < size; y += step) {
       for (int x = 0; x < size; x += step) {
-        final int at = (y * size + x) * 3;
+        final int at = (y * size + x) * CHANNELS;
         final int luma = source[at] + 2 * source[at + 1] + source[at + 2];
         if (luma < lowLuma) {
           lowLuma = luma;
@@ -142,40 +165,40 @@ final class FastFits {
         }
       }
     }
-    for (int c = 0; c < 3; c++) {
+    for (int c = 0; c < CHANNELS; c++) {
       endpoints[c] = source[low + c];
-      endpoints[3 + c] = source[high + c];
+      endpoints[CHANNELS + c] = source[high + c];
     }
-    for (int iteration = 0; iteration < 2; iteration++) {
+    for (int iteration = 0; iteration < ITERATIONS; iteration++) {
       final int r0 = (int) endpoints[0];
       final int g0 = (int) endpoints[1];
       final int b0 = (int) endpoints[2];
       final int r1 = (int) endpoints[3];
       final int g1 = (int) endpoints[4];
       final int b1 = (int) endpoints[5];
-      Arrays.fill(sums, 0, 8, 0);
+      Arrays.fill(sums, 0, CLUSTER_SUMS, 0);
       for (int y = 0; y < size; y += step) {
         for (int x = 0; x < size; x += step) {
-          final int at = (y * size + x) * 3;
+          final int at = (y * size + x) * CHANNELS;
           final int r = source[at];
           final int g = source[at + 1];
           final int b = source[at + 2];
           final int e0 = (r - r0) * (r - r0) + (g - g0) * (g - g0) + (b - b0) * (b - b0);
           final int e1 = (r - r1) * (r - r1) + (g - g1) * (g - g1) + (b - b1) * (b - b1);
           final int k = e1 < e0 ? 1 : 0;
-          sums[k * 3] += r;
-          sums[k * 3 + 1] += g;
-          sums[k * 3 + 2] += b;
-          sums[6 + k]++;
+          sums[k * CHANNELS] += r;
+          sums[k * CHANNELS + 1] += g;
+          sums[k * CHANNELS + 2] += b;
+          sums[COUNTS + k]++;
         }
       }
-      for (int k = 0; k < 2; k++) {
-        final long n = sums[6 + k];
+      for (int k = 0; k < PALETTE_COLORS; k++) {
+        final long n = sums[COUNTS + k];
         if (n > 0) {
-          for (int c = 0; c < 3; c++) {
+          for (int c = 0; c < CHANNELS; c++) {
             // the rounded integer mean: the endpoints stay whole colours
-            final long mean = (sums[k * 3 + c] + n / 2) / n;
-            endpoints[k * 3 + c] = mean;
+            final long mean = (sums[k * CHANNELS + c] + n / 2) / n;
+            endpoints[k * CHANNELS + c] = mean;
           }
         }
       }

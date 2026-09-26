@@ -33,20 +33,45 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Frame {
 
+  /** The integers of one leaf in {@link #leafArray()}: its x, y, size, mode, quantizer and offset, at these slots. */
   static final int LEAF_INTS = 6;
 
+  static final int LEAF_X = 0;
+
+  static final int LEAF_Y = 1;
+
+  static final int LEAF_SIZE = 2;
+
+  static final int LEAF_MODE = 3;
+
+  static final int LEAF_Q = 4;
+
+  static final int LEAF_OFFSET = 5;
+
   private final byte[] data;
+
   private final int width;
+
   private final int height;
+
   private final long frameId;
+
   private final long referenceId;
+
   private final int flags;
+
   private final int globalX;
+
   private final int globalY;
+
   private final int payloadStart;
+
   private final int defaultColor;
+
   private final int[] leaves;
+
   private final byte@Nullable[] endpointTable;
+
   private final byte@Nullable[][] selectorTables;
 
   Mcv2Frame(
@@ -110,7 +135,7 @@ public final class Mcv2Frame {
 
   byte@Nullable[] selectorTable(final int size) {
     final byte[][] tables = this.selectorTables;
-    return tables == null ? null : tables[Integer.numberOfTrailingZeros(size) - 3];
+    return tables == null ? null : tables[Mcv2Format.sizeIndex(size)];
   }
 
   /**
@@ -130,7 +155,7 @@ public final class Mcv2Frame {
    * @return the table of {@code 1 + size / 8}-byte words, or null when the frame names no words of that size
    */
   public byte@Nullable[] getSelectorTable(final int size) {
-    Preconditions.checkArgument(size == 8 || size == 16 || size == 32, "Invalid leaf size %s", size);
+    Preconditions.checkArgument(Mcv2Format.isBlockSize(size), "Invalid leaf size %s", size);
     final byte[] table = this.selectorTable(size);
     return table == null ? null : table.clone();
   }
@@ -263,7 +288,7 @@ public final class Mcv2Frame {
     Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
     final int base = index * LEAF_INTS;
     final int[] l = this.leaves;
-    return new Leaf(l[base], l[base + 1], l[base + 2], l[base + 3], l[base + 4], l[base + 5]);
+    return new Leaf(l[base + LEAF_X], l[base + LEAF_Y], l[base + LEAF_SIZE], l[base + LEAF_MODE], l[base + LEAF_Q], l[base + LEAF_OFFSET]);
   }
 
   /**

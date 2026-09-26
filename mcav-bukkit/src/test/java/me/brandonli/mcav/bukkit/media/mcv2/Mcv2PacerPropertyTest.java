@@ -37,6 +37,7 @@ final class Mcv2PacerPropertyTest {
   private static final String SEED = "20260926";
 
   private static final long SECOND = 1_000_000_000L;
+
   private static final List<int[]> SIZES = List.of(new int[] { 1920, 1080 }, new int[] { 1280, 720 }, new int[] { 960, 540 });
 
   /** A rung the pacer was on, from when to when, whether a step up brought it there and a step down ended it. */
@@ -50,16 +51,27 @@ final class Mcv2PacerPropertyTest {
   static final class Simulation {
 
     private final Mcv2Pacer pacer;
+
     private final long interval;
+
     private final double noise;
+
     private final Random random;
+
     private final List<Stretch> stretches = new ArrayList<>();
+
     private long now;
+
     private long started;
+
     private boolean climbed;
+
     private long busyUntil = Long.MIN_VALUE;
+
     private double cost;
+
     private boolean encoding;
+
     private boolean waiting;
 
     Simulation(final int sizes, final double fps, final double noise, final long seed) {

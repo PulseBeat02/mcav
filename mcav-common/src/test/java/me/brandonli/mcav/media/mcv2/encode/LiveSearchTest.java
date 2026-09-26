@@ -78,11 +78,11 @@ final class LiveSearchTest {
     assertEquals(0, LiveSearch.EXACT.goodThreshold());
     assertFalse(LiveSearch.EXACT.seededMotion());
     assertFalse(LiveSearch.EXACT.coarseEndpoints());
-    assertEquals(0, LiveSearch.EXACT.fastFits());
+    assertEquals(0, LiveSearch.EXACT.shortcuts());
     assertSame(LiveSearch.LIVE, EncoderSettings.LIVE.live());
     assertEquals(120, EncoderSettings.LIVE.keyInterval());
-    // the lambda at which the live search matches ship's VMAF at the shipped lambda
-    assertEquals(56, EncoderSettings.LIVE.lambda());
+    // the largest lambda that keeps the 1080p30 proxy at a VMAF mean of 75
+    assertEquals(72, EncoderSettings.LIVE.lambda());
     assertTrue(LiveSearch.LIVE.seededMotion());
     assertTrue(LiveSearch.LIVE.coarseEndpoints());
     assertEquals(16, LiveSearch.LIVE.searchBlock());
@@ -98,9 +98,14 @@ final class LiveSearchTest {
     assertFalse(LiveSearch.LIVE.tries(MODE_RESIDUAL, false, 16));
     assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 2, true, 32));
     assertTrue(LiveSearch.LIVE.tries(MODE_PATTERN, false, 8));
-    // the compact classes the reference chooses on gameplay: DC, the 2x2 and both 4x4 grids, and the low pair
-    assertEquals(0x10F, LiveSearch.LIVE.compactClasses());
+    // of the compact classes the reference chooses on gameplay, the ones that pay for their search: DC and both 4-bit
+    // 4x4 grids, each at the two quantizers its fitted values suggest; local motion first at half resolution
+    assertEquals(0xD, LiveSearch.LIVE.compactClasses());
     assertEquals(LiveSearch.ALL_QUANTIZERS, LiveSearch.LIVE.quantizers());
+    assertEquals(
+      LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION | LiveSearch.FIT_PAIR | LiveSearch.HALF_MOTION,
+      LiveSearch.LIVE.shortcuts()
+    );
   }
 
   @Test

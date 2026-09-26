@@ -41,7 +41,9 @@ import net.jqwik.api.constraints.IntRange;
 final class Mcv2RoundTripPropertyTest {
 
   private static final String SEED = "20260926";
+
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
+
   private static final List<EncoderSettings> PROFILES = List.of(EncoderSettings.SHIP, EncoderSettings.LOW_BANDWIDTH, EncoderSettings.LIVE);
 
   /** A picture of flat rectangles, noise and ramps, the kinds of content different leaf modes win on. */

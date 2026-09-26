@@ -55,13 +55,19 @@ import org.junit.jupiter.api.io.TempDir;
 final class Mcv2ChannelTest {
 
   private static final UUID LOADED = UUID.fromString("00000000-0000-0000-0000-000000000031");
+
   private static final UUID WITHOUT = UUID.fromString("00000000-0000-0000-0000-000000000032");
+
   private static final UUID OFFLINE = UUID.fromString("00000000-0000-0000-0000-000000000033");
 
   private FakeServer server;
+
   private CraftPlayer player;
+
   private Mcv2Viewers viewers;
+
   private Mcv2Screen screen;
+
   private Mcv2Configuration configuration;
 
   @BeforeEach
@@ -292,6 +298,28 @@ final class Mcv2ChannelTest {
   }
 
   @Test
+  void sendsEachPageToItsOwnMap() {
+    final Mcv2Configuration two = Mcv2Configuration.builder()
+      .viewers(List.of(LOADED))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .pageMap(500)
+      .pageSlots(2)
+      .build();
+    final Mcv2Channel channel = new Mcv2Channel(two, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    assertTrue(channel.send(large()) > 0);
+    // the two pages on maps 500 and 501, then the keyframe's anchor
+    final List<ClientboundMapItemDataPacket> sent = MapPackets.unbundle(this.server.getSentPackets(LOADED).getFirst());
+    assertEquals(List.of(500, 501, 100), sent.stream().map(packet -> packet.mapId().id()).toList());
+  }
+
+  @Test
   void dropsAFrameWithMorePagesThanSlots() {
     final Mcv2Configuration narrow = Mcv2Configuration.builder()
       .viewers(List.of(LOADED))
@@ -318,8 +346,11 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
+    channel.send(keyframe());
+    assertEquals(Set.of(LOADED), channel.getLinks().keySet());
     channel.close();
     verify(this.screen).remove();
+    assertEquals(Map.of(), channel.getLinks());
     assertEquals(Set.of(), channel.getRecipients());
     // a show that was scheduled before the close does nothing
     channel.show(LOADED);

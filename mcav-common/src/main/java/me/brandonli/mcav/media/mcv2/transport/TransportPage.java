@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.mcv2.transport;
 
 import java.util.Arrays;
+import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,13 +30,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class TransportPage {
 
   private final long streamId;
+
   private final long frameId;
+
   private final int number;
+
   private final int count;
+
   private final long referenceId;
+
   private final int frameBytes;
+
   private final int flags;
+
   private final int symbolBits;
+
   private final byte[] payload;
 
   TransportPage(
@@ -165,9 +174,6 @@ public final class TransportPage {
 
   @Override
   public int hashCode() {
-    int result = Long.hashCode(this.frameId);
-    result = 31 * result + this.number;
-    result = 31 * result + Arrays.hashCode(this.payload);
-    return result;
+    return Objects.hash(this.frameId, this.number, Arrays.hashCode(this.payload));
   }
 }

@@ -20,11 +20,13 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
@@ -37,17 +39,25 @@ import static org.mockito.Mockito.when;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
+import me.brandonli.mcav.bukkit.testing.LogCapture;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
+import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
@@ -55,6 +65,7 @@ import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.minecraft.network.protocol.Packet;
+import org.apache.logging.log4j.Level;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -67,15 +78,22 @@ import org.mockito.Mockito;
 final class Mcv2ResultTest {
 
   private static final UUID WITH_PACK = UUID.fromString("00000000-0000-0000-0000-000000000041");
+
   private static final UUID WITHOUT = UUID.fromString("00000000-0000-0000-0000-000000000042");
+
   /** A location holds its world weakly; a world a test builds screens in again must stay reachable. */
   private static final World WORLD = mock(World.class);
 
   private FakeServer server;
+
   private Mcv2Viewers viewers;
+
   private Mcv2Screen screen;
+
   private DitherAlgorithm algorithm;
+
   private OriginalVideoMetadata metadata;
+
   private Mcv2Configuration configuration;
 
   @BeforeEach
@@ -208,6 +226,10 @@ final class Mcv2ResultTest {
     final ImageBuffer tall = Images.solid(64, 16, 0xFF000000);
     result.applyFilter(tall, this.metadata);
     assertEquals(32, tall.getHeight());
+    // another width alone is another size too
+    final ImageBuffer wider = Images.solid(128, 32, 0xFF000000);
+    result.applyFilter(wider, this.metadata);
+    assertEquals(64, wider.getWidth());
     verify(this.algorithm, never()).ditherIntoBytes(any());
     result.release();
   }
@@ -559,5 +581,282 @@ final class Mcv2ResultTest {
     assertThrows(NullPointerException.class, () -> result.applyFilter(null, this.metadata));
     assertThrows(NullPointerException.class, () -> result.applyFilter(Images.solid(64, 32, 0), null));
     assertEquals(EncoderSettings.SHIP, this.configuration.getSettings());
+  }
+
+  @Test
+  void countsTheKeyframesItSent() {
+    final Mcv2Result.Statistics statistics = new Mcv2Result.Statistics();
+    statistics.add(new Mcv2Encoder.Stats(10, true, 0, 0, 0, 1, 5), 128);
+    statistics.add(new Mcv2Encoder.Stats(20, false, 0, 0, 0, 1, 7), 256);
+    assertEquals(2, statistics.getFrames());
+    assertEquals(1, statistics.getKeyframes());
+  }
+
+  @Test
+  void pacesFromTheTopOfItsLadderOnceStarted() {
+    final Mcv2Result result = this.result(this.configuration, null);
+    assertNull(result.getRung());
+    result.start();
+    assertEquals(new Mcv2Pacer.Rung(64, 32, 1), result.getRung());
+    result.release();
+  }
+
+  @Test
+  void dithersAgainOnceStartedAgainAndClearsTheMapsWhenReleased() {
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.start();
+    // the first frame is dithered for both viewers, so both have the wall's map
+    result.applyFilter(frame, this.metadata);
+    final int sent = this.server.getSentPackets(WITHOUT).size();
+    result.release();
+    // releasing clears it: one more bundle, of map 100's transparent colours
+    final List<Packet<?>> cleared = this.server.getSentPackets(WITHOUT);
+    assertEquals(sent + 1, cleared.size());
+    MapPackets.assertMapPacket(MapPackets.unbundle(cleared.getLast()).getFirst(), 100, 0, 0, 128, 128, new byte[128 * 128]);
+    // a result started again dithers again
+    result.start();
+    clearInvocations(this.algorithm);
+    result.applyFilter(frame, this.metadata);
+    verify(this.algorithm).ditherIntoBytes(any());
+    result.release();
+  }
+
+  @Test
+  void dithersAgainAfterARefusedHandover() {
+    final AtomicInteger handed = new AtomicInteger();
+    final Executor refusesOnce = task -> {
+      if (handed.getAndIncrement() == 0) {
+        throw new RejectedExecutionException("released");
+      }
+      task.run();
+    };
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      refusesOnce
+    );
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    result.applyFilter(frame, this.metadata);
+    assertEquals(2, handed.get());
+    verify(this.algorithm).ditherIntoBytes(any());
+    result.release();
+  }
+
+  /** The live threads of a name that did not exist before. */
+  private static Set<Thread> threads(final String name, final Set<Thread> before) {
+    final Set<Thread> found = new HashSet<>();
+    for (final Thread thread : Thread.getAllStackTraces().keySet()) {
+      if (thread.getName().equals(name) && thread.isAlive() && !before.contains(thread)) {
+        found.add(thread);
+      }
+    }
+    return found;
+  }
+
+  @Test
+  void endsItsThreadsBeforeReleaseReturns() throws Exception {
+    final Set<Thread> before = Set.copyOf(Thread.getAllStackTraces().keySet());
+    final CountDownLatch encoding = new CountDownLatch(1);
+    final Mcv2Encoder slow = mock(Mcv2Encoder.class);
+    when(slow.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+      encoding.countDown();
+      // an encode does not stop at an interrupt: it runs to its end
+      final long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+      while (System.nanoTime() < end) {
+        Thread.onSpinWait();
+      }
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(slow.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1));
+    final EncoderPool budget = mock(EncoderPool.class);
+    when(budget.encoder(any(), anyBoolean())).thenReturn(slow);
+    when(budget.run(any())).thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
+    final Mcv2Configuration own = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK, WITHOUT))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .encoderPool(budget)
+      .build();
+    // no executor given: the result dithers on a thread of its own
+    final Mcv2Result result = new Mcv2Result(own, new Mcv2Channel(own, this.viewers, this.screen), this.algorithm, System::nanoTime, null);
+    result.start();
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    result.applyFilter(frame, this.metadata);
+    assertTrue(encoding.await(5, TimeUnit.SECONDS));
+    result.release();
+    // the encode ran to its end before release returned, and the sender stopped too
+    assertEquals(Set.of(), threads("mcav-mcv2-screen", before));
+    assertEquals(Set.of(), threads("mcav-mcv2-sender", before));
+    // the dithering thread ends once its executor is shut down
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (!threads("mcav-mcv2-dither", before).isEmpty() && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+    assertEquals(Set.of(), threads("mcav-mcv2-dither", before));
+  }
+
+  @Test
+  void dropsTheWaitingFrameWhenItStepsDownToTheDitheredMaps() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .build();
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.pace();
+    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+      clock.addAndGet(encodeNanos.get());
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    // two seconds a frame: nothing fits, and the frame that arrived while the last was encoded is not encoded any more
+    encodeNanos.set(TimeUnit.SECONDS.toNanos(2));
+    for (int i = 0; i < 20 && !result.getRung().isDithered(); i++) {
+      clock.addAndGet(16_666_667L);
+      result.applyFilter(frame, this.metadata);
+      final Mcv2Result.Arrival encoding = result.poll();
+      assertNotNull(encoding);
+      result.applyFilter(frame, this.metadata);
+      result.send(encoder, encoding, 300 + i);
+    }
+    assertTrue(result.getRung().isDithered());
+    assertNull(result.poll());
+    result.release();
+  }
+
+  @Test
+  void recordsWhatTheViewersLinksDidWithEachFrame(@TempDir final Path directory) throws Exception {
+    // two viewers with the pack; the first one's connection writes nothing, so it falls behind, then misses the frame
+    // the next one predicts from and waits for a keyframe
+    final UUID second = UUID.fromString("00000000-0000-0000-0000-000000000043");
+    this.server.addPlayer(second);
+    PacketUtils.init();
+    when(this.viewers.isLoaded(second)).thenReturn(true);
+    final Mcv2Configuration tight = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK, second))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .pageMap(500)
+      .backlogLimit(400)
+      .unsentLimit(0)
+      .build();
+    final Mcv2Result result = this.result(tight, null);
+    result.getChannel().update();
+    this.server.runTasks();
+    result.getChannel().update();
+    final List<byte[]> frames = List.of(
+      Mcv2ChannelTest.frame(0, 0, true),
+      Mcv2ChannelTest.frame(1, 0, false),
+      Mcv2ChannelTest.frame(2, 1, false),
+      Mcv2ChannelTest.frame(3, 2, false),
+      Mcv2ChannelTest.frame(4, 4, true)
+    );
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    try (Recording recording = new Recording()) {
+      recording.enable("me.brandonli.mcav.Mcv2Frame");
+      recording.start();
+      for (int id = 0; id < frames.size(); id++) {
+        final byte[] frame = frames.get(id);
+        when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(frame);
+        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(frame.length, id == 0 || id == 4, 0, 0, 0, 1, 1));
+        if (id == 3) {
+          this.server.completeWrites(WITH_PACK);
+        }
+        result.send(encoder, new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, 0), id);
+        this.server.completeWrites(second);
+      }
+      recording.stop();
+      final Path file = directory.resolve("links.jfr");
+      recording.dump(file);
+      final List<RecordedEvent> recorded = RecordingFile.readAllEvents(file)
+        .stream()
+        .filter(event -> event.getEventType().getName().equals("me.brandonli.mcav.Mcv2Frame"))
+        .toList();
+      assertEquals(List.of(2, 2, 1, 1, 2), recorded.stream().map(event -> event.getInt("sentTo")).toList());
+      assertEquals(List.of(0, 0, 1, 0, 0), recorded.stream().map(event -> event.getInt("behind")).toList());
+      assertEquals(List.of(0, 0, 0, 1, 0), recorded.stream().map(event -> event.getInt("waiting")).toList());
+    }
+    result.release();
+  }
+
+  @Test
+  void warnsOfAStepDownAndTellsOfAStepUp() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .build();
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.pace();
+    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+      clock.addAndGet(encodeNanos.get());
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    try (LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
+      this.play(result, clock, encoder, frame, 300);
+      // 25 ms a frame steps down to every other frame; 5 ms a frame climbs back once the top is free and has room
+      encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(25));
+      this.play(result, clock, encoder, frame, 90);
+      encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(5));
+      this.play(result, clock, encoder, frame, 20 * 60);
+      assertEquals(List.of(Level.WARN, Level.INFO), logs.getEvents().stream().map(LogCapture.RecordedEvent::getLevel).toList());
+    }
+    result.release();
   }
 }

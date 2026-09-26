@@ -50,6 +50,7 @@ import org.junit.jupiter.api.Test;
 final class LiveEncoderTest {
 
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
+
   private static final int ALL = LiveSearch.ALL_MODES;
 
   /** A client: decodes frames against the pictures of the frames it has decoded, by id. */
@@ -385,8 +386,12 @@ final class LiveEncoderTest {
       TreeNode.skip(),
       TreeNode.skip()
     );
-    final int[] field = Mcv2Encoder.motionField(List.of(split, TreeNode.leaf(MODE_SOLID, 0, new byte[3])), 40, 20, 2, 0);
-    assertEquals(5 * 3, field.length);
+    // each superblock's task fills its own cells
+    final List<TreeNode> roots = List.of(split, TreeNode.leaf(MODE_SOLID, 0, new byte[3]));
+    final int[] field = new int[5 * 3];
+    for (int i = 0; i < roots.size(); i++) {
+      Mcv2Encoder.fillMotion(field, 40, 20, roots.get(i), i, 2, 0);
+    }
     assertEquals(6 << 16, field[0]);
     assertEquals(6 << 16, field[1]);
     assertEquals(2 << 16, field[2]);
@@ -522,5 +527,5 @@ final class LiveEncoderTest {
   }
 
   /** The SHA-256 of the eight frames {@link #pinsTheOutputOfTheLiveProfile} encodes. */
-  static final String LIVE_DIGEST = "dd42c5fdb09fe807890082302c93e0bb255309d090ac8cce3655528afb671752";
+  static final String LIVE_DIGEST = "6058a5a5cd6df2519203d140d3bb96efb26f545850a3e9353e99a95c61124d90";
 }

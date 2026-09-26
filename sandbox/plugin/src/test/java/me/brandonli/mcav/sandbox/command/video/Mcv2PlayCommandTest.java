@@ -44,6 +44,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
@@ -80,12 +82,19 @@ final class Mcv2PlayCommandTest {
   private Path streams;
 
   private MCAVSandbox plugin;
+
   private Mcv2Support support;
+
   private Mcv2Viewers viewers;
+
   private Mcv2PlayCommand command;
+
   private MultiplePlayerSelector selector;
+
   private CommandSender sender;
+
   private BukkitTask task;
+
   private Player player;
 
   @BeforeEach
@@ -198,8 +207,11 @@ final class Mcv2PlayCommandTest {
   private static final class SolidFrames implements Mcv2FileEncoder.FrameReader {
 
     private final int count;
+
     private final CountDownLatch release;
+
     private int read;
+
     private volatile boolean closed;
 
     SolidFrames(final int count, final CountDownLatch release) {
@@ -369,6 +381,65 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void stopsTheStreamWhenThePluginStops() throws IOException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+      this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.command.shutdown();
+      verify(this.task).cancel();
+      verify(channels.constructed().getFirst()).close();
+    }
+  }
+
+  @Test
+  void removesTheUnfinishedFileOfAFailedEncode() throws Exception {
+    // the stream is written, but a folder that is not empty stands where it would go
+    final Path target = this.folder.resolve("taken.mcs");
+    Files.createDirectories(target.resolve("inside"));
+    Mcv2PlayCommand.encodeFile(
+      this.sender,
+      (_, _, _) -> new SolidFrames(1, new CountDownLatch(0)),
+      Path.of("e.mp4"),
+      target,
+      16,
+      16,
+      Mcv2Profile.LIVE,
+      EncoderPool.shared(),
+      0
+    );
+    assertTrue(this.finish().getLast().startsWith("The MCV2 encode failed: "));
+    assertFalse(Files.exists(this.folder.resolve("taken.mcs.part")));
+  }
+
+  @Test
+  void tellsTimesThatTheEncodeCouldHaveTaken() throws Exception {
+    // a frame is reported every frame; no report can say more milliseconds per frame, nor the end more seconds, than the
+    // whole encode took
+    final Path output = this.folder.resolve("timed.mcs");
+    final long started = System.nanoTime();
+    Mcv2PlayCommand.encodeFile(
+      this.sender,
+      (_, _, _) -> new SolidFrames(3, new CountDownLatch(0)),
+      Path.of("f.mp4"),
+      output,
+      320,
+      180,
+      Mcv2Profile.LIVE,
+      EncoderPool.shared(),
+      0
+    );
+    final double took = (System.nanoTime() - started) / 1e6;
+    final List<String> told = this.finish();
+    final Matcher progress = Pattern.compile("MCV2 encode: (\\d+) frames, (\\d+) ms per frame").matcher(told.get(2));
+    assertTrue(progress.find(), told.get(2));
+    assertEquals(3, Integer.parseInt(progress.group(1)));
+    assertTrue(Integer.parseInt(progress.group(2)) <= took / 3 + 0.5, told.get(2) + " in " + took + " ms");
+    final Matcher done = Pattern.compile(" in (\\d+) s, ").matcher(told.getLast());
+    assertTrue(done.find(), told.getLast());
+    assertTrue(Integer.parseInt(done.group(1)) <= took / 1000 + 0.5, told.getLast() + " in " + took + " ms");
+  }
+
+  @Test
   void stopsTheEncodeWhenThePluginStops() throws Exception {
     final SolidFrames frames = new SolidFrames(1000, new CountDownLatch(1));
     this.command.setOpener((_, _, _) -> frames);
@@ -436,6 +507,23 @@ final class Mcv2PlayCommandTest {
       assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame, 4)).getMessage()
     );
     assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("d.mcs"), new byte[] { 1, 0, 0, 0, 7 }), 5).size());
+    // after a first frame: three bytes are no length, a length past the end no frame
+    final Path shortTail = Files.write(this.folder.resolve("e.mcs"), new byte[] { 1, 0, 0, 0, 7, 1, 0, 0 });
+    assertEquals("Truncated frame length", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(shortTail)).getMessage());
+    final Path longTail = Files.write(this.folder.resolve("f.mcs"), new byte[] { 1, 0, 0, 0, 7, 9, 0, 0, 0, 1 });
+    assertEquals("Truncated frame", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(longTail)).getMessage());
+    // four bytes are a length: an empty frame
+    final List<byte[]> empties = Mcv2PlayCommand.read(Files.write(this.folder.resolve("g.mcs"), new byte[] { 0, 0, 0, 0 }));
+    assertEquals(1, empties.size());
+    assertEquals(0, empties.getFirst().length);
+    // every byte of the length counts, little-endian: 16 bytes follow, fewer than any of these lengths
+    for (int high = 1; high < 4; high++) {
+      final byte[] data = new byte[4 + 16];
+      data[0] = 16;
+      data[high] = 1;
+      final Path file = Files.write(this.folder.resolve("h" + high + ".mcs"), data);
+      assertEquals("Truncated frame", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(file)).getMessage());
+    }
     assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));
   }
 }

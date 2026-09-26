@@ -32,7 +32,19 @@ public final class ResidualBooks {
   /** The size of the books in bytes. */
   public static final int BYTES = 2048;
 
+  /** The vectors of each book. */
+  public static final int VECTORS = 64;
+
   private static final byte[] BOOKS = Mcv2Resources.load("residual_books.bin", SHA256, BYTES);
+
+  private static final int VQ_NODES = 16;
+
+  private static final int PQ_NODES = 8;
+
+  /** The product books follow the vector book, the left half's book first. */
+  private static final int PQ_START = VECTORS * VQ_NODES;
+
+  private static final int PQ_BOOK = VECTORS * PQ_NODES;
 
   private ResidualBooks() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -55,7 +67,7 @@ public final class ResidualBooks {
    * @return the signed value
    */
   public static int vq(final int index, final int node) {
-    return BOOKS[index * 16 + node];
+    return BOOKS[index * VQ_NODES + node];
   }
 
   /**
@@ -67,6 +79,6 @@ public final class ResidualBooks {
    * @return the signed value
    */
   public static int pq(final int half, final int index, final int node) {
-    return BOOKS[1024 + half * 512 + index * 8 + node];
+    return BOOKS[PQ_START + half * PQ_BOOK + index * PQ_NODES + node];
   }
 }

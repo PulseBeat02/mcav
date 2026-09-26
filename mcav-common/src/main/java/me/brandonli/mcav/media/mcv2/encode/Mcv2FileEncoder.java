@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.function.LongConsumer;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.ffmpeg.global.swscale;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
@@ -40,6 +41,8 @@ import org.bytedeco.javacv.FrameGrabber;
  * a stream is read back in to be played.
  */
 public final class Mcv2FileEncoder {
+
+  private static final double NANOS_PER_MILLISECOND = 1e6;
 
   private Mcv2FileEncoder() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -80,7 +83,7 @@ public final class Mcv2FileEncoder {
      * @return milliseconds per frame, 0 without frames
      */
     public double millisecondsPerFrame() {
-      return this.frames == 0 ? 0 : this.nanoseconds / 1e6 / this.frames;
+      return this.frames == 0 ? 0 : this.nanoseconds / NANOS_PER_MILLISECOND / this.frames;
     }
   }
 
@@ -115,8 +118,8 @@ public final class Mcv2FileEncoder {
     Preconditions.checkNotNull(progress, "Progress must not be null");
     try (frames) {
       final Mcv2Encoder encoder = budget.encoder(settings, false);
-      final byte[] rgb = new byte[Math.multiplyExact(Math.multiplyExact(width, height), 3)];
-      final byte[] length = new byte[4];
+      final byte[] rgb = new byte[Math.multiplyExact(Math.multiplyExact(width, height), Mcv2Format.CHANNELS)];
+      final byte[] length = new byte[Integer.BYTES];
       long count = 0;
       long keyframes = 0;
       long bytes = 0;
@@ -178,7 +181,7 @@ public final class Mcv2FileEncoder {
     return new GrabberReader(grabber, width, height);
   }
 
-  static void closeQuietly(final FFmpegFrameGrabber grabber) {
+  private static void closeQuietly(final FFmpegFrameGrabber grabber) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
@@ -190,7 +193,9 @@ public final class Mcv2FileEncoder {
   static final class GrabberReader implements FrameReader {
 
     private final FFmpegFrameGrabber grabber;
+
     private final int width;
+
     private final int height;
 
     GrabberReader(final FFmpegFrameGrabber grabber, final int width, final int height) {
@@ -235,7 +240,7 @@ public final class Mcv2FileEncoder {
   static void copy(final Frame frame, final byte[] rgb, final int width, final int height) {
     Preconditions.checkState(frame.imageWidth == width && frame.imageHeight == height, "The frame is not %sx%s", width, height);
     final ByteBuffer pixels = ((ByteBuffer) frame.image[0]).duplicate();
-    final int row = width * 3;
+    final int row = width * Mcv2Format.CHANNELS;
     for (int y = 0; y < height; y++) {
       pixels.position(y * frame.imageStride);
       pixels.get(rgb, y * row, row);

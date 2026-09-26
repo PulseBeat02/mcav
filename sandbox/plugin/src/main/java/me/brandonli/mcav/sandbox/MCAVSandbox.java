@@ -53,18 +53,38 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String UNSUPPORTED_VERSION_REMEDY =
     "run MCAV on a Minecraft " + ServerEnvironment.SUPPORTED_MINECRAFT_VERSION + " server";
+
   private static final String MISSING_VOICE_CHAT_REMEDY =
     "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
+  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} ({})";
+
+  private static final String LOADING = "Loading MCAV";
+
+  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available";
+
+  private static final String LOADED = "MCAV loaded in {} ms";
+
+  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
+
   private @MonotonicNonNull ComponentLogger logger;
+
   private @Nullable MCAVApi mcav;
+
   private @MonotonicNonNull PluginDataConfigurationMapper configurationMapper;
+
   private @Nullable AudioProvider audioProvider;
+
   private @Nullable ImageManager imageManager;
+
   private @Nullable VideoPlayerManager videoPlayerManager;
+
   private @Nullable Mcv2Support mcv2Support;
+
   private @Nullable AnnotationParserHandler annotationParserHandler;
+
   private @Nullable JukeBoxListener listener;
+
   private boolean qemuInstalled;
 
   /**
@@ -110,7 +130,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private void disableBecause(final IllegalStateException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();
-    pluginLogger.error("MCAV cannot be enabled: {} ({})", reason, remedy);
+    pluginLogger.error(CANNOT_ENABLE, reason, remedy);
 
     final Server server = this.getServer();
     final PluginManager pluginManager = server.getPluginManager();
@@ -119,7 +139,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadMCAV() {
     final ComponentLogger pluginLogger = this.requireLogger();
-    pluginLogger.info("Loading MCAV");
+    pluginLogger.info(LOADING);
     final long start = System.currentTimeMillis();
     final MCAVApi api = MCAV.api();
     // kept before installing, so onDisable releases whatever the modules created even when installing fails
@@ -131,12 +151,12 @@ public final class MCAVSandbox extends JavaPlugin {
     final VMModule vmModule = api.getModule(VMModule.class);
     this.qemuInstalled = vmModule.isQemuInstalled();
     if (!this.qemuInstalled) {
-      pluginLogger.warn("QEMU is not installed, virtual machines will not be available");
+      pluginLogger.warn(NO_QEMU);
     }
 
     final long end = System.currentTimeMillis();
     final long duration = end - start;
-    pluginLogger.info("MCAV loaded in {} ms", duration);
+    pluginLogger.info(LOADED, duration);
   }
 
   private void loadPluginData() {
@@ -146,7 +166,7 @@ public final class MCAVSandbox extends JavaPlugin {
     // one encoder budget for every MCV2 screen of the server
     EncoderPool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
-    this.requireLogger().info("MCV2 encoders share {} of {} processors", EncoderPool.shared().getThreads(), processors);
+    this.requireLogger().info(ENCODER_SHARE, EncoderPool.shared().getThreads(), processors);
   }
 
   private void loadManagers() {

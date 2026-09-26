@@ -50,6 +50,7 @@ import org.junit.jupiter.api.Test;
 final class FrameWriterTest {
 
   private static final byte[] ENDPOINTS = { 1, 2, 3, (byte) 250, (byte) 251, (byte) 252 };
+
   private static final byte[] EXACT_ENDPOINTS = { 0, 0, 0, (byte) 255, (byte) 255, (byte) 255 };
 
   @Test

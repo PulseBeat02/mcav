@@ -71,77 +71,159 @@ final class BlockCoder {
   private static final int LOCAL_MODES =
     (1 << MODE_MOTION) | (0xF << MODE_RESIDUAL) | (1 << MODE_RESIDUAL_Y4C1) | (1 << MODE_RESIDUAL_Y8C2) | (1 << MODE_COMPACT);
 
+  /** The smallest block whose motion is first searched at half resolution, where an 8-pixel block would be 4x4 pixels. */
+  private static final int HALF_MOTION_SMALLEST = 16;
+
+  /** The reduced-chroma intra modes, each followed by its residual mode. */
+  private static final int[] REDUCED_MODES = { MODE_INTRA_Y4C1, MODE_INTRA_Y8C2 };
+
+  /** The quantizers the reference tries for residual grids: 0 to 3. */
+  private static final int RESIDUAL_QUANTIZERS = 4;
+
+  /** Where the fitted chroma of the reduced-chroma modes starts in {@link #grid}: after the largest luma grid. */
+  private static final int CHROMA_NODES = MAX_GRID * MAX_GRID;
+
+  private static final int NIBBLE_MIN = -8;
+
+  private static final int NIBBLE_MAX = 7;
+
+  private static final int NIBBLE_BITS = 4;
+
+  private static final int NIBBLE_MASK = 15;
+
+  private static final int SMALL_GRID = 2;
+
+  /** The luma nodes of the 4x4 compact grids, sixteen nibbles in eight bytes. */
+  private static final int GRID4_NODES = 16;
+
+  /** A compact record's values at most: a 4x4 luma grid and a chroma pair. */
+  private static final int MAX_FIT = GRID4_NODES + CHROMA_PLANES;
+
+  /** The seeds of a seeded motion search: the block's centre, just outside its four edges, and the enclosing block. */
+  private static final int SEEDS = 6;
+
+  /** Where a palette record's selector bits start: after its two colours. */
+  private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
+
   private FrameJob job;
+
   private final int size;
+
   private final int count;
+
   private final int[] source;
+
   private final float[] ycocg;
+
   private final float[] target;
+
   /** The source channels as floats, for the intra grid fits, loaded once per block. */
   private final float[] rgb;
+
   /** Whether a candidate the search tries reads the chroma of the source in YCoCg: all but the luma-only compact classes do. */
   private boolean needsChroma;
+
   private final int[][] globalPrediction;
+
   private final int[][] localPrediction;
+
   private final int[] localVectors;
+
   private final int[] recon;
+
   /** The reconstruction of the best candidate of trial 0 so far. */
   private final int[] best;
+
   private boolean keepsBest;
-  /** The fits a live search does cheaply, {@link LiveSearch#fastFits}. */
-  private int fast;
-  private final int[] cells = new int[48];
-  private final byte[] record = new byte[2 + 3 * 64];
-  private final byte[] palette = new byte[6 + (32 * 32) / 8];
+
+  /** The shortcuts of a live search, {@link LiveSearch#shortcuts}. */
+  private int shortcuts;
+
+  private final int[] cells = new int[FastFits.CELL_SUMS];
+
+  private final byte[] record = new byte[FrameJob.MAX_RECORD];
+
+  private final byte[] palette = new byte[recordSize(MODE_PALETTE, ROOT_SIZE)];
+
   private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
+
   private final Reconstruction.Score measure = new Reconstruction.Score();
-  private final float[] grid = new float[3 * 64];
-  private final float[] fit = new float[32];
-  private final double[] fitScratch = new double[32 * 8];
-  private final int[] colors = new int[6];
+
+  private final float[] grid = new float[CHANNELS * MAX_GRID * MAX_GRID];
+
+  private final float[] fit = new float[MAX_FIT];
+
+  private final double[] fitScratch = new double[ROOT_SIZE * MAX_GRID];
+
+  private final int[] colors = new int[PALETTE_COLORS * CHANNELS];
+
   private final byte[] selectors;
+
   private final float[] axis;
+
   private final float meanSquare;
 
-  private final int[] seeds = new int[6];
-  private final float[] clusters = new float[6];
-  private final long[] clusterSums = new long[8];
+  private final int[] seeds = new int[SEEDS];
+
+  private final int[] halfSeeds = new int[SEEDS];
+
+  /** The block at half resolution, for {@link LiveSearch#HALF_MOTION}. */
+  private final int[] halfSource;
+
+  private final float[] clusters = new float[PALETTE_COLORS * CHANNELS];
+
+  private final long[] clusterSums = new long[FastFits.CLUSTER_SUMS];
 
   private int level;
+
   private int block;
+
   private double rate;
+
   private boolean skipped;
+
   private boolean hurried;
+
   private double share;
+
   private @Nullable BlockCoder root;
+
   private int x = -ROOT_SIZE;
+
   private int y = -ROOT_SIZE;
+
   private boolean clustered;
+
   private boolean rgbLoaded;
+
   private boolean celled;
+
   private boolean ycocgLoaded;
+
   private boolean motionCloser;
+
   private long skipDistortion;
 
   BlockCoder(final FrameJob job, final int size) {
     this.job = job;
     this.size = size;
     this.count = size * size;
-    this.source = new int[this.count * 3];
-    this.ycocg = new float[this.count * 3];
-    this.target = new float[this.count * 3];
-    this.rgb = new float[this.count * 3];
+    this.source = new int[this.count * CHANNELS];
+    this.ycocg = new float[this.count * CHANNELS];
+    this.target = new float[this.count * CHANNELS];
+    this.rgb = new float[this.count * CHANNELS];
     // the reference search tries at most two global vectors
-    this.globalPrediction = new int[2][this.count * 3];
-    this.localPrediction = new int[2][this.count * 3];
+    this.globalPrediction = new int[2][this.count * CHANNELS];
+    this.localPrediction = new int[2][this.count * CHANNELS];
     this.localVectors = new int[2];
-    this.recon = new int[this.count * 3];
-    this.best = new int[this.count * 3];
+    this.recon = new int[this.count * CHANNELS];
+    this.best = new int[this.count * CHANNELS];
     this.selectors = new byte[this.count];
+    this.halfSource = new int[(size / 2) * (size / 2) * CHANNELS];
     this.job = job;
     this.needsChroma = needsChroma(job);
     this.keepsBest = job.levelPicture(0) != null;
-    this.fast = fast(job);
+    this.shortcuts = shortcuts(job);
     this.axis = new float[size];
     double squares = 0;
     for (int i = 0; i < size; i++) {
@@ -160,7 +242,7 @@ final class BlockCoder {
     this.job = frame;
     this.needsChroma = needsChroma(frame);
     this.keepsBest = frame.levelPicture(0) != null;
-    this.fast = fast(frame);
+    this.shortcuts = shortcuts(frame);
   }
 
   /** The modes a frame's search tries: every one in the reference search. */
@@ -176,9 +258,9 @@ final class BlockCoder {
     return (modes & CHROMA_MODES) != 0 || (((modes >> MODE_COMPACT) & 1) != 0 && (classes & ~LUMA_CLASSES) != 0);
   }
 
-  private static int fast(final FrameJob frame) {
+  private static int shortcuts(final FrameJob frame) {
     final LiveSearch live = frame.settings().live();
-    return live == null ? 0 : live.fastFits();
+    return live == null ? 0 : live.shortcuts();
   }
 
   /**
@@ -232,9 +314,9 @@ final class BlockCoder {
     final int right = Math.min(this.size, width - x);
     final int bottom = Math.min(this.size, this.job.height() - y);
     for (int py = 0; py < bottom; py++) {
-      final int from = py * this.size * 3;
-      final int to = ((y + py) * width + x) * 3;
-      for (int i = 0; i < right * 3; i++) {
+      final int from = py * this.size * CHANNELS;
+      final int to = ((y + py) * width + x) * CHANNELS;
+      for (int i = 0; i < right * CHANNELS; i++) {
         picture[to + i] = (byte) this.best[from + i];
       }
     }
@@ -257,7 +339,7 @@ final class BlockCoder {
     final boolean temporal = !j.isKeyframe();
     if (temporal) {
       for (int v = 0; v < j.vectorCount(); v++) {
-        this.predict((j.vectorX(v) << 16) | (j.vectorY(v) & 0xFFFF), this.globalPrediction[v]);
+        this.predict(MotionSearch.pack(j.vectorX(v), j.vectorY(v)), this.globalPrediction[v]);
         // the first candidate of its trials, so always eligible; the call sets the rate for the score
         this.eligible(MODE_SKIP, 0, j.vectorMask(v));
         // the first candidate of its trials, whose costs are still infinite: the measure never stops it
@@ -280,8 +362,8 @@ final class BlockCoder {
       } else {
         // no candidate uses a local vector: the global prediction stands in for it
         for (int v = 0; v < j.vectorCount(); v++) {
-          this.localVectors[v] = (j.vectorX(v) << 16) | (j.vectorY(v) & 0xFFFF);
-          System.arraycopy(this.globalPrediction[v], 0, this.localPrediction[v], 0, this.count * 3);
+          this.localVectors[v] = MotionSearch.pack(j.vectorX(v), j.vectorY(v));
+          System.arraycopy(this.globalPrediction[v], 0, this.localPrediction[v], 0, this.count * CHANNELS);
         }
       }
       for (int v = 0; v < j.vectorCount() && this.tries(live, MODE_MOTION); v++) {
@@ -305,7 +387,7 @@ final class BlockCoder {
       // good enough: SKIP or local motion codes the block well, so nothing dearer is tried for it
       return;
     }
-    final boolean closer = (this.fast & LiveSearch.ONE_PREDICTION) != 0 && temporal && this.tries(live, MODE_COMPACT);
+    final boolean closer = (this.shortcuts & LiveSearch.ONE_PREDICTION) != 0 && temporal && this.tries(live, MODE_COMPACT);
     if (closer) {
       // the likeliest winner on a moving block after local motion, measured before the dearer intra candidates so the
       // measure stops those sooner; a live search is not bound to the reference's order
@@ -317,7 +399,7 @@ final class BlockCoder {
     if (this.tries(live, MODE_PALETTE)) {
       this.palette();
     }
-    for (int g = 1; g <= 8; g *= 2) {
+    for (int g = 1; g <= MAX_GRID; g *= 2) {
       final int k = Integer.numberOfTrailingZeros(g);
       if (g > 1 && this.tries(live, MODE_INTRA + k)) {
         this.intraGrid(g);
@@ -326,13 +408,12 @@ final class BlockCoder {
         this.residualGrid(v, g);
       }
     }
-    for (int luma = 4; luma <= 8; luma *= 2) {
-      final int chroma = luma == 4 ? 1 : 2;
-      if (this.tries(live, luma == 4 ? MODE_INTRA_Y4C1 : MODE_INTRA_Y8C2)) {
-        this.reducedIntra(luma, chroma);
+    for (final int intra : REDUCED_MODES) {
+      if (this.tries(live, intra)) {
+        this.reducedIntra(intra);
       }
-      for (int v = 0; temporal && v < j.vectorCount() && this.tries(live, luma == 4 ? MODE_RESIDUAL_Y4C1 : MODE_RESIDUAL_Y8C2); v++) {
-        this.reducedResidual(v, luma, chroma);
+      for (int v = 0; temporal && v < j.vectorCount() && this.tries(live, intra + 1); v++) {
+        this.reducedResidual(v, intra + 1);
       }
     }
     if (this.tries(live, MODE_PATTERN)) {
@@ -363,21 +444,31 @@ final class BlockCoder {
     final BlockCoder parent = this.root;
     final int@Nullable[] from = parent == null ? null : parent.prediction(vector);
     if (parent != null && from != null) {
-      final int n = this.size * 3;
+      final int n = this.size * CHANNELS;
       for (int py = 0; py < this.size; py++) {
-        System.arraycopy(from, ((this.y - parent.y + py) * ROOT_SIZE + (this.x - parent.x)) * 3, out, py * n, n);
+        System.arraycopy(from, ((this.y - parent.y + py) * ROOT_SIZE + (this.x - parent.x)) * CHANNELS, out, py * n, n);
       }
       return;
     }
     final FrameJob j = this.job;
-    Reconstruction.predict(j.reference(), j.width(), j.height(), this.x, this.y, this.size, vector >> 16, (short) vector, out);
+    Reconstruction.predict(
+      j.reference(),
+      j.width(),
+      j.height(),
+      this.x,
+      this.y,
+      this.size,
+      MotionSearch.unpackX(vector),
+      MotionSearch.unpackY(vector),
+      out
+    );
   }
 
   /** The superblock's prediction at a vector, when its last evaluation made one, or null. */
   private int@Nullable[] prediction(final int vector) {
     final FrameJob j = this.job;
     for (int v = 0; v < j.vectorCount(); v++) {
-      if (vector == ((j.vectorX(v) << 16) | (j.vectorY(v) & 0xFFFF))) {
+      if (vector == MotionSearch.pack(j.vectorX(v), j.vectorY(v))) {
         return this.globalPrediction[v];
       }
       if (vector == this.localVectors[v]) {
@@ -389,7 +480,7 @@ final class BlockCoder {
 
   /** Whether the local vector found for global vector v is that vector itself. */
   private boolean isGlobal(final int v) {
-    return this.localVectors[v] == ((this.job.vectorX(v) << 16) | (this.job.vectorY(v) & 0xFFFF));
+    return this.localVectors[v] == MotionSearch.pack(this.job.vectorX(v), this.job.vectorY(v));
   }
 
   /** Whether the search tries a mode in this frame: the reference search tries every one. */
@@ -400,6 +491,33 @@ final class BlockCoder {
   /** Whether the search tries a quantizer. */
   private boolean triesQuantizer(final @Nullable LiveSearch live, final int q) {
     return live == null || live.triesQuantizer(q, this.job.settings().lambda());
+  }
+
+  /**
+   * The finest quantizer that holds a compact class's fitted values without clipping them, or 4 when none does: the
+   * luma nibbles of the 4x4 grid classes are -8 to 7 steps, every other value -128 to 127.
+   *
+   * @param kind   the compact class
+   * @param fit    the fitted values, the luma grid's first
+   * @param values how many there are
+   * @return the quantizer, 0 to 4
+   */
+  static int neededQuantizer(final int kind, final float[] fit, final int values) {
+    final boolean nibbles = kind == CompactRecord.GRID4_N4_YC || kind == CompactRecord.GRID4_N4_Y;
+    for (int q = 0; q < LiveSearch.COARSEST_QUANTIZER; q++) {
+      final int step = 1 << q;
+      boolean fits = true;
+      for (int i = 0; i < values && fits; i++) {
+        final int low = nibbles && i < GRID4_NODES ? NIBBLE_MIN : Byte.MIN_VALUE;
+        final int high = nibbles && i < GRID4_NODES ? NIBBLE_MAX : Byte.MAX_VALUE;
+        final float scaled = (float) Math.floor(fit[i] / step + 0.5f);
+        fits = scaled >= low && scaled <= high;
+      }
+      if (fits) {
+        return q;
+      }
+    }
+    return LiveSearch.COARSEST_QUANTIZER;
   }
 
   /** Whether the search tries a compact class. */
@@ -462,6 +580,9 @@ final class BlockCoder {
     seeds[3] = j.previousMotion(x + half, y - 1);
     seeds[4] = j.previousMotion(x + half, y + this.size);
     seeds[5] = parent < 0 ? seeds[0] : parent;
+    if ((this.shortcuts & LiveSearch.HALF_MOTION) != 0 && this.size >= HALF_MOTION_SMALLEST) {
+      Arrays.fill(seeds, this.halfResolutionMotion(x, y, v));
+    }
     return MotionSearch.seeded(
       j.reference(),
       j.width(),
@@ -479,6 +600,49 @@ final class BlockCoder {
   }
 
   /**
+   * Searches the block's local motion on the pictures at half resolution, from its seeds halved, and returns the vector
+   * found there at full resolution, for the full search to refine: at half resolution a step spans two pixels and a
+   * half-pixel step is a whole pixel of the full pictures.
+   */
+  private int halfResolutionMotion(final int x, final int y, final int v) {
+    final FrameJob j = this.job;
+    halve(this.source, this.size, this.halfSource);
+    for (int k = 0; k < this.seeds.length; k++) {
+      this.halfSeeds[k] = MotionSearch.pack(MotionSearch.unpackX(this.seeds[k]) / 2, MotionSearch.unpackY(this.seeds[k]) / 2);
+    }
+    final int coarse = MotionSearch.seeded(
+      j.halfReference(),
+      (j.width() + 1) / 2,
+      (j.height() + 1) / 2,
+      this.halfSource,
+      x / 2,
+      y / 2,
+      this.size / 2,
+      j.vectorX(v) / 2,
+      j.vectorY(v) / 2,
+      j.settings().motionRange() / 2,
+      true,
+      this.halfSeeds
+    );
+    return MotionSearch.pack(MotionSearch.unpackX(coarse) * 2, MotionSearch.unpackY(coarse) * 2);
+  }
+
+  /** Halves a square block of channels: each pixel of the result is the rounded mean of a 2x2 square. */
+  static void halve(final int[] block, final int size, final int[] out) {
+    final int half = size / 2;
+    final int row = size * CHANNELS;
+    for (int py = 0; py < half; py++) {
+      for (int px = 0; px < half; px++) {
+        final int at = (2 * py * size + 2 * px) * CHANNELS;
+        for (int c = 0; c < CHANNELS; c++) {
+          final int sum = block[at + c] + block[at + CHANNELS + c] + block[at + row + c] + block[at + row + CHANNELS + c];
+          out[(py * half + px) * CHANNELS + c] = (sum + 2) >> 2;
+        }
+      }
+    }
+  }
+
+  /**
    * Makes a coder of a smaller level load its blocks from the superblock's coder, which holds every pixel of them already
    * edge-padded, instead of from the picture.
    *
@@ -492,9 +656,9 @@ final class BlockCoder {
     final BlockCoder parent = this.root;
     // a smaller block is always coded right after the superblock it lies in, by the same worker
     if (parent != null) {
-      final int n = this.size * 3;
+      final int n = this.size * CHANNELS;
       for (int py = 0; py < this.size; py++) {
-        final int from = ((y - parent.y + py) * ROOT_SIZE + (x - parent.x)) * 3;
+        final int from = ((y - parent.y + py) * ROOT_SIZE + (x - parent.x)) * CHANNELS;
         System.arraycopy(parent.source, from, this.source, py * n, n);
       }
       this.x = x;
@@ -509,8 +673,8 @@ final class BlockCoder {
       final int sy = Math.min(y + py, j.height() - 1);
       for (int px = 0; px < this.size; px++) {
         final int sx = Math.min(x + px, j.width() - 1);
-        final int from = (sy * j.width() + sx) * 3;
-        final int to = (py * this.size + px) * 3;
+        final int from = (sy * j.width() + sx) * CHANNELS;
+        final int to = (py * this.size + px) * CHANNELS;
         final int r = image[from] & 0xFF;
         final int g = image[from + 1] & 0xFF;
         final int b = image[from + 2] & 0xFF;
@@ -530,14 +694,8 @@ final class BlockCoder {
    */
   static long distortion(final int[] s, final int[] r) {
     long sum = 0;
-    for (int i = 0; i < s.length; i += 3) {
-      final int dr = s[i] - r[i];
-      final int dg = s[i + 1] - r[i + 1];
-      final int db = s[i + 2] - r[i + 2];
-      final int luma = dr + 2 * dg + db;
-      final int co = dr - db;
-      final int cg = 2 * dg - dr - db;
-      sum += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+    for (int i = 0; i < s.length; i += CHANNELS) {
+      sum += Reconstruction.pixelError(s[i] - r[i], s[i + 1] - r[i + 1], s[i + 2] - r[i + 2]);
     }
     return sum;
   }
@@ -549,7 +707,7 @@ final class BlockCoder {
   private boolean eligible(final int mode, final int length, final int mask) {
     final FrameJob j = this.job;
     final double bits = mode == MODE_SKIP && this.size == ROOT_SIZE ? 1.0 : INDEX_BITS;
-    this.rate = j.settings().lambda() * (length * 8 + bits);
+    this.rate = j.settings().lambda() * (length * Byte.SIZE + bits);
     // the candidate must be cheaper than the dearest trial it belongs to; the kernel stops measuring once it cannot be
     double dearest = Double.NEGATIVE_INFINITY;
     for (int t = 0; t < j.trialCount(); t++) {
@@ -565,7 +723,7 @@ final class BlockCoder {
   private void score(final int mode, final int q, final int length, final int mask) {
     final FrameJob j = this.job;
     final long d16 = this.measure.distortion();
-    final double cost = d16 / 96.0 + this.rate;
+    final double cost = d16 / Reconstruction.DISTORTION_SCALE + this.rate;
     for (int t = 0; t < j.trialCount(); t++) {
       if (((mask >> t) & 1) != 0 && cost < j.cost(t, this.level)[this.block]) {
         if (t == 0 && this.keepsBest) {
@@ -579,7 +737,7 @@ final class BlockCoder {
   /** The block's clustered palette endpoints, computed once per block for the palette and both pattern precisions. */
   private float[] endpoints() {
     if (!this.clustered) {
-      if ((this.fast & LiveSearch.FAST_PALETTES) != 0) {
+      if ((this.shortcuts & LiveSearch.FAST_PALETTES) != 0) {
         FastFits.cluster(this.source, this.size, this.clusterSums, this.clusters);
       } else {
         PaletteFit.cluster(this.source, this.count, this.clusters);
@@ -591,51 +749,54 @@ final class BlockCoder {
 
   private void setMotionBytes(final int v) {
     final int vector = this.localVectors[v];
-    this.record[0] = (byte) ((vector >> 16) - this.job.vectorX(v));
-    this.record[1] = (byte) ((short) vector - this.job.vectorY(v));
+    this.record[0] = (byte) (MotionSearch.unpackX(vector) - this.job.vectorX(v));
+    this.record[1] = (byte) (MotionSearch.unpackY(vector) - this.job.vectorY(v));
   }
 
   private void solid() {
-    if (!this.eligible(MODE_SOLID, 3, this.job.allTrials())) {
+    final int length = recordSize(MODE_SOLID, this.size);
+    if (!this.eligible(MODE_SOLID, length, this.job.allTrials())) {
       return;
     }
     long r = 0;
     long g = 0;
     long b = 0;
     for (int i = 0; i < this.count; i++) {
-      r += this.source[i * 3];
-      g += this.source[i * 3 + 1];
-      b += this.source[i * 3 + 2];
+      r += this.source[i * CHANNELS];
+      g += this.source[i * CHANNELS + 1];
+      b += this.source[i * CHANNELS + 2];
     }
-    final int color = (roundMean(r, this.count) << 16) | (roundMean(g, this.count) << 8) | roundMean(b, this.count);
-    this.record[0] = (byte) (color >> 16);
-    this.record[1] = (byte) (color >> 8);
-    this.record[2] = (byte) color;
-    if (Reconstruction.solid(color, this.size, this.recon, this.measure)) {
-      this.score(MODE_SOLID, 0, 3, this.job.allTrials());
+    final int red = roundMean(r, this.count);
+    final int green = roundMean(g, this.count);
+    final int blue = roundMean(b, this.count);
+    this.record[0] = (byte) red;
+    this.record[1] = (byte) green;
+    this.record[2] = (byte) blue;
+    if (Reconstruction.solid((red << 16) | (green << 8) | blue, this.size, this.recon, this.measure)) {
+      this.score(MODE_SOLID, 0, length, this.job.allTrials());
     }
   }
 
   /** The reference's {@code rgb8} of a float64 mean of integers. */
   private static int roundMean(final long sum, final int count) {
     final double mean = (double) sum / count;
-    return (int) Math.floor(Math.min(Math.max(mean, 0.0), 255.0) + 0.5);
+    return (int) Math.floor(Math.min(Math.max(mean, 0.0), MAX_CHANNEL) + 0.5);
   }
 
   private void writePalette(final byte[] target) {
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < SELECTORS_AT; i++) {
       target[i] = (byte) this.colors[i];
     }
-    for (int i = 0; i < this.count / 8; i++) {
-      target[6 + i] = 0;
+    for (int i = 0; i < this.count / Byte.SIZE; i++) {
+      target[SELECTORS_AT + i] = 0;
     }
     for (int i = 0; i < this.count; i++) {
-      target[6 + i / 8] |= (byte) (this.selectors[i] << (i & 7));
+      target[SELECTORS_AT + i / Byte.SIZE] |= (byte) (this.selectors[i] << (i % Byte.SIZE));
     }
   }
 
   private void palette() {
-    final int length = 6 + this.count / 8;
+    final int length = recordSize(MODE_PALETTE, this.size);
     if (!this.eligible(MODE_PALETTE, length, this.job.allTrials())) {
       return;
     }
@@ -647,7 +808,7 @@ final class BlockCoder {
   }
 
   private void pattern(final boolean coarse) {
-    final int length = 7 + this.size / 8;
+    final int length = patternSize(this.size, false, false);
     final int mask = this.job.coarseMask(coarse);
     if (!this.eligible(MODE_PATTERN, length, mask)) {
       return;
@@ -670,12 +831,12 @@ final class BlockCoder {
   }
 
   private void intraGrid(final int g) {
-    final int length = 3 * g * g;
     final int mode = MODE_INTRA + Integer.numberOfTrailingZeros(g);
+    final int length = recordSize(mode, this.size);
     if (!this.eligible(mode, length, this.job.allTrials())) {
       return;
     }
-    if ((this.fast & LiveSearch.FAST_GRIDS) != 0 && g <= 4) {
+    if ((this.shortcuts & LiveSearch.FAST_GRIDS) != 0 && g <= FastFits.CELL_GRID) {
       if (!this.celled) {
         FastFits.cellSums(this.source, this.size, this.cells);
         this.celled = true;
@@ -683,13 +844,13 @@ final class BlockCoder {
       FastFits.grid(this.cells, this.size, g, this.grid);
     } else {
       if (!this.rgbLoaded) {
-        for (int i = 0; i < this.count * 3; i++) {
+        for (int i = 0; i < this.count * CHANNELS; i++) {
           this.rgb[i] = this.source[i];
         }
         this.rgbLoaded = true;
       }
-      for (int c = 0; c < 3; c++) {
-        Fits.fit(this.rgb, c, 3, this.size, g, this.fitScratch, this.grid, c, 3);
+      for (int c = 0; c < CHANNELS; c++) {
+        Fits.fit(this.rgb, c, CHANNELS, this.size, g, this.fitScratch, this.grid, c, CHANNELS);
       }
     }
     for (int i = 0; i < length; i++) {
@@ -707,7 +868,7 @@ final class BlockCoder {
   private float[] ycocg() {
     if (!this.ycocgLoaded) {
       final int[] s = this.source;
-      for (int i = 0; i < this.count * 3; i += 3) {
+      for (int i = 0; i < this.count * CHANNELS; i += CHANNELS) {
         final int r = s[i];
         final int g = s[i + 1];
         final int b = s[i + 2];
@@ -725,7 +886,7 @@ final class BlockCoder {
   /** The YCoCg residual of the source against a prediction, into {@link #target}. */
   private void residualTarget(final int[] prediction) {
     final float[] source = this.ycocg();
-    for (int i = 0; i < this.count * 3; i += 3) {
+    for (int i = 0; i < this.count * CHANNELS; i += CHANNELS) {
       final float r = prediction[i] * 0.25f;
       final float g = prediction[i + 1] * 0.25f;
       final float b = prediction[i + 2] * 0.25f;
@@ -738,17 +899,17 @@ final class BlockCoder {
   }
 
   private void residualGrid(final int v, final int g) {
-    final int length = 2 + 3 * g * g;
     final int mode = MODE_RESIDUAL + Integer.numberOfTrailingZeros(g);
+    final int length = recordSize(mode, this.size);
     final int mask = this.job.vectorMask(v);
     if (!this.eligible(mode, length, mask)) {
       return;
     }
     this.residualTarget(this.localPrediction[v]);
-    for (int c = 0; c < 3; c++) {
-      Fits.fit(this.target, c, 3, this.size, g, this.fitScratch, this.grid, c, 3);
+    for (int c = 0; c < CHANNELS; c++) {
+      Fits.fit(this.target, c, CHANNELS, this.size, g, this.fitScratch, this.grid, c, CHANNELS);
     }
-    for (int q = 0; q < 4; q++) {
+    for (int q = 0; q < RESIDUAL_QUANTIZERS; q++) {
       if (!this.eligible(mode, length, mask)) {
         return;
       }
@@ -756,51 +917,65 @@ final class BlockCoder {
         continue;
       }
       this.setMotionBytes(v);
-      for (int i = 0; i < 3 * g * g; i++) {
-        this.record[2 + i] = (byte) quantize(this.grid[i], 1 << q, -128, 127);
+      for (int i = 0; i < CHANNELS * g * g; i++) {
+        this.record[MOTION_BYTES + i] = (byte) quantize(this.grid[i], 1 << q, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
-      if (Reconstruction.residualGrid(this.localPrediction[v], this.record, 2, g, q, this.size, this.scratch, this.recon, this.measure)) {
+      if (
+        Reconstruction.residualGrid(
+          this.localPrediction[v],
+          this.record,
+          MOTION_BYTES,
+          g,
+          q,
+          this.size,
+          this.scratch,
+          this.recon,
+          this.measure
+        )
+      ) {
         this.score(mode, q, length, mask);
       }
     }
   }
 
-  /** Fits the luma of {@link #target} into grid[0..] and its interleaved chroma into grid[64..]. */
+  /** Fits the luma of {@link #target} into the grid's start and its interleaved chroma from {@link #CHROMA_NODES}. */
   private void fitReduced(final int luma, final int chroma) {
-    Fits.fit(this.target, 0, 3, this.size, luma, this.fitScratch, this.grid, 0, 1);
-    Fits.fit(this.target, 1, 3, this.size, chroma, this.fitScratch, this.grid, 64, 2);
-    Fits.fit(this.target, 2, 3, this.size, chroma, this.fitScratch, this.grid, 65, 2);
+    Fits.fit(this.target, 0, CHANNELS, this.size, luma, this.fitScratch, this.grid, 0, 1);
+    Fits.fit(this.target, 1, CHANNELS, this.size, chroma, this.fitScratch, this.grid, CHROMA_NODES, CHROMA_PLANES);
+    Fits.fit(this.target, 2, CHANNELS, this.size, chroma, this.fitScratch, this.grid, CHROMA_NODES + 1, CHROMA_PLANES);
   }
 
-  private void reducedIntra(final int luma, final int chroma) {
-    final int length = luma * luma + 2 * chroma * chroma;
-    final int mode = luma == 4 ? MODE_INTRA_Y4C1 : MODE_INTRA_Y8C2;
+  private void reducedIntra(final int mode) {
+    final int luma = lumaGrid(mode);
+    final int chroma = chromaGrid(mode);
+    final int length = recordSize(mode, this.size);
     if (!this.eligible(mode, length, this.job.allTrials())) {
       return;
     }
-    System.arraycopy(this.ycocg(), 0, this.target, 0, this.count * 3);
+    System.arraycopy(this.ycocg(), 0, this.target, 0, this.count * CHANNELS);
     this.fitReduced(luma, chroma);
     for (int i = 0; i < luma * luma; i++) {
-      this.record[i] = (byte) quantize(this.grid[i], 1, 0, 255);
+      this.record[i] = (byte) quantize(this.grid[i], 1, 0, MAX_CHANNEL);
     }
-    for (int i = 0; i < 2 * chroma * chroma; i++) {
-      this.record[luma * luma + i] = (byte) quantize(this.grid[64 + i], 1, -128, 127);
+    for (int i = 0; i < CHROMA_PLANES * chroma * chroma; i++) {
+      this.record[luma * luma + i] = (byte) quantize(this.grid[CHROMA_NODES + i], 1, Byte.MIN_VALUE, Byte.MAX_VALUE);
     }
     if (Reconstruction.reduced(null, this.record, 0, luma, chroma, 0, this.size, this.scratch, this.recon, this.measure)) {
       this.score(mode, 0, length, this.job.allTrials());
     }
   }
 
-  private void reducedResidual(final int v, final int luma, final int chroma) {
-    final int length = 2 + luma * luma + 2 * chroma * chroma;
-    final int mode = luma == 4 ? MODE_RESIDUAL_Y4C1 : MODE_RESIDUAL_Y8C2;
+  private void reducedResidual(final int v, final int mode) {
+    final int luma = lumaGrid(mode);
+    final int chroma = chromaGrid(mode);
+    final int length = recordSize(mode, this.size);
     final int mask = this.job.vectorMask(v);
     if (!this.eligible(mode, length, mask)) {
       return;
     }
     this.residualTarget(this.localPrediction[v]);
     this.fitReduced(luma, chroma);
-    for (int q = 0; q < 4; q++) {
+    for (int q = 0; q < RESIDUAL_QUANTIZERS; q++) {
       if (!this.eligible(mode, length, mask)) {
         return;
       }
@@ -809,13 +984,15 @@ final class BlockCoder {
       }
       this.setMotionBytes(v);
       for (int i = 0; i < luma * luma; i++) {
-        this.record[2 + i] = (byte) quantize(this.grid[i], 1 << q, -128, 127);
+        this.record[MOTION_BYTES + i] = (byte) quantize(this.grid[i], 1 << q, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
-      for (int i = 0; i < 2 * chroma * chroma; i++) {
-        this.record[2 + luma * luma + i] = (byte) quantize(this.grid[64 + i], 1 << q, -128, 127);
+      for (int i = 0; i < CHROMA_PLANES * chroma * chroma; i++) {
+        final int at = MOTION_BYTES + luma * luma + i;
+        this.record[at] = (byte) quantize(this.grid[CHROMA_NODES + i], 1 << q, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
+      final int[] prediction = this.localPrediction[v];
       if (
-        Reconstruction.reduced(this.localPrediction[v], this.record, 2, luma, chroma, q, this.size, this.scratch, this.recon, this.measure)
+        Reconstruction.reduced(prediction, this.record, MOTION_BYTES, luma, chroma, q, this.size, this.scratch, this.recon, this.measure)
       ) {
         this.score(mode, q, length, mask);
       }
@@ -824,9 +1001,9 @@ final class BlockCoder {
 
   private void compact(final int v, final boolean local) {
     final int[] prediction = local ? this.localPrediction[v] : this.globalPrediction[v];
-    final int dx = local ? (this.localVectors[v] >> 16) - this.job.vectorX(v) : 0;
-    final int dy = local ? (short) this.localVectors[v] - this.job.vectorY(v) : 0;
-    final int form = dx == 0 && dy == 0 ? 0 : (dx >= -8 && dx <= 7 && dy >= -8 && dy <= 7 ? 1 : 2);
+    final int dx = local ? MotionSearch.unpackX(this.localVectors[v]) - this.job.vectorX(v) : 0;
+    final int dy = local ? MotionSearch.unpackY(this.localVectors[v]) - this.job.vectorY(v) : 0;
+    final int form = compactForm(dx, dy);
     final int mask = this.job.vectorMask(v);
     boolean targeted = false;
     final LiveSearch live = this.job.settings().live();
@@ -836,9 +1013,9 @@ final class BlockCoder {
         continue;
       }
       final int values;
-      if ((this.fast & LiveSearch.FAST_COMPACT) != 0 && kind == CompactRecord.GRID4_N4_Y) {
+      if ((this.shortcuts & LiveSearch.FAST_COMPACT) != 0 && kind == CompactRecord.GRID4_N4_Y) {
         FastFits.lumaResidual(this.source, prediction, this.size, this.cells, this.fit);
-        values = 16;
+        values = GRID4_NODES;
       } else {
         if (!targeted) {
           this.residualTarget(prediction);
@@ -847,17 +1024,19 @@ final class BlockCoder {
         values = this.compactFit(kind);
       }
       final int body = 1 + form;
-      for (int q = 0; q < 5; q++) {
+      final boolean fitted = (this.shortcuts & LiveSearch.FIT_PAIR) != 0;
+      final int needed = fitted ? neededQuantizer(kind, this.fit, values) : 0;
+      for (int q = 0; q <= LiveSearch.COARSEST_QUANTIZER; q++) {
         if (!this.eligible(MODE_COMPACT, length, mask)) {
           break;
         }
-        if (!this.triesQuantizer(live, q)) {
+        if (!this.triesQuantizer(live, q) || (fitted && (q < needed - 1 || q > needed))) {
           continue;
         }
-        this.record[0] = (byte) (kind | (form << 4));
-        if (form == 1) {
-          this.record[1] = (byte) ((dx & 15) | ((dy & 15) << 4));
-        } else if (form == 2) {
+        this.record[0] = (byte) (kind | (form << NIBBLE_BITS));
+        if (form == CompactRecord.FORM_NIBBLES) {
+          this.record[1] = (byte) ((dx & NIBBLE_MASK) | ((dy & NIBBLE_MASK) << NIBBLE_BITS));
+        } else if (form == CompactRecord.FORM_BYTES) {
           this.record[1] = (byte) dx;
           this.record[2] = (byte) dy;
         }
@@ -867,6 +1046,15 @@ final class BlockCoder {
         }
       }
     }
+  }
+
+  /** The motion form of a compact record whose local vector differs from the global one by dx, dy half pixels. */
+  private static int compactForm(final int dx, final int dy) {
+    if (dx == 0 && dy == 0) {
+      return CompactRecord.FORM_GLOBAL;
+    }
+    final boolean nibbles = dx >= NIBBLE_MIN && dx <= NIBBLE_MAX && dy >= NIBBLE_MIN && dy <= NIBBLE_MAX;
+    return nibbles ? CompactRecord.FORM_NIBBLES : CompactRecord.FORM_BYTES;
   }
 
   /** Fits a compact class to {@link #target} into {@link #fit}; returns how many values it holds. */
@@ -881,7 +1069,7 @@ final class BlockCoder {
       double sy = 0;
       for (int py = 0; py < this.size; py++) {
         for (int px = 0; px < this.size; px++) {
-          final float luma = t[(py * this.size + px) * 3];
+          final float luma = t[(py * this.size + px) * CHANNELS];
           sx += luma * this.axis[px];
           sy += luma * this.axis[py];
         }
@@ -891,10 +1079,10 @@ final class BlockCoder {
       this.fit[2] = (float) (sy / this.count) / this.meanSquare;
       this.fit[3] = this.mean(1);
       this.fit[4] = this.mean(2);
-      return 5;
+      return CompactRecord.bodyBytes(CompactRecord.LOW2);
     }
-    final int g = kind == CompactRecord.GRID2_YC ? 2 : 4;
-    Fits.fit(t, 0, 3, this.size, g, this.fitScratch, this.fit, 0, 1);
+    final int g = kind == CompactRecord.GRID2_YC ? SMALL_GRID : FastFits.CELL_GRID;
+    Fits.fit(t, 0, CHANNELS, this.size, g, this.fitScratch, this.fit, 0, 1);
     if (kind == CompactRecord.GRID4_N4_Y) {
       // luma alone: no chroma offsets to fit
       return g * g;
@@ -906,7 +1094,7 @@ final class BlockCoder {
 
   private float mean(final int channel) {
     double sum = 0;
-    for (int i = channel; i < this.target.length; i += 3) {
+    for (int i = channel; i < this.target.length; i += CHANNELS) {
       sum += this.target[i];
     }
     return (float) (sum / this.count);
@@ -915,19 +1103,20 @@ final class BlockCoder {
   private void compactBody(final int kind, final int values, final int q, final int body) {
     final int step = 1 << q;
     if (kind == CompactRecord.GRID4_N4_YC || kind == CompactRecord.GRID4_N4_Y) {
-      for (int i = 0; i < 8; i++) {
-        final int low = quantize(this.fit[2 * i], step, -8, 7) & 15;
-        final int high = quantize(this.fit[2 * i + 1], step, -8, 7) & 15;
-        this.record[body + i] = (byte) (low | (high << 4));
+      final int nibbleBytes = GRID4_NODES / 2;
+      for (int i = 0; i < nibbleBytes; i++) {
+        final int low = quantize(this.fit[2 * i], step, NIBBLE_MIN, NIBBLE_MAX) & NIBBLE_MASK;
+        final int high = quantize(this.fit[2 * i + 1], step, NIBBLE_MIN, NIBBLE_MAX) & NIBBLE_MASK;
+        this.record[body + i] = (byte) (low | (high << NIBBLE_BITS));
       }
       if (kind == CompactRecord.GRID4_N4_YC) {
-        this.record[body + 8] = (byte) quantize(this.fit[16], step, -128, 127);
-        this.record[body + 9] = (byte) quantize(this.fit[17], step, -128, 127);
+        this.record[body + nibbleBytes] = (byte) quantize(this.fit[GRID4_NODES], step, Byte.MIN_VALUE, Byte.MAX_VALUE);
+        this.record[body + nibbleBytes + 1] = (byte) quantize(this.fit[GRID4_NODES + 1], step, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
       return;
     }
     for (int i = 0; i < values; i++) {
-      this.record[body + i] = (byte) quantize(this.fit[i], step, -128, 127);
+      this.record[body + i] = (byte) quantize(this.fit[i], step, Byte.MIN_VALUE, Byte.MAX_VALUE);
     }
   }
 }

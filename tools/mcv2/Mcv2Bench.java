@@ -68,21 +68,93 @@ import me.brandonli.mcav.media.mcv2.transport.TransportPages;
  */
 public final class Mcv2Bench {
 
+  private static final double NANOS_PER_MILLISECOND = 1e6;
+
+  private static final double BYTES_PER_MEGABYTE = 1048576.0;
+
+  private static final double BITS_PER_MEGABIT = 1e6;
+
+  private static final int DEFLATE_BUFFER = 1 << 16;
+
+  private static final double MAX_SAMPLE = 255.0;
+
+  /** The PSNR a frame that equals its source counts as. */
+  private static final double EXACT_PSNR = 100.0;
+
+  private static final double P95 = 0.95;
+
+  /** The stream id the pages carry; any id costs the same bytes. */
+  private static final int STREAM_ID = 1;
+
   private Mcv2Bench() {}
 
-  public static void main(final String[] args) throws Exception {
-    final Map<String, String> a = new HashMap<>();
-    for (final String arg : args) {
-      final int i = arg.indexOf('=');
-      a.put(arg.substring(0, i), arg.substring(i + 1));
+  /** What an encode of the source measured, frame by frame, and summed. */
+  private static final class Measurement {
+
+    private final long[] times;
+
+    private final long[] cpu;
+
+    private final long[] allocated;
+
+    private long logical;
+
+    private long wire;
+
+    private long zlib;
+
+    private long keyframes;
+
+    private double psnrSum;
+
+    private double mseSum;
+
+    private Measurement(final int frames) {
+      this.times = new long[frames];
+      this.cpu = new long[frames];
+      this.allocated = new long[frames];
     }
+  }
+
+  public static void main(final String[] args) throws Exception {
+    final Map<String, String> a = arguments(args);
     final int w = Integer.parseInt(a.getOrDefault("width", "1920"));
     final int h = Integer.parseInt(a.getOrDefault("height", "1080"));
     final int frames = Integer.parseInt(a.getOrDefault("frames", "60"));
     final int threads = Integer.parseInt(a.getOrDefault("threads", "12"));
     final int warm = Integer.parseInt(a.getOrDefault("warm", "0"));
     final double fps = Double.parseDouble(a.getOrDefault("fps", "60"));
-    final String loop = a.getOrDefault("loop", "none");
+    final Path source = Path.of(a.get("source"));
+    // the heap an encoder keeps: used heap after a full collection with the encoder alive, less before it existed
+    System.gc();
+    final long heapBefore = usedHeap();
+    final EncoderPool budget = new EncoderPool(threads);
+    final Mcv2Encoder encoder = budget.encoder(settings(a), Boolean.parseBoolean(a.getOrDefault("verify", "false")));
+    if (a.containsKey("framebudget")) {
+      encoder.setFrameBudget((long) (Double.parseDouble(a.get("framebudget")) * NANOS_PER_MILLISECOND));
+    }
+    final Measurement measured = encode(a, source, w, h, frames, budget, encoder);
+    System.gc();
+    final long heapAfter = usedHeap();
+    Reference.reachabilityFence(encoder);
+    budget.close();
+    report(measured, frames, warm, fps, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
+  }
+
+  private static Map<String, String> arguments(final String[] args) {
+    final Map<String, String> a = new HashMap<>();
+    for (final String arg : args) {
+      final int i = arg.indexOf('=');
+      a.put(arg.substring(0, i), arg.substring(i + 1));
+    }
+    return a;
+  }
+
+  private static long usedHeap() {
+    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+  }
+
+  private static EncoderSettings settings(final Map<String, String> a) {
     EncoderSettings s = switch (a.getOrDefault("profile", "ship")) {
       case "low" -> EncoderSettings.LOW_BANDWIDTH;
       case "live" -> EncoderSettings.LIVE;
@@ -98,102 +170,80 @@ public final class Mcv2Bench {
       s = s.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
     }
     if (a.getOrDefault("search", "profile").equals("custom")) {
-      final int modes = parseSet(a.getOrDefault("modes", "all"), LiveSearch.ALL_MODES);
-      s = s.withLive(
-        new LiveSearch(
-          Integer.parseInt(a.getOrDefault("smallest", "8")),
-          Double.parseDouble(a.getOrDefault("skip", "26.5")),
-          Double.parseDouble(a.getOrDefault("split", "52.5")),
-          Double.parseDouble(a.getOrDefault("steady", a.getOrDefault("split", "52.5"))),
-          Double.parseDouble(a.getOrDefault("fine", a.getOrDefault("split", "52.5"))),
-          Double.parseDouble(a.getOrDefault("good", "0")),
-          Double.parseDouble(a.getOrDefault("gate", "0")),
-          modes,
-          a.containsKey("smallmodes") ? parseSet(a.get("smallmodes"), LiveSearch.ALL_MODES) : modes,
-          parseSet(a.getOrDefault("keymodes", "all"), LiveSearch.ALL_MODES),
-          parseSet(a.getOrDefault("classes", "all"), LiveSearch.ALL_CLASSES),
-          parseSet(a.getOrDefault("q", "all"), LiveSearch.ALL_QUANTIZERS),
-          Boolean.parseBoolean(a.getOrDefault("seeded", "false")),
-          Integer.parseInt(a.getOrDefault("searchblock", "8")),
-          Boolean.parseBoolean(a.getOrDefault("coarse", "false")),
-          Integer.parseInt(a.getOrDefault("fast", "0"))
-        )
-      );
+      s = s.withLive(customSearch(a));
     }
-    final Path source = Path.of(a.get("source"));
+    return s;
+  }
+
+  private static LiveSearch customSearch(final Map<String, String> a) {
+    final int modes = parseSet(a.getOrDefault("modes", "all"), LiveSearch.ALL_MODES);
+    return new LiveSearch(
+      Integer.parseInt(a.getOrDefault("smallest", "8")),
+      Double.parseDouble(a.getOrDefault("skip", "26.5")),
+      Double.parseDouble(a.getOrDefault("split", "52.5")),
+      Double.parseDouble(a.getOrDefault("steady", a.getOrDefault("split", "52.5"))),
+      Double.parseDouble(a.getOrDefault("fine", a.getOrDefault("split", "52.5"))),
+      Double.parseDouble(a.getOrDefault("good", "0")),
+      Double.parseDouble(a.getOrDefault("gate", "0")),
+      modes,
+      a.containsKey("smallmodes") ? parseSet(a.get("smallmodes"), LiveSearch.ALL_MODES) : modes,
+      parseSet(a.getOrDefault("keymodes", "all"), LiveSearch.ALL_MODES),
+      parseSet(a.getOrDefault("classes", "all"), LiveSearch.ALL_CLASSES),
+      parseSet(a.getOrDefault("q", "all"), LiveSearch.ALL_QUANTIZERS),
+      Boolean.parseBoolean(a.getOrDefault("seeded", "false")),
+      Integer.parseInt(a.getOrDefault("searchblock", "8")),
+      Boolean.parseBoolean(a.getOrDefault("coarse", "false")),
+      Integer.parseInt(a.getOrDefault("fast", "0"))
+    );
+  }
+
+  /** Encodes the frames, writing the archive and the pictures when asked, and measures every frame. */
+  private static Measurement encode(
+    final Map<String, String> a,
+    final Path source,
+    final int w,
+    final int h,
+    final int frames,
+    final EncoderPool budget,
+    final Mcv2Encoder encoder
+  ) throws Exception {
     final long frameBytes = (long) w * h * 3;
     final int sourceFrames = (int) (Files.size(source) / frameBytes);
-    // the heap an encoder keeps: used heap after a full collection with the encoder alive, less before it existed
-    System.gc();
-    final long heapBefore = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-    final boolean verify = Boolean.parseBoolean(a.getOrDefault("verify", "false"));
-    final EncoderPool budget = new EncoderPool(threads);
-    final Mcv2Encoder encoder = budget.encoder(s, verify);
-    if (a.containsKey("framebudget")) {
-      encoder.setFrameBudget((long) (Double.parseDouble(a.get("framebudget")) * 1e6));
-    }
+    final String loop = a.getOrDefault("loop", "none");
     final boolean inBudget = Boolean.parseBoolean(a.getOrDefault("budget", "true"));
-    final DataOutputStream out = a.containsKey("out")
-      ? new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("out")))))
-      : null;
-    final OutputStream decoded = a.containsKey("decoded") ? new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("decoded")))) : null;
-    final long[] times = new long[frames];
-    final long[] cpu = new long[frames];
-    final long[] allocated = new long[frames];
     final OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
     final ThreadMXBean threadBean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
-    long logical = 0;
-    long wire = 0;
-    long zlib = 0;
-    long keyframes = 0;
-    double psnrSum = 0;
-    double mseSum = 0;
+    final Measurement measured = new Measurement(frames);
     final Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION);
-    final byte[] buffer = new byte[1 << 16];
-    try (RandomAccessFile in = new RandomAccessFile(source.toFile(), "r")) {
+    final byte[] buffer = new byte[DEFLATE_BUFFER];
+    try (
+      RandomAccessFile in = new RandomAccessFile(source.toFile(), "r");
+      DataOutputStream out = a.containsKey("out") ? new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("out"))))) : null;
+      OutputStream decoded = a.containsKey("decoded") ? new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("decoded")))) : null
+    ) {
       final byte[] rgb = new byte[(int) frameBytes];
       for (int i = 0; i < frames; i++) {
-        final int period = 2 * (sourceFrames - 1);
-        final int index = switch (loop) {
-          case "pingpong" -> period == 0 ? 0 : (i % period < sourceFrames ? i % period : period - i % period);
-          case "wrap" -> i % sourceFrames;
-          default -> i;
-        };
-        in.seek(index * frameBytes);
+        in.seek(sourceIndex(i, loop, sourceFrames) * frameBytes);
         in.readFully(rgb);
         final long c0 = os.getProcessCpuTime();
         final long a0 = threadBean.getTotalThreadAllocatedBytes();
         final long t0 = System.nanoTime();
         final long frameId = i;
         final byte[] data = inBudget ? budget.run(() -> encoder.encode(rgb, w, h, frameId)) : encoder.encode(rgb, w, h, frameId);
-        times[i] = System.nanoTime() - t0;
-        cpu[i] = os.getProcessCpuTime() - c0;
-        allocated[i] = threadBean.getTotalThreadAllocatedBytes() - a0;
+        measured.times[i] = System.nanoTime() - t0;
+        measured.cpu[i] = os.getProcessCpuTime() - c0;
+        measured.allocated[i] = threadBean.getTotalThreadAllocatedBytes() - a0;
         if (encoder.getStats().keyframe()) {
-          keyframes++;
+          measured.keyframes++;
         }
-        logical += data.length;
-        final List<byte[]> pages = TransportPages.makePages(data, 1, 6);
-        wire += TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD);
-        for (final byte[] page : pages) {
-          deflater.reset();
-          deflater.setInput(MapAlphabet.toMapColors(page));
-          deflater.finish();
-          int n = 0;
-          while (!deflater.finished()) {
-            n += deflater.deflate(buffer);
-          }
-          zlib += n + TransportPages.PACKET_OVERHEAD;
-        }
+        measured.logical += data.length;
+        final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID, MapAlphabet.SYMBOL_BITS);
+        measured.wire += TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD);
+        measured.zlib += zlibBytes(pages, deflater, buffer);
         final byte[] picture = encoder.getReference();
-        long se = 0;
-        for (int k = 0; k < rgb.length; k++) {
-          final int d = (rgb[k] & 0xFF) - (picture[k] & 0xFF);
-          se += (long) d * d;
-        }
-        final double mse = se / (double) rgb.length;
-        psnrSum += mse == 0 ? 100.0 : 10 * Math.log10(255.0 * 255.0 / mse);
-        mseSum += mse;
+        final double mse = squaredError(rgb, picture) / (double) rgb.length;
+        measured.psnrSum += mse == 0 ? EXACT_PSNR : psnr(mse);
+        measured.mseSum += mse;
         if (out != null) {
           out.writeInt(Integer.reverseBytes(data.length));
           out.write(data);
@@ -203,18 +253,59 @@ public final class Mcv2Bench {
         }
       }
     }
-    System.gc();
-    final long heapAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-    Reference.reachabilityFence(encoder);
-    if (out != null) {
-      out.close();
+    return measured;
+  }
+
+  /** The source frame of an encoded frame: the frames in order, over again, or forward and back. */
+  private static int sourceIndex(final int frame, final String loop, final int sourceFrames) {
+    final int period = 2 * (sourceFrames - 1);
+    return switch (loop) {
+      case "pingpong" -> period == 0 ? 0 : (frame % period < sourceFrames ? frame % period : period - frame % period);
+      case "wrap" -> frame % sourceFrames;
+      default -> frame;
+    };
+  }
+
+  /** The bytes of a frame's map packets after the game's zlib, every page deflated as its own packet. */
+  private static long zlibBytes(final List<byte[]> pages, final Deflater deflater, final byte[] buffer) {
+    long bytes = 0;
+    for (final byte[] page : pages) {
+      deflater.reset();
+      deflater.setInput(MapAlphabet.toMapColors(page));
+      deflater.finish();
+      int n = 0;
+      while (!deflater.finished()) {
+        n += deflater.deflate(buffer);
+      }
+      bytes += n + TransportPages.PACKET_OVERHEAD;
     }
-    if (decoded != null) {
-      decoded.close();
+    return bytes;
+  }
+
+  private static long squaredError(final byte[] rgb, final byte[] picture) {
+    long se = 0;
+    for (int k = 0; k < rgb.length; k++) {
+      final int d = (rgb[k] & 0xFF) - (picture[k] & 0xFF);
+      se += (long) d * d;
     }
-    budget.close();
+    return se;
+  }
+
+  private static double psnr(final double mse) {
+    return 10 * Math.log10(MAX_SAMPLE * MAX_SAMPLE / mse);
+  }
+
+  /** Prints the measurement as one JSON line: times over the frames after the warm-up, rates over all of them. */
+  private static void report(
+    final Measurement measured,
+    final int frames,
+    final int warm,
+    final double fps,
+    final int threads,
+    final double encoderHeapMegabytes
+  ) {
     final int from = Math.min(warm, frames - 1);
-    final long[] warmTimes = Arrays.copyOfRange(times, from, frames);
+    final long[] warmTimes = Arrays.copyOfRange(measured.times, from, frames);
     final long[] sorted = warmTimes.clone();
     Arrays.sort(sorted);
     final double seconds = frames / fps;
@@ -225,23 +316,27 @@ public final class Mcv2Bench {
       "\"fps\":%.1f,\"threads\":%d,\"processors\":%d,\"encoder_heap_mb\":%.1f}%n",
       frames,
       warmTimes.length,
-      keyframes,
-      Arrays.stream(warmTimes).average().orElse(0) / 1e6,
-      sorted[sorted.length / 2] / 1e6,
-      sorted[(int) Math.ceil(sorted.length * 0.95) - 1] / 1e6,
-      sorted[sorted.length - 1] / 1e6,
-      Arrays.stream(Arrays.copyOfRange(cpu, from, frames)).average().orElse(0) / 1e6,
-      Arrays.stream(Arrays.copyOfRange(allocated, from, frames)).average().orElse(0) / 1048576.0,
-      logical * 8 / seconds / 1e6,
-      wire * 8 / seconds / 1e6,
-      zlib * 8 / seconds / 1e6,
-      psnrSum / frames,
-      10 * Math.log10(255.0 * 255.0 / (mseSum / frames)),
+      measured.keyframes,
+      Arrays.stream(warmTimes).average().orElse(0) / NANOS_PER_MILLISECOND,
+      sorted[sorted.length / 2] / NANOS_PER_MILLISECOND,
+      sorted[(int) Math.ceil(sorted.length * P95) - 1] / NANOS_PER_MILLISECOND,
+      sorted[sorted.length - 1] / NANOS_PER_MILLISECOND,
+      Arrays.stream(Arrays.copyOfRange(measured.cpu, from, frames)).average().orElse(0) / NANOS_PER_MILLISECOND,
+      Arrays.stream(Arrays.copyOfRange(measured.allocated, from, frames)).average().orElse(0) / BYTES_PER_MEGABYTE,
+      megabits(measured.logical, seconds),
+      megabits(measured.wire, seconds),
+      megabits(measured.zlib, seconds),
+      measured.psnrSum / frames,
+      psnr(measured.mseSum / frames),
       fps,
       threads,
       Runtime.getRuntime().availableProcessors(),
-      (heapAfter - heapBefore) / 1048576.0
+      encoderHeapMegabytes
     );
+  }
+
+  private static double megabits(final long bytes, final double seconds) {
+    return bytes * Byte.SIZE / seconds / BITS_PER_MEGABIT;
   }
 
   private static int parseSet(final String text, final int all) {

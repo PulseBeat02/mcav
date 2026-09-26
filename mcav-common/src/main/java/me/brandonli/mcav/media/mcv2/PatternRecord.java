@@ -29,9 +29,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class PatternRecord {
 
+  /** Two RGB endpoints. */
+  private static final int ENDPOINT_BYTES = Mcv2Format.PALETTE_COLORS * Mcv2Format.CHANNELS;
+
   private final int color0;
+
   private final int color1;
+
   private final int orientation;
+
   private final byte[] axis;
 
   private PatternRecord(final int color0, final int color1, final int orientation, final byte[] axis) {
@@ -60,7 +66,7 @@ public final class PatternRecord {
     final byte@Nullable[] selectors
   ) throws Mcv2Exception {
     final int length = Mcv2Format.patternSize(size, endpoints != null, selectors != null);
-    final int head = endpoints != null ? 1 : 6;
+    final int head = endpoints != null ? 1 : ENDPOINT_BYTES;
     if (offset < 0 || length > data.length - offset) {
       throw new Mcv2Exception("Invalid palette pattern record");
     }
@@ -70,34 +76,34 @@ public final class PatternRecord {
       colors = data;
       colorsAt = offset;
     } else {
-      final int which = data[offset] & 0xFF;
-      if ((which + 1) * 6 > endpoints.length) {
+      final int which = Byte.toUnsignedInt(data[offset]);
+      if ((which + 1) * ENDPOINT_BYTES > endpoints.length) {
         throw new Mcv2Exception("Endpoint index outside the table");
       }
       colors = endpoints;
-      colorsAt = which * 6;
+      colorsAt = which * ENDPOINT_BYTES;
     }
-    final int entry = 1 + size / 8;
+    final int entry = 1 + size / Byte.SIZE;
     final byte[] word;
     int wordAt;
     if (selectors == null) {
       word = data;
       wordAt = offset + head;
     } else {
-      final int which = data[offset + head] & 0xFF;
+      final int which = Byte.toUnsignedInt(data[offset + head]);
       if ((which + 1) * entry > selectors.length) {
         throw new Mcv2Exception("Selector index outside the table");
       }
       word = selectors;
       wordAt = which * entry;
     }
-    final int orientation = word[wordAt] & 0xFF;
+    final int orientation = Byte.toUnsignedInt(word[wordAt]);
     if (orientation > 1) {
       throw new Mcv2Exception("Invalid palette pattern record");
     }
-    final byte[] axis = new byte[size / 8];
+    final byte[] axis = new byte[size / Byte.SIZE];
     System.arraycopy(word, wordAt + 1, axis, 0, axis.length);
-    return new PatternRecord(rgb(colors, colorsAt), rgb(colors, colorsAt + 3), orientation, axis);
+    return new PatternRecord(rgb(colors, colorsAt), rgb(colors, colorsAt + Mcv2Format.CHANNELS), orientation, axis);
   }
 
   private static int rgb(final byte[] bytes, final int at) {
@@ -138,7 +144,7 @@ public final class PatternRecord {
    * @return 0 or 1
    */
   public int getSelector(final int index) {
-    return (this.axis[index >> 3] >> (index & 7)) & 1;
+    return (this.axis[index / Byte.SIZE] >> (index % Byte.SIZE)) & 1;
   }
 
   /**

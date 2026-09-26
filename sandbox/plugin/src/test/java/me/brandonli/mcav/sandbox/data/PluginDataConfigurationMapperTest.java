@@ -31,9 +31,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,7 +80,9 @@ final class PluginDataConfigurationMapperTest {
   private Path folder;
 
   private MCAVSandbox plugin;
+
   private MockedStatic<JavaPlugin> javaPlugin;
+
   private PluginDataConfigurationMapper mapper;
 
   @BeforeEach
@@ -230,6 +234,25 @@ final class PluginDataConfigurationMapperTest {
     this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
     this.mapper.deserialize();
     assertEquals(expected, this.mapper.getMcv2EncoderThreads());
+  }
+
+  @Test
+  void warnsOfAnInvalidEncoderBudgetOnly() throws IOException {
+    // the tests log through slf4j-simple, which writes to the standard error stream of the moment
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration("mcv2:\n  encoder-threads: 0\n");
+      this.mapper.deserialize();
+      this.writeConfiguration("mcv2:\n  encoder-threads: -1\n");
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    // the default, 0, is no mistake; -1 is
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertEquals(1, text.split("using half the processors", -1).length - 1, text);
   }
 
   @Test

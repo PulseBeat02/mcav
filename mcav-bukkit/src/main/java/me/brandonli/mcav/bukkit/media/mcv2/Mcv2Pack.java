@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.ResidualBooks;
 import me.brandonli.mcav.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.media.mcv2.transport.TransportPages;
@@ -57,8 +58,11 @@ public final class Mcv2Pack {
   public static final String CODEC_COMMIT = "85445433aeb9f8a35a5ce528d47d8829976d1401";
 
   private static final String ROOT = "/mcav/mcv2/pack/";
+
   private static final String POST_CHAIN = "assets/minecraft/post_effect/entity_outline.json";
+
   private static final String INCLUDE = "assets/mcav/shaders/include/";
+
   private static final List<String> FILES = List.of(
     "assets/minecraft/shaders/core/text.vsh",
     "assets/minecraft/shaders/core/text.fsh",
@@ -80,11 +84,27 @@ public final class Mcv2Pack {
     "assets/mcav/shaders/post/mcv2_screen.fsh",
     "assets/mcav/shaders/post/mcv2_outline.fsh"
   );
+
   private static final int BYTES_WIDTH = 128;
+
   /** The chunks of 192 bytes the CRC pass splits each page slot's 12,288 strip bytes into. */
   private static final int CRC_CHUNKS = 64;
+
   /** The facts of a frame the resolve pass keeps in the row after its cells, one texel each. */
   private static final int FRAME_FACTS = 6;
+
+  /** The pages target's texels per page slot. */
+  private static final int PAGE_TEXELS = 4;
+
+  /** The bytes target holds four bytes to a texel. */
+  private static final int TEXEL_BYTES = 4;
+
+  /** The resolve pass works on cells of 8x8 pixels, the smallest leaf. */
+  private static final int CELL_PIXELS = Mcv2Format.SMALLEST_BLOCK;
+
+  /** The residual books' words per line of the generated include. */
+  private static final int WORDS_PER_LINE = 8;
+
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
   private Mcv2Pack() {
@@ -140,32 +160,33 @@ public final class Mcv2Pack {
   }
 
   /** The post chain with the screen's target sizes filled in. */
-  static String postChain(final Mcv2Configuration configuration) {
+  private static String postChain(final Mcv2Configuration configuration) {
     final int slots = configuration.getPageSlots();
     return new String(resource(POST_CHAIN), StandardCharsets.UTF_8)
       .replace("@VIDEO_WIDTH@", Integer.toString(configuration.getVideoWidth()))
       .replace("@VIDEO_HEIGHT@", Integer.toString(configuration.getVideoHeight()))
       .replace("@BYTES_WIDTH@", Integer.toString(BYTES_WIDTH))
       .replace("@BYTES_HEIGHT@", Integer.toString(bytesHeight(configuration)))
-      .replace("@PAGES_WIDTH@", Integer.toString(4 * slots))
+      .replace("@PAGES_WIDTH@", Integer.toString(PAGE_TEXELS * slots))
       .replace("@CRC_WIDTH@", Integer.toString(CRC_CHUNKS * slots))
       .replace("@CELLS_WIDTH@", Integer.toString(cellsWidth(configuration)))
       .replace("@CELLS_HEIGHT@", Integer.toString(cellsHeight(configuration) + 1));
   }
 
   /** The rows of the bytes target: four bytes to a texel, enough for every byte of the page slots. */
-  static int bytesHeight(final Mcv2Configuration configuration) {
-    return ((configuration.getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS)) / 4 + BYTES_WIDTH - 1) / BYTES_WIDTH;
+  private static int bytesHeight(final Mcv2Configuration configuration) {
+    final int bytes = configuration.getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS);
+    return (bytes / TEXEL_BYTES + BYTES_WIDTH - 1) / BYTES_WIDTH;
   }
 
   /** The resolve pass's columns: one per 8 pixels of the video, and room for the frame's facts. */
   static int cellsWidth(final Mcv2Configuration configuration) {
-    return Math.max((configuration.getVideoWidth() + 7) / 8, FRAME_FACTS);
+    return Math.max((configuration.getVideoWidth() + CELL_PIXELS - 1) / CELL_PIXELS, FRAME_FACTS);
   }
 
   /** The resolve pass's rows of cells, one per 8 pixels of the video; its frame row follows them. */
   static int cellsHeight(final Mcv2Configuration configuration) {
-    return (configuration.getVideoHeight() + 7) / 8;
+    return (configuration.getVideoHeight() + CELL_PIXELS - 1) / CELL_PIXELS;
   }
 
   /** The screen's constants for the shaders. */
@@ -239,12 +260,11 @@ public final class Mcv2Pack {
    */
   static String books(final byte[] books) {
     final StringBuilder table = new StringBuilder();
-    for (int word = 0; word < books.length / 4; word++) {
-      final int at = word * 4;
-      final long value =
-        (books[at] & 0xFFL) | ((books[at + 1] & 0xFFL) << 8) | ((books[at + 2] & 0xFFL) << 16) | ((books[at + 3] & 0xFFL) << 24);
-      table.append(word % 8 == 0 ? "    " : " ").append("0x%08Xu".formatted(value)).append(word < books.length / 4 - 1 ? "," : "");
-      if (word % 8 == 7) {
+    final int words = books.length / Integer.BYTES;
+    for (int word = 0; word < words; word++) {
+      final long value = Mcv2Format.u32(books, word * Integer.BYTES);
+      table.append(word % WORDS_PER_LINE == 0 ? "    " : " ").append("0x%08Xu".formatted(value)).append(word < words - 1 ? "," : "");
+      if (word % WORDS_PER_LINE == WORDS_PER_LINE - 1) {
         table.append('\n');
       }
     }

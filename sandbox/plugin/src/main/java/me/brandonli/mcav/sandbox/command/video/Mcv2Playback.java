@@ -31,9 +31,13 @@ import me.brandonli.mcav.media.mcv2.Mcv2Format;
 final class Mcv2Playback implements Runnable {
 
   private final Mcv2Channel channel;
+
   private final List<byte[]> frames;
+
   private final long span;
+
   private int next;
+
   private long offset;
 
   /**
@@ -49,7 +53,7 @@ final class Mcv2Playback implements Runnable {
     this.frames = List.copyOf(frames);
     long highest = 0;
     for (final byte[] frame : this.frames) {
-      highest = Math.max(highest, Mcv2Format.u32(frame, 12));
+      highest = Math.max(highest, Mcv2Format.u32(frame, Mcv2Format.FRAME_ID_OFFSET));
     }
     this.span = highest + 1;
   }
@@ -76,10 +80,14 @@ final class Mcv2Playback implements Runnable {
   }
 
   /** A copy of a frame with its frame and reference ids shifted by the current offset. */
-  byte[] shifted(final byte[] frame) {
+  private byte[] shifted(final byte[] frame) {
     final byte[] copy = frame.clone();
-    Mcv2Format.putU32(copy, 12, (Mcv2Format.u32(frame, 12) + this.offset) & 0xFFFFFFFFL);
-    Mcv2Format.putU32(copy, 16, (Mcv2Format.u32(frame, 16) + this.offset) & 0xFFFFFFFFL);
+    shift(copy, Mcv2Format.FRAME_ID_OFFSET);
+    shift(copy, Mcv2Format.REFERENCE_ID_OFFSET);
     return copy;
+  }
+
+  private void shift(final byte[] frame, final int field) {
+    Mcv2Format.putU32(frame, field, (Mcv2Format.u32(frame, field) + this.offset) & Mcv2Format.MAX_U32);
   }
 }

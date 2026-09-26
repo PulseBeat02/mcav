@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 final class FrameParserRulesTest {
 
   private static final byte[] ENDPOINTS = { 16, 32, 48, (byte) 240, (byte) 224, (byte) 208 };
+
   private static final byte[] OTHER_ENDPOINTS = { 24, 40, 56, (byte) 232, (byte) 216, (byte) 200 };
 
   /** Where the parts of a derived-form frame are, computed like the parser does. */

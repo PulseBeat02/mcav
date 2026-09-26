@@ -67,13 +67,21 @@ import org.mockito.Mockito;
 final class VideoMcv2CommandTest {
 
   private VideoPlayerManager manager;
+
   private Mcv2Support support;
+
   private Mcv2Viewers viewers;
+
   private VideoMcv2Command command;
+
   private MultiplePlayerSelector selector;
+
   private CommandSender sender;
+
   private Player player;
+
   private final UUID viewer = UUID.randomUUID();
+
   private World world;
 
   @BeforeEach
@@ -213,6 +221,8 @@ final class VideoMcv2CommandTest {
     // a size under 128 by 72 is left out
     assertEquals(List.of("160x80"), VideoMcv2Command.smallerSizes(240, 120).stream().map(size -> size[0] + "x" + size[1]).toList());
     assertEquals(List.of(), VideoMcv2Command.smallerSizes(200, 100));
+    // exactly 128 by 72 is kept
+    assertEquals(List.of("128x72"), VideoMcv2Command.smallerSizes(192, 108).stream().map(size -> size[0] + "x" + size[1]).toList());
   }
 
   @Test

@@ -67,11 +67,17 @@ final class Mcv2ScreenTest {
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000011");
 
   private FakeServer server;
+
   private CraftPlayer player;
+
   private World world;
+
   private final List<Location> spawned = new ArrayList<>();
+
   private final List<ItemFrame> frames = new ArrayList<>();
+
   private final Map<Integer, ItemStack> items = new HashMap<>();
+
   private MockedStatic<Mcv2Screen> statics;
 
   @BeforeEach

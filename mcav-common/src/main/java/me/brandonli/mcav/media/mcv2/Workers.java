@@ -36,6 +36,7 @@ public final class Workers {
   public static final Workers SEQUENTIAL = new Workers(null, 1);
 
   private final @Nullable ForkJoinPool pool;
+
   private final int threads;
 
   /**

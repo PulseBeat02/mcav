@@ -37,6 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class TreeReader {
 
+  private static final int KEY_X_SHIFT = 40;
+
+  private static final int KEY_Y_SHIFT = 16;
+
   private TreeReader() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -58,7 +62,7 @@ public final class TreeReader {
       final int mode = leaf.mode();
       final TreeNode node;
       if (mode == MODE_IMMEDIATE_MOTION) {
-        node = TreeNode.leaf(MODE_MOTION, 0, new byte[] { (byte) leaf.offset(), (byte) (leaf.offset() >> 8) });
+        node = TreeNode.leaf(MODE_MOTION, 0, new byte[] { (byte) leaf.offset(), (byte) (leaf.offset() >> Byte.SIZE) });
       } else if (mode == MODE_PATTERN) {
         final PatternRecord record = PatternRecord.expand(data, leaf.offset(), leaf.size(), endpoints, selectorTable(frame, leaf.size()));
         node = TreeNode.leaf(MODE_PALETTE, 0, fullPalette(record, leaf.size()));
@@ -86,8 +90,9 @@ public final class TreeReader {
     return roots;
   }
 
+  /** A block's key in the leaf map: its position and size, each in its own bits. */
   private static long key(final int x, final int y, final int size) {
-    return ((long) x << 40) | ((long) y << 16) | size;
+    return ((long) x << KEY_X_SHIFT) | ((long) y << KEY_Y_SHIFT) | size;
   }
 
   private static TreeNode visit(final Map<Long, TreeNode> leaves, final int x, final int y, final int size) {
@@ -114,14 +119,14 @@ public final class TreeReader {
 
   /** The full palette record a pattern stands for: two endpoints, then one selector bit per pixel. */
   static byte[] fullPalette(final PatternRecord record, final int size) {
-    final byte[] full = new byte[6 + (size * size) / 8];
+    final byte[] full = new byte[recordSize(MODE_PALETTE, size)];
     putColor(full, 0, record.getColor0());
-    putColor(full, 3, record.getColor1());
+    putColor(full, CHANNELS, record.getColor1());
     for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
         final int index = y * size + x;
         final int selector = record.getSelector(record.getOrientation() == 0 ? x : y);
-        full[6 + index / 8] |= (byte) (selector << (index & 7));
+        full[ENDPOINT_PAIR_BYTES + index / Byte.SIZE] |= (byte) (selector << (index % Byte.SIZE));
       }
     }
     return full;
@@ -154,12 +159,13 @@ public final class TreeReader {
         }
       }
       if (repeats) {
-        final byte[] pattern = new byte[7 + size / 8];
-        System.arraycopy(record, 0, pattern, 0, 6);
-        pattern[6] = (byte) kind;
+        final byte[] pattern = new byte[patternSize(size, false, false)];
+        System.arraycopy(record, 0, pattern, 0, ENDPOINT_PAIR_BYTES);
+        pattern[ENDPOINT_PAIR_BYTES] = (byte) kind;
+        final int axis = ENDPOINT_PAIR_BYTES + 1;
         for (int i = 0; i < size; i++) {
           final int value = kind == 0 ? bit(record, i) : bit(record, i * size);
-          pattern[7 + i / 8] |= (byte) (value << (i & 7));
+          pattern[axis + i / Byte.SIZE] |= (byte) (value << (i % Byte.SIZE));
         }
         return pattern;
       }
@@ -168,7 +174,7 @@ public final class TreeReader {
   }
 
   private static int bit(final byte[] record, final int index) {
-    return (record[6 + index / 8] >> (index & 7)) & 1;
+    return (record[ENDPOINT_PAIR_BYTES + index / Byte.SIZE] >> (index % Byte.SIZE)) & 1;
   }
 
   /**

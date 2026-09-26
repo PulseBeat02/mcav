@@ -135,6 +135,14 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    */
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
 
+  /** The smaller sizes offered, as fractions of the screen's: two thirds, then a half. */
+  private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
+
+  /** The smallest size offered: 128x72. */
+  private static final int MIN_WIDTH = 128;
+
+  private static final int MIN_HEIGHT = 72;
+
   /**
    * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
    * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
@@ -244,10 +252,10 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    */
   static List<int[]> smallerSizes(final int width, final int height) {
     final List<int[]> sizes = new ArrayList<>();
-    for (final int[] fraction : new int[][] { { 2, 3 }, { 1, 2 } }) {
+    for (final int[] fraction : SMALLER_FRACTIONS) {
       final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
       final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
-      if (smallerWidth >= 128 && smallerHeight >= 72) {
+      if (smallerWidth >= MIN_WIDTH && smallerHeight >= MIN_HEIGHT) {
         sizes.add(new int[] { smallerWidth, smallerHeight });
       }
     }
@@ -260,7 +268,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param viewers the viewers' UUIDs
    * @return the online players among them
    */
-  static List<Player> online(final Collection<UUID> viewers) {
+  private static List<Player> online(final Collection<UUID> viewers) {
     final List<Player> players = new ArrayList<>();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);

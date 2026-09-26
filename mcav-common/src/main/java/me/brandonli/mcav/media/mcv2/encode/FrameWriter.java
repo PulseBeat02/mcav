@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -155,8 +156,8 @@ public final class FrameWriter {
    */
   private static void validate(final TreeNode node, final int size) {
     if (node.isSplit()) {
-      Preconditions.checkArgument(size > 8, "Split below the bounded depth");
-      for (int i = 0; i < 4; i++) {
+      Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth");
+      for (int i = 0; i < QUARTERS; i++) {
         validate(node.getChild(i), size / 2);
       }
       return;
@@ -199,7 +200,7 @@ public final class FrameWriter {
 
   private static void countSolids(final TreeNode node, final Map<Key, Integer> colors) {
     if (node.isSplit()) {
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < QUARTERS; i++) {
         countSolids(node.getChild(i), colors);
       }
     } else if (node.getMode() == MODE_SOLID) {
@@ -259,17 +260,18 @@ public final class FrameWriter {
     final int payloadStart = HEADER_BYTES + index.length;
     final byte[] data = new byte[payloadStart + payload.length];
     putU32(data, 0, MAGIC);
-    putU32(data, 4, CONFIGURATION | ((long) flags << 16));
-    putU32(data, 8, frame.width() | ((long) frame.height() << 16));
-    putU32(data, 12, frame.frameId());
-    putU32(data, 16, frame.referenceId());
-    putU32(data, 20, (frame.motionX() & 0xFFFFL) | ((frame.motionY() & 0xFFFFL) << 16));
+    putU32(data, CONFIGURATION_OFFSET, CONFIGURATION | ((long) flags << HALF_WORD_BITS));
+    putU32(data, DIMENSIONS_OFFSET, frame.width() | ((long) frame.height() << HALF_WORD_BITS));
+    putU32(data, FRAME_ID_OFFSET, frame.frameId());
+    putU32(data, REFERENCE_ID_OFFSET, frame.referenceId());
+    putU32(data, MOTION_OFFSET, (frame.motionX() & HALF_WORD) | ((long) (frame.motionY() & HALF_WORD) << HALF_WORD_BITS));
     final int columns = (frame.width() + ROOT_SIZE - 1) / ROOT_SIZE;
-    putU32(data, 24, (long) columns * ((frame.height() + ROOT_SIZE - 1) / ROOT_SIZE));
-    putU32(data, 28, payloadStart);
-    putU32(data, 32, data.length);
+    putU32(data, ROOT_COUNT_OFFSET, (long) columns * ((frame.height() + ROOT_SIZE - 1) / ROOT_SIZE));
+    putU32(data, PAYLOAD_START_OFFSET, payloadStart);
+    putU32(data, TOTAL_OFFSET, data.length);
     if (defaultColor != null) {
-      putU32(data, 36, (defaultColor[0] & 0xFF) | ((defaultColor[1] & 0xFF) << 8) | ((long) (defaultColor[2] & 0xFF) << 16));
+      final long color = (defaultColor[0] & 0xFF) | ((defaultColor[1] & 0xFF) << 8) | ((long) (defaultColor[2] & 0xFF) << 16);
+      putU32(data, DEFAULT_COLOR_OFFSET, color);
     }
     System.arraycopy(index, 0, data, HEADER_BYTES, index.length);
     System.arraycopy(payload, 0, data, payloadStart, payload.length);
@@ -288,24 +290,24 @@ public final class FrameWriter {
 
     static byte@Nullable[] pack(final Frame frame, final List<TreeNode> roots, final Options options, final byte@Nullable[] defaultColor) {
       final int count = roots.size();
-      final int groups = (count + 31) / 32;
+      final int groups = (count + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final List<TreeNode> flat = new ArrayList<>();
       final List<Integer> sizes = new ArrayList<>();
-      final int[] levels = new int[3];
+      final int[] levels = new int[BLOCK_SIZES];
       List<TreeNode> level = new ArrayList<>();
       for (final TreeNode root : roots) {
         if (root.getMode() != MODE_SKIP) {
           level.add(root);
         }
       }
-      for (int depth = 0; depth < 3; depth++) {
+      for (int depth = 0; depth < BLOCK_SIZES; depth++) {
         levels[depth] = level.size();
         final List<TreeNode> children = new ArrayList<>();
         for (final TreeNode node : level) {
           flat.add(node);
           sizes.add(ROOT_SIZE >> depth);
           if (node.isSplit()) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < QUARTERS; i++) {
               children.add(node.getChild(i));
             }
           }
@@ -314,7 +316,7 @@ public final class FrameWriter {
       }
       // more descriptors than a 16-bit count: the stored form is used instead (every level is at most the total, so
       // this also covers a level too long to count, where the reference raises rather than falling back)
-      if (flat.size() > 65535) {
+      if (flat.size() > HALF_WORD) {
         return null;
       }
       int payloadBytes = 0;
@@ -333,7 +335,7 @@ public final class FrameWriter {
           }
         }
       }
-      final int pairEntry = coarse ? 4 : 6;
+      final int pairEntry = coarse ? ENDPOINT_565_PAIR_BYTES : ENDPOINT_PAIR_BYTES;
       final List<Key> endpoints = options.endpointTable() ? endpointTable(flat, pairEntry) : List.of();
       final Map<Key, Integer> endpointOf = new LinkedHashMap<>();
       for (int i = 0; i < endpoints.size(); i++) {
@@ -342,7 +344,7 @@ public final class FrameWriter {
       if (!endpoints.isEmpty()) {
         for (final TreeNode node : flat) {
           if (node.getMode() == MODE_PATTERN) {
-            payloadBytes -= 5;
+            payloadBytes -= ENDPOINT_PAIR_BYTES - 1;
           }
         }
       }
@@ -360,27 +362,28 @@ public final class FrameWriter {
         for (int i = 0; i < flat.size(); i++) {
           final int size = sizes.get(i);
           if (flat.get(i).getMode() == MODE_PATTERN && !words.get(sizeIndex(size)).isEmpty()) {
-            payloadBytes -= size / 8;
+            payloadBytes -= size / Byte.SIZE;
           }
         }
       }
-      if (payloadBytes > 65535) {
+      if (payloadBytes > HALF_WORD) {
         return null;
       }
       final ByteArrayOutputStream index = new ByteArrayOutputStream();
-      final byte[] masks = new byte[groups * 4];
-      final byte[] checkpoints = new byte[((groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS) * 4];
+      final byte[] masks = new byte[groups * WORD_BYTES];
+      final byte[] checkpoints = new byte[((groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS) * WORD_BYTES];
       int seen = 0;
       for (int group = 0; group < groups; group++) {
         long mask = 0;
-        for (int i = group * 32; i < Math.min(count, group * 32 + 32); i++) {
+        final int from = group * GROUP_ROOTS;
+        for (int i = from; i < Math.min(count, from + GROUP_ROOTS); i++) {
           if (roots.get(i).getMode() != MODE_SKIP) {
-            mask |= 1L << (i - group * 32);
+            mask |= 1L << (i - from);
           }
         }
-        putU32(masks, group * 4, mask);
+        putU32(masks, group * WORD_BYTES, mask);
         if (group % CHECKPOINT_GROUPS == 0) {
-          putU32(checkpoints, (group / CHECKPOINT_GROUPS) * 4, seen);
+          putU32(checkpoints, (group / CHECKPOINT_GROUPS) * WORD_BYTES, seen);
         }
         seen += Long.bitCount(mask);
       }
@@ -396,7 +399,7 @@ public final class FrameWriter {
           pairs[(i / WALK_SPAN) * 2] = cursor;
           pairs[(i / WALK_SPAN) * 2 + 1] = splits;
         }
-        descriptors[i] = (byte) (node.getMode() | (node.getQ() << 5));
+        descriptors[i] = (byte) (node.getMode() | (node.getQ() << SYMBOL_QUANTIZER_SHIFT));
         if (node.isSplit()) {
           splits++;
           continue;
@@ -406,16 +409,17 @@ public final class FrameWriter {
         if (node.getMode() == MODE_PATTERN && (!endpoints.isEmpty() || tabledWords)) {
           final byte[] stored;
           if (endpoints.isEmpty()) {
-            stored = Arrays.copyOfRange(record, 0, 6);
+            stored = Arrays.copyOfRange(record, 0, ENDPOINT_PAIR_BYTES);
           } else {
-            stored = new byte[] { (byte) (int) endpointOf.getOrDefault(new Key(Arrays.copyOfRange(record, 0, 6)), 0) };
+            final Key pair = new Key(Arrays.copyOfRange(record, 0, ENDPOINT_PAIR_BYTES));
+            stored = new byte[] { (byte) (int) endpointOf.getOrDefault(pair, 0) };
           }
           payload.writeBytes(stored);
           if (tabledWords) {
-            final Key word = new Key(Arrays.copyOfRange(record, 6, 6 + 1 + size / 8));
+            final Key word = new Key(Arrays.copyOfRange(record, ENDPOINT_PAIR_BYTES, ENDPOINT_PAIR_BYTES + 1 + size / Byte.SIZE));
             payload.write(wordOf.get(sizeIndex(size)).getOrDefault(word, 0));
           } else {
-            payload.write(record, 6, record.length - 6);
+            payload.write(record, ENDPOINT_PAIR_BYTES, record.length - ENDPOINT_PAIR_BYTES);
           }
           cursor += patternSize(size, !endpoints.isEmpty(), tabledWords);
           continue;
@@ -423,9 +427,8 @@ public final class FrameWriter {
         payload.writeBytes(record);
         cursor += record.length;
       }
-      for (int depth = 0; depth < 3; depth++) {
-        index.write(levels[depth] & 0xFF);
-        index.write(levels[depth] >>> 8);
+      for (int depth = 0; depth < BLOCK_SIZES; depth++) {
+        writeU16(index, levels[depth]);
       }
       final ByteArrayOutputStream head = new ByteArrayOutputStream();
       head.writeBytes(masks);
@@ -442,20 +445,20 @@ public final class FrameWriter {
         }
         if (symbols.size() <= MAX_SYMBOLS) {
           final int width = symbolWidth(symbols.size());
-          final int[] lookup = new int[256];
+          final int[] lookup = new int[1 << Byte.SIZE];
           int position = 0;
           head.write(symbols.size());
           for (final int symbol : symbols) {
             lookup[symbol] = position++;
             head.write(symbol);
           }
-          plane = new byte[(descriptors.length * width + 7) / 8];
+          plane = new byte[(descriptors.length * width + Byte.SIZE - 1) / Byte.SIZE];
           for (int i = 0; i < descriptors.length; i++) {
             final int bit = i * width;
-            final int value = lookup[descriptors[i] & 0xFF] << (bit & 7);
-            plane[bit >> 3] |= (byte) value;
-            if (value >> 8 != 0) {
-              plane[(bit >> 3) + 1] |= (byte) (value >> 8);
+            final int value = lookup[descriptors[i] & 0xFF] << (bit % Byte.SIZE);
+            plane[bit / Byte.SIZE] |= (byte) value;
+            if (value >> Byte.SIZE != 0) {
+              plane[bit / Byte.SIZE + 1] |= (byte) (value >> Byte.SIZE);
             }
           }
           packed = true;
@@ -468,22 +471,20 @@ public final class FrameWriter {
         head.writeBytes(twoLevel);
       } else {
         for (int i = 0; i < walkpoints; i++) {
-          head.write(pairs[i * 2] & 0xFF);
-          head.write(pairs[i * 2] >>> 8);
-          head.write(pairs[i * 2 + 1] & 0xFF);
-          head.write(pairs[i * 2 + 1] >>> 8);
+          writeU16(head, pairs[i * 2]);
+          writeU16(head, pairs[i * 2 + 1]);
         }
       }
       if (!endpoints.isEmpty()) {
         head.write(endpoints.size());
       }
       if (anyWords) {
-        for (int s = 0; s < 3; s++) {
+        for (int s = 0; s < BLOCK_SIZES; s++) {
           head.write(words.get(s).size());
         }
       }
       if (anyWords) {
-        for (int s = 0; s < 3; s++) {
+        for (int s = 0; s < BLOCK_SIZES; s++) {
           for (final Key word : words.get(s)) {
             payload.writeBytes(word.bytes());
           }
@@ -493,7 +494,7 @@ public final class FrameWriter {
         final byte[] bytes = pair.bytes();
         if (coarse) {
           payload.writeBytes(pack565(bytes, 0));
-          payload.writeBytes(pack565(bytes, 3));
+          payload.writeBytes(pack565(bytes, CHANNELS));
         } else {
           payload.writeBytes(bytes);
         }
@@ -504,18 +505,14 @@ public final class FrameWriter {
       flags |= twoLevel != null ? TWO_LEVEL_WALK : 0;
       flags |= !endpoints.isEmpty() ? ENDPOINT_TABLE : 0;
       flags |= !endpoints.isEmpty() && coarse ? ENDPOINT_565 : 0;
-      for (int s = 0; s < 3 && anyWords; s++) {
+      for (int s = 0; s < BLOCK_SIZES && anyWords; s++) {
         flags |= !words.get(s).isEmpty() ? SELECTOR_TABLE_8 << s : 0;
       }
       return finish(frame, flags, defaultColor, head.toByteArray(), payload.toByteArray());
     }
 
-    private static int sizeIndex(final int size) {
-      return Integer.numberOfTrailingZeros(size) - 3;
-    }
-
     private static boolean survives565(final byte[] record) {
-      for (int i = 0; i < 6; i += 3) {
+      for (int i = 0; i < PALETTE_COLORS * CHANNELS; i += CHANNELS) {
         final byte[] packed = pack565(record, i);
         final int expanded = unpack565(packed[0], packed[1]);
         final int original = ((record[i] & 0xFF) << 16) | ((record[i + 1] & 0xFF) << 8) | (record[i + 2] & 0xFF);
@@ -527,8 +524,8 @@ public final class FrameWriter {
     }
 
     private static byte[] pack565(final byte[] rgb, final int at) {
-      final int value = (((rgb[at] & 0xFF) >> 3) << 11) | (((rgb[at + 1] & 0xFF) >> 2) << 5) | ((rgb[at + 2] & 0xFF) >> 3);
-      return new byte[] { (byte) value, (byte) (value >> 8) };
+      final int value = Mcv2Format.pack565(rgb[at] & 0xFF, rgb[at + 1] & 0xFF, rgb[at + 2] & 0xFF);
+      return new byte[] { (byte) value, (byte) (value >> Byte.SIZE) };
     }
 
     /** Distinct endpoint pairs in first-use order, when naming them saves bytes. */
@@ -536,7 +533,7 @@ public final class FrameWriter {
       final Map<Key, Integer> counts = new LinkedHashMap<>();
       for (final TreeNode node : flat) {
         if (node.getMode() == MODE_PATTERN) {
-          counts.merge(new Key(Arrays.copyOfRange(node.record(), 0, 6)), 1, Integer::sum);
+          counts.merge(new Key(Arrays.copyOfRange(node.record(), 0, ENDPOINT_PAIR_BYTES)), 1, Integer::sum);
         }
       }
       if (counts.isEmpty() || counts.size() > MAX_TABLE_ENTRIES) {
@@ -544,7 +541,7 @@ public final class FrameWriter {
       }
       int saving = -counts.size() * entry - 1;
       for (final int n : counts.values()) {
-        saving += n * 5;
+        saving += n * (ENDPOINT_PAIR_BYTES - 1);
       }
       return saving > 0 ? new ArrayList<>(counts.keySet()) : List.of();
     }
@@ -556,17 +553,18 @@ public final class FrameWriter {
         final TreeNode node = flat.get(i);
         if (node.getMode() == MODE_PATTERN) {
           final int size = sizes.get(i);
-          counts.get(sizeIndex(size)).merge(new Key(Arrays.copyOfRange(node.record(), 6, 6 + 1 + size / 8)), 1, Integer::sum);
+          final byte[] word = Arrays.copyOfRange(node.record(), ENDPOINT_PAIR_BYTES, ENDPOINT_PAIR_BYTES + 1 + size / Byte.SIZE);
+          counts.get(sizeIndex(size)).merge(new Key(word), 1, Integer::sum);
         }
       }
       final List<List<Key>> tables = new ArrayList<>(List.of(List.of(), List.of(), List.of()));
-      int total = -3;
-      for (int s = 0; s < 3; s++) {
+      int total = -BLOCK_SIZES;
+      for (int s = 0; s < BLOCK_SIZES; s++) {
         final Map<Key, Integer> ctr = counts.get(s);
         if (ctr.isEmpty() || ctr.size() > MAX_TABLE_ENTRIES) {
           continue;
         }
-        final int entry = 1 + (8 << s) / 8;
+        final int entry = 1 + (SMALLEST_BLOCK << s) / Byte.SIZE;
         int saving = -ctr.size() * entry;
         for (final int n : ctr.values()) {
           saving += n * (entry - 1);
@@ -588,8 +586,8 @@ public final class FrameWriter {
         cursorDelta = Math.max(cursorDelta, pairs[i * 2] - pairs[anchor * 2]);
         splitsDelta = Math.max(splitsDelta, pairs[i * 2 + 1] - pairs[anchor * 2 + 1]);
       }
-      final int cursorBits = Math.max(1, 32 - Integer.numberOfLeadingZeros(cursorDelta));
-      final int splitsBits = Math.max(1, 32 - Integer.numberOfLeadingZeros(splitsDelta));
+      final int cursorBits = Math.max(1, Integer.SIZE - Integer.numberOfLeadingZeros(cursorDelta));
+      final int splitsBits = Math.max(1, Integer.SIZE - Integer.numberOfLeadingZeros(splitsDelta));
       if (cursorBits + splitsBits > DELTA_BITS) {
         return null;
       }
@@ -608,12 +606,12 @@ public final class FrameWriter {
         writeU16(out, (pairs[i * 2] - pairs[anchor * 2]) | ((pairs[i * 2 + 1] - pairs[anchor * 2 + 1]) << cursorBits));
       }
       // with too few checkpoints to amortize the two width bytes the plain form is smaller or equal: keep it then
-      return out.size() < walkpoints * 4 ? out.toByteArray() : null;
+      return out.size() < walkpoints * WALK_PAIR_BYTES ? out.toByteArray() : null;
     }
 
     private static void writeU16(final ByteArrayOutputStream out, final int value) {
       out.write(value & 0xFF);
-      out.write((value >>> 8) & 0xFF);
+      out.write((value >>> Byte.SIZE) & 0xFF);
     }
   }
 
@@ -621,15 +619,20 @@ public final class FrameWriter {
   private static final class Stored {
 
     private final Options options;
+
     private final int stride;
+
     private byte[] table = new byte[0];
+
     private int used;
+
     private final List<TreeNode> leafNodes = new ArrayList<>();
+
     private final List<Integer> leafLocations = new ArrayList<>();
 
     private Stored(final Options options) {
       this.options = options;
-      this.stride = options.shortIndex() ? 3 : 4;
+      this.stride = options.shortIndex() ? SHORT_DESCRIPTOR_BYTES : WORD_BYTES;
     }
 
     static byte[] pack(final Frame frame, final List<TreeNode> roots, final Options options, final byte@Nullable[] defaultColor) {
@@ -638,11 +641,11 @@ public final class FrameWriter {
 
     private void putWord(final int location, final long word) {
       final int at = location - HEADER_BYTES;
-      if (this.stride == 3) {
-        final long shortWord = (word & 0xFFFF) | ((word >>> 24) << 16);
+      if (this.stride == SHORT_DESCRIPTOR_BYTES) {
+        final long shortWord = (word & HALF_WORD) | ((word >>> MODE_SHIFT) << HALF_WORD_BITS);
         this.table[at] = (byte) shortWord;
-        this.table[at + 1] = (byte) (shortWord >>> 8);
-        this.table[at + 2] = (byte) (shortWord >>> 16);
+        this.table[at + 1] = (byte) (shortWord >>> Byte.SIZE);
+        this.table[at + 2] = (byte) (shortWord >>> HALF_WORD_BITS);
       } else {
         putU32(this.table, at, word);
       }
@@ -658,33 +661,33 @@ public final class FrameWriter {
 
     private byte[] write(final Frame frame, final List<TreeNode> roots, final byte@Nullable[] defaultColor) {
       final int count = roots.size();
-      final int groups = (count + 31) / 32;
+      final int groups = (count + GROUP_ROOTS - 1) / GROUP_ROOTS;
       int active = 0;
       for (final TreeNode root : roots) {
         active += root.getMode() != MODE_SKIP ? 1 : 0;
       }
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
-      final int directory = this.options.derivedDirectory() ? groups * 4 + checkpoints * 4 : groups * 8;
+      final int directory = this.options.derivedDirectory() ? (groups + checkpoints) * WORD_BYTES : groups * STORED_GROUP_BYTES;
       final boolean sparse = directory + active * this.stride < count * this.stride;
       this.grow(sparse ? directory + active * this.stride : count * this.stride);
       final int[] locations = new int[count];
       int cursor = HEADER_BYTES + (sparse ? directory : 0);
       for (int group = 0; group < groups; group++) {
-        final int from = group * 32;
-        final int to = Math.min(count, from + 32);
+        final int from = group * GROUP_ROOTS;
+        final int to = Math.min(count, from + GROUP_ROOTS);
         if (sparse) {
           long mask = 0;
           for (int i = from; i < to; i++) {
             mask |= roots.get(i).getMode() != MODE_SKIP ? 1L << (i - from) : 0;
           }
           if (this.options.derivedDirectory()) {
-            putU32(this.table, group * 4, mask);
+            putU32(this.table, group * WORD_BYTES, mask);
             if (group % CHECKPOINT_GROUPS == 0) {
-              putU32(this.table, groups * 4 + (group / CHECKPOINT_GROUPS) * 4, cursor);
+              putU32(this.table, (groups + group / CHECKPOINT_GROUPS) * WORD_BYTES, cursor);
             }
           } else {
-            putU32(this.table, group * 8, mask);
-            putU32(this.table, group * 8 + 4, cursor);
+            putU32(this.table, group * STORED_GROUP_BYTES, mask);
+            putU32(this.table, group * STORED_GROUP_BYTES + WORD_BYTES, cursor);
           }
         }
         for (int i = from; i < to; i++) {
@@ -707,14 +710,14 @@ public final class FrameWriter {
         final byte[] record = node.record();
         // a motion leaf never has a quantizer, so every one can ride in its descriptor
         if (this.options.immediateMotion() && node.getMode() == MODE_MOTION) {
-          this.putWord(location, (record[0] & 0xFF) | ((record[1] & 0xFF) << 8) | ((long) MODE_IMMEDIATE_MOTION << 24));
+          this.putWord(location, (record[0] & 0xFF) | ((record[1] & 0xFF) << Byte.SIZE) | ((long) MODE_IMMEDIATE_MOTION << MODE_SHIFT));
           continue;
         }
         final long offset = node.getMode() != MODE_SKIP ? payloadStart + payload.size() : 0;
-        this.putWord(location, offset | ((long) node.getMode() << 24) | ((long) node.getQ() << 29));
+        this.putWord(location, offset | ((long) node.getMode() << MODE_SHIFT) | ((long) node.getQ() << QUANTIZER_SHIFT));
         payload.writeBytes(record);
       }
-      if (this.options.shortIndex() && payloadStart + payload.size() > 65535) {
+      if (this.options.shortIndex() && payloadStart + payload.size() > HALF_WORD) {
         // no truncated addresses: the same tree again in the wide layout, with the keyframe defaults restored
         final List<TreeNode> restored = new ArrayList<>(count);
         for (final TreeNode root : roots) {
@@ -753,23 +756,23 @@ public final class FrameWriter {
       }
       final int offset = HEADER_BYTES + this.used;
       int mask = 0;
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < QUARTERS; i++) {
         mask |= node.getChild(i).getMode() != MODE_SKIP ? 1 << i : 0;
       }
-      if (this.options.sparseChildren() && this.stride == 3 && mask != 15) {
+      if (this.options.sparseChildren() && this.stride == SHORT_DESCRIPTOR_BYTES && mask != ALL_QUARTERS) {
         this.grow(1 + Integer.bitCount(mask) * this.stride);
         this.table[offset - HEADER_BYTES] = (byte) mask;
-        this.putWord(location, offset | ((long) MODE_SPARSE_SPLIT << 24));
+        this.putWord(location, offset | ((long) MODE_SPARSE_SPLIT << MODE_SHIFT));
         int child = offset + 1;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < QUARTERS; i++) {
           final TreeNode c = node.getChild(i);
           this.emit(c, c.getMode() != MODE_SKIP ? child : -1);
           child += c.getMode() != MODE_SKIP ? this.stride : 0;
         }
       } else {
-        this.grow(4 * this.stride);
-        this.putWord(location, offset | ((long) MODE_SPLIT << 24));
-        for (int i = 0; i < 4; i++) {
+        this.grow(QUARTERS * this.stride);
+        this.putWord(location, offset | ((long) MODE_SPLIT << MODE_SHIFT));
+        for (int i = 0; i < QUARTERS; i++) {
           this.emit(node.getChild(i), offset + i * this.stride);
         }
       }

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
@@ -38,6 +39,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
@@ -47,15 +49,21 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 final class Mcv2ViewersTest {
 
   private static final UUID PACK = UUID.fromString("00000000-0000-0000-0000-00000000aaaa");
+
   private static final UUID OTHER = UUID.fromString("00000000-0000-0000-0000-00000000bbbb");
+
   private static final UUID PLAYER = UUID.fromString("00000000-0000-0000-0000-000000000021");
 
   private FakeServer server;
+
   private Player player;
+
   private final List<Player> refused = new ArrayList<>();
 
   @BeforeEach
@@ -95,6 +103,7 @@ final class Mcv2ViewersTest {
     viewers.handleStatus(this.status(OTHER, Status.DECLINED));
     assertTrue(viewers.isLoaded(uuid));
     viewers.handleStatus(this.status(PACK, Status.FAILED_RELOAD));
+    assertEquals(List.of(this.player), this.refused, "the first refusal is reported at once");
     viewers.handleStatus(this.status(PACK, Status.DISCARDED));
     assertEquals(Mcv2Viewers.PackState.REFUSED, viewers.getState(uuid));
     assertEquals(List.of(this.player), this.refused, "the refusal is reported once");
@@ -104,6 +113,24 @@ final class Mcv2ViewersTest {
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(null, this.refused::add));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(PACK, null));
+  }
+
+  @Test
+  void unregistersTheListenerItReplacesOrStops() {
+    try (MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
+      final Mcv2Viewers viewers = this.viewers();
+      // nothing registered: nothing to unregister
+      viewers.unregister();
+      lists.verifyNoInteractions();
+      viewers.register();
+      viewers.register();
+      // the second registration replaced the first listener
+      lists.verify(() -> HandlerList.unregisterAll(any(Listener.class)), times(1));
+      viewers.unregister();
+      lists.verify(() -> HandlerList.unregisterAll(any(Listener.class)), times(2));
+      viewers.unregister();
+      lists.verify(() -> HandlerList.unregisterAll(any(Listener.class)), times(2));
+    }
   }
 
   @Test

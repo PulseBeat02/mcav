@@ -17,6 +17,14 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.MAX_GRID;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.MOTION_BYTES;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+
+import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -33,23 +41,42 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class FrameJob {
 
   private final EncoderSettings settings;
+
   private final byte[] source;
+
   private final byte[] reference;
+
   private final int width;
+
   private final int height;
+
   private final boolean keyframe;
+
   private final int[] vectorsX;
+
   private final int[] vectorsY;
+
   private final int[] steps;
+
   private final int precisions;
+
   private final int trials;
+
   private final int@Nullable[] previousMotion;
+
   private final byte@Nullable[][] levelPictures;
+
   private final Buffers buffers;
-  private final int[] columns = new int[3];
+
+  private final int[] columns = new int[BLOCK_SIZES];
+
+  private byte@Nullable[] halfReference;
+
+  /** The side of the square cells of a motion field, one vector each: the smallest block. */
+  static final int MOTION_CELL = SMALLEST_BLOCK;
 
   /** The longest record a candidate writes: a 32-pixel residual grid of 8x8 nodes after its two motion bytes. */
-  static final int MAX_RECORD = 2 + 3 * 64;
+  static final int MAX_RECORD = MOTION_BYTES + CHANNELS * MAX_GRID * MAX_GRID;
 
   /**
    * The arrays one frame's search fills, reused from frame to frame while the size and the number of trials stay the
@@ -59,13 +86,21 @@ final class FrameJob {
   static final class Buffers {
 
     private final int width;
+
     private final int height;
+
     private final int trials;
+
     private final double[][][] costs;
+
     private final byte[][][] modes;
+
     private final byte[][][] quantizers;
+
     private final byte[][][] records;
+
     private final byte[][][] lengths;
+
     private final long[][][] distortions;
 
     /**
@@ -79,14 +114,14 @@ final class FrameJob {
       this.width = width;
       this.height = height;
       this.trials = trials;
-      this.costs = new double[trials][3][];
-      this.modes = new byte[trials][3][];
-      this.quantizers = new byte[trials][3][];
-      this.records = new byte[trials][3][];
-      this.lengths = new byte[trials][3][];
-      this.distortions = new long[trials][3][];
-      for (int level = 0; level < 3; level++) {
-        final int size = 32 >> level;
+      this.costs = new double[trials][BLOCK_SIZES][];
+      this.modes = new byte[trials][BLOCK_SIZES][];
+      this.quantizers = new byte[trials][BLOCK_SIZES][];
+      this.records = new byte[trials][BLOCK_SIZES][];
+      this.lengths = new byte[trials][BLOCK_SIZES][];
+      this.distortions = new long[trials][BLOCK_SIZES][];
+      for (int level = 0; level < BLOCK_SIZES; level++) {
+        final int size = ROOT_SIZE >> level;
         final int blocks = ((width + size - 1) / size) * ((height + size - 1) / size);
         for (int t = 0; t < trials; t++) {
           this.costs[t][level] = new double[blocks];
@@ -169,8 +204,8 @@ final class FrameJob {
     this.previousMotion = previousMotion;
     this.levelPictures = levelPictures;
     this.buffers = reuse != null && reuse.fits(width, height, this.trials) ? reuse : new Buffers(width, height, this.trials);
-    for (int level = 0; level < 3; level++) {
-      final int size = 32 >> level;
+    for (int level = 0; level < BLOCK_SIZES; level++) {
+      final int size = ROOT_SIZE >> level;
       this.columns[level] = (width + size - 1) / size;
       for (int t = 0; t < this.trials; t++) {
         // no block is evaluated yet; the other arrays are only read at blocks that were
@@ -272,6 +307,16 @@ final class FrameJob {
   }
 
   /**
+   * The columns of a motion field over a picture.
+   *
+   * @param width the picture's width
+   * @return its cells per row
+   */
+  static int motionColumns(final int width) {
+    return (width + MOTION_CELL - 1) / MOTION_CELL;
+  }
+
+  /**
    * The motion of the previous frame at a pixel, as {@code x << 16 | (y & 0xFFFF)} in half pixels.
    *
    * @param x the column, clamped to the picture
@@ -281,11 +326,29 @@ final class FrameJob {
   int previousMotion(final int x, final int y) {
     final int[] field = this.previousMotion;
     if (field == null) {
-      return (this.vectorsX[0] << 16) | (this.vectorsY[0] & 0xFFFF);
+      return MotionSearch.pack(this.vectorsX[0], this.vectorsY[0]);
     }
-    final int cx = Math.min(Math.max(x, 0), this.width - 1) / 8;
-    final int cy = Math.min(Math.max(y, 0), this.height - 1) / 8;
-    return field[cy * ((this.width + 7) / 8) + cx];
+    final int cx = Math.min(Math.max(x, 0), this.width - 1) / MOTION_CELL;
+    final int cy = Math.min(Math.max(y, 0), this.height - 1) / MOTION_CELL;
+    return field[cy * motionColumns(this.width) + cx];
+  }
+
+  /**
+   * Gives the search the reference at half resolution, for {@link LiveSearch#HALF_MOTION}.
+   *
+   * @param picture the reference, {@code ceil(width / 2) * ceil(height / 2)} RGB pixels, each the mean of a 2x2 square
+   */
+  void halfReference(final byte[] picture) {
+    this.halfReference = picture;
+  }
+
+  /**
+   * The reference at half resolution.
+   *
+   * @return the picture {@link #halfReference(byte[])} gave
+   */
+  byte[] halfReference() {
+    return Preconditions.checkNotNull(this.halfReference);
   }
 
   int allTrials() {

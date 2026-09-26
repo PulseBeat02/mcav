@@ -36,6 +36,7 @@ import net.jqwik.api.constraints.IntRange;
 final class ReconstructionPropertyTest {
 
   private static final String SEED = "20260925";
+
   private static final int[] SIZES = { 8, 16, 32 };
 
   /** A byte biased to the ends of its range. */

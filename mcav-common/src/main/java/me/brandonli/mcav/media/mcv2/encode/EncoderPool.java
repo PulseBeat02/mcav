@@ -55,13 +55,17 @@ public final class EncoderPool implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EncoderPool.class);
 
+  private static final String THREAD_FAILED = "MCV2 encoder thread {} failed";
+
   /** The group of every budget's threads, whose priority it caps below the game's. */
   private static final ThreadGroup GROUP = lowPriorityGroup();
 
   private static @Nullable EncoderPool shared;
+
   private static int sharedThreads;
 
   private final ForkJoinPool pool;
+
   private final int threads;
 
   /**
@@ -99,7 +103,7 @@ public final class EncoderPool implements AutoCloseable {
   /** A thread of a budget: in the low-priority group, so it gets the group's capped priority. */
   private static final class EncoderThread extends ForkJoinWorkerThread {
 
-    EncoderThread(final ForkJoinPool pool) {
+    private EncoderThread(final ForkJoinPool pool) {
       super(GROUP, pool, false);
     }
   }
@@ -216,7 +220,7 @@ public final class EncoderPool implements AutoCloseable {
    * @param exception what ended it
    */
   static void uncaught(final Thread thread, final Throwable exception) {
-    LOGGER.error("MCV2 encoder thread {} failed", thread.getName(), exception);
+    LOGGER.error(THREAD_FAILED, thread.getName(), exception);
   }
 
   /**

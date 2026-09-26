@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class EncoderConformanceTest {
 
   private static final int WIDTH = 320;
+
   private static final int HEIGHT = 180;
 
   @ParameterizedTest(name = "{0} with {1} threads, verify {2}")

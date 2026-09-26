@@ -39,6 +39,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class Mcv2ConfigurationTest {
 
   private static final World WORLD = mock(World.class);
+
   private static final List<UUID> VIEWERS = List.of(UUID.randomUUID());
 
   static Mcv2Configuration.Builder complete() {
@@ -189,6 +190,37 @@ final class Mcv2ConfigurationTest {
     refuses(builder -> builder.pageMap(Integer.MAX_VALUE));
     refuses(builder -> builder.map(Integer.MAX_VALUE));
     refuses(builder -> builder.outlineColor(NamedTextColor.BLACK));
+  }
+
+  @Test
+  void acceptsEveryValueAtTheEdgesOfItsRanges() {
+    // the smallest and the largest value of every range, each one step inside the values refused above
+    assertEquals(0, complete().map(0).build().getMap());
+    assertEquals(1, complete().columns(1).build().getColumns());
+    assertEquals(Mcv2Configuration.MAX_SIDE, complete().columns(Mcv2Configuration.MAX_SIDE).build().getColumns());
+    assertEquals(1, complete().rows(1).build().getRows());
+    assertEquals(Mcv2Configuration.MAX_SIDE, complete().rows(Mcv2Configuration.MAX_SIDE).build().getRows());
+    // 0 is the wall's own size, 128 pixels per map
+    assertEquals(5 * 128, complete().video(0, 0).build().getVideoWidth());
+    assertEquals(3 * 128, complete().video(0, 0).build().getVideoHeight());
+    assertEquals(4096, complete().video(4096, 4096).build().getVideoWidth());
+    assertEquals(4096, complete().video(4096, 4096).build().getVideoHeight());
+    assertEquals(4, complete().pageSlots(0).build().getPageSlots());
+    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, complete().pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS).build().getPageSlots());
+    assertEquals(0, complete().streamId(0).build().getStreamId());
+    assertEquals(0xFFFFFFFFL, complete().streamId(0xFFFFFFFFL).build().getStreamId());
+    assertEquals(0, complete().backlogLimit(0).build().getBacklogLimit());
+    assertEquals(0, complete().unsentLimit(0).build().getUnsentLimit());
+    // the page maps from 0, and up to the last int; the wall's maps up to the last int
+    assertEquals(0, complete().pageMap(0).build().getPageMap());
+    assertEquals(Integer.MAX_VALUE - 3, complete().pageMap(Integer.MAX_VALUE - 3).build().getPageMap());
+    assertEquals(Integer.MAX_VALUE - 14, complete().map(Integer.MAX_VALUE - 14).pageMap(0).build().getMap());
+    // a copy at the smallest video size, and none below it
+    final Mcv2Configuration configuration = complete().build();
+    assertEquals(1, configuration.withVideo(1, 1).getVideoWidth());
+    assertEquals(1, configuration.withVideo(1, 1).getVideoHeight());
+    assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(0, 1));
+    assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(1, 0));
   }
 
   @Test

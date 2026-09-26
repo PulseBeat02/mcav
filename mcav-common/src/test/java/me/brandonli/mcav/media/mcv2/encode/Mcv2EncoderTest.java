@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import static me.brandonli.mcav.media.mcv2.Mcv2Frames.DERIVED;
 import static me.brandonli.mcav.media.mcv2.Mcv2Frames.keyframe;
+import static me.brandonli.mcav.media.mcv2.Mcv2Frames.predicted;
 import static me.brandonli.mcav.media.mcv2.Mcv2Frames.solid;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -247,9 +248,19 @@ final class Mcv2EncoderTest {
   }
 
   @Test
-  void reportsAFrameTheDecoderRejects() {
+  void reportsAFrameTheParserRejects() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       Mcv2Encoder.decodeChosen(new byte[48], new byte[0], 0, Workers.SEQUENTIAL)
+    );
+    assertEquals("The encoder wrote a frame the parser rejects", exception.getMessage());
+  }
+
+  @Test
+  void reportsAParsedFrameTheDecoderRejects() throws Mcv2Exception {
+    // a P frame the parser accepts, against a reference of another size: the live verify parses once, then decodes
+    final Mcv2Frame frame = FrameParser.parse(predicted(8, 8, 0, 0, DERIVED, solid(1, 2, 3)));
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      Mcv2Encoder.decodeChosen(frame, new byte[3], frame.getReferenceId(), Workers.SEQUENTIAL, null)
     );
     assertEquals("The encoder wrote a frame the decoder rejects", exception.getMessage());
   }
@@ -300,5 +311,18 @@ final class Mcv2EncoderTest {
       "MCV2 encoder/decoder disagreement at 0,0 size 8",
       assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, many, roots, parallel)).getMessage()
     );
+  }
+
+  @Test
+  void halvesAPictureWithItsOddLastRowAndColumnStandingAlone() {
+    // a 3x3 picture: the right column and the bottom row have no neighbour to share a square with
+    final int[] red = { 0, 4, 9, 8, 12, 20, 100, 200, 255 };
+    final byte[] picture = new byte[3 * 3 * 3];
+    for (int i = 0; i < red.length; i++) {
+      picture[i * 3] = (byte) red[i];
+      picture[i * 3 + 1] = (byte) i;
+    }
+    final byte[] half = Mcv2Encoder.half(picture, 3, 3, Workers.SEQUENTIAL);
+    assertArrayEquals(new byte[] { 6, 2, 0, 15, 4, 0, (byte) 150, 7, 0, (byte) 255, 8, 0 }, half);
   }
 }

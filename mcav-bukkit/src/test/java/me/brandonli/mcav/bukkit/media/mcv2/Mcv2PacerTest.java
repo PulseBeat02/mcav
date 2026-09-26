@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -36,7 +37,15 @@ import org.junit.jupiter.api.Test;
 final class Mcv2PacerTest {
 
   private static final long SECOND = 1_000_000_000L;
+
+  /** A frame of a 50 fps video: 20 ms exactly, so every frame time and share below is an exact double. */
+  private static final long FRAME_50 = 20_000_000L;
+
+  /** A frame of a 62.5 fps video: 16 ms, 625 of which make ten seconds, an odd number. */
+  private static final long FRAME_62 = 16_000_000L;
+
   private static final int[] FULL = { 1920, 1080 };
+
   private static final int[] SMALL = { 1280, 720 };
 
   /**
@@ -45,8 +54,11 @@ final class Mcv2PacerTest {
   private static final class Driver {
 
     private final Mcv2Pacer pacer;
+
     private final long interval;
+
     private final List<Mcv2Pacer.Change> changes = new ArrayList<>();
+
     private long now;
 
     Driver(final Mcv2Pacer pacer, final double fps, final long start) {
@@ -80,6 +92,43 @@ final class Mcv2PacerTest {
     }
   }
 
+  /** Drives a pacer frame by frame at an exact interval; every frame it encodes takes the time given. */
+  private static final class Exact {
+
+    private final Mcv2Pacer pacer;
+
+    private final long interval;
+
+    private long now;
+
+    Exact(final Mcv2Pacer pacer, final long interval, final long first) {
+      this.pacer = pacer;
+      this.interval = interval;
+      this.now = first - interval;
+    }
+
+    /** The next frame: it arrives, and if the pacer encodes it, it takes the given time; the change it caused, or null. */
+    Mcv2Pacer.@Nullable Change frame(final double milliseconds) {
+      this.now += this.interval;
+      final Mcv2Pacer.Change tried = this.pacer.arrive(this.now);
+      if (tried != null) {
+        return tried;
+      }
+      return this.pacer.isEncoded() ? this.pacer.encoded(milliseconds, false, this.now) : null;
+    }
+
+    /** Frames until one causes a change, which it returns; the clock is then at that frame. */
+    Mcv2Pacer.Change until(final double milliseconds, final int limit) {
+      for (int i = 0; i < limit; i++) {
+        final Mcv2Pacer.Change change = this.frame(milliseconds);
+        if (change != null) {
+          return change;
+        }
+      }
+      throw new AssertionError("No change in " + limit + " frames");
+    }
+  }
+
   @Test
   void buildsTheLadderFromTheSizes() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
@@ -109,6 +158,8 @@ final class Mcv2PacerTest {
     assertEquals("1280x720 at 15 fps", rung.describe(60));
     assertEquals("30", Mcv2Pacer.rate(29.97));
     assertEquals("12.5", Mcv2Pacer.rate(12.5));
+    // exactly a twentieth from a whole number is not whole any more
+    assertEquals("0.1", Mcv2Pacer.rate(0.05));
   }
 
   @Test
@@ -123,6 +174,7 @@ final class Mcv2PacerTest {
     // two frames at the same time do not change the measured rate
     pacer.arrive(driver.now);
     assertEquals(60, pacer.getVideoFps(), 0.1);
+    assertNull(pacer.encoded(0, false, 0));
     assertThrows(IllegalArgumentException.class, () -> pacer.encoded(-1, false, 0));
     assertThrows(IllegalArgumentException.class, () -> pacer.encoded(Double.NaN, false, 0));
     assertThrows(IllegalArgumentException.class, () -> pacer.encoded(Double.POSITIVE_INFINITY, false, 0));
@@ -305,5 +357,146 @@ final class Mcv2PacerTest {
     assertTrue(pacer.getRung().isDithered());
     driver.play(31, 1000);
     assertEquals(new Mcv2Pacer.Rung(1280, 720, 1), driver.changes.get(2).to());
+  }
+
+  @Test
+  void smoothsTheMeasuredFrameRate() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    pacer.arrive(0);
+    pacer.arrive(10_000_000);
+    assertEquals(100, pacer.getVideoFps(), 1e-9);
+    // a 20 ms interval moves the measure a fifth of the way from 10 ms: to 12 ms
+    pacer.arrive(30_000_000);
+    assertEquals(1e9 / 12e6, pacer.getVideoFps(), 1e-9);
+  }
+
+  @Test
+  void stepsDownExactlyASecondAfterItsWarmUp() {
+    // 30 ms per frame at 50 fps from a first frame at 100 s: nothing is judged for five seconds, the frame at 105 s is
+    // the first found over its 20 ms, and the step comes a second later, at 106 s
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 100 * SECOND);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), clock.until(30, 1000).to());
+    assertEquals(106 * SECOND, clock.now);
+  }
+
+  @Test
+  void judgesFromTheTenthMeasuredFrame() {
+    // one frame a second taking 1.5 s: five seconds pass before ten frames are measured (the first frame's interval is
+    // unknown), so the frame at 10 s is the first judged, and the step to the dithered maps comes at 11 s
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, SECOND, 0);
+    clock.until(1500, 100);
+    assertEquals(11 * SECOND, clock.now);
+    assertTrue(pacer.getRung().isDithered());
+  }
+
+  @Test
+  void keepsARungWhoseFramesTakeExactlyTheirTime() {
+    // 20 ms per frame at 50 fps is not over the 20 ms a frame has
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    for (int i = 0; i < 500; i++) {
+      assertNull(clock.frame(20));
+    }
+    assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
+  }
+
+  @Test
+  void stepsToTheFirstRungItFitsExactlyTheShareOf() {
+    // 34 ms is exactly 0.85 of the 40 ms a frame has at 25 fps
+    assertEquals(34.0, Mcv2Pacer.FIT * 40.0);
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), new Exact(pacer, FRAME_50, 0).until(34, 1000).to());
+  }
+
+  @Test
+  void encodesTheFirstOfEveryThreeFrames() {
+    // 40 ms per frame at 50 fps fits 16.7 fps' 60 ms with room, not 25 fps' 40 ms
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 3), clock.until(40, 1000).to());
+    final boolean[] encoded = new boolean[6];
+    for (int i = 0; i < encoded.length; i++) {
+      clock.now += FRAME_50;
+      pacer.arrive(clock.now);
+      encoded[i] = pacer.isEncoded();
+    }
+    assertArrayEquals(new boolean[] { true, false, false, true, false, false }, encoded);
+  }
+
+  @Test
+  void staysOnTheLowestRungWithoutDitheredMaps() {
+    // 2 s per frame fits nothing; without dithered maps the floor is the lowest rung that keeps 10 fps: 12.5 fps
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL), false);
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 4), clock.until(2000, 1000).to());
+    for (int i = 0; i < 500; i++) {
+      assertNull(clock.frame(2000));
+    }
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 4), pacer.getRung());
+  }
+
+  @Test
+  void climbsBackOnAClockBeforeZero() {
+    // System.nanoTime may be negative: a rung the pacer never left is never kept off
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
+    final Driver driver = new Driver(pacer, 60, -1000 * SECOND);
+    driver.play(5, 5);
+    driver.play(2, 100);
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 4), pacer.getRung());
+    driver.play(30, 9);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), driver.changes.get(1).to());
+  }
+
+  @Test
+  void climbsWhenTheRungItLeftIsFreeAndFitsExactlyWithRoom() {
+    // 62.5 fps: 25 ms per frame steps down to 31.25 fps; there 11.2 ms is exactly 0.7 of the 16 ms a frame has at the top,
+    // which is kept off for ten seconds - 625 frames, so the frame that frees it is one the pacer encodes - and the
+    // climb comes five seconds of room later, at the first encoded frame after them: 939 frames after the step
+    assertEquals(11.2, Mcv2Pacer.ROOM * 16.0);
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_62, 0);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), clock.until(25, 1000).to());
+    final long stepped = clock.now;
+    final Mcv2Pacer.Change climb = clock.until(11.2, 2000);
+    assertEquals(pacer.getLadder().getFirst(), climb.to());
+    assertEquals(stepped + 939 * FRAME_62, clock.now);
+  }
+
+  @Test
+  void climbsExactlyFiveSecondsAfterRoomAppears() {
+    // 50 fps: 30 ms per frame steps down to 25 fps; there 10 ms leaves room at the top once it is free, from the first
+    // encoded frame at or after ten seconds (501 frames after the step), and the climb comes exactly five seconds later
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), clock.until(30, 1000).to());
+    final long stepped = clock.now;
+    clock.until(10, 2000);
+    assertEquals(stepped + 751 * FRAME_50, clock.now);
+    assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
+  }
+
+  @Test
+  void aRungHeldFiveSecondsIsKeptOffOnlyTenSecondsAgain() {
+    // 50 fps. Leaving the top rung doubles how long it is kept off the next time it is left, unless it held for five
+    // seconds meanwhile: step down, climb back after ten seconds, hold the top exactly five seconds, then leave it at
+    // once (61 ms per frame is over at the first frame) - the top is then kept off ten seconds, not twenty
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    clock.until(30, 1000);
+    assertEquals(pacer.getLadder().getFirst(), clock.until(10, 2000).to());
+    // the top's first encoded frame starts its hold; 250 frames later is exactly five seconds
+    for (int i = 0; i < 251; i++) {
+      assertNull(clock.frame(10));
+    }
+    final Mcv2Pacer.Change left = clock.until(61, 1000);
+    assertTrue(left.down());
+    final long stepped = clock.now;
+    // back on 25 fps and 16.7 fps frames of 10 ms fit with room; the top is free again ten seconds after the step
+    while (!pacer.getRung().equals(pacer.getLadder().getFirst()) && clock.now < stepped + 30 * SECOND) {
+      clock.frame(10);
+    }
+    assertTrue(clock.now < stepped + 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
   }
 }

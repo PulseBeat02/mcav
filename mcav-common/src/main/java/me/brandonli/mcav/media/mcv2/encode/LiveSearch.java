@@ -62,10 +62,12 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  *                       predicts with the vector of the block it splits from
  * @param coarseEndpoints whether pattern records may use RGB565 endpoints, the reference's second trial of each vector,
  *                       instead of full ones
- * @param fastFits       the fits done cheaply ({@link FastFits}), as a bit set: {@link #FAST_GRIDS} intra grid nodes as
- *                       cell means, {@link #FAST_PALETTES} two integer Lloyd iterations on sampled pixels,
+ * @param shortcuts      the search's shortcuts, as a bit set: {@link #FAST_GRIDS} intra grid nodes as cell means,
+ *                       {@link #FAST_PALETTES} two integer Lloyd iterations on sampled pixels ({@link FastFits}),
  *                       {@link #FAST_COMPACT} compact luma nodes as cell means, {@link #ONE_PREDICTION} compact
- *                       records tried on the closer of the global and the local prediction only
+ *                       records tried on the closer of the global and the local prediction only, {@link #FIT_PAIR}
+ *                       compact records at the two quantizers their fitted values suggest only, {@link #HALF_MOTION}
+ *                       local motion searched at half resolution first
  */
 public record LiveSearch(
   int smallestBlock,
@@ -83,7 +85,7 @@ public record LiveSearch(
   boolean seededMotion,
   int searchBlock,
   boolean coarseEndpoints,
-  int fastFits
+  int shortcuts
 ) {
   /** Intra grid nodes as the means of their cells. */
   public static final int FAST_GRIDS = 1;
@@ -96,6 +98,19 @@ public record LiveSearch(
 
   /** Compact records tried on the closer of the global and the local prediction only. */
   public static final int ONE_PREDICTION = 8;
+
+  /**
+   * A compact record tries, of its class's quantizers, only the finest that holds the values fitted to the block without
+   * clipping them and the one below it, which clips a few for finer steps: a record's length does not depend on its
+   * quantizer, so a coarser one only adds error.
+   */
+  public static final int FIT_PAIR = 16;
+
+  /**
+   * The local motion of 32- and 16-pixel blocks is first searched on the pictures at half resolution, then refined at
+   * full resolution around the vector found there.
+   */
+  public static final int HALF_MOTION = 32;
 
   /** The largest skip threshold that never changes a decision. */
   public static final double EXACT_SKIP = 26.5;
@@ -120,8 +135,20 @@ public record LiveSearch(
   /** Every compact class the encoder can choose. */
   public static final int ALL_CLASSES = 0x11F;
 
+  /** The coarsest quantizer the encoder tries. */
+  static final int COARSEST_QUANTIZER = 4;
+
   /** Every quantizer the encoder tries. */
-  public static final int ALL_QUANTIZERS = 0x1F;
+  public static final int ALL_QUANTIZERS = (1 << (COARSEST_QUANTIZER + 1)) - 1;
+
+  /** {@link #LIVE}'s split thresholds, and the smallest block with its own local motion search. */
+  private static final double LIVE_SPLIT = 150;
+
+  private static final double LIVE_STEADY_SPLIT = 450;
+
+  private static final double LIVE_FINE_SPLIT = 300;
+
+  private static final int LIVE_SEARCH_BLOCK = 16;
 
   /** The quantizer set that stands for the single quantizer derived from lambda. */
   public static final int FROM_LAMBDA = 0;
@@ -141,17 +168,16 @@ public record LiveSearch(
     (1 << MODE_COMPACT) |
     (1 << MODE_PATTERN);
 
-  /** The compact classes of {@link #LIVE}: the ones `ship` chooses on real gameplay. */
-  private static final int LIVE_CLASSES =
-    (1 << CompactRecord.DC_Y) |
-    (1 << CompactRecord.GRID2_YC) |
-    (1 << CompactRecord.GRID4_N4_YC) |
-    (1 << CompactRecord.GRID4_N4_Y) |
-    (1 << CompactRecord.LOW2);
+  /**
+   * The compact classes of {@link #LIVE}: of the five `ship` chooses on real gameplay, the three that pay for their
+   * search. With the 2x2 grid and the low-frequency class as well, the search costs 18% more CPU per frame for the same
+   * rate and quality on both 30 fps sources.
+   */
+  private static final int LIVE_CLASSES = (1 << CompactRecord.DC_Y) | (1 << CompactRecord.GRID4_N4_YC) | (1 << CompactRecord.GRID4_N4_Y);
 
   /** The reference's search, restricted to one trial and searched from the top with the exact thresholds only. */
   public static final LiveSearch EXACT = new LiveSearch(
-    8,
+    SMALLEST_BLOCK,
     EXACT_SKIP,
     EXACT_SPLIT,
     EXACT_SPLIT,
@@ -164,26 +190,26 @@ public record LiveSearch(
     ALL_CLASSES,
     ALL_QUANTIZERS,
     false,
-    8,
+    SMALLEST_BLOCK,
     false,
     0
   );
 
   /**
-   * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p60 proxy and a 1080p60 gameplay clip
+   * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p30 proxy and the 30 fps gameplay clip
    * (the report's lever table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one
    * above 150 where the previous frame split its superblock and above 450 where it coded it whole, local motion searched
-   * from the previous frame's vectors down to 16 pixels, P frames choosing between local motion, solid colours, palettes,
-   * the 2x2 and reduced intra grids, the compact classes of gameplay at every quantizer (the one lambda suggests alone
-   * cost 13 points of rate on gameplay), and patterns with RGB565 endpoints, keyframes from every intra mode, and the
-   * cheap fits of intra grids and palettes.
+   * from the previous frame's vectors down to 16 pixels and first at half resolution, P frames choosing between local
+   * motion, solid colours, palettes, the 2x2 and reduced intra grids, three compact classes at the two quantizers their
+   * fitted values suggest, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits of
+   * intra grids and palettes.
    */
   public static final LiveSearch LIVE = new LiveSearch(
-    8,
+    SMALLEST_BLOCK,
     EXACT_SKIP,
-    150,
-    450,
-    300,
+    LIVE_SPLIT,
+    LIVE_STEADY_SPLIT,
+    LIVE_FINE_SPLIT,
     0,
     0,
     LIVE_MODES,
@@ -192,9 +218,9 @@ public record LiveSearch(
     LIVE_CLASSES,
     ALL_QUANTIZERS,
     true,
-    16,
+    LIVE_SEARCH_BLOCK,
     true,
-    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION
+    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_PAIR | HALF_MOTION
   );
 
   /**
@@ -203,7 +229,7 @@ public record LiveSearch(
    * @throws IllegalArgumentException if a value is out of range
    */
   public LiveSearch {
-    Preconditions.checkArgument(smallestBlock == 8 || smallestBlock == 16 || smallestBlock == 32, "Smallest block must be 8, 16 or 32");
+    Preconditions.checkArgument(isBlockSize(smallestBlock), "Smallest block must be 8, 16 or 32");
     Preconditions.checkArgument(skipThreshold >= 0 && Double.isFinite(skipThreshold), "Skip threshold must be finite and non-negative");
     Preconditions.checkArgument(splitThreshold >= 0 && Double.isFinite(splitThreshold), "Split threshold must be finite and non-negative");
     Preconditions.checkArgument(
@@ -213,7 +239,7 @@ public record LiveSearch(
     Preconditions.checkArgument(fineThreshold >= 0 && Double.isFinite(fineThreshold), "Fine threshold must be finite and non-negative");
     Preconditions.checkArgument(goodThreshold >= 0 && Double.isFinite(goodThreshold), "Good threshold must be finite and non-negative");
     Preconditions.checkArgument(childGate >= 0 && Double.isFinite(childGate), "Child gate must be finite and non-negative");
-    Preconditions.checkArgument(searchBlock == 8 || searchBlock == 16 || searchBlock == 32, "Search block must be 8, 16 or 32");
+    Preconditions.checkArgument(isBlockSize(searchBlock), "Search block must be 8, 16 or 32");
     Preconditions.checkArgument((modes & ~ALL_MODES) == 0, "Unknown leaf modes");
     Preconditions.checkArgument((smallModes & ~modes) == 0, "Small-block modes must be modes the search tries");
     Preconditions.checkArgument((keyModes & ~ALL_MODES) == 0, "Unknown keyframe leaf modes");
@@ -230,7 +256,7 @@ public record LiveSearch(
    * @return true if the search tries it there
    */
   public boolean tries(final int mode, final boolean keyframe, final int size) {
-    final int set = keyframe ? this.keyModes : size < 32 ? this.smallModes : this.modes;
+    final int set = keyframe ? this.keyModes : size < ROOT_SIZE ? this.smallModes : this.modes;
     return ((set >> mode) & 1) != 0;
   }
 
@@ -255,6 +281,6 @@ public record LiveSearch(
    */
   public static int quantizer(final double lambda) {
     final long q = Math.round((0.5 * Math.log(Math.max(lambda, 1.0))) / Math.log(2) - 2);
-    return (int) Math.min(Math.max(q, 0), 4);
+    return (int) Math.min(Math.max(q, 0), COARSEST_QUANTIZER);
   }
 }

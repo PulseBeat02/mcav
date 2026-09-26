@@ -30,6 +30,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class Mcv2Receiver {
 
   private byte@Nullable[] reference;
+
   private long frameId = -1;
 
   /**
@@ -49,11 +50,8 @@ public final class Mcv2Receiver {
    */
   public byte[] accept(final byte[] data) throws Mcv2Exception {
     final Mcv2Frame frame = FrameParser.parse(data);
-    if (this.frameId >= 0) {
-      final long distance = (frame.getFrameId() - this.frameId) & 0xFFFFFFFFL;
-      if (distance == 0 || distance >= 0x80000000L) {
-        throw new Mcv2Exception("Stale or ambiguous frame number");
-      }
+    if (this.frameId >= 0 && !Mcv2Format.follows(frame.getFrameId(), this.frameId)) {
+      throw new Mcv2Exception("Stale or ambiguous frame number");
     }
     final byte[] result = Mcv2Decoder.decode(frame, this.reference, this.frameId);
     this.reference = result;

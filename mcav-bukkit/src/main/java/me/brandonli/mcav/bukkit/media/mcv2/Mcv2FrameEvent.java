@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import java.util.HexFormat;
 import jdk.jfr.Category;
 import jdk.jfr.DataAmount;
 import jdk.jfr.Description;
@@ -25,6 +26,7 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 
 /**
  * One frame of an MCV2 screen for Java Flight Recorder: when it reached the result, how long its encode took, when its
@@ -97,10 +99,12 @@ final class Mcv2FrameEvent extends Event {
    */
   static String fingerprint(final byte[] rgb, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(2 * FINGERPRINT_PIXELS);
-    for (int i = 0; i < FINGERPRINT_PIXELS && 16 + 32 * i < width && height > 16; i++) {
-      final int at = (16 * width + 16 + 32 * i) * 3;
+    // the centre of each of the first superblocks of the top row
+    final int centre = Mcv2Format.ROOT_SIZE / 2;
+    for (int i = 0; i < FINGERPRINT_PIXELS && centre + Mcv2Format.ROOT_SIZE * i < width && height > centre; i++) {
+      final int at = (centre * width + centre + Mcv2Format.ROOT_SIZE * i) * Mcv2Format.CHANNELS;
       final int luma = ((rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF)) / 4;
-      builder.append(Character.forDigit(luma >> 4, 16)).append(Character.forDigit(luma & 15, 16));
+      builder.append(HexFormat.of().toHexDigits((byte) luma));
     }
     return builder.toString();
   }

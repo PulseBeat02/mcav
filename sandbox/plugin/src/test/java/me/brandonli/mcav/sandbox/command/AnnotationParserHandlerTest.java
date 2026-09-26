@@ -108,8 +108,11 @@ final class AnnotationParserHandlerTest {
   );
 
   private MCAVSandbox plugin;
+
   private VideoPlayerManager videoManager;
+
   private TestCommandManager commands;
+
   private LegacyPaperCommandManager<CommandSender> paperManager;
 
   private MockedStatic<LegacyPaperCommandManager<CommandSender>> paperManagers;

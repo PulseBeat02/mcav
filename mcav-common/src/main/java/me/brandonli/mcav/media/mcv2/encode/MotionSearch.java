@@ -17,6 +17,11 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.sizeIndex;
+
 /**
  * The local motion search of the reference encoder ({@code encoder.local_motion}): a hierarchical eight-neighbour
  * diamond around the frame-global vector on sixteen stratified samples of the block, refined to half pixels.
@@ -31,20 +36,57 @@ final class MotionSearch {
 
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 } };
 
+  /** The sampled rows of a block, and as many columns. */
+  private static final int SAMPLED = 4;
+
+  /** The first directions: the four whole-pixel neighbours along the axes. */
+  private static final int AXES = 4;
+
   /** The four sampled rows and columns of blocks of 8, 16 and 32 pixels: {@code min(k size / 4 + size / 8, size - 1)}. */
-  private static final int[][] SAMPLES = new int[3][4];
+  private static final int[][] SAMPLES = new int[BLOCK_SIZES][SAMPLED];
 
   static {
-    for (int s = 0; s < 3; s++) {
-      final int size = 8 << s;
-      for (int k = 0; k < 4; k++) {
-        SAMPLES[s][k] = Math.min((k * size) / 4 + size / 8, size - 1);
+    for (int s = 0; s < BLOCK_SIZES; s++) {
+      final int size = SMALLEST_BLOCK << s;
+      for (int k = 0; k < SAMPLED; k++) {
+        SAMPLES[s][k] = Math.min((k * size) / SAMPLED + size / (2 * SAMPLED), size - 1);
       }
     }
   }
 
   private MotionSearch() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Packs a vector into one int, {@code x << 16 | (y & 0xFFFF)}.
+   *
+   * @param x the horizontal part, in half pixels
+   * @param y the vertical part, in half pixels
+   * @return the packed vector
+   */
+  static int pack(final int x, final int y) {
+    return (x << Short.SIZE) | (y & 0xFFFF);
+  }
+
+  /**
+   * The horizontal part of a packed vector.
+   *
+   * @param vector the vector from {@link #pack}
+   * @return the horizontal part, in half pixels
+   */
+  static int unpackX(final int vector) {
+    return vector >> Short.SIZE;
+  }
+
+  /**
+   * The vertical part of a packed vector.
+   *
+   * @param vector the vector from {@link #pack}
+   * @return the vertical part, in half pixels
+   */
+  static int unpackY(final int vector) {
+    return (short) vector;
   }
 
   /**
@@ -101,7 +143,7 @@ final class MotionSearch {
     final int range,
     final int[] steps
   ) {
-    final int[] samples = SAMPLES[Integer.numberOfTrailingZeros(size) - 3];
+    final int[] samples = SAMPLES[sizeIndex(size)];
     int vx = globalX;
     int vy = globalY;
     long best = cost(reference, width, height, source, x, y, size, samples, vx, vy);
@@ -123,7 +165,7 @@ final class MotionSearch {
         }
       }
     }
-    return (vx << 16) | (vy & 0xFFFF);
+    return pack(vx, vy);
   }
 
   /**
@@ -160,7 +202,7 @@ final class MotionSearch {
     final boolean halfPixel,
     final int[] seeds
   ) {
-    final int[] samples = SAMPLES[Integer.numberOfTrailingZeros(size) - 3];
+    final int[] samples = SAMPLES[sizeIndex(size)];
     final int lowX = globalX - range * 2;
     final int highX = globalX + range * 2;
     final int lowY = globalY - range * 2;
@@ -169,12 +211,12 @@ final class MotionSearch {
     int vy = globalY;
     long best = cost(reference, width, height, source, x, y, size, samples, vx, vy);
     for (int k = 0; k < seeds.length; k++) {
-      final int sx = Math.min(Math.max(seeds[k] >> 16, lowX), highX);
-      final int sy = Math.min(Math.max((short) seeds[k], lowY), highY);
+      final int sx = Math.min(Math.max(unpackX(seeds[k]), lowX), highX);
+      final int sy = Math.min(Math.max(unpackY(seeds[k]), lowY), highY);
       // a vector already measured, the global one or an earlier seed, cannot be strictly better than itself
       boolean seen = sx == globalX && sy == globalY;
       for (int e = 0; e < k && !seen; e++) {
-        seen = sx == Math.min(Math.max(seeds[e] >> 16, lowX), highX) && sy == Math.min(Math.max((short) seeds[e], lowY), highY);
+        seen = sx == Math.min(Math.max(unpackX(seeds[e]), lowX), highX) && sy == Math.min(Math.max(unpackY(seeds[e]), lowY), highY);
       }
       if (!seen) {
         final long error = cost(reference, width, height, source, x, y, size, samples, sx, sy);
@@ -189,7 +231,7 @@ final class MotionSearch {
     for (int steps = 0; steps < 2 * range; steps++) {
       final int cx = vx;
       final int cy = vy;
-      for (int d = 0; d < 4; d++) {
+      for (int d = 0; d < AXES; d++) {
         final int hx = Math.min(Math.max(cx + DIRECTIONS[d][0] * 2, lowX), highX);
         final int hy = Math.min(Math.max(cy + DIRECTIONS[d][1] * 2, lowY), highY);
         final long error = cost(reference, width, height, source, x, y, size, samples, hx, hy);
@@ -217,7 +259,7 @@ final class MotionSearch {
         }
       }
     }
-    return (vx << 16) | (vy & 0xFFFF);
+    return pack(vx, vy);
   }
 
   /** Four times the sum of absolute differences on the sixteen samples, all three channels. */
@@ -235,40 +277,40 @@ final class MotionSearch {
   ) {
     // every sample and the neighbours a half pixel averages inside the picture: no clamping, one sampling case
     final int left = x + samples[0] + (mx >> 1);
-    final int right = x + samples[3] + (mx >> 1) + (mx & 1);
+    final int right = x + samples[SAMPLED - 1] + (mx >> 1) + (mx & 1);
     final int top = y + samples[0] + (my >> 1);
-    final int bottom = y + samples[3] + (my >> 1) + (my & 1);
+    final int bottom = y + samples[SAMPLED - 1] + (my >> 1) + (my & 1);
     if (left >= 0 && top >= 0 && right < width && bottom < height) {
       return inside(reference, width, source, x, y, size, samples, mx, my);
     }
     long sum = 0;
-    for (int j = 0; j < 4; j++) {
+    for (int j = 0; j < SAMPLED; j++) {
       final int py = y + samples[j];
       final int hy = Math.min(Math.max(2 * py + my, 0), 2 * (height - 1));
       final int y0 = hy >> 1;
       final int y1 = Math.min(y0 + 1, height - 1);
       final boolean halfY = (hy & 1) != 0;
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < SAMPLED; i++) {
         final int px = x + samples[i];
         final int hx = Math.min(Math.max(2 * px + mx, 0), 2 * (width - 1));
         final int x0 = hx >> 1;
         final int x1 = Math.min(x0 + 1, width - 1);
         final boolean halfX = (hx & 1) != 0;
-        final int target = (samples[j] * size + samples[i]) * 3;
-        for (int c = 0; c < 3; c++) {
-          final int a = reference[(y0 * width + x0) * 3 + c] & 0xFF;
+        final int target = (samples[j] * size + samples[i]) * CHANNELS;
+        for (int c = 0; c < CHANNELS; c++) {
+          final int a = reference[(y0 * width + x0) * CHANNELS + c] & 0xFF;
           final int value4;
           if (!halfX && !halfY) {
             value4 = 4 * a;
           } else if (!halfY) {
-            value4 = 2 * (a + (reference[(y0 * width + x1) * 3 + c] & 0xFF));
+            value4 = 2 * (a + (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF));
           } else if (!halfX) {
-            value4 = 2 * (a + (reference[(y1 * width + x0) * 3 + c] & 0xFF));
+            value4 = 2 * (a + (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF));
           } else {
             value4 = a +
-            (reference[(y0 * width + x1) * 3 + c] & 0xFF) +
-            (reference[(y1 * width + x0) * 3 + c] & 0xFF) +
-            (reference[(y1 * width + x1) * 3 + c] & 0xFF);
+            (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
+            (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
+            (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF);
           }
           sum += Math.abs(value4 - 4 * source[target + c]);
         }
@@ -289,16 +331,16 @@ final class MotionSearch {
     final int mx,
     final int my
   ) {
-    final int right = (mx & 1) * 3;
-    final int below = (my & 1) * width * 3;
+    final int right = (mx & 1) * CHANNELS;
+    final int below = (my & 1) * width * CHANNELS;
     final int kind = (mx & 1) | ((my & 1) << 1);
     long sum = 0;
-    for (int j = 0; j < 4; j++) {
+    for (int j = 0; j < SAMPLED; j++) {
       final int row = (y + samples[j] + (my >> 1)) * width + x + (mx >> 1);
       final int line = samples[j] * size;
-      for (int i = 0; i < 4; i++) {
-        final int a = (row + samples[i]) * 3;
-        final int t = (line + samples[i]) * 3;
+      for (int i = 0; i < SAMPLED; i++) {
+        final int a = (row + samples[i]) * CHANNELS;
+        final int t = (line + samples[i]) * CHANNELS;
         switch (kind) {
           case 0 -> {
             sum += Math.abs(4 * (reference[a] & 0xFF) - 4 * source[t]);
@@ -315,7 +357,7 @@ final class MotionSearch {
             final int b = a + right;
             final int d = a + below;
             final int e = d + right;
-            for (int c = 0; c < 3; c++) {
+            for (int c = 0; c < CHANNELS; c++) {
               final int value4 =
                 (reference[a + c] & 0xFF) + (reference[b + c] & 0xFF) + (reference[d + c] & 0xFF) + (reference[e + c] & 0xFF);
               sum += Math.abs(value4 - 4 * source[t + c]);

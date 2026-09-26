@@ -60,6 +60,22 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
   /** Body bytes of each class, excluding the control and motion bytes. */
   private static final int[] BODY_BYTES = { 1, 6, 10, 8, 18, 4, 5, 4, 5 };
 
+  /** The motion form that inherits the global vector. */
+  public static final int FORM_GLOBAL = 0;
+
+  /** The motion form that adds a signed nibble pair to the global vector. */
+  public static final int FORM_NIBBLES = 1;
+
+  /** The motion form that adds a signed byte pair to the global vector. */
+  public static final int FORM_BYTES = 2;
+
+  private static final int NIBBLE_BITS = 4;
+
+  private static final int NIBBLE_MASK = 15;
+
+  /** A product-book record's two six-bit indexes leave the top nibble of their second byte clear. */
+  private static final int PQ_PADDING = 0xF0;
+
   /**
    * The body length of a class.
    *
@@ -81,36 +97,58 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
    *                       quantizer, or has an out-of-range book index or nonzero index padding
    */
   public static CompactRecord parse(final byte[] data, final int offset, final int q) throws Mcv2Exception {
-    if (offset < 0 || offset >= data.length || q < 0 || q > 7) {
+    if (offset < 0 || offset >= data.length || q < 0 || q > Mcv2Format.MAX_QUANTIZER) {
       throw new Mcv2Exception("Truncated compact control");
     }
-    final int control = data[offset] & 0xFF;
-    final int kind = control & 15;
-    final int form = control >> 4;
-    if (kind >= BODY_BYTES.length || form > 2 || (kind == GAIN_BIAS && q != 0)) {
+    final int control = Byte.toUnsignedInt(data[offset]);
+    final int kind = control & NIBBLE_MASK;
+    final int form = control >> NIBBLE_BITS;
+    if (kind >= BODY_BYTES.length || form > FORM_BYTES || (kind == GAIN_BIAS && q != 0)) {
       throw new Mcv2Exception("Invalid compact class or control");
     }
     final int length = 1 + form + BODY_BYTES[kind];
     if (length > data.length - offset) {
       throw new Mcv2Exception("Truncated compact record");
     }
-    int dx = 0;
-    int dy = 0;
-    if (form == 1) {
-      final int value = data[offset + 1] & 0xFF;
-      dx = Mcv2Format.signed(value & 15, 4);
-      dy = Mcv2Format.signed(value >> 4, 4);
-    } else if (form == 2) {
-      dx = data[offset + 1];
-      dy = data[offset + 2];
-    }
-    final int last = data[offset + length - 1] & 0xFF;
-    if (kind == VQ64 && last >= 64) {
+    final int dx = deltaX(data, offset);
+    final int dy = deltaY(data, offset);
+    final int last = Byte.toUnsignedInt(data[offset + length - 1]);
+    if (kind == VQ64 && last >= ResidualBooks.VECTORS) {
       throw new Mcv2Exception("Invalid VQ index");
     }
-    if (kind == PQ64 && (last & 0xF0) != 0) {
+    if (kind == PQ64 && (last & PQ_PADDING) != 0) {
       throw new Mcv2Exception("Noncanonical PQ padding");
     }
     return new CompactRecord(kind, form, dx, dy, offset + 1 + form, length);
+  }
+
+  /**
+   * The horizontal motion delta a record adds to the global vector, from its control and motion bytes.
+   *
+   * @param data   the bytes holding the record, its motion bytes included
+   * @param offset the offset of the control byte
+   * @return the delta in half pixels
+   */
+  public static int deltaX(final byte[] data, final int offset) {
+    final int form = Byte.toUnsignedInt(data[offset]) >> NIBBLE_BITS;
+    if (form == FORM_NIBBLES) {
+      return Mcv2Format.signed(data[offset + 1] & NIBBLE_MASK, NIBBLE_BITS);
+    }
+    return form == FORM_BYTES ? data[offset + 1] : 0;
+  }
+
+  /**
+   * The vertical motion delta a record adds to the global vector, from its control and motion bytes.
+   *
+   * @param data   the bytes holding the record, its motion bytes included
+   * @param offset the offset of the control byte
+   * @return the delta in half pixels
+   */
+  public static int deltaY(final byte[] data, final int offset) {
+    final int form = Byte.toUnsignedInt(data[offset]) >> NIBBLE_BITS;
+    if (form == FORM_NIBBLES) {
+      return Mcv2Format.signed(Byte.toUnsignedInt(data[offset + 1]) >> NIBBLE_BITS, NIBBLE_BITS);
+    }
+    return form == FORM_BYTES ? data[offset + 2] : 0;
   }
 }

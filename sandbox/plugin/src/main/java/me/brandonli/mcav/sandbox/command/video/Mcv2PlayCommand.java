@@ -36,6 +36,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
+import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.Mcv2Frame;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.Mcv2FileEncoder;
@@ -72,20 +73,33 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   /** How often a running file encode tells its progress. */
-  static final long PROGRESS_NANOS = TimeUnit.SECONDS.toNanos(30);
+  private static final long PROGRESS_NANOS = TimeUnit.SECONDS.toNanos(30);
 
   /** The folder of the stream files, in the plugin's data folder. */
   static final String STREAMS = "mcv2";
 
   /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
-  static final long MAX_STREAM_BYTES = 1L << 30;
+  private static final long MAX_STREAM_BYTES = 1L << 30;
+
+  private static final double NANOS_PER_MILLISECOND = 1e6;
+
+  private static final double NANOS_PER_SECOND = 1e9;
+
+  /** A stream file frames each frame with its length, a little-endian 32-bit word. */
+  private static final int LENGTH_BYTES = Integer.BYTES;
 
   private final MCAVSandbox plugin;
+
   private @Nullable BukkitTask task;
+
   private @Nullable ScheduledExecutorService streamer;
+
   private @Nullable ScheduledFuture<?> streaming;
+
   private @Nullable Mcv2Channel channel;
+
   private @Nullable Thread encoding;
+
   private Opener opener = Mcv2FileEncoder::ffmpeg;
 
   /** Opens a video file's frames at a size. */
@@ -335,7 +349,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
             reported[0] = now;
             sender.sendMessage(
               Message.MCV2_ENCODE_PROGRESS.build(
-                String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, (now - started) / 1e6 / frames)
+                String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, (now - started) / NANOS_PER_MILLISECOND / frames)
               )
             );
           }
@@ -359,7 +373,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
           result.frames(),
           result.keyframes(),
           target,
-          (System.nanoTime() - started) / 1e9,
+          (System.nanoTime() - started) / NANOS_PER_SECOND,
           result.millisecondsPerFrame()
         )
       )
@@ -521,21 +535,17 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < data.length) {
-      if (data.length - offset < 4) {
+      if (data.length - offset < LENGTH_BYTES) {
         throw new IOException("Truncated frame length");
       }
-      final long length =
-        (data[offset] & 0xFFL) |
-        ((data[offset + 1] & 0xFFL) << 8) |
-        ((data[offset + 2] & 0xFFL) << 16) |
-        ((data[offset + 3] & 0xFFL) << 24);
-      if (length > data.length - offset - 4) {
+      final long length = Mcv2Format.u32(data, offset);
+      if (length > data.length - offset - LENGTH_BYTES) {
         throw new IOException("Truncated frame");
       }
       final byte[] frame = new byte[(int) length];
-      System.arraycopy(data, offset + 4, frame, 0, frame.length);
+      System.arraycopy(data, offset + LENGTH_BYTES, frame, 0, frame.length);
       frames.add(frame);
-      offset += 4 + frame.length;
+      offset += LENGTH_BYTES + frame.length;
     }
     if (frames.isEmpty()) {
       throw new IOException("Empty stream");

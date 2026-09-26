@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.media.mcv2.encode;
 
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.media.mcv2.Mcv2Format.PALETTE_COLORS;
+
 import java.util.Arrays;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.Reconstruction;
@@ -28,6 +31,9 @@ import me.brandonli.mcav.media.mcv2.Reconstruction;
  * optionally to RGB565, and every pixel finally takes the nearer endpoint, the first one on a tie.
  */
 final class PaletteFit {
+
+  /** The reference's Lloyd iterations. */
+  private static final int ITERATIONS = 4;
 
   private PaletteFit() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -43,7 +49,7 @@ final class PaletteFit {
    * @param selectors receives one selector per pixel, 0 or 1
    */
   static void fit(final int[] source, final int count, final boolean quantize, final int[] colors, final byte[] selectors) {
-    final float[] endpoints = new float[6];
+    final float[] endpoints = new float[PALETTE_COLORS * CHANNELS];
     cluster(source, count, endpoints);
     finish(source, count, endpoints, quantize, colors, selectors);
   }
@@ -62,7 +68,7 @@ final class PaletteFit {
     int lowLuma = Integer.MAX_VALUE;
     int highLuma = Integer.MIN_VALUE;
     for (int i = 0; i < count; i++) {
-      final int luma = source[i * 3] + 2 * source[i * 3 + 1] + source[i * 3 + 2];
+      final int luma = source[i * CHANNELS] + 2 * source[i * CHANNELS + 1] + source[i * CHANNELS + 2];
       if (luma < lowLuma) {
         lowLuma = luma;
         low = i;
@@ -73,30 +79,30 @@ final class PaletteFit {
       }
     }
     final float[] c = endpoints;
-    for (int ch = 0; ch < 3; ch++) {
-      c[ch] = source[low * 3 + ch];
-      c[3 + ch] = source[high * 3 + ch];
+    for (int ch = 0; ch < CHANNELS; ch++) {
+      c[ch] = source[low * CHANNELS + ch];
+      c[CHANNELS + ch] = source[high * CHANNELS + ch];
     }
-    final long[] sums = new long[6];
-    final int[] weights = new int[2];
-    for (int iteration = 0; iteration < 4; iteration++) {
+    final long[] sums = new long[PALETTE_COLORS * CHANNELS];
+    final int[] weights = new int[PALETTE_COLORS];
+    for (int iteration = 0; iteration < ITERATIONS; iteration++) {
       Arrays.fill(sums, 0);
       weights[0] = 0;
       weights[1] = 0;
       for (int i = 0; i < count; i++) {
-        final int r = source[i * 3];
-        final int g = source[i * 3 + 1];
-        final int b = source[i * 3 + 2];
+        final int r = source[i * CHANNELS];
+        final int g = source[i * CHANNELS + 1];
+        final int b = source[i * CHANNELS + 2];
         final int index = nearer(r, g, b, c) ? 1 : 0;
         weights[index]++;
-        sums[index * 3] += r;
-        sums[index * 3 + 1] += g;
-        sums[index * 3 + 2] += b;
+        sums[index * CHANNELS] += r;
+        sums[index * CHANNELS + 1] += g;
+        sums[index * CHANNELS + 2] += b;
       }
-      for (int index = 0; index < 2; index++) {
+      for (int index = 0; index < PALETTE_COLORS; index++) {
         if (weights[index] > 0) {
-          for (int ch = 0; ch < 3; ch++) {
-            c[index * 3 + ch] = (float) ((double) sums[index * 3 + ch] / weights[index]);
+          for (int ch = 0; ch < CHANNELS; ch++) {
+            c[index * CHANNELS + ch] = (float) ((double) sums[index * CHANNELS + ch] / weights[index]);
           }
         }
       }
@@ -129,30 +135,30 @@ final class PaletteFit {
 
   /** Rounds clustered endpoints to RGB8, and optionally to RGB565. */
   private static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < PALETTE_COLORS * CHANNELS; i++) {
       colors[i] = Reconstruction.rgb8(endpoints[i]);
     }
     if (quantize) {
-      for (int e = 0; e < 2; e++) {
-        final int r = colors[e * 3] >> 3;
-        final int g = colors[e * 3 + 1] >> 2;
-        final int b = colors[e * 3 + 2] >> 3;
-        final int packed = Mcv2Format.unpack565(((r << 11) | (g << 5) | b) & 0xFF, ((r << 11) | (g << 5) | b) >> 8);
-        colors[e * 3] = (packed >> 16) & 0xFF;
-        colors[e * 3 + 1] = (packed >> 8) & 0xFF;
-        colors[e * 3 + 2] = packed & 0xFF;
+      for (int e = 0; e < PALETTE_COLORS; e++) {
+        final int at = e * CHANNELS;
+        final int value = Mcv2Format.pack565(colors[at], colors[at + 1], colors[at + 2]);
+        final int packed = Mcv2Format.unpack565(value & 0xFF, value >> Byte.SIZE);
+        colors[at] = (packed >> 16) & 0xFF;
+        colors[at + 1] = (packed >> 8) & 0xFF;
+        colors[at + 2] = packed & 0xFF;
       }
     }
   }
 
   /** The selector of pixel i: 1 when endpoint 1 is strictly nearer in integer RGB distance, else 0. */
   private static byte nearest(final int[] source, final int i, final int[] colors) {
-    final int dr0 = source[i * 3] - colors[0];
-    final int dg0 = source[i * 3 + 1] - colors[1];
-    final int db0 = source[i * 3 + 2] - colors[2];
-    final int dr1 = source[i * 3] - colors[3];
-    final int dg1 = source[i * 3 + 1] - colors[4];
-    final int db1 = source[i * 3 + 2] - colors[5];
+    final int at = i * CHANNELS;
+    final int dr0 = source[at] - colors[0];
+    final int dg0 = source[at + 1] - colors[1];
+    final int db0 = source[at + 2] - colors[2];
+    final int dr1 = source[at] - colors[3];
+    final int dg1 = source[at + 1] - colors[4];
+    final int db1 = source[at + 2] - colors[5];
     final int e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
     final int e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
     return (byte) (e1 < e0 ? 1 : 0);

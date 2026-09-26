@@ -36,8 +36,11 @@ public final class ReconstructionOracle {
 
   /** Interpolation tables for leaf sizes 8, 16, 32 (index 0..2) and grid widths 1, 2, 4, 8 (index 0..3). */
   private static final int[][][] LOWER = new int[3][4][];
+
   private static final int[][][] UPPER = new int[3][4][];
+
   private static final double[][][] FRACTION = new double[3][4][];
+
   private static final float[][] LOW2_AXIS = new float[3][];
 
   static {

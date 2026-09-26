@@ -48,6 +48,126 @@ public final class Mcv2Format {
   /** The size of a root block, in pixels. */
   public static final int ROOT_SIZE = 32;
 
+  /** The channels of a pixel: red, green and blue, one byte each, in that order. */
+  public static final int CHANNELS = 3;
+
+  /** The largest value of a channel. */
+  public static final int MAX_CHANNEL = 255;
+
+  /** The smallest block, in pixels: a leaf is 8, 16 or 32 pixels square. */
+  public static final int SMALLEST_BLOCK = 8;
+
+  /** The block sizes a leaf may have: 8, 16 and 32 pixels. */
+  public static final int BLOCK_SIZES = 3;
+
+  /** The widest node grid a leaf's record may carry, 8 by 8. */
+  public static final int MAX_GRID = 8;
+
+  /** The node grid widths a record may carry: 1, 2, 4 and 8. */
+  public static final int GRID_WIDTHS = 4;
+
+  /** A motion vector's bytes: signed x and y, in half pixels. */
+  public static final int MOTION_BYTES = 2;
+
+  /** The colours of a two-colour palette or pattern. */
+  public static final int PALETTE_COLORS = 2;
+
+  /** The chroma planes of the reduced-chroma and compact records, Co and Cg. */
+  public static final int CHROMA_PLANES = 2;
+
+  /** The largest quantizer, the three bits above a descriptor's mode. */
+  public static final int MAX_QUANTIZER = 7;
+
+  /** The two delta widths, a byte each, that open a two-level walk region. */
+  public static final int WALK_WIDTHS_BYTES = 2;
+
+  /** A walk checkpoint stored whole: its payload cursor and split prefix, a half-word each. */
+  public static final int WALK_PAIR_BYTES = 2 * Short.BYTES;
+
+  /** The largest half-word: the limit of 16-bit counts, cursors and offsets. */
+  public static final int HALF_WORD = 0xFFFF;
+
+  /** The bits of a half-word. */
+  public static final int HALF_WORD_BITS = 16;
+
+  /** A short descriptor: a 16-bit offset and the mode and quantizer byte. */
+  public static final int SHORT_DESCRIPTOR_BYTES = 3;
+
+  /** A sparse split's child mask with all four children, which a sparse split never has. */
+  public static final int ALL_QUARTERS = 15;
+
+  /** An RGB565 colour. */
+  public static final int RGB565_BYTES = 2;
+
+  /** An endpoint pair of full colours. */
+  public static final int ENDPOINT_PAIR_BYTES = PALETTE_COLORS * CHANNELS;
+
+  /** An endpoint pair of RGB565 colours. */
+  public static final int ENDPOINT_565_PAIR_BYTES = PALETTE_COLORS * RGB565_BYTES;
+
+  /** Bytes of a header word, a directory mask or checkpoint, and a wide descriptor. */
+  public static final int WORD_BYTES = 4;
+
+  /** A stored directory group: its root mask and the pointer to its first root descriptor. */
+  public static final int STORED_GROUP_BYTES = 2 * WORD_BYTES;
+
+  /** The largest unsigned 32-bit value: the largest frame and stream id. */
+  public static final long MAX_U32 = 0xFFFFFFFFL;
+
+  /** Frame ids wrap: an id is newer than another when it is less than half the id space ahead of it. */
+  private static final long HALF_ID_SPACE = 1L << (Integer.SIZE - 1);
+
+  /** The header word holding the version and block size in its low and the flags in its high half-word. */
+  public static final int CONFIGURATION_OFFSET = 4;
+
+  /** The header word holding the width in its low and the height in its high half-word. */
+  public static final int DIMENSIONS_OFFSET = 8;
+
+  /** The header word holding the frame's id. */
+  public static final int FRAME_ID_OFFSET = 12;
+
+  /** The header word holding the id of the frame a P frame predicts from; a keyframe's own. */
+  public static final int REFERENCE_ID_OFFSET = 16;
+
+  /** The header word holding the global vector: signed half pixels, x in the low and y in the high half-word. */
+  public static final int MOTION_OFFSET = 20;
+
+  /** The header word holding the number of root blocks. */
+  public static final int ROOT_COUNT_OFFSET = 24;
+
+  /** The header word holding the payload's byte offset. */
+  public static final int PAYLOAD_START_OFFSET = 28;
+
+  /** The header word holding the frame's length in bytes. */
+  public static final int TOTAL_OFFSET = 32;
+
+  /** The header word holding a keyframe's default colour as blue, green and red bytes. */
+  public static final int DEFAULT_COLOR_OFFSET = 36;
+
+  /** The first of the header's two reserved words, which are zero. */
+  public static final int RESERVED_OFFSET = 40;
+
+  /** Roots a directory group's mask covers, one bit each. */
+  public static final int GROUP_ROOTS = 32;
+
+  /** The quarters a split node has. */
+  public static final int QUARTERS = 4;
+
+  /** A descriptor's record offset: its low 24 bits. */
+  public static final int OFFSET_MASK = 0xFFFFFF;
+
+  /** The first bit of a descriptor's mode, which is five bits wide. */
+  public static final int MODE_SHIFT = 24;
+
+  /** A mode's five bits. */
+  public static final int MODE_MASK = 31;
+
+  /** The first bit of a descriptor's quantizer, its top three bits. */
+  public static final int QUANTIZER_SHIFT = 29;
+
+  /** The first bit of the quantizer in a derived-form symbol, whose low five bits are the mode. */
+  public static final int SYMBOL_QUANTIZER_SHIFT = 5;
+
   /** Frame flag: an independent frame. */
   public static final int KEYFRAME = 1;
 
@@ -244,25 +364,58 @@ public final class Mcv2Format {
       return 0;
     }
     if (mode == MODE_MOTION) {
-      return 2;
+      return MOTION_BYTES;
     }
     if (mode == MODE_SOLID) {
-      return 3;
+      return CHANNELS;
     }
     if (mode == MODE_PALETTE) {
-      return 6 + (size * size) / 8;
+      return PALETTE_COLORS * CHANNELS + (size * size) / Byte.SIZE;
     }
     if (mode < MODE_RESIDUAL) {
       final int grid = 1 << (mode - MODE_INTRA);
-      return 3 * grid * grid;
+      return CHANNELS * grid * grid;
     }
     if (mode < MODE_INTRA_Y4C1) {
       final int grid = 1 << (mode - MODE_RESIDUAL);
-      return 2 + 3 * grid * grid;
+      return MOTION_BYTES + CHANNELS * grid * grid;
     }
     final int luma = lumaGrid(mode);
     final int chroma = chromaGrid(mode);
-    return luma * luma + 2 * chroma * chroma + (isResidual(mode) ? 2 : 0);
+    return luma * luma + CHROMA_PLANES * chroma * chroma + (isResidual(mode) ? MOTION_BYTES : 0);
+  }
+
+  /**
+   * Checks whether a frame id follows another: ids wrap modulo 2^32, and an id follows when {@code 0 < (id - last) mod
+   * 2^32 < 2^31}.
+   *
+   * @param id   the new id
+   * @param last the last id
+   * @return true if the new id follows the last one
+   */
+  public static boolean follows(final long id, final long last) {
+    final long distance = (id - last) & MAX_U32;
+    return distance != 0 && distance < HALF_ID_SPACE;
+  }
+
+  /**
+   * Checks whether a size is a block size: 8, 16 or 32 pixels.
+   *
+   * @param size the size
+   * @return true for a block size
+   */
+  public static boolean isBlockSize(final int size) {
+    return size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE;
+  }
+
+  /**
+   * The index of a block size among the three: 0 for 8, 1 for 16 and 2 for 32 pixels.
+   *
+   * @param size the block size
+   * @return the index
+   */
+  public static int sizeIndex(final int size) {
+    return Integer.numberOfTrailingZeros(size) - Integer.numberOfTrailingZeros(SMALLEST_BLOCK);
   }
 
   /**
@@ -272,7 +425,7 @@ public final class Mcv2Format {
    * @return 4 or 8
    */
   public static int lumaGrid(final int mode) {
-    return mode < MODE_INTRA_Y8C2 ? 4 : 8;
+    return mode < MODE_INTRA_Y8C2 ? MAX_GRID / 2 : MAX_GRID;
   }
 
   /**
@@ -294,8 +447,8 @@ public final class Mcv2Format {
    * @return the record length in bytes
    */
   public static int patternSize(final int size, final boolean indexedEndpoints, final boolean tabledSelectors) {
-    final int ends = indexedEndpoints ? 1 : 6;
-    final int rest = tabledSelectors ? 1 : 1 + size / 8;
+    final int ends = indexedEndpoints ? 1 : PALETTE_COLORS * CHANNELS;
+    final int rest = tabledSelectors ? 1 : 1 + size / Byte.SIZE;
     return ends + rest;
   }
 
@@ -319,10 +472,22 @@ public final class Mcv2Format {
    */
   public static int walkBytes(final int walkpoints, final boolean twoLevel) {
     if (!twoLevel) {
-      return walkpoints * 4;
+      return walkpoints * WORD_BYTES;
     }
     final int coarse = (walkpoints + WALK_STRIDE - 1) / WALK_STRIDE;
-    return 2 + coarse * 4 + (walkpoints - coarse) * 2;
+    return WALK_WIDTHS_BYTES + coarse * WORD_BYTES + (walkpoints - coarse) * Short.BYTES;
+  }
+
+  /**
+   * Packs a colour into RGB565, truncating each channel, as the encoder's quantizer does.
+   *
+   * @param red   the red channel, 0 to 255
+   * @param green the green channel, 0 to 255
+   * @param blue  the blue channel, 0 to 255
+   * @return the 16-bit colour
+   */
+  public static int pack565(final int red, final int green, final int blue) {
+    return ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
   }
 
   /**

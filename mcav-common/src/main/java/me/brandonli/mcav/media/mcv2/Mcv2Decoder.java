@@ -99,12 +99,12 @@ public final class Mcv2Decoder {
     if (frame.isKeyframe()) {
       ref = new byte[0];
     } else {
-      if (reference == null || referenceId != frame.getReferenceId() || reference.length != width * height * 3) {
+      if (reference == null || referenceId != frame.getReferenceId() || reference.length != width * height * CHANNELS) {
         throw new Mcv2Exception("Reference frame mismatch");
       }
       ref = reference;
     }
-    final byte[] output = into != null && into.length == width * height * 3 ? into : new byte[width * height * 3];
+    final byte[] output = into != null && into.length == width * height * CHANNELS ? into : new byte[width * height * CHANNELS];
     final int[] leaves = frame.leafArray();
     final int count = leaves.length / Mcv2Frame.LEAF_INTS;
     final int groups = (count + GROUP - 1) / GROUP;
@@ -116,7 +116,14 @@ public final class Mcv2Decoder {
         final int end = Math.min(count, (group + 1) * GROUP) * Mcv2Frame.LEAF_INTS;
         try {
           for (int i = group * GROUP * Mcv2Frame.LEAF_INTS; i < end; i += Mcv2Frame.LEAF_INTS) {
-            context.leaf(leaves[i], leaves[i + 1], leaves[i + 2], leaves[i + 3], leaves[i + 4], leaves[i + 5]);
+            context.leaf(
+              leaves[i + Mcv2Frame.LEAF_X],
+              leaves[i + Mcv2Frame.LEAF_Y],
+              leaves[i + Mcv2Frame.LEAF_SIZE],
+              leaves[i + Mcv2Frame.LEAF_MODE],
+              leaves[i + Mcv2Frame.LEAF_Q],
+              leaves[i + Mcv2Frame.LEAF_OFFSET]
+            );
           }
         } catch (final Mcv2Exception exception) {
           failures.set(group, exception);
@@ -150,16 +157,24 @@ public final class Mcv2Decoder {
   private static final class Context {
 
     private final Mcv2Frame frame;
-    private final byte[] data;
-    private final byte[] reference;
-    private final byte[] output;
-    private final int width;
-    private final int height;
-    private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
-    private final int[] prediction = new int[32 * 32 * 3];
-    private final int[] block = new int[32 * 32 * 3];
 
-    Context(final Mcv2Frame frame, final byte[] reference, final byte[] output) {
+    private final byte[] data;
+
+    private final byte[] reference;
+
+    private final byte[] output;
+
+    private final int width;
+
+    private final int height;
+
+    private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
+
+    private final int[] prediction = new int[ROOT_SIZE * ROOT_SIZE * CHANNELS];
+
+    private final int[] block = new int[ROOT_SIZE * ROOT_SIZE * CHANNELS];
+
+    private Context(final Mcv2Frame frame, final byte[] reference, final byte[] output) {
       this.frame = frame;
       this.data = frame.data();
       this.reference = reference;
@@ -194,7 +209,7 @@ public final class Mcv2Decoder {
           Reconstruction.predicted(this.prediction, size, out);
         }
         case MODE_IMMEDIATE_MOTION -> {
-          this.predict(x, y, size, gx + (byte) offset, gy + (byte) (offset >> 8));
+          this.predict(x, y, size, gx + (byte) offset, gy + (byte) (offset >> Byte.SIZE));
           Reconstruction.predicted(this.prediction, size, out);
         }
         case MODE_SOLID -> Reconstruction.solid(
@@ -242,8 +257,8 @@ public final class Mcv2Decoder {
       final int bottom = Math.min(y + size, this.height);
       for (int py = y; py < bottom; py++) {
         for (int px = x; px < right; px++) {
-          final int from = ((py - y) * size + (px - x)) * 3;
-          final int to = (py * this.width + px) * 3;
+          final int from = ((py - y) * size + (px - x)) * CHANNELS;
+          final int to = (py * this.width + px) * CHANNELS;
           this.output[to] = (byte) out[from];
           this.output[to + 1] = (byte) out[from + 1];
           this.output[to + 2] = (byte) out[from + 2];

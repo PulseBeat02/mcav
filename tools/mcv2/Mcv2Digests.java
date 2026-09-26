@@ -38,40 +38,58 @@ import me.brandonli.mcav.media.mcv2.UnsupportedSyntaxException;
  */
 public final class Mcv2Digests {
 
+  /** The bytes of the little-endian length before every frame of an archive. */
+  private static final int LENGTH_BYTES = 4;
+
+  private static final String TRUNCATED = "truncated";
+
+  private static final String UNSUPPORTED = "unsupported";
+
+  private static final String REJECTED = "reject";
+
   private Mcv2Digests() {}
 
   public static void main(final String[] args) throws Exception {
     final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-    final HexFormat hex = HexFormat.of();
     for (final String argument : args) {
-      final byte[] archive = Files.readAllBytes(Path.of(argument));
-      final Mcv2Receiver receiver = new Mcv2Receiver();
-      final StringBuilder line = new StringBuilder(argument);
-      int offset = 0;
-      while (offset < archive.length) {
-        if (archive.length - offset < 4) {
-          line.append(" truncated");
-          break;
-        }
-        final long length =
-          (archive[offset] & 0xFFL) | (archive[offset + 1] & 0xFFL) << 8 | (archive[offset + 2] & 0xFFL) << 16 | (archive[offset + 3] & 0xFFL) << 24;
-        if (length > archive.length - offset - 4) {
-          line.append(" truncated");
-          break;
-        }
-        final byte[] frame = Arrays.copyOfRange(archive, offset + 4, offset + 4 + (int) length);
-        String token;
-        try {
-          token = hex.formatHex(sha256.digest(receiver.accept(frame)));
-        } catch (final UnsupportedSyntaxException unsupported) {
-          token = "unsupported";
-        } catch (final Mcv2Exception rejected) {
-          token = "reject";
-        }
-        line.append(' ').append(token);
-        offset += 4 + (int) length;
+      System.out.println(argument + digests(Files.readAllBytes(Path.of(argument)), sha256));
+    }
+  }
+
+  /** One token per frame of an archive, each after a space, and a last one if the archive ends inside a frame. */
+  private static String digests(final byte[] archive, final MessageDigest sha256) {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+    final StringBuilder line = new StringBuilder();
+    int offset = 0;
+    while (offset < archive.length) {
+      final long length = archive.length - offset < LENGTH_BYTES ? -1 : length(archive, offset);
+      if (length < 0 || length > archive.length - offset - LENGTH_BYTES) {
+        line.append(' ').append(TRUNCATED);
+        break;
       }
-      System.out.println(line);
+      final byte[] frame = Arrays.copyOfRange(archive, offset + LENGTH_BYTES, offset + LENGTH_BYTES + (int) length);
+      line.append(' ').append(token(receiver, frame, sha256));
+      offset += LENGTH_BYTES + (int) length;
+    }
+    return line.toString();
+  }
+
+  private static long length(final byte[] archive, final int offset) {
+    long length = 0;
+    for (int i = 0; i < LENGTH_BYTES; i++) {
+      length |= (archive[offset + i] & 0xFFL) << (8 * i);
+    }
+    return length;
+  }
+
+  /** The SHA-256 of the picture the receiver decodes, or why it decodes none. */
+  private static String token(final Mcv2Receiver receiver, final byte[] frame, final MessageDigest sha256) {
+    try {
+      return HexFormat.of().formatHex(sha256.digest(receiver.accept(frame)));
+    } catch (final UnsupportedSyntaxException unsupported) {
+      return UNSUPPORTED;
+    } catch (final Mcv2Exception rejected) {
+      return REJECTED;
     }
   }
 }

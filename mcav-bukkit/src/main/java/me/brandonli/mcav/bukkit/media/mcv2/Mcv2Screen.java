@@ -70,6 +70,7 @@ public final class Mcv2Screen {
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
   private final Mcv2Configuration configuration;
+
   private final List<ItemFrame> frames;
 
   /**
@@ -210,12 +211,14 @@ public final class Mcv2Screen {
         for (int i = 0; i < SIGNATURE.length; i++) {
           symbols[i] = (byte) SIGNATURE[i];
         }
-        symbols[8] = (byte) column;
-        symbols[9] = (byte) row;
-        symbols[10] = (byte) columns;
-        symbols[11] = (byte) rows;
-        symbols[12] = (byte) facing;
-        symbols[13] = (byte) ((column + row + columns + rows + facing) & 63);
+        final int at = SIGNATURE.length;
+        symbols[at] = (byte) column;
+        symbols[at + 1] = (byte) row;
+        symbols[at + 2] = (byte) columns;
+        symbols[at + 3] = (byte) rows;
+        symbols[at + 4] = (byte) facing;
+        // a check symbol: the sum of the others in the six-bit alphabet
+        symbols[at + 5] = (byte) ((column + row + columns + rows + facing) % MapAlphabet.SIZE);
         final int mapId = this.configuration.getMap() + row * columns + column;
         patches.add(new MapTilePatch(mapId, 0, 0, MapLayout.MAP_SIZE, 1, MapAlphabet.toMapColors(symbols)));
       }

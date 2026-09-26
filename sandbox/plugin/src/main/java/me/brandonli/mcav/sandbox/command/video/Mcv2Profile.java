@@ -35,8 +35,8 @@ public enum Mcv2Profile {
   /** Every frame is a keyframe, so no viewer ever depends on a frame it missed; about 144% more bandwidth. */
   INTRA,
   /**
-   * The live profile: a search fast enough to encode 1080p60 as it plays on a 12-thread server, previous-frame
-   * prediction, the same bitstream as the others.
+   * The live profile: the search made for encoding as the video plays (a screen that falls behind lowers its resolution
+   * or frame rate), previous-frame prediction, the same bitstream as the others.
    */
   LIVE,
   /**

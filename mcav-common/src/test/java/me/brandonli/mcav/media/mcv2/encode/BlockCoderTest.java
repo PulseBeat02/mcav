@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Random;
+import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.ReconstructionOracle;
 import org.junit.jupiter.api.Test;
@@ -120,5 +121,64 @@ final class BlockCoderTest {
     assertEquals(Mcv2Format.MODE_SOLID, job.mode(0, 2, 0));
     assertArrayEquals(new byte[] { 10, 20, 30 }, job.record(0, 2, 0));
     assertEquals(0, job.distortion(1, 2, 0));
+  }
+
+  @Test
+  void needsTheFinestQuantizerThatHoldsTheFittedValues() {
+    final float[] fit = new float[18];
+    // the sixteen luma nibbles of the 4x4 grid classes hold -8 to 7 steps
+    fit[0] = 7;
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    fit[0] = -8.5f;
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    fit[0] = -8.6f;
+    assertEquals(1, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    fit[0] = 7.5f;
+    assertEquals(1, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    fit[0] = 59.9f;
+    assertEquals(3, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    // 60 is 7.5 steps of 8, which rounds to 8: no quantizer holds it, so the coarsest is needed
+    fit[0] = 60;
+    assertEquals(4, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_Y, fit, 16));
+    // after the nibbles, the chroma pair holds -128 to 127 steps like every value of the other classes
+    fit[0] = 0;
+    fit[16] = 127;
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_YC, fit, 18));
+    fit[16] = 128;
+    assertEquals(1, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_YC, fit, 18));
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.GRID4_N4_YC, fit, 16));
+    final float[] dc = { -128 };
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.DC_Y, dc, 1));
+    dc[0] = -129;
+    assertEquals(1, BlockCoder.neededQuantizer(CompactRecord.DC_Y, dc, 1));
+    dc[0] = 16;
+    assertEquals(0, BlockCoder.neededQuantizer(CompactRecord.GRID2_YC, dc, 1));
+    dc[0] = 1019;
+    assertEquals(3, BlockCoder.neededQuantizer(CompactRecord.DC_Y, dc, 1));
+    dc[0] = 1020;
+    assertEquals(4, BlockCoder.neededQuantizer(CompactRecord.DC_Y, dc, 1));
+  }
+
+  @Test
+  void halvesABlockIntoTheRoundedMeansOfItsSquares() {
+    // every 2x2 square of a 4x4 block around its own level, which the square's mean restores
+    final int[] block = new int[4 * 4 * 3];
+    for (int y = 0; y < 4; y++) {
+      for (int x = 0; x < 4; x++) {
+        final int level = 40 * (2 * (y / 2) + x / 2) + 20;
+        final int wobble = (x % 2 == 0 ? 3 : -1) * (y % 2 == 0 ? 1 : -1);
+        for (int c = 0; c < 3; c++) {
+          block[(y * 4 + x) * 3 + c] = level + c + wobble;
+        }
+      }
+    }
+    final int[] half = new int[2 * 2 * 3];
+    BlockCoder.halve(block, 4, half);
+    assertArrayEquals(new int[] { 20, 21, 22, 60, 61, 62, 100, 101, 102, 140, 141, 142 }, half);
+    // a mean of 2.5 rounds up, one of 0.25 down
+    final int[] square = { 1, 0, 255, 2, 0, 255, 3, 0, 255, 4, 1, 254 };
+    final int[] mean = new int[3];
+    BlockCoder.halve(square, 2, mean);
+    assertArrayEquals(new int[] { 3, 0, 255 }, mean);
   }
 }

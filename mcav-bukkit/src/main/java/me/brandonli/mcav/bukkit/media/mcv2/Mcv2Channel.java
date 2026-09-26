@@ -53,13 +53,19 @@ import org.bukkit.entity.Player;
 public final class Mcv2Channel {
 
   private final Mcv2Configuration configuration;
+
   private final Mcv2Viewers viewers;
+
   private final Mcv2Screen screen;
+
   private final Set<UUID> scheduled;
+
   /** The viewers shown the screen, each with its link. */
   private final Map<UUID, Mcv2Link> links;
+
   /** The viewers that receive frames as of the last update, with their links. */
   private volatile Map<UUID, Mcv2Link> recipients;
+
   private volatile boolean keyframeRequested;
 
   /**

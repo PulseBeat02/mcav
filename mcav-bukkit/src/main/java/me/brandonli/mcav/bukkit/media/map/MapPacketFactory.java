@@ -44,6 +44,7 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 public final class MapPacketFactory {
 
   private static final int MAX_PACKETS_PER_BUNDLE = BundlerInfo.BUNDLE_SIZE_LIMIT;
+
   private static final byte DEFAULT_SCALE = 0;
 
   private MapPacketFactory() {
