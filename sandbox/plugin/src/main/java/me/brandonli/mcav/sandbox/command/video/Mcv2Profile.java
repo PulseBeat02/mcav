@@ -33,7 +33,18 @@ public enum Mcv2Profile {
    */
   KEYFRAME,
   /** Every frame is a keyframe, so no viewer ever depends on a frame it missed; about 144% more bandwidth. */
-  INTRA;
+  INTRA,
+  /**
+   * The live profile: a search fast enough to encode 1080p60 as it plays on a 12-thread server, previous-frame
+   * prediction, the same bitstream as the others.
+   */
+  LIVE,
+  /**
+   * The live profile predicting from the last keyframe, for viewers whose clients draw fewer frames per second than
+   * the video has: a client decodes at most one video frame per frame it draws, and a frame it missed is the
+   * reference of the next one under previous-frame prediction.
+   */
+  LIVE_KEYFRAME;
 
   /**
    * Gets the encoder settings of the profile.
@@ -46,6 +57,8 @@ public enum Mcv2Profile {
       case LOW -> EncoderSettings.LOW_BANDWIDTH;
       case KEYFRAME -> EncoderSettings.SHIP.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
       case INTRA -> EncoderSettings.SHIP.withKeyInterval(1);
+      case LIVE -> EncoderSettings.LIVE;
+      case LIVE_KEYFRAME -> EncoderSettings.LIVE.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
     };
   }
 }

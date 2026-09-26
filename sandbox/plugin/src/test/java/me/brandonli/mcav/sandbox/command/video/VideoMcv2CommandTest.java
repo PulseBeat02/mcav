@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
@@ -129,6 +130,8 @@ final class VideoMcv2CommandTest {
     assertEquals(384, configuration.getVideoHeight());
     assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
     assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
+    assertEquals(4, configuration.getPageSlots());
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -160,6 +163,31 @@ final class VideoMcv2CommandTest {
       verify(this.manager).startFilter(result);
       assertSame(result, step.getFilter());
     }
+  }
+
+  @Test
+  void takesThePageSlotsAndTheBacklogLimitOfAMeasurement() {
+    System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
+    System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
+    try {
+      final Mcv2Configuration limited = VideoMcv2Command.configure(
+        this.sender,
+        Pair.pair(5, 3),
+        Pair.pair(640, 384),
+        20,
+        Mcv2Profile.LIVE,
+        List.of()
+      );
+      assertEquals(8, Objects.requireNonNull(limited).getPageSlots());
+      assertEquals(65536, limited.getBacklogLimit());
+      assertEquals(EncoderSettings.LIVE, limited.getSettings());
+      System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
+      assertEquals(Long.MAX_VALUE, VideoMcv2Command.backlogLimit());
+    } finally {
+      System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
+      System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
+    }
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, VideoMcv2Command.backlogLimit());
   }
 
   @Test

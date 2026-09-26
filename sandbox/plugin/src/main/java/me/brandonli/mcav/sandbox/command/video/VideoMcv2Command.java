@@ -128,6 +128,18 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
   }
 
   /**
+   * The system property that sets the page slots of the screens started next, for a measurement; unset or 0 for
+   * mcav's default.
+   */
+  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
+
+  /**
+   * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
+   * limit, for a measurement; unset for mcav's default.
+   */
+  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
+
+  /**
    * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none.
    *
    * @param sender     who ran the command
@@ -160,7 +172,23 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       .rows(blocks.getSecond())
       .video(resolution.getFirst(), resolution.getSecond())
       .settings(profile.getSettings())
+      .pageSlots(Integer.getInteger(PAGE_SLOTS_PROPERTY, 0))
+      .backlogLimit(backlogLimit())
       .build();
+  }
+
+  /**
+   * The backlog limit of new screens: the {@link #BACKLOG_PROPERTY} system property in bytes, {@code none} for no
+   * limit, or mcav's default when it is not set.
+   *
+   * @return the limit in bytes
+   */
+  static long backlogLimit() {
+    final String value = System.getProperty(BACKLOG_PROPERTY);
+    if (value == null) {
+      return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
+    }
+    return value.equals("none") ? Long.MAX_VALUE : Long.parseLong(value);
   }
 
   /**
