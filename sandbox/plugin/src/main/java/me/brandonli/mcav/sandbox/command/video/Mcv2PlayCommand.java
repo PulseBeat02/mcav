@@ -64,11 +64,21 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * frame every few server ticks, {@code stream} at a frame rate on its own thread, off the server's 20 ticks a second.
  * {@code /mcav mcv2 encode} makes such a stream from a video file ahead of time, the path for a server too small to
  * encode while a video plays, and {@code /mcav mcv2 cancel} stops it.
+ *
+ * <p>Stream files are kept in the {@code mcv2} folder of the plugin's data folder: a command names a file inside it,
+ * and a name that leads out of it, absolute or climbing with {@code ..}, is refused, so a command can neither read nor
+ * replace other files of the server.
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   /** How often a running file encode tells its progress. */
   static final long PROGRESS_NANOS = TimeUnit.SECONDS.toNanos(30);
+
+  /** The folder of the stream files, in the plugin's data folder. */
+  static final String STREAMS = "mcv2";
+
+  /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
+  static final long MAX_STREAM_BYTES = 1L << 30;
 
   private final MCAVSandbox plugin;
   private @Nullable BukkitTask task;
@@ -116,7 +126,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in maps
    * @param mapId           the id of the top-left map of the wall
    * @param ticks           the server ticks between frames, 1 or more
-   * @param file            the path of the stream on the server
+   * @param file            the stream file, in the plugin's {@code mcv2} folder
    */
   @Command("mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>")
   @Permission("mcav.command.mcv2.play")
@@ -150,7 +160,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in maps
    * @param mapId           the id of the top-left map of the wall
    * @param fps             the frames sent per second, 1 to 240
-   * @param file            the path of the stream on the server
+   * @param file            the stream file, in the plugin's {@code mcv2} folder
    */
   @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>")
   @Permission("mcav.command.mcv2.play")
@@ -195,7 +205,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final List<byte[]> frames;
     final Mcv2Frame first;
     try {
-      frames = read(Path.of(file));
+      frames = read(this.streamFile(file));
       first = FrameParser.parse(frames.getFirst());
     } catch (final IOException | Mcv2Exception | RuntimeException exception) {
       sender.sendMessage(Message.MCV2_FILE_ERROR.build(String.valueOf(exception.getMessage())));
@@ -233,7 +243,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    *
    * @param sender     who ran the command
    * @param file       the path of the video file on the server
-   * @param output     the path of the stream file to write, replaced when it exists
+   * @param output     the stream file to write, in the plugin's {@code mcv2} folder, replaced when it exists
    * @param resolution the video size as {@code <width>x<height>}
    * @param profile    the encoder profile, usually {@code ship}
    */
@@ -254,7 +264,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final int width = size.getFirst();
     final int height = size.getSecond();
     final Path source = Path.of(file);
-    final Path target = Path.of(output);
+    final Path target;
+    try {
+      target = this.streamFile(output);
+    } catch (final IOException exception) {
+      sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
+      return;
+    }
     final EncoderPool budget = EncoderPool.shared();
     final Opener open = this.opener;
     synchronized (this) {
@@ -348,6 +364,23 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         )
       )
     );
+  }
+
+  /**
+   * Resolves a stream file a command names inside the plugin's {@code mcv2} folder, which is created when missing.
+   *
+   * @param name the file name, or a path relative to the folder
+   * @return the file
+   * @throws IOException if the name leads out of the folder or the folder cannot be created
+   */
+  Path streamFile(final String name) throws IOException {
+    final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAMS).toAbsolutePath().normalize();
+    final Path file = folder.resolve(name).normalize();
+    if (!file.startsWith(folder) || file.equals(folder)) {
+      throw new IOException("Stream files are kept in " + folder + ", and " + name + " is not a file in it");
+    }
+    Files.createDirectories(folder);
+    return file;
   }
 
   private static void deleteQuietly(final Path file) {
@@ -461,9 +494,29 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    *
    * @param file the stream
    * @return the frames
-   * @throws IOException if the file cannot be read or is cut off
+   * @throws IOException if the file is not a regular file of at most {@link #MAX_STREAM_BYTES}, cannot be read or is
+   *                     cut off
    */
   static List<byte[]> read(final Path file) throws IOException {
+    return read(file, MAX_STREAM_BYTES);
+  }
+
+  /**
+   * Reads a stream of at most some size. Only a regular file is read, and its size is checked first: a device such as
+   * {@code /dev/zero} would never end, and a huge file would fill the memory.
+   *
+   * @param file  the stream
+   * @param limit the most bytes read
+   * @return the frames
+   * @throws IOException if the file is not a regular file of at most the limit, cannot be read or is cut off
+   */
+  static List<byte[]> read(final Path file, final long limit) throws IOException {
+    if (!Files.isRegularFile(file)) {
+      throw new IOException("Not a stream file: " + file.getFileName());
+    }
+    if (Files.size(file) > limit) {
+      throw new IOException("The stream file is larger than " + limit + " bytes");
+    }
     final byte[] data = Files.readAllBytes(file);
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
