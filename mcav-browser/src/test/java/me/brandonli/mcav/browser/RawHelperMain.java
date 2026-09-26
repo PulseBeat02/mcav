@@ -53,7 +53,9 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /full-page}: shows the page with one region as large as the page;</li>
  *   <li>{@code /exit-later}: shows the page and exits with code 5 half a second later;</li>
  *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
- *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes.</li>
+ *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes;</li>
+ *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_NOTICES} notices and {@value #NOISY_LOAD_ERRORS} load
+ *   errors at once, as a page can make a helper do, and then one frame of sound.</li>
  * </ul>
  *
  * <p>It then waits until its standard input ends.
@@ -64,6 +66,16 @@ public final class RawHelperMain {
    * The last line {@code /chatty} writes.
    */
   static final String CHATTY_END = "the chatty helper is done";
+
+  /**
+   * How many notices {@code /noisy} sends.
+   */
+  static final int NOISY_NOTICES = 500;
+
+  /**
+   * How many load errors {@code /noisy} sends.
+   */
+  static final int NOISY_LOAD_ERRORS = 50;
 
   private RawHelperMain() {}
 
@@ -149,6 +161,20 @@ public final class RawHelperMain {
         if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
           waitTwoMinutes();
         }
+      }
+      case "/noisy" -> {
+        HelperProtocol.writeHello(out, token);
+        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
+        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+        HelperProtocol.writeLoading(out, false);
+        for (int count = 0; count < NOISY_NOTICES; count++) {
+          HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
+        }
+        for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
+          HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count);
+        }
+        // the sound arrives after everything above, so a test knows the server read it all
+        HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
       }
       case "/full-page" -> {
         HelperProtocol.writeHello(out, token);

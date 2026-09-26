@@ -87,7 +87,8 @@ import org.slf4j.LoggerFactory;
  * {@value #SETTLED_REPEATS} times: a video pipeline that spreads a big change over several frames, as the map encoder
  * does with its byte budget per frame, needs further frames to finish the change, and a page that stands still sends
  * none. Input goes through a bounded queue to a writer thread, so a caller such as the server's main thread never
- * waits for the helper.
+ * waits for the helper. What the helper reports for the log, its notices and failed loads, which the page it shows
+ * can cause as often as it likes, reaches the log of the server within a {@link LogBudget}.
  *
  * <p>{@link #close} ends the helper by closing its standard input and the connection, waits a bounded time, then kills
  * it and every process it started, and removes the folder. A helper that ends by itself is reported to the listener.
@@ -132,6 +133,7 @@ final class HelperSession implements BrowserSession {
   private final CompletableFuture<@Nullable Void> started;
   private final Object deliveryLock;
   private final Set<StartEvent> startEvents;
+  private final LogBudget logBudget;
   // until the threads start, they are a thread that never runs, which close() joins at once
   private volatile Thread reader = NOT_STARTED;
   private volatile Thread delivery = NOT_STARTED;
@@ -168,6 +170,7 @@ final class HelperSession implements BrowserSession {
     this.started = new CompletableFuture<>();
     this.deliveryLock = new Object();
     this.startEvents = EnumSet.noneOf(StartEvent.class);
+    this.logBudget = new LogBudget(System::nanoTime);
   }
 
   /**
@@ -598,11 +601,14 @@ final class HelperSession implements BrowserSession {
         final String text = message.getText();
         final String url = message.getUrl();
         final int code = message.getNumber();
-        LOGGER.warn("The browser could not load {}: {} ({})", url, text, code);
+        this.logBudget.log(() -> LOGGER.warn("The browser could not load {}: {} ({})", url, text, code), HelperSession::logSkipped);
         final PlayerException failure = new PlayerException(text + " (" + code + ")");
         this.started.completeExceptionally(failure);
       }
-      case HelperProtocol.NOTICE -> LOGGER.info("Browser: {}", message.getText());
+      case HelperProtocol.NOTICE -> {
+        final String text = message.getText();
+        this.logBudget.log(() -> LOGGER.info("Browser: {}", text), HelperSession::logSkipped);
+      }
       case HelperProtocol.FAILURE -> {
         final String text = message.getText();
         final PlayerException failure = new PlayerException(text);
@@ -611,6 +617,15 @@ final class HelperSession implements BrowserSession {
       }
       default -> throw new ProtocolException("The browser helper sent message type " + type + ", which only the server sends");
     }
+  }
+
+  /**
+   * Logs how many lines of the helper were over the budget of the log.
+   *
+   * @param lines the number of lines that were not logged
+   */
+  private static void logSkipped(final long lines) {
+    LOGGER.info("Browser: {} more notices of the page were not logged", lines);
   }
 
   private void onFrame() {

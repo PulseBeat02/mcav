@@ -41,6 +41,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
+import me.brandonli.mcav.browser.testing.StandardError;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.OS;
@@ -128,6 +129,23 @@ class HelperSessionTest {
   private static int blue(final ImageBuffer frame) {
     final ByteBuffer pixels = frame.getData();
     return pixels.get(0) & 0xFF;
+  }
+
+  @Test
+  void aHelperThatReportsInALoopReachesTheLogOnlyWithinItsBudget() {
+    final String log;
+    try (final StandardError errors = new StandardError()) {
+      this.open(RawHelperMain.class.getName(), "/noisy");
+      Await.until("the sound after the reports", () -> !this.listener.sound.isEmpty());
+      log = errors.text();
+    }
+    final long reports = log
+      .lines()
+      .filter(line -> line.contains("Browser: noise ") || line.contains("could not load https://example.com/noise/"))
+      .count();
+    // the reports arrive within a moment, and the budget passes one more line per second after its burst
+    final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
+    assertTrue(reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5, "logged " + reports + " of " + sent + " reports");
   }
 
   @Test
