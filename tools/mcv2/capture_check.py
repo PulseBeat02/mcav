@@ -72,10 +72,19 @@ def main():
     arguments = parser.parse_args()
     w, h = arguments.width, arguments.height
     reference = np.fromfile(arguments.reference, np.uint8).reshape(-1, h, w, 3)
+    paths = sorted(Path(arguments.captures).glob("*.png"))
+    # a picture as tall as the screen does not fit below the strip: its rows that do are compared
+    screen_height, screen_width = np.asarray(Image.open(paths[0]).convert("RGB")).shape[:2]
+    visible = min(h, screen_height - arguments.top)
+    shown = min(w, screen_width)
+    if visible < h or shown < w:
+        print("the screen shows %dx%d of the %dx%d picture; the rest is not compared" % (shown, visible, w, h))
+        reference = np.ascontiguousarray(reference[:, :visible, :shown])
+        h, w = visible, shown
     index = {hashlib.sha256(frame.tobytes()).hexdigest(): i for i, frame in enumerate(reference)}
     exact, near = {}, []
     pairs = []
-    for path in sorted(Path(arguments.captures).glob("*.png")):
+    for path in paths:
         screen = np.asarray(Image.open(path).convert("RGB"))
         crop = np.ascontiguousarray(screen[arguments.top : arguments.top + h, :w])
         key = hashlib.sha256(crop.tobytes()).hexdigest()
