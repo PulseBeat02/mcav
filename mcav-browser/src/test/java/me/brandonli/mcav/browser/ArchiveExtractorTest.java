@@ -121,6 +121,28 @@ class ArchiveExtractorTest {
   }
 
   @Test
+  void foldersAreWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
+    final boolean posix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(posix, "POSIX permissions");
+    final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
+    new ArchiveExtractor().extract(archive, this.target);
+    final Set<PosixFilePermission> owner = PosixFilePermissions.fromString("rwxr-xr-x");
+    // a folder of the archive, and the folders a file needs; a umask such as 0002 would make them writable by the group
+    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("locales")));
+    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader")));
+    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader/deeper")));
+  }
+
+  @Test
+  void foldersAreCreatedWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
+    final Path folder = this.target.resolve("a/b");
+    ArchiveExtractor.createFolders(folder, false);
+    assertTrue(Files.isDirectory(folder));
+    ArchiveExtractor.createFolders(folder);
+    assertTrue(Files.isDirectory(folder), "an existing folder is left as it is");
+  }
+
+  @Test
   void theArchiveStreamStaysOpen() throws IOException {
     final byte[] archive = new Archive().file("a", 0644, "a").finish().readAllBytes();
     final boolean[] closed = { false };

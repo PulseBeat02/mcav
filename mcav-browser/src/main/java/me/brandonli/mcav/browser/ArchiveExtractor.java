@@ -29,6 +29,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -43,7 +45,8 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  * plain files and folders are extracted, every name is resolved inside the target and checked after normalization,
  * links and special files are refused, and the number of entries and the bytes written are bounded. The permissions
  * of the archive are not copied, because the macOS archive marks everything as writable by every user; files are
- * readable by everyone and writable by the owner only, and executable where the archive marks them so.
+ * readable by everyone and writable by the owner only, and executable where the archive marks them so, and so are the
+ * folders, whatever the umask of the server: a folder its group may write lets the group replace the native code.
  *
  * <p>The bounds count the entries the archive library hands over. The library reads the metadata of an entry, such as
  * a GNU long name or a PAX header, whole and without a bound before that, so a crafted archive could exhaust the heap
@@ -64,6 +67,7 @@ final class ArchiveExtractor {
 
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
+  private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final int EXECUTE_BITS = 0111;
   private static final int BUFFER_BYTES = 64 * 1024;
 
@@ -130,10 +134,10 @@ final class ArchiveExtractor {
         }
         final Path destination = resolve(root, entry.getName());
         if (entry.isDirectory()) {
-          Files.createDirectories(destination);
+          createFolders(destination, posix);
         } else {
           final long remaining = this.maxTotalBytes - written;
-          written += writeFile(tar, destination, remaining);
+          written += writeFile(tar, destination, remaining, posix);
           final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
           if (posix) {
             Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
@@ -196,10 +200,11 @@ final class ArchiveExtractor {
     return current.normalize();
   }
 
-  private static long writeFile(final InputStream tar, final Path destination, final long remaining) throws IOException {
+  private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean posix)
+    throws IOException {
     // every entry lies below the root, so it has a parent
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder");
-    Files.createDirectories(parent);
+    createFolders(parent, posix);
     long written = 0L;
     final byte[] buffer = new byte[BUFFER_BYTES];
     try (
@@ -221,6 +226,42 @@ final class ArchiveExtractor {
       }
     }
     return written;
+  }
+
+  /**
+   * Creates a folder and the missing folders above it, each readable by everyone and writable by its owner only where
+   * the file system has POSIX permissions, whatever the umask of the server.
+   *
+   * @param folder the folder
+   * @throws IOException if a folder cannot be created or its permissions cannot be set
+   */
+  static void createFolders(final Path folder) throws IOException {
+    final FileSystem fileSystem = folder.getFileSystem();
+    createFolders(folder, fileSystem.supportedFileAttributeViews().contains("posix"));
+  }
+
+  /**
+   * Creates a folder and the missing folders above it, setting the permissions of each new one if asked to.
+   *
+   * @param folder the folder
+   * @param posix  whether the permissions of the new folders are set
+   * @throws IOException if a folder cannot be created or its permissions cannot be set
+   */
+  @VisibleForTesting
+  static void createFolders(final Path folder, final boolean posix) throws IOException {
+    final List<Path> missing = new ArrayList<>();
+    Path current = folder.toAbsolutePath();
+    // the root of a file system always exists, so the search ends before it runs out of parents
+    while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
+      missing.add(current);
+      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists");
+    }
+    Files.createDirectories(folder);
+    if (posix) {
+      for (final Path created : missing) {
+        Files.setPosixFilePermissions(created, FOLDER);
+      }
+    }
   }
 
   /**

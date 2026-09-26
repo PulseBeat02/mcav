@@ -34,6 +34,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -168,6 +169,10 @@ class JcefNativesTest {
     assertEquals(this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
     assertEquals("native", Files.readString(installation.resolve("libjcef.so")));
     assertTrue(Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER)));
+    if (installation.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      // only the owner may replace the native code, whatever the umask
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+    }
     assertEquals(
       URI.create(
         REPOSITORY +

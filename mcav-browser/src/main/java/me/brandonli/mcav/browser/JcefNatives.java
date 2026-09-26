@@ -238,7 +238,7 @@ final class JcefNatives {
     if (Files.isRegularFile(marker)) {
       return installation;
     }
-    Files.createDirectories(this.folder);
+    ArchiveExtractor.createFolders(this.folder);
     final Path lockFile = this.folder.resolve(name + ".lock");
     synchronized (INSTALL_LOCK) {
       try (
@@ -281,7 +281,7 @@ final class JcefNatives {
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
     try {
       this.downloader.download(uri, download, sha256, size);
-      Files.createDirectories(staging);
+      ArchiveExtractor.createFolders(staging);
       this.extractArchive(download, staging);
       final Path stagedMarker = staging.resolve(INSTALL_MARKER);
       Files.createFile(stagedMarker);

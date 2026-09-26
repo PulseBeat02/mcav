@@ -271,6 +271,9 @@ class LinuxLibrariesTest {
     assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), Files.readAllBytes(library));
     if (library.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(library));
+      // the folders are the owner's to write alone, whatever the umask, as the libraries in them are loaded
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(this.folder.resolve("cache")));
     }
     // installed once: another start finds the installation and downloads nothing
     assertEquals(installation, libraries.install("linux-amd64"));

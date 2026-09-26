@@ -286,7 +286,7 @@ final class LinuxLibraries {
     if (Files.isRegularFile(marker)) {
       return installation;
     }
-    Files.createDirectories(this.folder);
+    ArchiveExtractor.createFolders(this.folder);
     final Path lockFile = this.folder.resolve(name + ".lock");
     synchronized (INSTALL_LOCK) {
       try (
@@ -328,7 +328,7 @@ final class LinuxLibraries {
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".deb");
     try {
-      Files.createDirectories(staging);
+      ArchiveExtractor.createFolders(staging);
       for (final Pin pin : wanted) {
         this.download(pin, download);
         extract(download, pin.files(), staging);
