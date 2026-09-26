@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
@@ -132,6 +133,33 @@ final class Mcv2PlayCommandTest {
       verify(channels.constructed().getLast()).close();
       verify(this.sender).sendMessage(Message.MCV2_STOP.build());
       verify(this.support, Mockito.times(3)).close();
+    }
+  }
+
+  @Test
+  void streamsAtAFrameRateOffTheServerTick() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (
+      MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class, (channel, context) ->
+        when(channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()))
+      )
+    ) {
+      this.command.stream(this.sender, this.selector, "5x3", 20, 100, file.toString());
+      final Mcv2Channel channel = channels.constructed().getFirst();
+      verify(channel).open();
+      // 100 frames a second from the stream's own thread, not from the server's scheduler
+      verify(channel, Mockito.timeout(5000).atLeast(10)).send(any());
+      verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
+      verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+      this.command.stop(this.sender);
+      verify(channel).close();
+      // no frame follows the stop
+      Mockito.clearInvocations(channel);
+      Thread.sleep(100);
+      verify(channel, never()).send(any());
+      // a stream that cannot be read is reported like one to play: the play and stop messages, then the error
+      this.command.stream(this.sender, this.selector, "5x3", 20, 60, this.folder.resolve("missing.mcs").toString());
+      verify(this.sender, Mockito.times(3)).sendMessage(any(net.kyori.adventure.text.Component.class));
     }
   }
 
