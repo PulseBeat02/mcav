@@ -67,15 +67,24 @@ public final class Mcv2Pack {
     INCLUDE + "mcv2_strip.glsl",
     INCLUDE + "mcv2_symbols.glsl",
     "assets/mcav/shaders/post/mcv2_bytes.fsh",
+    "assets/mcav/shaders/post/mcv2_crc.fsh",
     "assets/mcav/shaders/post/mcv2_pages.fsh",
     "assets/mcav/shaders/post/mcv2_status.fsh",
+    "assets/mcav/shaders/post/mcv2_resolve.fsh",
+    "assets/mcav/shaders/post/mcv2_decode.vsh",
     "assets/mcav/shaders/post/mcv2_decode.fsh",
     "assets/mcav/shaders/post/mcv2_keyframe.fsh",
     "assets/mcav/shaders/post/mcv2_state.fsh",
+    "assets/mcav/shaders/post/mcv2_view.fsh",
+    "assets/mcav/shaders/post/mcv2_screen.vsh",
     "assets/mcav/shaders/post/mcv2_screen.fsh",
     "assets/mcav/shaders/post/mcv2_outline.fsh"
   );
   private static final int BYTES_WIDTH = 128;
+  /** The chunks of 192 bytes the CRC pass splits each page slot's 12,288 strip bytes into. */
+  private static final int CRC_CHUNKS = 64;
+  /** The facts of a frame the resolve pass keeps in the row after its cells, one texel each. */
+  private static final int FRAME_FACTS = 6;
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
   private Mcv2Pack() {
@@ -133,13 +142,30 @@ public final class Mcv2Pack {
   /** The post chain with the screen's target sizes filled in. */
   static String postChain(final Mcv2Configuration configuration) {
     final int slots = configuration.getPageSlots();
-    final int bytesHeight = ((slots * TransportPages.capacity(MapAlphabet.SYMBOL_BITS)) / 4 + BYTES_WIDTH - 1) / BYTES_WIDTH;
     return new String(resource(POST_CHAIN), StandardCharsets.UTF_8)
       .replace("@VIDEO_WIDTH@", Integer.toString(configuration.getVideoWidth()))
       .replace("@VIDEO_HEIGHT@", Integer.toString(configuration.getVideoHeight()))
       .replace("@BYTES_WIDTH@", Integer.toString(BYTES_WIDTH))
-      .replace("@BYTES_HEIGHT@", Integer.toString(bytesHeight))
-      .replace("@PAGES_WIDTH@", Integer.toString(4 * slots));
+      .replace("@BYTES_HEIGHT@", Integer.toString(bytesHeight(configuration)))
+      .replace("@PAGES_WIDTH@", Integer.toString(4 * slots))
+      .replace("@CRC_WIDTH@", Integer.toString(CRC_CHUNKS * slots))
+      .replace("@CELLS_WIDTH@", Integer.toString(cellsWidth(configuration)))
+      .replace("@CELLS_HEIGHT@", Integer.toString(cellsHeight(configuration) + 1));
+  }
+
+  /** The rows of the bytes target: four bytes to a texel, enough for every byte of the page slots. */
+  static int bytesHeight(final Mcv2Configuration configuration) {
+    return ((configuration.getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS)) / 4 + BYTES_WIDTH - 1) / BYTES_WIDTH;
+  }
+
+  /** The resolve pass's columns: one per 8 pixels of the video, and room for the frame's facts. */
+  static int cellsWidth(final Mcv2Configuration configuration) {
+    return Math.max((configuration.getVideoWidth() + 7) / 8, FRAME_FACTS);
+  }
+
+  /** The resolve pass's rows of cells, one per 8 pixels of the video; its frame row follows them. */
+  static int cellsHeight(final Mcv2Configuration configuration) {
+    return (configuration.getVideoHeight() + 7) / 8;
   }
 
   /** The screen's constants for the shaders. */
@@ -155,6 +181,9 @@ public final class Mcv2Pack {
       "const int MCV2_VIDEO_HEIGHT = %d;".formatted(configuration.getVideoHeight()),
       "const uint MCV2_STREAM_ID = %du;".formatted(configuration.getStreamId()),
       "const int MCV2_BYTES_WIDTH = %d;".formatted(BYTES_WIDTH),
+      "const int MCV2_BYTES_HEIGHT = %d;".formatted(bytesHeight(configuration)),
+      "const int MCV2_CELLS_WIDTH = %d;".formatted(cellsWidth(configuration)),
+      "const int MCV2_CELLS_HEIGHT = %d;".formatted(cellsHeight(configuration)),
       "const bool MCV2_DEBUG_VIEW = %s;".formatted(debugView),
       "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%d, %d, %d);".formatted((color >> 16) & 255, (color >> 8) & 255, color & 255),
       ""

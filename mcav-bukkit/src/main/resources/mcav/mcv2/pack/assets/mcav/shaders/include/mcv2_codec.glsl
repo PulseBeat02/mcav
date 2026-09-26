@@ -5,12 +5,15 @@
 // Every output pixel is reconstructed independently from the frame bytes and the reference picture, with the same
 // float arithmetic, in the same order, as the reference: on Mesa Intel and on llvmpipe it reproduces the CPU
 // decoder byte for byte. mcav's changes are limited to where the inputs come from (the post chain's targets
-// instead of uniforms and a codebook texture) and to refusing the syntax mcav does not implement.
+// instead of uniforms and a codebook texture), to refusing the syntax mcav does not implement, and to how the work
+// is split: the frame and block checks, which every pixel of a block repeats identically, run once per 8x8 cell in
+// the resolve pass (mcvideoFrame, mcvideoResolve), and the decode pass reconstructs each pixel from its cell's leaf
+// (mcvideoLeaf). The arithmetic of every pixel is the reference's, unchanged.
 
 // 1. Configuration/constants. Byte offsets agree with format.HEADER (<12I).
-// The decode pass provides these before it calls mcvideoDecode: the frame bytes in BytesSampler, and
-// DataBytes, OutputSize, FrameReady, ReferenceValid and ReferenceId as globals, not uniforms, because they come
-// from the page status the chain computed this frame. mcv2ReferenceFetch reads whichever persistent reference
+// The resolve and decode passes provide these before they call mcvideoFrame or mcvideoLeaf: the frame bytes in
+// BytesSampler, and DataBytes, OutputSize, FrameReady, ReferenceValid and ReferenceId as globals, not uniforms,
+// because they come from the page status the chain computed this frame. mcv2ReferenceFetch reads whichever persistent reference
 // the frame predicts from.
 
 const uint MCVIDEO_MAGIC = 0x3156434du;
@@ -49,13 +52,15 @@ bool mcvideoRange(int offset, int count) {
     return offset >= 0 && count >= 0 && offset <= DataBytes && count <= DataBytes - offset;
 }
 
+// The bytes target's size is the pack's, MCV2_BYTES_WIDTH by MCV2_BYTES_HEIGHT, fixed when the pack is built, so a
+// fetch needs no size query; an offset the range check lets through always lies in it, the target holding every
+// byte a frame can have.
 uvec4 mcvideoTexel(int offset) {
     if (!mcvideoRange(offset, 1)) return uvec4(0u);
-    ivec2 dimensions = textureSize(BytesSampler, 0);
-    int texelIndex = offset / 4;
-    if (dimensions.x <= 0 || texelIndex / dimensions.x >= dimensions.y) return uvec4(0u);
-    return uvec4(floor(texelFetch(BytesSampler,
-                         ivec2(texelIndex % dimensions.x, texelIndex / dimensions.x), 0) * 255.0 + 0.5));
+    uint texelIndex = uint(offset) >> 2u;
+    if (texelIndex / uint(MCV2_BYTES_WIDTH) >= uint(MCV2_BYTES_HEIGHT)) return uvec4(0u);
+    return uvec4(texelFetch(BytesSampler,
+                         ivec2(int(texelIndex % uint(MCV2_BYTES_WIDTH)), int(texelIndex / uint(MCV2_BYTES_WIDTH))), 0) * 255.0 + 0.5);
 }
 
 // Whether this block size names its selector words in the frame's table.
@@ -372,14 +377,44 @@ int mcvideoPayloadCursor(int descriptorBase, int tableBase, int width, int walkB
     return cursor;
 }
 
-bool mcvideoDerivedDescriptor(ivec2 pixel, int blockCount, ivec2 blockDimensions,
-                              uint flags, int payloadStart, out uint word,
-                              out int blockSize, out int endpointBase,
-                              out int selectorHead, out int selectorTail) {
-    endpointBase = -1;
-    selectorHead = -1;
-    selectorTail = -1;
-    int groups = (blockCount + 31) / 32;
+// The frame-level facts every block of a frame shares: what the header says, and where the derived form's tables
+// sit. The resolve pass establishes them once per frame instead of every pixel establishing them again.
+struct McvideoFrame {
+    uint flags;
+    bool keyframe;
+    bool defaultSolid;
+    bool derived;
+    int stride;
+    int payloadStart;
+    ivec2 blockDimensions;
+    int blockCount;
+    // the derived form's layout: the descriptor plane, its symbol table, the walk and the three level counts
+    int groups;
+    int descriptorBase;
+    int tableBase;
+    int width;
+    int walkBase;
+    int walkpoints;
+    uint bits;
+    int n0;
+    int n1;
+    int total;
+    int vectorCount;
+    int vectorBase;
+    // where the endpoint pairs and the selector tables sit, -1 without them
+    int endpointBase;
+    int selectorHead;
+    int selectorTail;
+};
+
+// The frame-level half of the derived form: its layout, checked exactly as the reference checks it for every pixel.
+bool mcvideoDerivedFrame(inout McvideoFrame frame) {
+    frame.endpointBase = -1;
+    frame.selectorHead = -1;
+    frame.selectorTail = -1;
+    uint flags = frame.flags;
+    int payloadStart = frame.payloadStart;
+    int groups = (frame.blockCount + 31) / 32;
     int checkpoints =
         (groups + MCVIDEO_CHECKPOINT_GROUPS - 1) / MCVIDEO_CHECKPOINT_GROUPS;
     int countsBase = MCVIDEO_HEADER_BYTES + groups * 4 + checkpoints * 4;
@@ -425,8 +460,8 @@ bool mcvideoDerivedDescriptor(ivec2 pixel, int blockCount, ivec2 blockDimensions
         region += 1;
         // Pairs sit at the very end of the frame, so their base needs the pair count and
         // nothing else - no fragment pays for a table it does not read.
-        endpointBase = DataBytes - pairCount * pairStride;
-        if (endpointBase < payloadStart) return false;
+        frame.endpointBase = DataBytes - pairCount * pairStride;
+        if (frame.endpointBase < payloadStart) return false;
     }
     int vectorCount = 0;
     int vectorBase = 0;
@@ -443,15 +478,45 @@ bool mcvideoDerivedDescriptor(ivec2 pixel, int blockCount, ivec2 blockDimensions
     if ((flags & MCVIDEO_SELECTOR_TABLE) != 0u) {
         // Only where the counts live and where the region ends; the counts themselves are
         // read in the pattern path, which is the only place that wants them.
-        selectorHead = headBase + (hasMotion ? 1 : 0) + (hasPairs ? 1 : 0);
-        selectorTail = DataBytes - pairCount * pairStride - vectorCount * 2;
+        frame.selectorHead = headBase + (hasMotion ? 1 : 0) + (hasPairs ? 1 : 0);
+        frame.selectorTail = DataBytes - pairCount * pairStride - vectorCount * 2;
         region += 3;
     }
     if (walkBase + region != payloadStart || n1 % 4 != 0 || n2 % 4 != 0)
         return false;
+    frame.groups = groups;
+    frame.descriptorBase = descriptorBase;
+    frame.tableBase = tableBase;
+    frame.width = width;
+    frame.walkBase = walkBase;
+    frame.walkpoints = walkpoints;
+    frame.bits = bits;
+    frame.n0 = n0;
+    frame.n1 = n1;
+    frame.total = total;
+    frame.vectorCount = vectorCount;
+    frame.vectorBase = vectorBase;
+    return true;
+}
+
+// The block-level half of the derived form: the leaf that covers a pixel, found from the presence masks, the split
+// prefix and the payload cursor. Every pixel of an aligned 8x8 cell finds the same leaf.
+bool mcvideoDerivedBlock(ivec2 pixel, McvideoFrame frame, out uint word, out int blockSize) {
+    uint flags = frame.flags;
+    int payloadStart = frame.payloadStart;
+    int groups = frame.groups;
+    int descriptorBase = frame.descriptorBase;
+    int tableBase = frame.tableBase;
+    int width = frame.width;
+    int walkBase = frame.walkBase;
+    int walkpoints = frame.walkpoints;
+    uint bits = frame.bits;
+    int n0 = frame.n0;
+    int n1 = frame.n1;
+    int total = frame.total;
     blockSize = 32;
     word = 0u;
-    int blockIndex = (pixel.y / 32) * blockDimensions.x + pixel.x / 32;
+    int blockIndex = (pixel.y / 32) * frame.blockDimensions.x + pixel.x / 32;
     int group = blockIndex / 32;
     uint bit = uint(blockIndex & 31);
     uint mask = mcvideoWord(MCVIDEO_HEADER_BYTES + group * 4);
@@ -498,8 +563,8 @@ bool mcvideoDerivedDescriptor(ivec2 pixel, int blockCount, ivec2 blockDimensions
         // two bytes sit at a computable address. No new decode path, one extra fetch.
         if ((flags & MCVIDEO_MOTION_TABLE) == 0u) return false;
         int which = int(mcvideoByte(payloadStart + cursor));
-        if (which >= vectorCount) return false;
-        word = uint(vectorBase + which * 2) | (MCVIDEO_MODE_MOTION << 24u) |
+        if (which >= frame.vectorCount) return false;
+        word = uint(frame.vectorBase + which * 2) | (MCVIDEO_MODE_MOTION << 24u) |
                ((value >> 5u) << 29u);
         return true;
     }
@@ -557,7 +622,7 @@ vec3 mcvideoGrid(int offset, ivec2 pixelInBlock, int blockSize, int gridSize, bo
 
 // Reduced-chroma modes keep a scalar luma plane followed by interleaved Co/Cg.
 // All grid widths divide B, so coordinates and interpolation weights are dyadic.
-// Component loads are bounded by the record validation in mcvideoDecode.
+// Component loads are bounded by the record validation in mcvideoLeaf.
 float mcvideoPlaneNode(int offset, ivec2 position, int gridSize, int stride, bool signedValue) {
     int index = int(float(position.y) * float(gridSize)) + position.x;
     uint value = mcvideoByte(offset + index * stride);
@@ -612,13 +677,13 @@ float mcvideoCompactGrid(int offset, ivec2 localPixel, int blockSize, int kind,
       f.y);
 }
 vec3 mcvideoCompact(int offset, uint q, ivec2 pixel, int blockSize,
-                    ivec2 motion, vec3 fallback) {
+                    ivec2 motion) {
   if (!mcvideoRange(offset, 1))
-    return fallback;
+    return mcvideoFallback(pixel);
   uint control = mcvideoByte(offset);
   int kind = int(control & 15u), form = int(control >> 4u);
   if (kind > 8 || form > 2 || (kind == 7 && q != 0u))
-    return fallback;
+    return mcvideoFallback(pixel);
   int bodyBytes = kind == 0   ? 1
                   : kind == 1 ? 6
                   : kind == 2 ? 10
@@ -629,7 +694,7 @@ vec3 mcvideoCompact(int offset, uint q, ivec2 pixel, int blockSize,
                   : kind == 7 ? 4
                               : 5;
   if (!mcvideoRange(offset, 1 + form + bodyBytes))
-    return fallback;
+    return mcvideoFallback(pixel);
   if (form == 1) {
     uint v = mcvideoByte(offset + 1);
     motion += ivec2(mcvideoSigned(v, 4u), mcvideoSigned(v >> 4u, 4u));
@@ -675,11 +740,11 @@ vec3 mcvideoCompact(int offset, uint q, ivec2 pixel, int blockSize,
   } else {
     int indexA = int(mcvideoByte(offset + 3)), indexB = 0;
     if (kind == 5 && indexA >= 64)
-      return fallback;
+      return mcvideoFallback(pixel);
     if (kind == 6) {
       uint hi = mcvideoByte(offset + 4);
       if (hi > 15u)
-        return fallback;
+        return mcvideoFallback(pixel);
       indexB = (indexA >> 6) | (int(hi) << 2);
       indexA &= 63;
     }
@@ -693,123 +758,169 @@ vec3 mcvideoCompact(int offset, uint q, ivec2 pixel, int blockSize,
 
 #endif
 
-// 9/10. Intra selection and final reconstruction. All loop bounds are constant
-// or absent; malformed mode values cannot create arbitrary work or coordinates.
-vec3 mcvideoDecode(ivec2 pixel) {
-  vec3 fallback = mcvideoFallback(pixel);
+// 9. The frame: the reference's header checks, in its order. Every failure is the fallback picture for the whole
+// frame. The resolve pass runs this once per frame and per 8x8 cell, not once per pixel.
+bool mcvideoFrame(out McvideoFrame frame) {
+  frame.flags = 0u;
+  frame.keyframe = false;
+  frame.defaultSolid = false;
+  frame.derived = false;
+  frame.stride = 4;
+  frame.payloadStart = 0;
+  frame.blockDimensions = ivec2(0);
+  frame.blockCount = 0;
+  frame.groups = 0;
+  frame.descriptorBase = 0;
+  frame.tableBase = 0;
+  frame.width = 8;
+  frame.walkBase = 0;
+  frame.walkpoints = 0;
+  frame.bits = 0u;
+  frame.n0 = 0;
+  frame.n1 = 0;
+  frame.total = 0;
+  frame.vectorCount = 0;
+  frame.vectorBase = 0;
+  frame.endpointBase = -1;
+  frame.selectorHead = -1;
+  frame.selectorTail = -1;
   if (!FrameReady || DataBytes < MCVIDEO_HEADER_BYTES ||
       DataBytes > int(MCVIDEO_OFFSET_MASK) ||
       any(lessThan(OutputSize, ivec2(1))) ||
       any(greaterThan(OutputSize, ivec2(4096))))
-    return fallback;
+    return false;
   // mcav decodes MCV2 only: MCV1 frames, the motion table of round 15 and the coarse palettes of round 3 are
   // refused here as they are by the Java decoder
   bool tree = mcvideoWord(0) == 0x3256434du;
   if (!tree ||
       mcvideoWord(32) != uint(DataBytes) || mcvideoWord(40) != 0u ||
       mcvideoWord(44) != 0u)
-    return fallback;
+    return false;
   uint config = mcvideoWord(4);
   uint blockLog = (config >> 8u) & 255u;
   uint flags = config >> 16u;
   if ((config & 255u) != (tree ? 2u : 1u) || blockLog < 2u || blockLog > 5u ||
       (tree && blockLog != 5u) || flags > (tree ? 16383u : 7u) ||
       (flags & MCVIDEO_MOTION_TABLE) != 0u)
-    return fallback;
+    return false;
   int stride = (flags & 8u) != 0u ? 3 : 4;
-  if (stride == 3 && DataBytes > 65535) return fallback;
+  if (stride == 3 && DataBytes > 65535) return false;
   uint dimensions = mcvideoWord(8);
   if (ivec2(int(dimensions & 65535u), int(dimensions >> 16u)) != OutputSize)
-    return fallback;
+    return false;
   bool keyframe = (flags & MCVIDEO_KEYFRAME) != 0u;
   bool defaultSolid = (flags & MCVIDEO_DEFAULT_SOLID) != 0u;
   uint defaultColor = mcvideoWord(36);
   if ((defaultSolid && !keyframe) || defaultColor > 0x00ffffffu ||
       (!defaultSolid && defaultColor != 0u))
-    return fallback;
+    return false;
   if (keyframe) {
     if (mcvideoWord(12) != mcvideoWord(16) || mcvideoWord(20) != 0u)
-      return fallback;
+      return false;
   } else if (!ReferenceValid || ReferenceId != mcvideoWord(16) ||
              mcvideoWord(12) == ReferenceId ||
              any(notEqual(mcv2ReferenceSize(), OutputSize)))
-    return fallback;
+    return false;
   int blockSize = 1 << blockLog;
   ivec2 blockDimensions = (OutputSize + blockSize - 1) / blockSize;
   int blockCount = blockDimensions.x * blockDimensions.y;
   if (mcvideoWord(24) != uint(blockCount))
-    return fallback;
+    return false;
   uint payloadValue = mcvideoWord(28);
   if (payloadValue < uint(MCVIDEO_HEADER_BYTES) ||
       payloadValue > uint(DataBytes))
-    return fallback;
+    return false;
   int payloadStart = int(payloadValue);
   if (!tree && (flags & MCVIDEO_SPARSE) == 0u &&
       payloadStart != MCVIDEO_HEADER_BYTES + blockCount * 4)
-    return fallback;
-  int blockIndex =
-      (pixel.y / blockSize) * blockDimensions.x + pixel.x / blockSize;
-  uint word;
-  int endpointBase = -1;
-  int selectorHead = -1;
-  int selectorTail = -1;
-  bool derivedOffsets = tree && (flags & MCVIDEO_DERIVED_OFFSETS) != 0u;
-  if (derivedOffsets) {
+    return false;
+  frame.flags = flags;
+  frame.keyframe = keyframe;
+  frame.defaultSolid = defaultSolid;
+  frame.stride = stride;
+  frame.payloadStart = payloadStart;
+  frame.blockDimensions = blockDimensions;
+  frame.blockCount = blockCount;
+  frame.derived = tree && (flags & MCVIDEO_DERIVED_OFFSETS) != 0u;
+  if (frame.derived) {
     if ((flags & MCVIDEO_SPARSE) == 0u ||
         (flags & MCVIDEO_DERIVED_DIRECTORY) == 0u || stride != 4)
-      return fallback;
-    if (!mcvideoDerivedDescriptor(pixel, blockCount, blockDimensions, flags, payloadStart,
-                                  word, blockSize, endpointBase, selectorHead,
-                                  selectorTail))
-      return fallback;
-  } else if (!mcvideoDescriptor(blockIndex, blockCount, flags, payloadStart, stride,
-                                word))
-    return fallback;
+      return false;
+    if (!mcvideoDerivedFrame(frame))
+      return false;
+  }
+  return true;
+}
+
+// 10. The block: the leaf that covers a pixel, its descriptor word and its size. Every pixel of an aligned 8x8 cell
+// resolves to the same leaf, so the resolve pass runs this once per cell. False is the fallback picture.
+bool mcvideoResolve(ivec2 pixel, McvideoFrame frame, out uint word, out int blockSize) {
+  word = 0u;
+  blockSize = 32;
+  if (frame.derived)
+    return mcvideoDerivedBlock(pixel, frame, word, blockSize);
+  int blockIndex =
+      (pixel.y / blockSize) * frame.blockDimensions.x + pixel.x / blockSize;
+  int stride = frame.stride;
+  int payloadStart = frame.payloadStart;
+  if (!mcvideoDescriptor(blockIndex, frame.blockCount, frame.flags, payloadStart, stride,
+                         word))
+    return false;
   // Descriptor, one little-endian 32-bit word (bit 0 is the byte's LSB):
   // 31       28 27       24 23                                   0
   // +----------+-----------+-------------------------------------+
   // | Q log2   | mode      | absolute payload BYTE offset        |
   // +----------+-----------+-------------------------------------+
   // Q=0..7 on residuals, zero otherwise; SKIP is the entire word zero.
-  if (tree && !derivedOffsets) {
-    // Exactly two dependent child groups; no unbounded tree traversal.
-    for (int depth = 0; depth < 2; ++depth) {
-      uint splitMode = (word >> 24u) & 31u;
-      if (splitMode != 16u && splitMode != 19u) break;
-      int childOffset = int(word & MCVIDEO_OFFSET_MASK);
-      if ((word >> 29u) != 0u || childOffset < MCVIDEO_HEADER_BYTES) return fallback;
-      blockSize /= 2;
-      ivec2 quadrant = (pixel / blockSize) & ivec2(1);
-      int child = quadrant.y * 2 + quadrant.x;
-      if (splitMode == 19u) {
-        if (stride != 3 || childOffset >= payloadStart) return fallback;
-        uint mask = mcvideoByte(childOffset);
-        if (mask >= 15u || childOffset + 1 + int(mcvideoPopcount(mask)) * 3 > payloadStart) return fallback;
-        if ((mask & (1u << uint(child))) == 0u) word = 0u;
-        else word = mcvideoIndexWord(childOffset + 1 + int(mcvideoPopcount(mask & ((1u << uint(child)) - 1u))) * 3, 3);
-      } else {
-        if ((stride == 4 && (childOffset & 3) != 0) || childOffset > payloadStart - 4 * stride) return fallback;
-        word = mcvideoIndexWord(childOffset + child * stride, stride);
-      }
+  // Exactly two dependent child groups; no unbounded tree traversal.
+  for (int depth = 0; depth < 2; ++depth) {
+    uint splitMode = (word >> 24u) & 31u;
+    if (splitMode != 16u && splitMode != 19u) break;
+    int childOffset = int(word & MCVIDEO_OFFSET_MASK);
+    if ((word >> 29u) != 0u || childOffset < MCVIDEO_HEADER_BYTES) return false;
+    blockSize /= 2;
+    ivec2 quadrant = (pixel / blockSize) & ivec2(1);
+    int child = quadrant.y * 2 + quadrant.x;
+    if (splitMode == 19u) {
+      if (stride != 3 || childOffset >= payloadStart) return false;
+      uint mask = mcvideoByte(childOffset);
+      if (mask >= 15u || childOffset + 1 + int(mcvideoPopcount(mask)) * 3 > payloadStart) return false;
+      if ((mask & (1u << uint(child))) == 0u) word = 0u;
+      else word = mcvideoIndexWord(childOffset + 1 + int(mcvideoPopcount(mask & ((1u << uint(child)) - 1u))) * 3, 3);
+    } else {
+      if ((stride == 4 && (childOffset & 3) != 0) || childOffset > payloadStart - 4 * stride) return false;
+      word = mcvideoIndexWord(childOffset + child * stride, stride);
     }
   }
-  uint mode = (word >> 24u) & (tree ? 31u : 15u);
-  uint quantizer = word >> (tree ? 29u : 28u);
-  if (mode == 17u && tree) {
+  return true;
+}
+
+// 11. The pixel: the reconstruction of a resolved leaf. All loop bounds are constant or absent; malformed mode
+// values cannot create arbitrary work or coordinates.
+vec3 mcvideoLeaf(ivec2 pixel, McvideoFrame frame, uint word, int blockSize) {
+  bool keyframe = frame.keyframe;
+  bool defaultSolid = frame.defaultSolid;
+  uint flags = frame.flags;
+  int payloadStart = frame.payloadStart;
+  int endpointBase = frame.endpointBase;
+  int selectorHead = frame.selectorHead;
+  int selectorTail = frame.selectorTail;
+  uint mode = (word >> 24u) & 31u;
+  uint quantizer = word >> 29u;
+  if (mode == 17u) {
 #ifdef MCVIDEO_NO_COMPACT
-    return fallback;
+    return mcvideoFallback(pixel);
 #else
     int compactOffset = int(word & MCVIDEO_OFFSET_MASK);
     if (keyframe || compactOffset < payloadStart)
-      return fallback;
+      return mcvideoFallback(pixel);
     uint global = mcvideoWord(20);
     ivec2 motion =
         ivec2(mcvideoSigned(global, 16u), mcvideoSigned(global >> 16u, 16u));
-    return mcvideoCompact(compactOffset, quantizer, pixel, blockSize, motion,
-                          fallback);
+    return mcvideoCompact(compactOffset, quantizer, pixel, blockSize, motion);
 #endif
   }
-  if (mode == 18u && tree) {
+  if (mode == 18u) {
     int patternOffset = int(word & MCVIDEO_OFFSET_MASK);
     // With an endpoint table the record is one index byte, the orientation, then the
     // axis bits; the two colours come from the table instead of from the record head.
@@ -817,7 +928,7 @@ vec3 mcvideoDecode(ivec2 pixel) {
     bool listed = mcvideoListed(flags, blockSize) && selectorHead >= 0;
     int head = named ? 1 : 6;
     int patternBytes = head + (listed ? 1 : 1 + blockSize / 8);
-    if (quantizer != 0u || patternOffset < payloadStart || !mcvideoRange(patternOffset, patternBytes)) return fallback;
+    if (quantizer != 0u || patternOffset < payloadStart || !mcvideoRange(patternOffset, patternBytes)) return mcvideoFallback(pixel);
     // The orientation and axis bits either follow the endpoints in the record, or are one
     // entry of the table for this block size - the tables sit smallest size first.
     int wordAt = patternOffset + head;
@@ -827,40 +938,40 @@ vec3 mcvideoDecode(ivec2 pixel) {
         int c8 = int(counts & 255u);
         int c16 = int((counts >> 8u) & 255u);
         int c32 = int((counts >> 16u) & 255u);
-        if (c8 + c16 + c32 < 1) return fallback;
+        if (c8 + c16 + c32 < 1) return mcvideoFallback(pixel);
         int skip = blockSize == 8 ? 0 : (blockSize == 16 ? c8 * 2 : c8 * 2 + c16 * 3);
         int slots = blockSize == 8 ? c8 : (blockSize == 16 ? c16 : c32);
         int slot = int(mcvideoByte(patternOffset + head));
-        if (slot >= slots) return fallback;
+        if (slot >= slots) return mcvideoFallback(pixel);
         // The region ends where the motion vectors begin, so its base is the tail less
         // every word it holds.
         wordAt = selectorTail - (c8 * 2 + c16 * 3 + c32 * 5) + skip + slot * entryBytes;
-        if (wordAt < payloadStart) return fallback;
-        if (!mcvideoRange(wordAt, entryBytes)) return fallback;
+        if (wordAt < payloadStart) return mcvideoFallback(pixel);
+        if (!mcvideoRange(wordAt, entryBytes)) return mcvideoFallback(pixel);
     }
     uint orientation = mcvideoByte(wordAt);
-    if (orientation > 1u) return fallback;
+    if (orientation > 1u) return mcvideoFallback(pixel);
     int axis = (orientation == 0u ? pixel.x : pixel.y) % blockSize;
     uint selector = (mcvideoByte(wordAt + 1 + axis / 8) >> uint(axis & 7)) & 1u;
     if (!named) return mcvideoRGB(patternOffset + int(selector) * 3);
     int which = int(mcvideoByte(patternOffset));
     if ((flags & MCVIDEO_ENDPOINT_565) != 0u) {
         int pairAt = endpointBase + which * 4;
-        if (!mcvideoRange(pairAt, 4)) return fallback;
+        if (!mcvideoRange(pairAt, 4)) return mcvideoFallback(pixel);
         return mcvideoRGB565(pairAt + int(selector) * 2);
     }
     int entry = endpointBase + which * 6;
-    if (!mcvideoRange(entry, 6)) return fallback;
+    if (!mcvideoRange(entry, 6)) return mcvideoFallback(pixel);
     return mcvideoRGB(entry + int(selector) * 3);
   }
   // the coarse palettes of round 3 were not kept by the frontier, and mcav does not decode them
   if (mode == 21u || mode == 22u)
-    return fallback;
-  if (mode == 20u && tree) {
+    return mcvideoFallback(pixel);
+  if (mode == 20u) {
     // Immediate motion: the two record bytes ride in the descriptor's address
     // field, so this leaf costs no payload byte and no second memory fetch.
     if (keyframe || quantizer != 0u || (word & MCVIDEO_OFFSET_MASK) > 0xffffu)
-      return fallback;
+      return mcvideoFallback(pixel);
     uint immediateGlobal = mcvideoWord(20);
     ivec2 immediateMotion = ivec2(mcvideoSigned(immediateGlobal, 16u),
                                   mcvideoSigned(immediateGlobal >> 16u, 16u));
@@ -869,17 +980,17 @@ vec3 mcvideoDecode(ivec2 pixel) {
     return mcvideoPredict(pixel, immediateMotion);
   }
   if (mode >= 16u)
-    return fallback;
+    return mcvideoFallback(pixel);
   int offset = int(word & MCVIDEO_OFFSET_MASK);
   bool reducedChroma = mode >= 12u;
   bool residual = (mode >= MCVIDEO_MODE_RESIDUAL && mode < 12u) ||
                   mode == 13u || mode == 15u;
   if (quantizer > 7u || (!residual && quantizer != 0u) ||
       (mode == MCVIDEO_MODE_SKIP && word != 0u))
-    return fallback;
+    return mcvideoFallback(pixel);
   if (keyframe && (mode == MCVIDEO_MODE_MOTION || residual ||
                    (mode == MCVIDEO_MODE_SKIP && !defaultSolid)))
-    return fallback;
+    return mcvideoFallback(pixel);
   if (mode == MCVIDEO_MODE_SKIP && defaultSolid)
     return mcvideoRGB(36);
   int gridSize = 1;
@@ -895,19 +1006,19 @@ vec3 mcvideoDecode(ivec2 pixel) {
     gridSize = mode < 14u ? 4 : 8;
     chromaSize = mode < 14u ? 1 : 2;
     if (gridSize > blockSize)
-      return fallback;
+      return mcvideoFallback(pixel);
     recordBytes =
         gridSize * gridSize + 2 * chromaSize * chromaSize + (residual ? 2 : 0);
   } else if (mode >= MCVIDEO_MODE_INTRA) {
     gridSize =
         1 << (mode - (residual ? MCVIDEO_MODE_RESIDUAL : MCVIDEO_MODE_INTRA));
     if (gridSize > blockSize)
-      return fallback;
+      return mcvideoFallback(pixel);
     recordBytes = 3 * gridSize * gridSize + (residual ? 2 : 0);
   }
   if (mode != MCVIDEO_MODE_SKIP &&
       (offset < payloadStart || !mcvideoRange(offset, recordBytes)))
-    return fallback;
+    return mcvideoFallback(pixel);
   uint global = mcvideoWord(20);
   ivec2 motion =
       ivec2(mcvideoSigned(global, 16u), mcvideoSigned(global >> 16u, 16u));
@@ -950,4 +1061,82 @@ vec3 mcvideoDecode(ivec2 pixel) {
          mcvideoYCoCgToRGB(grid * float(1u << quantizer));
 }
 
-// 11. The decode pass quantizes the result to RGB8 explicitly; that quantization is normative for references.
+// 12. How the resolve pass hands a leaf to the decode pass: one RGBA8 texel per 8x8 cell holding the descriptor word
+// with the leaf size in bits 22 and 23 of its offset field, and one row after the cells with the frame's facts. A
+// frame holds at most MCV2_PAGE_SLOTS pages of 12,256 bytes, under 2^17, so every record offset leaves those two bits
+// free; a leaf the frame cannot hold is the fallback, as its own checks would decide, and so is a failed resolve. A
+// local motion leaf is unpacked: the resolve pass makes mcvideoLeaf's checks of it and the cell carries its two motion
+// bytes instead of their address, so its pixels read no frame byte.
+const uint MCVIDEO_CELL_INVALID = 0xffffffffu;
+const uint MCVIDEO_CELL_SIZE_BITS = 0x00c00000u;
+
+uint mcvideoCellWord(bool resolved, McvideoFrame frame, uint word, int blockSize) {
+  if (!resolved) return MCVIDEO_CELL_INVALID;
+  // an offset field at or past 2^22 is past every frame, which each mode refuses: immediate motion because its
+  // field exceeds two bytes, every other mode because the record lies outside the frame
+  if ((word & MCVIDEO_CELL_SIZE_BITS) != 0u) return MCVIDEO_CELL_INVALID;
+  if (((word >> 24u) & 31u) == MCVIDEO_MODE_MOTION) {
+    int offset = int(word & MCVIDEO_OFFSET_MASK);
+    if (frame.keyframe || (word >> 29u) != 0u || offset < frame.payloadStart || !mcvideoRange(offset, 2))
+      return MCVIDEO_CELL_INVALID;
+    word = (MCVIDEO_MODE_MOTION << 24u) | mcvideoByte(offset) | (mcvideoByte(offset + 1) << 8u);
+  }
+  uint size = blockSize == 32 ? 0u : (blockSize == 16 ? 1u : 2u);
+  return word | (size << 22u);
+}
+
+// The descriptor word and the leaf size of a cell texel's word; false for the fallback.
+bool mcvideoCellLeaf(uint cell, out uint word, out int blockSize) {
+  word = cell & ~MCVIDEO_CELL_SIZE_BITS;
+  blockSize = 32 >> int((cell >> 22u) & 3u);
+  return cell != MCVIDEO_CELL_INVALID;
+}
+
+// The frame's facts, in the texels of the row after the cells: 0 the flags with bit 31 set when the frame decodes,
+// 1 the payload start, 2 to 4 the endpoint base and the selector head and tail, each plus one so -1 is zero, and 5
+// the global motion word.
+uint mcvideoFrameWord(bool valid, McvideoFrame frame, int texel) {
+  if (texel == 0) return valid ? (frame.flags | 0x80000000u) : 0u;
+  if (texel == 1) return uint(frame.payloadStart);
+  if (texel == 2) return uint(frame.endpointBase + 1);
+  if (texel == 3) return uint(frame.selectorHead + 1);
+  if (texel == 4) return uint(frame.selectorTail + 1);
+  if (texel == 5) return valid ? mcvideoWord(20) : 0u;
+  return 0u;
+}
+
+// The motion a vector word gives, two signed 16-bit halves, x in the low one.
+ivec2 mcvideoMotion(uint word) {
+  return ivec2(mcvideoSigned(word, 16u), mcvideoSigned(word >> 16u, 16u));
+}
+
+// The facts the pixel pass needs, back from the frame row; false when the frame falls back.
+bool mcvideoFrameFromWords(uint flagsWord, uint payloadWord, uint endpointWord, uint headWord, uint tailWord,
+                           out McvideoFrame frame) {
+  frame.flags = flagsWord & 0x7fffffffu;
+  frame.keyframe = (frame.flags & MCVIDEO_KEYFRAME) != 0u;
+  frame.defaultSolid = (frame.flags & MCVIDEO_DEFAULT_SOLID) != 0u;
+  frame.derived = (frame.flags & MCVIDEO_DERIVED_OFFSETS) != 0u;
+  frame.stride = (frame.flags & 8u) != 0u ? 3 : 4;
+  frame.payloadStart = int(payloadWord);
+  frame.blockDimensions = ivec2(0);
+  frame.blockCount = 0;
+  frame.groups = 0;
+  frame.descriptorBase = 0;
+  frame.tableBase = 0;
+  frame.width = 8;
+  frame.walkBase = 0;
+  frame.walkpoints = 0;
+  frame.bits = 0u;
+  frame.n0 = 0;
+  frame.n1 = 0;
+  frame.total = 0;
+  frame.vectorCount = 0;
+  frame.vectorBase = 0;
+  frame.endpointBase = int(endpointWord) - 1;
+  frame.selectorHead = int(headWord) - 1;
+  frame.selectorTail = int(tailWord) - 1;
+  return (flagsWord & 0x80000000u) != 0u;
+}
+
+// 13. The decode pass quantizes the result to RGB8 explicitly; that quantization is normative for references.

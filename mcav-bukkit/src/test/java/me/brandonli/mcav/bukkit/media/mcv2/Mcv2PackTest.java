@@ -86,12 +86,17 @@ final class Mcv2PackTest {
       "assets/mcav/shaders/include/mcv2_config.glsl",
       "assets/mcav/shaders/include/mcv2_alphabet.glsl",
       "assets/mcav/shaders/include/mcv2_books.glsl",
+      "assets/mcav/shaders/post/mcv2_crc.fsh",
+      "assets/mcav/shaders/post/mcv2_resolve.fsh",
+      "assets/mcav/shaders/post/mcv2_decode.vsh",
       "assets/mcav/shaders/post/mcv2_decode.fsh",
+      "assets/mcav/shaders/post/mcv2_view.fsh",
+      "assets/mcav/shaders/post/mcv2_screen.vsh",
       "assets/mcav/shaders/post/mcv2_screen.fsh",
     }) {
       assertTrue(entries.containsKey(name), name);
     }
-    assertEquals(20, entries.size());
+    assertEquals(25, entries.size());
     final JsonObject meta = JsonParser.parseString(entries.get("pack.mcmeta")).getAsJsonObject().getAsJsonObject("pack");
     assertEquals(Mcv2Pack.PACK_FORMAT, meta.get("pack_format").getAsInt());
     assertEquals("mcav MCV2 decoder, 320x180 video, stream 9", meta.get("description").getAsString());
@@ -102,6 +107,10 @@ final class Mcv2PackTest {
     assertTrue(config.contains("const uint MCV2_STREAM_ID = 9u;"), config);
     assertTrue(config.contains("const bool MCV2_DEBUG_VIEW = true;"), config);
     assertTrue(config.contains("const ivec3 MCV2_OUTLINE_COLOR = ivec3(255, 170, 0);"), config);
+    assertTrue(config.contains("const int MCV2_BYTES_HEIGHT = 48;"), config);
+    // one cell per 8x8 pixels: 40 columns, 23 rows of cells (180 / 8 rounded up)
+    assertTrue(config.contains("const int MCV2_CELLS_WIDTH = 40;"), config);
+    assertTrue(config.contains("const int MCV2_CELLS_HEIGHT = 23;"), config);
     final String chain = entries.get("assets/minecraft/post_effect/entity_outline.json");
     assertFalse(chain.contains("@"), "every token is filled in");
     final JsonObject targets = JsonParser.parseString(chain).getAsJsonObject().getAsJsonObject("targets");
@@ -110,10 +119,26 @@ final class Mcv2PackTest {
     assertEquals(8, targets.getAsJsonObject("mcav:mcv2_pages").get("width").getAsInt());
     // two pages of 12,256 bytes, four to a texel, 128 texels to a row
     assertEquals(48, targets.getAsJsonObject("mcav:mcv2_bytes").get("height").getAsInt());
+    // 64 CRC chunks per page slot
+    assertEquals(128, targets.getAsJsonObject("mcav:mcv2_crc").get("width").getAsInt());
+    // the cells and, after them, the frame row
+    assertEquals(40, targets.getAsJsonObject("mcav:mcv2_cells").get("width").getAsInt());
+    assertEquals(24, targets.getAsJsonObject("mcav:mcv2_cells").get("height").getAsInt());
     final JsonObject manifest = JsonParser.parseString(entries.get("mcav_mcv2.json")).getAsJsonObject();
     assertEquals(Mcv2Pack.CODEC_COMMIT, manifest.get("gpu_codec_commit").getAsString());
     assertEquals("previous_frame", manifest.get("reference").getAsString());
     assertEquals(2, manifest.get("page_slots").getAsInt());
+  }
+
+  @Test
+  void leavesRoomForTheFrameFactsInANarrowVideo() {
+    final Mcv2Configuration narrow = Mcv2ConfigurationTest.complete().video(16, 9).build();
+    // two columns of cells would not hold the frame row's six facts
+    assertEquals(6, Mcv2Pack.cellsWidth(narrow));
+    assertEquals(2, Mcv2Pack.cellsHeight(narrow));
+    final Mcv2Configuration wide = Mcv2ConfigurationTest.complete().video(1920, 1080).build();
+    assertEquals(240, Mcv2Pack.cellsWidth(wide));
+    assertEquals(135, Mcv2Pack.cellsHeight(wide));
   }
 
   @Test

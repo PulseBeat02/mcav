@@ -5,6 +5,10 @@
       "width": @BYTES_WIDTH@,
       "height": @BYTES_HEIGHT@
     },
+    "mcav:mcv2_crc": {
+      "width": @CRC_WIDTH@,
+      "height": 1
+    },
     "mcav:mcv2_pages": {
       "width": @PAGES_WIDTH@,
       "height": 1
@@ -21,6 +25,10 @@
     "mcav:mcv2_state_next": {
       "width": 4,
       "height": 1
+    },
+    "mcav:mcv2_cells": {
+      "width": @CELLS_WIDTH@,
+      "height": @CELLS_HEIGHT@
     },
     "mcav:mcv2_previous": {
       "width": @VIDEO_WIDTH@,
@@ -40,6 +48,10 @@
       "width": @VIDEO_WIDTH@,
       "height": @VIDEO_HEIGHT@
     },
+    "mcav:mcv2_view": {
+      "width": 31,
+      "height": 1
+    },
     "mcav:mcv2_screen": {},
     "mcav:mcv2_outline": {}
   },
@@ -57,11 +69,26 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "mcav:post/mcv2_crc",
+      "inputs": [
+        {
+          "sampler_name": "Main",
+          "target": "minecraft:main"
+        }
+      ],
+      "output": "mcav:mcv2_crc"
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
       "fragment_shader": "mcav:post/mcv2_pages",
       "inputs": [
         {
           "sampler_name": "Main",
           "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "Crc",
+          "target": "mcav:mcv2_crc"
         }
       ],
       "output": "mcav:mcv2_pages"
@@ -83,6 +110,25 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "mcav:post/mcv2_resolve",
+      "inputs": [
+        {
+          "sampler_name": "Bytes",
+          "target": "mcav:mcv2_bytes"
+        },
+        {
+          "sampler_name": "Status",
+          "target": "mcav:mcv2_status"
+        },
+        {
+          "sampler_name": "Previous",
+          "target": "mcav:mcv2_previous"
+        }
+      ],
+      "output": "mcav:mcv2_cells"
+    },
+    {
+      "vertex_shader": "mcav:post/mcv2_decode",
       "fragment_shader": "mcav:post/mcv2_decode",
       "inputs": [
         {
@@ -92,6 +138,10 @@
         {
           "sampler_name": "Status",
           "target": "mcav:mcv2_status"
+        },
+        {
+          "sampler_name": "Cells",
+          "target": "mcav:mcv2_cells"
         },
         {
           "sampler_name": "Previous",
@@ -215,6 +265,21 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "mcav:post/mcv2_view",
+      "inputs": [
+        {
+          "sampler_name": "Main",
+          "target": "minecraft:main"
+        },
+        {
+          "sampler_name": "State",
+          "target": "mcav:mcv2_state"
+        }
+      ],
+      "output": "mcav:mcv2_view"
+    },
+    {
+      "vertex_shader": "mcav:post/mcv2_screen",
       "fragment_shader": "mcav:post/mcv2_screen",
       "inputs": [
         {
@@ -241,6 +306,10 @@
         {
           "sampler_name": "Status",
           "target": "mcav:mcv2_status"
+        },
+        {
+          "sampler_name": "View",
+          "target": "mcav:mcv2_view"
         }
       ],
       "output": "mcav:mcv2_screen"

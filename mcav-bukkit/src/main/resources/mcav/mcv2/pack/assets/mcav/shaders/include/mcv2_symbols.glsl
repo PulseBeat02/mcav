@@ -6,7 +6,7 @@
 
 // The symbol a map texel carries, or -1 for a colour outside the alphabet.
 int mcv2Symbol(vec4 texel) {
-    ivec3 c = ivec3(floor(texel.rgb * 255.0 + 0.5));
+    ivec3 c = ivec3(texel.rgb * 255.0 + 0.5);
     for (int s = 0; s < 64; ++s) {
         if (MCV2_ALPHABET[s] == c) {
             return s;

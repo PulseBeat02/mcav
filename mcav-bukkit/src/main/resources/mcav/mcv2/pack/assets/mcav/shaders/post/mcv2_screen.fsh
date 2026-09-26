@@ -1,6 +1,6 @@
 #version 330
 
-// Pass 7: the picture on the screen. Every pixel of the scene is cast onto the plane of the screen the anchors
+// Pass 10: the picture on the screen. Every pixel of the scene is cast onto the plane of the screen the anchors
 // describe; where the ray meets the screen in front of whatever the scene has there, it takes the decoded picture's
 // pixel. The transport strip at the top of the screen is covered with the scene row just below it. With
 // MCV2_DEBUG_VIEW the picture is also drawn one to one below the strip, which is how the in-game conformance test
@@ -17,18 +17,19 @@ uniform sampler2D PictureSampler;
 uniform sampler2D StateSampler;
 uniform sampler2D PagesSampler;
 uniform sampler2D StatusSampler;
+uniform sampler2D ViewSampler;
+
+// what the vertex shader read once for all pixels: the view pass's flags and box, the screen and the projection
+flat in uvec4 ScreenView;
+flat in vec4 ScreenTopLeft;
+flat in vec4 ScreenRight;
+flat in vec4 ScreenDown;
+flat in vec4 ScreenProjection0;
+flat in vec4 ScreenProjection1;
+flat in vec4 ScreenProjection2;
+flat in vec4 ScreenProjection3;
 
 out vec4 fragColor;
-
-ivec3 mcv2DescriptorBytes(ivec2 size, int row, int x) {
-    return ivec3(floor(texelFetch(MainSampler, mcv2FromTop(size, x, row), 0).rgb * 255.0 + 0.5));
-}
-
-float mcv2DescriptorFloat(ivec2 size, int row, int index) {
-    ivec3 low = mcv2DescriptorBytes(size, row, 2 + index * 2);
-    ivec3 high = mcv2DescriptorBytes(size, row, 3 + index * 2);
-    return uintBitsToFloat(uint(low.r) | (uint(low.g) << 8u) | (uint(low.b) << 16u) | (uint(high.r) << 24u));
-}
 
 // The picture's pixel at a position counted from its top-left corner; row y of the picture is row y of the target.
 vec4 mcv2Picture(ivec2 position) {
@@ -53,7 +54,7 @@ void main() {
                 return;
             }
             if (square == MCV2_PAGE_SLOTS) {
-                uvec4 status = uvec4(floor(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5));
+                uvec4 status = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
                 bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(0, 0), 0).x) == 1u;
                 fragColor = status.x == 1u ? vec4(0.0, 1.0, 0.0, 1.0) : valid ? vec4(0.0, 0.0, 1.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
                 return;
@@ -65,30 +66,31 @@ void main() {
             }
         }
     }
-    bool shown = (uint(floor(texelFetch(StateSampler, ivec2(0, 0), 0).x * 255.0 + 0.5)) & 1u) != 0u;
-    if (!shown) {
+    uint view = ScreenView.x;
+    if ((view & 1u) == 0u) {
         return;
     }
     if (MCV2_DEBUG_VIEW && fromTop >= strip && fromTop < strip + MCV2_VIDEO_HEIGHT && pixel.x < MCV2_VIDEO_WIDTH) {
         fragColor = mcv2Picture(ivec2(pixel.x, fromTop - strip));
         return;
     }
-    int row = mcv2DescriptorRow(size.x);
-    if (mcv2DescriptorBytes(size, row, 0) != ivec3(0x4D, 0x43, 0x56) || mcv2DescriptorBytes(size, row, 1).r != 0xA1) {
+    if ((view & 2u) == 0u) {
         return;
     }
-    float f[28];
-    for (int i = 0; i < 28; ++i) {
-        f[i] = mcv2DescriptorFloat(size, row, i);
+    // outside the box of pixels the screen can cover, the scene stays; the box is exact up to a margin wider than
+    // any rounding of the corners it was built from
+    if ((view & 4u) != 0u) {
+        uint first = ScreenView.y;
+        uint last = ScreenView.z;
+        if (pixel.x < int(first & 65535u) || pixel.y < int(first >> 16u) || pixel.x > int(last & 65535u) || pixel.y > int(last >> 16u)) {
+            return;
+        }
     }
-    vec3 topLeft = vec3(f[0], f[1], f[2]);
-    vec3 right = vec3(f[4], f[5], f[6]);
-    vec3 down = vec3(f[8], f[9], f[10]);
-    vec2 cells = vec2(f[3], f[7]);
-    mat4 projection;
-    for (int i = 0; i < 16; ++i) {
-        projection[i / 4][i % 4] = f[12 + i];
-    }
+    vec3 topLeft = ScreenTopLeft.xyz;
+    vec3 right = ScreenRight.xyz;
+    vec3 down = ScreenDown.xyz;
+    vec2 cells = vec2(ScreenTopLeft.w, ScreenRight.w);
+    mat4 projection = mat4(ScreenProjection0, ScreenProjection1, ScreenProjection2, ScreenProjection3);
     // the view ray through this pixel, and where it meets the screen's plane
     vec2 ndc = (vec2(pixel) + 0.5) / vec2(size) * 2.0 - 1.0;
     vec4 far = inverse(projection) * vec4(ndc, 0.5, 1.0);

@@ -1,14 +1,15 @@
 #version 330
 
-// Pass 2: the header of the page in every slot, four texels per slot: (valid, frame type, page count), the frame id,
+// Pass 3: the header of the page in every slot, four texels per slot: (valid, frame type, page count), the frame id,
 // the reference id and the frame length. A page is valid when its header is the reference's read_page header for
-// this stream and slot and its CRC-32 matches; only the first texel of a slot pays for the CRC.
+// this stream and slot and its CRC-32 matches; only the first texel of a slot chains the CRC pass's chunks.
 
 #moj_import <mcav:mcv2_config.glsl>
 #moj_import <mcav:mcv2_strip.glsl>
 #moj_import <mcav:mcv2_crc.glsl>
 
 uniform sampler2D MainSampler;
+uniform sampler2D CrcSampler;
 
 out vec4 fragColor;
 
@@ -50,8 +51,14 @@ void main() {
         && count == (total + capacity - 1u) / capacity;
     if (valid) {
         int length = MCV2_PAGE_HEADER + int(min(capacity, total - number * capacity));
+        // the whole chunks from the CRC pass, chained; then the bytes of the last, partial chunk one by one
+        int chunks = length / MCV2_CRC_CHUNK_BYTES;
         uint crc = 0xFFFFFFFFu;
-        for (int b = 0; b < length; ++b) {
+        for (int c = 0; c < MCV2_CRC_CHUNKS; ++c) {
+            if (c >= chunks) break;
+            crc = mcv2CrcShift(crc) ^ mcv2TexelWord(texelFetch(CrcSampler, ivec2(page * MCV2_CRC_CHUNKS + c, 0), 0));
+        }
+        for (int b = chunks * MCV2_CRC_CHUNK_BYTES; b < length; ++b) {
             // the CRC covers the header with its own field zeroed
             crc = mcv2CrcUpdate(crc, b >= 28 && b < 32 ? 0u : mcv2PageByte(size, page, b));
         }

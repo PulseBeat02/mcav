@@ -51,3 +51,26 @@ const uint MCV2_CRC_TABLE[256] = uint[256](
 uint mcv2CrcUpdate(uint crc, uint value) {
     return MCV2_CRC_TABLE[(crc ^ value) & 255u] ^ (crc >> 8u);
 }
+
+// A page's CRC in parallel: every 192-byte chunk of the page's strip area (64 pixels of three bytes) is run through
+// the table from zero by its own fragment, and the chunks are chained with the register's advance over 192 zero
+// bytes, which is linear: advance(s) = XOR of MCV2_CRC_SHIFT[j] over the set bits j of s. The chained result is the
+// byte-by-byte CRC exactly, since each table step is linear in the register and the data.
+const int MCV2_CRC_CHUNK_BYTES = 192;
+const int MCV2_CRC_CHUNKS = 64;
+const uint MCV2_CRC_SHIFT[32] = uint[32](
+    0x596C8D81u, 0xB2D91B02u, 0xBEC33045u, 0xA6F766CBu, 0x969FCBD7u, 0xF64E91EFu,
+    0x37EC259Fu, 0x6FD84B3Eu, 0xDFB0967Cu, 0x64102AB9u, 0xC8205572u, 0x4B31ACA5u,
+    0x9663594Au, 0xF7B7B4D5u, 0x341E6FEBu, 0x683CDFD6u, 0xD079BFACu, 0x7B827919u,
+    0xF704F232u, 0x3578E225u, 0x6AF1C44Au, 0xD5E38894u, 0x70B61769u, 0xE16C2ED2u,
+    0x19A95BE5u, 0x3352B7CAu, 0x66A56F94u, 0xCD4ADF28u, 0x41E4B811u, 0x83C97022u,
+    0xDCE3E605u, 0x62B6CA4Bu
+);
+
+uint mcv2CrcShift(uint crc) {
+    uint shifted = 0u;
+    for (int j = 0; j < 32; ++j) {
+        shifted ^= MCV2_CRC_SHIFT[j] & (0u - ((crc >> uint(j)) & 1u));
+    }
+    return shifted;
+}

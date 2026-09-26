@@ -37,8 +37,10 @@ ivec3 mcv2PageByteAt(ivec2 size, int p, int b) {
     return ivec3(mcv2FromTop(size, pixel % size.x, row), b % 3);
 }
 
+// A UNORM8 channel back to its byte: value * 255 + 0.5 lies in [k + 0.5 - 2^-16, k + 0.5 + 2^-16] for byte k, and the
+// conversion to an integer drops the fraction, which is floor for a positive value, one instruction fewer.
 uint mcv2Unorm(float value) {
-    return uint(floor(value * 255.0 + 0.5));
+    return uint(value * 255.0 + 0.5);
 }
 
 vec4 mcv2Texel(uvec4 bytes) {
@@ -50,6 +52,6 @@ vec4 mcv2WordTexel(uint value) {
 }
 
 uint mcv2TexelWord(vec4 texel) {
-    uvec4 b = uvec4(floor(texel * 255.0 + 0.5));
+    uvec4 b = uvec4(texel * 255.0 + 0.5);
     return b.x | (b.y << 8u) | (b.z << 16u) | (b.w << 24u);
 }
