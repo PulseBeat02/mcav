@@ -67,6 +67,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(1, configuration.getStreamId());
     assertEquals(EncoderSettings.SHIP, configuration.getSettings());
     assertEquals(NamedTextColor.DARK_PURPLE, configuration.getOutlineColor());
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
   }
 
   @Test
@@ -78,6 +79,7 @@ final class Mcv2ConfigurationTest {
       .streamId(0xFFFFFFFFL)
       .settings(EncoderSettings.LOW_BANDWIDTH)
       .outlineColor(NamedTextColor.AQUA)
+      .backlogLimit(0)
       .build();
     assertEquals(320, configuration.getVideoWidth());
     assertEquals(180, configuration.getVideoHeight());
@@ -86,6 +88,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(0xFFFFFFFFL, configuration.getStreamId());
     assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
     assertEquals(NamedTextColor.AQUA, configuration.getOutlineColor());
+    assertEquals(0, configuration.getBacklogLimit());
   }
 
   @Test
@@ -137,6 +140,7 @@ final class Mcv2ConfigurationTest {
     refuses(builder -> builder.pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS + 1));
     refuses(builder -> builder.streamId(-1));
     refuses(builder -> builder.streamId(1L << 32));
+    refuses(builder -> builder.backlogLimit(-1));
     refuses(builder -> builder.pageMap(-1));
     refuses(builder -> builder.pageMap(Integer.MAX_VALUE));
     refuses(builder -> builder.map(Integer.MAX_VALUE));

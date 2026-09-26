@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit.utils;
 
 import com.google.common.base.Preconditions;
+import io.netty.channel.ChannelFutureListener;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
@@ -128,6 +129,28 @@ public final class PacketUtils {
         connection.send(packet);
       }
     }
+  }
+
+  /**
+   * Sends one packet to one player and calls the listener once its write completes or fails. May be called from any
+   * thread.
+   *
+   * @param viewer   the UUID of the player
+   * @param packet   the packet
+   * @param listener called on the player's connection thread when the packet was written, or could not be
+   * @return true if the player is online and the packet was handed to the connection, false if nothing was sent, in
+   *     which case the listener is never called
+   */
+  public static boolean sendPacket(final UUID viewer, final Packet<?> packet, final ChannelFutureListener listener) {
+    Preconditions.checkNotNull(viewer, "Viewer must not be null");
+    Preconditions.checkNotNull(packet, "Packet must not be null");
+    Preconditions.checkNotNull(listener, "Listener must not be null");
+    final ServerGamePacketListenerImpl connection = PLAYER_CONNECTIONS.get(viewer);
+    if (connection == null) {
+      return false;
+    }
+    connection.send(packet, listener);
+    return true;
   }
 
   private static void handleJoin(final Event event) {

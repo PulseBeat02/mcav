@@ -63,21 +63,54 @@ public final class MapPacketFactory {
     if (patches.isEmpty() || viewers.isEmpty()) {
       return;
     }
-
-    final int patchCount = patches.size();
-    final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(patchCount);
-    for (final MapTilePatch patch : patches) {
-      final ClientboundMapItemDataPacket packet = createPacket(patch);
-      packets.add(packet);
+    for (final Bundle bundle : bundles(patches)) {
+      PacketUtils.sendPackets(viewers, bundle.packet());
     }
+  }
 
-    for (int from = 0; from < patchCount; from += MAX_PACKETS_PER_BUNDLE) {
-      final int to = Math.min(from + MAX_PACKETS_PER_BUNDLE, patchCount);
-      final List<Packet<? super ClientGamePacketListener>> chunk = packets.subList(from, to);
-      final List<Packet<? super ClientGamePacketListener>> chunkCopy = List.copyOf(chunk);
-      final ClientboundBundlePacket bundle = new ClientboundBundlePacket(chunkCopy);
-      PacketUtils.sendPackets(viewers, bundle);
+  /**
+   * A bundle of map data packets, and the bytes its patches take on the network before compression.
+   *
+   * @param packet the bundle
+   * @param bytes  the sum of its patches' {@link MapTilePatch#getEncodedSize()}
+   */
+  public record Bundle(ClientboundBundlePacket packet, long bytes) {
+    /**
+     * Sends the bundle to one player and runs a callback once its write completed or failed, or at once when the
+     * player is not connected, since nothing reaches a connection then. May be called from any thread.
+     *
+     * @param viewer  the UUID of the player
+     * @param written run once, on the player's connection thread or on this one
+     */
+    public void send(final UUID viewer, final Runnable written) {
+      Preconditions.checkNotNull(written, "Callback must not be null");
+      if (!PacketUtils.sendPacket(viewer, this.packet, _ -> written.run())) {
+        written.run();
+      }
     }
+  }
+
+  /**
+   * Converts patches into the bundles {@link #send} sends, without sending them, for a caller that sends them to
+   * each viewer itself: up to 4096 patches to a bundle, in order.
+   *
+   * @param patches the patches
+   * @return the bundles, none for no patches
+   */
+  public static List<Bundle> bundles(final List<MapTilePatch> patches) {
+    Preconditions.checkNotNull(patches, "Patches must not be null");
+    final List<Bundle> bundles = new ArrayList<>();
+    for (int from = 0; from < patches.size(); from += MAX_PACKETS_PER_BUNDLE) {
+      final int to = Math.min(from + MAX_PACKETS_PER_BUNDLE, patches.size());
+      final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(to - from);
+      long bytes = 0;
+      for (final MapTilePatch patch : patches.subList(from, to)) {
+        packets.add(createPacket(patch));
+        bytes += patch.getEncodedSize();
+      }
+      bundles.add(new Bundle(new ClientboundBundlePacket(packets), bytes));
+    }
+    return bundles;
   }
 
   /**

@@ -181,7 +181,7 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void dropsAFrameWithMorePagesThanTheScreenHas() {
+  void dropsAFrameWithMorePagesThanTheScreenHas() throws InterruptedException {
     final Mcv2Configuration narrow = Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK))
       .origin(new Location(mock(World.class), 0, 64, 0))

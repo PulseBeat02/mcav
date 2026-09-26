@@ -23,6 +23,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -66,6 +68,7 @@ public final class FakeServer implements AutoCloseable {
   private final ScoreboardManager scoreboardManager;
   private final List<Player> onlinePlayers;
   private final Map<UUID, List<Packet<?>>> sentPackets;
+  private final Map<UUID, List<ChannelFutureListener>> pendingWrites;
   private final List<ScheduledTask> tasks;
 
   private volatile boolean primaryThread;
@@ -79,6 +82,7 @@ public final class FakeServer implements AutoCloseable {
     this.scoreboardManager = mock(ScoreboardManager.class);
     this.onlinePlayers = new CopyOnWriteArrayList<>();
     this.sentPackets = new ConcurrentHashMap<>();
+    this.pendingWrites = new ConcurrentHashMap<>();
     this.tasks = new CopyOnWriteArrayList<>();
     this.primaryThread = true;
 
@@ -214,6 +218,7 @@ public final class FakeServer implements AutoCloseable {
     final ServerPlayer handle = mock(ServerPlayer.class);
     final ServerGamePacketListenerImpl connection = mock(ServerGamePacketListenerImpl.class);
     final List<Packet<?>> packets = new CopyOnWriteArrayList<>();
+    final List<ChannelFutureListener> pending = new CopyOnWriteArrayList<>();
     doAnswer(invocation -> {
       final Packet<?> packet = invocation.getArgument(0);
       packets.add(packet);
@@ -221,13 +226,41 @@ public final class FakeServer implements AutoCloseable {
     })
       .when(connection)
       .send(any(Packet.class));
+    // a packet sent with a listener is written only when the test says so, like a connection that has not caught up
+    doAnswer(invocation -> {
+      final Packet<?> packet = invocation.getArgument(0);
+      packets.add(packet);
+      pending.add(invocation.getArgument(1));
+      return null;
+    })
+      .when(connection)
+      .send(any(Packet.class), any(ChannelFutureListener.class));
     handle.connection = connection;
     when(player.getHandle()).thenReturn(handle);
     when(player.getUniqueId()).thenReturn(uuid);
     this.bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(player);
     this.onlinePlayers.add(player);
     this.sentPackets.put(uuid, packets);
+    this.pendingWrites.put(uuid, pending);
     return player;
+  }
+
+  /**
+   * Completes the writes of the packets sent to a player with a listener so far, in order, as its connection would
+   * once it wrote them.
+   *
+   * @param uuid the UUID of the player
+   * @return the number of writes completed
+   * @throws Exception if a listener throws
+   */
+  public int completeWrites(final UUID uuid) throws Exception {
+    final List<ChannelFutureListener> pending = this.pendingWrites.getOrDefault(uuid, new CopyOnWriteArrayList<>());
+    final List<ChannelFutureListener> writes = List.copyOf(pending);
+    pending.clear();
+    for (final ChannelFutureListener listener : writes) {
+      listener.operationComplete(mock(ChannelFuture.class));
+    }
+    return writes.size();
   }
 
   /**

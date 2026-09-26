@@ -49,6 +49,12 @@ public final class Mcv2Configuration {
   /** The most page slots a pack reserves. */
   public static final int MAX_PAGE_SLOTS = 8;
 
+  /**
+   * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about
+   * 170 milliseconds of a 6 Mbit/s link.
+   */
+  public static final long DEFAULT_BACKLOG_LIMIT = 128 * 1024;
+
   /** The first page map id when none is set. */
   public static final int DEFAULT_PAGE_MAP = 2_000_000_000;
 
@@ -65,6 +71,7 @@ public final class Mcv2Configuration {
   private final long streamId;
   private final EncoderSettings settings;
   private final NamedTextColor outlineColor;
+  private final long backlogLimit;
 
   private Mcv2Configuration(
     final Builder builder,
@@ -86,6 +93,7 @@ public final class Mcv2Configuration {
     this.streamId = builder.streamId;
     this.settings = builder.settings;
     this.outlineColor = builder.outlineColor;
+    this.backlogLimit = builder.backlogLimit;
   }
 
   /**
@@ -247,6 +255,18 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Gets how much video a viewer's connection may have left to write for the viewer to be sent another frame, in map
+   * colour bytes. A viewer over it misses frames until one it can decode comes with its backlog under it again (see
+   * {@link Mcv2Link}), so a slow connection neither delays the other viewers nor piles video in front of its own
+   * game packets.
+   *
+   * @return the limit in bytes
+   */
+  public long getBacklogLimit() {
+    return this.backlogLimit;
+  }
+
+  /**
    * Builds MCV2 screen configurations. The viewers, the origin, the facing, the map id and the wall size are
    * required.
    */
@@ -263,6 +283,7 @@ public final class Mcv2Configuration {
     private int pageMap = DEFAULT_PAGE_MAP;
     private int pageSlots;
     private long streamId = 1;
+    private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
     private EncoderSettings settings = EncoderSettings.SHIP;
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
@@ -414,6 +435,18 @@ public final class Mcv2Configuration {
     }
 
     /**
+     * Sets how much video a viewer's connection may have left to write for the viewer to be sent another frame;
+     * defaults to {@link #DEFAULT_BACKLOG_LIMIT}.
+     *
+     * @param backlogLimit the limit in map colour bytes, not negative
+     * @return this builder
+     */
+    public Builder backlogLimit(final long backlogLimit) {
+      this.backlogLimit = backlogLimit;
+      return this;
+    }
+
+    /**
      * Builds the configuration. The builder is not changed.
      *
      * @return the configuration
@@ -431,6 +464,7 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= 4096, "Video height must be 0 to 4096");
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
       Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= 0xFFFFFFFFL, "Stream id must be an unsigned 32-bit value");
+      Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(4, this.columns * this.rows);
       final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
       final long lastPage = (long) this.pageMap + slots - 1;

@@ -20,6 +20,8 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -61,10 +63,26 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private byte@Nullable[] pending;
   private boolean running;
   private @Nullable Thread worker;
+  private @Nullable Thread sender;
+  private @Nullable BlockingQueue<Delivery> deliveries;
   private @Nullable ForkJoinPool pool;
 
   /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
+
+  /** An encoded frame on its way to the viewers, with its encoder statistics. */
+  private static final class Delivery {
+
+    private final byte[] frame;
+    private final Mcv2Encoder.Stats stats;
+    private final long frameId;
+
+    Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId) {
+      this.frame = frame;
+      this.stats = stats;
+      this.frameId = frameId;
+    }
+  }
 
   /**
    * What the result has done so far.
@@ -213,11 +231,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final ForkJoinPool encoderPool = new ForkJoinPool(Math.max(1, Runtime.getRuntime().availableProcessors() - 2));
     final Mcv2Encoder encoder = new Mcv2Encoder(this.configuration.getSettings(), encoderPool, encoderPool.getParallelism(), true);
     final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-encoder").unstarted(() -> this.encodeLoop(encoder));
+    // the frames go out on their own thread, so the encoder starts the next frame while the last is being sent; one
+    // frame waits at most, and the encoder waits for its turn when sending falls behind
+    final BlockingQueue<Delivery> queue = new ArrayBlockingQueue<>(1);
+    final Thread delivery = Thread.ofPlatform().daemon().name("mcav-mcv2-sender").unstarted(() -> this.deliverLoop(queue));
     synchronized (this.lock) {
       this.pool = encoderPool;
       this.worker = thread;
+      this.sender = delivery;
+      this.deliveries = queue;
       this.running = true;
     }
+    delivery.start();
     thread.start();
   }
 
@@ -266,6 +291,24 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
+   * Stops a thread of the result and waits for it: the sender waits for frames and the encoder may wait for the
+   * sender, and both stop on an interrupt. A caller interrupted meanwhile keeps its interrupt.
+   *
+   * @param thread the thread, or null when it was never started
+   */
+  private static void stop(final @Nullable Thread thread) {
+    if (thread == null) {
+      return;
+    }
+    thread.interrupt();
+    try {
+      thread.join(TimeUnit.SECONDS.toMillis(10));
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /**
    * Encodes frames until the result is released.
    *
    * @param encoder the encoder
@@ -300,18 +343,50 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Encodes one frame and sends it.
+   * Encodes one frame and hands it to the sender thread, or sends it on this thread when the result was not started.
    *
    * @param encoder the encoder
    * @param rgb     the frame
    * @param frameId the frame's id
+   * @throws InterruptedException if the thread is interrupted while it waits for the sender to take the frame
    */
-  void send(final Mcv2Encoder encoder, final byte[] rgb, final long frameId) {
+  void send(final Mcv2Encoder encoder, final byte[] rgb, final long frameId) throws InterruptedException {
     if (this.channel.takeKeyframeRequest()) {
       encoder.requestKeyframe();
     }
     final byte[] frame = encoder.encode(rgb, this.configuration.getVideoWidth(), this.configuration.getVideoHeight(), frameId);
-    final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
+    final Delivery delivery = new Delivery(frame, Preconditions.checkNotNull(encoder.getStats()), frameId);
+    final BlockingQueue<Delivery> queue;
+    synchronized (this.lock) {
+      queue = this.deliveries;
+    }
+    if (queue == null) {
+      this.deliver(delivery);
+    } else {
+      queue.put(delivery);
+    }
+  }
+
+  /**
+   * Sends the frames the encoder hands over, in order, until the result is released.
+   *
+   * @param queue where the encoder hands them over
+   */
+  private void deliverLoop(final BlockingQueue<Delivery> queue) {
+    try {
+      while (true) {
+        this.deliver(queue.take());
+      }
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /** Sends one encoded frame to the viewers and counts it. */
+  private void deliver(final Delivery delivery) {
+    final byte[] frame = delivery.frame;
+    final long frameId = delivery.frameId;
+    final Mcv2Encoder.Stats stats = delivery.stats;
     final int colors = this.channel.send(frame);
     if (colors < 0) {
       LOGGER.warn(
@@ -332,22 +407,21 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   @Override
   public void release() {
     final Thread thread;
+    final Thread delivery;
     final ForkJoinPool encoderPool;
     synchronized (this.lock) {
       this.running = false;
       this.lock.notifyAll();
       thread = this.worker;
+      delivery = this.sender;
       encoderPool = this.pool;
       this.worker = null;
+      this.sender = null;
+      this.deliveries = null;
       this.pool = null;
     }
-    if (thread != null) {
-      try {
-        thread.join(TimeUnit.SECONDS.toMillis(10));
-      } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    stop(thread);
+    stop(delivery);
     if (encoderPool != null) {
       encoderPool.shutdownNow();
     }
