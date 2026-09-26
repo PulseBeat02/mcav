@@ -28,8 +28,10 @@ import java.net.ConnectException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Set;
@@ -54,7 +56,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The default guard judges addresses by {@link AddressPolicy}. Once a page connects to an IPv6 address, it asks the
  * resolver for the NAT64 prefixes of the network ({@link AddressPolicy#findTranslationPrefixes}), so an address that
- * a translator of the network turns into a private IPv4 address is refused too.
+ * a translator of the network turns into a private IPv4 address is refused too. So is every address of a network
+ * interface of this machine: a public address the server holds reaches the services that listen on every interface,
+ * which a firewall in front of the machine hides from the internet but not from the machine itself.
  *
  * <p>The guard holds at most {@value #MAX_CONNECTIONS} connections, closes a client that has not finished its
  * handshake in time, and closes both sides of a connection as soon as one side ends. Each refused host is reported
@@ -108,7 +112,8 @@ final class NetworkGuard implements Closeable {
    */
   static NetworkGuard start(final Consumer<String> notices) throws IOException {
     final Resolver resolver = InetAddress::getAllByName;
-    return start(resolver, new PublicAddresses(resolver), NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
+    final PublicAddresses policy = new PublicAddresses(resolver, NetworkGuard::isOwnAddress);
+    return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
   }
 
   /**
@@ -364,7 +369,34 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * The policy of the default guard: public addresses only, judged with the NAT64 prefixes of the network.
+   * Checks whether an address belongs to a network interface of this machine.
+   *
+   * @param address the address
+   * @return true if an interface of this machine has it
+   */
+  static boolean isOwnAddress(final InetAddress address) {
+    return isOwnAddress(address, NetworkInterface::getByInetAddress);
+  }
+
+  /**
+   * Checks whether an address belongs to a network interface of this machine, finding the interfaces with a lookup,
+   * so tests can make it fail.
+   *
+   * @param address the address
+   * @param lookup  finds the interface of this machine that has an address
+   * @return true if an interface has it, or if the interfaces cannot be listed, as the address may be one of them
+   */
+  static boolean isOwnAddress(final InetAddress address, final InterfaceLookup lookup) {
+    try {
+      return lookup.find(address) != null;
+    } catch (final SocketException exception) {
+      return true;
+    }
+  }
+
+  /**
+   * The policy of the default guard: public addresses only, judged with the NAT64 prefixes of the network, and none of
+   * this machine's own.
    *
    * <p>The prefixes are asked for when the first IPv6 address is judged, since an IPv4 address needs none, and kept
    * once the resolver answered; while it fails, the next IPv6 address asks again.
@@ -372,23 +404,39 @@ final class NetworkGuard implements Closeable {
   static final class PublicAddresses implements Predicate<InetAddress> {
 
     private final Resolver resolver;
+    private final Predicate<InetAddress> own;
     private @Nullable List<AddressPolicy.TranslationPrefix> prefixes;
 
     /**
-     * Constructs the policy.
+     * Constructs the policy that refuses the addresses of the network interfaces of this machine.
      *
      * @param resolver asked for {@value AddressPolicy#IPV4_ONLY_HOST}
      */
     PublicAddresses(final Resolver resolver) {
+      this(resolver, NetworkGuard::isOwnAddress);
+    }
+
+    /**
+     * Constructs the policy with another test for the addresses of this machine, so tests can make one up.
+     *
+     * @param resolver asked for {@value AddressPolicy#IPV4_ONLY_HOST}
+     * @param own      whether an address belongs to this machine, which is refused however public it is
+     */
+    PublicAddresses(final Resolver resolver, final Predicate<InetAddress> own) {
       this.resolver = resolver;
+      this.own = own;
     }
 
     @Override
     public boolean test(final InetAddress address) {
+      final boolean isPublic;
       if (address instanceof Inet4Address) {
-        return AddressPolicy.isPublic(address);
+        isPublic = AddressPolicy.isPublic(address);
+      } else {
+        isPublic = AddressPolicy.isPublic(address, this.getPrefixes());
       }
-      return AddressPolicy.isPublic(address, this.getPrefixes());
+      // only a public address can be refused as the machine's own; the others are refused already
+      return isPublic && !this.own.test(address);
     }
 
     /**
@@ -442,5 +490,20 @@ final class NetworkGuard implements Closeable {
      * @throws IOException if the connection fails
      */
     Socket connect(InetSocketAddress address) throws IOException;
+  }
+
+  /**
+   * Finds the network interface of this machine that has an address.
+   */
+  @FunctionalInterface
+  interface InterfaceLookup {
+    /**
+     * Finds the interface.
+     *
+     * @param address the address
+     * @return the interface, or null if no interface of this machine has the address
+     * @throws SocketException if the interfaces cannot be listed
+     */
+    @Nullable NetworkInterface find(InetAddress address) throws SocketException;
   }
 }

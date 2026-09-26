@@ -119,7 +119,9 @@ a page can do instead:
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
   that resolves the host itself and refuses loopback, private, link-local (such as the metadata service of a cloud
   machine) and other special addresses, also when a public name resolves to one, and also behind a NAT64 prefix of
-  the network, which the guard learns from `ipv4only.arpa`. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
+  the network, which the guard learns from `ipv4only.arpa`. It also refuses every address of the machine's own
+  network interfaces, since a public address of the server reaches the services that listen on every interface,
+  which a firewall in front of the server does not hide from the server itself. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
   a dashboard of your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.

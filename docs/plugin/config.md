@@ -116,7 +116,8 @@ MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat pl
 
 Install the plugin or set the option to `false`, then restart the server.
 
-The browser of `/mcav browser create` reaches public addresses of the internet only. Turn on
+The browser of `/mcav browser create` reaches public addresses of the internet only, and none of the server's own
+addresses, public ones included. Turn on
 `browser.allow-private-networks` only to show a page of your own network: it lets everyone who may create a browser,
 every page they open and every player who may click on it reach services that only the server can reach, such as a
 router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy

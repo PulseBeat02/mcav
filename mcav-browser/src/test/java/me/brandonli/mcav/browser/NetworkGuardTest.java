@@ -39,6 +39,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -447,6 +448,55 @@ class NetworkGuardTest {
     assertFalse(policy.test(translatedPrivate));
     assertFalse(policy.test(translatedPrivate));
     assertEquals(2, resolver.questions.get());
+  }
+
+  @Test
+  void theDefaultPolicyRefusesAnAddressOfThisMachineHoweverPublicItIs() throws UnknownHostException {
+    final InetAddress ownIpv4 = InetAddress.getByName("8.8.8.8");
+    final InetAddress ownIpv6 = InetAddress.getByName("2606:4700:4700::1111");
+    final Set<InetAddress> own = Set.of(ownIpv4, ownIpv6);
+    final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(new TranslatingResolver(0), own::contains);
+    assertFalse(policy.test(ownIpv4));
+    assertFalse(policy.test(ownIpv6));
+    assertTrue(policy.test(InetAddress.getByName("1.1.1.1")));
+    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1001")));
+    assertFalse(policy.test(InetAddress.getByName("10.0.0.1")), "a private address stays refused");
+  }
+
+  @Test
+  void anAddressOfAnInterfaceOfThisMachineIsItsOwn() throws UnknownHostException {
+    assertTrue(NetworkGuard.isOwnAddress(InetAddress.getLoopbackAddress()));
+    assertFalse(NetworkGuard.isOwnAddress(InetAddress.getByName("192.0.2.1")), "an address of the documentation");
+  }
+
+  @Test
+  void anAddressCountsAsOwnWhileTheInterfacesCannotBeListed() throws UnknownHostException {
+    final InetAddress address = InetAddress.getByName("192.0.2.1");
+    assertTrue(
+      NetworkGuard.isOwnAddress(address, candidate -> {
+        throw new SocketException("no interfaces");
+      })
+    );
+    assertFalse(NetworkGuard.isOwnAddress(address, candidate -> null));
+  }
+
+  @Test
+  void aNameOfAPublicAddressOfThisMachineIsRefused() throws IOException {
+    final NetworkGuard guard = NetworkGuard.start(
+      host -> new InetAddress[] { InetAddress.getByName("8.8.8.8") },
+      new NetworkGuard.PublicAddresses(new TranslatingResolver(0), address -> true),
+      address -> {
+        throw new AssertionError("connected to " + address);
+      },
+      this.notices::add,
+      5_000
+    );
+    this.closeables.add(guard);
+    final Socket client = this.client(guard);
+    exchange(client, GREETING, 2);
+    final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "server.example", 8080), 10);
+    assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
+    assertEquals(List.of("Refused a connection to server.example, which is not a public address"), this.notices);
   }
 
   @Test
