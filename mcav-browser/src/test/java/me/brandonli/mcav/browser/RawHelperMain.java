@@ -54,8 +54,9 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /exit-later}: shows the page and exits with code 5 half a second later;</li>
  *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
  *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes;</li>
- *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_NOTICES} notices and {@value #NOISY_LOAD_ERRORS} load
- *   errors at once, as a page can make a helper do, and then one frame of sound.</li>
+ *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_LOAD_ERRORS} load errors of addresses with a secret in
+ *   their query and {@value #NOISY_NOTICES} notices at once, as a page can make a helper do, and then one frame of
+ *   sound.</li>
  * </ul>
  *
  * <p>It then waits until its standard input ends.
@@ -167,11 +168,12 @@ public final class RawHelperMain {
         HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
         HelperProtocol.writeLoading(out, false);
+        // the load errors come first, so the budget of the log passes some of them
+        for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
+          HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
+        }
         for (int count = 0; count < NOISY_NOTICES; count++) {
           HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
-        }
-        for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
-          HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count);
         }
         // the sound arrives after everything above, so a test knows the server read it all
         HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);

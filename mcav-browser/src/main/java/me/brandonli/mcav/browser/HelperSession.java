@@ -486,10 +486,10 @@ final class HelperSession implements BrowserSession {
       if (!tail.isEmpty()) {
         LOGGER.warn("The browser helper wrote before its start failed:{}{}", System.lineSeparator(), tail);
       }
-      throw new PlayerException("The browser could not open " + uri + ": " + cause.getMessage(), cause);
+      throw new PlayerException("The browser could not open " + AddressText.describe(uri.toString()) + ": " + cause.getMessage(), cause);
     } catch (final TimeoutException exception) {
       final String tail = this.getOutputTail();
-      throw new PlayerException("The browser did not show " + uri + " in time: " + tail, exception);
+      throw new PlayerException("The browser did not show " + AddressText.describe(uri.toString()) + " in time: " + tail, exception);
     }
   }
 
@@ -599,7 +599,8 @@ final class HelperSession implements BrowserSession {
       }
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
-        final String url = message.getUrl();
+        // the helper describes the address already; a helper is not trusted to, so the server does it again
+        final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
         this.logBudget.log(() -> LOGGER.warn("The browser could not load {}: {} ({})", url, text, code), HelperSession::logSkipped);
         final PlayerException failure = new PlayerException(text + " (" + code + ")");

@@ -57,7 +57,8 @@ import org.cef.network.CefRequest;
  * </ul>
  *
  * <p>Everything refused is reported as a notice, and a crashed renderer as a failure. Load state and load errors of
- * the page are reported too.
+ * the page are reported too. The addresses in these reports are those of {@link AddressText}, without the parts that
+ * may hold secrets.
  */
 final class ContentPolicy
   implements
@@ -99,9 +100,9 @@ final class ContentPolicy
     final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, true);
     if (allowed) {
       browser.loadURL(targetUrl);
-      this.events.onNotice("Opened a new window in place: " + targetUrl);
+      this.events.onNotice("Opened a new window in place: " + AddressText.describe(targetUrl));
     } else {
-      this.events.onNotice("Refused a new window: " + targetUrl);
+      this.events.onNotice("Refused a new window: " + AddressText.describe(targetUrl));
     }
   }
 
@@ -159,7 +160,7 @@ final class ContentPolicy
     final boolean mainFrame = frame.isMain();
     final boolean allowed = NavigationPolicy.allowsNavigation(url, mainFrame);
     if (!allowed) {
-      this.events.onNotice("Refused a navigation to " + url);
+      this.events.onNotice("Refused a navigation to " + AddressText.describe(url));
     }
     return !allowed;
   }
@@ -228,7 +229,7 @@ final class ContentPolicy
     final String requestUrl,
     final CefCallback callback
   ) {
-    this.events.onNotice("Refused an invalid certificate of " + requestUrl);
+    this.events.onNotice("Refused an invalid certificate of " + AddressText.describe(requestUrl));
     return false;
   }
 
@@ -264,7 +265,7 @@ final class ContentPolicy
   ) {
     final boolean alert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
     callback.Continue(alert, "");
-    this.events.onNotice("Dismissed a JavaScript dialog of " + originUrl);
+    this.events.onNotice("Dismissed a JavaScript dialog of " + AddressText.describe(originUrl));
     return true;
   }
 
@@ -433,7 +434,7 @@ final class ContentPolicy
     final boolean mainFrame = frame.isMain();
     if (mainFrame && errorCode != CefLoadHandler.ErrorCode.ERR_ABORTED) {
       final int code = errorCode.getCode();
-      this.events.onLoadError(code, errorText, failedUrl);
+      this.events.onLoadError(code, errorText, AddressText.describe(failedUrl));
     }
   }
 
@@ -458,7 +459,7 @@ final class ContentPolicy
       final String url = request.getURL();
       final boolean allowed = NavigationPolicy.allowsRequest(url);
       if (!allowed) {
-        this.events.onNotice("Refused a request to " + url);
+        this.events.onNotice("Refused a request to " + AddressText.describe(url));
       }
       return !allowed;
     }
@@ -475,7 +476,7 @@ final class ContentPolicy
     ) {
       allowOsExecution.set(false);
       final String url = request.getURL();
-      this.events.onNotice("Refused to open " + url + " with another program");
+      this.events.onNotice("Refused to open " + AddressText.describe(url) + " with another program");
     }
   }
 }

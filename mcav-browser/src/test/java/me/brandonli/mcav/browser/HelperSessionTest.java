@@ -146,6 +146,8 @@ class HelperSessionTest {
     // the reports arrive within a moment, and the budget passes one more line per second after its burst
     final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
     assertTrue(reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5, "logged " + reports + " of " + sent + " reports");
+    // the helper is not trusted to hide the secrets of an address; the server hides them again
+    assertFalse(log.contains("token=secret"), log);
   }
 
   @Test

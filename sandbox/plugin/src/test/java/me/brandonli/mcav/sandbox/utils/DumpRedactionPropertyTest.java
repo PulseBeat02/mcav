@@ -39,7 +39,8 @@ import net.jqwik.api.arbitraries.StringArbitrary;
  * A property of the redaction of {@code /mcav dump}, which publishes the tail of the server log on a public paste site.
  * Pass 4 made it mask the addresses of players; this checks every address a server can log, formatted by the JDK
  * exactly as the server formats the address of a connection, in the lines that carry one: no player's address may
- * survive, whether IPv4, IPv6, an IPv4 address mapped into IPv6, or a link-local IPv6 address with its zone.
+ * survive, whether IPv4, IPv6, an IPv4 address mapped into IPv6, or a link-local IPv6 address with its zone. Neither
+ * may the user name and password, the query or the fragment of a web address, wherever it stands in a line.
  */
 final class DumpRedactionPropertyTest {
 
@@ -85,6 +86,43 @@ final class DumpRedactionPropertyTest {
     final StringArbitrary nameCharacters = strings.withChars("abcXYZ019_");
     final StringArbitrary longEnough = nameCharacters.ofMinLength(3);
     return longEnough.ofMaxLength(16);
+  }
+
+  @Provide
+  Arbitrary<String> secrets() {
+    // written with characters no host, path or message of these lines holds, so finding one after redaction is a leak
+    final StringArbitrary strings = Arbitraries.strings();
+    final StringArbitrary secretCharacters = strings.withChars("QJVXZ=&%+");
+    return secretCharacters.ofMinLength(1).ofMaxLength(40);
+  }
+
+  @Provide
+  Arbitrary<String> hosts() {
+    final StringArbitrary strings = Arbitraries.strings();
+    final StringArbitrary hostCharacters = strings.withChars("abcdefghiklmnoprstuy.-");
+    return hostCharacters.ofMinLength(1).ofMaxLength(30);
+  }
+
+  @Property(seed = SEED)
+  void noSecretOfAWebAddressSurvivesTheRedaction(
+    @ForAll("hosts") final String host,
+    @ForAll("secrets") final String user,
+    @ForAll("secrets") final String query,
+    @ForAll("secrets") final String fragment
+  ) {
+    final String address = "https://" + user + "@" + host + "/page?" + query + "#" + fragment;
+    final List<String> lines = List.of(
+      "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE " + address,
+      "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to " + address,
+      "[12:34:56 WARN]: The browser could not load " + address + ": refused (-102)"
+    );
+
+    for (final String line : lines) {
+      final String redacted = DumpUtils.redactLogLine(line);
+      for (final String secret : List.of(user, query, fragment)) {
+        assertFalse(redacted.contains(secret), () -> "the secret " + secret + " survives in: " + redacted);
+      }
+    }
   }
 
   @Property(seed = SEED)

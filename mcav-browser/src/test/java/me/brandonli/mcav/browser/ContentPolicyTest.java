@@ -125,6 +125,32 @@ class ContentPolicyTest {
   }
 
   @Test
+  void theReportsNeverCarryTheUserTheQueryOrTheFragmentOfAnAddress() {
+    assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("myapp://callback?code=secret"), false, false));
+    final CefResourceRequestHandler resources =
+      this.policy.getResourceRequestHandler(this.browser, frame(true), request("https://a/"), true, false, "", new BoolRef());
+    assertTrue(resources.onBeforeResourceLoad(this.browser, frame(true), request("ftp://user:password@example.com/file")));
+    assertFalse(
+      this.policy.onCertificateError(
+          this.browser,
+          CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
+          "https://expired/page#token=secret",
+          mock(CefCallback.class)
+        )
+    );
+    this.policy.onLoadError(this.browser, frame(true), CefLoadHandler.ErrorCode.ERR_CONNECTION_REFUSED, "refused", "https://a/?sig=secret");
+    assertEquals(
+      List.of(
+        "notice: Refused a navigation to myapp://callback?<hidden>",
+        "notice: Refused a request to ftp://<hidden>@example.com/file",
+        "notice: Refused an invalid certificate of https://expired/page#<hidden>",
+        "load error: -102 refused https://a/?<hidden>"
+      ),
+      this.events.log
+    );
+  }
+
+  @Test
   void everyRequestGoesThroughTheResourcePolicy() {
     final CefResourceRequestHandler first =
       this.policy.getResourceRequestHandler(this.browser, frame(true), request("https://a/"), true, false, "", new BoolRef());

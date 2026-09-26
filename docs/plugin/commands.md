@@ -63,6 +63,10 @@ it; without the permission a click does nothing, while the frames of the screen 
 | **Description** | Dumps your logs, system information, and other debugging information into a paste used for support. |
 | **Arguments**   | None                                                                                                |
 
+The paste is public. Before the log goes up, the addresses of players, what players typed after the commands of other
+plugins, secret-looking settings, and the user name and password, query and fragment of every web address are
+replaced with `<redacted>`; the host and path of an address stay, since they are what a bug report is about.
+
 ---
 
 ## Video Commands
