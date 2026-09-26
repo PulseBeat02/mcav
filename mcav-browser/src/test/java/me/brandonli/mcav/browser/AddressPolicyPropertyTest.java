@@ -65,11 +65,30 @@ final class AddressPolicyPropertyTest {
     @ForAll final int ipv4
   ) throws UnknownHostException {
     final int length = new int[] { 32, 40, 48, 56, 64, 96 }[lengthIndex];
+    // a translator's prefix lies in global unicast space, 2000::/3
+    prefix[0] = (byte) (0x20 | (prefix[0] & 0x1F));
     final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
     // another length finds a prefix only where its own place happens to hold 192.0.0.170 or 192.0.0.171 as well
     if (prefixes.size() == 1) {
       assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes));
+    }
+  }
+
+  @Property(seed = SEED, tries = 2000)
+  void aPrefixOutsideGlobalUnicastAndWellKnownNat64SpaceNeverTranslates(
+    @ForAll @Size(value = 16) final byte[] prefix,
+    @ForAll @IntRange(min = 0, max = 5) final int lengthIndex
+  ) throws UnknownHostException {
+    final int length = new int[] { 32, 40, 48, 56, 64, 96 }[lengthIndex];
+    // anything but 2000::/3: the top three bits are not 001
+    if ((prefix[0] & 0xE0) == 0x20) {
+      prefix[0] = (byte) (prefix[0] ^ 0x80);
+    }
+    final boolean wellKnown = prefix[0] == 0 && prefix[1] == 0x64 && prefix[2] == (byte) 0xFF && prefix[3] == (byte) 0x9B;
+    final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
+    if (!wellKnown) {
+      assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(answer));
     }
   }
 

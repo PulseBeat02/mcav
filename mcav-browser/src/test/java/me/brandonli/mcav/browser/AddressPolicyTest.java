@@ -172,6 +172,20 @@ class AddressPolicyTest {
   }
 
   @Test
+  void onlyAPrefixInGlobalUnicastOrWellKnownNat64SpaceTranslates() throws UnknownHostException {
+    // link-local, unique local, multicast, documentation and 6to4 prefixes, as a forged answer might hold them
+    for (final String forged : new String[] { "fe80::c000:aa", "fd00::c000:aa", "ff02::c000:aa", "2001:db8::c000:aa", "2002::c000:aa" }) {
+      assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(addresses(forged)), forged);
+    }
+    assertFalse(isPublic("fe80::808:808", AddressPolicy.findTranslationPrefixes(addresses("fe80::c000:aa"))));
+    // the local-use prefix of RFC 8215 is a prefix a network may use
+    final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(addresses("64:ff9b:1::c000:aa"));
+    assertEquals(1, local.size());
+    assertTrue(isPublic("64:ff9b:1::808:808", local));
+    assertFalse(isPublic("64:ff9b:1::a00:1", local));
+  }
+
+  @Test
   void anAddressInsideSeveralPrefixesMustEmbedAPublicAddressInEach() throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
       addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")

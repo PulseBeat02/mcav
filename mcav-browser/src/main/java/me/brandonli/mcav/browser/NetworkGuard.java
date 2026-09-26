@@ -399,7 +399,8 @@ final class NetworkGuard implements Closeable {
    * this machine's own.
    *
    * <p>The prefixes are asked for when the first IPv6 address is judged, since an IPv4 address needs none, and kept
-   * once the resolver answered; while it fails, the next IPv6 address asks again.
+   * once the resolver answered. While it fails, IPv6 addresses are refused, as any of them may be a private address
+   * behind a translator of the network, and the next one asks again.
    */
   static final class PublicAddresses implements Predicate<InetAddress> {
 
@@ -433,7 +434,8 @@ final class NetworkGuard implements Closeable {
       if (address instanceof Inet4Address) {
         isPublic = AddressPolicy.isPublic(address);
       } else {
-        isPublic = AddressPolicy.isPublic(address, this.getPrefixes());
+        final List<AddressPolicy.TranslationPrefix> known = this.getPrefixes();
+        isPublic = known != null && AddressPolicy.isPublic(address, known);
       }
       // only a public address can be refused as the machine's own; the others are refused already
       return isPublic && !this.own.test(address);
@@ -442,9 +444,9 @@ final class NetworkGuard implements Closeable {
     /**
      * Gets the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
      *
-     * @return the prefixes, empty while the resolver fails
+     * @return the prefixes, or null while the resolver fails
      */
-    synchronized List<AddressPolicy.TranslationPrefix> getPrefixes() {
+    synchronized @Nullable List<AddressPolicy.TranslationPrefix> getPrefixes() {
       final List<AddressPolicy.TranslationPrefix> known = this.prefixes;
       if (known != null) {
         return known;
@@ -454,7 +456,7 @@ final class NetworkGuard implements Closeable {
         answer = this.resolver.resolve(AddressPolicy.IPV4_ONLY_HOST);
       } catch (final UnknownHostException exception) {
         // no answer this time; the next IPv6 address asks again
-        return List.of();
+        return null;
       }
       final List<AddressPolicy.TranslationPrefix> found = AddressPolicy.findTranslationPrefixes(answer);
       this.prefixes = found;

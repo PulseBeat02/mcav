@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -444,10 +445,21 @@ class NetworkGuardTest {
     final TranslatingResolver resolver = new TranslatingResolver(1);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     final InetAddress translatedPrivate = InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1");
-    assertEquals(List.of(), policy.getPrefixes());
+    assertNull(policy.getPrefixes(), "no prefixes are known while the resolver fails");
     assertFalse(policy.test(translatedPrivate));
     assertFalse(policy.test(translatedPrivate));
     assertEquals(2, resolver.questions.get());
+  }
+
+  @Test
+  void anIpv6AddressIsRefusedWhileTheNat64PrefixesAreUnknown() throws UnknownHostException {
+    final TranslatingResolver resolver = new TranslatingResolver(2);
+    final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
+    assertFalse(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1")), "10.0.0.1 through the translator");
+    assertFalse(policy.test(InetAddress.getByName("2606:4700:4700::1111")), "any IPv6 address may be translated");
+    assertTrue(policy.test(InetAddress.getByName("8.8.8.8")), "an IPv4 address needs no prefix");
+    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1111")), "the resolver answers the third question");
+    assertEquals(3, resolver.questions.get());
   }
 
   @Test
