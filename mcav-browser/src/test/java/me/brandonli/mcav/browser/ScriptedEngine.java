@@ -35,6 +35,8 @@ import org.cef.browser.McavOffscreenBrowser;
  *   <li>{@code /sound}: shows the page, then hands {@link #SOUND_CHUNKS} chunks of {@link #SOUND_FRAMES} frames to a
  *   {@link PageAudio} as calls of its binding, whose samples all hold the number of the chunk, with a call that is not
  *   sound before each;</li>
+ *   <li>{@code /sound-on-input}: shows the page and hands over a chunk of sound whose samples hold 0 at once, and one
+ *   whose samples hold the number of DevTools calls so far after every input;</li>
  *   <li>{@code /exit}: ends the helper process during the start;</li>
  *   <li>{@code /throw}: fails to start;</li>
  *   <li>{@code /never}: never reports anything.</li>
@@ -53,6 +55,7 @@ final class ScriptedEngine implements HelperEngine {
   private int width;
   private int height;
   private boolean stopped;
+  private boolean soundOnInput;
 
   ScriptedEngine() {
     this.calls = new ArrayList<>();
@@ -109,6 +112,11 @@ final class ScriptedEngine implements HelperEngine {
           );
         }
       }
+      case "/sound-on-input" -> {
+        this.soundOnInput = true;
+        this.show(0);
+        events.onAudio(chunk(0));
+      }
       case "/fail" -> {
         this.show(0);
         final Thread later = new Thread(() -> {
@@ -156,6 +164,23 @@ final class ScriptedEngine implements HelperEngine {
       this.calls.add(call.getMethod() + " " + call.getParameters());
     }
     this.paint(this.calls.size() & 0xFF);
+    if (this.soundOnInput) {
+      this.events.onAudio(chunk(this.calls.size()));
+    }
+  }
+
+  /**
+   * Creates a chunk of sound whose samples all hold a number.
+   *
+   * @param value the number
+   * @return the chunk, 16-bit little-endian stereo
+   */
+  static byte[] chunk(final int value) {
+    final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    while (samples.hasRemaining()) {
+      samples.putShort((short) value);
+    }
+    return samples.array();
   }
 
   @Override

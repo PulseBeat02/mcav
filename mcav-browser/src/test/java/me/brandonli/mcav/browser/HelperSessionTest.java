@@ -84,8 +84,12 @@ class HelperSessionTest {
   }
 
   private HelperSession open(final String mainClass, final String path) {
+    return this.open(mainClass, path, BrowserOptions.DEFAULT);
+  }
+
+  private HelperSession open(final String mainClass, final String path, final BrowserOptions options) {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
-    final HelperSession session = HelperSession.open(launcher(mainClass, 60_000L), NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+    final HelperSession session = HelperSession.open(launcher(mainClass, 60_000L), NATIVES, source, options, this.listener);
     this.sessions.add(session);
     return session;
   }
@@ -179,7 +183,9 @@ class HelperSessionTest {
 
   @Test
   void theSoundOfThePageCrossesTheProtocolInOrderAndOnlyThroughItsBinding() throws Exception {
-    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound");
+    // a page that may play right away; otherwise its sound would wait for a click
+    final BrowserOptions autoplay = BrowserOptions.builder().autoplay(true).build();
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound", autoplay);
     Await.until("the sound", () -> this.listener.sound.size() == ScriptedEngine.SOUND_CHUNKS);
     for (int chunk = 1; chunk <= ScriptedEngine.SOUND_CHUNKS; chunk++) {
       final byte[] samples = this.listener.sound.get(chunk - 1);
@@ -194,6 +200,20 @@ class HelperSessionTest {
     assertEquals(ScriptedEngine.SOUND_CHUNKS, this.listener.sound.size());
     session.close();
     assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
+  void theSoundOfAPageReachesTheServerOnlyOnceAPlayerPressedAButtonOrAKey() throws Exception {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound-on-input");
+    Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, 0, 0, 0, 0)));
+    Await.until("the mouse move", () -> session.getHandledInput() >= 1);
+    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0)));
+    Await.until("the sound after the press", () -> !this.listener.sound.isEmpty());
+    Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
+    // the chunk of the start and the one of the move were held back; the one of the press, the second call, passed
+    assertEquals(1, this.listener.sound.size());
+    assertEquals(2, this.listener.sound.getFirst()[0]);
   }
 
   @Test

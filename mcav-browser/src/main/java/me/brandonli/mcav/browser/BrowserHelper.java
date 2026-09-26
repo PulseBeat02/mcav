@@ -78,6 +78,8 @@ public final class BrowserHelper {
   private final AtomicReference<String> stopReason;
   // the mouse buttons the page sees held; only the thread that reads the commands of the server touches them
   private int heldButtons;
+  // whether a player pressed a mouse button or a key on the page, after which its sound may reach the server
+  private volatile boolean activated;
 
   /**
    * Constructs a helper that never halts, for tests that run it inside their own JVM.
@@ -303,12 +305,16 @@ public final class BrowserHelper {
     return switch (type) {
       case HelperProtocol.MOUSE -> {
         final MouseInput input = message.getMouse();
+        if (input.getAction() == HelperProtocol.MOUSE_PRESS) {
+          this.activated = true;
+        }
         final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.mouse(input, this.heldButtons);
         this.heldButtons = DevToolsInput.heldAfter(input, this.heldButtons);
         this.engine.dispatch(calls);
         yield true;
       }
       case HelperProtocol.KEY -> {
+        this.activated = true;
         final String value = message.getText();
         final int action = message.getNumber();
         final List<DevToolsInput.DevToolsCall> calls = action == HelperProtocol.KEY_PRESS
@@ -428,9 +434,16 @@ public final class BrowserHelper {
       this.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, text));
     }
 
+    /**
+     * Passes the sound of the page on, once a player pressed a mouse button or a key on it, or at once if the options
+     * let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that gets
+     * around Chromium's rule, or around the capture script, from playing to the server before anyone touched it.
+     */
     @Override
     public void onAudio(final byte[] samples) {
-      this.send(out -> HelperProtocol.writeAudio(out, samples, samples.length));
+      if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {
+        this.send(out -> HelperProtocol.writeAudio(out, samples, samples.length));
+      }
     }
 
     @Override
