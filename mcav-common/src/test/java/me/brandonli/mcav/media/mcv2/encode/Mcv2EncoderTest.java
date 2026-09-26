@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -266,23 +267,38 @@ final class Mcv2EncoderTest {
     final byte[] data = keyframe(8, 8, DERIVED, solid(1, 2, 3));
     final byte[] picture = Mcv2Encoder.decodeChosen(data, new byte[0], 0, Workers.SEQUENTIAL);
     final List<Mcv2Encoder.Leaf> leaves = List.of(new Mcv2Encoder.Leaf(0, 0, 8, 2, 0));
-    Mcv2Encoder.check(job, 0, data, picture, leaves, roots);
+    Mcv2Encoder.check(job, 0, data, picture, leaves, roots, Workers.SEQUENTIAL);
     assertEquals(
       "MCV2 encoder and serializer disagree about the tree",
-      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, List.of(solid(1, 2, 4)))
+      assertThrows(IllegalStateException.class, () ->
+        Mcv2Encoder.check(job, 0, data, picture, leaves, List.of(solid(1, 2, 4)), Workers.SEQUENTIAL)
       ).getMessage()
     );
     assertEquals(
       "The encoder wrote a frame the parser rejects",
-      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, new byte[48], picture, leaves, roots)).getMessage()
+      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, new byte[48], picture, leaves, roots, Workers.SEQUENTIAL)
+      ).getMessage()
     );
     // a pattern the chosen tree holds is expanded before the comparison, so an invalid one is a rejected frame too
     final TreeNode invalid = TreeNode.leaf(Mcv2Format.MODE_PATTERN, 0, new byte[] { 1, 2, 3, 4, 5, 6, 2, 0, 0, 0, 0 });
-    assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, List.of(invalid)));
+    assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, List.of(invalid), Workers.SEQUENTIAL));
+    // the leaves are measured on the workers, and the first that disagrees in the list's order is the one reported
+    final List<Mcv2Encoder.Leaf> many = new ArrayList<>();
+    many.add(new Mcv2Encoder.Leaf(8, 0, 8, 2, 1));
+    for (int i = 0; i < 64; i++) {
+      many.add(new Mcv2Encoder.Leaf(0, 0, 8, 2, 0));
+    }
+    final Workers parallel = new Workers(POOL, 4);
+    Mcv2Encoder.check(job, 0, data, picture, many, roots, parallel);
     job.set(0, 2, 0, 0, Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 }, 3, 5);
     assertEquals(
       "MCV2 encoder/decoder disagreement at 0,0 size 8",
-      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, roots)).getMessage()
+      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, leaves, roots, Workers.SEQUENTIAL)
+      ).getMessage()
+    );
+    assertEquals(
+      "MCV2 encoder/decoder disagreement at 0,0 size 8",
+      assertThrows(IllegalStateException.class, () -> Mcv2Encoder.check(job, 0, data, picture, many, roots, parallel)).getMessage()
     );
   }
 }

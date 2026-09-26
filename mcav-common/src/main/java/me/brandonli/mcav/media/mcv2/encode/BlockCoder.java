@@ -111,6 +111,7 @@ final class BlockCoder {
   private int block;
   private double rate;
   private boolean skipped;
+  private boolean hurried;
   private double share;
   private @Nullable BlockCoder root;
   private int x = -ROOT_SIZE;
@@ -264,7 +265,7 @@ final class BlockCoder {
         this.score(MODE_SKIP, 0, 0, j.vectorMask(v));
         this.skipDistortion = this.measure.distortion();
       }
-      if (live != null && j.cost(0, level)[block] <= live.skipThreshold() * j.settings().lambda()) {
+      if (this.hurried || (live != null && j.cost(0, level)[block] <= live.skipThreshold() * j.settings().lambda())) {
         this.skipped = true;
         return;
       }
@@ -293,6 +294,12 @@ final class BlockCoder {
           }
         }
       }
+    }
+    if (this.hurried) {
+      // a keyframe past its time budget: one solid colour, the cheapest leaf a keyframe has
+      this.solid();
+      this.skipped = true;
+      return;
     }
     if (live != null && temporal && j.cost(0, level)[block] <= Math.max(live.goodThreshold() * j.settings().lambda(), this.share)) {
       // good enough: SKIP or local motion codes the block well, so nothing dearer is tried for it
@@ -401,12 +408,23 @@ final class BlockCoder {
   }
 
   /**
-   * Whether the last {@link #code} ended at an early SKIP, so the block is SKIP and nothing inside it needs a search.
+   * Whether the last {@link #code} ended without a search - at an early SKIP, or at the cheapest choice of a hurried
+   * block - so nothing inside the block needs one.
    *
-   * @return true after an early SKIP
+   * @return true after an early SKIP or a hurried block
    */
   boolean isSkipped() {
     return this.skipped;
+  }
+
+  /**
+   * Makes the blocks this coder evaluates next take the cheapest choice without a search, for a live frame that ran
+   * past its time budget: SKIP with the frame's vector in a P frame, one solid colour in a keyframe.
+   *
+   * @param hurried whether to take the cheapest choice
+   */
+  void setHurried(final boolean hurried) {
+    this.hurried = hurried;
   }
 
   /**

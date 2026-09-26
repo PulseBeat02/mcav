@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.MessageDigest;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
@@ -436,6 +438,42 @@ final class LiveEncoderTest {
     final BlockCoder coder = new BlockCoder(job, 16);
     coder.code(1, 0, 0, 0, 6 << 16);
     assertTrue(job.cost(0, 1)[0] < Double.POSITIVE_INFINITY);
+  }
+
+  @Test
+  void endsAFrameSoonAfterItsBudgetWithTheCheapestChoices() throws Mcv2Exception {
+    final Mcv2Encoder hurried = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    assertThrows(IllegalArgumentException.class, () -> hurried.setFrameBudget(-1));
+    // a budget every superblock starts past: a keyframe of one solid colour per superblock, SKIP where the colour is
+    // the frame's commonest, and a P frame of SKIP everywhere, each decoding to the encoder's own picture
+    hurried.setFrameBudget(1);
+    final Client client = new Client();
+    final Mcv2Frame keyframe = FrameParser.parse(hurried.encode(scene(96, 64, 0, 3), 96, 64, 0));
+    assertTrue(keyframe.isKeyframe());
+    assertEquals(6, keyframe.getLeafCount());
+    for (int i = 0; i < keyframe.getLeafCount(); i++) {
+      final Mcv2Frame.Leaf leaf = keyframe.getLeaf(i);
+      assertEquals(32, leaf.size());
+      assertTrue(leaf.mode() == MODE_SOLID || leaf.mode() == MODE_SKIP, "mode " + leaf.mode());
+    }
+    assertArrayEquals(hurried.getReference(), client.decode(keyframe.getData()));
+    final byte[] next = hurried.encode(scene(96, 64, 1, 3), 96, 64, 1);
+    final Mcv2Frame frame = FrameParser.parse(next);
+    assertEquals(6, frame.getLeafCount());
+    for (int i = 0; i < frame.getLeafCount(); i++) {
+      assertEquals(MODE_SKIP, frame.getLeaf(i).mode());
+    }
+    assertArrayEquals(hurried.getReference(), client.decode(next));
+    // a budget no frame reaches changes nothing, and none is the default
+    final Mcv2Encoder patient = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    patient.setFrameBudget(TimeUnit.HOURS.toNanos(1));
+    final Mcv2Encoder unbounded = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    for (int i = 0; i < 4; i++) {
+      final byte[] picture = scene(96, 64, i, 3);
+      assertArrayEquals(unbounded.encode(picture, 96, 64, i), patient.encode(picture, 96, 64, i));
+    }
+    patient.setFrameBudget(0);
+    assertArrayEquals(unbounded.encode(scene(96, 64, 4, 3), 96, 64, 4), patient.encode(scene(96, 64, 4, 3), 96, 64, 4));
   }
 
   /**

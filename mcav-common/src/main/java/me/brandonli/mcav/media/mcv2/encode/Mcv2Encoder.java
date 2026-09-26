@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
@@ -57,6 +58,8 @@ public final class Mcv2Encoder {
   private final boolean verify;
   /** The picture the live search's check decodes into, kept from frame to frame. */
   private byte@Nullable[] verified;
+  /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
+  private long frameBudget;
 
   private byte@Nullable[] reference;
   private long referenceId;
@@ -151,6 +154,21 @@ public final class Mcv2Encoder {
     final LiveBuffers made = new LiveBuffers(width, height);
     this.buffers = made;
     return made;
+  }
+
+  /**
+   * Bounds how long the search of a live frame may take. A frame that has searched this long since its encode began
+   * gives each superblock not yet searched the cheapest choice instead - SKIP with the frame's vector in a P frame, one
+   * solid colour in a keyframe - which the frames after it refine, so a frame that runs long, such as a keyframe or a
+   * scene cut on a busy machine, ends soon after its budget. What such a frame contains depends on how fast the
+   * machine searched it, so the budget is off unless set. The reference's search takes no budget.
+   *
+   * @param nanoseconds the budget of a frame, or 0 for none
+   * @throws IllegalArgumentException if the budget is negative
+   */
+  public void setFrameBudget(final long nanoseconds) {
+    Preconditions.checkArgument(nanoseconds >= 0, "The frame budget must not be negative");
+    this.frameBudget = nanoseconds;
   }
 
   /**
@@ -316,10 +334,10 @@ public final class Mcv2Encoder {
         }
       }
       if (this.verify) {
-        check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots);
+        check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots, this.workers);
       }
     } else {
-      final LiveFrame frame = this.evaluateLive(job, live);
+      final LiveFrame frame = this.evaluateLive(job, live, started);
       best = FrameWriter.write(
         width,
         height,
@@ -335,9 +353,11 @@ public final class Mcv2Encoder {
       bestLeaves = frame.leaves();
       bestRoots = frame.roots();
       if (this.verify) {
-        check(job, 0, best, bestPicture, bestLeaves, bestRoots);
-        // the picture was assembled from the search's reconstructions: the decoder must produce it too, into a picture
-        // the encoder keeps for the check alone
+        // the bytes must describe the chosen tree, and the picture assembled from the search's reconstructions must be
+        // the one the decoder produces, into a picture the encoder keeps for the check alone: the picture a client
+        // decodes. The distortions the search measured only steered its choices, so they are not measured again here,
+        // where a pass over every pixel costs a live frame more than its decode; the encoder's tests check them.
+        checkTree(best, bestRoots);
         final byte[] decoded = decodeChosen(best, predictFrom, this.referenceId, this.workers, this.verified);
         this.verified = decoded;
         Preconditions.checkState(Arrays.equals(bestPicture, decoded), "MCV2 live picture and decoded picture disagree");
@@ -480,7 +500,7 @@ public final class Mcv2Encoder {
    * then chooses its superblock's tree and copies the reconstructions of the chosen leaves, which are the decoder's
    * own, into the frame's picture, so the frame needs no decode.
    */
-  private LiveFrame evaluateLive(final FrameJob job, final LiveSearch live) {
+  private LiveFrame evaluateLive(final FrameJob job, final LiveSearch live, final long started) {
     final int columns = job.columns(0);
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     final int deepest = Integer.numberOfTrailingZeros(ROOT_SIZE / live.smallestBlock());
@@ -501,6 +521,7 @@ public final class Mcv2Encoder {
     final AtomicReferenceArray<List<Leaf>> leaves = new AtomicReferenceArray<>(superblocks);
     // the other of the two pictures: the one the reference is not, which this frame's reconstruction replaces
     final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(job.reference());
+    final long budget = this.frameBudget;
     this.workers.forEach(
         superblocks,
         () -> this.coders(job),
@@ -508,6 +529,10 @@ public final class Mcv2Encoder {
           final int x = (index % columns) * ROOT_SIZE;
           final int y = (index / columns) * ROOT_SIZE;
           final double threshold = steadyApplies && !splits[index] ? steady : split[0];
+          final boolean late = budget > 0 && System.nanoTime() - started >= budget;
+          for (final BlockCoder coder : coders) {
+            coder.setHurried(late);
+          }
           descend(job, coders, 0, x, y, -1, deepest, threshold, split, live.childGate(), 0);
           final List<Leaf> chosen = new ArrayList<>();
           roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
@@ -785,8 +810,9 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Checks the kept frame: its bytes must describe exactly the chosen tree, and every leaf inside the picture must
-   * decode to exactly the distortion the search measured for it.
+   * Checks the kept frame of the reference's search, whose picture is the decode of its bytes: the bytes must describe
+   * exactly the chosen tree, and every leaf inside the picture must decode to exactly the distortion the search measured
+   * for it. The leaves are measured on the workers, a pass over the whole picture that would take one thread long.
    */
   static void check(
     final FrameJob job,
@@ -794,10 +820,15 @@ public final class Mcv2Encoder {
     final byte[] data,
     final byte[] picture,
     final List<Leaf> leaves,
-    final List<TreeNode> roots
+    final List<TreeNode> roots,
+    final Workers workers
   ) {
-    final int width = job.width();
-    final int height = job.height();
+    checkTree(data, roots);
+    checkLeaves(job, trial, picture, leaves, workers);
+  }
+
+  /** Checks that a frame's bytes describe exactly the chosen tree, which the parser must accept. */
+  static void checkTree(final byte[] data, final List<TreeNode> roots) {
     final List<TreeNode> written = new ArrayList<>(roots.size());
     final List<TreeNode> expected = new ArrayList<>(roots.size());
     try {
@@ -811,26 +842,46 @@ public final class Mcv2Encoder {
     if (!written.equals(expected)) {
       throw new IllegalStateException("MCV2 encoder and serializer disagree about the tree");
     }
-    for (final Leaf leaf : leaves) {
-      if (leaf.x() + leaf.size() > width || leaf.y() + leaf.size() > height) {
-        continue;
-      }
-      long d16 = 0;
-      for (int py = leaf.y(); py < leaf.y() + leaf.size(); py++) {
-        for (int px = leaf.x(); px < leaf.x() + leaf.size(); px++) {
-          final int at = (py * width + px) * 3;
-          final int dr = (job.source()[at] & 0xFF) - (picture[at] & 0xFF);
-          final int dg = (job.source()[at + 1] & 0xFF) - (picture[at + 1] & 0xFF);
-          final int db = (job.source()[at + 2] & 0xFF) - (picture[at + 2] & 0xFF);
-          final int luma = dr + 2 * dg + db;
-          final int co = dr - db;
-          final int cg = 2 * dg - dr - db;
-          d16 += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+  }
+
+  /**
+   * Checks that every leaf inside the picture has exactly the distortion the search measured for it, on the workers;
+   * the first leaf that disagrees, in the order of the list, is reported.
+   */
+  static void checkLeaves(final FrameJob job, final int trial, final byte[] picture, final List<Leaf> leaves, final Workers workers) {
+    final int width = job.width();
+    final int height = job.height();
+    final AtomicInteger first = new AtomicInteger(leaves.size());
+    workers.forEach(
+      leaves.size(),
+      () -> first,
+      (_, index) -> {
+        final Leaf leaf = leaves.get(index);
+        if (leaf.x() + leaf.size() > width || leaf.y() + leaf.size() > height) {
+          return;
+        }
+        long d16 = 0;
+        for (int py = leaf.y(); py < leaf.y() + leaf.size(); py++) {
+          for (int px = leaf.x(); px < leaf.x() + leaf.size(); px++) {
+            final int at = (py * width + px) * 3;
+            final int dr = (job.source()[at] & 0xFF) - (picture[at] & 0xFF);
+            final int dg = (job.source()[at + 1] & 0xFF) - (picture[at + 1] & 0xFF);
+            final int db = (job.source()[at + 2] & 0xFF) - (picture[at + 2] & 0xFF);
+            final int luma = dr + 2 * dg + db;
+            final int co = dr - db;
+            final int cg = 2 * dg - dr - db;
+            d16 += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+          }
+        }
+        if (d16 != job.distortion(trial, leaf.level(), leaf.block())) {
+          first.accumulateAndGet(index, Math::min);
         }
       }
-      if (d16 != job.distortion(trial, leaf.level(), leaf.block())) {
-        throw new IllegalStateException("MCV2 encoder/decoder disagreement at " + leaf.x() + "," + leaf.y() + " size " + leaf.size());
-      }
+    );
+    final int failed = first.get();
+    if (failed < leaves.size()) {
+      final Leaf leaf = leaves.get(failed);
+      throw new IllegalStateException("MCV2 encoder/decoder disagreement at " + leaf.x() + "," + leaf.y() + " size " + leaf.size());
     }
   }
 }
