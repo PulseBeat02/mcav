@@ -55,6 +55,8 @@ public final class Mcv2Encoder {
   private final EncoderSettings settings;
   private final Workers workers;
   private final boolean verify;
+  /** The picture the live search's check decodes into, kept from frame to frame. */
+  private byte@Nullable[] verified;
 
   private byte@Nullable[] reference;
   private long referenceId;
@@ -334,8 +336,10 @@ public final class Mcv2Encoder {
       bestRoots = frame.roots();
       if (this.verify) {
         check(job, 0, best, bestPicture, bestLeaves, bestRoots);
-        // the picture was assembled from the search's reconstructions: the decoder must produce it too
-        final byte[] decoded = decodeChosen(best, predictFrom, this.referenceId, this.workers);
+        // the picture was assembled from the search's reconstructions: the decoder must produce it too, into a picture
+        // the encoder keeps for the check alone
+        final byte[] decoded = decodeChosen(best, predictFrom, this.referenceId, this.workers, this.verified);
+        this.verified = decoded;
         Preconditions.checkState(Arrays.equals(bestPicture, decoded), "MCV2 live picture and decoded picture disagree");
       }
     }
@@ -368,9 +372,20 @@ public final class Mcv2Encoder {
    * @throws IllegalStateException if the decoder rejects it, which would be an encoder defect
    */
   static byte[] decodeChosen(final byte[] data, final byte[] reference, final long referenceId, final Workers workers) {
+    return decodeChosen(data, reference, referenceId, workers, null);
+  }
+
+  /** Decodes a frame the encoder wrote, into a picture it may reuse; see {@link Mcv2Decoder#decode}. */
+  static byte[] decodeChosen(
+    final byte[] data,
+    final byte[] reference,
+    final long referenceId,
+    final Workers workers,
+    final byte@Nullable[] into
+  ) {
     try {
       final Mcv2Frame frame = FrameParser.parse(data);
-      return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId, workers);
+      return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId, workers, into);
     } catch (final Mcv2Exception exception) {
       throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
     }

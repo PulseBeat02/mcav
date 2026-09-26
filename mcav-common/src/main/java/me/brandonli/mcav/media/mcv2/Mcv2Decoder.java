@@ -69,6 +69,28 @@ public final class Mcv2Decoder {
    */
   public static byte[] decode(final Mcv2Frame frame, final byte@Nullable[] reference, final long referenceId, final Workers workers)
     throws Mcv2Exception {
+    return decode(frame, reference, referenceId, workers, null);
+  }
+
+  /**
+   * Decodes a validated frame into a picture the caller may reuse from frame to frame, when it has the frame's size;
+   * a valid frame's leaves cover every pixel, so nothing of the picture before is left.
+   *
+   * @param frame       the frame
+   * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
+   * @param referenceId the id of that picture
+   * @param workers     the workers
+   * @param into        the picture to decode into, or null or one of another size for a new one
+   * @return the decoded picture: {@code into} when it had the size, else a new one of {@code width * height * 3} bytes
+   * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
+   */
+  public static byte[] decode(
+    final Mcv2Frame frame,
+    final byte@Nullable[] reference,
+    final long referenceId,
+    final Workers workers,
+    final byte@Nullable[] into
+  ) throws Mcv2Exception {
     Preconditions.checkNotNull(frame, "Frame must not be null");
     Preconditions.checkNotNull(workers, "Workers must not be null");
     final int width = frame.getWidth();
@@ -82,7 +104,7 @@ public final class Mcv2Decoder {
       }
       ref = reference;
     }
-    final byte[] output = new byte[width * height * 3];
+    final byte[] output = into != null && into.length == width * height * 3 ? into : new byte[width * height * 3];
     final int[] leaves = frame.leafArray();
     final int count = leaves.length / Mcv2Frame.LEAF_INTS;
     final int groups = (count + GROUP - 1) / GROUP;

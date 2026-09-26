@@ -20,8 +20,11 @@ package me.brandonli.mcav.media.mcv2;
 import static me.brandonli.mcav.media.mcv2.Mcv2Frames.*;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.mcv2.encode.TreeNode;
@@ -42,6 +45,22 @@ final class Mcv2DecoderTest {
     final byte[] picture = Mcv2Decoder.decode(frame, null, 99);
     assertArrayEquals(new byte[] { 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30 }, picture);
     assertArrayEquals(picture, Mcv2Decoder.decode(FrameParser.parse(frame), new byte[1], 5));
+  }
+
+  @Test
+  void decodesIntoAPictureOfTheFramesSize() throws Mcv2Exception {
+    final Mcv2Frame frame = FrameParser.parse(keyframe(3, 2, DERIVED, solid(10, 20, 30)));
+    final byte[] fresh = Mcv2Decoder.decode(frame, null, 0);
+    // a picture of the frame's size is decoded into, whatever it held; any other is left and a new one made
+    final byte[] into = new byte[18];
+    Arrays.fill(into, (byte) 99);
+    assertSame(into, Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, into));
+    assertArrayEquals(fresh, into);
+    final byte[] small = new byte[17];
+    final byte[] made = Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, small);
+    assertNotSame(small, made);
+    assertArrayEquals(fresh, made);
+    assertArrayEquals(fresh, Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, null));
   }
 
   @Test
