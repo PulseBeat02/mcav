@@ -43,7 +43,7 @@ public class ProcessPublication {
 
   private static final Field PROCESS = findProcessField();
 
-  private final VMProcess machine = new VMProcess(null, null, null, null, null, null, 0);
+  private final VMProcess machine = new VMProcess(null, null, null, null, null, null, null, 0);
 
   private static Field findProcessField() {
     try {
