@@ -132,7 +132,7 @@ final class Mcv2PacerTest {
   void leavesKeyframesOut() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     for (int i = 0; i < 200; i++) {
       assertNull(pacer.encoded(1000, true, driver.now + (i * SECOND) / 60));
     }
@@ -143,7 +143,7 @@ final class Mcv2PacerTest {
   void stepsDownTheFrameRateFirst() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     // 25 ms per frame is more than the 16.7 ms a frame has at 60 fps, and fits in 30 fps' 33.3 ms
     final Mcv2Pacer.Change change = driver.play(2, 25);
     assertNotNull(change);
@@ -168,7 +168,7 @@ final class Mcv2PacerTest {
   void stepsDownToASmallerSizeWhenNoFrameRateFits() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     // 100 ms fits no frame rate of 1080p down to 10 fps (85 ms), and 720p's predicted 44.4 ms fits 15 fps (56.7 ms)
     final Mcv2Pacer.Change change = driver.play(4, 100);
     assertNotNull(change);
@@ -180,7 +180,7 @@ final class Mcv2PacerTest {
   void fallsBackToTheDitheredMapsAndTriesAgainLaterAndLater() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     // 2000 ms at 1080p, 889 ms at 720p: nothing fits, not even 720p at 10 fps
     final Mcv2Pacer.Change dithered = driver.play(2, 2000);
     assertNotNull(dithered);
@@ -191,8 +191,9 @@ final class Mcv2PacerTest {
     assertNull(driver.play(28, 2000));
     assertFalse(pacer.isEncoded());
     assertNull(pacer.encoded(1, false, driver.now));
-    // 30 seconds after it fell back, the lowest encoded rung is tried, which fails again a second later
-    driver.play(3, 2000);
+    // 30 seconds after it fell back, the lowest encoded rung is tried, which fails again two seconds later (ten frames
+    // at 10 fps, then a second over its time)
+    driver.play(4, 2000);
     final Mcv2Pacer.Change tried = driver.changes.get(1);
     assertEquals(Mcv2Pacer.Rung.DITHERED, tried.from());
     assertEquals(new Mcv2Pacer.Rung(1280, 720, 6), tried.to());
@@ -203,7 +204,7 @@ final class Mcv2PacerTest {
     // the next try comes 60 seconds later, not 30
     driver.play(55, 2000);
     assertEquals(3, driver.changes.size());
-    driver.play(6, 2000);
+    driver.play(8, 2000);
     assertEquals(5, driver.changes.size());
   }
 
@@ -211,7 +212,7 @@ final class Mcv2PacerTest {
   void stepsBackUpToTheBestRungThatFitsWithRoom() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     driver.play(2, 100);
     assertEquals(new Mcv2Pacer.Rung(1280, 720, 4), pacer.getRung());
     // 720p now takes 4 ms, 1080p 9 ms: 1080p at 60 fps would fit in 0.7 of its 16.7 ms, but the pacer keeps off the
@@ -234,7 +235,7 @@ final class Mcv2PacerTest {
   void keepsOffARungItHadToLeave() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Driver driver = new Driver(pacer, 60, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     driver.play(2, 25);
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), pacer.getRung());
     // 11 ms would fit 60 fps with room, but the top rung is kept off for ten seconds
@@ -258,10 +259,43 @@ final class Mcv2PacerTest {
   }
 
   @Test
+  void keepsUpBarelyBeforeFallingBackToTheDitheredMaps() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Driver driver = new Driver(pacer, 60, 0);
+    driver.play(5, 5);
+    // 90 ms fits 10 fps (100 ms) without the room the pacer likes, but it keeps up: better than the dithered maps
+    final Mcv2Pacer.Change change = driver.play(3, 90);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 6), change.to());
+  }
+
+  @Test
+  void waitsForANewEncoderToWarmUp() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Driver driver = new Driver(pacer, 60, 0);
+    // over its time from the first frame, but no step while the encoder warms up
+    assertNull(driver.play(4.9, 100));
+    assertNotNull(driver.play(2, 100));
+  }
+
+  @Test
+  void doesNotMeasureTheVideoOnTheDitheredMaps() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Driver driver = new Driver(pacer, 60, 0);
+    driver.play(5, 5);
+    driver.play(2, 2000);
+    assertTrue(pacer.getRung().isDithered());
+    // the dithering slows the video down to a frame a second; the pacer keeps the video's own rate
+    final Driver slow = new Driver(pacer, 1, driver.now);
+    slow.play(10, 2000);
+    assertEquals(60, pacer.getVideoFps(), 0.5);
+  }
+
+  @Test
   void neverSkipsFramesOfASlowVideo() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 8, 0);
-    driver.play(1, 5);
+    driver.play(5, 5);
     // at 8 fps every rung that skips frames would fall under 10 fps: 1080p's 150 ms miss its 125 ms, 720p's 67 fit
     final Mcv2Pacer.Change change = driver.play(3, 150);
     assertNotNull(change);

@@ -33,12 +33,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * every encoded P frame took; keyframes, which come every few seconds and cost more, are left out. When the smoothed
  * time has been over the time a frame has, {@link #HIGH} of it, for {@link #DOWN_SECONDS}, the pacer steps down to the
  * first rung below that the measured time predicts to fit in {@link #FIT} of its frame time - the encode time grows
- * with the pixels, the frame time with the frames skipped - or to the dithered maps when none does. It steps back up
+ * with the pixels, the frame time with the frames skipped - else to the first that keeps up at all, and to the dithered
+ * maps when none does. It judges a rung only after {@link #MIN_SAMPLES} P frames on it, and does not step down in the
+ * first {@link #STARTUP_SECONDS} of the video, while a new encoder warms up. It steps back up
  * when a rung above has been predicted to fit in {@link #ROOM} of its frame time for {@link #UP_SECONDS}, to the
  * highest such rung, and keeps off a rung it had to leave for {@link #BLOCK_SECONDS}, longer each time.
  * From the dithered maps it tries the lowest encoded rung again after {@link #RETRY_SECONDS}, and twice as long after
- * every try that failed, up to {@link #MAX_RETRY_SECONDS}. So the frames it asks for never take more than the budget
- * gives them for longer than {@link #DOWN_SECONDS}, and it climbs back when the budget frees up.
+ * every try that failed, up to {@link #MAX_RETRY_SECONDS}; on the dithered maps it does not measure the video's rate,
+ * since the frames then come as fast as the dithering allows. So once it has seen a rung, the frames it asks for never
+ * take more than the budget gives them for longer than {@link #DOWN_SECONDS}, and it climbs back when the budget frees.
  *
  * <p>Times are {@link System#nanoTime()} values passed in by the caller. Not thread-safe: the screen calls it from
  * one thread at a time.
@@ -59,6 +62,12 @@ public final class Mcv2Pacer {
 
   /** How long a rung may be over its frame time before the pacer steps down. */
   static final double DOWN_SECONDS = 1.0;
+
+  /** How long after the first frame the pacer does not step down: a new encoder is still warming up. */
+  static final double STARTUP_SECONDS = 5.0;
+
+  /** How many P frames a rung encodes before the pacer judges it. */
+  static final int MIN_SAMPLES = 10;
 
   /** How long the rung above must fit with room before the pacer steps up. */
   static final double UP_SECONDS = 5.0;
@@ -180,6 +189,8 @@ public final class Mcv2Pacer {
   private double videoInterval = Double.NaN;
   private long lastArrival = NEVER;
   private long arrivals;
+  private long firstArrival = NEVER;
+  private int samples;
   private double smoothed = Double.NaN;
   private long overSince = NEVER;
   private long roomSince = NEVER;
@@ -261,7 +272,11 @@ public final class Mcv2Pacer {
    * @return the step a try from the dithered maps takes, which the caller carries out, or null
    */
   public @Nullable Change arrive(final long now) {
-    if (this.lastArrival != NEVER && now > this.lastArrival) {
+    if (this.firstArrival == NEVER) {
+      this.firstArrival = now;
+    }
+    // on the dithered maps the frames come as fast as the dithering allows, which is not the video's rate
+    if (this.lastArrival != NEVER && now > this.lastArrival && !this.getRung().isDithered()) {
       final double interval = now - this.lastArrival;
       this.videoInterval = Double.isNaN(this.videoInterval) ? interval : this.videoInterval + SMOOTHING * (interval - this.videoInterval);
     }
@@ -299,8 +314,12 @@ public final class Mcv2Pacer {
       return null;
     }
     this.smoothed = Double.isNaN(this.smoothed) ? milliseconds : this.smoothed + SMOOTHING * (milliseconds - this.smoothed);
+    this.samples++;
     if (this.settledSince == NEVER) {
       this.settledSince = now;
+    }
+    if (this.samples < MIN_SAMPLES || now - this.firstArrival < seconds(STARTUP_SECONDS)) {
+      return null;
     }
     final double frameMs = this.frameMs(rung);
     if (this.smoothed > HIGH * frameMs) {
@@ -335,10 +354,13 @@ public final class Mcv2Pacer {
     this.blockedUntil[left] = now + seconds(this.blockSeconds[left]);
     this.blockSeconds[left] = Math.min(MAX_RETRY_SECONDS, this.blockSeconds[left] * 2);
     final int encoded = this.encodedRungs();
-    for (int next = this.current + 1; next < encoded; next++) {
-      final Rung rung = this.ladder.get(next);
-      if (this.isAllowed(rung) && this.predict(next) <= FIT * this.frameMs(rung)) {
-        return this.move(next, true, this.smoothed, frameMs);
+    // the first rung below that fits with room, else the first that keeps up at all, before the dithered maps
+    for (final double share : new double[] { FIT, HIGH }) {
+      for (int next = this.current + 1; next < encoded; next++) {
+        final Rung rung = this.ladder.get(next);
+        if (this.isAllowed(rung) && this.predict(next) <= share * this.frameMs(rung)) {
+          return this.move(next, true, this.smoothed, frameMs);
+        }
       }
     }
     if (encoded == this.ladder.size()) {
@@ -366,6 +388,7 @@ public final class Mcv2Pacer {
     this.roomSince = NEVER;
     this.settledSince = NEVER;
     this.arrivals = 0;
+    this.samples = 0;
     return change;
   }
 

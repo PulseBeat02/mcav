@@ -330,7 +330,8 @@ final class Mcv2ResultTest {
     // fit a frame's 16.7 ms
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
-    assertEquals(60, this.play(result, clock, encoder, frame, 60));
+    // five seconds while a new encoder warms up: the pacer judges nothing yet
+    assertEquals(300, this.play(result, clock, encoder, frame, 300));
     verify(this.algorithm, times(1)).ditherIntoBytes(any());
     // at 25 ms a frame the screen steps down to every other frame, and says why
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(25));

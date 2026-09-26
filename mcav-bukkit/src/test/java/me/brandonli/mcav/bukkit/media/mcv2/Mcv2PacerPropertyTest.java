@@ -155,7 +155,10 @@ final class Mcv2PacerPropertyTest {
       final double rungMs = (fullMs * stretch.rung().width() * stretch.rung().height()) / (1920.0 * 1080.0);
       final double seconds = (stretch.to() - stretch.from()) / (double) SECOND;
       final boolean over = rungMs * (1 - noise) > frameMs(stretch.rung(), fps);
-      if (over && seconds > Mcv2Pacer.DOWN_SECONDS + (2 * rungMs * (1 + noise)) / 1000 + 1) {
+      // it waits for the rung's first samples (and, on the first rung, for the encoder to warm up), then a second
+      final double frame = Math.max(rungMs * (1 + noise), frameMs(stretch.rung(), fps)) / 1000;
+      final double allowed = Mcv2Pacer.DOWN_SECONDS + (Mcv2Pacer.MIN_SAMPLES + 2) * frame + 1 + (i == 0 ? Mcv2Pacer.STARTUP_SECONDS : 0);
+      if (over && seconds > allowed) {
         return false;
       }
       // a step up under a steady load is never undone
