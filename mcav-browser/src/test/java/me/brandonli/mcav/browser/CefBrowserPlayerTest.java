@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -55,16 +56,22 @@ class CefBrowserPlayerTest {
   private final List<ImageBuffer> processed = new ArrayList<>();
   private BrowserSession.Listener listener;
   private RuntimeException startFailure;
+  // the clock of the budget of the reports, which only the tests move
+  private final AtomicLong now = new AtomicLong();
 
-  private final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
-    if (this.startFailure != null) {
-      throw this.startFailure;
-    }
-    this.listener = sessionListener;
-    final FakeSession session = new FakeSession();
-    this.sessions.add(session);
-    return session;
-  });
+  private final CefBrowserPlayer player = new CefBrowserPlayer(
+    BrowserOptions.DEFAULT,
+    (source, options, sessionListener) -> {
+      if (this.startFailure != null) {
+        throw this.startFailure;
+      }
+      this.listener = sessionListener;
+      final FakeSession session = new FakeSession();
+      this.sessions.add(session);
+      return session;
+    },
+    this.now::get
+  );
 
   CefBrowserPlayerTest() {
     this.player.setExceptionHandler((message, error) -> this.reports.add(message + ": " + error.getMessage()));
@@ -450,6 +457,26 @@ class CefBrowserPlayerTest {
     ); // a hold moves the pointer first and then presses: two more drops
     this.player.sendMouseEvent(MouseClick.HOLD, 1, 1);
     assertEquals(4, this.reports.size(), this.reports.toString());
+  }
+
+  @Test
+  void droppedInputIsReportedWithinTheBudgetOfTheLog() {
+    this.player.start(SOURCE);
+    this.sessions.getFirst().accepting = false;
+    for (int index = 0; index < 500; index++) {
+      this.player.sendKeyEvent("x");
+    }
+    assertEquals(LogBudget.BURST, this.reports.size(), "a burst of reports, then none");
+    this.now.addAndGet(LogBudget.REFILL_NANOS);
+    this.player.sendKeyEvent("x");
+    final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
+    assertEquals(
+      List.of(
+        "Browser input queue is full: " + (500 - LogBudget.BURST) + " more inputs were dropped",
+        "Browser input queue is full: The browser input backlog is full"
+      ),
+      later
+    );
   }
 
   @Test

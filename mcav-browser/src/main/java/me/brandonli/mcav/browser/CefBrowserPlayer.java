@@ -30,6 +30,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -85,6 +86,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
+  // a player who clicks while the helper does not read its input makes a report for every click
+  private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
   private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable BrowserSource source;
@@ -106,6 +109,19 @@ final class CefBrowserPlayer implements BrowserPlayer {
    */
   @VisibleForTesting
   CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions) {
+    this(options, sessions, System::nanoTime);
+  }
+
+  /**
+   * Constructs a player with a factory for its sessions and the clock of the budget of its reports, so tests can move
+   * time.
+   *
+   * @param options  how the player treats the pages it shows
+   * @param sessions starts the session of every start
+   * @param clock    a monotonic clock in nanoseconds
+   */
+  @VisibleForTesting
+  CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions, final LongSupplier clock) {
     this.options = options;
     this.sessions = sessions;
     this.videoCallback = VideoAttachableCallback.create();
@@ -114,6 +130,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.lock = new ReentrantLock();
     this.state = new AtomicReference<>(State.IDLE);
     this.released = new AtomicBoolean();
+    this.dropReports = new LogBudget(clock);
   }
 
   @Override
@@ -269,8 +286,10 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   private void reportIfDropped(final boolean queued) {
     if (!queued) {
-      final RejectedExecutionException rejected = new RejectedExecutionException("The browser input backlog is full");
-      this.report("Browser input queue is full", rejected);
+      this.dropReports.log(
+          () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full")),
+          dropped -> this.report("Browser input queue is full", new RejectedExecutionException(dropped + " more inputs were dropped"))
+        );
     }
   }
 

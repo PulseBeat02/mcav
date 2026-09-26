@@ -22,10 +22,11 @@ import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 
 /**
- * How many lines a browser helper may add to the log of the server: {@value #BURST} at once, then one more per second.
- * The helper shows untrusted web content, and the content decides how often the helper reports something, such as a
- * refused navigation, a dismissed dialog or a failed load; content that does so in a loop must not fill the log of the
- * server. The lines over the budget are counted, and the count is logged before the next line that may pass.
+ * How many lines a browser may add to the log of the server: {@value #BURST} at once, then one more per second. The
+ * helper shows untrusted web content, and the content decides how often the helper reports something, such as a
+ * refused navigation, a dismissed dialog or a failed load; players decide how often input is dropped while the helper
+ * does not read it. Neither may fill the log of the server in a loop. The lines over the budget are counted, and the
+ * count is logged before the next line that may pass.
  */
 final class LogBudget {
 
