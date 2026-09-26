@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
+import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
@@ -70,6 +71,44 @@ final class Mcv2ConfigurationTest {
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
     assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, configuration.getUnsentLimit());
     assertEquals(32 * 1024, Mcv2Configuration.DEFAULT_UNSENT_LIMIT);
+  }
+
+  @Test
+  void copiesItselfAtAnotherVideoSize() {
+    try (EncoderPool budget = new EncoderPool(1)) {
+      final Mcv2Configuration original = complete()
+        .video(320, 180)
+        .pageSlots(2)
+        .streamId(7)
+        .settings(EncoderSettings.LIVE)
+        .outlineColor(NamedTextColor.AQUA)
+        .backlogLimit(1000)
+        .unsentLimit(2000)
+        .encoderPool(budget)
+        .build();
+      final Mcv2Configuration smaller = original.withVideo(160, 90);
+      assertEquals(160, smaller.getVideoWidth());
+      assertEquals(90, smaller.getVideoHeight());
+      assertEquals(original.getViewers(), smaller.getViewers());
+      assertEquals(original.getOrigin(), smaller.getOrigin());
+      assertEquals(original.getFacing(), smaller.getFacing());
+      assertEquals(original.getMap(), smaller.getMap());
+      assertEquals(original.getColumns(), smaller.getColumns());
+      assertEquals(original.getRows(), smaller.getRows());
+      assertEquals(original.getPageMap(), smaller.getPageMap());
+      assertEquals(2, smaller.getPageSlots());
+      assertEquals(7, smaller.getStreamId());
+      assertEquals(EncoderSettings.LIVE, smaller.getSettings());
+      assertEquals(NamedTextColor.AQUA, smaller.getOutlineColor());
+      assertEquals(1000, smaller.getBacklogLimit());
+      assertEquals(2000, smaller.getUnsentLimit());
+      assertSame(budget, smaller.getEncoderPool());
+      // without a budget of its own, the copy uses the server's too
+      assertSame(EncoderPool.shared(), complete().build().withVideo(64, 64).getEncoderPool());
+      assertThrows(IllegalArgumentException.class, () -> original.withVideo(0, 90));
+      assertThrows(IllegalArgumentException.class, () -> original.withVideo(160, 0));
+      assertThrows(IllegalArgumentException.class, () -> original.withVideo(5000, 90));
+    }
   }
 
   @Test

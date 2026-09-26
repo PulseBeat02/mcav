@@ -18,9 +18,11 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
@@ -218,12 +220,55 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(resolution, "Resolution must not be null");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
-    final Mcv2Result result = new Mcv2Result(settings.configuration(), settings.viewers(), settings.dithering().createAlgorithm());
+    final Mcv2Configuration configuration = settings.configuration();
+    final Mcv2Result result = new Mcv2Result(configuration, settings.viewers(), settings.dithering().createAlgorithm());
     // whoever started the screen learns when it steps down to what its encoder budget sustains, and back up
     final CommandSender sender = settings.sender();
     result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
+    // a smaller video before the dithered maps: each size has its own pack, offered to the viewers when it is needed
+    final Mcv2Support support = this.plugin.getMcv2Support();
+    result.setSmallerSizes(smallerSizes(configuration.getVideoWidth(), configuration.getVideoHeight()), smaller ->
+      new Mcv2Channel(smaller, support.offer(smaller, online(smaller.getViewers())))
+    );
     this.manager.startFilter(result);
     return VideoPipelineStep.of(result);
+  }
+
+  /**
+   * The video sizes a screen may step down to when its encoder budget cannot sustain its own: two thirds and half of it,
+   * even, while at least 128 by 72 pixels.
+   *
+   * @param width  the screen's video width
+   * @param height the screen's video height
+   * @return the smaller sizes, largest first
+   */
+  static List<int[]> smallerSizes(final int width, final int height) {
+    final List<int[]> sizes = new ArrayList<>();
+    for (final int[] fraction : new int[][] { { 2, 3 }, { 1, 2 } }) {
+      final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
+      final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
+      if (smallerWidth >= 128 && smallerHeight >= 72) {
+        sizes.add(new int[] { smallerWidth, smallerHeight });
+      }
+    }
+    return sizes;
+  }
+
+  /**
+   * The viewers who are online.
+   *
+   * @param viewers the viewers' UUIDs
+   * @return the online players among them
+   */
+  static List<Player> online(final Collection<UUID> viewers) {
+    final List<Player> players = new ArrayList<>();
+    for (final UUID viewer : viewers) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player != null) {
+        players.add(player);
+      }
+    }
+    return players;
   }
 
   /**

@@ -65,6 +65,8 @@ final class Mcv2ResultTest {
 
   private static final UUID WITH_PACK = UUID.fromString("00000000-0000-0000-0000-000000000041");
   private static final UUID WITHOUT = UUID.fromString("00000000-0000-0000-0000-000000000042");
+  /** A location holds its world weakly; a world a test builds screens in again must stay reachable. */
+  private static final World WORLD = mock(World.class);
 
   private FakeServer server;
   private Mcv2Viewers viewers;
@@ -255,7 +257,7 @@ final class Mcv2ResultTest {
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
     when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1));
     result.getChannel().requestKeyframe();
-    result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 0), 0);
+    result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0), 0);
     verify(encoder).requestKeyframe();
     assertEquals(1, result.getStatistics().getDropped());
     assertEquals(0, result.getStatistics().getFrames());
@@ -359,6 +361,75 @@ final class Mcv2ResultTest {
     assertFalse(result.getRung().isDithered());
     result.release();
     assertNull(result.getRung());
+  }
+
+  @Test
+  void stepsDownToASmallerVideoAndBackUp() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(WORLD, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .build();
+    final Mcv2Result result = new Mcv2Result(onlyPack, new Mcv2Channel(onlyPack, this.viewers, this.screen), this.algorithm, clock::get);
+    // the owner offers a 32x16 screen: its own channel and page frames
+    final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
+    when(smallScreen.anchors()).thenReturn(List.of());
+    final List<Mcv2Configuration> resized = new ArrayList<>();
+    result.setSmallerSizes(List.of(new int[] { 32, 16 }), configuration -> {
+      resized.add(configuration);
+      return new Mcv2Channel(configuration, this.viewers, configuration.getVideoWidth() == 32 ? smallScreen : this.screen);
+    });
+    result.pace();
+    // an encode takes 100 ms at 64x32 and a quarter of that at 32x16
+    final AtomicLong fullNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Integer> widths = new ArrayList<>();
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation -> {
+      final int width = invocation.getArgument(1);
+      widths.add(width);
+      clock.addAndGet((fullNanos.get() * width * (int) invocation.getArgument(2)) / (64 * 32));
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    fullNanos.set(TimeUnit.MILLISECONDS.toNanos(100));
+    this.play(result, clock, encoder, frame, 120);
+    // no frame rate of 64x32 fits 100 ms with room; 32x16 at 30 fps does
+    assertEquals(new Mcv2Pacer.Rung(32, 16, 2), result.getRung());
+    this.server.runTasks();
+    verify(this.screen).remove();
+    verify(smallScreen).build();
+    assertEquals(1, resized.size());
+    assertEquals(32, resized.getFirst().getVideoWidth());
+    assertEquals(16, result.getConfiguration().getVideoHeight());
+    // the viewer is shown the smaller screen, and the frames are encoded at its size
+    result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
+    this.server.runTasks();
+    widths.clear();
+    this.play(result, clock, encoder, Images.solid(64, 32, 0xFF336699), 60);
+    assertTrue(!widths.isEmpty() && widths.stream().allMatch(width -> width == 32), widths.toString());
+    // the load drops: back to the size it was asked for, once the top rung may be tried again
+    fullNanos.set(TimeUnit.MILLISECONDS.toNanos(4));
+    this.play(result, clock, encoder, Images.solid(64, 32, 0xFF336699), 60 * 30);
+    assertEquals(new Mcv2Pacer.Rung(64, 32, 1), result.getRung());
+    this.server.runTasks();
+    verify(smallScreen).remove();
+    assertEquals(64, result.getConfiguration().getVideoWidth());
+    // bringing the screen in line again changes nothing, nor does it once the result is released
+    result.sync();
+    result.release();
+    result.sync();
+    assertThrows(NullPointerException.class, () -> result.setSmallerSizes(null, configuration -> null));
+    assertThrows(NullPointerException.class, () -> result.setSmallerSizes(List.of(), null));
   }
 
   @Test

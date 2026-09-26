@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -55,7 +56,8 @@ import org.slf4j.LoggerFactory;
  * page slots is not sent, and the next is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
- * gives them, it encodes fewer of them, down to {@link Mcv2Pacer#MIN_FPS} a second, and when even that is too much,
+ * gives them, it encodes fewer of them, down to {@link Mcv2Pacer#MIN_FPS} a second, then shows a smaller video when the
+ * owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack), and when even that is too much,
  * every viewer is shown the dithered maps, which need no encoder, until a later try finds room again. Every step is
  * logged, a step down as a warning, and handed to the {@linkplain #setPacingListener(Consumer) pacing listener}, so
  * the operator learns what was chosen and why. A result without dithered maps stays at its lowest frame rate instead.
@@ -66,8 +68,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Result.class);
 
-  private final Mcv2Configuration configuration;
-  private final Mcv2Channel channel;
+  private final Mcv2Configuration requested;
   private final @Nullable Fallback fallback;
   private final Set<UUID> fallbackViewers;
   private final Object lock;
@@ -83,6 +84,29 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private @Nullable Mcv2Pacer pacer;
   private boolean ditheredForAll;
   private Consumer<Mcv2Pacer.Change> pacingListener = _ -> {};
+  private volatile Screen screen;
+  private boolean opened = true;
+  private List<int[]> smaller = List.of();
+  private @Nullable Resizer resizer;
+
+  /** The screen the video is shown on now: its configuration, whose video size may change, and its channel. */
+  private record Screen(Mcv2Configuration configuration, Mcv2Channel channel) {}
+
+  /**
+   * What a screen's owner does to show the video at another size: the pack decodes one video size, so a smaller video
+   * needs its pack offered to the viewers, and a channel of its own.
+   */
+  @FunctionalInterface
+  public interface Resizer {
+    /**
+     * Offers the viewers the pack of the screen at another video size and creates its channel, not opened yet. Called
+     * on the main thread.
+     *
+     * @param configuration the screen at the new size
+     * @return the channel that sends the video at that size
+     */
+    Mcv2Channel resize(Mcv2Configuration configuration);
+  }
 
   /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
@@ -91,10 +115,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   static final class Arrival {
 
     private final byte[] rgb;
+    private final int width;
+    private final int height;
     private final long arrived;
 
-    Arrival(final byte[] rgb, final long arrived) {
+    Arrival(final byte[] rgb, final int width, final int height, final long arrived) {
       this.rgb = rgb;
+      this.width = width;
+      this.height = height;
       this.arrived = arrived;
     }
   }
@@ -221,8 +249,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(channel, "Channel must not be null");
-    this.configuration = configuration;
-    this.channel = channel;
+    this.requested = configuration;
+    this.screen = new Screen(configuration, channel);
     this.fallbackViewers = ConcurrentHashMap.newKeySet();
     this.fallback = fallbackAlgorithm == null
       ? null
@@ -256,7 +284,31 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @return the channel
    */
   public Mcv2Channel getChannel() {
-    return this.channel;
+    return this.screen.channel();
+  }
+
+  /**
+   * Gets the screen's configuration now: the one it was created with, or a copy at the smaller video size it stepped
+   * down to.
+   *
+   * @return the configuration
+   */
+  public Mcv2Configuration getConfiguration() {
+    return this.screen.configuration();
+  }
+
+  /**
+   * Lets the screen step down to smaller video sizes when its encoder budget cannot sustain the size it was asked for,
+   * before it falls back to the dithered maps. Call before {@link #start()}.
+   *
+   * @param sizes   the smaller sizes, largest first, each a width and a height
+   * @param resizer offers a size's pack and creates its channel
+   */
+  public void setSmallerSizes(final List<int[]> sizes, final Resizer resizer) {
+    Preconditions.checkNotNull(sizes, "Sizes must not be null");
+    Preconditions.checkNotNull(resizer, "Resizer must not be null");
+    this.smaller = List.copyOf(sizes);
+    this.resizer = resizer;
   }
 
   /**
@@ -286,13 +338,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    */
   @Override
   public void start() {
-    this.channel.open();
+    this.screen.channel().open();
+    this.opened = true;
     final Fallback dithered = this.fallback;
     if (dithered != null) {
       dithered.result().start();
     }
-    final EncoderPool encoderPool = this.configuration.getEncoderPool();
-    final Mcv2Encoder encoder = encoderPool.encoder(this.configuration.getSettings(), true);
+    final EncoderPool encoderPool = this.requested.getEncoderPool();
+    final Mcv2Encoder encoder = encoderPool.encoder(this.requested.getSettings(), true);
     // the screen's own thread only hands frames to the budget and waits for them
     final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-screen").unstarted(() -> this.encodeLoop(encoder));
     // the frames go out on their own thread, so the encoder starts the next frame while the last is being sent; one
@@ -341,17 +394,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (tried != null) {
       this.announce(tried);
     }
-    final Set<UUID> others = everyoneDithered ? Set.copyOf(this.configuration.getViewers()) : this.channel.update();
+    final Screen current = this.screen;
+    final Set<UUID> others = everyoneDithered ? Set.copyOf(this.requested.getViewers()) : current.channel().update();
     this.fallbackViewers.retainAll(others);
     this.fallbackViewers.addAll(others);
-    final int width = this.configuration.getVideoWidth();
-    final int height = this.configuration.getVideoHeight();
+    final int width = current.configuration().getVideoWidth();
+    final int height = current.configuration().getVideoHeight();
     if (data.getWidth() != width || data.getHeight() != height) {
       new ResizeFilter(width, height).applyFilter(data);
     }
     // on the dithered maps the pacer encodes no frame
-    if (encode && !this.channel.getRecipients().isEmpty()) {
-      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), System.currentTimeMillis());
+    if (encode && !current.channel().getRecipients().isEmpty()) {
+      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis());
       synchronized (this.lock) {
         this.pending = arrival;
         this.lock.notifyAll();
@@ -378,7 +432,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The frames the viewers' links sent, held back for the backlog and held back for a reference, summed. */
   private long[] linkCounts() {
     final long[] counts = new long[3];
-    for (final Mcv2Link link : this.channel.getLinks().values()) {
+    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
       counts[0] += link.getSent();
       counts[1] += link.getBehind();
       counts[2] += link.getUndecodable();
@@ -390,7 +444,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private void record(final Mcv2FrameEvent event, final Delivery delivery, final int colors, final long[] before) {
     final long[] after = this.linkCounts();
     long backlog = 0;
-    for (final Mcv2Link link : this.channel.getLinks().values()) {
+    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
       backlog = Math.max(backlog, link.getBacklog());
     }
     event.frameId = delivery.frameId;
@@ -404,11 +458,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     event.behind = (int) (after[1] - before[1]);
     event.waiting = (int) (after[2] - before[2]);
     event.backlog = backlog;
-    event.fingerprint = Mcv2FrameEvent.fingerprint(
-      delivery.source.rgb,
-      this.configuration.getVideoWidth(),
-      this.configuration.getVideoHeight()
-    );
+    event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.rgb, delivery.source.width, delivery.source.height);
     event.commit();
   }
 
@@ -449,8 +499,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /** Starts pacing the screen's frames from the top of its ladder, which {@link #start()} does. */
   void pace() {
-    final int[] size = { this.configuration.getVideoWidth(), this.configuration.getVideoHeight() };
-    final Mcv2Pacer screenPacer = new Mcv2Pacer(List.of(size), this.fallback != null);
+    final List<int[]> sizes = new ArrayList<>();
+    sizes.add(new int[] { this.requested.getVideoWidth(), this.requested.getVideoHeight() });
+    sizes.addAll(this.smaller);
+    final Mcv2Pacer screenPacer = new Mcv2Pacer(sizes, this.fallback != null);
     synchronized (this.lock) {
       this.pacer = screenPacer;
       this.ditheredForAll = false;
@@ -496,11 +548,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @throws InterruptedException if the thread is interrupted while it waits for the sender to take the frame
    */
   void send(final Mcv2Encoder encoder, final Arrival arrival, final long frameId) throws InterruptedException {
-    if (this.channel.takeKeyframeRequest()) {
+    if (this.screen.channel().takeKeyframeRequest()) {
       encoder.requestKeyframe();
     }
-    final int width = this.configuration.getVideoWidth();
-    final int height = this.configuration.getVideoHeight();
+    final int width = arrival.width;
+    final int height = arrival.height;
     final EncoderPool encoderPool;
     synchronized (this.lock) {
       encoderPool = this.budget;
@@ -557,7 +609,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Mcv2FrameEvent event = new Mcv2FrameEvent();
     final boolean recorded = event.isEnabled();
     final long[] before = recorded ? this.linkCounts() : new long[3];
-    final int colors = this.channel.send(frame);
+    final Screen current = this.screen;
+    final int colors = current.channel().send(frame);
     if (recorded) {
       this.record(event, delivery, colors, before);
     }
@@ -566,7 +619,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent",
         frameId,
         frame.length,
-        this.configuration.getPageSlots()
+        current.configuration().getPageSlots()
       );
       this.statistics.drop();
       return;
@@ -575,18 +628,51 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Carries out a step of the pacer, under the lock: to the dithered maps, the page frames go and every viewer is
-   * dithered for; back from them, the page frames return and the viewers with the pack are shown the screen again. The
-   * frames exist in the world, so both happen on the main thread.
+   * Carries out a step of the pacer, under the lock: on the dithered maps every viewer is dithered for; the screen's
+   * page frames exist in the world, so the main thread brings them in line with the pacer's rung ({@link #sync()}).
    */
   private void follow(final Mcv2Pacer.Change change) {
-    if (change.to().isDithered()) {
-      this.ditheredForAll = true;
+    this.ditheredForAll = change.to().isDithered();
+    if (this.ditheredForAll) {
       this.pending = null;
-      Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this.channel::close);
-    } else if (change.from().isDithered()) {
-      this.ditheredForAll = false;
-      Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this.channel::open);
+    }
+    Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this::sync);
+  }
+
+  /**
+   * Brings the screen in line with the pacer's rung, on the main thread, however many steps came since the last time:
+   * on the dithered maps the page frames go; on an encoded rung of another video size the screen is replaced by one at
+   * that size (the owner offers its pack), and the page frames of an encoded rung are there.
+   */
+  void sync() {
+    final Mcv2Pacer.Rung rung;
+    synchronized (this.lock) {
+      final Mcv2Pacer screenPacer = this.pacer;
+      if (screenPacer == null) {
+        return;
+      }
+      rung = screenPacer.getRung();
+    }
+    final Screen current = this.screen;
+    final Mcv2Configuration configuration = current.configuration();
+    final long shown = ((long) configuration.getVideoWidth() << 32) | configuration.getVideoHeight();
+    final boolean resized = !rung.isDithered() && (((long) rung.width() << 32) | rung.height()) != shown;
+    if (this.opened && (rung.isDithered() || resized)) {
+      current.channel().close();
+      this.opened = false;
+    }
+    if (rung.isDithered()) {
+      return;
+    }
+    Screen target = current;
+    if (resized) {
+      final Mcv2Configuration size = this.requested.withVideo(rung.width(), rung.height());
+      target = new Screen(size, Preconditions.checkNotNull(this.resizer).resize(size));
+      this.screen = target;
+    }
+    if (!this.opened) {
+      target.channel().open();
+      this.opened = true;
     }
   }
 
@@ -620,7 +706,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     stop(thread);
     stop(delivery);
-    this.channel.close();
+    this.screen.channel().close();
+    this.opened = false;
     final Fallback dithered = this.fallback;
     if (dithered != null) {
       dithered.result().release();

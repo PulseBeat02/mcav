@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
@@ -158,6 +159,8 @@ final class VideoMcv2CommandTest {
   @Test
   void startsTheResultOnThePlayerManager() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(configuration.getVideoWidth()).thenReturn(640);
+    when(configuration.getVideoHeight()).thenReturn(384);
     final AbstractVideoCommand.VideoConfigurationProvider provider = _ ->
       new VideoMcv2Command.Mcv2Settings(configuration, this.viewers, DitheringArgument.FILTER_LITE, this.sender);
     try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
@@ -179,7 +182,37 @@ final class VideoMcv2CommandTest {
       );
       listeners.getValue().accept(change);
       verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
+      // the screen may step down to two smaller videos, each offered with its own pack to the viewers who are online
+      @SuppressWarnings("unchecked")
+      final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
+      final ArgumentCaptor<Mcv2Result.Resizer> resizers = ArgumentCaptor.forClass(Mcv2Result.Resizer.class);
+      verify(result).setSmallerSizes(sizes.capture(), resizers.capture());
+      assertEquals(List.of("426x256", "320x192"), sizes.getValue().stream().map(size -> size[0] + "x" + size[1]).toList());
+      final Mcv2Configuration smaller = mock(Mcv2Configuration.class);
+      final UUID offline = UUID.randomUUID();
+      when(smaller.getViewers()).thenReturn(List.of(this.viewer, offline));
+      when(TestServer.server().getPlayer(this.viewer)).thenReturn(this.player);
+      try (MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+        final Mcv2Channel channel = resizers.getValue().resize(smaller);
+        assertSame(channels.constructed().getFirst(), channel);
+      }
+      verify(this.support).offer(smaller, List.of(this.player));
     }
+  }
+
+  @Test
+  void stepsDownToTwoThirdsAndHalfOfTheVideo() {
+    assertEquals(
+      List.of("1280x720", "960x540"),
+      VideoMcv2Command.smallerSizes(1920, 1080).stream().map(size -> size[0] + "x" + size[1]).toList()
+    );
+    assertEquals(
+      List.of("256x144", "192x108"),
+      VideoMcv2Command.smallerSizes(384, 216).stream().map(size -> size[0] + "x" + size[1]).toList()
+    );
+    // a size under 128 by 72 is left out
+    assertEquals(List.of("160x80"), VideoMcv2Command.smallerSizes(240, 120).stream().map(size -> size[0] + "x" + size[1]).toList());
+    assertEquals(List.of(), VideoMcv2Command.smallerSizes(200, 100));
   }
 
   @Test

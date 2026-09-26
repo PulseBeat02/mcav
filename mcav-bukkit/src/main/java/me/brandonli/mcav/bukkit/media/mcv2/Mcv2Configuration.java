@@ -279,6 +279,38 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Copies the screen with another video size, for a screen that steps down to a smaller video, or back up.
+   *
+   * @param width  the video width, 1 to 4096
+   * @param height the video height, 1 to 4096
+   * @return the copy
+   * @throws IllegalArgumentException if the size is out of range
+   */
+  public Mcv2Configuration withVideo(final int width, final int height) {
+    Preconditions.checkArgument(width >= 1 && height >= 1, "Video size must be positive");
+    final Builder builder = builder()
+      .viewers(this.viewers)
+      .origin(this.origin)
+      .facing(this.facing)
+      .map(this.map)
+      .columns(this.columns)
+      .rows(this.rows)
+      .video(width, height)
+      .pageMap(this.pageMap)
+      .pageSlots(this.pageSlots)
+      .streamId(this.streamId)
+      .settings(this.settings)
+      .outlineColor(this.outlineColor)
+      .backlogLimit(this.backlogLimit)
+      .unsentLimit(this.unsentLimit);
+    final EncoderPool pool = this.encoderPool;
+    if (pool != null) {
+      builder.encoderPool(pool);
+    }
+    return builder.build();
+  }
+
+  /**
    * Gets the cap on the bytes a viewer's operating system may hold unsent, which is set on a viewer's connection when
    * it starts receiving the screen (on Linux, where Paper uses the epoll transport).
    *
