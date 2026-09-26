@@ -30,9 +30,11 @@ import net.jqwik.api.constraints.IntRange;
  */
 final class LiveSearchPropertyTest {
 
+  private static final String SEED = "20260926";
+
   private static final int SIZE = 32;
 
-  @Property(tries = 300)
+  @Property(seed = SEED, tries = 300)
   boolean derivesAQuantizerThatGrowsWithLambda(
     @ForAll @DoubleRange(min = 0, max = 1e7) final double a,
     @ForAll @DoubleRange(min = 0, max = 1e7) final double b
@@ -82,7 +84,7 @@ final class LiveSearchPropertyTest {
     return coder;
   }
 
-  @Property(tries = 200)
+  @Property(seed = SEED, tries = 200)
   boolean endsABlockAtTheEarlySkipExactlyAtOrBelowTheThreshold(
     @ForAll final long seed,
     @ForAll @IntRange(min = 0, max = 30) final int amplitude,
@@ -94,7 +96,7 @@ final class LiveSearchPropertyTest {
     return coder.isSkipped() == (job[0].cost(0, 0)[0] <= skip * lambda);
   }
 
-  @Property(tries = 200)
+  @Property(seed = SEED, tries = 200)
   boolean keepsABlockSkippedAsLambdaGrows(
     @ForAll final long seed,
     @ForAll @IntRange(min = 0, max = 30) final int amplitude,

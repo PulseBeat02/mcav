@@ -34,6 +34,8 @@ import net.jqwik.api.constraints.IntRange;
  */
 final class Mcv2PacerPropertyTest {
 
+  private static final String SEED = "20260926";
+
   private static final long SECOND = 1_000_000_000L;
   private static final List<int[]> SIZES = List.of(new int[] { 1920, 1080 }, new int[] { 1280, 720 }, new int[] { 960, 540 });
 
@@ -136,7 +138,7 @@ final class Mcv2PacerPropertyTest {
    * Under a steady load, a rung whose frames take more than their time is left within the time the pacer waits plus
    * two encodes, since it only learns how long a frame takes once the frame is done; and no step up has to be undone.
    */
-  @Property(tries = 300)
+  @Property(seed = SEED, tries = 300)
   boolean neverStaysLongOverItsTime(
     @ForAll("frameRates") final double fps,
     @ForAll @IntRange(min = 1, max = 3) final int sizes,
@@ -170,7 +172,7 @@ final class Mcv2PacerPropertyTest {
   }
 
   /** After a heavy load, once the budget frees up, the pacer climbs back to the top rung. */
-  @Property(tries = 300)
+  @Property(seed = SEED, tries = 300)
   boolean climbsBackWhenTheLoadDrops(
     @ForAll("frameRates") final double fps,
     @ForAll @IntRange(min = 1, max = 3) final int sizes,

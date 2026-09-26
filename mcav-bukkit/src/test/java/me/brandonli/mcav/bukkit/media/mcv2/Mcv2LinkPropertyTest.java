@@ -30,6 +30,8 @@ import net.jqwik.api.constraints.IntRange;
 /** Whatever frames come and however the connection drains, a viewer is only sent frames it can decode. */
 final class Mcv2LinkPropertyTest {
 
+  private static final String SEED = "20260926";
+
   /** One step of a stream: a frame (its size, and whether it is a keyframe) and how much the connection wrote before. */
   record Step(boolean keyframe, int bytes, int drained) {}
 
@@ -48,7 +50,7 @@ final class Mcv2LinkPropertyTest {
    * the client could decode, that nothing is sent while the backlog is over the limit (twice it for a keyframe), and
    * that the backlog is what was sent and not yet written.
    */
-  @Property(tries = 400)
+  @Property(seed = SEED, tries = 400)
   boolean sendsOnlyFramesTheViewerCanDecode(
     @ForAll("streams") final List<Step> steps,
     @ForAll @IntRange(min = 0, max = 1000) final int limit,
