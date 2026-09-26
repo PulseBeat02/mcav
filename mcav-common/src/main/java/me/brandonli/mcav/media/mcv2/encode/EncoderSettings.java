@@ -59,12 +59,13 @@ public record EncoderSettings(
   );
 
   /**
-   * The live profile: the shipped lambda with the live search ({@link LiveSearch#LIVE}) and a keyframe every 120 frames,
-   * two seconds at 60 frames per second, so a 1080p frame encodes while the video plays. It spends bits differently from
-   * {@link #SHIP}; the resource pack decodes both.
+   * The live profile: the live search ({@link LiveSearch#LIVE}) and a keyframe every 120 frames, two seconds at 60 frames
+   * per second, at lambda 56, where its VMAF on the 1080p60 proxy matches {@link #SHIP}'s at the shipped lambda (77.8;
+   * the live search at the shipped lambda would be 1.6 points below). It spends bits differently from {@link #SHIP} - a
+   * few percent fewer at the same VMAF on the proxy, a few percent more on gameplay - and the resource pack decodes both.
    */
   public static final EncoderSettings LIVE = new EncoderSettings(
-    65.255994022,
+    56,
     120,
     24,
     true,

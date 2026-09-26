@@ -127,10 +127,27 @@ public record LiveSearch(
   public static final int FROM_LAMBDA = 0;
 
   /**
-   * The P-frame leaf modes of {@link #LIVE}: local motion, palettes, compact and patterns. The intra grids are left to
-   * keyframes: in P frames they cost 12% of the search for 0.8 points of rate at equal VMAF.
+   * The P-frame leaf modes of {@link #LIVE}: the ones the reference's search chooses on real gameplay - local motion,
+   * solid colours, palettes, the 2x2 intra grid, the reduced intra grid, compact and patterns (in `ship`'s P frames of a
+   * 1080p60 gameplay clip they cover all but 1.6% of the area). A set chosen on the SKIP-heavy 1080p60 proxy alone,
+   * without the solid colours and intra grids, needed 80% more rate than `ship` for the same VMAF on that gameplay.
    */
-  private static final int LIVE_MODES = (1 << MODE_MOTION) | (1 << MODE_PALETTE) | (1 << MODE_COMPACT) | (1 << MODE_PATTERN);
+  private static final int LIVE_MODES =
+    (1 << MODE_MOTION) |
+    (1 << MODE_SOLID) |
+    (1 << MODE_PALETTE) |
+    (1 << (MODE_INTRA + 1)) |
+    (1 << MODE_INTRA_Y4C1) |
+    (1 << MODE_COMPACT) |
+    (1 << MODE_PATTERN);
+
+  /** The compact classes of {@link #LIVE}: the ones `ship` chooses on real gameplay. */
+  private static final int LIVE_CLASSES =
+    (1 << CompactRecord.DC_Y) |
+    (1 << CompactRecord.GRID2_YC) |
+    (1 << CompactRecord.GRID4_N4_YC) |
+    (1 << CompactRecord.GRID4_N4_Y) |
+    (1 << CompactRecord.LOW2);
 
   /** The reference's search, restricted to one trial and searched from the top with the exact thresholds only. */
   public static final LiveSearch EXACT = new LiveSearch(
@@ -153,12 +170,13 @@ public record LiveSearch(
   );
 
   /**
-   * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p60 source (the report's lever
-   * table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one above 150 where the
-   * previous frame split its superblock and above 450 where it coded it whole, local motion searched from the previous
-   * frame's vectors down to 16 pixels, P frames choosing between local motion, palettes, compact luma grids at the
-   * quantizer lambda suggests, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits
-   * of intra grids and palettes.
+   * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p60 proxy and a 1080p60 gameplay clip
+   * (the report's lever table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one
+   * above 150 where the previous frame split its superblock and above 450 where it coded it whole, local motion searched
+   * from the previous frame's vectors down to 16 pixels, P frames choosing between local motion, solid colours, palettes,
+   * the 2x2 and reduced intra grids, the compact classes of gameplay at every quantizer (the one lambda suggests alone
+   * cost 13 points of rate on gameplay), and patterns with RGB565 endpoints, keyframes from every intra mode, and the
+   * cheap fits of intra grids and palettes.
    */
   public static final LiveSearch LIVE = new LiveSearch(
     8,
@@ -171,8 +189,8 @@ public record LiveSearch(
     LIVE_MODES,
     LIVE_MODES,
     ALL_MODES,
-    1 << CompactRecord.GRID4_N4_Y,
-    FROM_LAMBDA,
+    LIVE_CLASSES,
+    ALL_QUANTIZERS,
     true,
     16,
     true,

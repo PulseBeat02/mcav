@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
@@ -186,6 +187,34 @@ final class LiveEncoderTest {
       64,
       64,
       3,
+      2
+    );
+    // compact luma grids as the only YCoCg candidates of the P frames: their chroma is never converted
+    final int luma = (1 << MODE_MOTION) | (1 << MODE_PALETTE) | (1 << MODE_COMPACT) | (1 << MODE_PATTERN);
+    play(
+      EncoderSettings.LIVE.withLive(
+        new LiveSearch(
+          8,
+          LiveSearch.EXACT_SKIP,
+          150,
+          450,
+          300,
+          0,
+          0,
+          luma,
+          luma,
+          ALL,
+          1 << CompactRecord.GRID4_N4_Y,
+          LiveSearch.FROM_LAMBDA,
+          true,
+          16,
+          true,
+          LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION
+        )
+      ),
+      100,
+      70,
+      6,
       2
     );
     // quarters of split blocks that SKIP or local motion already code for their share stop there
@@ -492,5 +521,5 @@ final class LiveEncoderTest {
   }
 
   /** The SHA-256 of the eight frames {@link #pinsTheOutputOfTheLiveProfile} encodes. */
-  static final String LIVE_DIGEST = "3fe1a287f4128c2eb647eeceac487235123d5389ab698d6f004763d4e59ae626";
+  static final String LIVE_DIGEST = "dd42c5fdb09fe807890082302c93e0bb255309d090ac8cce3655528afb671752";
 }

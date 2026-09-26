@@ -81,18 +81,26 @@ final class LiveSearchTest {
     assertEquals(0, LiveSearch.EXACT.fastFits());
     assertSame(LiveSearch.LIVE, EncoderSettings.LIVE.live());
     assertEquals(120, EncoderSettings.LIVE.keyInterval());
-    assertEquals(EncoderSettings.SHIP.lambda(), EncoderSettings.LIVE.lambda());
+    // the lambda at which the live search matches ship's VMAF at the shipped lambda
+    assertEquals(56, EncoderSettings.LIVE.lambda());
     assertTrue(LiveSearch.LIVE.seededMotion());
     assertTrue(LiveSearch.LIVE.coarseEndpoints());
     assertEquals(16, LiveSearch.LIVE.searchBlock());
     // a superblock the previous frame coded whole is split only above 450 lambda, one it split above 150
     assertEquals(150, LiveSearch.LIVE.splitThreshold());
     assertEquals(450, LiveSearch.LIVE.steadySplitThreshold());
-    // P frames leave the intra grids to keyframes
-    assertFalse(LiveSearch.LIVE.tries(MODE_INTRA + 1, false, 32));
+    // P frames try the modes the reference chooses on gameplay: solid colours and the 2x2 and reduced intra grids, but
+    // not the finer grids, which keyframes try
+    assertTrue(LiveSearch.LIVE.tries(MODE_SOLID, false, 32));
+    assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 1, false, 32));
+    assertTrue(LiveSearch.LIVE.tries(MODE_INTRA_Y4C1, false, 16));
     assertFalse(LiveSearch.LIVE.tries(MODE_INTRA + 2, false, 16));
+    assertFalse(LiveSearch.LIVE.tries(MODE_RESIDUAL, false, 16));
     assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 2, true, 32));
     assertTrue(LiveSearch.LIVE.tries(MODE_PATTERN, false, 8));
+    // the compact classes the reference chooses on gameplay: DC, the 2x2 and both 4x4 grids, and the low pair
+    assertEquals(0x10F, LiveSearch.LIVE.compactClasses());
+    assertEquals(LiveSearch.ALL_QUANTIZERS, LiveSearch.LIVE.quantizers());
   }
 
   @Test
