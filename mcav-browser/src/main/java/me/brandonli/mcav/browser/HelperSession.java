@@ -761,8 +761,12 @@ final class HelperSession implements BrowserSession {
    * @param reason why the session ends
    */
   void endAndClose(final String reason) {
-    this.end(reason, null);
-    this.close();
+    try {
+      this.end(reason, null);
+    } finally {
+      // a listener that fails when it hears of the end must not keep the helper running
+      this.close();
+    }
   }
 
   /**

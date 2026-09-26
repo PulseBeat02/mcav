@@ -90,7 +90,8 @@ final class HelperProcesses {
   }
 
   /**
-   * Ends every running session, which its player hears of, and lets no session start until {@link #open()}.
+   * Ends every running session, which its player hears of, and lets no session start until {@link #open()}. Every
+   * session ends even if the listener of another one fails, and the first such failure is thrown once all have ended.
    */
   static void closeAll() {
     final List<HelperSession> running;
@@ -98,8 +99,21 @@ final class HelperProcesses {
       stopped = true;
       running = new ArrayList<>(SESSIONS);
     }
+    // every helper ends, also when the listener of one fails; the first failure is thrown afterwards
+    RuntimeException failure = null;
     for (final HelperSession session : running) {
-      session.endAndClose("The browser module was stopped");
+      try {
+        session.endAndClose("The browser module was stopped");
+      } catch (final RuntimeException exception) {
+        if (failure == null) {
+          failure = exception;
+        } else {
+          failure.addSuppressed(exception);
+        }
+      }
+    }
+    if (failure != null) {
+      throw failure;
     }
   }
 }

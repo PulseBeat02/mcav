@@ -611,6 +611,43 @@ class HelperSessionTest {
   }
 
   @Test
+  void stoppingTheModuleEndsEveryHelperEvenWhenTheirListenersFail() {
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSession.Listener failing = new BrowserSession.Listener() {
+      @Override
+      public void onFrame(final ImageBuffer frame) {
+        frame.close();
+      }
+
+      @Override
+      public void onAudio(final byte[] samples) {
+        // the page of this test plays nothing
+      }
+
+      @Override
+      public void onEnded(final String reason, final Throwable cause) {
+        throw new IllegalStateException("the listener fails: " + reason);
+      }
+    };
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L);
+    final HelperSession first = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, failing);
+    final HelperSession second = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, failing);
+    this.sessions.add(first);
+    this.sessions.add(second);
+    final IllegalStateException failure;
+    try {
+      failure = assertThrows(IllegalStateException.class, HelperProcesses::closeAll);
+    } finally {
+      HelperProcesses.open();
+    }
+    assertEquals("the listener fails: The browser module was stopped", failure.getMessage());
+    assertEquals(1, failure.getSuppressed().length, "the failure of the other listener goes along");
+    assertFalse(first.isAlive(), "the first helper ended");
+    assertFalse(second.isAlive(), "the second helper ended");
+    assertEquals(0, HelperProcesses.count());
+  }
+
+  @Test
   void aHelperThatConnectsAfterTheModuleStoppedEndsAndItsStartFails() throws IOException {
     final Path gate = this.directory.resolve("gate");
     final HelperLauncher gated = launcher(
