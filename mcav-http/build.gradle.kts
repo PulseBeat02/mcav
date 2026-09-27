@@ -5,11 +5,11 @@ plugins {
 dependencies {
 
     // project dependencies
-    api("org.springframework.boot:spring-boot-starter-web:4.1.1") {
+    api(libs.spring.boot.starter.web) {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
-    api("org.springframework.boot:spring-boot-starter-websocket:4.1.1") {
+    api(libs.spring.boot.starter.websocket) {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
 
@@ -18,7 +18,7 @@ dependencies {
 
     // testing
     testImplementation(project(":mcav-common"))
-    testImplementation("org.slf4j:slf4j-simple:2.0.17")
+    testImplementation(libs.slf4j.simple)
 }
 
 val windows = System.getProperty("os.name").lowercase().contains("windows")

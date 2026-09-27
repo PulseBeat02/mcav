@@ -3,6 +3,7 @@
 
 import info.solidsoft.gradle.pitest.PitestPluginExtension
 import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 plugins {
@@ -15,7 +16,15 @@ plugins {
     id("mcav.coverage-lint")
 }
 
-val javaVersion = 25
+// every version comes from gradle/libs.versions.toml; the root build applies this plugin to every module before the
+// module's own build script adds the catalog to it, so the catalog is read from the root project
+val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
+
+fun catalogVersion(alias: String): String = libs.findVersion(alias).get().requiredVersion
+
+fun catalogLibrary(alias: String) = libs.findLibrary(alias).get()
+
+val javaVersion = catalogVersion("java").toInt()
 val windows = System.getProperty("os.name").lowercase().contains("windows")
 
 repositories {
@@ -34,15 +43,15 @@ repositories {
 }
 
 dependencies {
-    testImplementation(platform("org.junit:junit-bom:6.1.3"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation("org.mockito:mockito-core:5.23.0")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(platform(catalogLibrary("junit-bom")))
+    testImplementation(catalogLibrary("junit-jupiter"))
+    testImplementation(catalogLibrary("mockito-core"))
+    testImplementation(catalogLibrary("mockito-junit-jupiter"))
+    testRuntimeOnly(catalogLibrary("junit-platform-launcher"))
     // property tests (*PropertyTest) run on jqwik and fuzz tests (*FuzzTest) on Jazzer, both beside JUnit Jupiter
-    testImplementation("net.jqwik:jqwik:1.9.2")
-    testImplementation("com.code-intelligence:jazzer-junit:0.30.0")
-    errorprone("com.google.errorprone:error_prone_core:2.50.0")
+    testImplementation(catalogLibrary("jqwik"))
+    testImplementation(catalogLibrary("jazzer-junit"))
+    errorprone(catalogLibrary("errorprone-core"))
 }
 
 java {
@@ -70,7 +79,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 checkerFramework {
-    version = "3.53.1"
+    version = catalogVersion("checker-framework")
     checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
     // tests pass nulls on purpose to check the preconditions, so only production code is checked
     excludeTests = true
@@ -203,9 +212,9 @@ tasks.check {
 // PIT mutation testing runs on demand with `./gradlew :<module>:pitest` (it is not part of check, because mutating
 // every class and rerunning the tests takes far longer than the build); the report is written to build/reports/pitest
 extensions.configure<PitestPluginExtension> {
-    pitestVersion = "1.30.0"
+    pitestVersion = catalogVersion("pitest")
     // the JUnit Platform launcher PIT needs is added by the plugin, matching the JUnit version of the tests
-    junit5PluginVersion = "1.2.3"
+    junit5PluginVersion = catalogVersion("pitest-junit5-plugin")
     targetClasses = setOf("me.brandonli.mcav.*")
     threads = 4
     // a mutant that breaks a player, a browser or a server thread makes its test wait instead of fail, so PIT stops
@@ -241,7 +250,7 @@ configurations.matching { it.name == "runtimeDownload" }.configureEach {
 // Java sources are formatted with prettier-java, which runs on a Node.js the build downloads once per module
 node {
     download = true
-    version = "24.21.0"
+    version = catalogVersion("node")
     workDir = layout.buildDirectory.dir("nodejs")
 }
 
@@ -252,7 +261,7 @@ val nodeExecutable = node.resolvedNodeDir.map { directory ->
 
 spotless {
     java {
-        prettier(mapOf("prettier" to "3.3.3", "prettier-plugin-java" to "2.6.4"))
+        prettier(mapOf("prettier" to catalogVersion("prettier"), "prettier-plugin-java" to catalogVersion("prettier-plugin-java")))
             .config(mapOf("parser" to "java", "tabWidth" to 2, "plugins" to listOf("prettier-plugin-java"), "printWidth" to 140))
             .nodeExecutable(nodeExecutable)
         licenseHeaderFile(rootProject.file("HEADER"))

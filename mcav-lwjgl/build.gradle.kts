@@ -38,19 +38,19 @@ val lwjglNatives: String? = run {
 dependencies {
 
     // project dependencies
-    api("org.lwjgl:lwjgl:3.4.3")
-    api("org.lwjgl:lwjgl-opengl:3.4.3")
+    api(libs.lwjgl)
+    api(libs.lwjgl.opengl)
 
     // provided
     compileOnlyApi(project(":mcav-common"))
 
     // test dependencies
     testImplementation(project(":mcav-common"))
-    testImplementation("org.lwjgl:lwjgl-glfw:3.4.3")
-    if (lwjglNatives != null) {
-        testRuntimeOnly("org.lwjgl:lwjgl:3.4.3:$lwjglNatives")
-        testRuntimeOnly("org.lwjgl:lwjgl-opengl:3.4.3:$lwjglNatives")
-        testRuntimeOnly("org.lwjgl:lwjgl-glfw:3.4.3:$lwjglNatives")
+    testImplementation(libs.lwjgl.glfw)
+    lwjglNatives?.let { natives ->
+        testRuntimeOnly(variantOf(libs.lwjgl) { classifier(natives) })
+        testRuntimeOnly(variantOf(libs.lwjgl.opengl) { classifier(natives) })
+        testRuntimeOnly(variantOf(libs.lwjgl.glfw) { classifier(natives) })
     }
 }
 

@@ -7,27 +7,25 @@ import net.ltgt.gradle.errorprone.errorprone
 // CI step 3 passes -Pjcstress.mode=quick|default|stress and -Pjcstress.timeBudgetMinutes=<n>. A result a test marks
 // FORBIDDEN makes jcstress exit with an error, which fails the task.
 
-val jcstressVersion = "0.16"
-
 dependencies {
-    implementation("org.openjdk.jcstress:jcstress-core:$jcstressVersion")
-    annotationProcessor("org.openjdk.jcstress:jcstress-core:$jcstressVersion")
+    implementation(libs.jcstress.core)
+    annotationProcessor(libs.jcstress.core)
 
     // the code under test. The tests only run Java code, so the native libraries of every platform that the media
     // modules pull in through the JavaCV platform artifacts stay out: they would put more than a gigabyte into the jar
     implementation(project(":mcav-common")) {
         exclude(group = "org.bytedeco")
     }
-    implementation("org.bytedeco:javacv:1.5.14") {
+    implementation(libs.javacv) {
         isTransitive = false
     }
-    implementation("org.bytedeco:javacpp:1.5.14") {
+    implementation(libs.javacpp) {
         isTransitive = false
     }
-    implementation("org.bytedeco:ffmpeg:8.1.2-1.5.14") {
+    implementation(libs.ffmpeg) {
         isTransitive = false
     }
-    implementation("org.bytedeco:opencv:4.14.0-1.5.14") {
+    implementation(libs.opencv) {
         isTransitive = false
     }
     implementation(project(":mcav-http")) {

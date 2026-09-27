@@ -5,8 +5,8 @@ plugins {
 dependencies {
 
     // project dependencies
-    api("uk.co.caprica:vlcj:4.12.1")
-    api("org.bytedeco:javacv-platform:1.5.14") {
+    api(libs.vlcj)
+    api(libs.javacv.platform) {
         exclude(group = "org.bytedeco", module = "flycapture")
         exclude(group = "org.bytedeco", module = "flycapture-platform")
         exclude(group = "org.bytedeco", module = "libdc1394")
@@ -28,20 +28,20 @@ dependencies {
         exclude(group = "org.bytedeco", module = "tesseract")
         exclude(group = "org.bytedeco", module = "tesseract-platform")
     }
-    api("com.google.guava:guava:33.4.8-jre")
-    api("com.google.code.gson:gson:2.14.0")
-    api("net.java.dev.jna:jna:5.19.1")
-    api("net.java.dev.jna:jna-platform:5.19.1")
+    api(libs.guava)
+    api(libs.gson)
+    api(libs.jna)
+    api(libs.jna.platform)
 
     // logging: the library logs through the SLF4J API and leaves the binding to the application
-    api("org.slf4j:slf4j-api:2.0.17")
+    api(libs.slf4j.api)
 
     // JavaCPP declares these annotations as provided; without them javac cannot read its package-info
-    compileOnly("org.osgi:osgi.annotation:8.1.0")
+    compileOnly(libs.osgi.annotation)
 
     // test dependencies
-    testImplementation("org.slf4j:slf4j-simple:2.0.17")
-    testImplementation("com.google.jimfs:jimfs:1.3.0")
+    testImplementation(libs.slf4j.simple)
+    testImplementation(libs.jimfs)
 }
 
 tasks {

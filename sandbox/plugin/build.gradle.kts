@@ -6,37 +6,38 @@ import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml
 import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
-    id("com.gradleup.shadow") version "9.6.1"
-    id("xyz.jpenilla.run-paper") version "3.1.0"
-    id("xyz.jpenilla.resource-factory-paper-convention") version "1.3.1"
-    id("xyz.jpenilla.gremlin-gradle") version "0.0.9"
+    alias(libs.plugins.shadow)
+    alias(libs.plugins.run.paper)
+    alias(libs.plugins.resource.factory.paper)
+    alias(libs.plugins.gremlin)
     // keeps only the native libraries of the platforms a Paper server runs on; see gradle.properties next to this file
-    id("org.bytedeco.gradle-javacpp-platform") version "1.5.10"
+    alias(libs.plugins.javacpp.platform)
 }
 
-val minecraftVersion = "26.2"
+val minecraftVersion = libs.versions.minecraft.get()
+val javaRelease = libs.versions.java.get().toInt()
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:$minecraftVersion.build.+")
-    implementation("xyz.jpenilla:gremlin-runtime:0.0.9")
+    compileOnly(libs.paper.api)
+    implementation(libs.gremlin.runtime)
 
-    runtimeDownload("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-http:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-common:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-vm:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-vnc:1.0.0-SNAPSHOT")
-    runtimeDownload("me.brandonli:mcav-browser:1.0.0-SNAPSHOT")
-    implementation("me.brandonli:mcav-svc:1.0.0-SNAPSHOT")
+    runtimeDownload("me.brandonli:mcav-bukkit:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-jda:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-http:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-common:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-vm:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-vnc:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-browser:${rootProject.version}")
+    implementation("me.brandonli:mcav-svc:${rootProject.version}")
 
-    runtimeDownload("org.incendo:cloud-core:2.1.0")
-    runtimeDownload("org.incendo:cloud-annotations:2.1.0")
-    runtimeDownload("org.incendo:cloud-paper:2.0.0")
-    runtimeDownload("org.incendo:cloud-minecraft-extras:2.0.0")
+    runtimeDownload(libs.cloud.core)
+    runtimeDownload(libs.cloud.annotations)
+    runtimeDownload(libs.cloud.paper)
+    runtimeDownload(libs.cloud.minecraft.extras)
 
-    runtimeDownload("me.lucko:commodore:2.2")
-    runtimeDownload("org.bstats:bstats-bukkit:3.2.1")
-    runtimeDownload("net.dv8tion:JDA:6.6.0")
+    runtimeDownload(libs.commodore)
+    runtimeDownload(libs.bstats.bukkit)
+    runtimeDownload(libs.jda)
 }
 
 configurations.compileOnly {
@@ -64,7 +65,7 @@ tasks.register<JavaExec>("browserBenchmark") {
     val backend = providers.gradleProperty("benchmark.backend").orElse("")
     val output = providers.gradleProperty("benchmark.output").orElse(layout.buildDirectory.file("browser-benchmark.md").get().asFile.absolutePath)
     argumentProviders.add(CommandLineArgumentProvider { listOf(backend.get(), output.get()) })
-    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaRelease) }
     maxHeapSize = "4g"
     outputs.upToDateWhen { false }
 }
@@ -89,8 +90,8 @@ configurations.testImplementation {
 }
 
 dependencies {
-    testImplementation("de.maxhenkel.voicechat:voicechat-api:2.6.20")
-    testImplementation("org.slf4j:slf4j-simple:2.0.17")
+    testImplementation(libs.voicechat.api)
+    testImplementation(libs.slf4j.simple)
 }
 
 // the shaded voice chat module comes from this build as well, so the jar holds the code the plugin was compiled with
@@ -134,9 +135,9 @@ if (endToEnd) {
 val e2eTestSourceSet = sourceSets.create("e2eTest")
 
 dependencies {
-    "e2eTestImplementation"(platform("org.junit:junit-bom:6.1.3"))
-    "e2eTestImplementation"("org.junit.jupiter:junit-jupiter")
-    "e2eTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+    "e2eTestImplementation"(platform(libs.junit.bom))
+    "e2eTestImplementation"(libs.junit.jupiter)
+    "e2eTestRuntimeOnly"(libs.junit.platform.launcher)
 }
 
 val e2eTest = tasks.register<Test>("e2eTest") {
@@ -152,7 +153,7 @@ val e2eTest = tasks.register<Test>("e2eTest") {
     systemProperty("mcav.e2e.acceptEula", providers.gradleProperty("mcav.acceptMinecraftEula").getOrElse("false"))
     systemProperty("mcav.e2e.repositoryDirectory", endToEndRepositoryDirectory.absolutePath)
     systemProperty("mcav.e2e.repositoryPort", endToEndRepositoryPort)
-    val launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+    val launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(javaRelease) }
     doFirst {
         if (!endToEnd) {
             throw GradleException("Run the end-to-end test with -Pmcav.e2e=true, so the server uses the modules of this build")
@@ -167,7 +168,7 @@ version = "1.0.0-v$minecraftVersion"
 tasks.withType<AbstractRun>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor {
         vendor = JvmVendorSpec.JETBRAINS
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(javaRelease)
     })
     jvmArgs(
         "-Xms8192m",
@@ -236,8 +237,9 @@ tasks {
         systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
         minecraftVersion(minecraftVersion)
         downloadPlugins {
-            url("https://cdn.modrinth.com/data/9eGKb6K1/versions/IhqyykOv/voicechat-bukkit-2.6.23.jar")
-            url("https://ci.lucko.me/job/spark/524/artifact/spark-bukkit/build/libs/spark-1.10.172-bukkit.jar")
+            modrinth("simple-voice-chat", libs.versions.voicechat.plugin.get())
+            val spark = libs.versions.spark.asProvider().get()
+            url("https://ci.lucko.me/job/spark/${libs.versions.spark.build.get()}/artifact/spark-bukkit/build/libs/spark-$spark-bukkit.jar")
         }
     }
 }

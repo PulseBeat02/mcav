@@ -13,23 +13,23 @@ extensions.configure<PitestPluginExtension> {
 dependencies {
     // JCEF through jcefmaven. jcef-api depends on JOGL and GlueGen for its own off-screen browser, which draws into an
     // OpenGL canvas; mcav's off-screen browser draws nothing, so both are left out and a server never downloads them
-    implementation("me.friwi:jcefmaven:146.0.10") {
+    implementation(libs.jcefmaven) {
         exclude(group = "me.friwi", module = "jogl-all")
         exclude(group = "me.friwi", module = "gluegen-rt")
     }
     // the Debian packages of the libraries a Linux server may lack are xz-compressed tar archives, which
     // commons-compress (from jcefmaven) reads with this library
-    implementation("org.tukaani:xz:1.10")
+    implementation(libs.xz)
 
     // provided
     compileOnlyApi(project(":mcav-common"))
     // the annotations JavaCPP's package declarations carry, so reading them while compiling against OpenCV warns about
     // nothing, as in mcav-common
-    compileOnly("org.osgi:osgi.annotation:8.1.0")
+    compileOnly(libs.osgi.annotation)
 
     // test dependencies
     testImplementation(project(":mcav-common"))
-    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    testRuntimeOnly(libs.slf4j.simple)
 }
 
 tasks {

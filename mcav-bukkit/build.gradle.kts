@@ -1,18 +1,18 @@
 plugins {
     id("maven-publish")
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
+    alias(libs.plugins.paperweight.userdev)
 }
 
 dependencies {
 
     // project dependencies
-    paperweight.paperDevBundle("26.2.build.+")
+    paperweight.paperDevBundle(libs.versions.paper.get())
 
     // provided
     compileOnlyApi(project(":mcav-common"))
-    compileOnlyApi("io.netty:netty-all:4.2.15.Final")
-    compileOnlyApi("com.google.guava:guava:33.4.8-jre")
-    compileOnlyApi("com.google.code.gson:gson:2.14.0")
+    compileOnlyApi(libs.netty.all)
+    compileOnlyApi(libs.guava)
+    compileOnlyApi(libs.gson)
 
     // testing
     testImplementation(project(":mcav-common"))

@@ -1,0 +1,129 @@
+# Every version the build uses: the libraries, the Gradle plugins, and the tools the build downloads or pins (the
+# Java toolchain, Node.js and prettier for Spotless, PIT, the Checker Framework, the Paper dev bundle and the plugins
+# the development server downloads). Build files name them as libs.<alias>; the convention plugins in buildSrc read
+# them through the version catalog extension. Two versions cannot live here: the Gradle wrapper's (in
+# gradle/wrapper/gradle-wrapper.properties) and the toolchain resolver plugin's in settings.gradle.kts, whose plugins
+# block is evaluated before any version catalog exists.
+
+[versions]
+java = "25"
+minecraft = "26.2"
+paper = "26.2.build.+"
+paperweight = "2.0.0-beta.23"
+node = "24.21.0"
+prettier = "3.3.3"
+prettier-plugin-java = "2.6.4"
+checker-framework = "3.53.1"
+checker-framework-gradle = "1.0.2"
+errorprone = "2.50.0"
+errorprone-gradle = "5.1.1"
+pitest = "1.30.0"
+pitest-junit5-plugin = "1.2.3"
+pitest-gradle = "1.19.0"
+spotless = "7.0.0.BETA4"
+node-gradle = "7.1.0"
+jacoco = "0.8.15"
+junit = "6.1.3"
+mockito = "5.23.0"
+jqwik = "1.9.2"
+jazzer = "0.30.0"
+jcstress = "0.16"
+guava = "33.4.8-jre"
+gson = "2.14.0"
+jna = "5.19.1"
+slf4j = "2.0.17"
+osgi-annotation = "8.1.0"
+jimfs = "1.3.0"
+vlcj = "4.12.1"
+javacv = "1.5.14"
+ffmpeg = "8.1.2-1.5.14"
+opencv = "4.14.0-1.5.14"
+javacpp-platform-gradle = "1.5.10"
+netty = "4.2.15.Final"
+maven-resolver = "2.0.22"
+jda = "6.6.0"
+spring-boot = "4.1.1"
+jcefmaven = "146.0.10"
+xz = "1.10"
+vernacular = "1.14"
+lwjgl = "3.4.3"
+voicechat-api = "2.6.20"
+gremlin = "0.0.9"
+cloud = "2.1.0"
+cloud-minecraft = "2.0.0"
+commodore = "2.2"
+bstats = "3.2.1"
+shadow = "9.6.1"
+shadow-installer = "8.3.8"
+run-paper = "3.1.0"
+resource-factory = "1.3.1"
+# the plugins the development server (./gradlew :sandbox:plugin:runServer) downloads
+voicechat-plugin = "bukkit-2.6.23"
+spark = "1.10.172"
+spark-build = "524"
+
+[libraries]
+# build logic: the Gradle plugins the convention plugins in buildSrc apply
+spotless-gradle = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
+checker-framework-gradle = { module = "org.checkerframework:checker-framework-gradle-plugin", version.ref = "checker-framework-gradle" }
+node-gradle = { module = "com.github.node-gradle:gradle-node-plugin", version.ref = "node-gradle" }
+errorprone-gradle = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorprone-gradle" }
+pitest-gradle = { module = "info.solidsoft.gradle.pitest:gradle-pitest-plugin", version.ref = "pitest-gradle" }
+
+# checks and tests
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
+jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
+jazzer-junit = { module = "com.code-intelligence:jazzer-junit", version.ref = "jazzer" }
+jcstress-core = { module = "org.openjdk.jcstress:jcstress-core", version.ref = "jcstress" }
+jimfs = { module = "com.google.jimfs:jimfs", version.ref = "jimfs" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+
+# the libraries of the modules
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+osgi-annotation = { module = "org.osgi:osgi.annotation", version.ref = "osgi-annotation" }
+vlcj = { module = "uk.co.caprica:vlcj", version.ref = "vlcj" }
+javacv-platform = { module = "org.bytedeco:javacv-platform", version.ref = "javacv" }
+javacv = { module = "org.bytedeco:javacv", version.ref = "javacv" }
+javacpp = { module = "org.bytedeco:javacpp", version.ref = "javacv" }
+ffmpeg = { module = "org.bytedeco:ffmpeg", version.ref = "ffmpeg" }
+opencv = { module = "org.bytedeco:opencv", version.ref = "opencv" }
+netty-all = { module = "io.netty:netty-all", version.ref = "netty" }
+maven-resolver-supplier = { module = "org.apache.maven.resolver:maven-resolver-supplier-mvn3", version.ref = "maven-resolver" }
+jda = { module = "net.dv8tion:JDA", version.ref = "jda" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
+spring-boot-starter-websocket = { module = "org.springframework.boot:spring-boot-starter-websocket", version.ref = "spring-boot" }
+jcefmaven = { module = "me.friwi:jcefmaven", version.ref = "jcefmaven" }
+xz = { module = "org.tukaani:xz", version.ref = "xz" }
+vernacular = { module = "com.shinyhut:vernacular", version.ref = "vernacular" }
+lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
+lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
+lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
+voicechat-api = { module = "de.maxhenkel.voicechat:voicechat-api", version.ref = "voicechat-api" }
+
+# the sandbox plugin
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+gremlin-runtime = { module = "xyz.jpenilla:gremlin-runtime", version.ref = "gremlin" }
+cloud-core = { module = "org.incendo:cloud-core", version.ref = "cloud" }
+cloud-annotations = { module = "org.incendo:cloud-annotations", version.ref = "cloud" }
+cloud-paper = { module = "org.incendo:cloud-paper", version.ref = "cloud-minecraft" }
+cloud-minecraft-extras = { module = "org.incendo:cloud-minecraft-extras", version.ref = "cloud-minecraft" }
+commodore = { module = "me.lucko:commodore", version.ref = "commodore" }
+bstats-bukkit = { module = "org.bstats:bstats-bukkit", version.ref = "bstats" }
+
+[plugins]
+paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+shadow-installer = { id = "com.gradleup.shadow", version.ref = "shadow-installer" }
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
+resource-factory-paper = { id = "xyz.jpenilla.resource-factory-paper-convention", version.ref = "resource-factory" }
+gremlin = { id = "xyz.jpenilla.gremlin-gradle", version.ref = "gremlin" }
+javacpp-platform = { id = "org.bytedeco.gradle-javacpp-platform", version.ref = "javacpp-platform-gradle" }

@@ -3,6 +3,7 @@
 // unless -Pmcav.coverage=false is passed: some tests skip themselves on machines without VLC, Chrome, QEMU, a display
 // or a sound device, and the code they test would show up as gaps there.
 
+import me.brandonli.mcav.gradle.CatalogVersions
 import me.brandonli.mcav.gradle.CoverageLintTask
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 
@@ -12,7 +13,7 @@ plugins {
 }
 
 jacoco {
-    toolVersion = "0.8.15"
+    toolVersion = CatalogVersions.JACOCO
 }
 
 val testTask = tasks.named<Test>("test")

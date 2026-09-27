@@ -5,14 +5,14 @@ plugins {
 dependencies {
 
     // project dependencies
-    compileOnlyApi("de.maxhenkel.voicechat:voicechat-api:2.6.20")
+    compileOnlyApi(libs.voicechat.api)
 
     // provided
     compileOnlyApi(project(":mcav-common"))
 
     // test dependencies
     testImplementation(project(":mcav-common"))
-    testImplementation("de.maxhenkel.voicechat:voicechat-api:2.6.20")
+    testImplementation(libs.voicechat.api)
 }
 
 tasks {

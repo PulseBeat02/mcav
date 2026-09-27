@@ -11,7 +11,7 @@ dependencies {
     testImplementation(project(":mcav-common"))
     testImplementation(project(":mcav-vnc"))
     // the tests with a real QEMU log how it was started and why it fell back to software emulation
-    testRuntimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    testRuntimeOnly(libs.slf4j.simple)
 }
 
 tasks {

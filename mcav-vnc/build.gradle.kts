@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     // project dependencies
-    api("com.shinyhut:vernacular:1.14")
+    api(libs.vernacular)
 
     // provided
     compileOnlyApi(project(":mcav-common"))

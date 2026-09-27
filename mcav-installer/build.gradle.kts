@@ -1,10 +1,10 @@
 plugins {
     id("maven-publish")
-    id("com.gradleup.shadow") version "8.3.8"
+    alias(libs.plugins.shadow.installer)
 }
 
 dependencies {
-    implementation("org.apache.maven.resolver:maven-resolver-supplier-mvn3:2.0.22")
+    implementation(libs.maven.resolver.supplier)
 }
 
 tasks {
