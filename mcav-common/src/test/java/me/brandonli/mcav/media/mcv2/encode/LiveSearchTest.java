@@ -60,7 +60,9 @@ final class LiveSearchTest {
       true,
       searchBlock,
       true,
-      fast
+      fast,
+      0,
+      false
     );
   }
 
@@ -119,23 +121,29 @@ final class LiveSearchTest {
     assertThrows(IllegalArgumentException.class, () -> search(8, Double.POSITIVE_INFINITY, 1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, Double.POSITIVE_INFINITY, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, 1, Double.POSITIVE_INFINITY, all, all, classes, 1, 8, 0));
-    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 1, 0, -1, all, all, all, classes, 1, true, 8, true, 0));
     assertThrows(IllegalArgumentException.class, () ->
-      new LiveSearch(8, 1, 1, 1, 1, 0, Double.NaN, all, all, all, classes, 1, true, 8, true, 0)
+      new LiveSearch(8, 1, 1, 1, 1, 0, -1, all, all, all, classes, 1, true, 8, true, 0, 0, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new LiveSearch(8, 1, 1, 1, 1, 0, Double.POSITIVE_INFINITY, all, all, all, classes, 1, true, 8, true, 0)
-    );
-    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, -1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0));
-    assertThrows(IllegalArgumentException.class, () ->
-      new LiveSearch(8, 1, 1, Double.NaN, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0)
+      new LiveSearch(8, 1, 1, 1, 1, 0, Double.NaN, all, all, all, classes, 1, true, 8, true, 0, 0, false)
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new LiveSearch(8, 1, 1, Double.POSITIVE_INFINITY, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0)
+      new LiveSearch(8, 1, 1, 1, 1, 0, Double.POSITIVE_INFINITY, all, all, all, classes, 1, true, 8, true, 0, 0, false)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, -1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, 0, false)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, Double.NaN, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, 0, false)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, Double.POSITIVE_INFINITY, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, 0, false)
     );
     // the small blocks try a subset of the modes
     final int motion = 1 << MODE_MOTION;
-    assertThrows(IllegalArgumentException.class, () -> new LiveSearch(8, 1, 1, 1, 1, 0, 0, motion, all, all, classes, 1, true, 8, true, 0));
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 1, 0, 0, motion, all, all, classes, 1, true, 8, true, 0, 0, false)
+    );
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, -1, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, Double.POSITIVE_INFINITY, 1, 0, all, all, classes, 1, 8, 0));
     assertThrows(IllegalArgumentException.class, () -> search(8, 1, 1, -1, 0, all, all, classes, 1, 8, 0));
@@ -154,6 +162,25 @@ final class LiveSearchTest {
   }
 
   @Test
+  void refusesSplitThresholdsOutOfRange() {
+    final int all = LiveSearch.ALL_MODES;
+    final int classes = LiveSearch.ALL_CLASSES;
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, -1, false)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, Double.NaN, false)
+    );
+    assertThrows(IllegalArgumentException.class, () ->
+      new LiveSearch(8, 1, 1, 1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, Double.POSITIVE_INFINITY, false)
+    );
+    final LiveSearch none = new LiveSearch(8, 1, 1, 1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, 0, true);
+    assertEquals(0, none.splitAbove());
+    assertTrue(none.motionLambda());
+    assertEquals(40, new LiveSearch(8, 1, 1, 1, 1, 0, 0, all, all, all, classes, 1, true, 8, true, 0, 40, false).splitAbove());
+  }
+
+  @Test
   void triesTheModesOfTheFrameType() {
     final LiveSearch live = search(8, 1, 1, 1, 0, 1 << MODE_MOTION, 1 << MODE_SOLID, 0, 1, 8, 0);
     assertTrue(live.tries(MODE_MOTION, false, 32));
@@ -165,7 +192,7 @@ final class LiveSearchTest {
   @Test
   void triesTheSmallBlockModesBelowTheRoot() {
     final int modes = (1 << MODE_MOTION) | (1 << MODE_PALETTE);
-    final LiveSearch live = new LiveSearch(8, 1, 1, 1, 1, 0, 0, modes, 1 << MODE_MOTION, 1 << MODE_SOLID, 0, 1, true, 8, true, 0);
+    final LiveSearch live = new LiveSearch(8, 1, 1, 1, 1, 0, 0, modes, 1 << MODE_MOTION, 1 << MODE_SOLID, 0, 1, true, 8, true, 0, 0, false);
     assertTrue(live.tries(MODE_PALETTE, false, 32));
     assertFalse(live.tries(MODE_PALETTE, false, 16));
     assertFalse(live.tries(MODE_PALETTE, false, 8));

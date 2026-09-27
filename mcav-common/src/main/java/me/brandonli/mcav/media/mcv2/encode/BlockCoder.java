@@ -141,19 +141,16 @@ final class BlockCoder {
 
   private final int[] cells = new int[FastFits.CELL_SUMS];
 
+  /** The pixel kernels this coder reconstructs, measures, fits and searches with. */
+  private final Kernels kernels;
+
   private final byte[] record = new byte[FrameJob.MAX_RECORD];
 
   private final byte[] palette = new byte[recordSize(MODE_PALETTE, ROOT_SIZE)];
 
-  private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
-
-  private final Reconstruction.Score measure = new Reconstruction.Score();
-
   private final float[] grid = new float[CHANNELS * MAX_GRID * MAX_GRID];
 
   private final float[] fit = new float[MAX_FIT];
-
-  private final double[] fitScratch = new double[ROOT_SIZE * MAX_GRID];
 
   private final int[] colors = new int[PALETTE_COLORS * CHANNELS];
 
@@ -170,9 +167,12 @@ final class BlockCoder {
   /** The block at half resolution, for {@link LiveSearch#HALF_MOTION}. */
   private final int[] halfSource;
 
-  private final float[] clusters = new float[PALETTE_COLORS * CHANNELS];
+  /** The block at a quarter of the resolution, for {@link LiveSearch#QUARTER_MOTION}. */
+  private final int[] quarterSource;
 
-  private final long[] clusterSums = new long[FastFits.CLUSTER_SUMS];
+  private final int[] quarterSeeds = new int[SEEDS];
+
+  private final float[] clusters = new float[PALETTE_COLORS * CHANNELS];
 
   private int level;
 
@@ -200,11 +200,28 @@ final class BlockCoder {
 
   private boolean ycocgLoaded;
 
+  /** The channel means of {@link #target}, valid while {@link #meansLoaded}. */
+  private final float[] means = new float[CHANNELS];
+
+  private boolean meansLoaded;
+
   private boolean motionCloser;
 
   private long skipDistortion;
 
   BlockCoder(final FrameJob job, final int size) {
+    this(job, size, new JavaKernels());
+  }
+
+  /**
+   * Makes a coder of one block size.
+   *
+   * @param job     the frame's search state
+   * @param size    the block size
+   * @param kernels the pixel kernels the coder uses, its own
+   */
+  BlockCoder(final FrameJob job, final int size, final Kernels kernels) {
+    this.kernels = kernels;
     this.job = job;
     this.size = size;
     this.count = size * size;
@@ -220,6 +237,7 @@ final class BlockCoder {
     this.best = new int[this.count * CHANNELS];
     this.selectors = new byte[this.count];
     this.halfSource = new int[(size / 2) * (size / 2) * CHANNELS];
+    this.quarterSource = new int[(size / 4) * (size / 4) * CHANNELS];
     this.job = job;
     this.needsChroma = needsChroma(job);
     this.keepsBest = job.levelPicture(0) != null;
@@ -343,9 +361,9 @@ final class BlockCoder {
         // the first candidate of its trials, so always eligible; the call sets the rate for the score
         this.eligible(MODE_SKIP, 0, j.vectorMask(v));
         // the first candidate of its trials, whose costs are still infinite: the measure never stops it
-        Reconstruction.predicted(this.globalPrediction[v], this.size, this.recon, this.measure);
+        this.kernels.predicted(this.globalPrediction[v], this.size, this.recon);
         this.score(MODE_SKIP, 0, 0, j.vectorMask(v));
-        this.skipDistortion = this.measure.distortion();
+        this.skipDistortion = this.kernels.distortion();
       }
       if (this.hurried || (live != null && j.cost(0, level)[block] <= live.skipThreshold() * j.settings().lambda())) {
         this.skipped = true;
@@ -370,9 +388,9 @@ final class BlockCoder {
         // at the global vector, a motion record reconstructs SKIP's picture at a higher rate, so it cannot win
         if (!this.isGlobal(v) && this.eligible(MODE_MOTION, 2, j.vectorMask(v))) {
           this.setMotionBytes(v);
-          if (Reconstruction.predicted(this.localPrediction[v], this.size, this.recon, this.measure)) {
+          if (this.kernels.predicted(this.localPrediction[v], this.size, this.recon)) {
             this.score(MODE_MOTION, 0, 2, j.vectorMask(v));
-            this.motionCloser = this.measure.distortion() < this.skipDistortion;
+            this.motionCloser = this.kernels.distortion() < this.skipDistortion;
           }
         }
       }
@@ -385,6 +403,16 @@ final class BlockCoder {
     }
     if (live != null && temporal && j.cost(0, level)[block] <= Math.max(live.goodThreshold() * j.settings().lambda(), this.share)) {
       // good enough: SKIP or local motion codes the block well, so nothing dearer is tried for it
+      return;
+    }
+    if (
+      live != null &&
+      temporal &&
+      this.size == ROOT_SIZE &&
+      live.splitAbove() > 0 &&
+      j.cost(0, level)[block] > live.splitAbove() * j.settings().lambda()
+    ) {
+      // far from coded by SKIP or local motion: the superblock is split, and its quarters are searched instead
       return;
     }
     final boolean closer = (this.shortcuts & LiveSearch.ONE_PREDICTION) != 0 && temporal && this.tries(live, MODE_COMPACT);
@@ -451,17 +479,17 @@ final class BlockCoder {
       return;
     }
     final FrameJob j = this.job;
-    Reconstruction.predict(
-      j.reference(),
-      j.width(),
-      j.height(),
-      this.x,
-      this.y,
-      this.size,
-      MotionSearch.unpackX(vector),
-      MotionSearch.unpackY(vector),
-      out
-    );
+    this.kernels.predict(
+        j.reference(),
+        j.width(),
+        j.height(),
+        this.x,
+        this.y,
+        this.size,
+        MotionSearch.unpackX(vector),
+        MotionSearch.unpackY(vector),
+        out
+      );
   }
 
   /** The superblock's prediction at a vector, when its last evaluation made one, or null. */
@@ -583,20 +611,20 @@ final class BlockCoder {
     if ((this.shortcuts & LiveSearch.HALF_MOTION) != 0 && this.size >= HALF_MOTION_SMALLEST) {
       Arrays.fill(seeds, this.halfResolutionMotion(x, y, v));
     }
-    return MotionSearch.seeded(
-      j.reference(),
-      j.width(),
-      j.height(),
-      this.source,
-      x,
-      y,
-      this.size,
-      j.vectorX(v),
-      j.vectorY(v),
-      j.settings().motionRange(),
-      j.settings().halfPixel(),
-      seeds
-    );
+    return this.kernels.seeded(
+        j.reference(),
+        j.width(),
+        j.height(),
+        this.source,
+        x,
+        y,
+        this.size,
+        j.vectorX(v),
+        j.vectorY(v),
+        j.settings().motionRange(),
+        j.settings().halfPixel(),
+        seeds
+      );
   }
 
   /**
@@ -606,24 +634,59 @@ final class BlockCoder {
    */
   private int halfResolutionMotion(final int x, final int y, final int v) {
     final FrameJob j = this.job;
-    halve(this.source, this.size, this.halfSource);
-    for (int k = 0; k < this.seeds.length; k++) {
-      this.halfSeeds[k] = MotionSearch.pack(MotionSearch.unpackX(this.seeds[k]) / 2, MotionSearch.unpackY(this.seeds[k]) / 2);
+    this.kernels.halve(this.source, this.size, this.halfSource);
+    if ((this.shortcuts & LiveSearch.QUARTER_MOTION) != 0 && this.size == ROOT_SIZE) {
+      Arrays.fill(this.halfSeeds, this.quarterResolutionMotion(x, y, v));
+    } else {
+      for (int k = 0; k < this.seeds.length; k++) {
+        this.halfSeeds[k] = MotionSearch.pack(MotionSearch.unpackX(this.seeds[k]) / 2, MotionSearch.unpackY(this.seeds[k]) / 2);
+      }
     }
-    final int coarse = MotionSearch.seeded(
-      j.halfReference(),
-      (j.width() + 1) / 2,
-      (j.height() + 1) / 2,
-      this.halfSource,
-      x / 2,
-      y / 2,
-      this.size / 2,
-      j.vectorX(v) / 2,
-      j.vectorY(v) / 2,
-      j.settings().motionRange() / 2,
-      true,
-      this.halfSeeds
-    );
+    final int coarse =
+      this.kernels.seeded(
+          j.halfReference(),
+          (j.width() + 1) / 2,
+          (j.height() + 1) / 2,
+          this.halfSource,
+          x / 2,
+          y / 2,
+          this.size / 2,
+          j.vectorX(v) / 2,
+          j.vectorY(v) / 2,
+          j.settings().motionRange() / 2,
+          true,
+          this.halfSeeds
+        );
+    return MotionSearch.pack(MotionSearch.unpackX(coarse) * 2, MotionSearch.unpackY(coarse) * 2);
+  }
+
+  /**
+   * Searches a superblock's local motion on the pictures at a quarter of the resolution, from its seeds quartered, and
+   * returns the vector found there in half-resolution units, for the half-resolution search to refine.
+   */
+  private int quarterResolutionMotion(final int x, final int y, final int v) {
+    final FrameJob j = this.job;
+    this.kernels.halve(this.halfSource, this.size / 2, this.quarterSource);
+    for (int k = 0; k < this.seeds.length; k++) {
+      this.quarterSeeds[k] = MotionSearch.pack(MotionSearch.unpackX(this.seeds[k]) / 4, MotionSearch.unpackY(this.seeds[k]) / 4);
+    }
+    final int halfWidth = (j.width() + 1) / 2;
+    final int halfHeight = (j.height() + 1) / 2;
+    final int coarse =
+      this.kernels.seeded(
+          j.quarterReference(),
+          (halfWidth + 1) / 2,
+          (halfHeight + 1) / 2,
+          this.quarterSource,
+          x / 4,
+          y / 4,
+          this.size / 4,
+          j.vectorX(v) / 4,
+          j.vectorY(v) / 4,
+          j.settings().motionRange() / 4,
+          true,
+          this.quarterSeeds
+        );
     return MotionSearch.pack(MotionSearch.unpackX(coarse) * 2, MotionSearch.unpackY(coarse) * 2);
   }
 
@@ -668,21 +731,7 @@ final class BlockCoder {
     this.x = x;
     this.y = y;
     final FrameJob j = this.job;
-    final byte[] image = j.source();
-    for (int py = 0; py < this.size; py++) {
-      final int sy = Math.min(y + py, j.height() - 1);
-      for (int px = 0; px < this.size; px++) {
-        final int sx = Math.min(x + px, j.width() - 1);
-        final int from = (sy * j.width() + sx) * CHANNELS;
-        final int to = (py * this.size + px) * CHANNELS;
-        final int r = image[from] & 0xFF;
-        final int g = image[from + 1] & 0xFF;
-        final int b = image[from + 2] & 0xFF;
-        this.source[to] = r;
-        this.source[to + 1] = g;
-        this.source[to + 2] = b;
-      }
-    }
+    this.kernels.loadSource(j.source(), j.width(), j.height(), x, y, this.size, this.source);
   }
 
   /**
@@ -715,14 +764,14 @@ final class BlockCoder {
         dearest = Math.max(dearest, j.cost(t, this.level)[this.block]);
       }
     }
-    this.measure.start(this.source, this.rate, dearest);
+    this.kernels.start(this.source, this.rate, dearest);
     return dearest > this.rate;
   }
 
   /** Scores the reconstruction in {@link #recon} and records it for every trial it improves. */
   private void score(final int mode, final int q, final int length, final int mask) {
     final FrameJob j = this.job;
-    final long d16 = this.measure.distortion();
+    final long d16 = this.kernels.distortion();
     final double cost = d16 / Reconstruction.DISTORTION_SCALE + this.rate;
     for (int t = 0; t < j.trialCount(); t++) {
       if (((mask >> t) & 1) != 0 && cost < j.cost(t, this.level)[this.block]) {
@@ -738,9 +787,9 @@ final class BlockCoder {
   private float[] endpoints() {
     if (!this.clustered) {
       if ((this.shortcuts & LiveSearch.FAST_PALETTES) != 0) {
-        FastFits.cluster(this.source, this.size, this.clusterSums, this.clusters);
+        this.kernels.cluster(this.source, this.size, this.clusters);
       } else {
-        PaletteFit.cluster(this.source, this.count, this.clusters);
+        this.kernels.paletteCluster(this.source, this.count, this.clusters);
       }
       this.clustered = true;
     }
@@ -761,10 +810,20 @@ final class BlockCoder {
     long r = 0;
     long g = 0;
     long b = 0;
-    for (int i = 0; i < this.count; i++) {
-      r += this.source[i * CHANNELS];
-      g += this.source[i * CHANNELS + 1];
-      b += this.source[i * CHANNELS + 2];
+    if ((this.shortcuts & LiveSearch.FAST_GRIDS) != 0) {
+      // the cells' sums, which the fast intra grids need anyway: the same integers, summed in another order
+      final int[] sums = this.cells();
+      for (int cell = 0; cell < FastFits.CELL_SUMS; cell += CHANNELS) {
+        r += sums[cell];
+        g += sums[cell + 1];
+        b += sums[cell + 2];
+      }
+    } else {
+      for (int i = 0; i < this.count; i++) {
+        r += this.source[i * CHANNELS];
+        g += this.source[i * CHANNELS + 1];
+        b += this.source[i * CHANNELS + 2];
+      }
     }
     final int red = roundMean(r, this.count);
     final int green = roundMean(g, this.count);
@@ -772,9 +831,18 @@ final class BlockCoder {
     this.record[0] = (byte) red;
     this.record[1] = (byte) green;
     this.record[2] = (byte) blue;
-    if (Reconstruction.solid((red << 16) | (green << 8) | blue, this.size, this.recon, this.measure)) {
+    if (this.kernels.solid((red << 16) | (green << 8) | blue, this.size, this.recon)) {
       this.score(MODE_SOLID, 0, length, this.job.allTrials());
     }
+  }
+
+  /** The channel sums of the block's 4x4 cells ({@link FastFits#cellSums}), computed on the block's first use. */
+  private int[] cells() {
+    if (!this.celled) {
+      this.kernels.cellSums(this.source, this.size, this.cells);
+      this.celled = true;
+    }
+    return this.cells;
   }
 
   /** The reference's {@code rgb8} of a float64 mean of integers. */
@@ -800,9 +868,9 @@ final class BlockCoder {
     if (!this.eligible(MODE_PALETTE, length, this.job.allTrials())) {
       return;
     }
-    PaletteFit.finish(this.source, this.count, this.endpoints(), false, this.colors, this.selectors);
+    this.kernels.finish(this.source, this.count, this.endpoints(), false, this.colors, this.selectors);
     this.writePalette(this.record);
-    if (Reconstruction.palette(this.record, 0, this.size, this.recon, this.measure)) {
+    if (this.kernels.palette(this.record, 0, this.size, this.recon)) {
       this.score(MODE_PALETTE, 0, length, this.job.allTrials());
     }
   }
@@ -813,14 +881,14 @@ final class BlockCoder {
     if (!this.eligible(MODE_PATTERN, length, mask)) {
       return;
     }
-    if (!PaletteFit.finishPattern(this.source, this.size, this.endpoints(), coarse, this.colors, this.selectors)) {
+    if (!this.kernels.finishPattern(this.source, this.size, this.endpoints(), coarse, this.colors, this.selectors)) {
       return;
     }
     this.writePalette(this.palette);
     // the selectors repeat along an axis, so they make a pattern record
     final byte[] pattern = Preconditions.checkNotNull(TreeReader.patternRecord(this.palette, this.size));
     System.arraycopy(pattern, 0, this.record, 0, pattern.length);
-    if (Reconstruction.palette(this.palette, 0, this.size, this.recon, this.measure)) {
+    if (this.kernels.palette(this.palette, 0, this.size, this.recon)) {
       this.score(MODE_PATTERN, 0, length, mask);
     }
   }
@@ -837,11 +905,7 @@ final class BlockCoder {
       return;
     }
     if ((this.shortcuts & LiveSearch.FAST_GRIDS) != 0 && g <= FastFits.CELL_GRID) {
-      if (!this.celled) {
-        FastFits.cellSums(this.source, this.size, this.cells);
-        this.celled = true;
-      }
-      FastFits.grid(this.cells, this.size, g, this.grid);
+      FastFits.grid(this.cells(), this.size, g, this.grid);
     } else {
       if (!this.rgbLoaded) {
         for (int i = 0; i < this.count * CHANNELS; i++) {
@@ -850,13 +914,13 @@ final class BlockCoder {
         this.rgbLoaded = true;
       }
       for (int c = 0; c < CHANNELS; c++) {
-        Fits.fit(this.rgb, c, CHANNELS, this.size, g, this.fitScratch, this.grid, c, CHANNELS);
+        this.kernels.fit(this.rgb, c, CHANNELS, this.size, g, this.grid, c, CHANNELS);
       }
     }
     for (int i = 0; i < length; i++) {
       this.record[i] = (byte) Reconstruction.rgb8(this.grid[i]);
     }
-    if (Reconstruction.intraGrid(this.record, 0, g, this.size, this.scratch, this.recon, this.measure)) {
+    if (this.kernels.intraGrid(this.record, 0, g, this.size, this.recon)) {
       this.score(mode, 0, length, this.job.allTrials());
     }
   }
@@ -867,17 +931,7 @@ final class BlockCoder {
    */
   private float[] ycocg() {
     if (!this.ycocgLoaded) {
-      final int[] s = this.source;
-      for (int i = 0; i < this.count * CHANNELS; i += CHANNELS) {
-        final int r = s[i];
-        final int g = s[i + 1];
-        final int b = s[i + 2];
-        this.ycocg[i] = (r + 2 * g + b) * 0.25f;
-        if (this.needsChroma) {
-          this.ycocg[i + 1] = (r - b) * 0.5f;
-          this.ycocg[i + 2] = (-r + 2 * g - b) * 0.25f;
-        }
-      }
+      this.kernels.ycocg(this.source, this.count, this.needsChroma, this.ycocg);
       this.ycocgLoaded = true;
     }
     return this.ycocg;
@@ -885,17 +939,8 @@ final class BlockCoder {
 
   /** The YCoCg residual of the source against a prediction, into {@link #target}. */
   private void residualTarget(final int[] prediction) {
-    final float[] source = this.ycocg();
-    for (int i = 0; i < this.count * CHANNELS; i += CHANNELS) {
-      final float r = prediction[i] * 0.25f;
-      final float g = prediction[i + 1] * 0.25f;
-      final float b = prediction[i + 2] * 0.25f;
-      this.target[i] = source[i] - (r + 2 * g + b) * 0.25f;
-      if (this.needsChroma) {
-        this.target[i + 1] = source[i + 1] - (r - b) * 0.5f;
-        this.target[i + 2] = source[i + 2] - (-r + 2 * g - b) * 0.25f;
-      }
-    }
+    this.meansLoaded = false;
+    this.kernels.residualTarget(this.ycocg(), prediction, this.count, this.needsChroma, this.target);
   }
 
   private void residualGrid(final int v, final int g) {
@@ -907,7 +952,7 @@ final class BlockCoder {
     }
     this.residualTarget(this.localPrediction[v]);
     for (int c = 0; c < CHANNELS; c++) {
-      Fits.fit(this.target, c, CHANNELS, this.size, g, this.fitScratch, this.grid, c, CHANNELS);
+      this.kernels.fit(this.target, c, CHANNELS, this.size, g, this.grid, c, CHANNELS);
     }
     for (int q = 0; q < RESIDUAL_QUANTIZERS; q++) {
       if (!this.eligible(mode, length, mask)) {
@@ -920,29 +965,31 @@ final class BlockCoder {
       for (int i = 0; i < CHANNELS * g * g; i++) {
         this.record[MOTION_BYTES + i] = (byte) quantize(this.grid[i], 1 << q, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
-      if (
-        Reconstruction.residualGrid(
-          this.localPrediction[v],
-          this.record,
-          MOTION_BYTES,
-          g,
-          q,
-          this.size,
-          this.scratch,
-          this.recon,
-          this.measure
-        )
-      ) {
+      if (this.kernels.residualGrid(this.localPrediction[v], this.record, MOTION_BYTES, g, q, this.size, this.recon)) {
         this.score(mode, q, length, mask);
       }
     }
   }
 
-  /** Fits the luma of {@link #target} into the grid's start and its interleaved chroma from {@link #CHROMA_NODES}. */
+  /**
+   * Fits the luma of {@link #target} into the grid's start and its interleaved chroma from {@link #CHROMA_NODES}, by
+   * least squares or, with {@link LiveSearch#CELL_FITS}, as the means of the grids' cells.
+   */
   private void fitReduced(final int luma, final int chroma) {
-    Fits.fit(this.target, 0, CHANNELS, this.size, luma, this.fitScratch, this.grid, 0, 1);
-    Fits.fit(this.target, 1, CHANNELS, this.size, chroma, this.fitScratch, this.grid, CHROMA_NODES, CHROMA_PLANES);
-    Fits.fit(this.target, 2, CHANNELS, this.size, chroma, this.fitScratch, this.grid, CHROMA_NODES + 1, CHROMA_PLANES);
+    if ((this.shortcuts & LiveSearch.CELL_FITS) != 0) {
+      this.cellMeans(0, luma, this.grid, 0, 1);
+      this.cellMeans(1, chroma, this.grid, CHROMA_NODES, CHROMA_PLANES);
+      this.cellMeans(2, chroma, this.grid, CHROMA_NODES + 1, CHROMA_PLANES);
+      return;
+    }
+    this.kernels.fit(this.target, 0, CHANNELS, this.size, luma, this.grid, 0, 1);
+    this.kernels.fit(this.target, 1, CHANNELS, this.size, chroma, this.grid, CHROMA_NODES, CHROMA_PLANES);
+    this.kernels.fit(this.target, 2, CHANNELS, this.size, chroma, this.grid, CHROMA_NODES + 1, CHROMA_PLANES);
+  }
+
+  /** One channel of {@link #target} as the means of a grid's cells. */
+  private void cellMeans(final int channel, final int g, final float[] out, final int outOffset, final int outStride) {
+    this.kernels.cellMeans(this.target, this.size, channel, g, out, outOffset, outStride);
   }
 
   private void reducedIntra(final int mode) {
@@ -953,6 +1000,7 @@ final class BlockCoder {
       return;
     }
     System.arraycopy(this.ycocg(), 0, this.target, 0, this.count * CHANNELS);
+    this.meansLoaded = false;
     this.fitReduced(luma, chroma);
     for (int i = 0; i < luma * luma; i++) {
       this.record[i] = (byte) quantize(this.grid[i], 1, 0, MAX_CHANNEL);
@@ -960,7 +1008,7 @@ final class BlockCoder {
     for (int i = 0; i < CHROMA_PLANES * chroma * chroma; i++) {
       this.record[luma * luma + i] = (byte) quantize(this.grid[CHROMA_NODES + i], 1, Byte.MIN_VALUE, Byte.MAX_VALUE);
     }
-    if (Reconstruction.reduced(null, this.record, 0, luma, chroma, 0, this.size, this.scratch, this.recon, this.measure)) {
+    if (this.kernels.reduced(null, this.record, 0, luma, chroma, 0, this.size, this.recon)) {
       this.score(mode, 0, length, this.job.allTrials());
     }
   }
@@ -991,9 +1039,7 @@ final class BlockCoder {
         this.record[at] = (byte) quantize(this.grid[CHROMA_NODES + i], 1 << q, Byte.MIN_VALUE, Byte.MAX_VALUE);
       }
       final int[] prediction = this.localPrediction[v];
-      if (
-        Reconstruction.reduced(prediction, this.record, MOTION_BYTES, luma, chroma, q, this.size, this.scratch, this.recon, this.measure)
-      ) {
+      if (this.kernels.reduced(prediction, this.record, MOTION_BYTES, luma, chroma, q, this.size, this.recon)) {
         this.score(mode, q, length, mask);
       }
     }
@@ -1014,7 +1060,7 @@ final class BlockCoder {
       }
       final int values;
       if ((this.shortcuts & LiveSearch.FAST_COMPACT) != 0 && kind == CompactRecord.GRID4_N4_Y) {
-        FastFits.lumaResidual(this.source, prediction, this.size, this.cells, this.fit);
+        this.kernels.lumaResidual(this.source, prediction, this.size, this.fit);
         values = GRID4_NODES;
       } else {
         if (!targeted) {
@@ -1041,7 +1087,7 @@ final class BlockCoder {
           this.record[2] = (byte) dy;
         }
         this.compactBody(kind, values, q, body);
-        if (Reconstruction.compact(prediction, this.record, body, kind, q, this.size, this.scratch, this.recon, this.measure)) {
+        if (this.kernels.compact(prediction, this.record, body, kind, q, this.size, this.recon)) {
           this.score(MODE_COMPACT, q, length, mask);
         }
       }
@@ -1082,7 +1128,11 @@ final class BlockCoder {
       return CompactRecord.bodyBytes(CompactRecord.LOW2);
     }
     final int g = kind == CompactRecord.GRID2_YC ? SMALL_GRID : FastFits.CELL_GRID;
-    Fits.fit(t, 0, CHANNELS, this.size, g, this.fitScratch, this.fit, 0, 1);
+    if ((this.shortcuts & LiveSearch.CELL_FITS) != 0) {
+      this.cellMeans(0, g, this.fit, 0, 1);
+    } else {
+      this.kernels.fit(t, 0, CHANNELS, this.size, g, this.fit, 0, 1);
+    }
     if (kind == CompactRecord.GRID4_N4_Y) {
       // luma alone: no chroma offsets to fit
       return g * g;
@@ -1092,12 +1142,27 @@ final class BlockCoder {
     return g * g + 2;
   }
 
+  /**
+   * The mean of a channel of {@link #target}, each channel summed in double in index order: the three sums in one pass,
+   * once per target, since the compact classes ask for them one after another.
+   */
   private float mean(final int channel) {
-    double sum = 0;
-    for (int i = channel; i < this.target.length; i += CHANNELS) {
-      sum += this.target[i];
+    if (!this.meansLoaded) {
+      final float[] t = this.target;
+      double y = 0;
+      double co = 0;
+      double cg = 0;
+      for (int i = 0; i < t.length; i += CHANNELS) {
+        y += t[i];
+        co += t[i + 1];
+        cg += t[i + 2];
+      }
+      this.means[0] = (float) (y / this.count);
+      this.means[1] = (float) (co / this.count);
+      this.means[2] = (float) (cg / this.count);
+      this.meansLoaded = true;
     }
-    return (float) (sum / this.count);
+    return this.means[channel];
   }
 
   private void compactBody(final int kind, final int values, final int q, final int body) {

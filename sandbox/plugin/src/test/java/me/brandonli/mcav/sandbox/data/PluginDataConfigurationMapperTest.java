@@ -74,6 +74,7 @@ final class PluginDataConfigurationMapperTest {
       enabled: true
     mcv2:
       encoder-threads: 3
+      native: "off"
     """;
 
   @TempDir
@@ -142,6 +143,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(http);
     assertFalse(voiceChat);
     assertEquals(0, this.mapper.getMcv2EncoderThreads());
+    assertEquals("auto", this.mapper.getMcv2Native());
   }
 
   @Test
@@ -177,6 +179,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(http);
     assertFalse(voiceChat);
     assertEquals(0, this.mapper.getMcv2EncoderThreads());
+    assertEquals("auto", this.mapper.getMcv2Native());
   }
 
   @Test
@@ -201,6 +204,7 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(http);
     assertTrue(voiceChat);
     assertEquals(3, this.mapper.getMcv2EncoderThreads());
+    assertEquals("off", this.mapper.getMcv2Native());
   }
 
   @Test
@@ -234,6 +238,39 @@ final class PluginDataConfigurationMapperTest {
     this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
     this.mapper.deserialize();
     assertEquals(expected, this.mapper.getMcv2EncoderThreads());
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "auto, auto", "off, off", "on, auto", "OFF, auto" })
+  void acceptsOnlyTheNativeModes(final String configured, final String expected) throws IOException {
+    this.writeConfiguration("mcv2:\n  native: \"" + configured + "\"\n");
+    this.mapper.deserialize();
+    assertEquals(expected, this.mapper.getMcv2Native());
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "off, off", "false, off", "on, auto", "true, auto" })
+  void readsTheNativeModeWrittenWithoutQuotes(final String configured, final String expected) throws IOException {
+    this.writeConfiguration("mcv2:\n  native: " + configured + "\n");
+    this.mapper.deserialize();
+    assertEquals(expected, this.mapper.getMcv2Native());
+  }
+
+  @Test
+  void warnsOfAnInvalidNativeModeOnly() throws IOException {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration("mcv2:\n  native: \"off\"\n");
+      this.mapper.deserialize();
+      this.writeConfiguration("mcv2:\n  native: \"sometimes\"\n");
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertEquals(1, text.split("using auto", -1).length - 1, text);
   }
 
   @Test

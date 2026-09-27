@@ -67,7 +67,13 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
  *                       {@link #FAST_COMPACT} compact luma nodes as cell means, {@link #ONE_PREDICTION} compact
  *                       records tried on the closer of the global and the local prediction only, {@link #FIT_ONE}
  *                       compact records at the quantizer their fitted values need only, {@link #HALF_MOTION} local
- *                       motion searched at half resolution first
+ *                       motion searched at half resolution first, {@link #QUARTER_MOTION} and at a quarter before that,
+ *                       {@link #CELL_FITS} reduced and compact grids as cell means
+ * @param splitAbove     a 32-pixel block of a P frame whose cost after SKIP and local motion exceeds this many times
+ *                       lambda is split without its other leaves being tried: such a block is almost always split; 0
+ *                       turns this off
+ * @param motionLambda   whether a frame's lambda rises with the motion of the source above a knee, where VMAF
+ *                       forgives more ({@link MotionLambda}), instead of staying the profile's
  */
 public record LiveSearch(
   int smallestBlock,
@@ -85,7 +91,9 @@ public record LiveSearch(
   boolean seededMotion,
   int searchBlock,
   boolean coarseEndpoints,
-  int shortcuts
+  int shortcuts,
+  double splitAbove,
+  boolean motionLambda
 ) {
   /** Intra grid nodes as the means of their cells. */
   public static final int FAST_GRIDS = 1;
@@ -111,6 +119,18 @@ public record LiveSearch(
    * full resolution around the vector found there.
    */
   public static final int HALF_MOTION = 32;
+
+  /**
+   * With {@link #HALF_MOTION}, the local motion of 32-pixel blocks is first searched on the pictures at a quarter of the
+   * resolution, from the frame's pyramid, and the half-resolution search refines the vector found there.
+   */
+  public static final int QUARTER_MOTION = 64;
+
+  /**
+   * The reduced grids and the compact grid classes fitted as the means of their cells, as {@link #FAST_GRIDS} fits the
+   * intra grids, instead of by least squares.
+   */
+  public static final int CELL_FITS = 128;
 
   /** The largest skip threshold that never changes a decision. */
   public static final double EXACT_SKIP = 26.5;
@@ -192,7 +212,9 @@ public record LiveSearch(
     false,
     SMALLEST_BLOCK,
     false,
-    0
+    0,
+    0,
+    false
   );
 
   /**
@@ -220,7 +242,9 @@ public record LiveSearch(
     true,
     LIVE_SEARCH_BLOCK,
     true,
-    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_ONE | HALF_MOTION
+    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_ONE | HALF_MOTION,
+    0,
+    false
   );
 
   /**
@@ -245,6 +269,7 @@ public record LiveSearch(
     Preconditions.checkArgument((keyModes & ~ALL_MODES) == 0, "Unknown keyframe leaf modes");
     Preconditions.checkArgument((compactClasses & ~ALL_CLASSES) == 0, "Unknown compact classes");
     Preconditions.checkArgument((quantizers & ~ALL_QUANTIZERS) == 0, "Quantizers must be a subset of 0 to 4");
+    Preconditions.checkArgument(splitAbove >= 0 && Double.isFinite(splitAbove), "Split-above threshold must be finite and non-negative");
   }
 
   /**

@@ -24,6 +24,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
+import me.brandonli.mcav.media.mcv2.encode.Mcv2Natives;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.audio.MissingVoiceChatException;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
@@ -66,6 +67,9 @@ public final class MCAVSandbox extends JavaPlugin {
   private static final String LOADED = "MCAV loaded in {} ms";
 
   private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
+
+  /** The folder of the data folder the native kernels' library is extracted into. */
+  private static final String NATIVES_FOLDER = "natives";
 
   private @MonotonicNonNull ComponentLogger logger;
 
@@ -167,6 +171,9 @@ public final class MCAVSandbox extends JavaPlugin {
     EncoderPool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
     this.requireLogger().info(ENCODER_SHARE, EncoderPool.shared().getThreads(), processors);
+    // the native kernels extract into the data folder, never /tmp; deciding which kernels run now logs it at startup
+    Mcv2Natives.install(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
+    Mcv2Natives.describe();
   }
 
   private void loadManagers() {

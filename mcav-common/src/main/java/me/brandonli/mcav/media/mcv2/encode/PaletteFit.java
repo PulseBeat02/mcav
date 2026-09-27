@@ -133,8 +133,14 @@ final class PaletteFit {
     }
   }
 
-  /** Rounds clustered endpoints to RGB8, and optionally to RGB565. */
-  private static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
+  /**
+   * Rounds clustered endpoints to RGB8, and optionally to RGB565.
+   *
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether to round them to RGB565 as well
+   * @param colors    receives the rounded endpoints: R, G, B of endpoint 0, then of endpoint 1
+   */
+  static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
     for (int i = 0; i < PALETTE_COLORS * CHANNELS; i++) {
       colors[i] = Reconstruction.rgb8(endpoints[i]);
     }

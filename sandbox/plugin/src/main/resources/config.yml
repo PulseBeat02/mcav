@@ -73,3 +73,11 @@ mcv2:
   # worst shows the dithered maps, and the server log says what it chose and why.
   # Default is 0
   encoder-threads: 0
+
+  # Whether the live encoders run their pixel kernels in the native library MCAV ships for Linux, Windows and macOS
+  # on x86-64 and ARM64 (auto), which computes exactly what Java computes, about twice as fast, or always in Java
+  # (off). Anything that stops the library from loading, such as a JVM that refuses native access, runs Java. The
+  # system property mcv2.native, given to the server's JVM, wins over this setting, and the server log says at startup
+  # which kernels run and why.
+  # Default is auto
+  native: auto

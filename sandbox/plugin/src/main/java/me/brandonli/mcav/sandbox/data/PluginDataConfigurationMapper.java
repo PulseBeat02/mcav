@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
+import me.brandonli.mcav.media.mcv2.encode.Mcv2Natives;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
@@ -63,6 +64,8 @@ public final class PluginDataConfigurationMapper {
 
   private static final String MCV2_ENCODER_THREADS = "mcv2.encoder-threads";
 
+  private static final String MCV2_NATIVE = "mcv2.native";
+
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private static final int MAX_PORT = 65535;
@@ -70,6 +73,8 @@ public final class PluginDataConfigurationMapper {
   private static final String INVALID_PORT = "Invalid {} {}, using {}";
 
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
+
+  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
 
   private final MCAVSandbox plugin;
 
@@ -92,6 +97,8 @@ public final class PluginDataConfigurationMapper {
   private boolean simpleVoiceChatEnabled;
 
   private int mcv2EncoderThreads;
+
+  private String mcv2Native = Mcv2Natives.AUTO;
 
   /**
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -127,6 +134,7 @@ public final class PluginDataConfigurationMapper {
     this.httpPort = readPort(config);
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = readEncoderThreads(config);
+    this.mcv2Native = readNative(config);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -171,6 +179,19 @@ public final class PluginDataConfigurationMapper {
       return 0;
     }
     return threads;
+  }
+
+  private static String readNative(final FileConfiguration config) {
+    // YAML reads an unquoted off as false, and on as true
+    if (config.isBoolean(MCV2_NATIVE)) {
+      return config.getBoolean(MCV2_NATIVE) ? Mcv2Natives.AUTO : Mcv2Natives.OFF;
+    }
+    final String mode = getString(config, MCV2_NATIVE, Mcv2Natives.AUTO);
+    if (!mode.equals(Mcv2Natives.AUTO) && !mode.equals(Mcv2Natives.OFF)) {
+      LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
+      return Mcv2Natives.AUTO;
+    }
+    return mode;
   }
 
   /**
@@ -270,5 +291,14 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized int getMcv2EncoderThreads() {
     return this.mcv2EncoderThreads;
+  }
+
+  /**
+   * Gets whether the live encoders use the native kernels where they load.
+   *
+   * @return {@link Mcv2Natives#AUTO} or {@link Mcv2Natives#OFF}
+   */
+  public synchronized String getMcv2Native() {
+    return this.mcv2Native;
   }
 }

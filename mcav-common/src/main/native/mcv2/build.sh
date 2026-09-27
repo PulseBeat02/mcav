@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Builds the MCV2 native kernels for every platform with one pinned toolchain, Zig 0.16.0 (its clang 21.1.0 and
+# linkers), into the resources next to Mcv2Natives, and writes their SHA-256 manifest. The normal build never runs this:
+# the libraries are committed, and `./gradlew :mcav-common:buildMcv2Natives -Pmcav.natives=build` runs it.
+#
+#   build.sh [output folder]      (ZIG=/path/to/zig to choose the compiler; its version must be 0.16.0)
+#
+# Every x86-64 unit is compiled for the baseline x86-64, the SSE4.1 and AVX2 units with their own extension added and
+# nothing else, so no instruction a CPU lacks runs before mcv2_cpu_levels() says it has it; never -march=native.
+# Floating point stays IEEE and unfused (-ffp-contract=off, never -ffast-math), signed arithmetic wraps as Java's
+# (-fwrapv), and the libraries use no C++ runtime. The Linux libraries import nothing, so they need no particular glibc.
+# The Linux and Windows builds are reproducible; the macOS ones differ from build to build in their LC_UUID, which the
+# linker makes up, and in the ad-hoc signature that covers it.
+set -euo pipefail
+
+ZIG_VERSION=0.16.0
+# the Windows linker would stamp the link time into the library
+export SOURCE_DATE_EPOCH=0
+here=$(cd "$(dirname "$0")" && pwd)
+out=${1:-$here/../../resources/me/brandonli/mcav/media/mcv2/encode/natives}
+zig=${ZIG:-zig}
+version=$("$zig" version)
+if [ "$version" != "$ZIG_VERSION" ]; then
+  echo "build.sh: Zig $ZIG_VERSION is required, $zig is $version" >&2
+  exit 1
+fi
+
+flags=(-std=c++17 -O2 -fPIC -fno-exceptions -fno-rtti -fvisibility=hidden -ffp-contract=off -fwrapv
+  -fno-strict-aliasing -Wall -Wextra -Werror)
+
+# build <platform> <zig target> <cpu> <library name> <unit>[:<flags>]...
+build() {
+  local platform=$1 target=$2 cpu=$3 name=$4
+  shift 4
+  local work
+  work=$(mktemp -d)
+  local objects=()
+  for unit in "$@"; do
+    local source=${unit%%:*} extra=""
+    [ "$unit" != "$source" ] && extra=${unit#*:}
+    # shellcheck disable=SC2086
+    "$zig" c++ -target "$target" -mcpu="$cpu" "${flags[@]}" $extra -c "$here/$source.cpp" -o "$work/$source.o"
+    objects+=("$work/$source.o")
+  done
+  mkdir -p "$out/$platform"
+  "$zig" cc -target "$target" -shared -s -o "$out/$platform/$name" "${objects[@]}"
+  # the Windows linker also writes an import library, which nothing loads
+  rm -rf "$work" "$out/$platform/"*.lib
+  echo "$platform/$name: $(wc -c < "$out/$platform/$name") bytes"
+}
+
+x86=(cpu level_scalar level_sse41:-msse4.1 level_avx2:-mavx2)
+arm=(cpu level_scalar level_neon)
+build linux-x86_64 x86_64-linux-gnu.2.28 baseline libmcv2kernels.so "${x86[@]}"
+build linux-aarch64 aarch64-linux-gnu.2.28 baseline libmcv2kernels.so "${arm[@]}"
+build windows-x86_64 x86_64-windows-gnu baseline mcv2kernels.dll "${x86[@]}"
+build macos-x86_64 x86_64-macos.11.0 baseline libmcv2kernels.dylib "${x86[@]}"
+build macos-aarch64 aarch64-macos.11.0 baseline libmcv2kernels.dylib "${arm[@]}"
+
+(cd "$out" && sha256sum ./*/*mcv2kernels* | sed 's| \./| |' > SHA256SUMS)
+cat "$out/SHA256SUMS"

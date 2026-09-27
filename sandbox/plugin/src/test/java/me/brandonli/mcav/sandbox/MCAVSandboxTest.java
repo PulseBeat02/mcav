@@ -55,6 +55,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
+import me.brandonli.mcav.media.mcv2.encode.Mcv2Natives;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationParserHandler;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
@@ -264,6 +265,23 @@ final class MCAVSandboxTest {
       this.sandbox.onDisable();
     } finally {
       EncoderPool.setSharedThreads(0);
+    }
+  }
+
+  @Test
+  void decidesTheNativeKernelsAtStartup() throws IOException {
+    final String defaults;
+    try (InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+      defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+    }
+    assertTrue(defaults.contains("  native: auto\n"));
+    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
+    try {
+      this.sandbox.onEnable();
+      assertEquals("Java, turned off by mcv2.native=off", Mcv2Natives.describe());
+      this.sandbox.onDisable();
+    } finally {
+      Mcv2Natives.install(this.folder.resolve("natives"), Mcv2Natives.AUTO);
     }
   }
 

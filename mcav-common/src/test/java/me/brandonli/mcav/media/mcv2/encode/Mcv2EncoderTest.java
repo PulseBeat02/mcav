@@ -102,6 +102,18 @@ final class Mcv2EncoderTest {
   }
 
   @Test
+  void comparesPicturesABandOnEveryWorker() {
+    final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
+    final byte[] picture = new byte[1000];
+    new Random(3).nextBytes(picture);
+    assertTrue(Mcv2Encoder.same(picture, picture.clone(), workers));
+    assertFalse(Mcv2Encoder.same(picture, new byte[999], workers));
+    final byte[] changed = picture.clone();
+    changed[999]++;
+    assertFalse(Mcv2Encoder.same(picture, changed, workers));
+  }
+
+  @Test
   void refusesInvalidArguments() {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Encoder(EncoderSettings.SHIP, POOL, 0, true));
     assertThrows(NullPointerException.class, () -> new Mcv2Encoder(null, POOL, 1, true));

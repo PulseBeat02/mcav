@@ -322,7 +322,7 @@ final class Mcv2ResultTest {
     final Mcv2Result result = this.result(narrow, null);
     final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
     result.getChannel().requestKeyframe();
     result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0), 0);
     verify(encoder).requestKeyframe();
@@ -399,7 +399,7 @@ final class Mcv2ResultTest {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     // the viewer with the pack is shown the screen, dithered for until then, then every frame is encoded while 5 ms
     // fit a frame's 16.7 ms
@@ -475,7 +475,7 @@ final class Mcv2ResultTest {
       clock.addAndGet((fullNanos.get() * width * (int) invocation.getArgument(2)) / (64 * 32));
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -527,7 +527,7 @@ final class Mcv2ResultTest {
       clock.addAndGet(TimeUnit.SECONDS.toNanos(2));
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -586,8 +586,8 @@ final class Mcv2ResultTest {
   @Test
   void countsTheKeyframesItSent() {
     final Mcv2Result.Statistics statistics = new Mcv2Result.Statistics();
-    statistics.add(new Mcv2Encoder.Stats(10, true, 0, 0, 0, 1, 5), 128);
-    statistics.add(new Mcv2Encoder.Stats(20, false, 0, 0, 0, 1, 7), 256);
+    statistics.add(new Mcv2Encoder.Stats(10, true, 0, 0, 0, 1, 5, 72), 128);
+    statistics.add(new Mcv2Encoder.Stats(20, false, 0, 0, 0, 1, 7, 72), 256);
     assertEquals(2, statistics.getFrames());
     assertEquals(1, statistics.getKeyframes());
   }
@@ -677,7 +677,7 @@ final class Mcv2ResultTest {
       }
       return Mcv2ChannelTest.keyframe();
     });
-    when(slow.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1));
+    when(slow.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
     final EncoderPool budget = mock(EncoderPool.class);
     when(budget.encoder(any(), anyBoolean())).thenReturn(slow);
     when(budget.run(any())).thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
@@ -739,7 +739,7 @@ final class Mcv2ResultTest {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -796,7 +796,7 @@ final class Mcv2ResultTest {
       for (int id = 0; id < frames.size(); id++) {
         final byte[] frame = frames.get(id);
         when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(frame);
-        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(frame.length, id == 0 || id == 4, 0, 0, 0, 1, 1));
+        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(frame.length, id == 0 || id == 4, 0, 0, 0, 1, 1, 72));
         if (id == 3) {
           this.server.completeWrites(WITH_PACK);
         }
@@ -844,7 +844,7 @@ final class Mcv2ResultTest {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1));
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();

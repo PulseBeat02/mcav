@@ -254,3 +254,6 @@ dmypy.json
 
 # log folders that servers and tests write, including rotated archives
 logs/
+
+# the MCV2 live encoder's prebuilt native kernels are committed resources
+!mcav-common/src/main/resources/me/brandonli/mcav/media/mcv2/encode/natives/**

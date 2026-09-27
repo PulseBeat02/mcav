@@ -71,6 +71,17 @@ final class Fits {
   }
 
   /**
+   * Gets the pseudo-inverse of a block size and grid width: {@code grid} rows of {@code size} weights.
+   *
+   * @param size the block size
+   * @param grid the grid width
+   * @return the matrix, which the caller must not change
+   */
+  static float[] matrix(final int size, final int grid) {
+    return MATRICES[sizeIndex(size)][Integer.numberOfTrailingZeros(grid)];
+  }
+
+  /**
    * Fits one channel of a block to a grid: {@code out[i][j] = sum over y, x of M[i][y] v[y][x] M[j][x]}.
    *
    * @param values  the block's values, row-major
@@ -94,7 +105,7 @@ final class Fits {
     final int outOffset,
     final int outStride
   ) {
-    final float[] matrix = MATRICES[sizeIndex(size)][Integer.numberOfTrailingZeros(grid)];
+    final float[] matrix = matrix(size, grid);
     for (int y = 0; y < size; y++) {
       for (int j = 0; j < grid; j++) {
         double sum = 0;

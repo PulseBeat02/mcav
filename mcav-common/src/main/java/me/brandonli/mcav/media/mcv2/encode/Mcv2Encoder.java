@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import me.brandonli.mcav.media.mcv2.CompactRecord;
@@ -56,6 +57,9 @@ public final class Mcv2Encoder {
 
   /** The rate, in bits at lambda, the reference's selection charges a quarter outside the picture. */
   private static final int OUTSIDE_BITS = 56;
+
+  /** The bands the verification compares the decoded picture in. */
+  private static final int COMPARE_BANDS = 16;
 
   /** The deepest level: 8-pixel leaves. */
   private static final int DEEPEST = BLOCK_SIZES - 1;
@@ -104,6 +108,12 @@ public final class Mcv2Encoder {
 
   private @Nullable Stats stats;
 
+  /** Makes the pixel kernels of each coder: the native ones for a live search where they load, else Java's. */
+  private final Kernels.Factory kernels;
+
+  /** The lambda of each frame from the motion of the source, when the live search asks for it. */
+  private final @Nullable MotionLambda motionLambda;
+
   /**
    * One frame's outcome.
    *
@@ -114,8 +124,9 @@ public final class Mcv2Encoder {
    * @param trial      the index of the kept trial
    * @param leaves     the number of leaves of the kept tree
    * @param nanoseconds the encode time
+   * @param lambda      the lambda the frame was searched with
    */
-  public record Stats(int bytes, boolean keyframe, int globalX, int globalY, int trial, int leaves, long nanoseconds) {}
+  public record Stats(int bytes, boolean keyframe, int globalX, int globalY, int trial, int leaves, long nanoseconds, double lambda) {}
 
   /**
    * Constructs a new encoder.
@@ -127,13 +138,35 @@ public final class Mcv2Encoder {
    *                 on unless a measurement has shown the cost matters
    */
   public Mcv2Encoder(final EncoderSettings settings, final ForkJoinPool pool, final int threads, final boolean verify) {
+    this(settings, pool, threads, verify, settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory());
+  }
+
+  /**
+   * Constructs a new encoder whose coders use the given kernels.
+   *
+   * @param settings the profile
+   * @param pool     the pool block evaluation runs on
+   * @param threads  how many workers evaluate blocks at once, at least 1
+   * @param verify   whether every frame is checked against its own decode
+   * @param kernels  makes the kernels of each coder
+   */
+  Mcv2Encoder(
+    final EncoderSettings settings,
+    final ForkJoinPool pool,
+    final int threads,
+    final boolean verify,
+    final Kernels.Factory kernels
+  ) {
     Preconditions.checkNotNull(settings, "Settings must not be null");
     Preconditions.checkNotNull(pool, "Pool must not be null");
     Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
     this.settings = settings;
     this.workers = new Workers(pool, threads);
     this.verify = verify;
+    this.kernels = kernels;
     this.framesSinceKey = settings.keyInterval();
+    final LiveSearch live = settings.live();
+    this.motionLambda = live != null && live.motionLambda() ? new MotionLambda() : null;
   }
 
   /**
@@ -246,11 +279,13 @@ public final class Mcv2Encoder {
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
-    final LiveSearch live = this.settings.live();
+    final MotionLambda control = this.motionLambda;
+    final EncoderSettings settings = control == null ? this.settings : this.settings.withLambda(control.lambda(this.settings.lambda()));
+    final LiveSearch live = settings.live();
     boolean key = true;
     int motion = 0;
     byte[] predictFrom = new byte[0];
-    final boolean predictable = width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
+    final boolean predictable = width == this.width && height == this.height && this.framesSinceKey < settings.keyInterval();
     if (live == null) {
       if (previous != null && predictable) {
         final int estimate = GlobalMotion.estimate(rgb, previous, width, height, this.workers);
@@ -276,14 +311,14 @@ public final class Mcv2Encoder {
           projections,
           this.workers
         );
-        final int[] candidates = this.settings.compareGlobal() && estimate != 0 ? new int[] { 0, estimate } : new int[] { estimate };
+        final int[] candidates = settings.compareGlobal() && estimate != 0 ? new int[] { 0, estimate } : new int[] { estimate };
         final LiveAnalysis.Result analysis = LiveAnalysis.analyze(
           rgb,
           previous,
           width,
           height,
-          this.settings.lambda(),
-          this.settings.sceneThreshold(),
+          settings.lambda(),
+          settings.sceneThreshold(),
           candidates,
           this.workers
         );
@@ -294,12 +329,16 @@ public final class Mcv2Encoder {
         }
       }
       this.projections = projections;
+      if (control != null) {
+        // the next frame's lambda; a scene cut starts the motion over, a keyframe on the clock does not
+        control.observe(rgb, width, height, predictable && key);
+      }
     }
     final int mx = MotionSearch.unpackX(motion);
     final int my = MotionSearch.unpackY(motion);
     final int[] vectorsX;
     final int[] vectorsY;
-    if (!key && this.settings.compareGlobal() && motion != 0 && live == null) {
+    if (!key && settings.compareGlobal() && motion != 0 && live == null) {
       vectorsX = new int[] { 0, mx };
       vectorsY = new int[] { 0, my };
     } else {
@@ -307,7 +346,7 @@ public final class Mcv2Encoder {
       vectorsY = new int[] { my };
     }
     final FrameJob job = new FrameJob(
-      this.settings,
+      settings,
       rgb,
       predictFrom,
       width,
@@ -352,7 +391,7 @@ public final class Mcv2Encoder {
         );
         final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
         final double cost =
-          trialError(rgb, picture, width, height) / Reconstruction.DISTORTION_SCALE + this.settings.lambda() * Byte.SIZE * data.length;
+          trialError(rgb, picture, width, height) / Reconstruction.DISTORTION_SCALE + settings.lambda() * Byte.SIZE * data.length;
         if (cost < bestCost) {
           bestCost = cost;
           best = data;
@@ -391,10 +430,10 @@ public final class Mcv2Encoder {
         checkTree(written, bestRoots);
         final byte[] decoded = decodeChosen(written, predictFrom, this.referenceId, this.workers, this.verified);
         this.verified = decoded;
-        Preconditions.checkState(Arrays.equals(bestPicture, decoded), "MCV2 live picture and decoded picture disagree");
+        Preconditions.checkState(same(bestPicture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
       }
     }
-    if (key || this.settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
+    if (key || settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
       this.reference = bestPicture;
       this.referenceId = frameId;
     }
@@ -412,9 +451,38 @@ public final class Mcv2Encoder {
       vectorsY[job.trialVector(bestTrial)],
       bestTrial,
       bestLeaves.size(),
-      System.nanoTime() - started
+      System.nanoTime() - started,
+      settings.lambda()
     );
     return best;
+  }
+
+  /**
+   * Compares two pictures, a band of each on every worker: a 1080p picture is 6 MB, which one thread compares in about
+   * as long as the workers decode it.
+   *
+   * @param a       one picture
+   * @param b       the other
+   * @param workers the workers
+   * @return whether they are equal
+   */
+  static boolean same(final byte[] a, final byte[] b, final Workers workers) {
+    if (a.length != b.length) {
+      return false;
+    }
+    final AtomicBoolean equal = new AtomicBoolean(true);
+    workers.forEach(
+      COMPARE_BANDS,
+      () -> equal,
+      (flag, band) -> {
+        final int from = (int) (((long) a.length * band) / COMPARE_BANDS);
+        final int to = (int) (((long) a.length * (band + 1)) / COMPARE_BANDS);
+        if (!Arrays.equals(a, from, to, b, from, to)) {
+          flag.set(false);
+        }
+      }
+    );
+    return equal.get();
   }
 
   /**
@@ -563,7 +631,7 @@ public final class Mcv2Encoder {
     final int columns = job.columns(0);
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     final int deepest = Integer.numberOfTrailingZeros(ROOT_SIZE / live.smallestBlock());
-    final double lambda = this.settings.lambda();
+    final double lambda = job.settings().lambda();
     // the thresholds of the 32- and 16-pixel levels; the 8-pixel level is never split
     final double[] split = { live.splitThreshold() * lambda, live.fineThreshold() * lambda, 0 };
     final double steady = live.steadySplitThreshold() * lambda;
@@ -583,7 +651,11 @@ public final class Mcv2Encoder {
     final long budget = this.frameBudget;
     final int[] motion = new int[FrameJob.motionColumns(job.width()) * FrameJob.motionColumns(job.height())];
     if ((live.shortcuts() & LiveSearch.HALF_MOTION) != 0 && !job.isKeyframe()) {
-      job.halfReference(half(job.reference(), job.width(), job.height(), this.workers));
+      final byte[] halfReference = half(job.reference(), job.width(), job.height(), this.workers);
+      job.halfReference(halfReference);
+      if ((live.shortcuts() & LiveSearch.QUARTER_MOTION) != 0) {
+        job.quarterReference(half(halfReference, (job.width() + 1) / 2, (job.height() + 1) / 2, this.workers));
+      }
     }
     this.workers.forEach(
         superblocks,
@@ -791,7 +863,7 @@ public final class Mcv2Encoder {
     synchronized (this.idleCoders) {
       coders = this.idleCoders.poll();
       if (coders == null) {
-        coders = newCoders(job);
+        coders = this.newCoders(job);
       }
       this.busyCoders.add(coders);
     }
@@ -801,8 +873,12 @@ public final class Mcv2Encoder {
     return coders;
   }
 
-  private static BlockCoder[] newCoders(final FrameJob job) {
-    final BlockCoder[] coders = { new BlockCoder(job, ROOT_SIZE), new BlockCoder(job, ROOT_SIZE / 2), new BlockCoder(job, SMALLEST_BLOCK) };
+  private BlockCoder[] newCoders(final FrameJob job) {
+    final BlockCoder[] coders = {
+      new BlockCoder(job, ROOT_SIZE, this.kernels.create()),
+      new BlockCoder(job, ROOT_SIZE / 2, this.kernels.create()),
+      new BlockCoder(job, SMALLEST_BLOCK, this.kernels.create()),
+    };
     coders[1].loadFrom(coders[0]);
     coders[2].loadFrom(coders[0]);
     return coders;
@@ -849,7 +925,7 @@ public final class Mcv2Encoder {
   }
 
   private @Nullable Choice select(final FrameJob job, final int trial, final int x, final int y, final int level, final List<Leaf> leaves) {
-    final double lambda = this.settings.lambda();
+    final double lambda = job.settings().lambda();
     if (x >= job.width() || y >= job.height()) {
       return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[CHANNELS]), lambda * OUTSIDE_BITS);
     }

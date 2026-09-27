@@ -63,8 +63,9 @@ import me.brandonli.mcav.media.mcv2.transport.TransportPages;
  * {@link Mcv2Encoder#setFrameBudget}), {@code out} (write the archive) and {@code decoded} (write the pictures). For a live
  * search other than the profile's: {@code search=custom} with {@code smallest}, {@code skip}, {@code split},
  * {@code steady}, {@code fine}, {@code good}, {@code gate}, {@code modes}, {@code smallmodes}, {@code keymodes},
- * {@code classes}, {@code q}, {@code seeded}, {@code searchblock}, {@code coarse} and {@code fast} (see {@link LiveSearch};
- * mode sets as comma-separated mode numbers, {@code all}, or {@code lambda} for the quantizer from lambda).
+ * {@code classes}, {@code q}, {@code seeded}, {@code searchblock}, {@code coarse}, {@code fast}, {@code splitabove} and
+ * {@code motionlambda} (see {@link LiveSearch}; mode sets as comma-separated mode numbers, {@code all}, or {@code lambda}
+ * for the quantizer from lambda).
  */
 public final class Mcv2Bench {
 
@@ -193,7 +194,9 @@ public final class Mcv2Bench {
       Boolean.parseBoolean(a.getOrDefault("seeded", "false")),
       Integer.parseInt(a.getOrDefault("searchblock", "8")),
       Boolean.parseBoolean(a.getOrDefault("coarse", "false")),
-      Integer.parseInt(a.getOrDefault("fast", "0"))
+      Integer.parseInt(a.getOrDefault("fast", "0")),
+      Double.parseDouble(a.getOrDefault("splitabove", "0")),
+      Boolean.parseBoolean(a.getOrDefault("motionlambda", "false"))
     );
   }
 

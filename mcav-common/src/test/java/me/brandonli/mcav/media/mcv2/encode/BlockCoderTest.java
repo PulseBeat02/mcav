@@ -60,6 +60,98 @@ final class BlockCoderTest {
     return job;
   }
 
+  /** A live search from the top that tries one mode, with one quantizer and the cell fits. */
+  private static LiveSearch cellFits(final int mode, final int classes) {
+    return new LiveSearch(
+      8,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1 << mode,
+      1 << mode,
+      1 << mode,
+      classes,
+      1,
+      false,
+      8,
+      false,
+      LiveSearch.CELL_FITS,
+      0,
+      false
+    );
+  }
+
+  /** The rounded mean of a channel of YCoCg values over a square cell of an 8x8 block, as a cell fit takes it. */
+  private static int cellMean(final float[] values, final int channel, final int cell, final int column, final int row, final int low) {
+    double sum = 0;
+    for (int y = row * cell; y < (row + 1) * cell; y++) {
+      for (int x = column * cell; x < (column + 1) * cell; x++) {
+        sum += values[(y * 8 + x) * 3 + channel];
+      }
+    }
+    final float mean = (float) (sum / (cell * cell));
+    return (int) Math.min(Math.max((float) Math.floor(mean + 0.5f), low), low + 255);
+  }
+
+  @Test
+  void fitsAReducedGridAsTheMeansOfItsCells() {
+    final byte[] source = reference(0, 256);
+    final float[] ycocg = new float[source.length];
+    for (int i = 0; i < source.length; i += 3) {
+      final int r = source[i] & 0xFF;
+      final int g = source[i + 1] & 0xFF;
+      final int b = source[i + 2] & 0xFF;
+      ycocg[i] = (r + 2 * g + b) * 0.25f;
+      ycocg[i + 1] = (r - b) * 0.5f;
+      ycocg[i + 2] = (-r + 2 * g - b) * 0.25f;
+    }
+    final EncoderSettings settings = STILL.withLive(cellFits(Mcv2Format.MODE_INTRA_Y4C1, 0));
+    final FrameJob job = new FrameJob(settings, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
+    new BlockCoder(job, 8).code(2, 0, 0, 0);
+    assertEquals(Mcv2Format.MODE_INTRA_Y4C1, job.mode(0, 2, 0));
+    final byte[] record = job.record(0, 2, 0);
+    // a 4x4 luma grid of 2x2 cells, then the whole block's chroma
+    for (int i = 0; i < 16; i++) {
+      assertEquals(cellMean(ycocg, 0, 2, i % 4, i / 4, 0), record[i] & 0xFF, "luma node " + i);
+    }
+    assertEquals(cellMean(ycocg, 1, 8, 0, 0, Byte.MIN_VALUE), record[16]);
+    assertEquals(cellMean(ycocg, 2, 8, 0, 0, Byte.MIN_VALUE), record[17]);
+  }
+
+  @Test
+  void fitsACompactGridAsTheMeansOfItsCells() {
+    // the reference plus a luma offset per 2x2 cell: the residual's cell means are the offsets themselves, which a
+    // least-squares fit of the interpolated grid would not give
+    final byte[] reference = reference(40, 200);
+    final byte[] source = reference.clone();
+    final int[] offsets = new int[16];
+    for (int i = 0; i < 16; i++) {
+      offsets[i] = -36 + 12 * (i % 4) + 16 * (i / 4);
+    }
+    for (int y = 0; y < 8; y++) {
+      for (int x = 0; x < 8; x++) {
+        for (int c = 0; c < 3; c++) {
+          final int at = (y * 8 + x) * 3 + c;
+          source[at] = (byte) ((source[at] & 0xFF) + offsets[(y / 2) * 4 + x / 2]);
+        }
+      }
+    }
+    final EncoderSettings settings = STILL.withLive(cellFits(Mcv2Format.MODE_COMPACT, 1 << CompactRecord.GRID4_YC));
+    final FrameJob job = new FrameJob(settings, source, reference, 8, 8, false, new int[] { 0 }, new int[] { 0 }, null, null);
+    new BlockCoder(job, 8).code(2, 0, 0, 0);
+    assertEquals(Mcv2Format.MODE_COMPACT, job.mode(0, 2, 0));
+    final byte[] record = job.record(0, 2, 0);
+    assertEquals(CompactRecord.GRID4_YC, record[0]);
+    for (int i = 0; i < 16; i++) {
+      assertEquals(offsets[i], record[1 + i], "luma node " + i);
+    }
+    assertEquals(0, record[17]);
+    assertEquals(0, record[18]);
+  }
+
   @Test
   void aPerfectResidualEndsTheLadder() {
     // a uniform brightness step: the one-node residual grid is perfect at the finest quantizer, then the one-byte DC

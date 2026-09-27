@@ -72,6 +72,8 @@ final class FrameJob {
 
   private byte@Nullable[] halfReference;
 
+  private byte@Nullable[] quarterReference;
+
   /** The side of the square cells of a motion field, one vector each: the smallest block. */
   static final int MOTION_CELL = SMALLEST_BLOCK;
 
@@ -349,6 +351,24 @@ final class FrameJob {
    */
   byte[] halfReference() {
     return Preconditions.checkNotNull(this.halfReference);
+  }
+
+  /**
+   * Gives the search the reference at a quarter of the resolution, for {@link LiveSearch#QUARTER_MOTION}.
+   *
+   * @param picture the half-resolution reference halved again
+   */
+  void quarterReference(final byte[] picture) {
+    this.quarterReference = picture;
+  }
+
+  /**
+   * The reference at a quarter of the resolution.
+   *
+   * @return the picture {@link #quarterReference(byte[])} gave
+   */
+  byte[] quarterReference() {
+    return Preconditions.checkNotNull(this.quarterReference);
   }
 
   int allTrials() {

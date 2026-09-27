@@ -126,7 +126,9 @@ final class LiveEncoderTest {
       seeded,
       searchBlock,
       coarse,
-      fast
+      fast,
+      0,
+      false
     );
   }
 
@@ -211,7 +213,9 @@ final class LiveEncoderTest {
           true,
           16,
           true,
-          LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION
+          LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION,
+          0,
+          false
         )
       ),
       100,
@@ -238,7 +242,9 @@ final class LiveEncoderTest {
           true,
           16,
           true,
-          11
+          11,
+          0,
+          false
         )
       ),
       100,
@@ -265,7 +271,9 @@ final class LiveEncoderTest {
           true,
           16,
           true,
-          0
+          0,
+          0,
+          false
         )
       ),
       64,
@@ -292,7 +300,9 @@ final class LiveEncoderTest {
           true,
           16,
           true,
-          0
+          0,
+          0,
+          false
         )
       ),
       100,
@@ -310,6 +320,128 @@ final class LiveEncoderTest {
       3,
       4
     );
+  }
+
+  /** The live profile's search with another split threshold, shortcuts and lambda. */
+  private static LiveSearch live(final double splitAbove, final int shortcuts, final boolean motionLambda) {
+    final LiveSearch l = LiveSearch.LIVE;
+    return new LiveSearch(
+      l.smallestBlock(),
+      l.skipThreshold(),
+      l.splitThreshold(),
+      l.steadySplitThreshold(),
+      l.fineThreshold(),
+      l.goodThreshold(),
+      l.childGate(),
+      l.modes(),
+      l.smallModes(),
+      l.keyModes(),
+      l.compactClasses(),
+      l.quantizers(),
+      l.seededMotion(),
+      l.searchBlock(),
+      l.coarseEndpoints(),
+      shortcuts,
+      splitAbove,
+      motionLambda
+    );
+  }
+
+  @Test
+  void decodesEveryFrameOfTheCellFits() throws Mcv2Exception {
+    final EncoderSettings base = EncoderSettings.SHIP.withKeyInterval(4);
+    // every mode and class: the reduced grids, intra and residual, and every compact grid class from cell means
+    final LiveSearch all = new LiveSearch(
+      8,
+      LiveSearch.EXACT_SKIP,
+      52.5,
+      52.5,
+      52.5,
+      0,
+      0,
+      ALL,
+      ALL,
+      ALL,
+      LiveSearch.ALL_CLASSES,
+      LiveSearch.FROM_LAMBDA,
+      true,
+      16,
+      true,
+      LiveSearch.CELL_FITS,
+      0,
+      false
+    );
+    play(base.withLive(all), 100, 70, 5, 2);
+    play(EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts() | LiveSearch.CELL_FITS, false)), 100, 70, 4, 2);
+  }
+
+  /** A flat picture whose colour moves by a step every frame, which neither SKIP nor motion codes. */
+  private static byte[] flat(final int width, final int height, final int frame) {
+    final byte[] rgb = new byte[width * height * 3];
+    for (int i = 0; i < rgb.length; i += 3) {
+      rgb[i] = (byte) (60 + 12 * frame);
+      rgb[i + 1] = (byte) (90 + 12 * frame);
+      rgb[i + 2] = (byte) (40 + 12 * frame);
+    }
+    return rgb;
+  }
+
+  /** Encodes the flat scene, checking every frame, and counts the P frames' 32-pixel leaves that are not SKIP or motion. */
+  private static int wholeLeaves(final LiveSearch live) throws Mcv2Exception {
+    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE.withLive(live), POOL, 2, true);
+    final Client client = new Client();
+    int whole = 0;
+    for (int i = 0; i < 5; i++) {
+      final byte[] data = encoder.encode(flat(64, 64, i), 64, 64, i);
+      assertArrayEquals(client.decode(data), encoder.getReference());
+      final Mcv2Frame frame = FrameParser.parse(data);
+      for (int k = 0; k < frame.getLeafCount() && !frame.isKeyframe(); k++) {
+        final Mcv2Frame.Leaf leaf = frame.getLeaf(k);
+        if (leaf.size() == 32 && leaf.mode() != MODE_SKIP && leaf.mode() != MODE_MOTION) {
+          whole++;
+        }
+      }
+    }
+    return whole;
+  }
+
+  @Test
+  void splitsTheSuperblocksAboveTheThresholdWithoutTryingTheirLeaves() throws Mcv2Exception {
+    // a new flat colour is coded whole by a 32-pixel leaf, unless the superblock is split before its leaves are tried
+    assertTrue(wholeLeaves(LiveSearch.LIVE) > 0);
+    assertEquals(0, wholeLeaves(live(1e-9, LiveSearch.LIVE.shortcuts(), false)));
+    // a threshold above what SKIP costs there leaves the decision alone
+    assertEquals(wholeLeaves(LiveSearch.LIVE), wholeLeaves(live(1e9, LiveSearch.LIVE.shortcuts(), false)));
+  }
+
+  @Test
+  void raisesTheLambdaOfFastMotionAndStartsOverAtASceneCut() throws Mcv2Exception {
+    final EncoderSettings settings = EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts(), true));
+    // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all the profile uses
+    // without the motion's lambda
+    assertEquals(72, play(settings, 64, 64, 4, 0).getStats().lambda());
+    assertEquals(72, play(EncoderSettings.LIVE, 100, 70, 6, 9).getStats().lambda());
+    // a fast pan raises it
+    final Mcv2Encoder pan = play(settings, 100, 70, 6, 9);
+    assertTrue(pan.getStats().lambda() > 72);
+    // the frame after a scene cut is back at the profile's lambda
+    final byte[] inverted = scene(100, 70, 6, 9);
+    for (int i = 0; i < inverted.length; i++) {
+      inverted[i] = (byte) (255 - (inverted[i] & 0xFF));
+    }
+    pan.encode(inverted, 100, 70, 6);
+    assertTrue(pan.getStats().keyframe());
+    pan.encode(inverted, 100, 70, 7);
+    assertEquals(72, pan.getStats().lambda());
+  }
+
+  @Test
+  void decodesEveryFrameOfTheQuarterResolutionSearch() throws Mcv2Exception {
+    final int shortcuts = LiveSearch.LIVE.shortcuts() | LiveSearch.QUARTER_MOTION;
+    play(EncoderSettings.LIVE.withLive(live(0, shortcuts, false)), 100, 70, 5, 5);
+    play(EncoderSettings.LIVE.withLive(live(0, shortcuts, false)), 64, 64, 4, 2);
+    // without the half-resolution search there is no quarter-resolution one either
+    play(EncoderSettings.LIVE.withLive(live(0, LiveSearch.QUARTER_MOTION, false)), 100, 70, 4, 3);
   }
 
   @Test
