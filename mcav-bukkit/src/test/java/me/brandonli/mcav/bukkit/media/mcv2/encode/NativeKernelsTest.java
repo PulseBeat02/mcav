@@ -30,6 +30,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.Random;
 import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.bukkit.media.mcv2.ResidualBooks;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -177,6 +178,75 @@ final class NativeKernelsTest {
     refused(() -> k.cellMeans(new float[10], 8, 0, 2, floats, 0, 1));
     refused(() -> k.cellMeans(floats, 8, 0, 2, floats, 0, 0));
     refused(() -> k.cellMeans(floats, 8, 0, 2, new float[3], 0, 1));
+  }
+
+  @Test
+  void refusesEachBadArgumentInTheKernelThatTakesIt() {
+    // every other argument is valid, so a kernel that skipped the check would reach the failing library instead
+    final NativeKernels k = failing();
+    final int[] big = new int[32 * 32 * 3];
+    final int[] block = new int[8 * 8 * 3];
+    final int[] small = new int[8 * 8 * 3 - 1];
+    final byte[] record = new byte[4096];
+    final float[] floats = new float[32 * 32 * 3];
+    final float[] shortFloats = new float[8 * 8 * 3 - 1];
+    final byte[] picture = new byte[16 * 16 * 3];
+    k.start(big, 0, 1);
+    // a size that is no block size
+    refused(() -> k.solid(0, 12, big));
+    refused(() -> k.palette(record, 0, 12, big));
+    refused(() -> k.intraGrid(record, 0, 2, 12, big));
+    refused(() -> k.residualGrid(big, record, 0, 2, 0, 12, big));
+    refused(() -> k.reduced(null, record, 0, 4, 1, 0, 12, big));
+    refused(() -> k.compact(big, record, 0, CompactRecord.DC_Y, 0, 12, big));
+    refused(() -> k.predict(picture, 16, 16, 0, 0, 12, 0, 0, big));
+    refused(() -> k.fit(floats, 0, 3, 12, 2, floats, 0, 1));
+    refused(() -> k.cellSums(big, 12, new int[FastFits.CELL_SUMS]));
+    refused(() -> k.lumaResidual(big, big, 12, new float[16]));
+    refused(() -> k.cluster(big, 12, new float[6]));
+    refused(() -> k.finishPattern(big, 12, new float[6], false, new int[6], new byte[1024]));
+    refused(() -> k.seeded(picture, 16, 16, big, 0, 0, 12, 0, 0, 4, true, new int[0]));
+    refused(() -> k.cellMeans(floats, 12, 0, 2, floats, 0, 1));
+    // a grid that is no grid width, and sources one value short
+    refused(() -> k.fit(floats, 0, 3, 8, 3, floats, 0, 1));
+    refused(() -> k.cellSums(small, 8, new int[FastFits.CELL_SUMS]));
+    refused(() -> k.lumaResidual(small, big, 8, new float[16]));
+    refused(() -> k.cluster(small, 8, new float[6]));
+    // records and outputs one value short of what a grid, a stride or a pixel count needs
+    refused(() -> k.intraGrid(new byte[2 * 2 * 3 - 1], 0, 2, 8, big));
+    refused(() -> k.residualGrid(big, new byte[2 * 2 * 3 - 1], 0, 2, 0, 8, big));
+    refused(() -> k.reduced(null, new byte[4 * 4 + 2 * 2 * 2 - 1], 0, 4, 2, 0, 8, big));
+    refused(() -> k.fit(floats, 0, 3, 8, 2, new float[(2 * 2 - 1) * 2], 0, 2));
+    refused(() -> k.cellMeans(floats, 8, 0, 2, new float[(2 * 2 - 1) * 2], 0, 2));
+    refused(() -> k.ycocg(block, 64, true, shortFloats));
+    refused(() -> k.residualTarget(shortFloats, block, 64, true, floats));
+    refused(() -> k.residualTarget(floats, block, 64, true, shortFloats));
+  }
+
+  @Test
+  void passesEveryLimitItselfToTheLibrary() {
+    // a comparison one step too strict would refuse the limit instead of reaching the failing library
+    final NativeKernels k = failing();
+    final int[] block = new int[8 * 8 * 3];
+    final int[] big = new int[32 * 32 * 3];
+    final float[] floats = new float[32 * 32 * 3];
+    final byte[] line = new byte[4096 * 3];
+    final byte[] picture = new byte[16 * 16 * 3];
+    k.start(block, 0, 1);
+    failed(() -> k.intraGrid(new byte[8 * 8 * 3], 0, Mcv2Format.MAX_GRID, 8, block));
+    failed(() -> k.predict(line, 1, 4096, 0, 0, 8, 0, 0, block));
+    failed(() -> k.predict(line, 4096, 1, 0, 0, 8, 0, 0, block));
+    failed(() -> k.predict(picture, 16, 16, -(1 << 20), 1 << 20, 8, -(1 << 20), 1 << 20, block));
+    failed(() -> k.seeded(picture, 16, 16, block, 0, 0, 8, 0, 0, 0, true, new int[0]));
+    failed(() -> k.seeded(picture, 16, 16, block, 0, 0, 8, 0, 0, 1 << 20, true, new int[0]));
+    failed(() -> k.finish(big, 0, new float[6], false, new int[6], new byte[0]));
+    failed(() -> k.finish(big, 32 * 32, new float[6], false, new int[6], new byte[32 * 32]));
+    failed(() -> k.halve(new int[2 * 2 * 3], 2, new int[3]));
+    failed(() -> k.halve(big, 32, new int[16 * 16 * 3]));
+    failed(() -> k.ycocg(big, 0, true, floats));
+    failed(() -> k.ycocg(big, 32 * 32, true, floats));
+    failed(() -> k.residualTarget(floats, big, 0, true, floats));
+    failed(() -> k.residualTarget(floats, big, 32 * 32, true, floats));
   }
 
   @Test
