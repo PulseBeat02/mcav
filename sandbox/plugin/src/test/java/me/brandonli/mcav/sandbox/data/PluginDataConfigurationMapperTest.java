@@ -75,6 +75,10 @@ final class PluginDataConfigurationMapperTest {
     mcv2:
       encoder-threads: 3
       native: "off"
+    browser:
+      allow-private-networks: true
+      javascript-jit: true
+      autoplay-sound: true
     """;
 
   @TempDir
@@ -144,6 +148,9 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(voiceChat);
     assertEquals(0, this.mapper.getMcv2EncoderThreads());
     assertEquals("auto", this.mapper.getMcv2Native());
+    assertFalse(this.mapper.isBrowserPrivateNetworks());
+    assertFalse(this.mapper.isBrowserJavaScriptJit());
+    assertFalse(this.mapper.isBrowserAutoplaySound());
   }
 
   @Test
@@ -180,6 +187,9 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(voiceChat);
     assertEquals(0, this.mapper.getMcv2EncoderThreads());
     assertEquals("auto", this.mapper.getMcv2Native());
+    assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
+    assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
+    assertFalse(this.mapper.isBrowserAutoplaySound(), "and pages silent until a player clicked them");
   }
 
   @Test
@@ -205,6 +215,9 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(voiceChat);
     assertEquals(3, this.mapper.getMcv2EncoderThreads());
     assertEquals("off", this.mapper.getMcv2Native());
+    assertTrue(this.mapper.isBrowserPrivateNetworks());
+    assertTrue(this.mapper.isBrowserJavaScriptJit());
+    assertTrue(this.mapper.isBrowserAutoplaySound());
   }
 
   @Test

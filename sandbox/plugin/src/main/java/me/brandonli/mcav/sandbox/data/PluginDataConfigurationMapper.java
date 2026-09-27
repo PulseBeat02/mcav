@@ -66,6 +66,12 @@ public final class PluginDataConfigurationMapper {
 
   private static final String MCV2_NATIVE = "mcv2.native";
 
+  private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
+
+  private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
+
+  private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
+
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private static final int MAX_PORT = 65535;
@@ -95,6 +101,12 @@ public final class PluginDataConfigurationMapper {
   private int httpPort;
 
   private boolean simpleVoiceChatEnabled;
+
+  private boolean browserPrivateNetworks;
+
+  private boolean browserJavaScriptJit;
+
+  private boolean browserAutoplaySound;
 
   private int mcv2EncoderThreads;
 
@@ -135,6 +147,9 @@ public final class PluginDataConfigurationMapper {
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = readEncoderThreads(config);
     this.mcv2Native = readNative(config);
+    this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
+    this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
+    this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -192,6 +207,33 @@ public final class PluginDataConfigurationMapper {
       return Mcv2Natives.AUTO;
     }
     return mode;
+  }
+
+  /**
+   * Checks whether pages of the browser may reach loopback, private and link-local addresses.
+   *
+   * @return true if {@code browser.allow-private-networks} is on
+   */
+  public synchronized boolean isBrowserPrivateNetworks() {
+    return this.browserPrivateNetworks;
+  }
+
+  /**
+   * Checks whether the browser compiles JavaScript to machine code.
+   *
+   * @return true if {@code browser.javascript-jit} is on
+   */
+  public synchronized boolean isBrowserJavaScriptJit() {
+    return this.browserJavaScriptJit;
+  }
+
+  /**
+   * Checks whether pages of the browser play sound before a player clicked or typed into them.
+   *
+   * @return true if {@code browser.autoplay-sound} is on
+   */
+  public synchronized boolean isBrowserAutoplaySound() {
+    return this.browserAutoplaySound;
   }
 
   /**

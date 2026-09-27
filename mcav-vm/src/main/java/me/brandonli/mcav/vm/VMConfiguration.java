@@ -205,17 +205,6 @@ public final class VMConfiguration {
   }
 
   /**
-   * Sets the audio backend ({@code -audio}).
-   *
-   * @param driver the backend, such as {@code none}
-   * @return this configuration
-   */
-  public VMConfiguration audio(final String driver) {
-    Preconditions.checkNotNull(driver, "Driver must not be null");
-    return this.option("audio", driver);
-  }
-
-  /**
    * Adds a drive ({@code -drive}). Drives can be added more than once.
    *
    * @param drive the drive specification, such as {@code file=disk.qcow2,format=qcow2}

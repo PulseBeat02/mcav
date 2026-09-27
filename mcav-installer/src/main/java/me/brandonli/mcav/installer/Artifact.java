@@ -35,7 +35,7 @@ public enum Artifact {
    */
   HTTP("mcav-http"),
   /**
-   * Web page streaming through Selenium and Playwright.
+   * Web page streaming through an embedded Chromium (JCEF).
    */
   BROWSER("mcav-browser"),
   /**

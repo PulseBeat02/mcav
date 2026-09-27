@@ -257,3 +257,6 @@ logs/
 
 # the MCV2 live encoder's prebuilt native kernels are committed resources
 !mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/encode/natives/**
+
+# the database jqwik writes into the module folder when PIT runs the property tests (the tests keep theirs in build/)
+.jqwik-database

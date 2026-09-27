@@ -73,6 +73,9 @@ public final class DumpUtils {
   private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
   // what a player typed after a command of another plugin, which may be their password
   private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
+  // an address with a host, such as a page of the browser or a video: its user name and password (group 2) and its
+  // query or fragment (group 4) often carry secrets, such as the signature of a link or the code of a login
+  private static final Pattern WEB_ADDRESS = Pattern.compile("\\b([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/?#]*@)?([^\\s?#]*)([?#]\\S*)?");
   private static final String OWN_COMMAND_PREFIX = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
 
@@ -314,7 +317,8 @@ public final class DumpUtils {
   /**
    * Redacts a line of the server log before it is published. The dump goes to a paste site anyone can read, so the
    * addresses of players and what they typed after the commands of other plugins never belong in it; the arguments of
-   * the commands of this plugin stay, because they are what a bug report is about.
+   * the commands of this plugin stay, because they are what a bug report is about, but the user name and password, the
+   * query and the fragment of every web address in the line are redacted, as they often carry secrets.
    *
    * @param line the line of the log
    * @return the line as it may be published
@@ -322,8 +326,24 @@ public final class DumpUtils {
   @VisibleForTesting
   static String redactLogLine(final String line) {
     final String withoutSecrets = redactSecretsInside(line);
-    final String withoutArguments = redactOtherCommandArguments(withoutSecrets);
+    final String withoutAddressSecrets = redactWebAddressSecrets(withoutSecrets);
+    final String withoutArguments = redactOtherCommandArguments(withoutAddressSecrets);
     return redactAddresses(withoutArguments);
+  }
+
+  private static String redactWebAddressSecrets(final String line) {
+    final Matcher address = WEB_ADDRESS.matcher(line);
+    final StringBuilder redacted = new StringBuilder(line.length());
+    while (address.find()) {
+      final String user = address.group(2);
+      final String queryOrFragment = address.group(4);
+      final String userPart = user == null ? "" : REDACTED + "@";
+      final String tail = queryOrFragment == null ? "" : queryOrFragment.charAt(0) + REDACTED;
+      final String replacement = address.group(1) + userPart + address.group(3) + tail;
+      address.appendReplacement(redacted, Matcher.quoteReplacement(replacement));
+    }
+    address.appendTail(redacted);
+    return redacted.toString();
   }
 
   private static String redactAddresses(final String line) {

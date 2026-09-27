@@ -19,6 +19,8 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.sun.management.OperatingSystemMXBean;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +33,11 @@ import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioOutputs;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -79,7 +85,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
 
   /**
-   * The options that describe the hardware of the machine. Their value never names a file.
+   * The options that describe the hardware of the machine. Their values must have a form {@link QemuHardwareValues}
+   * allows, so they never name a file nor change what mcav owns.
    */
   private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
 
@@ -94,6 +101,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final String DRIVE_OPTION = "drive";
 
   private static final String FILE_KEY = "file=";
+  // the least memory a machine may always have, whatever the memory of the server
+  private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
@@ -163,7 +172,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   @Override
   protected void releasePlayer(final VMPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    current.release();
+    CleanupUtils.runAll(current::release, () -> this.releaseSound(current));
   }
 
   /**
@@ -211,8 +220,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   /**
    * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <architecture> <flags>}: boots a QEMU virtual machine and streams its display onto a wall
-   * of maps.
+   * <ditheringAlgorithm> <architecture> <audioType> <flags>}: boots a QEMU virtual machine and streams its display
+   * onto a wall of maps, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
+   * adds their sound card itself, and the flags cannot change it.
    *
    * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}. Build
    * the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then left
@@ -240,6 +250,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@link DitheringArgument}
    * @param architecture       the processor the guest is emulated with: {@code X86_64}, {@code ARM},
    *                           {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
+   * @param audioType          where the sound of the guest plays, as for the video commands, see
+   *                           {@link AudioArgument}; {@code NONE} keeps the machine silent
    * @param flags              the QEMU options, the rest of the command line, such as
    *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
    *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
@@ -247,7 +259,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder
    */
   @Command(
-    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <flags>"
+    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
@@ -260,12 +272,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final VMPlayer.Architecture architecture,
+    final AudioArgument audioType,
     @Greedy final String flags
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
     Preconditions.checkNotNull(architecture, "Architecture must not be null");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null");
     Preconditions.checkNotNull(flags, "Flags must not be null");
 
     final boolean qemu = this.plugin.isQemuInstalled();
@@ -285,12 +299,26 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     if (vmConfiguration == null) {
       return;
     }
+    // only x86-64 PC and Q35 machines get a sound card from mcav-vm
+    if (audioType != AudioArgument.NONE && architecture != VMPlayer.Architecture.X86_64) {
+      final Component silent = Message.VM_NO_SOUND.build();
+      sender.sendMessage(silent);
+      return;
+    }
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    if (audioProblem != null) {
+      sender.sendMessage(audioProblem);
+      return;
+    }
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     final VMSettings vmSettings = VMSettings.of(width, height, targetFps);
     final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
     final Screen screen = this.createScreen(settings);
-    this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration));
+    final Player[] viewers = playerSelector.values().toArray(Player[]::new);
+    final ScreenSound sound = new ScreenSound(audioType, viewers);
+    this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
   }
 
   private void startMachine(
@@ -298,19 +326,22 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Screen screen,
     final VMSettings settings,
     final VMPlayer.Architecture architecture,
-    final VMConfiguration vmConfiguration
+    final VMConfiguration vmConfiguration,
+    final ScreenSound sound
   ) {
     final VMPlayer machine = VMPlayer.create();
     this.ownCreatedPlayer(machine);
     final VideoAttachableCallback callback = machine.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
+    this.attachSound(machine, machine.getAudioAttachableCallback(), sound, "Virtual machine");
 
     final Component loading = Message.VM_LOADING.build();
     sender.sendMessage(loading);
     final ExecutorService executor = this.startExecutor(machine, screen);
     final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, executor);
     this.reportStartWhenDone(sender, machine, screen, start, "the virtual machine");
+    this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
   /**
@@ -349,7 +380,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     try {
-      return parseOptions(flags, imageFolder);
+      return parseOptions(flags, imageFolder, maxMemoryBytes());
     } catch (final IllegalArgumentException exception) {
       final String cause = exception.getMessage();
       final String reason = Objects.requireNonNullElse(cause, "The options are not valid");
@@ -371,6 +402,53 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                                  value it needs, or names a disk image outside the image folder
    */
   static VMConfiguration parseOptions(final String commandLine, final Path imageFolder) {
+    return parseOptions(commandLine, imageFolder, Long.MAX_VALUE);
+  }
+
+  /**
+   * Parses QEMU options as {@link #parseOptions(String, Path)} does, and refuses a machine with more memory than the
+   * server lets one have: a guest can use all of it, and the memory of a machine is memory of the server.
+   *
+   * @param commandLine    the options
+   * @param imageFolder    the folder the disk images live in
+   * @param maxMemoryBytes the most memory a machine may have, in bytes
+   * @return the configuration
+   * @throws IllegalArgumentException if an option is refused, or the machine would have more memory than allowed
+   */
+  static VMConfiguration parseOptions(final String commandLine, final Path imageFolder, final long maxMemoryBytes) {
+    final VMConfiguration configuration = parseAllowedOptions(commandLine, imageFolder);
+    final String memory = Objects.requireNonNullElse(configuration.get("m"), "128");
+    final long requested = QemuHardwareValues.memoryBytes(memory);
+    if (requested > maxMemoryBytes) {
+      throw new IllegalArgumentException(
+        "The QEMU option -m " + memory + " asks for more memory than a machine may have on this server, " + (maxMemoryBytes >> 20) + " MiB"
+      );
+    }
+    return configuration;
+  }
+
+  /**
+   * Gets the most memory a machine may have on this server: half of the memory of the server, or of its container, as
+   * the JVM sees it, and at least 512 MiB.
+   *
+   * @return the most memory in bytes
+   */
+  static long maxMemoryBytes() {
+    final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
+    return maxMemoryBytes(system.getTotalMemorySize());
+  }
+
+  /**
+   * Gets the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
+   *
+   * @param totalMemoryBytes the memory of the server in bytes
+   * @return the most memory in bytes
+   */
+  static long maxMemoryBytes(final long totalMemoryBytes) {
+    return Math.max(MIN_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
+  }
+
+  private static VMConfiguration parseAllowedOptions(final String commandLine, final Path imageFolder) {
     final List<String> tokens = tokenize(commandLine);
     final VMConfiguration configuration = VMConfiguration.builder();
     final int count = tokens.size();
@@ -433,7 +511,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static String checkedValue(final String name, final String value, final Path imageFolder) {
     final boolean hardware = HARDWARE_OPTIONS.contains(name);
     if (hardware) {
-      requireNoPath(name, value);
+      QemuHardwareValues.check(name, value);
       return value;
     }
     final boolean image = IMAGE_OPTIONS.contains(name);
@@ -454,7 +532,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   /**
    * Checks the parts of a drive, whose {@code file} names a disk image and whose other parts describe how the drive
-   * is attached.
+   * is attached, as {@link QemuHardwareValues#checkDriveProperty} allows.
    */
   private static String checkedDrive(final String value, final Path imageFolder) {
     final List<String> parts = DRIVE_SPLITTER.splitToList(value);
@@ -469,6 +547,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
         checked.add(FILE_KEY + resolved);
       } else {
         requireNoPath(DRIVE_OPTION, part);
+        QemuHardwareValues.checkDriveProperty(part, value);
         checked.add(part);
       }
     }

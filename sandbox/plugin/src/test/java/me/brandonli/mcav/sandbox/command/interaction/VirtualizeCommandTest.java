@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,15 +39,20 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -80,6 +86,7 @@ final class VirtualizeCommandTest {
   private CommandSender sender;
   private MultiplePlayerSelector selector;
   private VMPlayer machine;
+  private AudioProvider provider;
   private VideoAttachableCallback callback;
   private FunctionalVideoFilter ditherFilter;
   private MockedStatic<VMPlayer> machines;
@@ -98,6 +105,8 @@ final class VirtualizeCommandTest {
     when(this.plugin.getServer()).thenReturn(server);
     when(this.plugin.isQemuInstalled()).thenReturn(true);
     when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
+    this.provider = mock(AudioProvider.class);
+    when(this.plugin.getAudioProvider()).thenReturn(this.provider);
     this.imageFolder = DiskImages.folderOf(this.dataFolder);
     this.command = new VirtualizeCommand(this.plugin);
     this.sender = mock(CommandSender.class);
@@ -135,6 +144,7 @@ final class VirtualizeCommandTest {
         0,
         DitheringArgument.FILTER_LITE,
         VMPlayer.Architecture.X86_64,
+        AudioArgument.NONE,
         flags
       );
   }
@@ -329,6 +339,33 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void theSoundIsLetGoOfWhenTheMachineFailsToEndWhileThePluginDisables() {
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
+      mock(AudioFilter.class)
+    );
+    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    this.startsWith(CompletableFuture.completedFuture(true));
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        ""
+      );
+    // a disabling plugin hands out its provider no more, and QEMU fails to end
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
+    Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseVM(this.sender));
+    assertEquals("release broke", failure.getMessage());
+    verify(this.provider).releaseAudioFilter(this.machine);
+  }
+
+  @Test
   void releasesTheMachineWhenAsked() {
     this.command.player = this.machine;
 
@@ -466,13 +503,248 @@ final class VirtualizeCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "-machine dumpdtb=/tmp/tree.dtb", "-name C:\\windows\\name", "-drive file=a.img,logappend=/tmp/log" })
-  void refusesHardwareOptionsThatNameAFile(final String options) throws IOException {
+  @ValueSource(
+    strings = {
+      "-machine dumpdtb=/tmp/tree.dtb",
+      "-machine virt,dumpdtb=tree.dtb",
+      "-machine pc,firmware=server.properties",
+      "-machine q35,kernel=bzImage",
+      "-machine pc,pcspk-audiodev=snd0",
+      "-boot order=c,splash=logo.bmp",
+      "-name C:\\windows\\name",
+      "-drive file=a.img,logappend=/tmp/log",
+      "-drive file=a.img,logappend=C:\\temp\\log",
+    }
+  )
+  void refusesHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
     this.image("a.img");
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
-    final boolean explained = message.contains("must not name a file");
+    final boolean explained = message.contains("must not name a file") || message.contains("does not allow");
     assertTrue(explained, message);
+  }
+
+  @Test
+  void acceptsTheHardwareOfCommonMachines() {
+    this.assertArguments(
+        "-machine q35,accel=kvm,usb=on -cpu host,+ssse3,-avx -smp 4,cores=2 -m 2G,slots=2,maxmem=4G -boot order=dc,menu=on",
+        "-machine",
+        "q35,accel=kvm,usb=on",
+        "-cpu",
+        "host,+ssse3,-avx",
+        "-smp",
+        "4,cores=2",
+        "-m",
+        "2G,slots=2,maxmem=4G",
+        "-boot",
+        "order=dc,menu=on"
+      );
+    this.assertArguments(
+        "-accel tcg,thread=multi -rtc base=utc,clock=host -k en-us -vga virtio -name \"my vm\",debug-threads=on",
+        "-accel",
+        "tcg,thread=multi",
+        "-rtc",
+        "base=utc,clock=host",
+        "-k",
+        "en-us",
+        "-vga",
+        "virtio",
+        "-name",
+        "my vm,debug-threads=on"
+      );
+  }
+
+  @Test
+  void theSoundOfAMachinePlaysIntoTheChosenOutputAndIsLetGoOfOnRelease() {
+    final AudioFilter output = mock(AudioFilter.class);
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(output);
+    final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
+    when(this.machine.getAudioAttachableCallback()).thenReturn(audio);
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        "-m 256M"
+      );
+    final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
+    verify(audio).attach(pipelines.capture());
+    assertSame(output, pipelines.getValue().getFilter());
+    this.command.releaseVM(this.sender);
+    // the provider lets go of the outputs only if no video or other machine took them over meanwhile
+    verify(this.provider).releaseAudioFilter(this.machine);
+  }
+
+  private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
+    when(this.provider.isHttpEnabled()).thenReturn(true);
+    when(this.provider.isHttpReady()).thenReturn(true);
+    when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.machine))).thenReturn(mock(AudioFilter.class));
+    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.HTTP_SERVER,
+        "-m 256M"
+      );
+  }
+
+  @Test
+  void aMachineThatStartsWithTheWebPageSendsItsLink() {
+    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
+    verify(this.provider).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineThatFailsToStartSendsNoLink() {
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("QEMU broke")));
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineReleasedWhileItStartsSendsNoLinksToItsSound() {
+    final CompletableFuture<Boolean> start = new CompletableFuture<>();
+    this.createWithTheWebPage(start);
+    this.command.releaseVM(this.sender);
+    start.complete(true);
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineReleasedBeforeTheMainThreadSendsItsLinkSendsNone() {
+    TestServer.resetWithDeferredTasks();
+    final CompletableFuture<Boolean> start = new CompletableFuture<>();
+    this.createWithTheWebPage(start);
+    TestServer.runPendingTasks();
+    start.complete(true);
+    // the link waits for the main thread, and the machine is released before it gets there
+    this.command.releaseVM(this.sender);
+    TestServer.runPendingTasks();
+    verify(this.provider, never()).constructHttpUrl();
+  }
+
+  @Test
+  void aMachineOfAnArchitectureWithoutSoundCannotChooseAnAudioOutput() {
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.AARCH64,
+        AudioArgument.SIMPLE_VOICE_CHAT,
+        "-m 256M"
+      );
+    this.assertReceived(Message.VM_NO_SOUND.build());
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
+  void aMachineThatDoesNotStartSendsNoLinkToItsSound() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.create("640x480", "5x4", "-m 256M");
+    verify(this.provider, never()).constructHttpUrl();
+    verify(this.provider, never()).constructVoiceChannelUrl();
+  }
+
+  @Test
+  void aSilentMachinePlaysIntoNoOutput() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenReturn(
+      start
+    );
+    this.create("640x480", "5x4", "-m 256M");
+    this.command.releaseVM(this.sender);
+    verify(this.provider, never()).constructFilter(any(), any(), any(), any());
+    verify(this.provider, never()).releaseAudioFilter();
+  }
+
+  @Test
+  void anAudioOutputThatCannotPlayNowStartsNothing() {
+    this.command.createVM(
+        this.sender,
+        this.selector,
+        "640x480",
+        30,
+        "5x4",
+        0,
+        DitheringArgument.FILTER_LITE,
+        VMPlayer.Architecture.X86_64,
+        AudioArgument.DISCORD_BOT,
+        "-m 256M"
+      );
+    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
+  void refusesADrivePropertyThatStartsWithAPathSeparator() {
+    for (final String part : new String[] { "/tmp", "\\\\server" }) {
+      final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
+      assertEquals("The QEMU option -drive must not name a file, but got " + part, failure.getMessage());
+    }
+  }
+
+  @Test
+  void keepsTheAttachmentPropertiesOfADrive() throws IOException {
+    final String image = this.image("disk.img");
+    this.assertArguments(
+        "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
+        "-drive",
+        "file=" + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+      );
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
+  void refusesADrivePropertyOutsideTheList(final String part) throws IOException {
+    this.image("disk.img");
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
+    final String message = failure.getMessage();
+    assertEquals("The QEMU option -drive does not allow " + part + " in file=disk.img," + part, message);
+  }
+
+  @Test
+  void refusesAMachineWithMoreMemoryThanTheServerLetsOneHave() {
+    final long limit = 4L << 30;
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
+      VirtualizeCommand.parseOptions("-m 64G", this.imageFolder, limit)
+    );
+    assertEquals("The QEMU option -m 64G asks for more memory than a machine may have on this server, 4096 MiB", failure.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions("-m size=5G,slots=2", this.imageFolder, limit));
+    assertEquals("4G", VirtualizeCommand.parseOptions("-m 4G", this.imageFolder, limit).get("m"));
+    assertEquals(List.of(), VirtualizeCommand.parseOptions("", this.imageFolder, limit).getArguments(), "QEMU's default of 128 MiB");
+  }
+
+  @Test
+  void aMachineMayHaveHalfOfTheMemoryOfTheServerAndAtLeast512MiB() {
+    assertEquals(8L << 30, VirtualizeCommand.maxMemoryBytes(16L << 30));
+    assertEquals(512L << 20, VirtualizeCommand.maxMemoryBytes(256L << 20));
+    final long limit = VirtualizeCommand.maxMemoryBytes();
+    assertTrue(limit >= 512L << 20, "at least 512 MiB: " + limit);
   }
 
   @Test

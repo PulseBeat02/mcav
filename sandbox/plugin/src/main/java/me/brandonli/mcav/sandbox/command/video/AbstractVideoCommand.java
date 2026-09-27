@@ -51,6 +51,7 @@ import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioOutputs;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -314,33 +315,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    this.sendAudioLink(audioType, viewers);
+    AudioOutputs.sendLink(this.provider, audioType, viewers);
     final Component message = Message.START_VIDEO.build();
     sender.sendMessage(message);
-  }
-
-  private void sendAudioLink(final AudioArgument audioType, final Player[] viewers) {
-    final Component audioLink = this.createAudioLink(audioType);
-    if (audioLink == null) {
-      return;
-    }
-    for (final Player viewer : viewers) {
-      viewer.sendMessage(audioLink);
-    }
-  }
-
-  private @Nullable Component createAudioLink(final AudioArgument audioType) {
-    return switch (audioType) {
-      case DISCORD_BOT -> {
-        final String url = this.provider.constructVoiceChannelUrl();
-        yield Message.AUDIO_DISCORD.build(url);
-      }
-      case HTTP_SERVER -> {
-        final String url = this.provider.constructHttpUrl();
-        yield Message.AUDIO_HTTP.build(url);
-      }
-      default -> null;
-    };
   }
 
   private boolean checkBackends(
@@ -363,7 +340,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return the message that explains the problem, or {@code null} if the video can play
    */
   private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
-    final Component audioProblem = this.findAudioProblem(audioType);
+    final Component audioProblem = AudioOutputs.findProblem(this.provider, audioType);
     if (audioProblem != null) {
       return audioProblem;
     }
@@ -410,38 +387,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
     final boolean preparing = this.manager.isPreparing(Capability.YT_DLP);
     return preparing ? Message.YTDLP_PREPARING.build() : null;
-  }
-
-  /**
-   * Checks whether the audio output can play now. The Discord bot and the web page start in the background when
-   * the plugin is enabled, so they are only usable once they are ready.
-   *
-   * @return the message that explains why the output cannot play, or {@code null} if it can
-   */
-  private @Nullable Component findAudioProblem(final AudioArgument audioType) {
-    return switch (audioType) {
-      case DISCORD_BOT -> {
-        final boolean enabled = this.provider.isDiscordBotEnabled();
-        final boolean ready = this.provider.isDiscordBotReady();
-        yield describeAudioProblem(enabled, ready);
-      }
-      case HTTP_SERVER -> {
-        final boolean enabled = this.provider.isHttpEnabled();
-        final boolean ready = this.provider.isHttpReady();
-        yield describeAudioProblem(enabled, ready);
-      }
-      case NONE, SIMPLE_VOICE_CHAT -> null;
-    };
-  }
-
-  private static @Nullable Component describeAudioProblem(final boolean enabled, final boolean ready) {
-    if (!enabled) {
-      return Message.UNSUPPORTED_AUDIO.build();
-    }
-    if (!ready) {
-      return Message.AUDIO_NOT_READY.build();
-    }
-    return null;
   }
 
   // runs on the worker thread

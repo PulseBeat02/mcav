@@ -105,6 +105,8 @@ final class MCAVSandboxTest {
 
   private VMModule vmModule;
 
+  private BrowserModule browserModule;
+
   private TestCommandManager commands;
 
   private MockedStatic<JavaPlugin> javaPlugins;
@@ -153,8 +155,10 @@ final class MCAVSandboxTest {
     this.api = mock(MCAVApi.class);
     this.bukkitModule = mock(BukkitModule.class);
     this.vmModule = mock(VMModule.class);
+    this.browserModule = mock(BrowserModule.class);
     when(this.api.getModule(BukkitModule.class)).thenReturn(this.bukkitModule);
     when(this.api.getModule(VMModule.class)).thenReturn(this.vmModule);
+    when(this.api.getModule(BrowserModule.class)).thenReturn(this.browserModule);
     this.libraries = Mockito.mockStatic(MCAV.class);
     this.libraries.when(MCAV::api).thenReturn(this.api);
   }
@@ -187,6 +191,7 @@ final class MCAVSandboxTest {
     assertEquals("The image manager is not available before the plugin is enabled", imagesMessage);
     final boolean qemu = this.sandbox.isQemuInstalled();
     assertFalse(qemu);
+    assertFalse(this.sandbox.isBrowserSupported());
   }
 
   @Test
@@ -198,6 +203,7 @@ final class MCAVSandboxTest {
   @Test
   void enablesTheLibraryTheConfigurationTheCommandsAndTheListener() {
     when(this.vmModule.isQemuInstalled()).thenReturn(true);
+    when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
     this.assertLibraryInstalled();
     this.assertConfigurationAndManagersCreated();
@@ -223,6 +229,7 @@ final class MCAVSandboxTest {
     assertSame(this.api, library);
     final boolean qemu = this.sandbox.isQemuInstalled();
     assertTrue(qemu);
+    assertTrue(this.sandbox.isBrowserSupported());
   }
 
   private void assertConfigurationAndManagersCreated() {
@@ -405,7 +412,17 @@ final class MCAVSandboxTest {
   }
 
   @Test
+  void warnsWhenThereIsNoBrowserForThisServer() {
+    when(this.vmModule.isQemuInstalled()).thenReturn(true);
+    this.sandbox.onEnable();
+    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available");
+    assertFalse(this.sandbox.isBrowserSupported());
+    this.sandbox.onDisable();
+  }
+
+  @Test
   void warnsWhenQemuIsNotInstalled() {
+    when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
     verify(this.logger).warn("QEMU is not installed, virtual machines will not be available");
     final boolean qemu = this.sandbox.isQemuInstalled();

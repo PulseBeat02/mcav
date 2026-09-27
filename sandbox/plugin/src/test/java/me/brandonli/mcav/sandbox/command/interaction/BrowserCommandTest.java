@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,18 +33,27 @@ import static org.mockito.Mockito.when;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
+import me.brandonli.mcav.browser.BrowserUnavailableException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import net.kyori.adventure.text.Component;
@@ -65,6 +77,9 @@ import org.mockito.Mockito;
 final class BrowserCommandTest {
 
   private BrowserCommand command;
+  private MCAVSandbox plugin;
+  private AudioProvider provider;
+  private PluginDataConfigurationMapper configuration;
   private CommandSender sender;
   private MultiplePlayerSelector selector;
   private BrowserPlayer browser;
@@ -78,7 +93,13 @@ final class BrowserCommandTest {
   void createCommand() {
     final Server server = TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    this.plugin = plugin;
     when(plugin.getServer()).thenReturn(server);
+    when(plugin.isBrowserSupported()).thenReturn(true);
+    this.provider = mock(AudioProvider.class);
+    when(plugin.getAudioProvider()).thenReturn(this.provider);
+    this.configuration = mock(PluginDataConfigurationMapper.class);
+    when(plugin.getConfiguration()).thenReturn(this.configuration);
     this.command = new BrowserCommand(plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -90,7 +111,7 @@ final class BrowserCommandTest {
     this.callback = mock(VideoAttachableCallback.class);
     when(this.browser.getVideoAttachableCallback()).thenReturn(this.callback);
     this.browsers = Mockito.mockStatic(BrowserPlayer.class);
-    this.browsers.when(BrowserPlayer::selenium).thenReturn(this.browser);
+    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenReturn(this.browser);
     this.ditherFilter = mock(FunctionalVideoFilter.class);
     this.dithers = Mockito.mockStatic(DitherFilter.class);
     this.dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(this.ditherFilter);
@@ -106,7 +127,11 @@ final class BrowserCommandTest {
   }
 
   private void create(final String resolution, final String blocks, final String url) {
-    this.command.createBrowser(this.sender, this.selector, resolution, 80, 2, blocks, 0, DitheringArgument.FILTER_LITE, url);
+    this.create(resolution, blocks, AudioArgument.NONE, url);
+  }
+
+  private void create(final String resolution, final String blocks, final AudioArgument audio, final String url) {
+    this.command.createBrowser(this.sender, this.selector, resolution, 2, blocks, 0, DitheringArgument.FILTER_LITE, audio, url);
   }
 
   private void assertReceived(final Component... expected) {
@@ -129,12 +154,10 @@ final class BrowserCommandTest {
     final BrowserSource source = sources.getValue();
     final URI uri = source.getUri();
     final URI expected = URI.create("https://example.com/page");
-    final int quality = source.getScreencastQuality();
-    final int width = source.getScreencastWidth();
-    final int height = source.getScreencastHeight();
-    final int nth = source.getScreencastNthFrame();
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final int nth = source.getFrameInterval();
     assertEquals(expected, uri);
-    assertEquals(80, quality);
     assertEquals(1280, width);
     assertEquals(720, height);
     assertEquals(2, nth);
@@ -151,7 +174,91 @@ final class BrowserCommandTest {
     this.assertOpenedThePage();
     assertSame(this.browser, this.command.player);
     final Component started = Message.START_BROWSER.build();
-    this.assertReceived(started);
+    this.assertReceived(Message.BROWSER_LOADING.build(), started);
+  }
+
+  @Test
+  void aServerTheBrowserDoesNotRunOnIsToldSoAndGetsNoBrowser() {
+    when(this.plugin.isBrowserSupported()).thenReturn(false);
+
+    this.create("1280x720", "5x3", "https://example.com/page");
+
+    this.assertReceived(Message.BROWSER_UNSUPPORTED.build());
+    this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
+    assertNull(this.command.result);
+  }
+
+  @Test
+  void theSoundOfThePagePlaysIntoTheChosenOutputAndIsLetGoOfOnRelease() {
+    final AudioFilter output = mock(AudioFilter.class);
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(output);
+    final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
+    when(this.browser.getAudioAttachableCallback()).thenReturn(audio);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+
+    this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
+
+    final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
+    verify(audio).attach(pipelines.capture());
+    assertSame(output, pipelines.getValue().getFilter());
+    this.command.releaseBrowser(this.sender);
+    // the provider lets go of the outputs only if no video or machine took them over meanwhile
+    verify(this.provider).releaseAudioFilter(this.browser);
+  }
+
+  @Test
+  void theSoundIsLetGoOfWhenTheReleaseFailsAndWhileThePluginDisables() {
+    when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
+      mock(AudioFilter.class)
+    );
+    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+    this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
+    // a disabling plugin hands out its provider no more, and the browser fails to end
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
+    org.mockito.Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseBrowser(this.sender));
+    assertEquals("release broke", failure.getMessage());
+    verify(this.provider).releaseAudioFilter(this.browser);
+  }
+
+  private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
+    when(this.provider.isHttpEnabled()).thenReturn(true);
+    when(this.provider.isHttpReady()).thenReturn(true);
+    when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.browser))).thenReturn(mock(AudioFilter.class));
+    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create("1280x720", "5x3", AudioArgument.HTTP_SERVER, "https://example.com/page");
+  }
+
+  @Test
+  void aBrowserThatStartsWithTheWebPageSendsItsLinkAndOneThatFailsSendsNone() {
+    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
+    verify(this.provider).constructHttpUrl();
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke")));
+    verify(this.provider).constructHttpUrl();
+  }
+
+  @Test
+  void anAudioOutputThatCannotPlayStartsNoBrowser() {
+    this.create("1280x720", "5x3", AudioArgument.DISCORD_BOT, "https://example.com/page");
+
+    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
+  }
+
+  @Test
+  void aBrowserThatCannotRunOnThisServerIsDescribedSo() {
+    final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline");
+
+    final Component direct = this.command.createStartMessage(false, unavailable);
+    final Component wrapped = this.command.createStartMessage(false, new CompletionException(unavailable));
+    final Component other = this.command.createStartMessage(false, new CompletionException(new IllegalStateException("page")));
+
+    assertEquals(Message.BROWSER_UNAVAILABLE.build(), direct);
+    assertEquals(Message.BROWSER_UNAVAILABLE.build(), wrapped);
+    assertEquals(Message.BROWSER_ERROR.build(), other);
   }
 
   @Test
@@ -165,7 +272,7 @@ final class BrowserCommandTest {
     assertNull(this.command.player);
     assertNull(this.command.result);
     final Component failed = Message.BROWSER_ERROR.build();
-    this.assertReceived(failed);
+    this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
 
   @Test
@@ -211,6 +318,45 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void refusesBrowsersLargerThanTheBrowserCanPaint() {
+    this.create("4097x720", "5x3", "https://example.com/page");
+    this.create("1280x4097", "5x3", "https://example.com/page");
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    this.assertReceived(error, error);
+    this.browsers.verifyNoInteractions();
+  }
+
+  @Test
+  void aBrowserOfTheLargestSizeTheBrowserCanPaintStarts() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create("4096x4096", "5x3", "https://example.com/page");
+    final ArgumentCaptor<BrowserSource> sources = ArgumentCaptor.forClass(BrowserSource.class);
+    verify(this.browser).startAsync(sources.capture(), any());
+    assertEquals(4096, sources.getValue().getWidth());
+    assertEquals(4096, sources.getValue().getHeight());
+  }
+
+  @Test
+  void theBrowserFollowsTheConfiguration() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create("1280x720", "5x3", "https://example.com/page");
+    this.browsers.verify(() ->
+        BrowserPlayer.create(argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay()))
+      );
+
+    when(this.configuration.isBrowserPrivateNetworks()).thenReturn(true);
+    when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
+    when(this.configuration.isBrowserAutoplaySound()).thenReturn(true);
+    final BrowserOptions options = this.command.createOptions();
+    assertTrue(options.isPrivateNetworks());
+    assertTrue(options.isJavaScriptJit());
+    assertTrue(options.isAutoplay());
+  }
+
+  @Test
   void refusesInvalidUrls() {
     this.create("1280x720", "5x3", "https://exa mple.com/page");
 
@@ -233,7 +379,7 @@ final class BrowserCommandTest {
   @Test
   void releasesTheScreenWhenTheBrowserFactoryFails() {
     final IllegalStateException failure = new IllegalStateException("browser factory");
-    this.browsers.when(BrowserPlayer::selenium).thenThrow(failure);
+    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenThrow(failure);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
     );
@@ -320,7 +466,7 @@ final class BrowserCommandTest {
 
   @Test
   void describesTheOutcomeOfTheStart() {
-    final IllegalStateException error = new IllegalStateException("no chrome");
+    final IllegalStateException error = new IllegalStateException("no browser");
 
     final Component success = this.command.createStartMessage(true, null);
     final Component failure = this.command.createStartMessage(false, error);
@@ -333,15 +479,15 @@ final class BrowserCommandTest {
 
   @Test
   void reportsABrowserThatCannotStartWithoutBlamingTheUrl() {
-    final IllegalStateException missingDriver = new IllegalStateException("chromedriver not found");
-    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingDriver);
+    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host");
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingNatives);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
 
     this.create("1280x720", "5x3", "https://example.com/page");
 
     verify(this.browser).release();
     final Component failed = Message.BROWSER_ERROR.build();
-    this.assertReceived(failed);
+    this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
 
   @ParameterizedTest

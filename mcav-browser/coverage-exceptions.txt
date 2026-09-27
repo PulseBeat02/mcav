@@ -1,0 +1,5 @@
+# Lines of production code that no test can run, each with the reason. The coverage lint skips them.
+# Format: path below src/main/java | exact source line | reason
+# The lint fails when an entry no longer matches an uncovered line, so this list cannot hide new gaps.
+me/brandonli/mcav/browser/BrowserHelper.java | System.exit(status); | JaCoCo counts a line once the code after it runs, and System.exit never returns; the helper tests run main in child JVMs that end through it
+me/brandonli/mcav/browser/BrowserHelper.java | throw new AssertionError("System.exit returned"); | unreachable after System.exit, which never returns; it only tells the compiler that main ends here

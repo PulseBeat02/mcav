@@ -229,6 +229,28 @@ final class HttpDownloaderTest {
   }
 
   @Test
+  void aPinnedDownloadChecksItsHashAndItsSize() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      server.respond("/big", 200, new byte[256 * 1024]);
+      final String sha256 = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(CONTENT));
+      final Path destination = this.directory.resolve("pinned.bin");
+      HttpDownloader.download(server.uri("/file"), destination, sha256, CONTENT.length);
+      assertArrayEquals(CONTENT, Files.readAllBytes(destination));
+      final Path big = this.directory.resolve("big.bin");
+      assertThrows(DownloadTooLargeException.class, () -> HttpDownloader.download(server.uri("/big"), big, sha256, CONTENT.length));
+      assertFalse(Files.exists(big), "nothing larger than the pin is kept");
+      final Path other = this.directory.resolve("other.bin");
+      final String wrong = "0".repeat(64);
+      assertThrows(ChecksumMismatchException.class, () -> HttpDownloader.download(server.uri("/file"), other, wrong, CONTENT.length));
+      assertThrows(IllegalArgumentException.class, () -> HttpDownloader.download(server.uri("/file"), other, sha256, 0));
+      assertThrows(NullPointerException.class, () -> HttpDownloader.download(server.uri("/file"), other, (String) null, 1));
+    } catch (final java.security.NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(exception);
+    }
+  }
+
+  @Test
   void refusesANonPositiveSizeLimit() {
     final URI uri = URI.create("http://example.com/file");
     final Path destination = this.directory.resolve("unused.bin");

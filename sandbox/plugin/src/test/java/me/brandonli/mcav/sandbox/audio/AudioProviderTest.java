@@ -247,7 +247,7 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isDiscordBotReady();
     assertTrue(ready);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertSame(this.discord, filter);
+    assertPlaysInto(this.discord, filter);
     final InOrder order = inOrder(this.discord, this.audioManager);
     order.verify(this.discord).flush();
     order.verify(this.audioManager).setSendingHandler(this.discord);
@@ -272,7 +272,7 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isDiscordBotReady();
     assertTrue(ready);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertSame(this.discord, filter);
+    assertPlaysInto(this.discord, filter);
   }
 
   @Test
@@ -323,7 +323,7 @@ final class AudioProviderTest {
     final String url = this.provider.constructHttpUrl();
     assertEquals("http://mc.example.com:3000/", url);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    assertSame(this.httpServer, filter);
+    assertPlaysInto(this.httpServer, filter);
     verify(this.httpServer).setCurrentMedia(this.dump);
   }
 
@@ -390,10 +390,52 @@ final class AudioProviderTest {
     verify(pluginManager, never()).registerEvents(any(), any());
   }
 
+  private static void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
+    final java.nio.ByteBuffer samples = java.nio.ByteBuffer.allocate(4);
+    final me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata metadata =
+      me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    when(output.applyFilter(samples, metadata)).thenReturn(true);
+    assertTrue(filter.applyFilter(samples, metadata));
+    verify(output).applyFilter(samples, metadata);
+  }
+
+  @Test
+  void theOutputsPlayOneSourceAtATime() {
+    final SVCFilter videoSpeakers = this.voiceChatFilter;
+    final SVCFilter machineSpeakers = mock(SVCFilter.class);
+    this.svcFilters.when(() -> SVCFilter.svc(this.players)).thenReturn(videoSpeakers, machineSpeakers);
+    final Object machine = new Object();
+    final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
+    final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
+    // the machine took the outputs over: the speakers of the video stop, and its filter falls silent
+    verify(videoSpeakers).release();
+    final java.nio.ByteBuffer samples = java.nio.ByteBuffer.allocate(4);
+    final me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata metadata =
+      me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    assertFalse(video.applyFilter(samples, metadata));
+    verify(videoSpeakers, never()).applyFilter(any(), any());
+    assertPlaysInto(machineSpeakers, sound);
+    assertFalse(sound.applyFilter(java.nio.ByteBuffer.allocate(8), metadata), "what the output answers comes back");
+    // the source that has the outputs keeps them when it asks again
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
+    verify(machineSpeakers, never()).release();
+    // releasing the video leaves the machine playing; releasing the machine lets go of the outputs
+    this.provider.releaseAudioFilter();
+    verify(machineSpeakers, never()).release();
+    this.provider.releaseAudioFilter(new Object());
+    verify(machineSpeakers, never()).release();
+    this.provider.releaseAudioFilter(machine);
+    verify(machineSpeakers).release();
+    assertFalse(sound.applyFilter(samples, metadata), "a released source plays no more");
+    assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
+    assertSame(AudioFilter.NO_OP, this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine));
+  }
+
   @Test
   void playsThroughVoiceChatSpeakersUntilReleased() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
-    assertSame(this.voiceChatFilter, filter);
+    assertPlaysInto(this.voiceChatFilter, filter);
     verify(this.voiceChatFilter).start();
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter();

@@ -72,13 +72,6 @@ final class SuggestionProviderTest {
   }
 
   @Test
-  void suggestsQualities() {
-    final Stream<String> suggestions = this.provider.suggestQuality();
-    final List<String> expected = List.of("10", "20", "30", "40", "50", "60", "70", "80", "90", "100");
-    assertSuggests(expected, suggestions);
-  }
-
-  @Test
   void suggestsFrameIntervals() {
     final Stream<String> suggestions = this.provider.suggestNth();
     final List<String> expected = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");

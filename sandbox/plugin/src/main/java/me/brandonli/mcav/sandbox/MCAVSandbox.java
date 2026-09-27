@@ -90,6 +90,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private @Nullable JukeBoxListener listener;
 
   private boolean qemuInstalled;
+  private boolean browserSupported;
 
   /**
    * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
@@ -156,6 +157,11 @@ public final class MCAVSandbox extends JavaPlugin {
     this.qemuInstalled = vmModule.isQemuInstalled();
     if (!this.qemuInstalled) {
       pluginLogger.warn(NO_QEMU);
+    }
+    final BrowserModule browserModule = api.getModule(BrowserModule.class);
+    this.browserSupported = browserModule.isSupported();
+    if (!this.browserSupported) {
+      pluginLogger.warn("There is no browser for the operating system and processor of this server, browsers will not be available");
     }
 
     final long end = System.currentTimeMillis();
@@ -328,5 +334,15 @@ public final class MCAVSandbox extends JavaPlugin {
    */
   public boolean isQemuInstalled() {
     return this.qemuInstalled;
+  }
+
+  /**
+   * Checks whether the browser can run on the operating system and processor of this server, as found when the plugin
+   * was enabled.
+   *
+   * @return true if browsers can be created
+   */
+  public boolean isBrowserSupported() {
+    return this.browserSupported;
   }
 }

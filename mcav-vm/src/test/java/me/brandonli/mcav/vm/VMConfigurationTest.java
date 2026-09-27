@@ -71,7 +71,6 @@ final class VMConfigurationTest {
     configuration.machine("q35");
     configuration.accelerator("tcg");
     configuration.vga("virtio");
-    configuration.audio("none");
 
     final List<String> arguments = configuration.getArguments();
 
@@ -102,9 +101,7 @@ final class VMConfigurationTest {
       "-accel",
       "tcg",
       "-vga",
-      "virtio",
-      "-audio",
-      "none"
+      "virtio"
     );
   }
 
@@ -264,7 +261,6 @@ final class VMConfigurationTest {
       candidate -> candidate.machine("a"),
       candidate -> candidate.accelerator("a"),
       candidate -> candidate.vga("a"),
-      candidate -> candidate.audio("a"),
       candidate -> candidate.drive("a"),
       candidate -> candidate.device("a"),
       candidate -> candidate.option("a", "b"),
@@ -306,7 +302,6 @@ final class VMConfigurationTest {
     assertThrows(NullPointerException.class, () -> configuration.machine(null));
     assertThrows(NullPointerException.class, () -> configuration.accelerator(null));
     assertThrows(NullPointerException.class, () -> configuration.vga(null));
-    assertThrows(NullPointerException.class, () -> configuration.audio(null));
     assertThrows(NullPointerException.class, () -> configuration.drive(null));
     assertThrows(NullPointerException.class, () -> configuration.device(null));
     final List<String> arguments = configuration.getArguments();

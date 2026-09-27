@@ -359,6 +359,34 @@ final class DumpUtilsTest {
   }
 
   @Test
+  void redactsTheUserTheQueryAndTheFragmentOfEveryWebAddress() {
+    final String command =
+      "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE https://alice:open@example.com/page?code=abc#frag";
+    final String notice = "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to myapp://callback?code=abc";
+    final String video = "[12:34:56 INFO]: Failed to start https://cdn.example.com/clip.mp4?Expires=1&Signature=abc for 2 viewers";
+    final String plain = "[12:34:56 INFO]: Steve issued server command: /mcav video play @a https://example.com/clip.mp4";
+    final String numeric = "[12:34:56 INFO]: Browser: The browser could not load http://203.0.113.7:8080/admin?session=1";
+
+    assertEquals(
+      "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE https://<redacted>@example.com/page?<redacted>",
+      DumpUtils.redactLogLine(command)
+    );
+    assertEquals(
+      "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to myapp://callback?<redacted>",
+      DumpUtils.redactLogLine(notice)
+    );
+    assertEquals(
+      "[12:34:56 INFO]: Failed to start https://cdn.example.com/clip.mp4?<redacted> for 2 viewers",
+      DumpUtils.redactLogLine(video)
+    );
+    assertEquals(plain, DumpUtils.redactLogLine(plain), "an address without secrets is what a bug report is about");
+    assertEquals(
+      "[12:34:56 INFO]: Browser: The browser could not load http://<redacted-address>/admin?<redacted>",
+      DumpUtils.redactLogLine(numeric)
+    );
+  }
+
+  @Test
   void redactsWhatPlayersTypedAfterTheCommandsOfOtherPlugins() {
     final String login = "[12:34:56 INFO]: Steve issued server command: /login hunter2";
     final String own = "[12:34:56 INFO]: Steve issued server command: /mcav video map @a FFMPEG NONE 640x360 5x3 0 FILTER_LITE  clip.mp4";

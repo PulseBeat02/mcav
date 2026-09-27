@@ -44,7 +44,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@code n} on the popup opens the second page and closes the popup a second later; pressing {@code w} on the
  * second page closes it 300 milliseconds later.
  * {@code /hooked} is the main page, but the server runs a hook before answering, so tests can act while the browser
- * is still loading.
+ * is still loading. The red pages {@code /to-popup-synthetic} (a script clicks a link to the popup without a click of
+ * the user), {@code /named-frame} (a link in the upper left quarter opens the second page in a frame named
+ * {@code inner}) and {@code /form-target} (a button over the whole page sends a form to the second page, targeting a
+ * new window) test how windows open in place.
  */
 public final class TestPages implements AutoCloseable {
 
@@ -63,6 +66,156 @@ public final class TestPages implements AutoCloseable {
    */
   public static final int SECOND_COLOR = 0x00FF00;
 
+  /**
+   * The width of the frame of {@code /named-frame}, in CSS pixels.
+   */
+  public static final int FRAME_WIDTH = 100;
+
+  /**
+   * The frequency of the tone of the sound pages, in hertz.
+   */
+  public static final int TONE_HERTZ = 1000;
+
+  /**
+   * The amplitude of the tone of the sound pages, a share of full scale.
+   */
+  public static final double TONE_AMPLITUDE = 0.5;
+
+  /**
+   * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
+   */
+  public static final int TOGGLE_MILLIS = 400;
+
+  // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context; the
+  // page reports every state its context takes, so a test that hears nothing can tell why
+  private static final String TONE_SCRIPT =
+    """
+    <script>
+      const context = new AudioContext();
+      context.addEventListener('statechange', () => {
+        report('state', { key: context.state });
+        // whether the clock of the context runs: without an audio device that renders, it stands still
+        let times = 0;
+        const clock = setInterval(() => {
+          report('time', { key: context.currentTime.toFixed(2) });
+          if (++times === 10) {
+            clearInterval(clock);
+          }
+        }, 1000);
+      });
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+
+  // the tone of TONE_SCRIPT on a page that first wraps everything of Web Audio that a capture could call, keeps every
+  // script processor it sees, reports how many, and feeds each one samples of its own, without waiting for a click
+  private static final String WRAPPED_TONE_SCRIPT =
+    """
+    <script>
+      const taps = new Set();
+      const keep = (node) => {
+        if (node instanceof ScriptProcessorNode) {
+          taps.add(node);
+        }
+        return node;
+      };
+      for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
+        for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
+          const original = prototype[name];
+          if (typeof original === 'function') {
+            prototype[name] = function (...args) {
+              return keep(original.apply(this, args));
+            };
+          }
+        }
+      }
+      const connect = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (target, ...rest) {
+        keep(this);
+        keep(target);
+        return connect.call(this, target, ...rest);
+      };
+      const listen = EventTarget.prototype.addEventListener;
+      EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+        keep(this);
+        return listen.call(this, type, listener, ...rest);
+      };
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
+      forged.getChannelData(0).fill(0.5);
+      forged.getChannelData(1).fill(0.5);
+      setInterval(() => {
+        for (const tap of taps) {
+          const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+          if (typeof tap.onaudioprocess === 'function') {
+            tap.onaudioprocess(event);
+          }
+          tap.dispatchEvent(event);
+        }
+      }, 50);
+      report('taps', { clientX: taps.size });
+      addEventListener('pointerdown', () => context.resume());
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+
+  // an audio element that plays the tone at the volume and muting of the address, from the first click
+  private static final String ELEMENT_SCRIPT =
+    """
+    <audio id="tone" src="/tone.wav" loop></audio>
+    <script>
+      const element = document.getElementById('tone');
+      const parameters = new URLSearchParams(location.search);
+      element.volume = Number(parameters.get('volume') || '1');
+      element.muted = parameters.get('muted') === '1';
+      addEventListener('pointerdown', () =>
+        element.play().then(() => report('play', { key: 'playing' })).catch((error) => report('play', { key: error.name }))
+      );
+    </script>
+    """;
+
+  // from the first click, the picture turns white and the tone plays at once, and both stop at once, in turns
+  private static final String TOGGLE_SCRIPT =
+    """
+    <script>
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      let on = false;
+      let started = false;
+      addEventListener('pointerdown', () => {
+        context.resume();
+        if (started) {
+          return;
+        }
+        started = true;
+        setInterval(() => {
+          on = !on;
+          document.body.style.background = on ? '#ffffff' : '#000000';
+          gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+        }, %d);
+      });
+    </script>
+    """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLIS);
+
   private static final String SCRIPT =
     """
     <script>
@@ -76,6 +229,7 @@ public final class TestPages implements AutoCloseable {
           x: String(Math.round(event.clientX || 0)),
           y: String(Math.round(event.clientY || 0)),
           button: String(event.button || 0),
+          buttons: String(event.buttons || 0),
           key: event.key || ''
         });
         const address = '/event?' + parameters.toString();
@@ -93,6 +247,7 @@ public final class TestPages implements AutoCloseable {
       for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
         document.addEventListener(type, event => report(type, event));
       }
+      document.addEventListener('wheel', event => report('wheel', { clientX: event.clientX, clientY: event.clientY, key: String(Math.sign(event.deltaY)) }));
       document.addEventListener('contextmenu', event => {
         event.preventDefault();
         report('contextmenu', event);
@@ -141,8 +296,49 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/main", exchange -> pages.page(exchange, "main", MAIN_COLOR));
       httpServer.createContext("/popup", exchange -> pages.page(exchange, "popup", POPUP_COLOR));
       httpServer.createContext("/second", exchange -> pages.page(exchange, "second", SECOND_COLOR));
+      httpServer.createContext("/tone", exchange -> pages.page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
+      httpServer.createContext("/tone-element", exchange -> pages.page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext("/tone-wrapped", exchange -> pages.page(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
+      httpServer.createContext("/av-sync", exchange -> pages.page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
+      httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
+      httpServer.createContext("/dialog", exchange ->
+        pages.script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
+      );
+      httpServer.createContext("/to-file", exchange -> pages.script(exchange, "location.href = 'file:///etc/passwd';"));
+      httpServer.createContext("/to-download", exchange -> pages.script(exchange, "location.href = '/download';"));
+      httpServer.createContext("/to-popup", exchange -> pages.script(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext("/to-popup-link", exchange ->
+        pages.script(
+          exchange,
+          "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+        )
+      );
+      httpServer.createContext("/to-popup-synthetic", exchange ->
+        pages.script(
+          exchange,
+          "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
+          " document.getElementById('link').click();"
+        )
+      );
+      httpServer.createContext("/named-frame", exchange ->
+        pages.html(
+          exchange,
+          "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
+          FRAME_WIDTH +
+          "px;height:60px;border:0\"></iframe>" +
+          "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+        )
+      );
+      httpServer.createContext("/form-target", exchange ->
+        pages.html(
+          exchange,
+          "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
+          " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
+        )
+      );
+      httpServer.createContext("/download", TestPages::download);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -179,6 +375,15 @@ public final class TestPages implements AutoCloseable {
   public List<PageEvent> getEvents() {
     synchronized (this.events) {
       return List.copyOf(this.events);
+    }
+  }
+
+  /**
+   * Forgets the events the pages reported so far.
+   */
+  public void clearEvents() {
+    synchronized (this.events) {
+      this.events.clear();
     }
   }
 
@@ -229,6 +434,35 @@ public final class TestPages implements AutoCloseable {
   }
 
   private void page(final HttpExchange exchange, final String name, final int color) throws IOException {
+    this.page(exchange, name, color, "");
+  }
+
+  /**
+   * Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
+   *
+   * @param exchange the request
+   * @throws IOException if the answer cannot be sent
+   */
+  private static void toneWave(final HttpExchange exchange) throws IOException {
+    final int rate = 48_000;
+    final java.nio.ByteBuffer wave = java.nio.ByteBuffer.allocate(44 + rate * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    wave.put("RIFF".getBytes(StandardCharsets.US_ASCII)).putInt(36 + rate * 4).put("WAVE".getBytes(StandardCharsets.US_ASCII));
+    wave.put("fmt ".getBytes(StandardCharsets.US_ASCII)).putInt(16).putShort((short) 1).putShort((short) 2);
+    wave.putInt(rate).putInt(rate * 4).putShort((short) 4).putShort((short) 16);
+    wave.put("data".getBytes(StandardCharsets.US_ASCII)).putInt(rate * 4);
+    for (int frame = 0; frame < rate; frame++) {
+      final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);
+      wave.putShort(sample).putShort(sample);
+    }
+    final byte[] body = wave.array();
+    exchange.getResponseHeaders().add("Content-Type", "audio/wav");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  private void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
     final String hex = String.format("#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
@@ -239,10 +473,65 @@ public final class TestPages implements AutoCloseable {
       name +
       "\">" +
       SCRIPT +
+      extra +
       "</body></html>";
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();
     headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  /**
+   * Serves a red page with more elements.
+   *
+   * @param exchange the request
+   * @param elements the HTML of the elements
+   * @throws IOException if the answer cannot be sent
+   */
+  private void html(final HttpExchange exchange, final String elements) throws IOException {
+    final String html =
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
+      elements +
+      "</body></html>";
+    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  /**
+   * Serves the red main page with a script that runs when the page has loaded.
+   *
+   * @param exchange the request
+   * @param script   the script
+   * @throws IOException if the response fails
+   */
+  private void script(final HttpExchange exchange, final String script) throws IOException {
+    final String html =
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
+      "<body><script>window.addEventListener('load', () => setTimeout(() => { " +
+      script +
+      " }, 200));</script></body></html>";
+    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
+  }
+
+  private static void download(final HttpExchange exchange) throws IOException {
+    final byte[] body = "not for the server".getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "application/octet-stream");
+    headers.add("Content-Disposition", "attachment; filename=\"evil.exe\"");
     exchange.sendResponseHeaders(200, body.length);
     try (final OutputStream output = exchange.getResponseBody()) {
       output.write(body);
@@ -273,11 +562,13 @@ public final class TestPages implements AutoCloseable {
     final String rawX = parameters.getOrDefault("x", "0");
     final String rawY = parameters.getOrDefault("y", "0");
     final String rawButton = parameters.getOrDefault("button", "0");
+    final String rawButtons = parameters.getOrDefault("buttons", "0");
     final String key = parameters.getOrDefault("key", "");
     final int x = Integer.parseInt(rawX);
     final int y = Integer.parseInt(rawY);
     final int button = Integer.parseInt(rawButton);
-    return new PageEvent(page, type, x, y, button, key);
+    final int buttons = Integer.parseInt(rawButtons);
+    return new PageEvent(page, type, x, y, button, buttons, key);
   }
 
   private static Map<String, String> parse(final String query) {
@@ -316,14 +607,16 @@ public final class TestPages implements AutoCloseable {
     private final int x;
     private final int y;
     private final int button;
+    private final int buttons;
     private final String key;
 
-    PageEvent(final String page, final String type, final int x, final int y, final int button, final String key) {
+    PageEvent(final String page, final String type, final int x, final int y, final int button, final int buttons, final String key) {
       this.page = page;
       this.type = type;
       this.x = x;
       this.y = y;
       this.button = button;
+      this.buttons = buttons;
       this.key = key;
     }
 
@@ -373,6 +666,15 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
+     * Gets the buttons held during a mouse event, 1 for the left and 2 for the right button.
+     *
+     * @return the buttons
+     */
+    public int getButtons() {
+      return this.buttons;
+    }
+
+    /**
      * Gets the key of a keyboard event.
      *
      * @return the key, or an empty string for mouse events
@@ -383,7 +685,22 @@ public final class TestPages implements AutoCloseable {
 
     @Override
     public String toString() {
-      return this.page + " " + this.type + " " + this.x + "," + this.y + " button " + this.button + " key '" + this.key + "'";
+      return (
+        this.page +
+        " " +
+        this.type +
+        " " +
+        this.x +
+        "," +
+        this.y +
+        " button " +
+        this.button +
+        " buttons " +
+        this.buttons +
+        " key '" +
+        this.key +
+        "'"
+      );
     }
   }
 }
