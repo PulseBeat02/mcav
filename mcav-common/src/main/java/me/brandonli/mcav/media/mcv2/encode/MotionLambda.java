@@ -88,6 +88,35 @@ final class MotionLambda {
   }
 
   /**
+   * Tells whether the source moves by an adaptive profile's thresholds: above {@code enter} it does, below
+   * {@code leave} it does not, and in between, as before any measurement, it keeps what it did.
+   *
+   * @param was   whether it moved at the frame before
+   * @param enter the average temporal information above which it moves
+   * @param leave the one below which it is calm, at most {@code enter}
+   * @return whether it moves at the next frame
+   */
+  boolean moving(final boolean was, final double enter, final double leave) {
+    return moving(this.motion, was, enter, leave);
+  }
+
+  /**
+   * The hysteresis of {@link #moving(boolean, double, double)} at an average temporal information.
+   *
+   * @param motion the average temporal information, or NaN before any
+   * @param was    whether it moved at the frame before
+   * @param enter  the average above which it moves
+   * @param leave  the one below which it is calm
+   * @return whether it moves
+   */
+  static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
+    if (motion > enter) {
+      return true;
+    }
+    return was && !(motion < leave);
+  }
+
+  /**
    * The factor a frame's lambda rises by at an average temporal information: 1 up to the knee, then with the motion.
    *
    * @param motion the average temporal information, or NaN before any
@@ -135,6 +164,15 @@ final class MotionLambda {
    */
   void add(final double information) {
     this.motion = Double.isNaN(this.motion) ? information : this.motion + SMOOTHING * (information - this.motion);
+  }
+
+  /**
+   * Gets the average temporal information of the frames measured since the last start.
+   *
+   * @return the average, or NaN before a frame has been compared with the one before it
+   */
+  double average() {
+    return this.motion;
   }
 
   /**

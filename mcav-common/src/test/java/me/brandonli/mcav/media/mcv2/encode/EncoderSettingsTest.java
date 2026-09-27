@@ -38,16 +38,69 @@ final class EncoderSettingsTest {
   void stepsDownThePresetLadder() {
     assertEquals(EncoderSettings.SHIP.withLive(LiveSearch.LIVE), EncoderSettings.SHIP.faster());
     assertEquals(EncoderSettings.LIVE.withLive(LiveSearch.LIVE_FAST).withLambda(55), EncoderSettings.LIVE_FAST);
-    assertEquals(EncoderSettings.LIVE_FAST, EncoderSettings.LIVE.faster());
+    assertEquals(
+      EncoderSettings.LIVE.withAdaptive(new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 8, 6)),
+      EncoderSettings.LIVE_ADAPTIVE
+    );
+    assertEquals(EncoderSettings.LIVE_ADAPTIVE, EncoderSettings.LIVE.faster());
+    assertEquals(EncoderSettings.LIVE_FAST, EncoderSettings.LIVE_ADAPTIVE.faster());
     assertSame(LiveSearch.LIVE_FAST, EncoderSettings.LIVE_FAST.live());
-    // the step to the live search keeps the lambda; the step to the live-fast search scales it to keep the quality;
+    // the step to the live search keeps the lambda; the steps toward the live-fast search scale it to keep the quality;
     // nothing else changes
     final EncoderSettings low = EncoderSettings.LOW_BANDWIDTH.withReference(ReferencePolicy.LAST_KEYFRAME).withKeyInterval(9);
     assertEquals(low.withLive(LiveSearch.LIVE), low.faster());
-    assertEquals(low.withLive(LiveSearch.LIVE_FAST).withLambda((137.730758207 * 55) / 72), low.withLive(LiveSearch.LIVE).faster());
+    final EncoderSettings adaptive = low.withLive(LiveSearch.LIVE).faster();
+    assertEquals(
+      low.withLive(LiveSearch.LIVE).withAdaptive(new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, (137.730758207 * 55) / 72, 8, 6)),
+      adaptive
+    );
+    assertEquals(low.withLive(LiveSearch.LIVE_FAST).withLambda((137.730758207 * 55) / 72), adaptive.faster());
     // the fastest search, and one off the ladder, have no rung below
     assertNull(EncoderSettings.LIVE_FAST.faster());
     assertNull(EncoderSettings.LIVE.withLive(LiveSearch.EXACT).faster());
+  }
+
+  @Test
+  void codesAnAdaptiveProfilesFramesCalmOrInMotion() {
+    final EncoderSettings adaptive = EncoderSettings.LIVE_ADAPTIVE;
+    // calm: the profile's own search and lambda; in motion: the second search at its lambda; neither adapts again
+    assertEquals(EncoderSettings.LIVE, adaptive.frame(false));
+    assertEquals(EncoderSettings.LIVE_FAST, adaptive.frame(true));
+    assertSame(EncoderSettings.LIVE, EncoderSettings.LIVE.frame(true));
+    // the adaptive part follows the other copies, and a copy to the exhaustive search drops it
+    assertEquals(new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 8, 6), adaptive.withLambda(80).withKeyInterval(9).adaptive());
+    assertNull(adaptive.withLive(null).adaptive());
+    assertNull(adaptive.withAdaptive(null).adaptive());
+    // it needs a live search that measures the source's motion, and thresholds in order
+    assertThrows(IllegalArgumentException.class, () -> EncoderSettings.SHIP.withAdaptive(adaptive.adaptive()));
+    final LiveSearch unmeasured = new LiveSearch(
+      8,
+      26.5,
+      150,
+      450,
+      300,
+      0,
+      0,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_CLASSES,
+      LiveSearch.ALL_QUANTIZERS,
+      true,
+      16,
+      true,
+      0,
+      0,
+      false
+    );
+    assertThrows(IllegalArgumentException.class, () -> adaptive.withLive(unmeasured));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 6, 8));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 8, -1));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, Double.POSITIVE_INFINITY, 1));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, -1, 8, 6));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, Double.NaN, 8, 6));
+    assertThrows(IllegalArgumentException.class, () -> new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, Double.POSITIVE_INFINITY, 8, 6));
+    assertThrows(NullPointerException.class, () -> new EncoderSettings.Adaptive(null, 55, 8, 6));
   }
 
   @Test

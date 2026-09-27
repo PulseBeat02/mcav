@@ -33,6 +33,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param sceneThreshold  the mean absolute luma change after global prediction that forces a keyframe
  * @param reference       which decoded frame P frames predict from
  * @param live            the cheaper search of a live profile, or null for the reference's exhaustive search
+ * @param adaptive        the search and lambda of the frames of a live profile whose source moves, or null for one search
+ *                        for every frame
  */
 public record EncoderSettings(
   double lambda,
@@ -42,7 +44,8 @@ public record EncoderSettings(
   boolean compareGlobal,
   double sceneThreshold,
   ReferencePolicy reference,
-  @Nullable LiveSearch live
+  @Nullable LiveSearch live,
+  @Nullable Adaptive adaptive
 ) {
   /** The largest local motion range, in pixels: a motion record's signed bytes are half pixels. */
   private static final int MAX_MOTION_RANGE = 63;
@@ -65,6 +68,15 @@ public record EncoderSettings(
    * proxy (75.7), and on the 30 fps gameplay clip nearly so (55/72 of live's lambda there too, 56.5/74.1).
    */
   private static final double LIVE_FAST_LAMBDA = 55;
+
+  /**
+   * The average temporal information above which the adaptive profile codes its frames with the live-fast search, and
+   * the one below which it returns to the live search: the calm sources measure 1.5 to 5.9 (the 1080p30 and 1080p60
+   * proxies, Sintel, a dinner scene), the two gameplay captures 7.8 to 19.2.
+   */
+  private static final double ADAPTIVE_ENTER = 8;
+
+  private static final double ADAPTIVE_LEAVE = 6;
 
   /** The live profile's keyframe interval: four seconds at 30 frames per second. */
   private static final int LIVE_KEY_INTERVAL = 120;
@@ -114,6 +126,41 @@ public record EncoderSettings(
    */
   public static final EncoderSettings LIVE_FAST = LIVE.withLive(LiveSearch.LIVE_FAST).withLambda(LIVE_FAST_LAMBDA);
 
+  /**
+   * The adaptive profile: {@link #LIVE} on calm pictures, and {@link #LIVE_FAST}'s search and lambda once the source
+   * moves (an average temporal information above 8, until it falls below 6), where VMAF forgives the faster search's
+   * error and the frames need the time most.
+   */
+  public static final EncoderSettings LIVE_ADAPTIVE = LIVE.withAdaptive(
+    new Adaptive(LiveSearch.LIVE_FAST, LIVE_FAST_LAMBDA, ADAPTIVE_ENTER, ADAPTIVE_LEAVE)
+  );
+
+  /**
+   * The second search of an adaptive live profile. The profile's own search and lambda code calm pictures; once the
+   * source's average temporal information ({@link MotionLambda}, which the profile's search must measure) rises above
+   * {@code enter}, the frames are coded with this search at this lambda, until it falls below {@code leave}. The two
+   * thresholds apart keep a source near one of them from switching back and forth. Both searches write the same format
+   * and predict from the same pictures, so a switch needs no keyframe; the average depends on the source alone, so the
+   * stream does not depend on how long a frame took.
+   *
+   * @param search the search of frames in motion
+   * @param lambda its lambda, which the motion raises as it raises the profile's
+   * @param enter  the average temporal information above which frames are coded in motion
+   * @param leave  the one below which they are coded calm again, at most {@code enter}
+   */
+  public record Adaptive(LiveSearch search, double lambda, double enter, double leave) {
+    /**
+     * Validates the adaptive search.
+     *
+     * @throws IllegalArgumentException if a value is out of range
+     */
+    public Adaptive {
+      Preconditions.checkNotNull(search, "Search must not be null");
+      Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
+      Preconditions.checkArgument(leave >= 0 && leave <= enter && Double.isFinite(enter), "Thresholds must be 0 <= leave <= enter");
+    }
+  }
+
   /** Which decoded frame P frames predict from. */
   public enum ReferencePolicy {
     /** The previous decoded frame, as the research codec was tuned; the shipped behaviour. */
@@ -143,7 +190,33 @@ public record EncoderSettings(
     final double sceneThreshold,
     final ReferencePolicy reference
   ) {
-    this(lambda, keyInterval, motionRange, halfPixel, compareGlobal, sceneThreshold, reference, null);
+    this(lambda, keyInterval, motionRange, halfPixel, compareGlobal, sceneThreshold, reference, null, null);
+  }
+
+  /**
+   * Constructs settings that search one way for every frame.
+   *
+   * @param lambda         the rate-distortion trade, weighted squared error per logical bit
+   * @param keyInterval    frames between keyframes; 1 makes every frame independent
+   * @param motionRange    the local motion search range in pixels around the global vector, at most 63
+   * @param halfPixel      whether the local search refines to half pixels
+   * @param compareGlobal  whether a frame is also tried with zero global motion
+   * @param sceneThreshold the mean absolute luma change after global prediction that forces a keyframe
+   * @param reference      which decoded frame P frames predict from
+   * @param live           the cheaper search of a live profile, or null for the reference's exhaustive search
+   * @throws IllegalArgumentException if a value is out of range
+   */
+  public EncoderSettings(
+    final double lambda,
+    final int keyInterval,
+    final int motionRange,
+    final boolean halfPixel,
+    final boolean compareGlobal,
+    final double sceneThreshold,
+    final ReferencePolicy reference,
+    final @Nullable LiveSearch live
+  ) {
+    this(lambda, keyInterval, motionRange, halfPixel, compareGlobal, sceneThreshold, reference, live, null);
   }
 
   /**
@@ -157,6 +230,10 @@ public record EncoderSettings(
     Preconditions.checkArgument(motionRange >= 0 && motionRange <= MAX_MOTION_RANGE, "Motion range must be 0 to 63");
     Preconditions.checkArgument(sceneThreshold > 0 && Double.isFinite(sceneThreshold), "Scene threshold must be positive");
     Preconditions.checkNotNull(reference, "Reference policy must not be null");
+    Preconditions.checkArgument(
+      adaptive == null || (live != null && live.motionLambda()),
+      "An adaptive profile must be a live one that measures its source's motion"
+    );
   }
 
   /**
@@ -174,7 +251,8 @@ public record EncoderSettings(
       this.compareGlobal,
       this.sceneThreshold,
       this.reference,
-      this.live
+      this.live,
+      this.adaptive
     );
   }
 
@@ -193,7 +271,8 @@ public record EncoderSettings(
       this.compareGlobal,
       this.sceneThreshold,
       this.reference,
-      this.live
+      this.live,
+      this.adaptive
     );
   }
 
@@ -212,16 +291,18 @@ public record EncoderSettings(
       this.compareGlobal,
       this.sceneThreshold,
       value,
-      this.live
+      this.live,
+      this.adaptive
     );
   }
 
   /**
    * Gets the next rung down the preset ladder - the reference's exhaustive search, then {@link LiveSearch#LIVE}, then
-   * {@link LiveSearch#LIVE_FAST}, each faster than the one before - which a live screen that cannot keep up steps down
-   * before it encodes fewer frames: these settings with the next search. The live-fast search reaches the live search's
-   * quality at 55/72 of its lambda, so that step scales the lambda by as much ({@code LIVE.faster()} is
-   * {@link #LIVE_FAST}); everything else stays.
+   * the adaptive profile (live on calm pictures, live-fast in motion), then {@link LiveSearch#LIVE_FAST}, each faster
+   * than the one before - which a live screen that cannot keep up steps down before it encodes fewer frames. The
+   * live-fast search reaches the live search's quality at 55/72 of its lambda, so the steps to it scale the lambda by
+   * as much ({@code LIVE.faster()} is {@link #LIVE_ADAPTIVE}, whose {@code faster()} is {@link #LIVE_FAST}); everything
+   * else stays.
    *
    * @return the settings with the next faster search, or null when the search is the fastest or not on the ladder
    */
@@ -230,8 +311,14 @@ public record EncoderSettings(
     if (search == null) {
       return this.withLive(LiveSearch.LIVE);
     }
+    final Adaptive second = this.adaptive;
+    if (second != null) {
+      return this.frame(true);
+    }
     return LiveSearch.LIVE.equals(search)
-      ? this.withLive(LiveSearch.LIVE_FAST).withLambda((this.lambda * LIVE_FAST_LAMBDA) / LIVE_LAMBDA)
+      ? this.withAdaptive(
+          new Adaptive(LiveSearch.LIVE_FAST, (this.lambda * LIVE_FAST_LAMBDA) / LIVE_LAMBDA, ADAPTIVE_ENTER, ADAPTIVE_LEAVE)
+        )
       : null;
   }
 
@@ -250,7 +337,43 @@ public record EncoderSettings(
       this.compareGlobal,
       this.sceneThreshold,
       this.reference,
+      value,
+      value == null ? null : this.adaptive
+    );
+  }
+
+  /**
+   * Copies these settings with another adaptive search.
+   *
+   * @param value the search of frames in motion, or null for one search for every frame
+   * @return the new settings
+   * @throws IllegalArgumentException if these are not settings of a live profile that measures its source's motion
+   */
+  public EncoderSettings withAdaptive(final @Nullable Adaptive value) {
+    return new EncoderSettings(
+      this.lambda,
+      this.keyInterval,
+      this.motionRange,
+      this.halfPixel,
+      this.compareGlobal,
+      this.sceneThreshold,
+      this.reference,
+      this.live,
       value
     );
+  }
+
+  /**
+   * Gets the settings a frame is coded with: these, or, in motion, with the adaptive search and its lambda.
+   *
+   * @param moving whether the source moves by the adaptive thresholds
+   * @return the settings of the frame, without an adaptive part
+   */
+  EncoderSettings frame(final boolean moving) {
+    final Adaptive second = this.adaptive;
+    if (second == null) {
+      return this;
+    }
+    return moving ? this.withAdaptive(null).withLive(second.search()).withLambda(second.lambda()) : this.withAdaptive(null);
   }
 }

@@ -247,7 +247,7 @@ picture's top edge, and the picture's framing on the wall matches the debug view
 - **`Mcv2Configuration`** (builder, in the style of `MapConfiguration`): viewers, the wall's top-left block and
   facing, the first map id and size in blocks (at most 63 on a side), the video size (default 128 pixels per block),
   the first page map id (default 2,000,000,000, far from any world's maps) and the page slots (default
-  min(4, blocks), at most 8), the stream id, the encoder settings, and the page frames' outline colour.
+  min(8, blocks), at most 8: 98 KB a frame), the stream id, the encoder settings, and the page frames' outline colour.
 - **`Mcv2Screen`** spawns the hidden, glowing, invulnerable, fixed item frames that hold the page maps (slot
   (column + row) mod slots, so every slot is spread over the wall), shows them per player with the team packet, and
   sends the anchor patches.
@@ -255,8 +255,12 @@ picture's top edge, and the picture's framing on the wall matches the debug view
   refused) and forgets players who quit.
 - **`Mcv2Channel`** shows the screen to a viewer whose pack loaded (on the main thread) before that viewer receives
   frames, starts every new viewer on a keyframe, and sends each frame's pages with the existing
-  `MapPacketFactory` path as **one bundle per frame**, so all pages of a frame arrive together. A frame with more
-  pages than the screen has slots is not sent, and the next frame is a keyframe. Each viewer receives the stream
+  `MapPacketFactory` path as **one bundle per frame**, so all pages of a frame arrive together. **Every frame fits the
+  screen's slots**: the screen gives its encoder the slots' capacity (12,256 bytes a slot, 98 KB with the default
+  eight; `Mcv2Encoder.setFrameLimit`), and a live frame that would take more is searched again at twice the lambda, up
+  to four times. A live gameplay keyframe at 1080p takes ~150 KB at the default lambda, P frames 46 KB on average at
+  60 fps, so without the bound such a stream would never show; with four slots even its P frames would be searched
+  twice. A frame that still has more pages than the screen has slots is not sent, and the next frame is a keyframe. Each viewer receives the stream
   through its own **`Mcv2Link`** (§10): a frame only when the viewer can decode it and its connection's unwritten
   video is within the backlog limit.
 - **`Mcv2Result`** is the video filter: it resizes each frame to the video size, hands the newest frame to a dedicated
@@ -527,9 +531,12 @@ gameplay capture predicts the other's lambda within 1%. It raises only, never lo
 bounded, steady on a steady source, monotone in the motion and restarting at a cut. At the default, gameplay gets a
 lambda of 195 on average (154-214 per frame) and scores VMAF 76.1 at 13.1 Mbit/s of map colours instead of 27.6.
 
-**The preset ladder** (addendum 13 item 4). Three presets, each faster than the one above, all decoded by the same
-pack: `ship` (the reference's exhaustive search, byte-identical to it), `live` (this section's search, lambda 72) and
-`live-fast` (`EncoderSettings.LIVE_FAST`: `LiveSearch.LIVE_FAST`, lambda 55). `live-fast` is `live` with SKIP taken
+**The preset ladder** (addendum 13 item 4, addendum 14 item E). Four presets, each faster than the one above, all
+decoded by the same pack: `ship` (the reference's exhaustive search, byte-identical to it), `live` (this section's
+search, lambda 72), `adaptive` (`EncoderSettings.LIVE_ADAPTIVE`: `live` on calm pictures and `live-fast`'s search at
+lambda 55 once the source moves: its average temporal information, the measure of the motion lambda, above 8 until it
+falls below 6; the calm sources measure 1.5-5.9 - the 1080p30 and 1080p60 proxies, Sintel, a dinner scene - the gameplay
+captures 7.8-19.2) and `live-fast` (`EncoderSettings.LIVE_FAST`: `LiveSearch.LIVE_FAST`, lambda 55). `live-fast` is `live` with SKIP taken
 without a search up to 60 lambda, a 32-pixel block whose superblock the previous frame coded whole split only above
 900 lambda and a 16-pixel block above 600, and the motion search starting at half resolution; at lambda 55 it reaches
 the VMAF `live` reaches at 72. Each rung's rate against `ship` at equal VMAF mean (600 frames; map / after compression):
@@ -538,8 +545,14 @@ and +29.4% / +17.1%, inside its +30%. **A screen's default is `live-fast`** (`Mc
 source that plays while it is encoded is the slowest rung that meets the 1080p30 gate, else the fastest within +30%;
 `live-fast` meets it on quiet content and on gameplay, `live` on quiet content only (below).
 A screen that cannot keep up steps **down the ladder first** (`EncoderSettings.faster()`: `ship`'s search to `live`'s,
-`live`'s to `live-fast`'s with the lambda scaled by 55/72, so the picture keeps its quality; each step is a new encoder,
-whose first frame is a keyframe), then the frame rate, then the size, then the dithered maps (`Mcv2Pacer`, §11).
+`live` to `adaptive` and `adaptive` to `live-fast` with the lambda of the live-fast search scaled by 55/72, so the
+picture keeps its quality), then the frame rate, then the size, then the dithered maps (`Mcv2Pacer`, §11). **Between
+live presets the encoder switches without a keyframe** (`Mcv2Encoder.switchTo`): every live search writes the same
+format from the same pictures, so the frames after a switch are P frames any viewer decodes; the screen switches once
+the frame in flight is sent. The adaptive profile switches the same way from frame to frame, and its choice depends on
+the source alone, so its stream is as deterministic as any other: pinned digests (a calm clip, where it codes as `live`
+does, and a fast pan, where it switches) and the pack decoding adaptive and switching streams bit-exactly
+(`shader_check.py`). Only a step to or from `ship`'s search starts a new encoder, whose first frame is a keyframe.
 
 **Keyframes, scene cuts and resync.** A keyframe (every 4 s, or at a scene cut) runs the full intra search and costs
 about as much as a P frame. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from

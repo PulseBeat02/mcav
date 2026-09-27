@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -51,6 +52,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
@@ -851,8 +853,9 @@ final class Mcv2ResultTest {
   ) {
     return settings -> {
       final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-      // the first encoder does not report the screen's settings, so the first frame makes another after draining
-      when(encoder.getSettings()).thenReturn(made.isEmpty() ? null : settings);
+      // the first encoder reports the exhaustive search's settings, so the first frame of the screen's live settings
+      // makes an encoder of its own, after draining
+      when(encoder.getSettings()).thenReturn(made.isEmpty() ? EncoderSettings.SHIP : settings);
       final Mcv2Encoder.Pending pending = mock(Mcv2Encoder.Pending.class);
       when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenReturn(pending);
       if (failing) {
@@ -962,6 +965,9 @@ final class Mcv2ResultTest {
     final Mcv2Result live = this.result(packScreen(EncoderSettings.LIVE), null);
     live.pace();
     assertEquals(new Mcv2Pacer.Preset("live", 1), live.getRung().preset());
+    final Mcv2Result adaptive = this.result(packScreen(EncoderSettings.LIVE_ADAPTIVE), null);
+    adaptive.pace();
+    assertEquals(new Mcv2Pacer.Preset("adaptive", 0.95), adaptive.getRung().preset());
     // the fastest preset, and a search off the ladder, have nothing to step through
     final Mcv2Result fastest = this.result(packScreen(EncoderSettings.LIVE_FAST), null);
     fastest.pace();
@@ -971,12 +977,44 @@ final class Mcv2ResultTest {
     assertEquals(new Mcv2Pacer.Rung(64, 32, 1), exact.getRung());
   }
 
+  /**
+   * An encoder that codes with the settings it was made with or last switched to, its frames taking the clock's time:
+   * the live search's frame the given nanoseconds, the faster searches three quarters of it, the exhaustive search twenty
+   * times as much.
+   */
+  private static Mcv2Encoder timedEncoder(
+    final EncoderSettings settings,
+    final AtomicLong clock,
+    final AtomicLong encodeNanos,
+    final List<EncoderSettings> switched
+  ) {
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final AtomicReference<EncoderSettings> current = new AtomicReference<>(settings);
+    when(encoder.getSettings()).thenAnswer(_ -> current.get());
+    doAnswer(invocation -> {
+      current.set(invocation.getArgument(0));
+      switched.add(invocation.getArgument(0));
+      return null;
+    })
+      .when(encoder)
+      .switchTo(any());
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+      final EncoderSettings now = current.get();
+      final long share = now.live() == null ? 80 : now.equals(EncoderSettings.LIVE) ? 4 : 3;
+      clock.addAndGet((encodeNanos.get() * share) / 4);
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    return encoder;
+  }
+
   @Test
-  void stepsDownThePresetsWithAnEncoderEach() throws InterruptedException {
+  void stepsDownTheLivePresetsWithOneEncoder() throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
     final Mcv2Configuration live = packScreen(EncoderSettings.LIVE);
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Mcv2Encoder> made = new ArrayList<>();
+    final List<EncoderSettings> switched = new ArrayList<>();
     final Mcv2Result result = new Mcv2Result(
       live,
       new Mcv2Channel(live, this.viewers, this.screen),
@@ -984,15 +1022,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run,
       settings -> {
-        final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-        when(encoder.getSettings()).thenReturn(settings);
-        // the faster search takes three quarters of the time
-        final long share = settings.equals(EncoderSettings.LIVE) ? 4 : 3;
-        when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
-          clock.addAndGet((encodeNanos.get() * share) / 4);
-          return Mcv2ChannelTest.keyframe();
-        });
-        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+        final Mcv2Encoder encoder = timedEncoder(settings, clock, encodeNanos, switched);
         made.add(encoder);
         return encoder;
       }
@@ -1004,11 +1034,13 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     // the first frame makes the encoder of the screen's settings, the top of its ladder, and the next ones keep it
-    Mcv2Encoder encoder = this.playSwitching(result, clock, mock(Mcv2Encoder.class), frame, 300);
+    final Mcv2Encoder exhaustive = mock(Mcv2Encoder.class);
+    when(exhaustive.getSettings()).thenReturn(EncoderSettings.SHIP);
+    Mcv2Encoder encoder = this.playSwitching(result, clock, exhaustive, frame, 300);
     assertEquals(1, made.size());
     assertEquals(EncoderSettings.LIVE, made.getFirst().getSettings());
-    // at 18 ms a frame of the 16.7 a frame has, the faster search's predicted 16.2 ms keeps up: every frame is still
-    // encoded
+    // at 18 ms a frame of the 16.7 a frame has, the adaptive preset's predicted 17.1 ms does not fit and the live-fast
+    // search's 16.2 ms does: the same encoder switches to it, without a keyframe, and every frame is still encoded
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(18));
     encoder = this.playSwitching(result, clock, encoder, frame, 120);
     assertEquals(1, changes.size());
@@ -1017,17 +1049,63 @@ final class Mcv2ResultTest {
       " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
       changes.getFirst().describe()
     );
-    assertEquals(2, made.size());
-    assertEquals(EncoderSettings.LIVE_FAST, made.get(1).getSettings());
-    verify(made.get(1), Mockito.atLeast(30)).encode(any(), anyInt(), anyInt(), anyLong());
-    // once the budget frees, the screen climbs back to the slower search, with a new encoder of it
+    assertEquals(1, made.size());
+    assertEquals(List.of(EncoderSettings.LIVE_FAST), switched);
+    verify(made.getFirst(), Mockito.atLeast(150)).encode(any(), anyInt(), anyInt(), anyLong());
+    // once the budget frees, the screen climbs back, the same encoder switching: to the adaptive preset while the live
+    // search it left is kept off for a while, then to the live search
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(5));
-    this.playSwitching(result, clock, encoder, frame, 20 * 60);
-    assertEquals(2, changes.size());
+    this.playSwitching(result, clock, encoder, frame, 30 * 60);
+    assertEquals(3, changes.size());
     assertFalse(changes.get(1).down());
-    assertEquals(3, made.size());
-    assertEquals(EncoderSettings.LIVE, made.get(2).getSettings());
+    assertFalse(changes.get(2).down());
+    assertEquals(1, made.size());
+    assertEquals(List.of(EncoderSettings.LIVE_FAST, EncoderSettings.LIVE_ADAPTIVE, EncoderSettings.LIVE), switched);
     assertEquals(new Mcv2Pacer.Preset("live", 1), result.getRung().preset());
+  }
+
+  @Test
+  void stepsBetweenTheExhaustiveAndTheLiveSearchWithAnEncoderEach() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration ship = packScreen(EncoderSettings.SHIP);
+    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(1));
+    final List<Mcv2Encoder> made = new ArrayList<>();
+    final List<EncoderSettings> switched = new ArrayList<>();
+    final Mcv2Result result = new Mcv2Result(
+      ship,
+      new Mcv2Channel(ship, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run,
+      settings -> {
+        final Mcv2Encoder encoder = timedEncoder(settings, clock, encodeNanos, switched);
+        made.add(encoder);
+        return encoder;
+      }
+    );
+    result.pace();
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    final Mcv2Encoder first = mock(Mcv2Encoder.class);
+    when(first.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
+    // the exhaustive search keeps up at 10 ms a frame while the pacer starts; at 20 ms it does not, and the live search
+    // gets an encoder of its own
+    encodeNanos.set(TimeUnit.MICROSECONDS.toNanos(500));
+    Mcv2Encoder encoder = this.playSwitching(result, clock, first, frame, 300);
+    assertEquals(EncoderSettings.SHIP, encoder.getSettings());
+    encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(1));
+    encoder = this.playSwitching(result, clock, encoder, frame, 120);
+    assertEquals(EncoderSettings.SHIP.faster(), encoder.getSettings());
+    // at half a millisecond a live frame, the exhaustive search's predicted 10 ms fits again, with an encoder of its own
+    encodeNanos.set(TimeUnit.MICROSECONDS.toNanos(500));
+    encoder = this.playSwitching(result, clock, encoder, frame, 30 * 60);
+    assertEquals(EncoderSettings.SHIP, encoder.getSettings());
+    assertEquals(
+      List.of(EncoderSettings.SHIP, EncoderSettings.SHIP.faster(), EncoderSettings.SHIP),
+      made.stream().map(e -> e.getSettings()).toList()
+    );
+    assertEquals(List.of(), switched);
   }
 
   /**
@@ -1049,7 +1127,10 @@ final class Mcv2ResultTest {
       result.applyFilter(frame, this.metadata);
       final Mcv2Result.Arrival handed = result.poll();
       if (handed != null) {
-        encoder = result.encoderFor(handed, encoder);
+        final EncoderSettings settings = result.settingsFor(handed);
+        if (!settings.equals(encoder.getSettings())) {
+          encoder = result.encoderFor(settings, encoder);
+        }
         result.send(encoder, handed, i);
       }
       clock.set(arrival);

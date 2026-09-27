@@ -205,6 +205,14 @@ final class BlockCoder {
 
   private boolean meansLoaded;
 
+  /**
+   * The 4x4 luma grid fitted to {@link #target}, valid while {@link #gridLoaded}: both compact classes of a 4x4 grid fit
+   * the same values to the same target, so the second takes the first's.
+   */
+  private final float[] lumaGrid = new float[GRID4_NODES];
+
+  private boolean gridLoaded;
+
   private boolean motionCloser;
 
   private long skipDistortion;
@@ -940,6 +948,7 @@ final class BlockCoder {
   /** The YCoCg residual of the source against a prediction, into {@link #target}. */
   private void residualTarget(final int[] prediction) {
     this.meansLoaded = false;
+    this.gridLoaded = false;
     this.kernels.residualTarget(this.ycocg(), prediction, this.count, this.needsChroma, this.target);
   }
 
@@ -1001,6 +1010,7 @@ final class BlockCoder {
     }
     System.arraycopy(this.ycocg(), 0, this.target, 0, this.count * CHANNELS);
     this.meansLoaded = false;
+    this.gridLoaded = false;
     this.fitReduced(luma, chroma);
     for (int i = 0; i < luma * luma; i++) {
       this.record[i] = (byte) quantize(this.grid[i], 1, 0, MAX_CHANNEL);
@@ -1128,10 +1138,23 @@ final class BlockCoder {
       return CompactRecord.bodyBytes(CompactRecord.LOW2);
     }
     final int g = kind == CompactRecord.GRID2_YC ? SMALL_GRID : FastFits.CELL_GRID;
-    if ((this.shortcuts & LiveSearch.CELL_FITS) != 0) {
-      this.cellMeans(0, g, this.fit, 0, 1);
+    final boolean cells = (this.shortcuts & LiveSearch.CELL_FITS) != 0;
+    if (g == SMALL_GRID) {
+      if (cells) {
+        this.cellMeans(0, g, this.fit, 0, 1);
+      } else {
+        this.kernels.fit(t, 0, CHANNELS, this.size, g, this.fit, 0, 1);
+      }
     } else {
-      this.kernels.fit(t, 0, CHANNELS, this.size, g, this.fit, 0, 1);
+      if (!this.gridLoaded) {
+        if (cells) {
+          this.cellMeans(0, g, this.lumaGrid, 0, 1);
+        } else {
+          this.kernels.fit(t, 0, CHANNELS, this.size, g, this.lumaGrid, 0, 1);
+        }
+        this.gridLoaded = true;
+      }
+      System.arraycopy(this.lumaGrid, 0, this.fit, 0, GRID4_NODES);
     }
     if (kind == CompactRecord.GRID4_N4_Y) {
       // luma alone: no chroma offsets to fit

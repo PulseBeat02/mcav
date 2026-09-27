@@ -52,8 +52,11 @@ public final class Mcv2Configuration {
   /** The most page slots a pack reserves. */
   public static final int MAX_PAGE_SLOTS = 8;
 
-  /** The page slots of a screen that configures none, when it has that many maps. */
-  private static final int DEFAULT_PAGE_SLOTS = 4;
+  /**
+   * The page slots of a screen that configures none, when it has that many maps: all of them, 98 KB a frame. A live
+   * gameplay frame takes 46 KB on average at 60 fps, a keyframe more, which the encoder brings under the slots' bound.
+   */
+  private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**
    * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about

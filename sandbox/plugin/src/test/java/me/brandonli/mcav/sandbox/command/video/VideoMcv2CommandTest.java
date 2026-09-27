@@ -142,7 +142,7 @@ final class VideoMcv2CommandTest {
     assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
     assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
-    assertEquals(4, configuration.getPageSlots());
+    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );

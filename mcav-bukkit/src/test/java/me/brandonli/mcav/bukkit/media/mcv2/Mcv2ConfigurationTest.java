@@ -65,7 +65,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(640, configuration.getVideoWidth());
     assertEquals(384, configuration.getVideoHeight());
     assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP, configuration.getPageMap());
-    assertEquals(4, configuration.getPageSlots());
+    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());
     assertEquals(1, configuration.getStreamId());
     assertEquals(EncoderSettings.LIVE_FAST, configuration.getSettings());
     assertEquals(NamedTextColor.DARK_PURPLE, configuration.getOutlineColor());
@@ -205,15 +205,19 @@ final class Mcv2ConfigurationTest {
     assertEquals(3 * 128, complete().video(0, 0).build().getVideoHeight());
     assertEquals(4096, complete().video(4096, 4096).build().getVideoWidth());
     assertEquals(4096, complete().video(4096, 4096).build().getVideoHeight());
-    assertEquals(4, complete().pageSlots(0).build().getPageSlots());
+    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, complete().pageSlots(0).build().getPageSlots());
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, complete().pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS).build().getPageSlots());
     assertEquals(0, complete().streamId(0).build().getStreamId());
     assertEquals(0xFFFFFFFFL, complete().streamId(0xFFFFFFFFL).build().getStreamId());
     assertEquals(0, complete().backlogLimit(0).build().getBacklogLimit());
     assertEquals(0, complete().unsentLimit(0).build().getUnsentLimit());
     // the page maps from 0, and up to the last int; the wall's maps up to the last int
-    assertEquals(0, complete().pageMap(0).build().getPageMap());
-    assertEquals(Integer.MAX_VALUE - 3, complete().pageMap(Integer.MAX_VALUE - 3).build().getPageMap());
+    assertEquals(0, complete().pageSlots(4).pageMap(0).build().getPageMap());
+    assertEquals(Integer.MAX_VALUE - 3, complete().pageSlots(4).pageMap(Integer.MAX_VALUE - 3).build().getPageMap());
+    assertEquals(
+      Integer.MAX_VALUE - (Mcv2Configuration.MAX_PAGE_SLOTS - 1),
+      complete().pageMap(Integer.MAX_VALUE - (Mcv2Configuration.MAX_PAGE_SLOTS - 1)).build().getPageMap()
+    );
     assertEquals(Integer.MAX_VALUE - 14, complete().map(Integer.MAX_VALUE - 14).pageMap(0).build().getMap());
     // a copy at the smallest video size, and none below it
     final Mcv2Configuration configuration = complete().build();
@@ -225,10 +229,11 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void keepsThePageMapsOffTheWall() {
-    // the wall is maps 7 to 21
+    // the wall is maps 7 to 21; four page slots end below it at 3, the default eight at none
     refuses(builder -> builder.pageMap(21));
-    refuses(builder -> builder.pageMap(4));
-    assertEquals(3, complete().pageMap(3).build().getPageMap());
+    refuses(builder -> builder.pageSlots(4).pageMap(4));
+    refuses(builder -> builder.pageMap(0));
+    assertEquals(3, complete().pageSlots(4).pageMap(3).build().getPageMap());
     assertEquals(22, complete().pageMap(22).build().getPageMap());
   }
 }

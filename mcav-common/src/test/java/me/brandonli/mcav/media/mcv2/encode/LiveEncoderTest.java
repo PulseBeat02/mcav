@@ -21,6 +21,7 @@ import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +33,7 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -651,6 +653,136 @@ final class LiveEncoderTest {
   void pinsTheOutputOfTheLiveProfiles() throws NoSuchAlgorithmException {
     assertEquals(LIVE_DIGEST, digest(new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false)));
     assertEquals(LIVE_FAST_DIGEST, digest(new Mcv2Encoder(EncoderSettings.LIVE_FAST, POOL, 2, false)));
+    // the scene pans too slowly to count as motion: the adaptive profile codes it as the live one does; panning fast,
+    // it switches to the live-fast search, and its stream is neither profile's
+    assertEquals(LIVE_DIGEST, digest(new Mcv2Encoder(EncoderSettings.LIVE_ADAPTIVE, POOL, 2, false)));
+    final String moving = digest(new Mcv2Encoder(EncoderSettings.LIVE_ADAPTIVE, POOL, 2, false), FAST_PAN, 16);
+    assertEquals(ADAPTIVE_MOVING_DIGEST, moving);
+    assertNotEquals(digest(new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false), FAST_PAN, 16), moving);
+    assertNotEquals(digest(new Mcv2Encoder(EncoderSettings.LIVE_FAST, POOL, 2, false), FAST_PAN, 16), moving);
+  }
+
+  /**
+   * A live encoder switches to another live profile between frames without a keyframe: the frames after the switch are
+   * P frames of the new search and lambda, and a client decodes the whole stream to the encoder's pictures. Only live
+   * profiles switch; a search that does not measure the source's motion stops the lambda rising with it.
+   */
+  @Test
+  void switchesLiveProfilesWithoutAKeyframe() throws Mcv2Exception {
+    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    final Client client = new Client();
+    for (int i = 0; i < 8; i++) {
+      if (i == 3) {
+        encoder.switchTo(EncoderSettings.LIVE_FAST);
+        assertEquals(EncoderSettings.LIVE_FAST, encoder.getSettings());
+      } else if (i == 6) {
+        encoder.switchTo(EncoderSettings.LIVE);
+      }
+      final byte[] data = encoder.encode(scene(96, 64, i, 3), 96, 64, i);
+      assertEquals(i == 0, Objects.requireNonNull(encoder.getStats()).keyframe(), "frame " + i);
+      assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + i);
+    }
+    // a search that does not measure the motion codes at the profile's own lambda
+    final LiveSearch f = LiveSearch.LIVE_FAST;
+    final EncoderSettings still = EncoderSettings.LIVE_FAST.withLive(
+      new LiveSearch(
+        f.smallestBlock(),
+        f.skipThreshold(),
+        f.splitThreshold(),
+        f.steadySplitThreshold(),
+        f.fineThreshold(),
+        f.goodThreshold(),
+        f.childGate(),
+        f.modes(),
+        f.smallModes(),
+        f.keyModes(),
+        f.compactClasses(),
+        f.quantizers(),
+        f.seededMotion(),
+        f.searchBlock(),
+        f.coarseEndpoints(),
+        f.shortcuts(),
+        f.splitAbove(),
+        false
+      )
+    );
+    encoder.switchTo(still);
+    encoder.encode(scene(96, 64, 8, 3), 96, 64, 8);
+    assertEquals(55, Objects.requireNonNull(encoder.getStats()).lambda());
+    encoder.switchTo(EncoderSettings.LIVE_FAST);
+    encoder.encode(scene(96, 64, 9, 3), 96, 64, 9);
+    assertThrows(IllegalArgumentException.class, () -> encoder.switchTo(EncoderSettings.SHIP));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Encoder(EncoderSettings.SHIP, POOL, 2, false).switchTo(EncoderSettings.LIVE)
+    );
+    assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
+  }
+
+  /**
+   * A live frame over the encoder's byte bound is searched again at twice the lambda until it fits, at most four
+   * times: a keyframe comes out as the keyframe of the first lambda of 72, 144, ... 1152 whose frame fits, byte for
+   * byte, and the last one's when none fits; a P frame over the bound is searched again from the same history, and a
+   * client decodes every frame to the encoder's picture.
+   */
+  @Test
+  void searchesAFrameOverItsByteBoundAgainAtAHigherLambda() throws Mcv2Exception {
+    final byte[] picture = noise(96, 64, 5);
+    final byte[][] keyframes = new byte[LIMIT_TRIES][];
+    for (int i = 0; i < LIMIT_TRIES; i++) {
+      keyframes[i] = new Mcv2Encoder(EncoderSettings.LIVE.withLambda(72 << i), POOL, 2, false).encode(picture, 96, 64, 0);
+    }
+    for (int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, 1 }) {
+      int expected = 0;
+      while (expected < LIMIT_TRIES - 1 && keyframes[expected].length > bound) {
+        expected++;
+      }
+      final Mcv2Encoder bounded = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+      bounded.setFrameLimit(bound);
+      assertArrayEquals(keyframes[expected], bounded.encode(picture, 96, 64, 0), "bound " + bound);
+      assertEquals(72 << expected, Objects.requireNonNull(bounded.getStats()).lambda());
+      // the P frame after it: within the bound when some lambda gets it there, and decoded as the encoder chose it
+      final Client client = new Client();
+      client.decode(keyframes[expected]);
+      final byte[] next = bounded.encode(noise(96, 64, 6), 96, 64, 1);
+      assertArrayEquals(client.decode(next), bounded.getReference(), "bound " + bound);
+    }
+    // no bound: every frame is searched once
+    final Mcv2Encoder unbounded = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false);
+    unbounded.setFrameLimit(0);
+    assertArrayEquals(keyframes[0], unbounded.encode(picture, 96, 64, 0));
+    assertThrows(IllegalArgumentException.class, () -> unbounded.setFrameLimit(-1));
+  }
+
+  /** The searches a live frame over its bound can have: the first and {@link Mcv2Encoder#LIMIT_RETRIES} more. */
+  private static final int LIMIT_TRIES = Mcv2Encoder.LIMIT_RETRIES + 1;
+
+  /** A picture of random pixels, whose frames shrink as the lambda rises. */
+  private static byte[] noise(final int width, final int height, final long seed) {
+    final byte[] rgb = new byte[width * height * 3];
+    new Random(seed).nextBytes(rgb);
+    return rgb;
+  }
+
+  /**
+   * An adaptive profile codes a frame with its second search once the source's average motion is above entering: at
+   * thresholds no motion reaches it is the live profile, byte for byte, and at thresholds of zero it is the live profile
+   * until the second frame has been measured and then exactly an encoder switched to the live-fast profile there.
+   */
+  @Test
+  void codesAnAdaptiveProfileAsTheSearchOfItsMotion() {
+    final EncoderSettings never = EncoderSettings.LIVE.withAdaptive(new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 1000, 1000));
+    final EncoderSettings always = EncoderSettings.LIVE.withAdaptive(new EncoderSettings.Adaptive(LiveSearch.LIVE_FAST, 55, 0, 0));
+    final Mcv2Encoder calm = new Mcv2Encoder(never, POOL, 2, true);
+    final Mcv2Encoder live = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    final Mcv2Encoder moving = new Mcv2Encoder(always, POOL, 2, true);
+    final Mcv2Encoder switched = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
+    for (int i = 0; i < 6; i++) {
+      final byte[] picture = scene(96, 64, i, 5);
+      assertArrayEquals(live.encode(picture, 96, 64, i), calm.encode(picture, 96, 64, i), "frame " + i);
+      if (i == 2) {
+        switched.switchTo(EncoderSettings.LIVE_FAST);
+      }
+      assertArrayEquals(switched.encode(picture, 96, 64, i), moving.encode(picture, 96, 64, i), "frame " + i);
+    }
   }
 
   /**
@@ -660,16 +792,34 @@ final class LiveEncoderTest {
    * @return the SHA-256 of the frames, in hex
    */
   static String digest(final Mcv2Encoder encoder) throws NoSuchAlgorithmException {
+    return digest(encoder, 2, 8);
+  }
+
+  /**
+   * Encodes frames of a small crop of a synthetic scene panning at a speed.
+   *
+   * @param encoder a new encoder of a profile
+   * @param dx      the pan, in pixels a frame
+   * @param frames  how many frames
+   * @return the SHA-256 of the frames, in hex
+   */
+  static String digest(final Mcv2Encoder encoder, final int dx, final int frames) throws NoSuchAlgorithmException {
     final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    for (int i = 0; i < 8; i++) {
-      digest.update(encoder.encode(scene(96, 64, i, 2), 96, 64, i));
+    for (int i = 0; i < frames; i++) {
+      digest.update(encoder.encode(scene(96, 64, i, dx), 96, 64, i));
     }
     return HexFormat.of().formatHex(digest.digest());
   }
+
+  /** A pan fast enough for the adaptive profile to count as motion. */
+  private static final int FAST_PAN = 13;
 
   /** The SHA-256 of the eight frames {@link #digest} encodes with {@link EncoderSettings#LIVE}. */
   static final String LIVE_DIGEST = "1d1c43930cb66846be5ae90c62f9ba29fe35feeb5a5da1cb02fadeabc4e9e521";
 
   /** The SHA-256 of the eight frames {@link #digest} encodes with {@link EncoderSettings#LIVE_FAST}. */
   static final String LIVE_FAST_DIGEST = "f5b514f9a30ebe998717b066f6b8518534acfde641c1de2e3802b0a4b4ad903b";
+
+  /** The SHA-256 of sixteen frames of the fast pan {@link EncoderSettings#LIVE_ADAPTIVE} encodes. */
+  static final String ADAPTIVE_MOVING_DIGEST = "d479705d8744472c22ff2cead78009c1fdde57dceaaa5aaaff63e9a1b065538e";
 }

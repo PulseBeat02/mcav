@@ -80,9 +80,16 @@ public final class Mcv2Encoder {
   /** No picture: what a keyframe predicts from, and what no frame in flight holds. */
   private static final byte[] NONE = new byte[0];
 
-  private final EncoderSettings settings;
+  /** How often a live frame over its byte bound is searched again at twice the lambda: up to sixteen times it. */
+  static final int LIMIT_RETRIES = 4;
+
+  /** The profile the next frame is coded with, which a live encoder may switch to another live profile. */
+  private EncoderSettings settings;
 
   private final Workers workers;
+
+  /** The workers of a frame's verification, which go before the next frame's search on the pool. */
+  private final Workers finishing;
 
   private final boolean verify;
 
@@ -91,6 +98,9 @@ public final class Mcv2Encoder {
 
   /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
   private long frameBudget;
+
+  /** The most bytes a live frame may take, or 0 for any number. */
+  private int frameLimit;
 
   private byte@Nullable[] reference;
 
@@ -133,7 +143,10 @@ public final class Mcv2Encoder {
   private final Kernels.Factory kernels;
 
   /** The lambda of each frame from the motion of the source, when the live search asks for it. */
-  private final @Nullable MotionLambda motionLambda;
+  private @Nullable MotionLambda motionLambda;
+
+  /** Whether an adaptive profile's source moves: its frames are coded with the adaptive search. */
+  private boolean moving;
 
   /**
    * One frame's outcome.
@@ -268,7 +281,7 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Constructs a new encoder whose coders use the given kernels.
+   * Constructs a new encoder whose coders use the given kernels, on a lane of its own.
    *
    * @param settings the profile
    * @param pool     the pool block evaluation runs on
@@ -283,11 +296,33 @@ public final class Mcv2Encoder {
     final boolean verify,
     final Kernels.Factory kernels
   ) {
+    this(settings, pool, threads, verify, kernels, new Workers.Lane());
+  }
+
+  /**
+   * Constructs a new encoder whose coders use the given kernels.
+   *
+   * @param settings the profile
+   * @param pool     the pool block evaluation runs on
+   * @param threads  how many workers evaluate blocks at once, at least 1
+   * @param verify   whether every frame is checked against its own decode
+   * @param kernels  makes the kernels of each coder
+   * @param lane     the lane of the pool's workers, on which a frame's verification goes before any search
+   */
+  Mcv2Encoder(
+    final EncoderSettings settings,
+    final ForkJoinPool pool,
+    final int threads,
+    final boolean verify,
+    final Kernels.Factory kernels,
+    final Workers.Lane lane
+  ) {
     Preconditions.checkNotNull(settings, "Settings must not be null");
     Preconditions.checkNotNull(pool, "Pool must not be null");
     Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
     this.settings = settings;
-    this.workers = new Workers(pool, threads);
+    this.workers = new Workers(pool, threads).on(lane);
+    this.finishing = this.workers.first();
     this.verify = verify;
     this.kernels = kernels;
     this.framesSinceKey = settings.keyInterval();
@@ -378,6 +413,21 @@ public final class Mcv2Encoder {
   }
 
   /**
+   * Bounds the bytes of a live frame, for a screen whose page slots carry only so many: a frame that would take more is
+   * searched again at twice the lambda, from the same history, up to {@value #LIMIT_RETRIES} times, and only the last
+   * search counts. A gameplay keyframe at a live lambda can take more than a screen's slots carry, and a frame that
+   * does not fit is not sent, so without the bound such a stream would never show again. The reference's search takes
+   * no bound.
+   *
+   * @param bytes the most bytes of a frame, or 0 for any number
+   * @throws IllegalArgumentException if the bound is negative
+   */
+  public void setFrameLimit(final int bytes) {
+    Preconditions.checkArgument(bytes >= 0, "The frame limit must not be negative");
+    this.frameLimit = bytes;
+  }
+
+  /**
    * Makes the next frame a keyframe, for example because a viewer starts watching and holds no reference yet.
    */
   public void requestKeyframe() {
@@ -385,12 +435,34 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Gets the settings the encoder was made with.
+   * Gets the settings the encoder codes the next frame with: the ones it was made with, or the last it switched to.
    *
    * @return the settings
    */
   public EncoderSettings getSettings() {
     return this.settings;
+  }
+
+  /**
+   * Codes the frames begun from now on with other live settings, continuing the stream without a keyframe: every live
+   * search writes the same format and predicts from the same pictures, so a receiver needs nothing new and the frames
+   * decode as any others do. The motion measured so far is kept; settings that do not measure it stop measuring.
+   *
+   * @param next the settings, a live profile's
+   * @throws IllegalArgumentException if these or the next settings are not a live profile's
+   */
+  public void switchTo(final EncoderSettings next) {
+    Preconditions.checkNotNull(next, "Settings must not be null");
+    final LiveSearch live = next.live();
+    if (live == null || this.settings.live() == null) {
+      throw new IllegalArgumentException("Only live settings switch without a keyframe");
+    }
+    this.settings = next;
+    if (!live.motionLambda()) {
+      this.motionLambda = null;
+    } else if (this.motionLambda == null) {
+      this.motionLambda = new MotionLambda();
+    }
   }
 
   /**
@@ -452,7 +524,13 @@ public final class Mcv2Encoder {
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
     final MotionLambda control = this.motionLambda;
-    final EncoderSettings settings = control == null ? this.settings : this.settings.withLambda(control.lambda(this.settings.lambda()));
+    final EncoderSettings.Adaptive adaptive = this.settings.adaptive();
+    if (control != null && adaptive != null) {
+      // the motion of the frames before this one: the search of this frame depends on the source alone
+      this.moving = control.moving(this.moving, adaptive.enter(), adaptive.leave());
+    }
+    final EncoderSettings chosen = this.settings.frame(this.moving);
+    final EncoderSettings settings = control == null ? chosen : chosen.withLambda(control.lambda(chosen.lambda()));
     final LiveSearch live = settings.live();
     boolean key = true;
     int motion = 0;
@@ -538,6 +616,7 @@ public final class Mcv2Encoder {
     List<TreeNode> bestRoots = List.of();
     int bestTrial = 0;
     int[] liveMotion = null;
+    double lambda = settings.lambda();
     if (live == null) {
       this.evaluate(job);
       double bestCost = Double.POSITIVE_INFINITY;
@@ -577,18 +656,31 @@ public final class Mcv2Encoder {
         check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots, this.workers);
       }
     } else {
-      final LiveFrame frame = this.evaluateLive(job, live, started);
-      best = FrameWriter.write(
-        width,
-        height,
-        frameId,
-        referenceId,
-        key,
-        mx,
-        my,
-        frame.serialized(),
-        FrameWriter.Options.production(live.coarseEndpoints())
-      );
+      // a search that must be redone at a higher lambda starts from the same history of splits
+      final boolean@Nullable[] history = this.frameLimit > 0 && this.splitBefore != null ? this.splitBefore.clone() : null;
+      FrameJob searched = job;
+      LiveFrame frame = this.evaluateLive(searched, live, started);
+      best = writeLive(searched, frame, frameId, referenceId, mx, my, live);
+      for (int retry = 0; this.frameLimit > 0 && best.length > this.frameLimit && retry < LIMIT_RETRIES; retry++) {
+        this.splitBefore = history == null ? null : history.clone();
+        searched = new FrameJob(
+          searched.settings().withLambda(searched.settings().lambda() * 2),
+          rgb,
+          predictFrom,
+          width,
+          height,
+          key,
+          vectorsX,
+          vectorsY,
+          key ? null : this.motion,
+          this.buffers(width, height).levels(),
+          this.jobBuffers
+        );
+        this.jobBuffers = searched.buffers();
+        frame = this.evaluateLive(searched, live, started);
+        best = writeLive(searched, frame, frameId, referenceId, mx, my, live);
+      }
+      lambda = searched.settings().lambda();
       bestPicture = frame.picture();
       bestLeaves = frame.leaves();
       bestRoots = frame.roots();
@@ -606,7 +698,7 @@ public final class Mcv2Encoder {
       vectorsY[job.trialVector(bestTrial)],
       bestTrial,
       bestLeaves.size(),
-      settings.lambda()
+      lambda
     );
     if (key || settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
       this.reference = bestPicture;
@@ -623,6 +715,29 @@ public final class Mcv2Encoder {
     this.newer = pending;
     pending.searchNanos = System.nanoTime() - started;
     return pending;
+  }
+
+  /** Writes a live frame's chosen trees. */
+  private static byte[] writeLive(
+    final FrameJob job,
+    final LiveFrame frame,
+    final long frameId,
+    final long referenceId,
+    final int mx,
+    final int my,
+    final LiveSearch live
+  ) {
+    return FrameWriter.write(
+      job.width(),
+      job.height(),
+      frameId,
+      referenceId,
+      job.isKeyframe(),
+      mx,
+      my,
+      frame.serialized(),
+      FrameWriter.Options.production(live.coarseEndpoints())
+    );
   }
 
   /**
@@ -646,10 +761,10 @@ public final class Mcv2Encoder {
     if (pending.checked) {
       try {
         final Mcv2Frame written = parseChosen(pending.data);
-        checkTree(written, pending.roots, this.workers);
-        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.workers, this.verified);
+        checkTree(written, pending.roots, this.finishing);
+        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.finishing, this.verified);
         this.verified = decoded;
-        Preconditions.checkState(same(pending.picture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
+        Preconditions.checkState(same(pending.picture, decoded, this.finishing), "MCV2 live picture and decoded picture disagree");
       } catch (final IllegalStateException exception) {
         this.failed = true;
         throw exception;
