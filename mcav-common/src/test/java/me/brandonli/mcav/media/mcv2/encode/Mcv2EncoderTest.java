@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,6 +112,12 @@ final class Mcv2EncoderTest {
     final byte[] changed = picture.clone();
     changed[999]++;
     assertFalse(Mcv2Encoder.same(picture, changed, workers));
+  }
+
+  @Test
+  void keepsTheSettingsItWasMadeWith() {
+    assertSame(EncoderSettings.LIVE_FAST, encoder(EncoderSettings.LIVE_FAST).getSettings());
+    assertSame(EncoderSettings.SHIP, encoder(EncoderSettings.SHIP).getSettings());
   }
 
   @Test

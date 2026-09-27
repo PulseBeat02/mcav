@@ -32,11 +32,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.IntBinaryOperator;
 import me.brandonli.mcav.media.mcv2.FrameParser;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.media.mcv2.Mcv2Frame;
 import me.brandonli.mcav.media.mcv2.PatternRecord;
+import me.brandonli.mcav.media.mcv2.Workers;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +79,17 @@ final class TreeReaderTest {
     assertArrayEquals(TreeReader.fullPalette(record, 16), expanded.getRecord());
     // and the palette is rewritten as the same pattern
     assertEquals(patterns, TreeReader.withPatterns(roots.get(1), 32));
+  }
+
+  @Test
+  void rebuildsTheSameTreesOnManyWorkers() throws Mcv2Exception {
+    // a live stream of a picture whose width leaves a partial superblock column: a keyframe, then P frames
+    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, ForkJoinPool.commonPool(), 2, false);
+    final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
+    for (int i = 0; i < 4; i++) {
+      final Mcv2Frame frame = FrameParser.parse(encoder.encode(LiveEncoderTest.scene(100, 70, i, 3), 100, 70, i));
+      assertEquals(TreeReader.roots(frame), TreeReader.roots(frame, workers));
+    }
   }
 
   @Test

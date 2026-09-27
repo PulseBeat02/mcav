@@ -46,7 +46,8 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
 | video result step, map packets, player sessions, configuration, resource pack generation | `mcav-bukkit` | `me.brandonli.mcav.bukkit.media.mcv2` |
 | demo command | `sandbox/plugin` | |
 
-The core is pure Java with no Python and no native code. Static data it needs is committed as checked resources:
+The core is pure Java with no Python; the live searches can run their pixel kernels in an optional native library,
+which computes exactly what the Java kernels compute (§13). Static data it needs is committed as checked resources:
 `residual_books.bin` (SHA-256 `1737842f…e788`, the profile's VQ/PQ books) and `fitting_matrices.bin`
 (SHA-256 `b575fd1e…af0e`, the reference encoder's float32 least-squares matrices). Nothing reads a path inside
 gpu-codec at build or run time.
@@ -424,44 +425,54 @@ Linux the size of the budget is what keeps processors free for the game.
 **Adaptive, never overload.** `Mcv2Pacer` watches the encode time of every P frame (keyframes, which come every few
 seconds and cost more, are left out) against the time the video gives a frame. When the smoothed time has been over it
 for a second, the screen steps down to the first rung that the measured time predicts to fit in 85% of its frame time:
-first the frame rate (every second, third, fourth or sixth frame of the video, not below 10 fps), then a smaller video
-size the screen offers, then the dithered maps every other viewer sees, which need no encoder (the page frames are
-removed, so a viewer with the pack sees the dithered wall). It climbs back when a rung above has been predicted to fit
+first a faster preset of the ladder (§12: `ship`'s search, `live`, `live-fast`; a faster preset that keeps every frame
+only has to keep up, and each is an encoder of its own, whose first frame is a keyframe), then the frame rate (every
+second, third, fourth or sixth frame of the video, not below 10 fps), then a smaller video size the screen offers, then
+the dithered maps every other viewer sees, which need no encoder (the page frames are removed, so a viewer with the
+pack sees the dithered wall). It climbs back when a rung above has been predicted to fit
 in 70% of its frame time for five seconds, keeps off a rung it had to leave for ten seconds (twice as long each time it
 has to leave it again, up to ten minutes), and from the dithered maps tries encoding again after 30 seconds (twice as
 long after every failed try). Each step is logged, a step down as a warning, with the numbers that decided it - for
-example `MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7
-ms a frame has at 60 fps with the encoder threads it has` - and the sandbox sends it to whoever started the screen.
+example `MCV2 screen steps down to 1920x1080 at 30 fps with the live-fast search: encoding 1920x1080 with the live
+search takes 36.0 ms per frame, more than the 33.3 ms a frame has at 30 fps with the encoder threads it has` - and the
+sandbox sends it to whoever started the screen.
 
-**Measured** (Temurin 25; details in the report's SERVER VIABILITY section). The server's tick with live 1080p
-screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83 with two
-(all 12 processors: 1.08 and 2.21; measured with the first `live` profile, whose encoder threads load the machine the
-same way). Encode time of the shipped `live` per frame (mean / p95 ms, and CPU ms per frame) by encoder threads,
-verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up frames left out), the host quiet (load 4-12):
+**Measured** (Temurin 25; details in the report's SERVER VIABILITY and LIVE SPEED sections). The server's tick with
+live 1080p screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83
+with two (all 12 processors: 1.08 and 2.21; measured with the first `live` profile, whose encoder threads load the
+machine the same way). Encode time of `live-fast`, the screens' default, per frame (mean / p95 ms, and CPU ms per
+frame) by encoder threads, native AVX2 kernels, verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up
+frames left out), the host at load 4-7:
 
 | source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 10 threads | 12 threads |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1920x1080 proxy | 177.1 / 206.6 (179) | 100.0 / 166.8 (193) | 70.0 / 95.7 (200) | 54.3 / 69.0 (207) | 43.4 / 50.0 (245) | 37.8 / 45.1 (313) | 36.4 / 41.7 (316) |
-| 1920x1080 gameplay | 364.6 / 478.2 (367) | 213.1 / 342.0 (396) | 149.3 / 218.1 (416) | 114.4 / 161.8 (423) | 89.4 / 120.3 (501) | 77.8 / 105.6 (650) | 75.4 / 99.7 (660) |
-| 1280x720 proxy | 91.4 / 108.0 (102) | 52.1 / 65.2 (112) | 39.6 / 52.3 (125) | 31.0 / 39.6 (124) | 24.1 / 28.8 (139) | 21.9 / 27.7 (173) | 21.4 / 27.1 (175) |
-| 1280x720 gameplay | 179.5 / 237.5 (188) | 104.0 / 157.3 (203) | 70.8 / 95.1 (208) | 55.7 / 76.6 (220) | 46.1 / 62.5 (262) | 40.4 / 55.6 (325) | 38.1 / 51.7 (332) |
+| 1920x1080 proxy | 73.1 / 79.7 (79) | 44.0 / 68.3 (84) | 32.9 / 44.2 (101) | 24.8 / 31.0 (96) | 20.4 / 23.8 (113) | 18.3 / 21.2 (144) | 18.1 / 20.6 (149) |
+| 1920x1080 gameplay | 109.4 / 135.9 (121) | 62.9 / 97.5 (121) | 44.7 / 59.6 (135) | 35.7 / 48.4 (141) | 27.9 / 36.0 (154) | 24.8 / 31.7 (204) | 24.9 / 31.6 (214) |
+| 1280x720 proxy | 37.7 / 47.7 (48) | 22.2 / 31.5 (52) | 17.6 / 26.0 (61) | 13.9 / 17.5 (57) | 11.8 / 13.8 (67) | 12.3 / 17.7 (83) | 10.8 / 14.0 (80) |
+| 1280x720 gameplay | 59.9 / 82.1 (73) | 33.9 / 53.9 (76) | 25.1 / 32.8 (86) | 19.7 / 26.8 (80) | 17.0 / 21.4 (94) | 14.8 / 19.1 (112) | 15.1 / 19.0 (116) |
 
-**Cores needed ~= CPU-ms x fps / 1000** with the one-thread CPU time (1080p30: ~5.4 cores of this CPU on quiet content,
-~11 on fast gameplay; 720p30: ~3.1 and ~5.6); more threads cost more CPU per frame on shared cores (hyperthreads,
-memory bandwidth). The frames per second a server encodes live with the default budget (half its processors, `1000 /
-mean ms`, at most the source's 30), the pacer stepping to the rungs that fit:
+**Cores needed ~= CPU-ms x fps / 1000** with the one-thread CPU time (1080p30: ~2.4 cores of this CPU on quiet
+content, ~3.6 on fast gameplay; 720p30: ~1.4 and ~2.2), but a frame also has 9-11 ms of work outside the parallel
+search (the verification's decode, the writer, the global motion), so the frame time stops falling past ~6 threads:
+the 32 ms p95 of 1080p30 needs 4 threads on quiet content and 10 on gameplay; 720p30 needs 2 and 4. More threads cost
+more CPU per frame on shared cores (hyperthreads, memory bandwidth). The frames per second a server encodes live with
+the default budget (half its processors, `1000 / mean ms`, at most the source's 30), the pacer stepping to the rungs
+that fit:
 
 | server | default encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 | --- | ---: | --- | --- | --- | --- |
-| 2 processors | 1 | 6 fps | 3 fps | 11 fps | 6 fps |
-| 4 processors | 2 | 10 fps | 5 fps | 19 fps | 10 fps |
-| 6 processors | 3 | 14 fps | 7 fps | 25 fps | 14 fps |
-| 8 processors | 4 | 18 fps | 9 fps | 30 fps (full rate) | 18 fps |
-| 12 processors | 6 | 23 fps | 11 fps | 30 fps (full rate) | 22 fps |
-| 20 processors | 10 | 26 fps | 13 fps | 30 fps (full rate) | 25 fps |
+| 2 processors | 1 | 13 fps | 9 fps | 26 fps | 16 fps |
+| 4 processors | 2 | 22 fps | 15 fps | 30 fps (full rate) | 29 fps |
+| 6 processors | 3 | 30 fps (full rate) | 22 fps | 30 fps (full rate) | 30 fps (full rate) |
+| 8 processors | 4 | 30 fps (full rate) | 28 fps | 30 fps (full rate) | 30 fps (full rate) |
+| 12 processors | 6 | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) |
+| 20 processors | 10 | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) |
 
-A small server should pre-encode (`ship`: a minute of 1080p30 takes 57 minutes on 2 threads, 26 on 4; `live` a minute
-of 1080p30 in ~3 minutes of quiet content or ~6.5 of gameplay on 2 threads). ARM64 hosts are untested (no ARM machine here); the encoder is plain Java.
+These are the native kernels; where the Java kernels run (`mcv2.native: off`, or a platform without a library, §13)
+a live frame costs about 2.7 times the CPU on gameplay and 1.8 times on quiet content (measured on the live search
+before the presets of §12: 664 against 249 ms, and 310-333 against 177 ms). A small server should pre-encode (`ship`: a minute of 1080p30
+takes 57 minutes on 2 threads, 26 on 4). ARM64 servers are not measured: the AArch64 library passed its kernel tests
+under emulation only (§13).
 
 **Pre-encoding** is the path for a server too small to encode live: `Mcv2FileEncoder` decodes a video file with FFmpeg
 and encodes it frame by frame inside a budget into a stream file; the sandbox's `/mcav mcv2 encode <file> <output>
@@ -505,9 +516,30 @@ half-resolution motion search (lever 6), which is what brings gameplay inside th
 five cost the same rate for 15% less CPU. Rejected by measurement: content-adaptive pre-selection (lever 1, no speed-up),
 reusing the previous frame's decision (lever 2, +18% rate on gameplay).
 
-**Lambda 72** is the largest round value that keeps the 1080p30 proxy at VMAF mean >= 75; gameplay scores ~89 there.
-The revised rule also asks for gameplay at ~75, which one lambda cannot give together with >= 75 on the proxy (gameplay
-reaches 75 near lambda 210, where the proxy is at ~58); a per-content lambda (a quality target) would.
+**Lambda 72, raised with the motion** (addendum 13 item 6, `MotionLambda`). 72 is the largest round value that keeps
+the 1080p30 proxy at VMAF mean >= 75 (75.7). One lambda cannot also hold fast gameplay near 75 (it scores ~89 at 72
+and reaches 76 near 195, where the proxy is at ~60), so a frame's lambda rises with the motion of the source, where
+VMAF forgives more: `lambda = base * min(4, max(1, (TI / 4.6) ^ 0.79))`, TI the mean absolute change of the 3x3-blurred
+luma of every fourth pixel from the frame before, smoothed over 16 frames and restarted at a scene cut or a size
+change. Quiet content (TI under 4.6: the proxy, Sintel) stays at the base; the knee and the exponent are fitted to six
+contents (the 1080p30 and 1080p60 proxies, 30 and 60 fps gameplay, a 30 fps dinner scene, Sintel at 24 fps), and each
+gameplay capture predicts the other's lambda within 1%. It raises only, never lowers; its property tests hold it
+bounded, steady on a steady source, monotone in the motion and restarting at a cut. At the default, gameplay gets a
+lambda of 195 on average (154-214 per frame) and scores VMAF 76.1 at 13.1 Mbit/s of map colours instead of 27.7.
+
+**The preset ladder** (addendum 13 item 4). Three presets, each faster than the one above, all decoded by the same
+pack: `ship` (the reference's exhaustive search, byte-identical to it), `live` (this section's search, lambda 72) and
+`live-fast` (`EncoderSettings.LIVE_FAST`: `LiveSearch.LIVE_FAST`, lambda 55). `live-fast` is `live` with SKIP taken
+without a search up to 60 lambda, a 32-pixel block whose superblock the previous frame coded whole split only above
+900 lambda and a 16-pixel block above 600, and the motion search starting at half resolution; at lambda 55 it reaches
+the VMAF `live` reaches at 72. Each rung's rate against `ship` at equal VMAF mean (600 frames; map / after compression):
+`live` -5.1% / -3.4% (1080p30 proxy) and +7.9% / +6.9% (30 fps gameplay), inside its +10%; `live-fast` +17.7% / +18.4%
+and +29.4% / +17.1%, inside its +30%. **A screen's default is `live-fast`** (`Mcv2Configuration`): the default for a
+source that plays while it is encoded is the slowest rung that meets the 1080p30 gate, else the fastest within +30%;
+`live-fast` meets it on quiet content and on gameplay, `live` on quiet content only (below).
+A screen that cannot keep up steps **down the ladder first** (`EncoderSettings.faster()`: `ship`'s search to `live`'s,
+`live`'s to `live-fast`'s with the lambda scaled by 55/72, so the picture keeps its quality; each step is a new encoder,
+whose first frame is a keyframe), then the frame rate, then the size, then the dithered maps (`Mcv2Pacer`, §11).
 
 **Keyframes, scene cuts and resync.** A keyframe (every 4 s, or at a scene cut) runs the full intra search and costs
 about as much as a P frame. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from
@@ -515,14 +547,82 @@ the frame before, so it cannot let a viewer back in. **A viewer who fell behind*
 starts watching is sent nothing more until the next keyframe - at most 4 s at 30 fps - and from it every frame; its
 client holds the last picture it decoded meanwhile.
 
-**Measured** (Temurin 25, 12 threads of the i7-8700, verify on, as a screen encodes, 660 frames with 60 warm-up
-frames left out; the report's LIVE 1080p60 section has every run): **35-36 ms mean, 41.5-44.2 ms p95 per 1080p30 frame
-of quiet content (the 1080p30 proxy) and 70 ms mean, 92-94 ms p95 of fast gameplay: the 32 ms p95 gate is not met** on
-this 6-core machine (720p30 of quiet content meets it from 6 threads; the hardware guide is §11). Quality against `ship`
-(600 frames, BD-rate at equal VMAF mean, map / after compression): **-3.2% / -1.4% on the 1080p30 proxy, +9.3% / +7.9%
-on gameplay**; VMAF mean at the default 75.65 and 88.76. Per viewer at the default lambda: 2.85 Mbit/s of map colours,
-1.86 after compression, on the proxy; 27.7 and 17.0 on gameplay (86 KB per frame: 8 page slots). Decode on the Intel
-UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new frame, 5.7-5.9 ms per rendered frame without new video.
+**Measured** (Temurin 25, 12 threads of the i7-8700, native AVX2 kernels, verify on, as a screen encodes, 660 frames
+with 60 warm-up frames left out, three runs each; the report's LIVE SPEED section has every run):
+
+| rung | 1080p30 proxy: mean / p95 | 30 fps gameplay: mean / p95 | CPU per frame | VMAF mean / min (proxy; gameplay) | Mbit/s map / zlib (proxy; gameplay) |
+| --- | --- | --- | --- | --- | --- |
+| `live` | 19.0-19.6 / 21.7-23.2 ms | 27.8-28.6 / 35.1-36.9 ms | 159-160; 242-244 ms | 75.7 / 69.0; 76.1 / 65.2 | 2.80 / 1.83; 13.1 / 8.3 |
+| `live-fast` | 17.5-18.1 / 20.3-21.2 ms | 24.0-24.6 / 30.3-31.2 ms | 143-146; 206-211 ms | 76.1 / 71.9; 76.1 / 66.3 | 3.27 / 2.12; 15.3 / 8.7 |
+
+**`live-fast` meets the 32 ms p95 gate on quiet content and on gameplay** (every run; the host carried a load of 4-13
+from other work); `live` meets it on quiet content only. About 8 ms of a gameplay frame lies outside the parallel
+search - the verification's decode (3.7 ms), the writer (1.5), the global motion (1.1), the tree check (0.7) - which
+is why more threads stop helping (the hardware guide is §11). Decode on the Intel UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new
+frame of the first live profile, 5.7-5.9 ms per rendered frame without new video; the pack decodes both rungs'
+streams bit-exactly (`shader_check.py`, 60 of 60 frames each, EGL on the UHD 630 and GLX on llvmpipe).
+
+## 13. Native kernels (addendum 13)
+
+The live searches spend most of their time in pixel kernels: reconstructing and scoring each candidate leaf (motion,
+solid colour, palette, intra and residual grids, reduced grids, compact records), predicting and searching local
+motion, the least-squares and cell-mean fits, palette clustering, and colour conversion. `mcav-common` ships them as a
+small C++17 library per platform (`src/main/native/mcv2`), called through the Foreign Function & Memory API (no JNI).
+**The native kernels compute exactly what the Java kernels compute** - the Java kernels (`JavaKernels`) are the
+oracle, and a stream is byte-identical whichever kernels encoded it - so the decoder, the pack and every pinned digest
+are unchanged. The reference's exhaustive search (`ship`, `low_bandwidth`) always runs Java; everything that is not a
+pixel kernel (the decisions, the tree, the writer, the verification, the transport) is Java.
+
+**How exactness holds.** One source over a small vector type (`simd.hpp`: 8 lanes of int, float or double) is compiled
+once per level - scalar, SSE4.1, AVX2 (x86-64) and NEON (AArch64) - with IEEE floating point and no fused multiply-add
+(`-ffp-contract=off`, never `-ffast-math`) and Java's wrapping integer arithmetic (`-fwrapv`); every sum is taken in
+the order Java takes it. The level is chosen at run time (`cpuid` and `xgetbv` for AVX2; every AArch64 CPU has NEON):
+no instruction a CPU lacks runs before the library has asked. The Java side checks every argument before a call (the
+library trusts its caller) and passes the Java arrays themselves (`Linker.Option.critical`, no copies). Tests: every
+kernel at every level against Java (unit, jqwik 2,000 tries, Jazzer in `fuzzTest` with the kernels as a differential
+target), whole encodes byte-identical, the reference conformance and the live profiles' pinned digests through each
+level; standalone, the kernels under AddressSanitizer and UndefinedBehaviorSanitizer and with llvm-cov
+(`src/test/native/mcv2/run-native-tests.sh`).
+
+**Loading.** The jar holds `natives/<platform>/<library>` next to `Mcv2Natives`, whose SHA-256 is compiled into
+`Mcv2Natives.DIGESTS`. The first live encoder extracts the library into the folder the plugin gives
+`Mcv2Natives.install` - the sandbox gives `plugins/<plugin>/natives`, never `/tmp`, which hosted servers often mount
+without execution - as `mcv2kernels-<sha256>-<library>` (written to a temporary name and moved into place; a file of
+that name with the right content is reused), checks it against the compiled-in SHA-256, loads it, checks its ABI
+version and logs once which kernels run: `MCV2 kernels: native avx2 (linux-x86_64)`, or `MCV2 kernels: Java, <why>`.
+Anything that stops the library - no library for the platform, a checksum, the extraction, the load, the JVM refusing
+native access - is logged once as a warning, and the Java kernels run.
+
+**Turning it off.** `mcv2.native: off` in the sandbox's `config.yml` (`auto`, the default, uses the library), or
+`-Dmcv2.native=off` on the server's command line, which wins over the configuration. A library that is not there has
+the same effect: `MCV2 kernels: Java, no library for <platform>`.
+
+**Native access.** Java 25 lets a plugin call native code by default and prints one warning the first time it does
+(`WARNING: A restricted method in java.lang.foreign.SymbolLookup has been called ...`). Paper loads plugins into the
+unnamed module, so `--enable-native-access=ALL-UNNAMED` on the server's `java` command line silences it;
+`--illegal-native-access=deny` refuses the load and the Java kernels run.
+
+**Platforms.** Five libraries ship; each was tested as far as a machine for it was at hand:
+
+| platform | library | levels | tested |
+| --- | --- | --- | --- |
+| Linux x86-64 | `libmcv2kernels.so`, 121 KB | scalar, SSE4.1, AVX2 | every JVM test at every level; ASan, UBSan and llvm-cov standalone; a Paper server end to end |
+| Linux AArch64 | `libmcv2kernels.so`, 57 KB | scalar, NEON | the standalone kernel tests under qemu-aarch64, whose digests equal the x86-64 library's (which the JVM tests hold equal to Java) |
+| Windows x86-64 | `mcv2kernels.dll`, 197 KB | scalar, SSE4.1, AVX2 | the native JVM tests in a Windows VM |
+| macOS x86-64 | `libmcv2kernels.dylib`, 127 KB | scalar, SSE4.1, AVX2 | the native JVM tests in a macOS VM |
+| macOS AArch64 | `libmcv2kernels.dylib`, 102 KB | scalar, NEON | built, **not tested** (no machine) |
+
+Anything else - another processor, another operating system - runs the Java kernels, which compute the same stream.
+
+**Rebuilding.** The libraries are committed; the normal build needs no C or C++ toolchain.
+`./gradlew :mcav-common:buildMcv2Natives -Pmcav.natives=build` rebuilds all five with Zig 0.16.0 (its clang 21.1.0
+and linkers; `ZIG=/path/to/zig`, and the script refuses another version) and writes `SHA256SUMS`; the new digests go
+into `Mcv2Natives.DIGESTS`, which `Mcv2NativesTest` checks against the resources.
+`./gradlew :mcav-common:formatMcv2Natives -Pmcav.natives=build` formats the sources with clang-format (LLVM style, 120
+columns; opt-in). The Linux and Windows libraries are reproducible (`SOURCE_DATE_EPOCH=0` keeps the link time out of
+the PE header); the macOS ones differ from build to build in their `LC_UUID` and ad-hoc signature, which the linker
+makes up. The Linux libraries import nothing (no `DT_NEEDED`, no versioned symbol), so they ask nothing of the glibc; every
+library is stripped and uses no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
 
 ## Handover notes
 

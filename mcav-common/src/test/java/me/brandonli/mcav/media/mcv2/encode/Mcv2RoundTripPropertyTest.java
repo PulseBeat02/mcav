@@ -44,7 +44,12 @@ final class Mcv2RoundTripPropertyTest {
 
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
 
-  private static final List<EncoderSettings> PROFILES = List.of(EncoderSettings.SHIP, EncoderSettings.LOW_BANDWIDTH, EncoderSettings.LIVE);
+  private static final List<EncoderSettings> PROFILES = List.of(
+    EncoderSettings.SHIP,
+    EncoderSettings.LOW_BANDWIDTH,
+    EncoderSettings.LIVE,
+    EncoderSettings.LIVE_FAST
+  );
 
   /** A picture of flat rectangles, noise and ramps, the kinds of content different leaf modes win on. */
   private static byte[] picture(final Random random, final int width, final int height) {
@@ -105,7 +110,7 @@ final class Mcv2RoundTripPropertyTest {
   void decodesToThePictureTheEncoderKeeps(
     @ForAll @IntRange(min = 1, max = 96) final int width,
     @ForAll @IntRange(min = 1, max = 72) final int height,
-    @ForAll @IntRange(min = 0, max = 2) final int profile,
+    @ForAll @IntRange(min = 0, max = 3) final int profile,
     @ForAll @DoubleRange(min = 5, max = 400) final double lambda,
     @ForAll final long seed
   ) throws Mcv2Exception {
@@ -124,7 +129,7 @@ final class Mcv2RoundTripPropertyTest {
   void flatKeyframesComeBackExactly(
     @ForAll @IntRange(min = 1, max = 130) final int width,
     @ForAll @IntRange(min = 1, max = 100) final int height,
-    @ForAll @IntRange(min = 0, max = 2) final int profile,
+    @ForAll @IntRange(min = 0, max = 3) final int profile,
     @ForAll @DoubleRange(min = 5, max = 400) final double lambda,
     @ForAll @IntRange(min = 0, max = 0xFFFFFF) final int color
   ) throws Mcv2Exception {

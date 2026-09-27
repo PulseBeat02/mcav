@@ -18,6 +18,8 @@
 package me.brandonli.mcav.media.mcv2.encode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings.ReferencePolicy;
@@ -30,6 +32,22 @@ final class EncoderSettingsTest {
   void shipsTheRoundNineteenProfiles() {
     assertEquals(new EncoderSettings(65.255994022, 60, 24, true, true, 45.0, ReferencePolicy.PREVIOUS_FRAME), EncoderSettings.SHIP);
     assertEquals(EncoderSettings.SHIP.withLambda(137.730758207), EncoderSettings.LOW_BANDWIDTH);
+  }
+
+  @Test
+  void stepsDownThePresetLadder() {
+    assertEquals(EncoderSettings.SHIP.withLive(LiveSearch.LIVE), EncoderSettings.SHIP.faster());
+    assertEquals(EncoderSettings.LIVE.withLive(LiveSearch.LIVE_FAST).withLambda(55), EncoderSettings.LIVE_FAST);
+    assertEquals(EncoderSettings.LIVE_FAST, EncoderSettings.LIVE.faster());
+    assertSame(LiveSearch.LIVE_FAST, EncoderSettings.LIVE_FAST.live());
+    // the step to the live search keeps the lambda; the step to the live-fast search scales it to keep the quality;
+    // nothing else changes
+    final EncoderSettings low = EncoderSettings.LOW_BANDWIDTH.withReference(ReferencePolicy.LAST_KEYFRAME).withKeyInterval(9);
+    assertEquals(low.withLive(LiveSearch.LIVE), low.faster());
+    assertEquals(low.withLive(LiveSearch.LIVE_FAST).withLambda((137.730758207 * 55) / 72), low.withLive(LiveSearch.LIVE).faster());
+    // the fastest search, and one off the ladder, have no rung below
+    assertNull(EncoderSettings.LIVE_FAST.faster());
+    assertNull(EncoderSettings.LIVE.withLive(LiveSearch.EXACT).faster());
   }
 
   @Test

@@ -20,6 +20,9 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Random;
+import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.media.mcv2.Workers;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -47,12 +50,30 @@ final class MotionLambdaTest {
   void blursTheLumaOfEveryFourthPixelOverThreeByThreeSamples() {
     // luma r + 2 g + b of the samples: 40, 80 on the first row, 120, 160 on the second; each blurred sample sums its
     // 3x3 neighbourhood, the edge samples repeated, so the top left one is 4 * 40 + 2 * 80 + 2 * 120 + 160
-    assertArrayEquals(new int[] { 720, 840, 960, 1080 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 5, 5));
+    assertArrayEquals(new int[] { 720, 840, 960, 1080 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 5, 5, Workers.SEQUENTIAL));
     // 3600 over four samples, in units of 36 per luma step
-    assertEquals(25.0, MotionLambda.temporalInformation(new int[] { 720, 840, 960, 1080 }, new int[4]));
-    assertEquals(25.0, MotionLambda.temporalInformation(new int[4], new int[] { 720, 840, 960, 1080 }));
+    assertEquals(25.0, MotionLambda.temporalInformation(new int[] { 720, 840, 960, 1080 }, new int[4], Workers.SEQUENTIAL));
+    assertEquals(25.0, MotionLambda.temporalInformation(new int[4], new int[] { 720, 840, 960, 1080 }, Workers.SEQUENTIAL));
     // a picture four pixels wide or less has one column of samples
-    assertArrayEquals(new int[] { 360 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 1, 1));
+    assertArrayEquals(new int[] { 360 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 1, 1, Workers.SEQUENTIAL));
+  }
+
+  @Test
+  void measuresTheSameMotionOnManyWorkers() {
+    // many bands of rows and of samples, so every worker has some
+    final Random random = new Random(11);
+    final byte[] first = new byte[400 * 300 * 3];
+    final byte[] second = new byte[first.length];
+    random.nextBytes(first);
+    random.nextBytes(second);
+    final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
+    final int[] blurred = MotionLambda.blurredLuma(first, 400, 300, Workers.SEQUENTIAL);
+    assertArrayEquals(blurred, MotionLambda.blurredLuma(first, 400, 300, workers));
+    final int[] other = MotionLambda.blurredLuma(second, 400, 300, Workers.SEQUENTIAL);
+    assertEquals(
+      MotionLambda.temporalInformation(blurred, other, Workers.SEQUENTIAL),
+      MotionLambda.temporalInformation(blurred, other, workers)
+    );
   }
 
   @Test
@@ -75,25 +96,25 @@ final class MotionLambdaTest {
     // ten grey levels brighter: 40 luma, 360 once blurred, 10 in luma units
     final byte[] brighter = corners(20, 30, 40, 50);
     // the first frame has nothing to be compared with
-    motion.observe(still, 5, 5, false);
+    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false);
+    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // an unchanged frame moves the average a sixteenth of the way to no motion
-    motion.observe(brighter, 5, 5, false);
+    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10 - 10 * MotionLambda.SMOOTHING), motion.lambda(BASE));
     // a scene cut starts over at the profile's lambda
-    motion.observe(still, 5, 5, true);
+    motion.observe(still, 5, 5, true, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false);
+    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // and so does another height, or another width
-    motion.observe(new byte[5 * 9 * 3], 5, 9, false);
+    motion.observe(new byte[5 * 9 * 3], 5, 9, false, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(still, 5, 5, false);
-    motion.observe(brighter, 5, 5, false);
+    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
-    motion.observe(new byte[9 * 5 * 3], 9, 5, false);
+    motion.observe(new byte[9 * 5 * 3], 9, 5, false, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
   }
 }

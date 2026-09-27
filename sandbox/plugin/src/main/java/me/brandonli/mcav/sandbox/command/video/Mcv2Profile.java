@@ -40,6 +40,11 @@ public enum Mcv2Profile {
    */
   LIVE,
   /**
+   * The fastest live profile, the default of a screen: a faster search than {@link #LIVE}'s for somewhat more bandwidth
+   * at the same quality, which a {@link #LIVE} screen that cannot keep up steps down to first.
+   */
+  LIVE_FAST,
+  /**
    * The live profile predicting from the last keyframe, for viewers whose clients draw fewer frames per second than
    * the video has: a client decodes at most one video frame per frame it draws, and a frame it missed is the
    * reference of the next one under previous-frame prediction.
@@ -58,6 +63,7 @@ public enum Mcv2Profile {
       case KEYFRAME -> EncoderSettings.SHIP.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
       case INTRA -> EncoderSettings.SHIP.withKeyInterval(1);
       case LIVE -> EncoderSettings.LIVE;
+      case LIVE_FAST -> EncoderSettings.LIVE_FAST;
       case LIVE_KEYFRAME -> EncoderSettings.LIVE.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
     };
   }

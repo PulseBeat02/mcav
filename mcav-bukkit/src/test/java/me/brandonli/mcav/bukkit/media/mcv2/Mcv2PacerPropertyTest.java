@@ -29,8 +29,9 @@ import net.jqwik.api.constraints.DoubleRange;
 import net.jqwik.api.constraints.IntRange;
 
 /**
- * Whatever the video and however fast the budget encodes: the pacer never stays long on a rung whose frames take more
- * than their time, a step up it takes under a steady load holds, and it climbs back to the top once the budget frees.
+ * Whatever the video, the presets and however fast the budget encodes: the pacer never stays long on a rung whose frames
+ * take more than their time, a step up it takes under a steady load holds, and it climbs back to the top once the budget
+ * frees.
  */
 final class Mcv2PacerPropertyTest {
 
@@ -40,13 +41,20 @@ final class Mcv2PacerPropertyTest {
 
   private static final List<int[]> SIZES = List.of(new int[] { 1920, 1080 }, new int[] { 1280, 720 }, new int[] { 960, 540 });
 
+  /** The presets a screen steps through, when it has more than one. */
+  private static final List<Mcv2Pacer.Preset> PRESETS = List.of(
+    new Mcv2Pacer.Preset("live", 1),
+    new Mcv2Pacer.Preset("live-fast", 0.6),
+    new Mcv2Pacer.Preset("fastest", 0.35)
+  );
+
   /** A rung the pacer was on, from when to when, whether a step up brought it there and a step down ended it. */
   record Stretch(Mcv2Pacer.Rung rung, long from, long to, boolean climbed, boolean leftDown) {}
 
   /**
    * A screen's encoder under a budget: frames arrive at the video's rate; an encode takes the time of a 1080p frame at
-   * the budget's current speed, scaled by the rung's pixels and a little noise; while the encoder works, the newest
-   * frame it is asked for waits, as in the screen.
+   * the budget's current speed, scaled by the rung's pixels, its preset's cost and a little noise; while the encoder
+   * works, the newest frame it is asked for waits, as in the screen.
    */
   static final class Simulation {
 
@@ -74,8 +82,12 @@ final class Mcv2PacerPropertyTest {
 
     private boolean waiting;
 
-    Simulation(final int sizes, final double fps, final double noise, final long seed) {
-      this.pacer = new Mcv2Pacer(SIZES.subList(0, sizes));
+    Simulation(final int sizes, final int presets, final double fps, final double noise, final long seed) {
+      this.pacer = new Mcv2Pacer(
+        SIZES.subList(0, sizes),
+        presets == 1 ? List.of(Mcv2Pacer.Preset.ONLY) : PRESETS.subList(0, presets),
+        true
+      );
       this.interval = Math.round(SECOND / fps);
       this.noise = noise;
       this.random = new Random(seed);
@@ -83,7 +95,7 @@ final class Mcv2PacerPropertyTest {
 
     private double costOf(final Mcv2Pacer.Rung rung, final double fullMs) {
       final double scale = 1 + this.noise * (2 * this.random.nextDouble() - 1);
-      return (fullMs * scale * rung.width() * rung.height()) / (1920.0 * 1080.0);
+      return (fullMs * scale * rung.width() * rung.height() * rung.preset().cost()) / (1920.0 * 1080.0);
     }
 
     private void record(final Mcv2Pacer.Change change, final long at) {
@@ -154,11 +166,12 @@ final class Mcv2PacerPropertyTest {
   boolean neverStaysLongOverItsTime(
     @ForAll("frameRates") final double fps,
     @ForAll @IntRange(min = 1, max = 3) final int sizes,
+    @ForAll @IntRange(min = 1, max = 3) final int presets,
     @ForAll @DoubleRange(min = 1, max = 3000) final double fullMs,
     @ForAll @DoubleRange(min = 0, max = 0.1) final double noise,
     @ForAll final long seed
   ) {
-    final Simulation simulation = new Simulation(sizes, fps, noise, seed);
+    final Simulation simulation = new Simulation(sizes, presets, fps, noise, seed);
     simulation.play(180, fullMs);
     final List<Stretch> stretches = simulation.finish();
     for (int i = 0; i < stretches.size(); i++) {
@@ -166,7 +179,8 @@ final class Mcv2PacerPropertyTest {
       if (stretch.rung().isDithered()) {
         continue;
       }
-      final double rungMs = (fullMs * stretch.rung().width() * stretch.rung().height()) / (1920.0 * 1080.0);
+      final double rungMs =
+        (fullMs * stretch.rung().width() * stretch.rung().height() * stretch.rung().preset().cost()) / (1920.0 * 1080.0);
       final double seconds = (stretch.to() - stretch.from()) / (double) SECOND;
       final boolean over = rungMs * (1 - noise) > frameMs(stretch.rung(), fps);
       // it waits for the rung's first samples (and, on the first rung, for the encoder to warm up), then a second
@@ -188,12 +202,13 @@ final class Mcv2PacerPropertyTest {
   boolean climbsBackWhenTheLoadDrops(
     @ForAll("frameRates") final double fps,
     @ForAll @IntRange(min = 1, max = 3) final int sizes,
+    @ForAll @IntRange(min = 1, max = 3) final int presets,
     @ForAll @DoubleRange(min = 20, max = 3000) final double heavyMs,
     @ForAll @DoubleRange(min = 0.05, max = 0.55) final double lightShare,
     @ForAll @DoubleRange(min = 0, max = 0.1) final double noise,
     @ForAll final long seed
   ) {
-    final Simulation simulation = new Simulation(sizes, fps, noise, seed);
+    final Simulation simulation = new Simulation(sizes, presets, fps, noise, seed);
     simulation.play(20, heavyMs);
     // the top rung fits in lightShare of its frame time, with room to spare
     simulation.play(120, (lightShare * 1000) / fps);

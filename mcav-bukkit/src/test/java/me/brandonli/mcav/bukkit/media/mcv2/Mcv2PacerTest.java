@@ -31,8 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
- * The pacer's ladder and its steps: down by frame rate, then size, then to the dithered maps, each with a message
- * that says why; back up when there is room; keyframes left out; and the waits that keep it from swinging.
+ * The pacer's ladder and its steps: down by preset, then frame rate, then size, then to the dithered maps, each with a
+ * message that says why; back up when there is room; keyframes left out; and the waits that keep it from swinging.
  */
 final class Mcv2PacerTest {
 
@@ -48,8 +48,14 @@ final class Mcv2PacerTest {
 
   private static final int[] SMALL = { 1280, 720 };
 
+  private static final Mcv2Pacer.Preset LIVE = new Mcv2Pacer.Preset("live", 1);
+
+  /** A preset that takes half the time: every time below stays an exact double. */
+  private static final Mcv2Pacer.Preset FAST = new Mcv2Pacer.Preset("live-fast", 0.5);
+
   /**
-   * Drives a pacer with a video at a frame rate; an encoded frame takes a time that grows with the pixels of its size.
+   * Drives a pacer with a video at a frame rate; an encoded frame takes a time that grows with the pixels of its size
+   * and with the cost of its preset.
    */
   private static final class Driver {
 
@@ -67,7 +73,7 @@ final class Mcv2PacerTest {
       this.now = start;
     }
 
-    /** Plays the video for a while; every frame the pacer encodes takes {@code fullMs} scaled to its size. */
+    /** Plays the video for a while; every frame the pacer encodes takes {@code fullMs} scaled to its size and preset. */
     Mcv2Pacer.@Nullable Change play(final double seconds, final double fullMs) {
       Mcv2Pacer.Change last = null;
       final long end = this.now + (long) (seconds * SECOND);
@@ -80,7 +86,7 @@ final class Mcv2PacerTest {
         }
         if (this.pacer.isEncoded()) {
           final Mcv2Pacer.Rung rung = this.pacer.getRung();
-          final double milliseconds = (fullMs * rung.width() * rung.height()) / (FULL[0] * FULL[1]);
+          final double milliseconds = (fullMs * rung.width() * rung.height() * rung.preset().cost()) / (FULL[0] * FULL[1]);
           final Mcv2Pacer.Change change = this.pacer.encoded(milliseconds, false, this.now);
           if (change != null) {
             this.changes.add(change);
@@ -147,6 +153,34 @@ final class Mcv2PacerTest {
   }
 
   @Test
+  void buildsALadderOfPresetsBeforeTheFrameRates() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), true);
+    final List<Mcv2Pacer.Rung> ladder = pacer.getLadder();
+    assertEquals(13, ladder.size());
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, LIVE), ladder.getFirst());
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, FAST), ladder.get(1));
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2, FAST), ladder.get(2));
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 6, FAST), ladder.get(5));
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 1, LIVE), ladder.get(6));
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 1, FAST), ladder.get(7));
+    assertEquals(Mcv2Pacer.Rung.DITHERED, ladder.getLast());
+    // one preset is the ladder of a screen that does not step through presets
+    assertEquals(
+      new Mcv2Pacer(List.of(FULL), false).getLadder(),
+      new Mcv2Pacer(List.of(FULL), List.of(Mcv2Pacer.Preset.ONLY), false).getLadder()
+    );
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(FULL), List.of(), true));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(), List.of(LIVE), true));
+    // every preset costs less than the one before
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(FULL), List.of(FAST, LIVE), true));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(FULL), List.of(LIVE, new Mcv2Pacer.Preset("same", 1)), true));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer.Preset("free", 0));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer.Preset("negative", -1));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer.Preset("unknown", Double.NaN));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer.Preset("endless", Double.POSITIVE_INFINITY));
+  }
+
+  @Test
   void describesRungsAndRates() {
     assertTrue(Mcv2Pacer.Rung.DITHERED.isDithered());
     assertEquals(0, Mcv2Pacer.Rung.DITHERED.fps(60));
@@ -156,6 +190,8 @@ final class Mcv2PacerTest {
     assertEquals(7.5, rung.fps(30));
     assertEquals("1280x720 at 7.5 fps", rung.describe(30));
     assertEquals("1280x720 at 15 fps", rung.describe(60));
+    assertEquals(Mcv2Pacer.Preset.ONLY, rung.preset());
+    assertEquals("1280x720 at 15 fps with the live-fast search", new Mcv2Pacer.Rung(1280, 720, 4, FAST).describe(60));
     assertEquals("30", Mcv2Pacer.rate(29.97));
     assertEquals("12.5", Mcv2Pacer.rate(12.5));
     // exactly a twentieth from a whole number is not whole any more
@@ -214,6 +250,91 @@ final class Mcv2PacerTest {
       encoded += pacer.isEncoded() ? 1 : 0;
     }
     assertEquals(5, encoded);
+  }
+
+  @Test
+  void stepsDownThePresetsBeforeTheFrameRate() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), true);
+    final Driver driver = new Driver(pacer, 50, 0);
+    driver.play(5, 5);
+    // 22 ms per frame is more than the 20 ms a frame has at 50 fps; the faster preset's predicted 11 ms fits 17 ms
+    final Mcv2Pacer.Change change = driver.play(2, 22);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, LIVE), change.from());
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, FAST), change.to());
+    assertEquals(
+      "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search" +
+      " takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
+      change.describe()
+    );
+    // every frame is still encoded, and it holds
+    driver.play(20, 22);
+    assertEquals(1, driver.changes.size());
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, FAST), pacer.getRung());
+    // once the budget frees, the slower preset is predicted at 5 ms, within 0.7 of 20 ms: the pacer climbs back to it
+    final Mcv2Pacer.Change climbed = driver.play(20, 5);
+    assertNotNull(climbed);
+    assertEquals(
+      "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search" +
+      " takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
+      climbed.describe()
+    );
+    assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
+  }
+
+  @Test
+  void takesAFasterPresetThatOnlyKeepsUpBeforeALowerFrameRate() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), true);
+    final Driver driver = new Driver(pacer, 50, 0);
+    driver.play(5, 5);
+    // 38 ms per frame: the faster preset's 19 ms keeps up with 20 ms without fitting 17 ms, and keeps every frame
+    final Mcv2Pacer.Change change = driver.play(2, 38);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, FAST), change.to());
+  }
+
+  @Test
+  void stepsDownTheFrameRateAtTheFastestPreset() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), true);
+    final Driver driver = new Driver(pacer, 50, 0);
+    driver.play(5, 5);
+    // 44 ms per frame: the faster preset's 22 ms does not keep up with 20 ms at 50 fps, and fits 34 ms at 25 fps
+    final Mcv2Pacer.Change change = driver.play(2, 44);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2, FAST), change.to());
+    // 160 ms: the faster preset's 80 ms fits no rate of 1080p down to 12.5 fps (68 ms); 720p is predicted at 71.1 ms
+    // with the slower preset and 35.6 ms with the faster, which fits 16.7 fps (51 ms)
+    final Mcv2Pacer.Change smaller = driver.play(4, 160);
+    assertNotNull(smaller);
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 3, FAST), smaller.to());
+    assertEquals(2, driver.changes.size());
+  }
+
+  @Test
+  void stepsDownToALowerFrameRateOnlyWhereItFitsWithRoom() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
+    final Driver driver = new Driver(pacer, 50, 0);
+    driver.play(5, 5);
+    // 38 ms per frame keeps up with every other frame's 40 ms without fitting 34 ms; every third frame's 51 ms fits
+    final Mcv2Pacer.Change change = driver.play(2, 38);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 3), change.to());
+  }
+
+  @Test
+  void stepsDownToASmallerSizeOnlyWhereItFitsWithRoom() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
+    final Driver driver = new Driver(pacer, 60, 0);
+    driver.play(5, 5);
+    // 55 ms per frame fits every fourth frame's 56.7 ms
+    final Mcv2Pacer.Change first = driver.play(3, 55);
+    assertNotNull(first);
+    assertEquals(new Mcv2Pacer.Rung(1920, 1080, 4), first.to());
+    // 140 ms: 720p is predicted at about 62 ms, which keeps up with every fourth frame's 66.7 ms without fitting 56.7
+    // ms, and fits every sixth frame's 85 ms
+    final Mcv2Pacer.Change change = driver.play(4, 140);
+    assertNotNull(change);
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 6), change.to());
   }
 
   @Test

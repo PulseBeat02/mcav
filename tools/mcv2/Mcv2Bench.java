@@ -55,17 +55,17 @@ import me.brandonli.mcav.media.mcv2.transport.TransportPages;
  *   profile=live budget=true verify=true
  * </pre>
  *
- * <p>Arguments, all {@code key=value}: {@code source}, {@code width}, {@code height}, {@code frames}, {@code warm} (frames
- * left out of the times), {@code loop} ({@code none}, {@code wrap} or {@code pingpong} over the source's frames),
- * {@code fps} (for the rates), {@code threads}, {@code profile} ({@code ship}, {@code low}, {@code live}), {@code lambda},
- * {@code key} (keyframe interval), {@code reference} ({@code previous} or {@code keyframe}), {@code budget} (encode inside
- * an {@link EncoderPool}, as an MCV2 screen and a pre-encode do), {@code verify}, {@code framebudget} (milliseconds, see
- * {@link Mcv2Encoder#setFrameBudget}), {@code out} (write the archive) and {@code decoded} (write the pictures). For a live
- * search other than the profile's: {@code search=custom} with {@code smallest}, {@code skip}, {@code split},
- * {@code steady}, {@code fine}, {@code good}, {@code gate}, {@code modes}, {@code smallmodes}, {@code keymodes},
- * {@code classes}, {@code q}, {@code seeded}, {@code searchblock}, {@code coarse}, {@code fast}, {@code splitabove} and
- * {@code motionlambda} (see {@link LiveSearch}; mode sets as comma-separated mode numbers, {@code all}, or {@code lambda}
- * for the quantizer from lambda).
+ * <p>Arguments, all {@code key=value}: {@code source}, {@code width}, {@code height}, {@code frames}, {@code warm}
+ * (frames left out of the times), {@code loop} ({@code none}, {@code wrap} or {@code pingpong} over the source's
+ * frames), {@code fps} (for the rates), {@code threads}, {@code profile} ({@code ship}, {@code low}, {@code live},
+ * {@code live-fast}), {@code lambda}, {@code key} (keyframe interval), {@code reference} ({@code previous} or
+ * {@code keyframe}), {@code budget} (encode inside an {@link EncoderPool}, as an MCV2 screen and a pre-encode do),
+ * {@code verify}, {@code framebudget} (milliseconds, see {@link Mcv2Encoder#setFrameBudget}), {@code out} (write the
+ * archive) and {@code decoded} (write the pictures). For a live search other than the profile's: {@code search=custom}
+ * with {@code smallest}, {@code skip}, {@code split}, {@code steady}, {@code fine}, {@code good}, {@code gate},
+ * {@code modes}, {@code smallmodes}, {@code keymodes}, {@code classes}, {@code q}, {@code seeded}, {@code searchblock},
+ * {@code coarse}, {@code fast}, {@code splitabove} and {@code motionlambda} (see {@link LiveSearch}; mode sets as
+ * comma-separated mode numbers, {@code all}, or {@code lambda} for the quantizer from lambda).
  */
 public final class Mcv2Bench {
 
@@ -159,6 +159,7 @@ public final class Mcv2Bench {
     EncoderSettings s = switch (a.getOrDefault("profile", "ship")) {
       case "low" -> EncoderSettings.LOW_BANDWIDTH;
       case "live" -> EncoderSettings.LIVE;
+      case "live-fast" -> EncoderSettings.LIVE_FAST;
       default -> EncoderSettings.SHIP;
     };
     if (a.containsKey("lambda")) {

@@ -60,6 +60,12 @@ public record EncoderSettings(
 
   private static final double LIVE_LAMBDA = 72;
 
+  /**
+   * The live-fast profile's lambda: where its search reaches the VMAF mean the live search reaches at 72 on the 1080p30
+   * proxy (75.7), and on the 30 fps gameplay clip nearly so (55/72 of live's lambda there too, 56.5/74.1).
+   */
+  private static final double LIVE_FAST_LAMBDA = 55;
+
   /** The live profile's keyframe interval: four seconds at 30 frames per second. */
   private static final int LIVE_KEY_INTERVAL = 120;
 
@@ -101,6 +107,12 @@ public record EncoderSettings(
     ReferencePolicy.PREVIOUS_FRAME,
     LiveSearch.LIVE
   );
+
+  /**
+   * The live-fast profile: {@link #LIVE} with the fastest search of the preset ladder, {@link LiveSearch#LIVE_FAST}, at
+   * lambda 55, where it reaches the quality {@link #LIVE} reaches at 72.
+   */
+  public static final EncoderSettings LIVE_FAST = LIVE.withLive(LiveSearch.LIVE_FAST).withLambda(LIVE_FAST_LAMBDA);
 
   /** Which decoded frame P frames predict from. */
   public enum ReferencePolicy {
@@ -202,6 +214,25 @@ public record EncoderSettings(
       value,
       this.live
     );
+  }
+
+  /**
+   * Gets the next rung down the preset ladder - the reference's exhaustive search, then {@link LiveSearch#LIVE}, then
+   * {@link LiveSearch#LIVE_FAST}, each faster than the one before - which a live screen that cannot keep up steps down
+   * before it encodes fewer frames: these settings with the next search. The live-fast search reaches the live search's
+   * quality at 55/72 of its lambda, so that step scales the lambda by as much ({@code LIVE.faster()} is
+   * {@link #LIVE_FAST}); everything else stays.
+   *
+   * @return the settings with the next faster search, or null when the search is the fastest or not on the ladder
+   */
+  public @Nullable EncoderSettings faster() {
+    final LiveSearch search = this.live;
+    if (search == null) {
+      return this.withLive(LiveSearch.LIVE);
+    }
+    return LiveSearch.LIVE.equals(search)
+      ? this.withLive(LiveSearch.LIVE_FAST).withLambda((this.lambda * LIVE_FAST_LAMBDA) / LIVE_LAMBDA)
+      : null;
   }
 
   /**

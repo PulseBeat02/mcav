@@ -61,6 +61,7 @@ import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.media.mcv2.encode.LiveSearch;
 import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -324,7 +325,7 @@ final class Mcv2ResultTest {
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
     when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
     result.getChannel().requestKeyframe();
-    result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0), 0);
+    result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0, Mcv2Pacer.Preset.ONLY), 0);
     verify(encoder).requestKeyframe();
     assertEquals(1, result.getStatistics().getDropped());
     assertEquals(0, result.getStatistics().getFrames());
@@ -580,7 +581,7 @@ final class Mcv2ResultTest {
     final Mcv2Result result = new Mcv2Result(this.configuration, this.viewers, this.algorithm);
     assertThrows(NullPointerException.class, () -> result.applyFilter(null, this.metadata));
     assertThrows(NullPointerException.class, () -> result.applyFilter(Images.solid(64, 32, 0), null));
-    assertEquals(EncoderSettings.SHIP, this.configuration.getSettings());
+    assertEquals(EncoderSettings.LIVE_FAST, this.configuration.getSettings());
   }
 
   @Test
@@ -800,7 +801,7 @@ final class Mcv2ResultTest {
         if (id == 3) {
           this.server.completeWrites(WITH_PACK);
         }
-        result.send(encoder, new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, 0), id);
+        result.send(encoder, new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, 0, Mcv2Pacer.Preset.ONLY), id);
         this.server.completeWrites(second);
       }
       recording.stop();
@@ -815,6 +816,124 @@ final class Mcv2ResultTest {
       assertEquals(List.of(0, 0, 0, 1, 0), recorded.stream().map(event -> event.getInt("waiting")).toList());
     }
     result.release();
+  }
+
+  /** A screen of one map for the viewer with the pack, at 64x32, with the given encoder settings. */
+  private static Mcv2Configuration packScreen(final EncoderSettings settings) {
+    return Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(mock(World.class), 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .settings(settings)
+      .build();
+  }
+
+  @Test
+  void namesThePresetsOfItsLadder() {
+    final Mcv2Result exhaustive = this.result(packScreen(EncoderSettings.SHIP), null);
+    exhaustive.pace();
+    assertEquals("exhaustive", exhaustive.getRung().preset().name());
+    final Mcv2Result live = this.result(packScreen(EncoderSettings.LIVE), null);
+    live.pace();
+    assertEquals(new Mcv2Pacer.Preset("live", 1), live.getRung().preset());
+    // the fastest preset, and a search off the ladder, have nothing to step through
+    final Mcv2Result fastest = this.result(packScreen(EncoderSettings.LIVE_FAST), null);
+    fastest.pace();
+    assertEquals(new Mcv2Pacer.Rung(64, 32, 1), fastest.getRung());
+    final Mcv2Result exact = this.result(packScreen(EncoderSettings.LIVE.withLive(LiveSearch.EXACT)), null);
+    exact.pace();
+    assertEquals(new Mcv2Pacer.Rung(64, 32, 1), exact.getRung());
+  }
+
+  @Test
+  void stepsDownThePresetsWithAnEncoderEach() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration live = packScreen(EncoderSettings.LIVE);
+    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Mcv2Encoder> made = new ArrayList<>();
+    final Mcv2Result result = new Mcv2Result(
+      live,
+      new Mcv2Channel(live, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run,
+      settings -> {
+        final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+        when(encoder.getSettings()).thenReturn(settings);
+        // the faster search takes three quarters of the time
+        final long share = settings.equals(EncoderSettings.LIVE) ? 4 : 3;
+        when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+          clock.addAndGet((encodeNanos.get() * share) / 4);
+          return Mcv2ChannelTest.keyframe();
+        });
+        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+        made.add(encoder);
+        return encoder;
+      }
+    );
+    final List<Mcv2Pacer.Change> changes = new ArrayList<>();
+    result.setPacingListener(changes::add);
+    result.pace();
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    // the first frame makes the encoder of the screen's settings, the top of its ladder, and the next ones keep it
+    Mcv2Encoder encoder = this.playSwitching(result, clock, mock(Mcv2Encoder.class), frame, 300);
+    assertEquals(1, made.size());
+    assertEquals(EncoderSettings.LIVE, made.getFirst().getSettings());
+    // at 18 ms a frame of the 16.7 a frame has, the faster search's predicted 16.2 ms keeps up: every frame is still
+    // encoded
+    encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(18));
+    encoder = this.playSwitching(result, clock, encoder, frame, 120);
+    assertEquals(1, changes.size());
+    assertEquals(
+      "MCV2 screen steps down to 64x32 at 60 fps with the live-fast search: encoding 64x32 with the live search takes 18.0 ms" +
+      " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
+      changes.getFirst().describe()
+    );
+    assertEquals(2, made.size());
+    assertEquals(EncoderSettings.LIVE_FAST, made.get(1).getSettings());
+    verify(made.get(1), Mockito.atLeast(30)).encode(any(), anyInt(), anyInt(), anyLong());
+    // once the budget frees, the screen climbs back to the slower search, with a new encoder of it
+    encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(5));
+    this.playSwitching(result, clock, encoder, frame, 20 * 60);
+    assertEquals(2, changes.size());
+    assertFalse(changes.get(1).down());
+    assertEquals(3, made.size());
+    assertEquals(EncoderSettings.LIVE, made.get(2).getSettings());
+    assertEquals(new Mcv2Pacer.Preset("live", 1), result.getRung().preset());
+  }
+
+  /**
+   * Plays frames at 60 frames a second on the test's clock, as {@link #play} does, and encodes each with the encoder of
+   * the preset it arrived on, as the screen's thread does.
+   *
+   * @return the encoder of the last frame
+   */
+  private Mcv2Encoder playSwitching(
+    final Mcv2Result result,
+    final AtomicLong clock,
+    final Mcv2Encoder first,
+    final ImageBuffer frame,
+    final int frames
+  ) throws InterruptedException {
+    Mcv2Encoder encoder = first;
+    for (int i = 0; i < frames; i++) {
+      final long arrival = clock.addAndGet(16_666_667L);
+      result.applyFilter(frame, this.metadata);
+      final Mcv2Result.Arrival handed = result.poll();
+      if (handed != null) {
+        encoder = result.encoderFor(handed, encoder);
+        result.send(encoder, handed, i);
+      }
+      clock.set(arrival);
+    }
+    return encoder;
   }
 
   @Test

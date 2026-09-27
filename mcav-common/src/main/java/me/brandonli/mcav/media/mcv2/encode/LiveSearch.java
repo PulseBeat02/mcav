@@ -170,6 +170,16 @@ public record LiveSearch(
 
   private static final int LIVE_SEARCH_BLOCK = 16;
 
+  /**
+   * {@link #LIVE_FAST}'s thresholds: SKIP without a search up to 60 lambda, a 32-pixel block whose superblock the
+   * previous frame coded whole split only above 900 lambda, a 16-pixel block above 600.
+   */
+  private static final double FAST_SKIP = 60;
+
+  private static final double FAST_STEADY_SPLIT = 900;
+
+  private static final double FAST_FINE_SPLIT = 600;
+
   /** The quantizer set that stands for the single quantizer derived from lambda. */
   public static final int FROM_LAMBDA = 0;
 
@@ -221,10 +231,10 @@ public record LiveSearch(
    * The search of {@link EncoderSettings#LIVE}, chosen by measurement on the 1080p30 proxy and the 30 fps gameplay clip
    * (the report's lever table): leaves down to 8 pixels, a 16-pixel block only split above 300 lambda, a 32-pixel one
    * above 150 where the previous frame split its superblock and above 450 where it coded it whole, local motion searched
-   * from the previous frame's vectors down to 16 pixels and first at half resolution, P frames choosing between local
-   * motion, solid colours, palettes, the 2x2 and reduced intra grids, three compact classes at the quantizer their fitted
-   * values need, and patterns with RGB565 endpoints, keyframes from every intra mode, and the cheap fits of
-   * intra grids and palettes.
+   * from the previous frame's vectors down to 16 pixels, first at a quarter and then at half resolution, P frames
+   * choosing between local motion, solid colours, palettes, the 2x2 and reduced intra grids, three compact classes at
+   * the quantizer their fitted values need, and patterns with RGB565 endpoints, keyframes from every intra mode, the
+   * cheap fits of intra grids and palettes, and a lambda that rises with the source's motion ({@link MotionLambda}).
    */
   public static final LiveSearch LIVE = new LiveSearch(
     SMALLEST_BLOCK,
@@ -242,9 +252,35 @@ public record LiveSearch(
     true,
     LIVE_SEARCH_BLOCK,
     true,
+    FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_ONE | HALF_MOTION | QUARTER_MOTION,
+    0,
+    true
+  );
+
+  /**
+   * The search of {@link EncoderSettings#LIVE_FAST}, the fastest rung of the preset ladder: {@link #LIVE} with SKIP
+   * taken without a search up to 60 lambda, a 32-pixel block whose superblock the previous frame coded whole split only
+   * above 900 lambda and a 16-pixel block above 600, and local motion from half resolution only.
+   */
+  public static final LiveSearch LIVE_FAST = new LiveSearch(
+    SMALLEST_BLOCK,
+    FAST_SKIP,
+    LIVE_SPLIT,
+    FAST_STEADY_SPLIT,
+    FAST_FINE_SPLIT,
+    0,
+    0,
+    LIVE_MODES,
+    LIVE_MODES,
+    ALL_MODES,
+    LIVE_CLASSES,
+    ALL_QUANTIZERS,
+    true,
+    LIVE_SEARCH_BLOCK,
+    true,
     FAST_GRIDS | FAST_PALETTES | ONE_PREDICTION | FIT_ONE | HALF_MOTION,
     0,
-    false
+    true
   );
 
   /**

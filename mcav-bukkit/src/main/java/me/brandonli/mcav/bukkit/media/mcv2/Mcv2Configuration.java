@@ -383,7 +383,7 @@ public final class Mcv2Configuration {
 
     private int unsentLimit = DEFAULT_UNSENT_LIMIT;
 
-    private EncoderSettings settings = EncoderSettings.SHIP;
+    private EncoderSettings settings = EncoderSettings.LIVE_FAST;
 
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
@@ -509,7 +509,10 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets the encoder profile; defaults to {@link EncoderSettings#SHIP}.
+     * Sets the encoder profile; defaults to {@link EncoderSettings#LIVE_FAST}: a screen encodes a source while it plays,
+     * and live-fast is the slowest rung of the preset ladder that keeps the 95th percentile of a 1080p30 frame under 32
+     * ms on a 6-core server, on quiet content and on gameplay alike. A screen given a slower profile steps down the
+     * ladder when it cannot keep up ({@link EncoderSettings#faster()}).
      *
      * @param settings the settings
      * @return this builder

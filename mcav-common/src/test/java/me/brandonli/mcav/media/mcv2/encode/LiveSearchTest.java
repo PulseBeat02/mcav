@@ -82,6 +82,7 @@ final class LiveSearchTest {
     assertFalse(LiveSearch.EXACT.coarseEndpoints());
     assertEquals(0, LiveSearch.EXACT.shortcuts());
     assertSame(LiveSearch.LIVE, EncoderSettings.LIVE.live());
+    assertSame(LiveSearch.LIVE_FAST, EncoderSettings.LIVE_FAST.live());
     assertEquals(120, EncoderSettings.LIVE.keyInterval());
     // the largest lambda that keeps the 1080p30 proxy at a VMAF mean of 75
     assertEquals(72, EncoderSettings.LIVE.lambda());
@@ -101,13 +102,29 @@ final class LiveSearchTest {
     assertTrue(LiveSearch.LIVE.tries(MODE_INTRA + 2, true, 32));
     assertTrue(LiveSearch.LIVE.tries(MODE_PATTERN, false, 8));
     // of the compact classes the reference chooses on gameplay, the ones that pay for their search: DC and both 4-bit
-    // 4x4 grids, each at the quantizer its fitted values need; local motion first at half resolution
+    // 4x4 grids, each at the quantizer its fitted values need; local motion first at a quarter and half resolution;
+    // the lambda rises with the source's motion
     assertEquals(0xD, LiveSearch.LIVE.compactClasses());
     assertEquals(LiveSearch.ALL_QUANTIZERS, LiveSearch.LIVE.quantizers());
-    assertEquals(
-      LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION | LiveSearch.FIT_ONE | LiveSearch.HALF_MOTION,
-      LiveSearch.LIVE.shortcuts()
-    );
+    final int fits = LiveSearch.FAST_GRIDS | LiveSearch.FAST_PALETTES | LiveSearch.ONE_PREDICTION | LiveSearch.FIT_ONE;
+    assertEquals(fits | LiveSearch.HALF_MOTION | LiveSearch.QUARTER_MOTION, LiveSearch.LIVE.shortcuts());
+    assertTrue(LiveSearch.LIVE.motionLambda());
+    assertEquals(0, LiveSearch.LIVE.splitAbove());
+  }
+
+  @Test
+  void makesTheFastestSearchOfTheLadderFromTheLiveOne() {
+    final LiveSearch fast = LiveSearch.LIVE_FAST;
+    // SKIP without a search up to 60 lambda; a steady superblock split above 900 lambda, a 16-pixel block above 600
+    assertEquals(60, fast.skipThreshold());
+    assertEquals(LiveSearch.LIVE.splitThreshold(), fast.splitThreshold());
+    assertEquals(900, fast.steadySplitThreshold());
+    assertEquals(600, fast.fineThreshold());
+    // local motion from half resolution only
+    assertEquals(LiveSearch.LIVE.shortcuts() & ~LiveSearch.QUARTER_MOTION, fast.shortcuts());
+    assertEquals(LiveSearch.LIVE.modes(), fast.modes());
+    assertEquals(LiveSearch.LIVE.compactClasses(), fast.compactClasses());
+    assertTrue(fast.motionLambda());
   }
 
   @Test

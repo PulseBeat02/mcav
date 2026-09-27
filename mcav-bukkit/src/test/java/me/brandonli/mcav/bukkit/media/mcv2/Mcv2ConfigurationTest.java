@@ -67,7 +67,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP, configuration.getPageMap());
     assertEquals(4, configuration.getPageSlots());
     assertEquals(1, configuration.getStreamId());
-    assertEquals(EncoderSettings.SHIP, configuration.getSettings());
+    assertEquals(EncoderSettings.LIVE_FAST, configuration.getSettings());
     assertEquals(NamedTextColor.DARK_PURPLE, configuration.getOutlineColor());
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
     assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, configuration.getUnsentLimit());

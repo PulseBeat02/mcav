@@ -32,6 +32,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
@@ -39,6 +40,8 @@ import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
+import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.media.mcv2.encode.LiveSearch;
 import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
@@ -65,11 +68,14 @@ import org.slf4j.LoggerFactory;
  * page slots is not sent, and the next is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
- * gives them, it encodes fewer of them, down to {@link Mcv2Pacer#MIN_FPS} a second, then shows a smaller video when the
- * owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack), and when even that is too much,
- * every viewer is shown the dithered maps, which need no encoder, until a later try finds room again. Every step is
- * logged, a step down as a warning, and handed to the {@linkplain #setPacingListener(Consumer) pacing listener}, so
- * the operator learns what was chosen and why. A result without dithered maps stays at its lowest frame rate instead.
+ * gives them, it first searches less hard, down the preset ladder from the screen's settings
+ * ({@link EncoderSettings#faster()}: the exhaustive search, {@code live}, {@code live-fast}), each preset an encoder of
+ * its own whose first frame is a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
+ * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
+ * and when even that is too much, every viewer is shown the dithered maps, which need no encoder, until a later try
+ * finds room again. Every step is logged, a step down as a warning, and handed to the
+ * {@linkplain #setPacingListener(Consumer) pacing listener}, so the operator learns what was chosen and why. A result
+ * without dithered maps stays at its lowest frame rate instead.
  *
  * <p>Call {@link #start()} and {@link #release()} on the main thread.
  */
@@ -96,6 +102,17 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** A pacing step, as the pacer describes it to the pacing listener too. */
   private static final String PACING_STEP = "{}";
 
+  /**
+   * The time a frame of each search of the preset ladder takes relative to the live search's, as the pacer measures it
+   * (wall time in the budget, 1080p30, 12 threads, native kernels): the exhaustive search takes 570-800 ms where live
+   * takes 21-43 ms, and live-fast 0.88 (gameplay) to 0.94 (quiet content) of live's time.
+   */
+  private static final double EXHAUSTIVE_COST = 20;
+
+  private static final double LIVE_COST = 1;
+
+  private static final double LIVE_FAST_COST = 0.9;
+
   private final Mcv2Configuration requested;
 
   private final @Nullable Fallback fallback;
@@ -113,6 +130,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Statistics statistics;
 
   private final LongSupplier clock;
+
+  /** The settings the screen steps down through, from the ones it was asked for: each a faster search. */
+  private final List<EncoderSettings> ladder;
+
+  /** The pacer's preset of each of those settings, in the same order. */
+  private final List<Mcv2Pacer.Preset> presets;
+
+  /** Makes the encoder of a preset in the screen's encoder budget. */
+  private final Function<EncoderSettings, Mcv2Encoder> encoders;
 
   private @Nullable Arrival pending;
 
@@ -162,7 +188,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
 
-  /** A frame the video handed over, with the wall-clock time it arrived. */
+  /** A frame the video handed over, with the wall-clock time it arrived and the preset of the rung it arrived on. */
   static final class Arrival {
 
     private final byte[] rgb;
@@ -173,11 +199,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     private final long arrived;
 
-    Arrival(final byte[] rgb, final int width, final int height, final long arrived) {
+    private final Mcv2Pacer.Preset preset;
+
+    Arrival(final byte[] rgb, final int width, final int height, final long arrived, final Mcv2Pacer.Preset preset) {
       this.rgb = rgb;
       this.width = width;
       this.height = height;
       this.arrived = arrived;
+      this.preset = preset;
     }
   }
 
@@ -316,6 +345,24 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final LongSupplier clock,
     final @Nullable Executor dithering
   ) {
+    this(configuration, channel, fallbackAlgorithm, clock, dithering, settings -> configuration.getEncoderPool().encoder(settings, true));
+  }
+
+  /**
+   * Constructs a result with the clock its pacer reads, the executor that dithers the maps of the viewers without the
+   * pack, and what makes the encoder of each preset.
+   *
+   * @param dithering runs the dithering, or null for a thread of the result's own, stopped on release
+   * @param encoders  makes the encoder of a preset
+   */
+  Mcv2Result(
+    final Mcv2Configuration configuration,
+    final Mcv2Channel channel,
+    final @Nullable DitherAlgorithm fallbackAlgorithm,
+    final LongSupplier clock,
+    final @Nullable Executor dithering,
+    final Function<EncoderSettings, Mcv2Encoder> encoders
+  ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(channel, "Channel must not be null");
     this.requested = configuration;
@@ -335,6 +382,38 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.lock = new Object();
     this.statistics = new Statistics();
     this.clock = clock;
+    this.ladder = ladder(configuration.getSettings());
+    this.presets = presets(this.ladder);
+    this.encoders = encoders;
+  }
+
+  /** The settings a screen steps down through: the ones it was asked for, then each faster search's. */
+  private static List<EncoderSettings> ladder(final EncoderSettings settings) {
+    final List<EncoderSettings> ladder = new ArrayList<>();
+    for (EncoderSettings rung = settings; rung != null; rung = rung.faster()) {
+      ladder.add(rung);
+    }
+    return List.copyOf(ladder);
+  }
+
+  /** The pacer's presets of a ladder: one without a name when there is nothing to step through. */
+  private static List<Mcv2Pacer.Preset> presets(final List<EncoderSettings> ladder) {
+    if (ladder.size() == 1) {
+      return List.of(Mcv2Pacer.Preset.ONLY);
+    }
+    final List<Mcv2Pacer.Preset> presets = new ArrayList<>();
+    for (final EncoderSettings settings : ladder) {
+      presets.add(preset(settings.live()));
+    }
+    return List.copyOf(presets);
+  }
+
+  /** The pacer's preset of a search of the ladder, which {@link EncoderSettings#faster()} walks. */
+  private static Mcv2Pacer.Preset preset(final @Nullable LiveSearch search) {
+    if (search == null) {
+      return new Mcv2Pacer.Preset("exhaustive", EXHAUSTIVE_COST);
+    }
+    return LiveSearch.LIVE.equals(search) ? new Mcv2Pacer.Preset("live", LIVE_COST) : new Mcv2Pacer.Preset("live-fast", LIVE_FAST_COST);
   }
 
   private static MapConfiguration fallbackConfiguration(final Mcv2Configuration configuration, final Set<UUID> viewers) {
@@ -422,7 +501,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       dithered.result().start();
     }
     final EncoderPool encoderPool = this.requested.getEncoderPool();
-    final Mcv2Encoder encoder = encoderPool.encoder(this.requested.getSettings(), true);
+    final Mcv2Encoder encoder = this.encoders.apply(this.ladder.getFirst());
     // the screen's own thread only hands frames to the budget and waits for them
     final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-screen").unstarted(() -> this.encodeLoop(encoder));
     // the frames go out on their own thread, so the encoder starts the next frame while the last is being sent; one
@@ -454,6 +533,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Preconditions.checkNotNull(metadata, "Metadata must not be null");
     final boolean encode;
     final boolean everyoneDithered;
+    Mcv2Pacer.Preset preset = this.presets.getFirst();
     Mcv2Pacer.Change tried = null;
     synchronized (this.lock) {
       final Mcv2Pacer screenPacer = this.pacer;
@@ -463,6 +543,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
           this.follow(tried);
         }
         encode = screenPacer.isEncoded();
+        preset = screenPacer.getRung().preset();
       } else {
         encode = true;
       }
@@ -482,7 +563,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     // on the dithered maps the pacer encodes no frame
     if (encode && !current.channel().getRecipients().isEmpty()) {
-      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis());
+      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis(), preset);
       synchronized (this.lock) {
         this.pending = arrival;
         this.lock.notifyAll();
@@ -575,14 +656,16 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Encodes frames until the result is released.
+   * Encodes frames until the result is released, each with the encoder of the preset of the rung it arrived on.
    *
-   * @param encoder the encoder
+   * @param first the encoder of the screen's settings, the top of its ladder
    */
-  void encodeLoop(final Mcv2Encoder encoder) {
+  void encodeLoop(final Mcv2Encoder first) {
     long frameId = 0;
+    Mcv2Encoder encoder = first;
     try {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
+        encoder = this.encoderFor(arrival, encoder);
         this.send(encoder, arrival, frameId);
         frameId = (frameId + 1) & Mcv2Format.MAX_U32;
       }
@@ -591,12 +674,25 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
+  /**
+   * Gets the encoder of the preset of the rung a frame arrived on: the one the screen has when it searches that way,
+   * else a new one, whose first frame is a keyframe.
+   *
+   * @param arrival the frame
+   * @param encoder the encoder of the frame before
+   * @return the encoder of the frame
+   */
+  Mcv2Encoder encoderFor(final Arrival arrival, final Mcv2Encoder encoder) {
+    final EncoderSettings settings = this.ladder.get(this.presets.indexOf(arrival.preset));
+    return settings.equals(encoder.getSettings()) ? encoder : this.encoders.apply(settings);
+  }
+
   /** Starts pacing the screen's frames from the top of its ladder, which {@link #start()} does. */
   void pace() {
     final List<int[]> sizes = new ArrayList<>();
     sizes.add(new int[] { this.requested.getVideoWidth(), this.requested.getVideoHeight() });
     sizes.addAll(this.smaller);
-    final Mcv2Pacer screenPacer = new Mcv2Pacer(sizes, this.fallback != null);
+    final Mcv2Pacer screenPacer = new Mcv2Pacer(sizes, this.presets, this.fallback != null);
     synchronized (this.lock) {
       this.pacer = screenPacer;
       this.ditheredForAll = false;

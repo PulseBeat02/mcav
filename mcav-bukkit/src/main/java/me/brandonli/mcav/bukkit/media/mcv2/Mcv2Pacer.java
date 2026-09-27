@@ -27,15 +27,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Keeps an MCV2 screen within what its encoder budget sustains, on purpose, instead of falling behind.
  *
- * <p>The screen's ladder has, from the top: the video size it was asked for at every frame of the video, then every
+ * <p>The screen's ladder has, from the top: the video size it was asked for at every frame of the video with each of
+ * its {@linkplain Preset presets}, from the one it was asked for down to the fastest, then with the fastest at every
  * second, third, fourth and sixth frame while at least {@link #MIN_FPS} frames a second remain; then the same for each
  * smaller size the screen can switch to; and last the dithered maps, which need no encoder. The screen reports how long
  * every encoded P frame took; keyframes, which come every few seconds and cost more, are left out. When the smoothed
  * time has been over the time a frame has, {@link #HIGH} of it, for {@link #DOWN_SECONDS}, the pacer steps down to the
  * first rung below that the measured time predicts to fit in {@link #FIT} of its frame time - the encode time grows
- * with the pixels, the frame time with the frames skipped - else to the first that keeps up at all, and to the dithered
- * maps when none does. It judges a rung only after {@link #MIN_SAMPLES} P frames on it, and does not step down in the
- * first {@link #STARTUP_SECONDS} of the video, while a new encoder warms up. It steps back up
+ * with the pixels and with the preset's cost, the frame time with the frames skipped - else to the first that keeps up
+ * at all, and to the dithered maps when none does; a faster preset at the same size and frame rate, which keeps every
+ * frame the viewers see, only has to keep up. It judges a rung only after {@link #MIN_SAMPLES} P frames on it, and does
+ * not step down in the first {@link #STARTUP_SECONDS} of the video, while a new encoder warms up. It steps back up
  * when a rung above has been predicted to fit in {@link #ROOM} of its frame time for {@link #UP_SECONDS}, to the
  * highest such rung, and keeps off a rung it had to leave for {@link #BLOCK_SECONDS}, longer each time.
  * From the dithered maps it tries the lowest encoded rung again after {@link #RETRY_SECONDS}, and twice as long after
@@ -103,15 +105,54 @@ public final class Mcv2Pacer {
   private static final long NEVER = Long.MIN_VALUE;
 
   /**
+   * A preset of the ladder: how hard the screen's encoder searches.
+   *
+   * @param name the preset's name in messages, for example {@code live-fast}; empty for the one preset of a screen that
+   *             does not step through presets
+   * @param cost its encode time relative to the other presets of the ladder, which the pacer's predictions scale by
+   */
+  public record Preset(String name, double cost) {
+    /** The one preset of a screen that does not step through presets. */
+    public static final Preset ONLY = new Preset("", 1);
+
+    /**
+     * Validates the preset.
+     *
+     * @throws IllegalArgumentException if the cost is not positive and finite
+     */
+    public Preset {
+      Preconditions.checkNotNull(name, "Name must not be null");
+      Preconditions.checkArgument(cost > 0 && Double.isFinite(cost), "Cost must be positive and finite");
+    }
+
+    /** The preset after a rung in a message, or nothing for the one preset of a screen. */
+    private String suffix() {
+      return this.name.isEmpty() ? "" : " with the " + this.name + " search";
+    }
+  }
+
+  /**
    * A rung of the ladder.
    *
    * @param width   the video width, or 0 for the dithered maps
    * @param height  the video height, or 0 for the dithered maps
    * @param divisor every how many frames of the video one is encoded, or 0 for the dithered maps
+   * @param preset  how hard the encoder searches; {@link Preset#ONLY} on the dithered maps
    */
-  public record Rung(int width, int height, int divisor) {
+  public record Rung(int width, int height, int divisor, Preset preset) {
     /** The dithered maps, the lowest rung. */
     public static final Rung DITHERED = new Rung(0, 0, 0);
+
+    /**
+     * Creates a rung of a screen that does not step through presets.
+     *
+     * @param width   the video width, or 0 for the dithered maps
+     * @param height  the video height, or 0 for the dithered maps
+     * @param divisor every how many frames of the video one is encoded, or 0 for the dithered maps
+     */
+    public Rung(final int width, final int height, final int divisor) {
+      this(width, height, divisor, Preset.ONLY);
+    }
 
     /**
      * Checks whether this is the dithered maps.
@@ -140,10 +181,13 @@ public final class Mcv2Pacer {
      * Describes the rung for a message.
      *
      * @param videoFps the video's frames per second
-     * @return for example {@code 1920x1080 at 30 fps}, or {@code the dithered maps}
+     * @return for example {@code 1920x1080 at 30 fps}, {@code 1920x1080 at 30 fps with the live-fast search} on a
+     *         ladder of presets, or {@code the dithered maps}
      */
     public String describe(final double videoFps) {
-      return this.isDithered() ? "the dithered maps" : "%dx%d at %s fps".formatted(this.width, this.height, rate(this.fps(videoFps)));
+      return this.isDithered()
+        ? "the dithered maps"
+        : "%dx%d at %s fps%s".formatted(this.width, this.height, rate(this.fps(videoFps)), this.preset.suffix());
     }
   }
 
@@ -175,9 +219,10 @@ public final class Mcv2Pacer {
       }
       final String timing = String.format(
         Locale.ROOT,
-        "encoding %dx%d takes %.1f ms per frame, %s the %.1f ms a frame has at %s fps",
+        "encoding %dx%d%s takes %.1f ms per frame, %s the %.1f ms a frame has at %s fps",
         this.from.width(),
         this.from.height(),
+        this.from.preset().suffix(),
         this.encodeMs,
         this.down ? "more than" : "well within",
         this.frameMs,
@@ -240,12 +285,38 @@ public final class Mcv2Pacer {
    * @throws IllegalArgumentException if there is no size, or a size is not positive
    */
   public Mcv2Pacer(final List<int[]> sizes, final boolean dithered) {
+    this(sizes, List.of(Preset.ONLY), dithered);
+  }
+
+  /**
+   * Creates a pacer that starts at the top of the ladder and steps down through presets before frame rates.
+   *
+   * @param sizes    the video sizes the screen can show, largest first: the size it was asked for, then smaller ones it
+   *                 can switch to
+   * @param presets  how hard the encoder can search, from the preset the screen was asked for down to the fastest
+   * @param dithered whether the screen can fall back to the dithered maps; without them, the lowest encoded rung is as
+   *                 low as the pacer goes, even when its frames take longer than they have
+   * @throws IllegalArgumentException if there is no size or no preset, a size is not positive, or a preset does not
+   *                                  cost less than the one before it
+   */
+  public Mcv2Pacer(final List<int[]> sizes, final List<Preset> presets, final boolean dithered) {
     Preconditions.checkArgument(!sizes.isEmpty(), "At least one size is needed");
+    Preconditions.checkArgument(!presets.isEmpty(), "At least one preset is needed");
+    for (int index = 1; index < presets.size(); index++) {
+      Preconditions.checkArgument(
+        presets.get(index).cost() < presets.get(index - 1).cost(),
+        "Each preset must cost less than the one before"
+      );
+    }
+    final Preset fastest = presets.getLast();
     final List<Rung> rungs = new ArrayList<>();
     for (final int[] size : sizes) {
       Preconditions.checkArgument(size.length == 2 && size[0] > 0 && size[1] > 0, "Sizes must be positive width and height");
+      for (final Preset preset : presets.subList(0, presets.size() - 1)) {
+        rungs.add(new Rung(size[0], size[1], 1, preset));
+      }
       for (final int divisor : DIVISORS) {
-        rungs.add(new Rung(size[0], size[1], divisor));
+        rungs.add(new Rung(size[0], size[1], divisor, fastest));
       }
     }
     if (dithered) {
@@ -375,11 +446,14 @@ public final class Mcv2Pacer {
     this.blockedUntil[left] = now + seconds(this.blockSeconds[left]);
     this.blockSeconds[left] = Math.min(MAX_RETRY_SECONDS, this.blockSeconds[left] * 2);
     final int encoded = this.encodedRungs();
-    // the first rung below that fits with room, else the first that keeps up at all, before the dithered maps
+    // the first rung below that fits with room - a faster preset of the same frames only has to keep up - else the
+    // first that keeps up at all, before the dithered maps
+    final Rung from = this.getRung();
     for (final double share : new double[] { FIT, HIGH }) {
       for (int next = this.current + 1; next < encoded; next++) {
         final Rung rung = this.ladder.get(next);
-        if (this.isAllowed(rung) && this.predict(next) <= share * this.frameMs(rung)) {
+        final boolean sameFrames = rung.pixels() == from.pixels() && rung.divisor() == from.divisor();
+        if (this.isAllowed(rung) && this.predict(next) <= (sameFrames ? HIGH : share) * this.frameMs(rung)) {
           return this.move(next, true, this.smoothed, frameMs);
         }
       }
@@ -418,9 +492,14 @@ public final class Mcv2Pacer {
     return (rung.divisor() * this.videoInterval) / NANOS_PER_MILLISECOND;
   }
 
-  /** The encode time the measurements on the current rung predict for another rung: it grows with the pixels. */
+  /**
+   * The encode time the measurements on the current rung predict for another rung: it grows with the pixels and with
+   * the preset's cost.
+   */
   private double predict(final int index) {
-    return (this.smoothed * this.ladder.get(index).pixels()) / this.getRung().pixels();
+    final Rung target = this.ladder.get(index);
+    final Rung rung = this.getRung();
+    return (this.smoothed * target.pixels() * target.preset().cost()) / (rung.pixels() * rung.preset().cost());
   }
 
   /**

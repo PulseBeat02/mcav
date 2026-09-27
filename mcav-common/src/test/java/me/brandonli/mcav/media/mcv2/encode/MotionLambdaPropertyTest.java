@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import java.util.Arrays;
 import java.util.List;
+import me.brandonli.mcav.media.mcv2.Workers;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.DoubleRange;
@@ -108,9 +109,9 @@ final class MotionLambdaPropertyTest {
     for (final int grey : greys) {
       final byte[] rgb = new byte[width * height * 3];
       Arrays.fill(rgb, (byte) grey);
-      motion.observe(rgb, width, height, false);
+      motion.observe(rgb, width, height, false, Workers.SEQUENTIAL);
     }
-    motion.observe(new byte[width * height * 3], width, height, true);
+    motion.observe(new byte[width * height * 3], width, height, true, Workers.SEQUENTIAL);
     return motion.lambda(BASE) == BASE;
   }
 }

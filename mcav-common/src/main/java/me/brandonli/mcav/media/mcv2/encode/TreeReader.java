@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import me.brandonli.mcav.media.mcv2.CompactRecord;
 import me.brandonli.mcav.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.media.mcv2.Mcv2Frame;
 import me.brandonli.mcav.media.mcv2.PatternRecord;
+import me.brandonli.mcav.media.mcv2.Workers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -53,41 +55,96 @@ public final class TreeReader {
    * @throws Mcv2Exception never for a frame the parser accepted; declared because records are re-read
    */
   public static List<TreeNode> roots(final Mcv2Frame frame) throws Mcv2Exception {
-    final byte[] data = frame.getData();
-    final Map<Long, TreeNode> leaves = new HashMap<>();
+    return roots(frame, Workers.SEQUENTIAL);
+  }
+
+  /**
+   * Rebuilds the roots of a frame, the trees of its superblocks on the workers.
+   *
+   * @param frame   the frame
+   * @param workers the workers, a superblock each
+   * @return one root per 32-pixel block, in raster order
+   * @throws Mcv2Exception never for a frame the parser accepted; declared because records are re-read
+   */
+  public static List<TreeNode> roots(final Mcv2Frame frame, final Workers workers) throws Mcv2Exception {
+    final int count = frame.getLeafCount();
+    final TreeNode[] nodes = new TreeNode[count];
     final boolean defaultSolid = (frame.getFlags() & DEFAULT_SOLID) != 0;
-    final byte@Nullable[] endpoints = endpointTable(frame);
-    for (int i = 0; i < frame.getLeafCount(); i++) {
-      final Mcv2Frame.Leaf leaf = frame.getLeaf(i);
-      final int mode = leaf.mode();
-      final TreeNode node;
-      if (mode == MODE_IMMEDIATE_MOTION) {
-        node = TreeNode.leaf(MODE_MOTION, 0, new byte[] { (byte) leaf.offset(), (byte) (leaf.offset() >> Byte.SIZE) });
-      } else if (mode == MODE_PATTERN) {
-        final PatternRecord record = PatternRecord.expand(data, leaf.offset(), leaf.size(), endpoints, selectorTable(frame, leaf.size()));
-        node = TreeNode.leaf(MODE_PALETTE, 0, fullPalette(record, leaf.size()));
-      } else if (mode == MODE_SKIP && defaultSolid) {
-        final int color = frame.getDefaultColor();
-        node = TreeNode.leaf(MODE_SOLID, 0, new byte[] { (byte) (color >> 16), (byte) (color >> 8), (byte) color });
-      } else if (mode == MODE_SKIP) {
-        node = TreeNode.skip();
-      } else {
-        final int length = mode == MODE_COMPACT
-          ? CompactRecord.parse(data, leaf.offset(), leaf.q()).length()
-          : recordSize(mode, leaf.size());
-        final byte[] record = new byte[length];
-        System.arraycopy(data, leaf.offset(), record, 0, length);
-        node = TreeNode.leaf(mode, leaf.q(), record);
-      }
-      leaves.put(key(leaf.x(), leaf.y(), leaf.size()), node);
+    // the frame hands out copies of its bytes and tables, so each is taken once for all the leaves
+    final byte[] data = frame.getData();
+    final byte@Nullable[] endpoints = frame.getEndpointTable();
+    final List<byte@Nullable[]> selectors = new ArrayList<>(BLOCK_SIZES);
+    for (int size = SMALLEST_BLOCK; size <= ROOT_SIZE; size *= 2) {
+      selectors.add(frame.getSelectorTable(size));
     }
-    final List<TreeNode> roots = new ArrayList<>();
-    for (int y = 0; y < frame.getHeight(); y += ROOT_SIZE) {
-      for (int x = 0; x < frame.getWidth(); x += ROOT_SIZE) {
-        roots.add(visit(leaves, x, y, ROOT_SIZE));
-      }
+    for (int i = 0; i < count; i++) {
+      nodes[i] = node(frame, data, frame.getLeaf(i), endpoints, selectors, defaultSolid);
     }
-    return roots;
+    // the leaves grouped by superblock, each group in the frame's order: counted, then placed
+    final int columns = (frame.getWidth() + ROOT_SIZE - 1) / ROOT_SIZE;
+    final int superblocks = columns * ((frame.getHeight() + ROOT_SIZE - 1) / ROOT_SIZE);
+    final int[] first = new int[superblocks + 1];
+    for (int i = 0; i < count; i++) {
+      first[superblock(frame.getLeaf(i), columns) + 1]++;
+    }
+    for (int k = 0; k < superblocks; k++) {
+      first[k + 1] += first[k];
+    }
+    final int[] next = Arrays.copyOf(first, superblocks);
+    final int[] order = new int[count];
+    for (int i = 0; i < count; i++) {
+      order[next[superblock(frame.getLeaf(i), columns)]++] = i;
+    }
+    final TreeNode[] roots = new TreeNode[superblocks];
+    workers.forEach(superblocks, HashMap<Long, TreeNode>::new, (leaves, k) -> {
+      leaves.clear();
+      for (int j = first[k]; j < first[k + 1]; j++) {
+        final Mcv2Frame.Leaf leaf = frame.getLeaf(order[j]);
+        leaves.put(key(leaf.x(), leaf.y(), leaf.size()), nodes[order[j]]);
+      }
+      roots[k] = visit(leaves, (k % columns) * ROOT_SIZE, (k / columns) * ROOT_SIZE, ROOT_SIZE);
+    });
+    return Arrays.asList(roots);
+  }
+
+  /** The superblock, in raster order, a leaf lies in. */
+  private static int superblock(final Mcv2Frame.Leaf leaf, final int columns) {
+    return (leaf.y() / ROOT_SIZE) * columns + leaf.x() / ROOT_SIZE;
+  }
+
+  /**
+   * A leaf of a frame as a node of the wide form.
+   *
+   * @param selectors the frame's selector tables, by leaf size from the smallest
+   */
+  private static TreeNode node(
+    final Mcv2Frame frame,
+    final byte[] data,
+    final Mcv2Frame.Leaf leaf,
+    final byte@Nullable[] endpoints,
+    final List<byte@Nullable[]> selectors,
+    final boolean defaultSolid
+  ) throws Mcv2Exception {
+    final int mode = leaf.mode();
+    if (mode == MODE_IMMEDIATE_MOTION) {
+      return TreeNode.leaf(MODE_MOTION, 0, new byte[] { (byte) leaf.offset(), (byte) (leaf.offset() >> Byte.SIZE) });
+    }
+    if (mode == MODE_PATTERN) {
+      final byte@Nullable[] table = selectors.get(Integer.numberOfTrailingZeros(leaf.size() / SMALLEST_BLOCK));
+      final PatternRecord record = PatternRecord.expand(data, leaf.offset(), leaf.size(), endpoints, table);
+      return TreeNode.leaf(MODE_PALETTE, 0, fullPalette(record, leaf.size()));
+    }
+    if (mode == MODE_SKIP && defaultSolid) {
+      final int color = frame.getDefaultColor();
+      return TreeNode.leaf(MODE_SOLID, 0, new byte[] { (byte) (color >> 16), (byte) (color >> 8), (byte) color });
+    }
+    if (mode == MODE_SKIP) {
+      return TreeNode.skip();
+    }
+    final int length = mode == MODE_COMPACT ? CompactRecord.parse(data, leaf.offset(), leaf.q()).length() : recordSize(mode, leaf.size());
+    final byte[] record = new byte[length];
+    System.arraycopy(data, leaf.offset(), record, 0, length);
+    return TreeNode.leaf(mode, leaf.q(), record);
   }
 
   /** A block's key in the leaf map: its position and size, each in its own bits. */
@@ -107,14 +164,6 @@ public final class TreeReader {
       visit(leaves, x, y + half, half),
       visit(leaves, x + half, y + half, half)
     );
-  }
-
-  private static byte@Nullable[] endpointTable(final Mcv2Frame frame) {
-    return frame.getEndpointTable();
-  }
-
-  private static byte@Nullable[] selectorTable(final Mcv2Frame frame, final int size) {
-    return frame.getSelectorTable(size);
   }
 
   /** The full palette record a pattern stands for: two endpoints, then one selector bit per pixel. */

@@ -20,11 +20,9 @@ package me.brandonli.mcav.media.mcv2.encode;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
@@ -83,13 +81,13 @@ final class NativeConformanceTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("levels")
-  void pinsTheOutputOfTheLiveProfile(final NativeKernels.Level level) throws NoSuchAlgorithmException {
-    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false, NativeTesting.factory(level));
-    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    for (int i = 0; i < 8; i++) {
-      digest.update(encoder.encode(LiveEncoderTest.scene(96, 64, i, 2), 96, 64, i));
-    }
-    assertEquals(LiveEncoderTest.LIVE_DIGEST, HexFormat.of().formatHex(digest.digest()));
+  void pinsTheOutputOfTheLiveProfiles(final NativeKernels.Level level) throws NoSuchAlgorithmException {
+    final Kernels.Factory kernels = NativeTesting.factory(level);
+    assertEquals(LiveEncoderTest.LIVE_DIGEST, LiveEncoderTest.digest(new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false, kernels)));
+    assertEquals(
+      LiveEncoderTest.LIVE_FAST_DIGEST,
+      LiveEncoderTest.digest(new Mcv2Encoder(EncoderSettings.LIVE_FAST, POOL, 2, false, kernels))
+    );
   }
 
   @ParameterizedTest(name = "{0} {1}")

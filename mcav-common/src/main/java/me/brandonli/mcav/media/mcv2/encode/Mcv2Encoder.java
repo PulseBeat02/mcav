@@ -242,6 +242,15 @@ public final class Mcv2Encoder {
   }
 
   /**
+   * Gets the settings the encoder was made with.
+   *
+   * @return the settings
+   */
+  public EncoderSettings getSettings() {
+    return this.settings;
+  }
+
+  /**
    * Gets the outcome of the last encoded frame.
    *
    * @return the statistics, or null before the first frame
@@ -331,7 +340,7 @@ public final class Mcv2Encoder {
       this.projections = projections;
       if (control != null) {
         // the next frame's lambda; a scene cut starts the motion over, a keyframe on the clock does not
-        control.observe(rgb, width, height, predictable && key);
+        control.observe(rgb, width, height, predictable && key, this.workers);
       }
     }
     final int mx = MotionSearch.unpackX(motion);
@@ -427,7 +436,7 @@ public final class Mcv2Encoder {
         // decodes. The distortions the search measured only steered its choices, so they are not measured again here,
         // where a pass over every pixel costs a live frame more than its decode; the encoder's tests check them.
         final Mcv2Frame written = parseChosen(best);
-        checkTree(written, bestRoots);
+        checkTree(written, bestRoots, this.workers);
         final byte[] decoded = decodeChosen(written, predictFrom, this.referenceId, this.workers, this.verified);
         this.verified = decoded;
         Preconditions.checkState(same(bestPicture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
@@ -992,21 +1001,21 @@ public final class Mcv2Encoder {
     final List<TreeNode> roots,
     final Workers workers
   ) {
-    checkTree(data, roots);
+    checkTree(data, roots, workers);
     checkLeaves(job, trial, picture, leaves, workers);
   }
 
   /** Checks that a frame's bytes describe exactly the chosen tree, which the parser must accept. */
-  private static void checkTree(final byte[] data, final List<TreeNode> roots) {
-    checkTree(parseChosen(data), roots);
+  private static void checkTree(final byte[] data, final List<TreeNode> roots, final Workers workers) {
+    checkTree(parseChosen(data), roots, workers);
   }
 
-  /** Checks that a written and parsed frame describes the chosen trees; see {@link #checkTree(byte[], List)}. */
-  private static void checkTree(final Mcv2Frame frame, final List<TreeNode> roots) {
+  /** Checks that a written and parsed frame describes the chosen trees; see {@link #checkTree(byte[], List, Workers)}. */
+  private static void checkTree(final Mcv2Frame frame, final List<TreeNode> roots, final Workers workers) {
     final List<TreeNode> written = new ArrayList<>(roots.size());
     final List<TreeNode> expected = new ArrayList<>(roots.size());
     try {
-      written.addAll(TreeReader.roots(frame));
+      written.addAll(TreeReader.roots(frame, workers));
       for (final TreeNode root : roots) {
         expected.add(TreeReader.withPalettes(root, ROOT_SIZE));
       }

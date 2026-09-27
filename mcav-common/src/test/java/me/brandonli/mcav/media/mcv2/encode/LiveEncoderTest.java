@@ -409,18 +409,18 @@ final class LiveEncoderTest {
   void splitsTheSuperblocksAboveTheThresholdWithoutTryingTheirLeaves() throws Mcv2Exception {
     // a new flat colour is coded whole by a 32-pixel leaf, unless the superblock is split before its leaves are tried
     assertTrue(wholeLeaves(LiveSearch.LIVE) > 0);
-    assertEquals(0, wholeLeaves(live(1e-9, LiveSearch.LIVE.shortcuts(), false)));
+    assertEquals(0, wholeLeaves(live(1e-9, LiveSearch.LIVE.shortcuts(), true)));
     // a threshold above what SKIP costs there leaves the decision alone
-    assertEquals(wholeLeaves(LiveSearch.LIVE), wholeLeaves(live(1e9, LiveSearch.LIVE.shortcuts(), false)));
+    assertEquals(wholeLeaves(LiveSearch.LIVE), wholeLeaves(live(1e9, LiveSearch.LIVE.shortcuts(), true)));
   }
 
   @Test
   void raisesTheLambdaOfFastMotionAndStartsOverAtASceneCut() throws Mcv2Exception {
-    final EncoderSettings settings = EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts(), true));
-    // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all the profile uses
-    // without the motion's lambda
+    final EncoderSettings settings = EncoderSettings.LIVE;
+    // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
+    // the motion's lambda uses
     assertEquals(72, play(settings, 64, 64, 4, 0).getStats().lambda());
-    assertEquals(72, play(EncoderSettings.LIVE, 100, 70, 6, 9).getStats().lambda());
+    assertEquals(72, play(EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts(), false)), 100, 70, 6, 9).getStats().lambda());
     // a fast pan raises it
     final Mcv2Encoder pan = play(settings, 100, 70, 6, 9);
     assertTrue(pan.getStats().lambda() > 72);
@@ -644,20 +644,32 @@ final class LiveEncoderTest {
   }
 
   /**
-   * The live profile's output on a small crop of a synthetic scene, pinned: a change to the live search's decisions or
-   * to the bytes it writes shows here, and has to be made on purpose, with the report's lever table measured again.
+   * The output of each live profile on a small crop of a synthetic scene, pinned: a change to a live search's decisions
+   * or to the bytes it writes shows here, and has to be made on purpose, with the report's ladder measured again.
    */
   @Test
-  void pinsTheOutputOfTheLiveProfile() throws NoSuchAlgorithmException {
-    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false);
-    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    for (int i = 0; i < 8; i++) {
-      final byte[] data = encoder.encode(scene(96, 64, i, 2), 96, 64, i);
-      digest.update(data);
-    }
-    assertEquals(LIVE_DIGEST, HexFormat.of().formatHex(digest.digest()));
+  void pinsTheOutputOfTheLiveProfiles() throws NoSuchAlgorithmException {
+    assertEquals(LIVE_DIGEST, digest(new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false)));
+    assertEquals(LIVE_FAST_DIGEST, digest(new Mcv2Encoder(EncoderSettings.LIVE_FAST, POOL, 2, false)));
   }
 
-  /** The SHA-256 of the eight frames {@link #pinsTheOutputOfTheLiveProfile} encodes. */
-  static final String LIVE_DIGEST = "c37ca3de6262d05a0b2c257f50437acc793db7dc05ea4a8032ce0d55c548cd73";
+  /**
+   * Encodes eight frames of a small crop of a synthetic scene.
+   *
+   * @param encoder a new encoder of a profile
+   * @return the SHA-256 of the frames, in hex
+   */
+  static String digest(final Mcv2Encoder encoder) throws NoSuchAlgorithmException {
+    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    for (int i = 0; i < 8; i++) {
+      digest.update(encoder.encode(scene(96, 64, i, 2), 96, 64, i));
+    }
+    return HexFormat.of().formatHex(digest.digest());
+  }
+
+  /** The SHA-256 of the eight frames {@link #digest} encodes with {@link EncoderSettings#LIVE}. */
+  static final String LIVE_DIGEST = "1d1c43930cb66846be5ae90c62f9ba29fe35feeb5a5da1cb02fadeabc4e9e521";
+
+  /** The SHA-256 of the eight frames {@link #digest} encodes with {@link EncoderSettings#LIVE_FAST}. */
+  static final String LIVE_FAST_DIGEST = "f5b514f9a30ebe998717b066f6b8518534acfde641c1de2e3802b0a4b4ad903b";
 }

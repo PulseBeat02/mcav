@@ -19,6 +19,8 @@ package me.brandonli.mcav.media.mcv2.encode;
 
 import static me.brandonli.mcav.media.mcv2.Mcv2Format.CHANNELS;
 
+import me.brandonli.mcav.media.mcv2.Workers;
+
 /**
  * The lambda of a live stream's frames from the motion of its source. VMAF forgives more error in fast motion, so one
  * lambda that keeps quiet pictures near a VMAF of 76 spends far more than needed on fast gameplay (VMAF 89 at lambda
@@ -48,6 +50,11 @@ final class MotionLambda {
 
   /** Every fourth pixel of every fourth row is sampled. */
   private static final int SAMPLING = 4;
+
+  /** The rows of samples one worker blurs, and the samples one worker compares. */
+  private static final int BAND_ROWS = 16;
+
+  private static final int BAND_SAMPLES = 16_384;
 
   /** The samples are blurred over a 3x3 box of them. */
   private static final int BOX_AREA = 9;
@@ -95,15 +102,16 @@ final class MotionLambda {
    * @param width   the width
    * @param height  the height
    * @param restart whether the frame starts a new scene, so the motion before it no longer applies
+   * @param workers the workers, a band of rows each
    */
-  void observe(final byte[] rgb, final int width, final int height, final boolean restart) {
+  void observe(final byte[] rgb, final int width, final int height, final boolean restart, final Workers workers) {
     final int columns = (width + SAMPLING - 1) / SAMPLING;
     final int rows = (height + SAMPLING - 1) / SAMPLING;
-    final int[] current = blurredLuma(rgb, width, height);
+    final int[] current = blurredLuma(rgb, width, height, workers);
     if (restart || columns != this.columns || rows != this.rows) {
       this.motion = Double.NaN;
     } else {
-      this.add(temporalInformation(current, this.previous));
+      this.add(temporalInformation(current, this.previous, workers));
     }
     this.previous = current;
     this.columns = columns;
@@ -125,34 +133,48 @@ final class MotionLambda {
    *
    * @param rgb    the frame, row-major RGB
    * @param width  the width
-   * @param height the height
+   * @param height  the height
+   * @param workers the workers, a band of rows each
    * @return the blurred samples, row-major
    */
-  static int[] blurredLuma(final byte[] rgb, final int width, final int height) {
+  static int[] blurredLuma(final byte[] rgb, final int width, final int height, final Workers workers) {
     final int columns = (width + SAMPLING - 1) / SAMPLING;
     final int rows = (height + SAMPLING - 1) / SAMPLING;
+    final int bands = (rows + BAND_ROWS - 1) / BAND_ROWS;
     // each row of samples summed over three columns, then three of those rows: the same sums as the box, separably
     final int[] across = new int[columns * rows];
-    for (int j = 0; j < rows; j++) {
-      final int line = j * SAMPLING * width;
-      int left = luma(rgb, line);
-      int middle = left;
-      for (int i = 0; i < columns; i++) {
-        final int right = i + 1 < columns ? luma(rgb, line + (i + 1) * SAMPLING) : middle;
-        across[j * columns + i] = left + middle + right;
-        left = middle;
-        middle = right;
+    workers.forEach(
+      bands,
+      () -> across,
+      (sums, band) -> {
+        for (int j = band * BAND_ROWS; j < Math.min(rows, (band + 1) * BAND_ROWS); j++) {
+          final int line = j * SAMPLING * width;
+          int left = luma(rgb, line);
+          int middle = left;
+          for (int i = 0; i < columns; i++) {
+            final int right = i + 1 < columns ? luma(rgb, line + (i + 1) * SAMPLING) : middle;
+            sums[j * columns + i] = left + middle + right;
+            left = middle;
+            middle = right;
+          }
+        }
       }
-    }
+    );
     final int[] blurred = new int[across.length];
-    for (int j = 0; j < rows; j++) {
-      final int above = Math.max(j - 1, 0) * columns;
-      final int at = j * columns;
-      final int below = Math.min(j + 1, rows - 1) * columns;
-      for (int i = 0; i < columns; i++) {
-        blurred[at + i] = across[above + i] + across[at + i] + across[below + i];
+    workers.forEach(
+      bands,
+      () -> blurred,
+      (out, band) -> {
+        for (int j = band * BAND_ROWS; j < Math.min(rows, (band + 1) * BAND_ROWS); j++) {
+          final int above = Math.max(j - 1, 0) * columns;
+          final int at = j * columns;
+          final int below = Math.min(j + 1, rows - 1) * columns;
+          for (int i = 0; i < columns; i++) {
+            out[at + i] = across[above + i] + across[at + i] + across[below + i];
+          }
+        }
       }
-    }
+    );
     return blurred;
   }
 
@@ -167,12 +189,26 @@ final class MotionLambda {
    *
    * @param current  the frame's samples, from {@link #blurredLuma}
    * @param previous the samples of the frame before, as many
+   * @param workers  the workers, a band of samples each
    * @return the temporal information
    */
-  static double temporalInformation(final int[] current, final int[] previous) {
+  static double temporalInformation(final int[] current, final int[] previous, final Workers workers) {
+    final int bands = (current.length + BAND_SAMPLES - 1) / BAND_SAMPLES;
+    final long[] sums = new long[bands];
+    workers.forEach(
+      bands,
+      () -> sums,
+      (partial, band) -> {
+        long sum = 0;
+        for (int i = band * BAND_SAMPLES; i < Math.min(current.length, (band + 1) * BAND_SAMPLES); i++) {
+          sum += Math.abs(current[i] - previous[i]);
+        }
+        partial[band] = sum;
+      }
+    );
     long sum = 0;
-    for (int i = 0; i < current.length; i++) {
-      sum += Math.abs(current[i] - previous[i]);
+    for (final long partial : sums) {
+      sum += partial;
     }
     return (double) sum / ((long) current.length * LUMA_SCALE * BOX_AREA);
   }
