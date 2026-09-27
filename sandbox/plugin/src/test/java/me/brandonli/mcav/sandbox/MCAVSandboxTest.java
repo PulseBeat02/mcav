@@ -442,8 +442,8 @@ final class MCAVSandboxTest {
 
     this.sandbox.onEnable();
 
-    final String reason = "MCAV only supports Minecraft 26.2, but the server is running 1.20.1!";
-    this.assertDisabledItselfWithOneError(reason, "run MCAV on a Minecraft 26.2 server");
+    final String reason = "MCAV only supports Minecraft 26.3, but the server is running 1.20.1!";
+    this.assertDisabledItselfWithOneError(reason, "run MCAV on a Minecraft 26.3 server");
     assertThrows(IllegalStateException.class, this.sandbox::getConfiguration, "nothing after the library is loaded");
     this.sandbox.onDisable();
     verify(this.api).release();

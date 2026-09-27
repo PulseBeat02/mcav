@@ -1,17 +1,18 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 2: the CRC of every 192-byte chunk of every page slot's strip area, from a zero register, one chunk per
 // fragment: the pages pass chains them into each page's CRC instead of one fragment walking all 12,288 bytes of a
 // page. The chunk reads each strip pixel once for its three bytes. The CRC covers the header with its own field
 // (bytes 28 to 31) zeroed.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
-#moj_import <mcav:mcv2_crc.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_crc.glsl>
 
 uniform sampler2D MainSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     ivec2 size = textureSize(MainSampler, 0);

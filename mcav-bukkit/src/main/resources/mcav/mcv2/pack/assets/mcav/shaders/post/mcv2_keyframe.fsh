@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 7: the keyframe reference: the picture just decoded when it was a keyframe, otherwise the one kept so far.
 
@@ -6,7 +7,7 @@ uniform sampler2D NextSampler;
 uniform sampler2D KeySampler;
 uniform sampler2D StatusSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     ivec2 pixel = ivec2(gl_FragCoord.xy);

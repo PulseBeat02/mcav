@@ -1,16 +1,17 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 8: the decoder state, kept in a persistent target, four texels: (1 when a picture was decoded, plus 2 when a
 // keyframe was), the id of the last decoded frame, the id of the last decoded keyframe, and how many frames were
 // decoded. A new target is all zero, which is the state of a client that has decoded nothing.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D StateSampler;
 uniform sampler2D StatusSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     int x = int(gl_FragCoord.x);

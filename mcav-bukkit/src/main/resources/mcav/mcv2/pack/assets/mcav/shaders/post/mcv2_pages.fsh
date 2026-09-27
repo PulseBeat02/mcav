@@ -1,17 +1,18 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 3: the header of the page in every slot, four texels per slot: (valid, frame type, page count), the frame id,
 // the reference id and the frame length. A page is valid when its header is the reference's read_page header for
 // this stream and slot and its CRC-32 matches; only the first texel of a slot chains the CRC pass's chunks.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
-#moj_import <mcav:mcv2_crc.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_crc.glsl>
 
 uniform sampler2D MainSampler;
 uniform sampler2D CrcSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 uint mcv2PageByte(ivec2 size, int page, int b) {
     ivec3 at = mcv2PageByteAt(size, page, b);

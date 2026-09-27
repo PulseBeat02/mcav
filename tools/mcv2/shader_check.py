@@ -5,8 +5,12 @@
 
 Run with a Python that has numpy and moderngl. The OpenGL 3.3 context is the one moderngl finds: set DISPLAY to an
 X server for GLX (Xvfb gives Mesa's llvmpipe, the renderer of a headless client) or leave it unset for EGL on a render
-node. The shaders are read from mcav-bukkit's pack sources with their #moj_import directives resolved, and the
-generated includes (configuration, residual books) are produced the way the pack builder produces them.
+node. The shaders are read from mcav-bukkit's pack sources with their #include directives resolved (and
+gl_VertexIndex, the Vulkan name Minecraft 26.3's compiler takes, read as gl_VertexID), and the generated includes
+(configuration, residual books) are produced the way the pack builder produces them. With --spirv CLASSPATH the passes
+run the pack as Minecraft 26.3 compiles it instead: tools/mcv2/Mcv2ShaderCompile.java, run with the LWJGL jars on
+CLASSPATH, takes every pass through shaderc and SPIR-V back into GLSL 330, which is what the game's OpenGL backend
+hands the driver.
 
 For every frame, the reference's make_pages splits the frame into pages, each page is written into a simulated main
 target exactly as the core text shader writes it (four symbols to three bytes, slot by slot from the top of the
@@ -22,7 +26,9 @@ import argparse
 import json
 import re
 import struct
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -34,7 +40,8 @@ SCREEN = (1920, 1080)
 STREAM_ID = 7
 
 VERTEX = """#version 330
-out vec2 texCoord;
+#extension GL_ARB_separate_shader_objects : require
+layout(location = 0) out vec2 texCoord;
 void main() {
     vec2 uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
     gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
@@ -86,8 +93,9 @@ def post_chain(width, height, slots):
 
 
 BLIT = """#version 330
+#extension GL_ARB_separate_shader_objects : require
 uniform sampler2D InSampler;
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 void main() {
     fragColor = texelFetch(InSampler, ivec2(gl_FragCoord.xy), 0);
 }
@@ -101,7 +109,6 @@ def generated(width, height, slots):
     rows = ",\n".join("    " + ", ".join("0x%08Xu" % w for w in words[i : i + 8]) for i in range(0, len(words), 8))
     return {
         "mcav:mcv2_config.glsl": "\n".join([
-            "#version 330",
             "const int MCV2_PAGE_SLOTS = %d;" % slots,
             "const int MCV2_VIDEO_WIDTH = %d;" % width,
             "const int MCV2_VIDEO_HEIGHT = %d;" % height,
@@ -114,12 +121,12 @@ def generated(width, height, slots):
             "const ivec3 MCV2_OUTLINE_COLOR = ivec3(0, 0, 0);",
             "",
         ]),
-        "mcav:mcv2_books.glsl": "#version 330\nconst uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",
+        "mcav:mcv2_books.glsl": "const uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",
     }
 
 
 def resolve(source, includes, seen=None):
-    """Inlines #moj_import <namespace:file> like the client's preprocessor, once per file."""
+    """Inlines #include <namespace:file> like the client's compiler, once per file."""
     seen = set() if seen is None else seen
 
     def include(match):
@@ -132,10 +139,15 @@ def resolve(source, includes, seen=None):
         else:
             namespace, path = name.split(":")
             text = (PACK / "assets" / namespace / "shaders/include" / path).read_text()
-        text = re.sub(r"^#version.*$", "", text, flags=re.M)
         return resolve(text, includes, seen)
 
-    return re.sub(r"^#moj_import <([^>]+)>", include, source, flags=re.M)
+    return re.sub(r"^#include <([^>]+)>", include, source, flags=re.M)
+
+
+def desktop(source):
+    """The pack's GLSL for a desktop OpenGL 3.3 compiler: Minecraft 26.3 compiles it for Vulkan, whose vertex index is
+    gl_VertexIndex."""
+    return source.replace("gl_VertexIndex", "gl_VertexID")
 
 
 class Chain:
@@ -169,6 +181,7 @@ class Chain:
             texture.filter = (context.NEAREST, context.NEAREST)
             texture.write(bytes(texture.width * texture.height * 4))
         self.blit = context.program(vertex_shader=VERTEX, fragment_shader=BLIT)
+        self.compiled = None
 
     def target(self, name):
         """A target by the short name shader_check has always used: previous, key, status, ..."""
@@ -179,13 +192,18 @@ class Chain:
         of Minecraft's screen quad, which is VERTEX."""
         key = (name, vertex)
         if key not in self.programs:
-            source = (PACK / "assets/mcav/shaders/post" / (name + ".fsh")).read_text()
+            if self.compiled is not None:
+                source = (self.compiled / (name + ".fsh")).read_text()
+            else:
+                source = desktop(resolve((PACK / "assets/mcav/shaders/post" / (name + ".fsh")).read_text(), self.includes))
             if vertex == "minecraft:core/screenquad":
                 vertex_source = VERTEX
+            elif self.compiled is not None:
+                vertex_source = (self.compiled / (vertex.split("/")[-1] + ".vsh")).read_text()
             else:
                 namespace, path = vertex.split(":")
-                vertex_source = resolve((PACK / "assets" / namespace / "shaders" / (path + ".vsh")).read_text(), self.includes)
-            self.programs[key] = self.context.program(vertex_shader=vertex_source, fragment_shader=resolve(source, self.includes))
+                vertex_source = desktop(resolve((PACK / "assets" / namespace / "shaders" / (path + ".vsh")).read_text(), self.includes))
+            self.programs[key] = self.context.program(vertex_shader=vertex_source, fragment_shader=source)
         return self.programs[key]
 
     def draw(self, program, inputs, output):
@@ -249,6 +267,20 @@ class Chain:
         return bool(status[0]), picture
 
 
+def compile_via_spirv(includes, classpath):
+    """Compiles the pack's passes through shaderc and SPIRV-Cross, with this chain's generated includes."""
+    work = Path(tempfile.mkdtemp(prefix="mcv2-spirv-"))
+    generated = work / "generated"
+    generated.mkdir()
+    for name, text in includes.items():
+        (generated / name.split(":")[1]).write_text(text)
+    tool = Path(__file__).with_name("Mcv2ShaderCompile.java")
+    command = ["java", "--enable-native-access=ALL-UNNAMED", "-cp", classpath, str(tool), str(PACK), str(generated),
+               str(work / "glsl"), "--post-only"]
+    subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+    return work / "glsl"
+
+
 def page_number(page):
     """The page number from a page's six-bit symbols: header bytes 16 and 17, bits 128 to 143."""
     value = 0
@@ -266,6 +298,7 @@ def main():
     parser.add_argument("--drop", type=int, default=0)
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
     parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
+    parser.add_argument("--spirv", metavar="CLASSPATH", help="compile the passes as Minecraft 26.3 does, with these LWJGL jars")
     arguments = parser.parse_args()
     if arguments.pack:
         global PACK
@@ -291,6 +324,8 @@ def main():
             keyframe = struct.unpack_from("<I", frame, 4)[0] >> 16 & 1 == 1
             if chain is None:
                 chain = Chain(context, width, height, arguments.slots)
+                if arguments.spirv:
+                    chain.compiled = compile_via_spirv(chain.includes, arguments.spirv)
             if arguments.drop and index % arguments.drop == arguments.drop - 1:
                 continue
             pages = make_pages(frame, STREAM_ID, 6)

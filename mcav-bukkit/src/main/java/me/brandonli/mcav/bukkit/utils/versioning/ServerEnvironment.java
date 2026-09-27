@@ -32,7 +32,7 @@ public final class ServerEnvironment {
   /**
    * The only Minecraft version supported by the Bukkit module.
    */
-  public static final String SUPPORTED_MINECRAFT_VERSION = "26.2";
+  public static final String SUPPORTED_MINECRAFT_VERSION = "26.3";
 
   private static final String PATCH_PREFIX = SUPPORTED_MINECRAFT_VERSION + ".";
 
@@ -41,7 +41,7 @@ public final class ServerEnvironment {
   }
 
   /**
-   * Gets the Minecraft version of the running server, such as {@code 26.2}.
+   * Gets the Minecraft version of the running server, such as {@code 26.3}.
    *
    * @return the Minecraft version of the server
    */
@@ -51,7 +51,7 @@ public final class ServerEnvironment {
 
   /**
    * Checks whether the running server is supported. Patch releases of the supported version, such as
-   * {@code 26.2.1}, are supported as well.
+   * {@code 26.3.1}, are supported as well.
    *
    * @return true if the server version is supported, false otherwise
    */
@@ -63,7 +63,7 @@ public final class ServerEnvironment {
   /**
    * Checks whether the given Minecraft version is supported by the Bukkit module.
    *
-   * @param version the Minecraft version to check, such as {@code 26.2.1}
+   * @param version the Minecraft version to check, such as {@code 26.3.1}
    * @return true if the version is supported, false otherwise
    */
   public static boolean isSupported(final String version) {

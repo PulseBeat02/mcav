@@ -56,7 +56,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Runs the plugin on a real, headless Paper 26.2 server together with Simple Voice Chat, with the mcav modules of
+ * Runs the plugin on a real, headless Paper 26.3 server together with Simple Voice Chat, with the mcav modules of
  * this build, and drives it through the server console and its audio web server. The server downloads the libraries
  * of the plugin, loads the JavaCV natives and installs VLC and yt-dlp exactly as on a production server, so this test
  * needs the internet.
@@ -72,16 +72,16 @@ import org.junit.jupiter.api.io.TempDir;
 final class PaperServerEndToEndTest {
 
   private static final RemoteFile PAPER = new RemoteFile(
-    "https://fill-data.papermc.io/v1/objects/7b7b3b43c009103e1971a0576c26f655a7dd9b56a0a2a4438e352c03a7fecd08/paper-26.2-123.jar",
-    "paper-26.2-123.jar",
+    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/paper-26.3-49.jar",
+    "paper-26.3-49.jar",
     "SHA-256",
-    "7b7b3b43c009103e1971a0576c26f655a7dd9b56a0a2a4438e352c03a7fecd08"
+    "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d"
   );
   private static final RemoteFile VOICE_CHAT = new RemoteFile(
-    "https://cdn.modrinth.com/data/9eGKb6K1/versions/IhqyykOv/voicechat-bukkit-2.6.23.jar",
-    "voicechat-bukkit-2.6.23.jar",
+    "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/voicechat-bukkit-2.6.24.jar",
+    "voicechat-bukkit-2.6.24.jar",
     "SHA-512",
-    "3f01340bb29e03c0ba3ebb250b461bea6503a76544c9468fb228738a04fe9c21bfee83b5606e9b403c2b0587da9ad8d08687f6442e0dee392bf6010697641d96"
+    "7f1d5765e79cd42616f14f40322d1171a8505e1116dfff71c7bd0e59af9d255c06f70a68a5b622015c0407d40c80e70298c172992007ff339cedcef0116fec42"
   );
 
   // the first start downloads the libraries of the plugin, VLC and yt-dlp

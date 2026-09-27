@@ -1,14 +1,15 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 11: the outline target without the data frames. The frames that carry the pages glow, which is what makes the
 // client run this chain at all; their outline has the team colour MCV2_OUTLINE_COLOR, and removing it here keeps
 // them from glowing on screen. Every other outline is kept.
 
-#moj_import <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_config.glsl>
 
 uniform sampler2D OutlineSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 void main() {
     vec4 outline = texelFetch(OutlineSampler, ivec2(gl_FragCoord.xy), 0);

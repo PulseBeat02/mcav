@@ -1,4 +1,5 @@
-#version 330
+#ifndef MCAV_MCV2_CRC_GLSL
+#define MCAV_MCV2_CRC_GLSL
 
 // CRC-32 (IEEE 802.3, reflected, polynomial 0xEDB88320), the checksum of every MCV2 transport page, byte by byte
 // through the standard 256-entry table.
@@ -74,3 +75,5 @@ uint mcv2CrcShift(uint crc) {
     }
     return shifted;
 }
+
+#endif

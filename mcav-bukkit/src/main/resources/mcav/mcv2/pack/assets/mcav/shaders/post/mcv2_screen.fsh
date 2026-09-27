@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 10: the picture on the screen. Every pixel of the scene is cast onto the plane of the screen the anchors
 // describe; where the ray meets the screen in front of whatever the scene has there, it takes the decoded picture's
@@ -8,8 +9,8 @@
 // decision (green: decoded, blue: nothing new, red: a frame that cannot be decoded) and one per byte of the count of
 // decoded frames.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D MainSampler;
 uniform sampler2D MainDepthSampler;
@@ -20,16 +21,16 @@ uniform sampler2D StatusSampler;
 uniform sampler2D ViewSampler;
 
 // what the vertex shader read once for all pixels: the view pass's flags and box, the screen and the projection
-flat in uvec4 ScreenView;
-flat in vec4 ScreenTopLeft;
-flat in vec4 ScreenRight;
-flat in vec4 ScreenDown;
-flat in vec4 ScreenProjection0;
-flat in vec4 ScreenProjection1;
-flat in vec4 ScreenProjection2;
-flat in vec4 ScreenProjection3;
+layout(location = 1) flat in uvec4 ScreenView;
+layout(location = 2) flat in vec4 ScreenTopLeft;
+layout(location = 3) flat in vec4 ScreenRight;
+layout(location = 4) flat in vec4 ScreenDown;
+layout(location = 5) flat in vec4 ScreenProjection0;
+layout(location = 6) flat in vec4 ScreenProjection1;
+layout(location = 7) flat in vec4 ScreenProjection2;
+layout(location = 8) flat in vec4 ScreenProjection3;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 // The picture's pixel at a position counted from its top-left corner; row y of the picture is row y of the target.
 vec4 mcv2Picture(ivec2 position) {

@@ -1,4 +1,5 @@
-#version 330
+#ifndef MCAV_MCV2_STRIP_GLSL
+#define MCAV_MCV2_STRIP_GLSL
 
 // The transport strip: the text shaders move every MCV2 page map to a band at the top of the screen, where the post
 // chain reads it back. Four six-bit symbols make three page bytes, so a page's 16,384 symbols fill 4,096 pixels,
@@ -55,3 +56,5 @@ uint mcv2TexelWord(vec4 texel) {
     uvec4 b = uvec4(texel * 255.0 + 0.5);
     return b.x | (b.y << 8u) | (b.z << 16u) | (b.w << 24u);
 }
+
+#endif

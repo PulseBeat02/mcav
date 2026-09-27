@@ -1,4 +1,5 @@
-#version 330
+#ifndef MCAV_MCV2_SYMBOLS_GLSL
+#define MCAV_MCV2_SYMBOLS_GLSL
 
 // Reading MCV2 symbols out of map textures. Symbol s is sent as map colour s + 4, and the client uploads each map
 // colour as one exact RGB texel, listed in MCV2_ALPHABET (generated from the server's map palette, which is the
@@ -49,3 +50,5 @@ bool mcv2IsAnchor(sampler2D map) {
         && mcv2SymbolAt(map, 3) == 44 && mcv2SymbolAt(map, 4) == 9 && mcv2SymbolAt(map, 5) == 37
         && mcv2SymbolAt(map, 6) == 60 && mcv2SymbolAt(map, 7) == 17;
 }
+
+#endif

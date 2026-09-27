@@ -1,4 +1,5 @@
-#version 330
+#ifndef MCAV_MCV2_CODEC_GLSL
+#define MCAV_MCV2_CODEC_GLSL
 
 // The MCV2 fragment decoder of the gpu-codec research repository (mcvideo_codec.glsl at commit
 // 85445433aeb9f8a35a5ce528d47d8829976d1401, last changed by its round 18), ported into mcav's resource pack.
@@ -1140,3 +1141,5 @@ bool mcvideoFrameFromWords(uint flagsWord, uint payloadWord, uint endpointWord, 
 }
 
 // 13. The decode pass quantizes the result to RGB8 explicitly; that quantization is normative for references.
+
+#endif

@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 4: what to do with the strip this frame, four texels: (decode, keyframe, predict from the keyframe
 // reference, page count), the frame id, the frame length and the reference id. A frame is decoded when every one of
@@ -6,20 +7,20 @@
 // a P frame newer than the last decoded frame that predicts from a reference the client holds: the last decoded
 // frame, or the last decoded keyframe.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D PagesSampler;
 uniform sampler2D StateSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
-uvec4 mcv2Bytes(sampler2D sampler, int x) {
-    return uvec4(texelFetch(sampler, ivec2(x, 0), 0) * 255.0 + 0.5);
+uvec4 mcv2Bytes(sampler2D source, int x) {
+    return uvec4(texelFetch(source, ivec2(x, 0), 0) * 255.0 + 0.5);
 }
 
-uint mcv2Word(sampler2D sampler, int x) {
-    return mcv2TexelWord(texelFetch(sampler, ivec2(x, 0), 0));
+uint mcv2Word(sampler2D source, int x) {
+    return mcv2TexelWord(texelFetch(source, ivec2(x, 0), 0));
 }
 
 void main() {

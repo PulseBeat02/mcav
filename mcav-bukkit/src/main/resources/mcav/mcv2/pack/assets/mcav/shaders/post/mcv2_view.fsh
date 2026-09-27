@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 9: the screen's geometry for this frame, once instead of at every pixel of the screen pass: the 28 floats of
 // the anchor descriptor the text shader writes after the strip, from 56 pixels of the main target, and the box of
@@ -8,13 +9,13 @@
 // descriptor's floats as their IEEE bits. The screen pass still inverts the projection at every pixel: a stored inverse
 // is 16 more fetches, which measured slower on the Intel UHD 630, and rounds differently from the inline one.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D MainSampler;
 uniform sampler2D StateSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const int MCV2_VIEW_FLOATS = 3;
 // how far past the corners' box a pixel may still meet the screen: the box is built from float projections of the

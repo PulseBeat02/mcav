@@ -1,50 +1,51 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
-// Vanilla 26.2 core/text.vsh, plus MCV2: a map that is a transport page of this pack's stream is moved to its slot
+// Vanilla 26.3 core/text.vsh, plus MCV2: a map that is a transport page of this pack's stream is moved to its slot
 // of the transport strip at the top of the screen, and an anchor map is moved to the descriptor row after it,
 // carrying the screen's position and orientation in view space for the post chain. Every other text is drawn
 // exactly as by vanilla.
 
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH)
-#moj_import <minecraft:fog.glsl>
-#moj_import <minecraft:sample_lightmap.glsl>
+#include <minecraft:fog.glsl>
+#include <minecraft:sample_lightmap.glsl>
 #endif
 
-#moj_import <minecraft:dynamictransforms.glsl>
-#moj_import <minecraft:projection.glsl>
-#moj_import <minecraft:globals.glsl>
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_alphabet.glsl>
-#moj_import <mcav:mcv2_symbols.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <minecraft:dynamictransforms.glsl>
+#include <minecraft:projection.glsl>
+#include <minecraft:globals.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_alphabet.glsl>
+#include <mcav:mcv2_symbols.glsl>
+#include <mcav:mcv2_strip.glsl>
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
+layout(location = 0) in vec3 Position;
+layout(location = 1) in vec4 Color;
+layout(location = 2) in vec2 UV0;
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH)
-in ivec2 UV2;
+layout(location = 3) in ivec2 UV2;
 #endif
 
 uniform sampler2D Sampler0;
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH)
 uniform sampler2D Sampler2;
-out float sphericalVertexDistance;
-out float cylindricalVertexDistance;
+layout(location = 0) out float sphericalVertexDistance;
+layout(location = 1) out float cylindricalVertexDistance;
 #endif
 
-out vec4 vertexColor;
-out vec2 texCoord0;
+layout(location = 2) out vec4 vertexColor;
+layout(location = 3) out vec2 texCoord0;
 // 0 for ordinary text, 1 for a transport page, 2 for an anchor
-flat out int mcv2Kind;
-flat out int mcv2Slot;
-flat out vec4 mcv2A;
-flat out vec4 mcv2B;
-flat out vec4 mcv2C;
+layout(location = 4) flat out int mcv2Kind;
+layout(location = 5) flat out int mcv2Slot;
+layout(location = 6) flat out vec4 mcv2A;
+layout(location = 7) flat out vec4 mcv2B;
+layout(location = 8) flat out vec4 mcv2C;
 // the projection matrix by columns: a flat mat4 varying crashes Mesa's llvmpipe here
-flat out vec4 mcv2P0;
-flat out vec4 mcv2P1;
-flat out vec4 mcv2P2;
-flat out vec4 mcv2P3;
+layout(location = 9) flat out vec4 mcv2P0;
+layout(location = 10) flat out vec4 mcv2P1;
+layout(location = 11) flat out vec4 mcv2P2;
+layout(location = 12) flat out vec4 mcv2P3;
 
 // Places a quad's corner, given by its texture coordinate, on the screen rectangle from the top-left pixel (x0, y0)
 // counted from the top to (x1, y1), in front of everything drawn so far.

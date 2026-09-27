@@ -1,26 +1,27 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 6's vertex shader: Minecraft's screen quad, and the facts every pixel of the decode pass shares, read once per
 // vertex instead of once per pixel: the status texel, and from the resolve pass's frame row the flags, the global
 // motion, the payload start and the table bases, with the frame's length from the status.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D StatusSampler;
 uniform sampler2D CellsSampler;
 
-out vec2 texCoord;
-flat out uvec4 DecodeStatus;
-flat out uvec4 DecodeFrame;
-flat out uvec4 DecodeTables;
+layout(location = 0) out vec2 texCoord;
+layout(location = 1) flat out uvec4 DecodeStatus;
+layout(location = 2) flat out uvec4 DecodeFrame;
+layout(location = 3) flat out uvec4 DecodeTables;
 
 uint mcv2FrameFact(int x) {
     return mcv2TexelWord(texelFetch(CellsSampler, ivec2(x, MCV2_CELLS_HEIGHT), 0));
 }
 
 void main() {
-    vec2 uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
     texCoord = uv;
     DecodeStatus = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);

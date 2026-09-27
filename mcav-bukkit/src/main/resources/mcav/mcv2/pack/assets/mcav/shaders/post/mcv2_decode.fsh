@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 6: the next picture. When the status says so, every pixel is reconstructed by the reference decoder from the
 // frame bytes, the reference the frame predicts from and the leaf the resolve pass found for its 8x8 cell; otherwise
@@ -7,9 +8,9 @@
 // motion plus the two motion bytes the resolve pass unpacked into the cell, the prediction the reference makes for
 // them; everything else reads what it needs of the frame. The facts all pixels share come from the vertex shader.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
-#moj_import <mcav:mcv2_books.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_books.glsl>
 
 uniform sampler2D BytesSampler;
 uniform sampler2D StatusSampler;
@@ -17,11 +18,11 @@ uniform sampler2D CellsSampler;
 uniform sampler2D PreviousSampler;
 uniform sampler2D KeySampler;
 
-flat in uvec4 DecodeStatus;
-flat in uvec4 DecodeFrame;
-flat in uvec4 DecodeTables;
+layout(location = 1) flat in uvec4 DecodeStatus;
+layout(location = 2) flat in uvec4 DecodeFrame;
+layout(location = 3) flat in uvec4 DecodeTables;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 int DataBytes = 0;
 ivec2 OutputSize = ivec2(0);
@@ -38,7 +39,7 @@ ivec2 mcv2ReferenceSize() {
     return textureSize(PreviousSampler, 0);
 }
 
-#moj_import <mcav:mcv2_codec.glsl>
+#include <mcav:mcv2_codec.glsl>
 
 uint mcv2CellWord(int x, int y) {
     return mcv2TexelWord(texelFetch(CellsSampler, ivec2(x, y), 0));

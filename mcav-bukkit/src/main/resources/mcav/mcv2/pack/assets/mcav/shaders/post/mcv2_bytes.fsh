@@ -1,15 +1,16 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 1: the frame bytes, four to a texel, gathered from the pages in the transport strip. Frame byte o is byte
 // 32 + o % 12256 of the page in slot o / 12256. Bytes past the frame's end are whatever the strip holds there; the
 // decoder never reads past the length the page headers give.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D MainSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 uint mcv2FrameByte(ivec2 size, int offset) {
     int page = offset / MCV2_PAGE_CAPACITY;

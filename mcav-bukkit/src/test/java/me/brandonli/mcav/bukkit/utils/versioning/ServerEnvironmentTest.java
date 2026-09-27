@@ -37,13 +37,13 @@ final class ServerEnvironmentTest {
 
   @Test
   void supportsTheExactVersionAndItsPatchReleasesOnly() {
-    final boolean exact = ServerEnvironment.isSupported("26.2");
-    final boolean patch = ServerEnvironment.isSupported("26.2.1");
-    final boolean longerMinor = ServerEnvironment.isSupported("26.20");
+    final boolean exact = ServerEnvironment.isSupported("26.3");
+    final boolean patch = ServerEnvironment.isSupported("26.3.1");
+    final boolean longerMinor = ServerEnvironment.isSupported("26.30");
     final boolean older = ServerEnvironment.isSupported("26.1");
     final boolean newerMajor = ServerEnvironment.isSupported("27.2");
     final boolean empty = ServerEnvironment.isSupported("");
-    assertEquals("26.2", ServerEnvironment.SUPPORTED_MINECRAFT_VERSION);
+    assertEquals("26.3", ServerEnvironment.SUPPORTED_MINECRAFT_VERSION);
     assertTrue(exact);
     assertTrue(patch);
     assertFalse(longerMinor);
@@ -57,10 +57,10 @@ final class ServerEnvironmentTest {
   void acceptsASupportedServer() {
     try (final FakeServer server = FakeServer.start()) {
       final MockedStatic<Bukkit> bukkit = server.getBukkit();
-      bukkit.when(Bukkit::getMinecraftVersion).thenReturn("26.2.3");
+      bukkit.when(Bukkit::getMinecraftVersion).thenReturn("26.3.3");
       final String version = ServerEnvironment.getMinecraftVersion();
       final boolean supported = ServerEnvironment.isSupported();
-      assertEquals("26.2.3", version);
+      assertEquals("26.3.3", version);
       assertTrue(supported);
       assertDoesNotThrow(ServerEnvironment::checkSupported);
     }
@@ -78,7 +78,7 @@ final class ServerEnvironmentTest {
       );
       final String message = exception.getMessage();
       assertFalse(supported);
-      assertEquals("MCAV only supports Minecraft 26.2, but the server is running 1.21.4!", message);
+      assertEquals("MCAV only supports Minecraft 26.3, but the server is running 1.21.4!", message);
       assertInstanceOf(IllegalStateException.class, exception, "an unchecked exception that catch (Exception) handles");
     }
   }

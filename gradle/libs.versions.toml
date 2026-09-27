@@ -7,8 +7,9 @@
 
 [versions]
 java = "25"
-minecraft = "26.2"
-paper = "26.2.build.+"
+minecraft = "26.3"
+# Paper 26.3 has only alpha builds (2026-09-27); the newest is pinned
+paper = "26.3.build.49-alpha"
 paperweight = "2.0.0-beta.24"
 node = "24.21.0"
 prettier = "3.9.9"

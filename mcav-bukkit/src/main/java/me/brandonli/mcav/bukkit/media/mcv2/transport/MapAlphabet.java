@@ -23,8 +23,8 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 /**
  * The six-bit alphabet that carries transport symbols as Minecraft map colours: symbol {@code s} is sent as map colour
  * byte {@code s + 4}, the packed colour ids 4 to 67, which are the four brightnesses of the base colours 1 to 16. Their
- * 64 RGB values are distinct on Minecraft 26.2 (and 1.21.9), so the resource pack's shader recovers every symbol
- * exactly from the texel the client uploads.
+ * 64 RGB values are distinct on Minecraft 26.3, whose palette is the one of 26.2 and 1.21.9, so the resource pack's
+ * shader recovers every symbol exactly from the texel the client uploads.
  */
 public final class MapAlphabet {
 

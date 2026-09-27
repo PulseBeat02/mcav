@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 10's vertex shader: Minecraft's screen quad, and what every pixel of the screen pass shares, read once per
 // vertex instead of once per pixel: the view pass's flags and box, the screen's corner, its cell vectors and its size
@@ -6,20 +7,20 @@
 // fragment shader still inverts the projection itself: an inverse computed here rounds differently on the Intel UHD
 // 630 and would move the screen's edges by a pixel where a ray grazes them.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
 
 uniform sampler2D ViewSampler;
 
-out vec2 texCoord;
-flat out uvec4 ScreenView;
-flat out vec4 ScreenTopLeft;
-flat out vec4 ScreenRight;
-flat out vec4 ScreenDown;
-flat out vec4 ScreenProjection0;
-flat out vec4 ScreenProjection1;
-flat out vec4 ScreenProjection2;
-flat out vec4 ScreenProjection3;
+layout(location = 0) out vec2 texCoord;
+layout(location = 1) flat out uvec4 ScreenView;
+layout(location = 2) flat out vec4 ScreenTopLeft;
+layout(location = 3) flat out vec4 ScreenRight;
+layout(location = 4) flat out vec4 ScreenDown;
+layout(location = 5) flat out vec4 ScreenProjection0;
+layout(location = 6) flat out vec4 ScreenProjection1;
+layout(location = 7) flat out vec4 ScreenProjection2;
+layout(location = 8) flat out vec4 ScreenProjection3;
 
 uint mcv2View(int x) {
     return mcv2TexelWord(texelFetch(ViewSampler, ivec2(x, 0), 0));
@@ -30,7 +31,7 @@ float mcv2DescriptorFloat(int index) {
 }
 
 void main() {
-    vec2 uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
     texCoord = uv;
     ScreenView = uvec4(mcv2View(0), mcv2View(1), mcv2View(2), 0u);

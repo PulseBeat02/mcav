@@ -1,4 +1,5 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 // Pass 5: the leaf of every 8x8 cell of the next picture, once per cell instead of once per pixel. Every pixel of a
 // cell lies in the same leaf, so the frame's header checks and the walk that finds the leaf - the descriptor, the
@@ -6,15 +7,15 @@
 // decode pass reads it. The row after the cells holds the frame's own facts. Nothing is resolved when the status
 // does not decode a frame, and the decode pass then reads nothing here.
 
-#moj_import <mcav:mcv2_config.glsl>
-#moj_import <mcav:mcv2_strip.glsl>
-#moj_import <mcav:mcv2_books.glsl>
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_books.glsl>
 
 uniform sampler2D BytesSampler;
 uniform sampler2D StatusSampler;
 uniform sampler2D PreviousSampler;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 int DataBytes = 0;
 ivec2 OutputSize = ivec2(0);
@@ -30,7 +31,7 @@ ivec2 mcv2ReferenceSize() {
     return textureSize(PreviousSampler, 0);
 }
 
-#moj_import <mcav:mcv2_codec.glsl>
+#include <mcav:mcv2_codec.glsl>
 
 void main() {
     ivec2 texel = ivec2(gl_FragCoord.xy);
