@@ -41,12 +41,25 @@ static_assert((-7 >> 1) == -4, "right shifts of negative values must be arithmet
 #elif defined(MCV2_SIMD_NEON)
 #include <arm_neon.h>
 #elif defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
+#include <arm_neon.h>
 #include <arm_sve.h>
 #elif !defined(MCV2_SIMD_SCALAR)
 #error "define one of the MCV2_SIMD_ levels"
 #endif
 
 namespace mcv2 {
+// Every level's types and helpers have the same names, so they must not be visible outside their translation unit: an
+// inline function the compiler keeps out of line would otherwise be one weak symbol for every level, and the linker
+// could give the SSE2 kernels the AVX-512 copy.
+namespace {
+
+// Whether load3 and store3 are shuffles rather than instructions: SSE takes a dozen of them for four pixels, so a
+// kernel that only adds a few values of each pixel (halve) runs faster as plain code there.
+#if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
+constexpr bool SHUFFLED_LOAD3 = true;
+#else
+constexpr bool SHUFFLED_LOAD3 = false;
+#endif
 
 // Java's int arithmetic on one value: wrapping, and arithmetic shifts.
 inline int32_t wrap_add(int32_t a, int32_t b) { return (int32_t)((uint32_t)a + (uint32_t)b); }
@@ -55,44 +68,67 @@ inline int32_t wrap_mul(int32_t a, int32_t b) { return (int32_t)((uint32_t)a * (
 inline int32_t shl(int32_t a, int32_t k) { return (int32_t)((uint32_t)a << (k & 31)); }
 inline int32_t sar(int32_t a, int32_t k) { return a >> (k & 31); }
 
-#if defined(MCV2_SIMD_SCALAR)
+// A pixel's three bytes as the low bytes of a word, its top byte zero: read byte by byte, so never past the pixel.
+inline uint32_t pixel_word(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16; }
 
-struct VI {
+// One int lane: the scalar level's VI, and every level's for a kernel whose lanes do not pay there (the compiler then
+// vectorizes the one-lane code itself).
+struct VI1 {
   static constexpr int N = 1;
   int32_t v;
-  static VI load(const int32_t *p) { return {p[0]}; }
+  static VI1 load(const int32_t *p) { return {p[0]}; }
   void store(int32_t *p) const { p[0] = v; }
-  static VI set1(int32_t x) { return {x}; }
-  static VI zero() { return {0}; }
-  static VI iota() { return {0}; }
-  static VI loadu8(const uint8_t *p) { return {p[0]}; }
-  friend VI operator+(VI a, VI b) { return {wrap_add(a.v, b.v)}; }
-  friend VI operator-(VI a, VI b) { return {wrap_sub(a.v, b.v)}; }
-  friend VI operator*(VI a, VI b) { return {wrap_mul(a.v, b.v)}; }
-  friend VI operator&(VI a, VI b) { return {a.v & b.v}; }
-  VI shl(int32_t k) const { return {mcv2::shl(v, k)}; }
-  VI sar(int32_t k) const { return {mcv2::sar(v, k)}; }
-  static VI min(VI a, VI b) { return {a.v < b.v ? a.v : b.v}; }
-  static VI max(VI a, VI b) { return {a.v > b.v ? a.v : b.v}; }
-  static VI abs(VI a) { return {a.v < 0 ? wrap_sub(0, a.v) : a.v}; }
+  // each lane's low byte, lanes holding 0 or 1
+  void store_bytes(int8_t *p) const { p[0] = (int8_t)v; }
+  static VI1 set1(int32_t x) { return {x}; }
+  static VI1 zero() { return {0}; }
+  static VI1 iota() { return {0}; }
+  static VI1 loadu8(const uint8_t *p) { return {p[0]}; }
+  friend VI1 operator+(VI1 a, VI1 b) { return {wrap_add(a.v, b.v)}; }
+  friend VI1 operator-(VI1 a, VI1 b) { return {wrap_sub(a.v, b.v)}; }
+  friend VI1 operator*(VI1 a, VI1 b) { return {wrap_mul(a.v, b.v)}; }
+  friend VI1 operator&(VI1 a, VI1 b) { return {a.v & b.v}; }
+  friend VI1 operator|(VI1 a, VI1 b) { return {a.v | b.v}; }
+  VI1 shl(int32_t k) const { return {mcv2::shl(v, k)}; }
+  VI1 sar(int32_t k) const { return {mcv2::sar(v, k)}; }
+  static VI1 min(VI1 a, VI1 b) { return {a.v < b.v ? a.v : b.v}; }
+  static VI1 max(VI1 a, VI1 b) { return {a.v > b.v ? a.v : b.v}; }
+  static VI1 abs(VI1 a) { return {a.v < 0 ? wrap_sub(0, a.v) : a.v}; }
   // all ones where a < b, else zero
-  static VI less(VI a, VI b) { return {a.v < b.v ? -1 : 0}; }
+  static VI1 less(VI1 a, VI1 b) { return {a.v < b.v ? -1 : 0}; }
   int32_t sum() const { return v; }
-  static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
+  static void load3(const int32_t *p, VI1 &a, VI1 &b, VI1 &c) {
     a.v = p[0];
     b.v = p[1];
     c.v = p[2];
   }
-  static void store3(int32_t *p, VI a, VI b, VI c) {
+  static void store3(int32_t *p, VI1 a, VI1 b, VI1 c) {
     p[0] = a.v;
     p[1] = b.v;
     p[2] = c.v;
   }
   // all ones in the lanes whose bit is set, the bits of lanes 0.. starting at bit i of the byte array
-  static VI bits(const int8_t *p, int32_t i) { return {((p[i >> 3] >> (i & 7)) & 1) ? -1 : 0}; }
+  static VI1 bits(const int8_t *p, int32_t i) { return {((p[i >> 3] >> (i & 7)) & 1) ? -1 : 0}; }
   // the even lanes of a, then the even lanes of b
-  static VI evens(VI a, VI) { return a; }
+  static VI1 evens(VI1 a, VI1) { return a; }
+  // the odd lanes of a, then the odd lanes of b
+  static VI1 odds(VI1, VI1 b) { return b; }
 };
+
+#if defined(MCV2_SIMD_SCALAR)
+
+using VI = VI1;
+
+// the sum of the absolute differences of the bytes of four words and of sixteen bytes
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const uint32_t words[4] = {a, b, c, d};
+  int32_t sum = 0;
+  for (int32_t k = 0; k < 16; k++) {
+    const int32_t difference = (int32_t)((words[k / 4] >> (8 * (k % 4))) & 0xFF) - s[k];
+    sum += difference < 0 ? -difference : difference;
+  }
+  return sum;
+}
 
 // N float lanes, as many as VI's, and their bits as a VI for load3 and store3.
 struct VF {
@@ -113,6 +149,8 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {a.v - b.v}; }
   friend VF operator*(VF a, VF b) { return {a.v * b.v}; }
   friend VF operator-(VF a) { return {-a.v}; }
+  // all ones where a < b, else zero; false where either is NaN
+  static VI less(VF a, VF b) { return {a.v < b.v ? -1 : 0}; }
 };
 
 // N double lanes: a fit keeps one output's sum in each lane, so no sum is ever reordered.
@@ -121,6 +159,8 @@ struct VD {
   double v;
   static VD set1(double x) { return {x}; }
   static VD loadf(const float *p) { return {(double)p[0]}; }
+  // lane k from p[offsets[k]]
+  static VD gatherf(const float *p, const int32_t *offsets) { return {(double)p[offsets[0]]}; }
   friend VD operator+(VD a, VD b) { return {a.v + b.v}; }
   friend VD operator*(VD a, VD b) { return {a.v * b.v}; }
   void store(double *p) const { p[0] = v; }
@@ -131,17 +171,19 @@ struct VD {
 // The five operations SSE4.1 (and SSSE3's abs) added over SSE2, which the SSE2 level computes from SSE2 instructions:
 // the same values, lane for lane.
 #if defined(MCV2_SIMD_SSE41)
-template <int M> inline __m128i blend16(__m128i a, __m128i b) { return _mm_blend_epi16(a, b, M); }
+// blendps rather than pblendw: it issues on any vector port, where pblendw competes with the shuffles for one
+template <int M> inline __m128i blend32(__m128i a, __m128i b) {
+  return _mm_castps_si128(_mm_blend_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(b), M));
+}
 inline __m128i mullo32(__m128i a, __m128i b) { return _mm_mullo_epi32(a, b); }
 inline __m128i min32(__m128i a, __m128i b) { return _mm_min_epi32(a, b); }
 inline __m128i max32(__m128i a, __m128i b) { return _mm_max_epi32(a, b); }
 inline __m128i abs32(__m128i a) { return _mm_abs_epi32(a); }
 inline __m128i widen8(__m128i bytes) { return _mm_cvtepu8_epi32(bytes); }
 #else
-// the 16-bit lanes whose bit of M is set taken from b, the others from a
-template <int M> inline __m128i blend16(__m128i a, __m128i b) {
-  const __m128i mask = _mm_setr_epi16((M & 1) ? -1 : 0, (M & 2) ? -1 : 0, (M & 4) ? -1 : 0, (M & 8) ? -1 : 0,
-                                      (M & 16) ? -1 : 0, (M & 32) ? -1 : 0, (M & 64) ? -1 : 0, (M & 128) ? -1 : 0);
+// the 32-bit lanes whose bit of M is set taken from b, the others from a
+template <int M> inline __m128i blend32(__m128i a, __m128i b) {
+  const __m128i mask = _mm_setr_epi32((M & 1) ? -1 : 0, (M & 2) ? -1 : 0, (M & 4) ? -1 : 0, (M & 8) ? -1 : 0);
   return _mm_or_si128(_mm_and_si128(mask, b), _mm_andnot_si128(mask, a));
 }
 // the low 32 bits of each product: the same for signed and unsigned operands, as Java's wrapping multiply
@@ -170,11 +212,21 @@ inline __m128i widen8(__m128i bytes) {
 }
 #endif
 
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const __m128i sad =
+      _mm_sad_epu8(_mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d), _mm_loadu_si128((const __m128i *)s));
+  return _mm_cvtsi128_si32(sad) + _mm_cvtsi128_si32(_mm_srli_si128(sad, 8));
+}
+
 struct VI {
   static constexpr int N = 4;
   __m128i v;
   static VI load(const int32_t *p) { return {_mm_loadu_si128((const __m128i *)p)}; }
   void store(int32_t *p) const { _mm_storeu_si128((__m128i *)p, v); }
+  void store_bytes(int8_t *p) const {
+    const int32_t word = _mm_cvtsi128_si32(_mm_packs_epi16(_mm_packs_epi32(v, v), _mm_setzero_si128()));
+    memcpy(p, &word, sizeof(word));
+  }
   static VI set1(int32_t x) { return {_mm_set1_epi32(x)}; }
   static VI zero() { return {_mm_setzero_si128()}; }
   static VI iota() { return {_mm_setr_epi32(0, 1, 2, 3)}; }
@@ -187,6 +239,7 @@ struct VI {
   friend VI operator-(VI a, VI b) { return {_mm_sub_epi32(a.v, b.v)}; }
   friend VI operator*(VI a, VI b) { return {mullo32(a.v, b.v)}; }
   friend VI operator&(VI a, VI b) { return {_mm_and_si128(a.v, b.v)}; }
+  friend VI operator|(VI a, VI b) { return {_mm_or_si128(a.v, b.v)}; }
   VI shl(int32_t k) const { return {_mm_sll_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   VI sar(int32_t k) const { return {_mm_sra_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   static VI min(VI a, VI b) { return {min32(a.v, b.v)}; }
@@ -199,33 +252,33 @@ struct VI {
     return _mm_cvtsi128_si32(s);
   }
   // p holds r0 g0 b0 r1 | g1 b1 r2 g2 | b2 r3 g3 b3: each channel takes its lanes from the three vectors by two blends
-  // (lane k is bits 2k and 2k+1 of a 16-bit blend mask), then one shuffle puts them in pixel order
+  // (lane k is bit k of the blend mask), then one shuffle puts them in pixel order
   static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
     const __m128i v0 = _mm_loadu_si128((const __m128i *)p);
     const __m128i v1 = _mm_loadu_si128((const __m128i *)(p + 4));
     const __m128i v2 = _mm_loadu_si128((const __m128i *)(p + 8));
     // r0 r3 r2 r1
-    const __m128i r = blend16<0x0C>(blend16<0x30>(v0, v1), v2);
+    const __m128i r = blend32<0x2>(blend32<0x4>(v0, v1), v2);
     // g1 g0 g3 g2
-    const __m128i g = blend16<0x30>(blend16<0x0C>(v1, v0), v2);
+    const __m128i g = blend32<0x4>(blend32<0x2>(v1, v0), v2);
     // b2 b1 b0 b3
-    const __m128i bl = blend16<0x30>(blend16<0x0C>(v2, v1), v0);
+    const __m128i bl = blend32<0x4>(blend32<0x2>(v2, v1), v0);
     a.v = _mm_shuffle_epi32(r, _MM_SHUFFLE(1, 2, 3, 0));
     b.v = _mm_shuffle_epi32(g, _MM_SHUFFLE(2, 3, 0, 1));
     c.v = _mm_shuffle_epi32(bl, _MM_SHUFFLE(3, 0, 1, 2));
   }
   static void store3(int32_t *p, VI a, VI b, VI c) {
     // v0 = r0 g0 b0 r1
-    const __m128i v0 = blend16<0x30>(
-        blend16<0x0C>(_mm_shuffle_epi32(a.v, _MM_SHUFFLE(1, 0, 0, 0)), _mm_shuffle_epi32(b.v, _MM_SHUFFLE(0, 0, 0, 0))),
+    const __m128i v0 = blend32<0x4>(
+        blend32<0x2>(_mm_shuffle_epi32(a.v, _MM_SHUFFLE(1, 0, 0, 0)), _mm_shuffle_epi32(b.v, _MM_SHUFFLE(0, 0, 0, 0))),
         _mm_shuffle_epi32(c.v, _MM_SHUFFLE(0, 0, 0, 0)));
     // v1 = g1 b1 r2 g2
-    const __m128i v1 = blend16<0x30>(
-        blend16<0x0C>(_mm_shuffle_epi32(b.v, _MM_SHUFFLE(2, 0, 0, 1)), _mm_shuffle_epi32(c.v, _MM_SHUFFLE(1, 1, 1, 1))),
+    const __m128i v1 = blend32<0x4>(
+        blend32<0x2>(_mm_shuffle_epi32(b.v, _MM_SHUFFLE(2, 0, 0, 1)), _mm_shuffle_epi32(c.v, _MM_SHUFFLE(1, 1, 1, 1))),
         _mm_shuffle_epi32(a.v, _MM_SHUFFLE(2, 2, 2, 2)));
     // v2 = b2 r3 g3 b3
-    const __m128i v2 = blend16<0x30>(
-        blend16<0x0C>(_mm_shuffle_epi32(c.v, _MM_SHUFFLE(3, 0, 0, 2)), _mm_shuffle_epi32(a.v, _MM_SHUFFLE(3, 3, 3, 3))),
+    const __m128i v2 = blend32<0x4>(
+        blend32<0x2>(_mm_shuffle_epi32(c.v, _MM_SHUFFLE(3, 0, 0, 2)), _mm_shuffle_epi32(a.v, _MM_SHUFFLE(3, 3, 3, 3))),
         _mm_shuffle_epi32(b.v, _MM_SHUFFLE(3, 3, 3, 3)));
     _mm_storeu_si128((__m128i *)p, v0);
     _mm_storeu_si128((__m128i *)(p + 4), v1);
@@ -239,6 +292,9 @@ struct VI {
   static VI evens(VI a, VI b) {
     return {_mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(a.v), _mm_castsi128_ps(b.v), _MM_SHUFFLE(2, 0, 2, 0)))};
   }
+  static VI odds(VI a, VI b) {
+    return {_mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(a.v), _mm_castsi128_ps(b.v), _MM_SHUFFLE(3, 1, 3, 1)))};
+  }
 };
 
 struct VF {
@@ -251,6 +307,7 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {_mm_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm_mul_ps(a.v, b.v)}; }
   friend VF operator-(VF a) { return {_mm_xor_ps(a.v, _mm_set1_ps(-0.0f))}; }
+  static VI less(VF a, VF b) { return {_mm_castps_si128(_mm_cmplt_ps(a.v, b.v))}; }
 };
 
 struct VD {
@@ -262,6 +319,9 @@ struct VD {
     memcpy(&pair, p, sizeof(pair));
     return {_mm_cvtps_pd(_mm_castsi128_ps(_mm_cvtsi64_si128(pair)))};
   }
+  static VD gatherf(const float *p, const int32_t *offsets) {
+    return {_mm_set_pd((double)p[offsets[1]], (double)p[offsets[0]])};
+  }
   friend VD operator+(VD a, VD b) { return {_mm_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm_mul_pd(a.v, b.v)}; }
   void store(double *p) const { _mm_storeu_pd(p, v); }
@@ -269,10 +329,20 @@ struct VD {
 
 #elif defined(MCV2_SIMD_AVX2)
 
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const __m128i sad =
+      _mm_sad_epu8(_mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d), _mm_loadu_si128((const __m128i *)s));
+  return _mm_cvtsi128_si32(sad) + _mm_cvtsi128_si32(_mm_srli_si128(sad, 8));
+}
+
 struct VI {
   static constexpr int N = 8;
   __m256i v;
   static VI load(const int32_t *p) { return {_mm256_loadu_si256((const __m256i *)p)}; }
+  void store_bytes(int8_t *p) const {
+    const __m128i words = _mm_packs_epi32(_mm256_castsi256_si128(v), _mm256_extracti128_si256(v, 1));
+    _mm_storel_epi64((__m128i *)p, _mm_packs_epi16(words, _mm_setzero_si128()));
+  }
   void store(int32_t *p) const { _mm256_storeu_si256((__m256i *)p, v); }
   static VI set1(int32_t x) { return {_mm256_set1_epi32(x)}; }
   static VI zero() { return {_mm256_setzero_si256()}; }
@@ -282,6 +352,7 @@ struct VI {
   friend VI operator-(VI a, VI b) { return {_mm256_sub_epi32(a.v, b.v)}; }
   friend VI operator*(VI a, VI b) { return {_mm256_mullo_epi32(a.v, b.v)}; }
   friend VI operator&(VI a, VI b) { return {_mm256_and_si256(a.v, b.v)}; }
+  friend VI operator|(VI a, VI b) { return {_mm256_or_si256(a.v, b.v)}; }
   VI shl(int32_t k) const { return {_mm256_sll_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   VI sar(int32_t k) const { return {_mm256_sra_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   static VI min(VI a, VI b) { return {_mm256_min_epi32(a.v, b.v)}; }
@@ -329,6 +400,10 @@ struct VI {
     const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(a.v), _mm256_castsi256_ps(b.v), _MM_SHUFFLE(2, 0, 2, 0));
     return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
   }
+  static VI odds(VI a, VI b) {
+    const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(a.v), _mm256_castsi256_ps(b.v), _MM_SHUFFLE(3, 1, 3, 1));
+    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
+  }
 };
 
 struct VF {
@@ -341,6 +416,7 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {_mm256_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm256_mul_ps(a.v, b.v)}; }
   friend VF operator-(VF a) { return {_mm256_xor_ps(a.v, _mm256_set1_ps(-0.0f))}; }
+  static VI less(VF a, VF b) { return {_mm256_castps_si256(_mm256_cmp_ps(a.v, b.v, _CMP_LT_OQ))}; }
 };
 
 struct VD {
@@ -348,6 +424,10 @@ struct VD {
   __m256d v;
   static VD set1(double x) { return {_mm256_set1_pd(x)}; }
   static VD loadf(const float *p) { return {_mm256_cvtps_pd(_mm_loadu_ps(p))}; }
+  // four loads: a hardware gather is slower on every AVX2 CPU tried
+  static VD gatherf(const float *p, const int32_t *offsets) {
+    return {_mm256_cvtps_pd(_mm_setr_ps(p[offsets[0]], p[offsets[1]], p[offsets[2]], p[offsets[3]]))};
+  }
   friend VD operator+(VD a, VD b) { return {_mm256_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm256_mul_pd(a.v, b.v)}; }
   void store(double *p) const { _mm256_storeu_pd(p, v); }
@@ -358,10 +438,17 @@ struct VD {
 // 16 lanes; a block narrower than 16 pixels goes to the AVX2 kernels (exports.inc), so every row a kernel steps through
 // is whole vectors. Only CPUs with the Ice Lake feature set run it (cpu.cpp), never the ones that slow down at 512
 // bits.
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const __m128i sad =
+      _mm_sad_epu8(_mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d), _mm_loadu_si128((const __m128i *)s));
+  return _mm_cvtsi128_si32(sad) + _mm_cvtsi128_si32(_mm_srli_si128(sad, 8));
+}
+
 struct VI {
   static constexpr int N = 16;
   __m512i v;
   static VI load(const int32_t *p) { return {_mm512_loadu_si512(p)}; }
+  void store_bytes(int8_t *p) const { _mm_storeu_si128((__m128i *)p, _mm512_cvtepi32_epi8(v)); }
   void store(int32_t *p) const { _mm512_storeu_si512(p, v); }
   static VI set1(int32_t x) { return {_mm512_set1_epi32(x)}; }
   static VI zero() { return {_mm512_setzero_si512()}; }
@@ -371,6 +458,7 @@ struct VI {
   friend VI operator-(VI a, VI b) { return {_mm512_sub_epi32(a.v, b.v)}; }
   friend VI operator*(VI a, VI b) { return {_mm512_mullo_epi32(a.v, b.v)}; }
   friend VI operator&(VI a, VI b) { return {_mm512_and_si512(a.v, b.v)}; }
+  friend VI operator|(VI a, VI b) { return {_mm512_or_si512(a.v, b.v)}; }
   VI shl(int32_t k) const { return {_mm512_sll_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   VI sar(int32_t k) const { return {_mm512_sra_epi32(v, _mm_cvtsi32_si128(k & 31))}; }
   static VI min(VI a, VI b) { return {_mm512_min_epi32(a.v, b.v)}; }
@@ -401,6 +489,10 @@ struct VI {
   }
   static VI evens(VI a, VI b) {
     const __m512i index = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    return {_mm512_permutex2var_epi32(a.v, index, b.v)};
+  }
+  static VI odds(VI a, VI b) {
+    const __m512i index = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
     return {_mm512_permutex2var_epi32(a.v, index, b.v)};
   }
 
@@ -443,6 +535,7 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {_mm512_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm512_mul_ps(a.v, b.v)}; }
   friend VF operator-(VF a) { return {_mm512_xor_ps(a.v, _mm512_set1_ps(-0.0f))}; }
+  static VI less(VF a, VF b) { return {_mm512_movm_epi32(_mm512_cmp_ps_mask(a.v, b.v, _CMP_LT_OQ))}; }
 };
 
 struct VD {
@@ -450,6 +543,10 @@ struct VD {
   __m512d v;
   static VD set1(double x) { return {_mm512_set1_pd(x)}; }
   static VD loadf(const float *p) { return {_mm512_cvtps_pd(_mm256_loadu_ps(p))}; }
+  static VD gatherf(const float *p, const int32_t *offsets) {
+    return {_mm512_cvtps_pd(_mm256_setr_ps(p[offsets[0]], p[offsets[1]], p[offsets[2]], p[offsets[3]], p[offsets[4]],
+                                           p[offsets[5]], p[offsets[6]], p[offsets[7]]))};
+  }
   friend VD operator+(VD a, VD b) { return {_mm512_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm512_mul_pd(a.v, b.v)}; }
   void store(double *p) const { _mm512_storeu_pd(p, v); }
@@ -457,10 +554,19 @@ struct VD {
 
 #elif defined(MCV2_SIMD_NEON)
 
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const uint32_t words[4] = {a, b, c, d};
+  return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(s)));
+}
+
 struct VI {
   static constexpr int N = 4;
   int32x4_t v;
   static VI load(const int32_t *p) { return {vld1q_s32(p)}; }
+  void store_bytes(int8_t *p) const {
+    const int8x8_t bytes = vmovn_s16(vcombine_s16(vmovn_s32(v), vdup_n_s16(0)));
+    vst1_lane_s32((int32_t *)p, vreinterpret_s32_s8(bytes), 0);
+  }
   void store(int32_t *p) const { vst1q_s32(p, v); }
   static VI set1(int32_t x) { return {vdupq_n_s32(x)}; }
   static VI zero() { return {vdupq_n_s32(0)}; }
@@ -478,6 +584,7 @@ struct VI {
   friend VI operator-(VI a, VI b) { return {vsubq_s32(a.v, b.v)}; }
   friend VI operator*(VI a, VI b) { return {vmulq_s32(a.v, b.v)}; }
   friend VI operator&(VI a, VI b) { return {vandq_s32(a.v, b.v)}; }
+  friend VI operator|(VI a, VI b) { return {vorrq_s32(a.v, b.v)}; }
   VI shl(int32_t k) const { return {vshlq_s32(v, vdupq_n_s32(k & 31))}; }
   VI sar(int32_t k) const { return {vshlq_s32(v, vdupq_n_s32(-(k & 31)))}; }
   static VI min(VI a, VI b) { return {vminq_s32(a.v, b.v)}; }
@@ -504,6 +611,7 @@ struct VI {
     return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lanes)))};
   }
   static VI evens(VI a, VI b) { return {vuzp1q_s32(a.v, b.v)}; }
+  static VI odds(VI a, VI b) { return {vuzp2q_s32(a.v, b.v)}; }
 };
 
 struct VF {
@@ -516,6 +624,7 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {vsubq_f32(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {vmulq_f32(a.v, b.v)}; }
   friend VF operator-(VF a) { return {vnegq_f32(a.v)}; }
+  static VI less(VF a, VF b) { return {vreinterpretq_s32_u32(vcltq_f32(a.v, b.v))}; }
 };
 
 struct VD {
@@ -523,6 +632,10 @@ struct VD {
   float64x2_t v;
   static VD set1(double x) { return {vdupq_n_f64(x)}; }
   static VD loadf(const float *p) { return {vcvt_f64_f32(vld1_f32(p))}; }
+  static VD gatherf(const float *p, const int32_t *offsets) {
+    const double lanes[2] = {(double)p[offsets[0]], (double)p[offsets[1]]};
+    return {vld1q_f64(lanes)};
+  }
   friend VD operator+(VD a, VD b) { return {vaddq_f64(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {vmulq_f64(a.v, b.v)}; }
   void store(double *p) const { vst1q_f64(p, v); }
@@ -542,10 +655,17 @@ typedef svuint64_t sve_u64 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 typedef svfloat32_t sve_f32 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 typedef svfloat64_t sve_f64 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 
+// NEON's, which every SVE CPU runs
+inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
+  const uint32_t words[4] = {a, b, c, d};
+  return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(s)));
+}
+
 struct VI {
   static constexpr int N = MCV2_SVE_BITS / 32;
   sve_i32 v;
   static VI load(const int32_t *p) { return {svld1_s32(svptrue_b32(), p)}; }
+  void store_bytes(int8_t *p) const { svst1b_s32(svptrue_b32(), p, v); }
   void store(int32_t *p) const { svst1_s32(svptrue_b32(), p, v); }
   static VI set1(int32_t x) { return {svdup_n_s32(x)}; }
   static VI zero() { return {svdup_n_s32(0)}; }
@@ -555,6 +675,7 @@ struct VI {
   friend VI operator-(VI a, VI b) { return {svsub_s32_x(svptrue_b32(), a.v, b.v)}; }
   friend VI operator*(VI a, VI b) { return {svmul_s32_x(svptrue_b32(), a.v, b.v)}; }
   friend VI operator&(VI a, VI b) { return {svand_s32_x(svptrue_b32(), a.v, b.v)}; }
+  friend VI operator|(VI a, VI b) { return {svorr_s32_x(svptrue_b32(), a.v, b.v)}; }
   VI shl(int32_t k) const { return {svlsl_n_s32_x(svptrue_b32(), v, (uint32_t)(k & 31))}; }
   VI sar(int32_t k) const { return {svasr_n_s32_x(svptrue_b32(), v, (uint32_t)(k & 31))}; }
   static VI min(VI a, VI b) { return {svmin_s32_x(svptrue_b32(), a.v, b.v)}; }
@@ -584,6 +705,7 @@ struct VI {
     return {svsel_s32(svcmpne_n_u32(svptrue_b32(), bit, 0), svdup_n_s32(-1), svdup_n_s32(0))};
   }
   static VI evens(VI a, VI b) { return {svuzp1_s32(a.v, b.v)}; }
+  static VI odds(VI a, VI b) { return {svuzp2_s32(a.v, b.v)}; }
 };
 
 struct VF {
@@ -596,6 +718,9 @@ struct VF {
   friend VF operator-(VF a, VF b) { return {svsub_f32_x(svptrue_b32(), a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {svmul_f32_x(svptrue_b32(), a.v, b.v)}; }
   friend VF operator-(VF a) { return {svneg_f32_x(svptrue_b32(), a.v)}; }
+  static VI less(VF a, VF b) {
+    return {svsel_s32(svcmplt_f32(svptrue_b32(), a.v, b.v), svdup_n_s32(-1), svdup_n_s32(0))};
+  }
 };
 
 struct VD {
@@ -607,6 +732,11 @@ struct VD {
     const sve_u64 words = svld1uw_u64(svptrue_b64(), (const uint32_t *)p);
     return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
   }
+  static VD gatherf(const float *p, const int32_t *offsets) {
+    const svint64_t index = svld1sw_s64(svptrue_b64(), offsets);
+    const sve_u64 words = svld1uw_gather_s64index_u64(svptrue_b64(), (const uint32_t *)p, index);
+    return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
+  }
   friend VD operator+(VD a, VD b) { return {svadd_f64_x(svptrue_b64(), a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {svmul_f64_x(svptrue_b64(), a.v, b.v)}; }
   void store(double *p) const { svst1_f64(svptrue_b64(), p, v); }
@@ -614,6 +744,7 @@ struct VD {
 
 #endif
 
+} // namespace
 } // namespace mcv2
 
 #endif

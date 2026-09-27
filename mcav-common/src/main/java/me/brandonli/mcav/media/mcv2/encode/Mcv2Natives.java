@@ -83,17 +83,17 @@ public final class Mcv2Natives {
   /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
   static final Map<String, String> DIGESTS = Map.of(
     "linux-aarch64",
-    "8c46797200a76868309f55c74bdd4c48bc643d6c966303d4d7d99df6bf2d25f0",
+    "caf5e65b587c0b360528a3ec5d942d6d8fa5cecb75760005dfe86ac5a0f7c64b",
     "linux-x86_64",
-    "dc75f14bd4df8f6a146240234f71f183671e67677ec00dec8bb5a1e2445fc11c",
+    "2088f8f4fa4d52148c8237f6b6725990cfaaefe0dd1d74a332168a462cfa2bd3",
     "macos-aarch64",
-    "1c92acadb3a1f8b908c38ced84d3766f13caaa07e69131bc28c5631c0d9f02d8",
+    "c8696a7661e64b418c2f8e8cc5799e48f2bfa9e73bc27bdefb9dbaf149ae60d8",
     "macos-x86_64",
-    "7137c90161dd01a02bcb1bd9a017a7344e0ddc381b1cdb284633a56ce05f00b1",
+    "c6e1ea4c6daa03edce08484712c2ee9fe4c8a85e52e828b047c4b226d919481d",
     "windows-aarch64",
-    "7d2f181c23fcc963a02453541ff4d242d4880f3de0c1f3a1348eb2850cec4f1f",
+    "ee879280dba2396af4a007f45060b716bab61e16a3bdf66f3d4d87839b2c444b",
     "windows-x86_64",
-    "8ef173c841905e4eaf7f0790120a529759d4dc6e4008dfa34431f566409d5cba"
+    "bafb5bdff71569a0e833b709f42893491b4abf969e7c7f2241b0b31cfc361f7d"
   );
 
   /**

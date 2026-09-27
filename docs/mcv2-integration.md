@@ -634,9 +634,12 @@ java.lang.foreign.SymbolLookup has been called ...`), which `--enable-native-acc
 `--illegal-native-access=deny` refuses the load, and the Java kernels run.
 
 **Speed.** On AVX2 the reconstruction kernels run 2-3x faster than Java at 8 pixels and 2.4-4.6x at 32, the motion
-prediction and search 2.2-4.6x, the source loading 3-7x; the palette clustering and the cell means gain nothing, and a
-call costs some 50-90 ns of checks and arguments before any work (a bare downcall 6 ns). The whole live encoder spends
-2.7x less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE SPEED section has every kernel).
+prediction and search 2.2-4.6x (its whole-pixel costs as byte differences), the source loading 3-7x, the palette
+clustering 4.8-7.5x, the colour clusters 3.8-4.5x, the luma residual 2.6-7.2x, the cell means 1.3-3.0x and the halving
+1.3-3.4x (8 to 32 pixels); a call costs some 50-90 ns of checks and arguments before any work (a bare downcall 6 ns).
+A wider level is never slower than a narrower one at any block size on this machine (scalar, SSE2, SSE4.1, AVX2), where
+lanes do not pay a kernel runs one lane at a time and lets the compiler vectorize it. The whole live encoder spends 2.7x
+less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE SPEED section has every kernel).
 
 **Platforms.** Six libraries ship; each was tested as far as a machine or an emulator for it was at hand:
 

@@ -27,7 +27,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Java ones, which the property test drives from seeds and the fuzz test from fuzzed bytes. Every kernel gets inputs
  * in the ranges the encoder gives it - channels 0 to 255, four-times predictions 0 to 1020, any record bytes, blocks of
  * every size, grids of every width, limits that stop a candidate part way, pictures whose edges a block or a motion
- * vector crosses - and every output, integer or floating-point, must be identical to the bit.
+ * vector crosses - and now and then values far outside a picture's, whose sums overflow an int in the clusterings and
+ * that are no bytes in the motion search; every output, integer or floating-point, must be identical to the bit.
  */
 final class KernelDifferential {
 
@@ -43,6 +44,11 @@ final class KernelDifferential {
     CompactRecord.LOW2,
     CompactRecord.GAIN_BIAS,
   };
+
+  /** The widest values a {@link Values} can draw: the range's size must fit an int. */
+  private static final int EXTREME_LOW = -(1 << 30) + 1;
+
+  private static final int EXTREME_HIGH = (1 << 30) - 1;
 
   /** Where the inputs come from. */
   interface Values {
@@ -299,9 +305,12 @@ final class KernelDifferential {
     final int size,
     final int channels
   ) {
-    // sometimes nearly flat, so the clusters meet ties and empty sides
+    // sometimes nearly flat, so the clusters meet ties and empty sides; the clusterings now and then on values far
+    // outside a picture's, whose sums overflow an int
     final int low = v.next(0, 255);
-    final int[] source = ints(v, channels, low, Math.min(255, low + (v.next(0, 1) == 0 ? 8 : 255)));
+    final int[] source = kernel >= 11 && v.next(0, 7) == 0
+      ? ints(v, channels, EXTREME_LOW, EXTREME_HIGH)
+      : ints(v, channels, low, Math.min(255, low + (v.next(0, 1) == 0 ? 8 : 255)));
     return switch (kernel) {
       case 9 -> {
         final int[] expected = new int[FastFits.CELL_SUMS];
@@ -379,6 +388,10 @@ final class KernelDifferential {
     if (v.next(0, 1) == 0) {
       // the block itself, so the search has a place to go
       java.loadSource(reference, width, height, x, y, size, source);
+    }
+    if (v.next(0, 7) == 0) {
+      // a channel that is no byte, which the search must cost as an int
+      source[v.next(0, channels - 1)] = v.next(EXTREME_LOW, EXTREME_HIGH);
     }
     final int[] seeds = new int[v.next(0, 6)];
     for (int k = 0; k < seeds.length; k++) {

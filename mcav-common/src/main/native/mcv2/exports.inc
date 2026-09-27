@@ -22,7 +22,7 @@
 // A level whose vectors are wider than a narrow block defines MCV2_NARROW(name), a narrower level's kernel that the
 // same CPU runs, and MCV2_NARROW_BELOW: a kernel given a block of fewer pixels a side hands it to that level, so every
 // row the wide kernels step through is whole vectors, and a narrow block runs as fast as the narrower level runs it.
-// A kernel that takes two vectors of a row at a time hands off below twice that.
+// A kernel that takes two vectors of a row at a time (cluster, halve) hands off below twice that.
 #define MCV2_DECLARE(type, name, parameters) MCV2_EXPORT type MCV2_PREFIX(name) parameters;
 
 extern "C" {
@@ -142,7 +142,8 @@ void MCV2_PREFIX(load_source)(const uint8_t *image, int32_t width, int32_t heigh
 }
 
 void MCV2_PREFIX(halve)(const int32_t *block, int32_t size, int32_t *out) {
-  MCV2_HAND_OFF(halve, block, size, out)
+  // two vectors of a row at a time
+  MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, halve, block, size, out)
   mcv2::halve(block, size, out);
 }
 

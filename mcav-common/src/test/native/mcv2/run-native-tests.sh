@@ -20,7 +20,9 @@
 #   1. every level against the scalar one under AddressSanitizer and UndefinedBehaviorSanitizer: the x86-64 levels this
 #      CPU runs, then all of them, AVX-512 too, under Intel SDE's Ice Lake server; the AArch64 levels under qemu-user on
 #      a Cortex-A72 and at the SVE vector lengths of 16, 32 and 64 bytes. A heap overflow must be caught under each;
-#   2. the same with llvm-cov coverage of the sources, reported per file (reported, not gated);
+#   2. the same with llvm-cov coverage of the sources, reported per file (reported, not gated); and every level's object,
+#      compiled without inlining, defines no symbol but its own kernels: the levels share type and helper names, and a
+#      shared weak symbol would let the linker run one level's code in another's (an AVX-512 helper in the SSE2 kernels);
 #   3. the shipped Linux libraries: importing nothing, loaded by glibc and by Alpine's musl loader, and on each emulated
 #      CPU the dispatcher must take that CPU's level. Every run's digests must be identical: the JVM tests prove the
 #      x86-64 library equal to Java, so equal digests prove every level on every platform equal to Java as well.
@@ -116,6 +118,29 @@ for entry in "${arm_cpus[@]}"; do
   ASAN_OPTIONS=detect_leaks=0 agrees "asan aarch64 (qemu -cpu ${entry%%:*})" \
     "$qemu_aarch64" -L "$sysroot" -cpu "${entry%%:*}" "$work/sanitized-aarch64" "expect=${entry#*:}"
 done
+
+echo "== symbols"
+# symbols <label> <flags...>: each unit compiled at -O0, where nothing is inlined, defines only mcv2_ symbols
+symbols() {
+  local label=$1
+  shift
+  local -n units=$1
+  shift
+  for unit in "${units[@]}"; do
+    local source=${unit%%:*} extra=""
+    [ "$unit" != "$source" ] && extra=${unit#*:}
+    # shellcheck disable=SC2086
+    "$clang" "${resource[@]}" "${flags[@]}" -O0 "$@" $extra -c "$sources/$source.cpp" -o "$work/symbols.o"
+    if "$llvm/llvm-nm" --defined-only --extern-only "$work/symbols.o" | awk '{print $3}' | grep -v '^mcv2_' | grep -q .; then
+      echo "$source ($label) defines a shared symbol:" >&2
+      "$llvm/llvm-nm" --defined-only --extern-only -C "$work/symbols.o" | grep -v ' mcv2_' >&2
+      exit 1
+    fi
+  done
+  echo "$label: every unit defines only its kernels"
+}
+symbols x86-64 x86_units
+symbols aarch64 arm_units "${aarch64[@]}"
 
 echo "== coverage (llvm-cov)"
 direct covered x86_units -O1 -fprofile-instr-generate -fcoverage-mapping

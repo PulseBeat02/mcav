@@ -283,10 +283,15 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         case 11:
         case 12: {
-          // sometimes nearly flat, so the clusters meet ties and empty sides
+          // sometimes nearly flat, so the clusters meet ties and empty sides; now and then any int, whose sums overflow
           const int32_t low = inputs.range(0, 255);
           const int32_t spread = inputs.range(0, 1) ? 8 : 255;
-          const std::vector<int32_t> block = inputs.ints(channels, low, low + spread > 255 ? 255 : low + spread);
+          std::vector<int32_t> block = inputs.ints(channels, low, low + spread > 255 ? 255 : low + spread);
+          if (inputs.range(0, 7) == 0) {
+            for (auto &value : block) {
+              value = (int32_t)inputs.next();
+            }
+          }
           floats.assign(6, 0);
           if (kernel == 11) {
             level.cluster(block.data(), size, floats.data());
@@ -314,7 +319,12 @@ void run(const std::vector<Level> &levels, int trials) {
           for (auto &seed : seeds) {
             seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
           }
-          measured = level.seeded(reference.data(), width, height, source.data(), inputs.range(0, width - 1),
+          // now and then a source channel that is no byte, which the search must cost as ints
+          std::vector<int32_t> block = source;
+          if (inputs.range(0, 7) == 0) {
+            block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
+          }
+          measured = level.seeded(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
                                   inputs.range(0, height - 1), size, inputs.range(-10, 10), inputs.range(-10, 10),
                                   inputs.range(0, 24), inputs.range(0, 1), seeds.data(), (int32_t)seeds.size());
           break;
