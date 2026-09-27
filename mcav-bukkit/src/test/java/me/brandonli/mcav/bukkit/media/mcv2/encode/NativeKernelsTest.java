@@ -206,6 +206,7 @@ final class NativeKernelsTest {
     refused(() -> k.cluster(big, 12, new float[6]));
     refused(() -> k.finishPattern(big, 12, new float[6], false, new int[6], new byte[1024]));
     refused(() -> k.seeded(picture, 16, 16, big, 0, 0, 12, 0, 0, 4, true, new int[0]));
+    refused(() -> k.loadSource(picture, 16, 16, 0, 0, 12, big));
     refused(() -> k.cellMeans(floats, 12, 0, 2, floats, 0, 1));
     // a grid that is no grid width, and sources one value short
     refused(() -> k.fit(floats, 0, 3, 8, 3, floats, 0, 1));
