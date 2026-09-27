@@ -33,13 +33,20 @@
 #endif
 
 // The version of this interface: Java refuses a library whose version differs from the one it was written for.
-#define MCV2_ABI 1
+#define MCV2_ABI 2
 
 // The dispatch levels, as bits of mcv2_cpu_levels().
 #define MCV2_LEVEL_SCALAR 1
 #define MCV2_LEVEL_SSE41 2
 #define MCV2_LEVEL_AVX2 4
 #define MCV2_LEVEL_NEON 8
+#define MCV2_LEVEL_SSE2 16
+#define MCV2_LEVEL_AVX512 32
+#define MCV2_LEVEL_SVE256 64
+#define MCV2_LEVEL_SVE512 128
+
+// The auxiliary vector's AT_HWCAP bit that says the Linux kernel lets programs run SVE (HWCAP_SVE).
+#define MCV2_HWCAP_SVE (1LL << 22)
 
 // The kernels of one level: X(return type, name, parameters). The scored reconstructions return the block's
 // distortion once every row is measured, or -1 at the first row after which the candidate can no longer be cheaper
@@ -94,8 +101,10 @@ extern "C" {
 #endif
 
 // The dispatch levels this CPU runs, as a bit set of MCV2_LEVEL_*: scalar always, the others only where the CPU and
-// the operating system support their instructions.
-MCV2_EXPORT int32_t mcv2_cpu_levels(void);
+// the operating system support their instructions. hwcap is AT_HWCAP of the process's auxiliary vector on Linux, which
+// Java reads (/proc/self/auxv) so the library needs no C library, and 0 elsewhere; on AArch64 its SVE bit decides
+// whether the SVE levels may run, and the vector length which one.
+MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t hwcap);
 
 // MCV2_ABI of the library.
 MCV2_EXPORT int32_t mcv2_abi(void);

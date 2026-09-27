@@ -573,16 +573,45 @@ oracle, and a stream is byte-identical whichever kernels encoded it - so the dec
 are unchanged. The reference's exhaustive search (`ship`, `low_bandwidth`) always runs Java; everything that is not a
 pixel kernel (the decisions, the tree, the writer, the verification, the transport) is Java.
 
-**How exactness holds.** One source over a small vector type (`simd.hpp`: 8 lanes of int, float or double) is compiled
-once per level - scalar, SSE4.1, AVX2 (x86-64) and NEON (AArch64) - with IEEE floating point and no fused multiply-add
-(`-ffp-contract=off`, never `-ffast-math`) and Java's wrapping integer arithmetic (`-fwrapv`); every sum is taken in
-the order Java takes it. The level is chosen at run time (`cpuid` and `xgetbv` for AVX2; every AArch64 CPU has NEON):
-no instruction a CPU lacks runs before the library has asked. The Java side checks every argument before a call (the
-library trusts its caller) and passes the Java arrays themselves (`Linker.Option.critical`, no copies). Tests: every
-kernel at every level against Java (unit, jqwik 2,000 tries, Jazzer in `fuzzTest` with the kernels as a differential
-target), whole encodes byte-identical, the reference conformance and the live profiles' pinned digests through each
-level; standalone, the kernels under AddressSanitizer and UndefinedBehaviorSanitizer and with llvm-cov
-(`src/test/native/mcv2/run-native-tests.sh`).
+**How exactness holds.** One source over a small vector type (`simd.hpp`: lanes of int, float or double) is compiled
+once per level - scalar, SSE2, SSE4.1, AVX2 and AVX-512 (x86-64), NEON and SVE at 256 and 512 bits (AArch64) - with
+IEEE floating point and no fused multiply-add (`-ffp-contract=off`, never `-ffast-math`) and Java's wrapping integer
+arithmetic (`-fwrapv`); every sum is taken in the order Java takes it. The Java side checks every argument before a
+call (the library trusts its caller) and passes the Java arrays themselves (`Linker.Option.critical`, no copies).
+
+**Which level runs.** The library tells which levels the CPU runs, and the most preferred of them is used: AVX-512,
+then AVX2, SSE4.1, SSE2 on x86-64; SVE 512, then SVE 256, NEON on AArch64. No instruction a CPU lacks runs before the
+library has asked:
+
+- x86-64: `cpuid` and `xgetbv` (AVX2 and AVX-512 also need the operating system to save their registers). AVX-512 runs
+  only with the Ice Lake set - F, DQ, BW, VL, VBMI, VBMI2, VNNI and BITALG - so never on Skylake-SP or Cascade Lake,
+  which slow down at 512 bits, and never on macOS, whose `XCR0` shows the AVX-512 state only once a thread has used it
+  (macOS stays on AVX2). Every x86-64 CPU has SSE2.
+- AArch64: every CPU has NEON. SVE runs where Linux lists it in the process's `AT_HWCAP`, which Java reads from
+  `/proc/self/auxv` and passes in (the library imports nothing, so it cannot ask); then the vector length picks the
+  level: 32 bytes SVE 256, 64 bytes SVE 512, and NEON at any other length (the 128-bit SVE of Neoverse N2 or V2 gains
+  nothing over NEON). Windows and macOS on ARM run NEON.
+- Scalar runs only when asked for: `-Dmcv2.native.level=scalar`. The same property caps the level for a measurement
+  (`-Dmcv2.native.level=avx2` on an AVX-512 machine).
+- A block narrower than a vector - 8 pixels, and 16 for the colour clustering, which takes two vectors of a row - goes
+  from the AVX-512 kernels to the AVX2 ones and from the SVE 512 kernels to the NEON ones, so no kernel reads or writes
+  past a row.
+
+**Tests.** In the JVM: every kernel at every level the CPU runs against Java (unit, jqwik 2,000 tries, Jazzer in
+`fuzzTest` with the kernels as a differential target), whole encodes byte-identical, the reference conformance and the
+live profiles' pinned digests through each level, and the levels the library reports against the features
+`/proc/cpuinfo` lists. Standalone (`src/test/native/mcv2/run-native-tests.sh`; the tools are listed at its top):
+
+- every level against scalar under AddressSanitizer and UndefinedBehaviorSanitizer: the x86-64 levels natively and,
+  AVX-512 included, under Intel SDE's Ice Lake server; NEON and SVE under qemu-aarch64 on a Cortex-A72 and at SVE
+  vector lengths of 16, 32 and 64 bytes; a planted heap overflow must be caught under each emulator;
+- llvm-cov coverage of the sources, reported per file;
+- the shipped Linux libraries loaded by glibc and by Alpine's musl loader (`ld-musl-*.so.1`), and the level the
+  dispatcher takes on each emulated CPU: SDE Sapphire Rapids and Ice Lake server AVX-512, Skylake server and Haswell
+  AVX2, Merom (no SSE4.1) and qemu64 SSE2, Cortex-A72 and 128-bit SVE NEON, 256-bit SVE 256, 512-bit SVE 512. Every
+  run's digests must be identical, and the JVM tests hold the x86-64 library equal to Java.
+
+Emulators prove correctness only; no speed was measured under one.
 
 **Loading.** The jar holds `natives/<platform>/<library>` next to `Mcv2Natives`, whose SHA-256 is compiled into
 `Mcv2Natives.DIGESTS`. The first live encoder extracts the library into the folder the plugin gives
@@ -609,27 +638,29 @@ prediction and search 2.2-4.6x, the source loading 3-7x; the palette clustering 
 call costs some 50-90 ns of checks and arguments before any work (a bare downcall 6 ns). The whole live encoder spends
 2.7x less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE SPEED section has every kernel).
 
-**Platforms.** Five libraries ship; each was tested as far as a machine for it was at hand:
+**Platforms.** Six libraries ship; each was tested as far as a machine or an emulator for it was at hand:
 
 | platform | library | levels | tested |
 | --- | --- | --- | --- |
-| Linux x86-64 | `libmcv2kernels.so`, 121 KB | scalar, SSE4.1, AVX2 | every JVM test at every level; ASan, UBSan and llvm-cov standalone; a Paper server end to end |
-| Linux AArch64 | `libmcv2kernels.so`, 57 KB | scalar, NEON | the standalone kernel tests under qemu-aarch64, whose digests equal the x86-64 library's (which the JVM tests hold equal to Java) |
-| Windows x86-64 | `mcv2kernels.dll`, 197 KB | scalar, SSE4.1, AVX2 | the native JVM tests in a Windows VM |
-| macOS x86-64 | `libmcv2kernels.dylib`, 127 KB | scalar, SSE4.1, AVX2 | the native JVM tests in a macOS VM |
-| macOS AArch64 | `libmcv2kernels.dylib`, 102 KB | scalar, NEON | built, **not tested** (no machine) |
+| Linux x86-64 | `libmcv2kernels.so`, 213 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | every JVM test at scalar, SSE2, SSE4.1 and AVX2 (i7-8700); every level standalone, AVX-512 under Intel SDE; glibc and musl; a Paper server end to end |
+| Linux AArch64 | `libmcv2kernels.so`, 122 KB | scalar, NEON, SVE 256, SVE 512 | the standalone tests under qemu-aarch64 (Cortex-A72; SVE at 16, 32 and 64 bytes), glibc and musl, digests equal to the x86-64 library's |
+| Windows x86-64 | `mcv2kernels.dll`, 292 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | built from the sources tested above; the previous build (scalar, SSE4.1, AVX2) passed the native JVM tests in a Windows VM, which was down for this one |
+| Windows AArch64 | `mcv2kernels.dll`, 66 KB | scalar, NEON | built, **not tested** (no machine) |
+| macOS x86-64 | `libmcv2kernels.dylib`, 166 KB | scalar, SSE2, SSE4.1, AVX2 | built from the sources tested above; the previous build (scalar, SSE4.1, AVX2) passed the native JVM tests in a macOS VM, which was down for this one |
+| macOS AArch64 | `libmcv2kernels.dylib`, 99 KB | scalar, NEON | built, **not tested** (no machine) |
 
 Anything else - another processor, another operating system - runs the Java kernels, which compute the same stream.
 
 **Rebuilding.** The libraries are committed; the normal build needs no C or C++ toolchain.
-`./gradlew :mcav-common:buildMcv2Natives -Pmcav.natives=build` rebuilds all five with Zig 0.16.0 (its clang 21.1.0
+`./gradlew :mcav-common:buildMcv2Natives -Pmcav.natives=build` rebuilds all six with Zig 0.16.0 (its clang 21.1.0
 and linkers; `ZIG=/path/to/zig`, and the script refuses another version) and writes `SHA256SUMS`; the new digests go
 into `Mcv2Natives.DIGESTS`, which `Mcv2NativesTest` checks against the resources.
 `./gradlew :mcav-common:formatMcv2Natives -Pmcav.natives=build` formats the sources with clang-format (LLVM style, 120
-columns; opt-in). The Linux and Windows libraries are reproducible (`SOURCE_DATE_EPOCH=0` keeps the link time out of
-the PE header); the macOS ones differ from build to build in their `LC_UUID` and ad-hoc signature, which the linker
-makes up. The Linux libraries import nothing (no `DT_NEEDED`, no versioned symbol), so they ask nothing of the glibc; every
-library is stripped and uses no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
+columns; opt-in). Every library is reproducible: two builds give the same bytes (`SOURCE_DATE_EPOCH=0` keeps the
+link time out of the PE header, and a macOS library is named `@rpath/libmcv2kernels.dylib` rather than the path it was
+built at, which its UUID would hash). The Linux libraries import nothing (no `DT_NEEDED`, no undefined symbol), so they
+ask nothing of the C library - glibc or musl alike - and have no executable stack; every library is stripped and uses
+no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
 
 ## Handover notes
 

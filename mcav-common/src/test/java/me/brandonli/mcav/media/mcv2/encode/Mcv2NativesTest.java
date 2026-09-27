@@ -34,15 +34,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.foreign.SymbolLookup;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.mcv2.Mcv2Resources;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
@@ -81,6 +86,7 @@ final class Mcv2NativesTest {
     assertEquals("linux-x86_64", Mcv2Natives.platform("linux", "x86_64"));
     assertEquals("linux-aarch64", Mcv2Natives.platform("Linux", "aarch64"));
     assertEquals("windows-x86_64", Mcv2Natives.platform("Windows 11", "amd64"));
+    assertEquals("windows-aarch64", Mcv2Natives.platform("Windows 11", "aarch64"));
     assertEquals("macos-x86_64", Mcv2Natives.platform("Mac OS X", "x86_64"));
     assertEquals("macos-aarch64", Mcv2Natives.platform("Mac OS X", "arm64"));
     assertNull(Mcv2Natives.platform("FreeBSD", "amd64"));
@@ -217,15 +223,77 @@ final class Mcv2NativesTest {
 
   @Test
   void choosesTheBestLevelAtMostTheHighestAsked() {
-    assertEquals(NativeKernels.Level.AVX2, Mcv2Natives.level(7, null));
-    assertEquals(NativeKernels.Level.SSE41, Mcv2Natives.level(7, "sse41"));
-    assertEquals(NativeKernels.Level.SSE41, Mcv2Natives.level(3, "avx2"));
-    assertEquals(NativeKernels.Level.SCALAR, Mcv2Natives.level(7, "scalar"));
-    assertEquals(NativeKernels.Level.NEON, Mcv2Natives.level(9, null));
+    // an Ice Lake: scalar, sse2, sse41, avx2 and avx512
+    final int iceLake = 1 | 16 | 2 | 4 | 32;
+    assertEquals(NativeKernels.Level.AVX512, Mcv2Natives.level(iceLake, null));
+    assertEquals(NativeKernels.Level.AVX2, Mcv2Natives.level(iceLake, "avx2"));
+    assertEquals(NativeKernels.Level.SSE41, Mcv2Natives.level(iceLake, "sse41"));
+    assertEquals(NativeKernels.Level.SSE2, Mcv2Natives.level(iceLake, "sse2"));
+    assertEquals(NativeKernels.Level.SCALAR, Mcv2Natives.level(iceLake, "scalar"));
+    assertEquals(NativeKernels.Level.SCALAR, Mcv2Natives.level(iceLake, "unknown"));
+    // a Core 2 without SSE4.1, a Haswell
+    assertEquals(NativeKernels.Level.SSE2, Mcv2Natives.level(1 | 16, null));
+    assertEquals(NativeKernels.Level.SSE2, Mcv2Natives.level(1 | 16, "avx2"));
+    assertEquals(NativeKernels.Level.AVX2, Mcv2Natives.level(1 | 16 | 2 | 4, "avx512"));
+    // AArch64 without SVE, with 256-bit and with 512-bit SVE
+    assertEquals(NativeKernels.Level.NEON, Mcv2Natives.level(1 | 8, null));
+    assertEquals(NativeKernels.Level.SVE256, Mcv2Natives.level(1 | 8 | 64, null));
+    assertEquals(NativeKernels.Level.SVE512, Mcv2Natives.level(1 | 8 | 128, null));
+    assertEquals(NativeKernels.Level.NEON, Mcv2Natives.level(1 | 8 | 128, "neon"));
     assertEquals(NativeKernels.Level.SCALAR, Mcv2Natives.level(1, null));
-    assertEquals(NativeKernels.Level.SCALAR, Mcv2Natives.level(7, "unknown"));
-    assertTrue(NativeKernels.Level.AVX2.in(7));
-    assertFalse(NativeKernels.Level.NEON.in(7));
+    assertTrue(NativeKernels.Level.AVX512.in(iceLake));
+    assertFalse(NativeKernels.Level.NEON.in(iceLake));
+  }
+
+  @Test
+  void readsTheProcessorFeaturesLinuxGives() throws IOException {
+    assertEquals(0, Mcv2Natives.hwcap(this.folder.resolve("missing")));
+    // AT_PAGESZ, AT_HWCAP, AT_NULL, and the start of another entry
+    final ByteBuffer vector = ByteBuffer.allocate(56).order(ByteOrder.nativeOrder());
+    vector.putLong(6).putLong(4096).putLong(16).putLong(0x40_0000L).putLong(0).putLong(0).putInt(16);
+    final Path given = Files.write(this.folder.resolve("auxv"), vector.array());
+    assertEquals(0x40_0000L, Mcv2Natives.hwcap(given));
+    final Path without = Files.write(this.folder.resolve("without"), Arrays.copyOfRange(vector.array(), 0, 16));
+    assertEquals(0, Mcv2Natives.hwcap(without));
+    final Path truncated = Files.write(this.folder.resolve("truncated"), Arrays.copyOfRange(vector.array(), 0, 24));
+    assertEquals(0, Mcv2Natives.hwcap(truncated));
+  }
+
+  @Test
+  void runsTheLevelsProcCpuinfoListsTheFeaturesOf() throws IOException {
+    assumeTrue(NativeTesting.expected(), "no library loads here");
+    final Path cpuinfo = Path.of("/proc/cpuinfo");
+    assumeTrue(Files.isReadable(cpuinfo), "no /proc/cpuinfo here");
+    final Set<String> flags = new HashSet<>();
+    for (final String line : Files.readAllLines(cpuinfo)) {
+      // x86-64 lists its features as flags, AArch64 as Features
+      if (line.startsWith("flags") || line.startsWith("Features")) {
+        flags.addAll(Splitter.on(' ').omitEmptyStrings().splitToList(line.substring(line.indexOf(':') + 1)));
+        break;
+      }
+    }
+    final int levels = NativeTesting.resolution().levels();
+    final boolean x86 = flags.contains("sse2");
+    assertTrue(NativeKernels.Level.SCALAR.in(levels));
+    assertEquals(x86, NativeKernels.Level.SSE2.in(levels));
+    assertEquals(flags.contains("sse4_1"), NativeKernels.Level.SSE41.in(levels));
+    assertEquals(flags.contains("avx2"), NativeKernels.Level.AVX2.in(levels));
+    final List<String> iceLake = List.of(
+      "avx512f",
+      "avx512dq",
+      "avx512bw",
+      "avx512vl",
+      "avx512vbmi",
+      "avx512_vbmi2",
+      "avx512_vnni",
+      "avx512_bitalg"
+    );
+    assertEquals(flags.containsAll(iceLake), NativeKernels.Level.AVX512.in(levels));
+    assertEquals(!x86, NativeKernels.Level.NEON.in(levels));
+    // SVE's vector length is not in /proc/cpuinfo: without SVE neither SVE level runs, with it at most one
+    final boolean sve = NativeKernels.Level.SVE256.in(levels) || NativeKernels.Level.SVE512.in(levels);
+    assertTrue(flags.contains("sve") || !sve);
+    assertFalse(NativeKernels.Level.SVE256.in(levels) && NativeKernels.Level.SVE512.in(levels));
   }
 
   @Test
@@ -245,15 +313,10 @@ final class Mcv2NativesTest {
     );
     assertTrue(unversioned.failed());
     assertTrue(unversioned.description().startsWith("Java, the library could not be bound"));
-    // a library whose interface is another: its levels, never 1 on a processor with a vector level, stand in for it
-    assumeTrue(levels != Mcv2Natives.ABI);
-    final Mcv2Natives.Resolution other = Mcv2Natives.bind(
-      name -> library.find(name.equals("mcv2_abi") ? "mcv2_cpu_levels" : name),
-      "here",
-      null
-    );
+    // a library of another interface than the bindings are written for
+    final Mcv2Natives.Resolution other = Mcv2Natives.bind(library, "here", null, Mcv2Natives.ABI + 1);
     assertTrue(other.failed());
-    assertEquals("Java, the library's interface " + levels + " is not 1", other.description());
+    assertEquals("Java, the library's interface " + Mcv2Natives.ABI + " is not " + (Mcv2Natives.ABI + 1), other.description());
     final Mcv2Natives.Resolution lacking = Mcv2Natives.bind(
       name -> name.endsWith("_cell_means") ? Optional.empty() : library.find(name),
       "here",

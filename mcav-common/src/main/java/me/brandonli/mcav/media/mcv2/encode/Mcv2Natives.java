@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.mcv2.encode;
 
 import static java.lang.foreign.ValueLayout.JAVA_INT;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -28,6 +29,9 @@ import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
 import java.lang.foreign.SymbolLookup;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -64,35 +68,55 @@ public final class Mcv2Natives {
   /** Always runs the Java kernels. */
   public static final String OFF = "off";
 
-  /** The system property naming the highest level to use, for measurements: scalar, sse41, avx2 or neon. */
+  /**
+   * The system property naming the highest level to use, for measurements: scalar, sse2, sse41, avx2, avx512, neon,
+   * sve256 or sve512.
+   */
   static final String LEVEL_PROPERTY = "mcv2.native.level";
 
   /** The library interface these bindings are written for, {@code MCV2_ABI}. */
-  static final int ABI = 1;
+  static final int ABI = 2;
+
+  /** Where Linux gives a process its auxiliary vector, which holds the processor's features. */
+  static final Path AUXV = Path.of("/proc/self/auxv");
 
   /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
   static final Map<String, String> DIGESTS = Map.of(
     "linux-aarch64",
-    "b0f6893c9f08d493beef081afe8cff85750fb9ccdb919f0c2f2b97d2ced0f6c3",
+    "8c46797200a76868309f55c74bdd4c48bc643d6c966303d4d7d99df6bf2d25f0",
     "linux-x86_64",
-    "32a9b3955b9c41911cd277d7b3a9432c29570431623350d825adad90e2d945d7",
+    "dc75f14bd4df8f6a146240234f71f183671e67677ec00dec8bb5a1e2445fc11c",
     "macos-aarch64",
-    "ec277c498a0cbd87cf19088f672c0b70c39d1c215fa217d0fb2dab0f632720b4",
+    "1c92acadb3a1f8b908c38ced84d3766f13caaa07e69131bc28c5631c0d9f02d8",
     "macos-x86_64",
-    "1a9da6e974e487042b2c0ec8e65c2edb59e73ed445c36a925695529c7ef07c3e",
+    "7137c90161dd01a02bcb1bd9a017a7344e0ddc381b1cdb284633a56ce05f00b1",
+    "windows-aarch64",
+    "7d2f181c23fcc963a02453541ff4d242d4880f3de0c1f3a1348eb2850cec4f1f",
     "windows-x86_64",
-    "e5dc7e16c5a6fba5e8338a0c80ef028e6d602003184789522db5b6b1dd278c15"
+    "8ef173c841905e4eaf7f0790120a529759d4dc6e4008dfa34431f566409d5cba"
   );
 
-  /** The levels in order of preference: the first the processor runs is the one used. */
+  /**
+   * The levels in order of preference, each architecture's widest first: the first the processor runs is the one used.
+   * Scalar runs only when asked for, as every processor runs SSE2 or NEON.
+   */
   private static final NativeKernels.Level[] PREFERENCE = {
+    NativeKernels.Level.AVX512,
     NativeKernels.Level.AVX2,
-    NativeKernels.Level.NEON,
     NativeKernels.Level.SSE41,
+    NativeKernels.Level.SSE2,
+    NativeKernels.Level.SVE512,
+    NativeKernels.Level.SVE256,
+    NativeKernels.Level.NEON,
     NativeKernels.Level.SCALAR,
   };
 
+  /** The auxiliary vector's entry of the processor's features, {@code AT_HWCAP}. */
+  private static final long AT_HWCAP = 16;
+
   private static final FunctionDescriptor QUERY = FunctionDescriptor.of(JAVA_INT);
+
+  private static final FunctionDescriptor LEVELS = FunctionDescriptor.of(JAVA_INT, JAVA_LONG);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Natives.class);
 
@@ -368,18 +392,40 @@ public final class Mcv2Natives {
    * Binds a loaded library: checks its interface version and binds the best level the processor runs.
    *
    * @param library  the library's symbols
-   * @param platform the platform, for the description
+   * @param platform the platform, for the description; a Linux library is given the processor's features
    * @param highest  the highest level to use, or null for the best the processor runs
    * @return the resolution
    */
   static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest) {
+    return bind(library, platform, highest, ABI);
+  }
+
+  /**
+   * Binds a loaded library written for an interface: checks its interface version and binds the best level the
+   * processor runs.
+   *
+   * @param library  the library's symbols
+   * @param platform the platform, for the description; a Linux library is given the processor's features
+   * @param highest  the highest level to use, or null for the best the processor runs
+   * @param expected the interface the library must have
+   * @return the resolution
+   */
+  // the levels of the checked library the loader just loaded
+  @SuppressWarnings("restricted")
+  static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest, final int expected) {
     final Linker linker = Linker.nativeLinker();
     try {
       final int abi = query(linker, library, "mcv2_abi");
-      if (abi != ABI) {
-        return Resolution.java("the library's interface " + abi + " is not " + ABI, true);
+      if (abi != expected) {
+        return Resolution.java("the library's interface " + abi + " is not " + expected, true);
       }
-      final int levels = query(linker, library, "mcv2_cpu_levels");
+      final long features = platform.startsWith("linux") ? hwcap(AUXV) : 0;
+      final MethodHandle cpuLevels = MethodHandles.insertArguments(
+        linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
+        0,
+        features
+      );
+      final int levels = (int) cpuLevels.invokeExact();
       final NativeKernels.Level level = level(levels, highest);
       final NativeKernels.Binding binding = NativeKernels.Binding.of(library, level);
       return new Resolution(binding, library, levels, "native " + level.symbol() + " (" + platform + ")", false);
@@ -387,6 +433,32 @@ public final class Mcv2Natives {
       // a missing symbol, or a JVM that refuses native access
       return Resolution.java("the library could not be bound: " + exception, true);
     }
+  }
+
+  /**
+   * Reads the processor's features the Linux kernel gives this process, {@code AT_HWCAP}: they tell an AArch64
+   * library whether SVE may run, which it cannot ask itself, as it imports nothing.
+   *
+   * @param auxv the process's auxiliary vector, {@link #AUXV}
+   * @return the features, or 0 where the vector cannot be read or has none
+   */
+  static long hwcap(final Path auxv) {
+    final byte[] bytes;
+    try {
+      bytes = Files.readAllBytes(auxv);
+    } catch (final IOException exception) {
+      return 0;
+    }
+    // pairs of a type and a value, in machine words
+    final ByteBuffer entries = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
+    while (entries.remaining() >= 2 * Long.BYTES) {
+      final long type = entries.getLong();
+      final long value = entries.getLong();
+      if (type == AT_HWCAP) {
+        return value;
+      }
+    }
+    return 0;
   }
 
   /** Calls a library function without arguments that returns an int. */

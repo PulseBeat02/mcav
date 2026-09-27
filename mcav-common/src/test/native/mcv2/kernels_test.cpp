@@ -22,9 +22,10 @@
 // Java on x86-64, so an equal digest from another platform's library proves it equal to Java too; that is how the
 // linux-aarch64 library is checked, under qemu-user. Built two ways (run-native-tests.sh): with the level sources
 // linked in (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer or for llvm-cov coverage; or
-// against a shipped library, loaded with dlopen from the path given as the only argument.
+// against a shipped library, loaded with dlopen from the path given as the first argument. Under an emulator of a
+// given CPU (Intel SDE, qemu) the last argument names the level the dispatcher must take there.
 //
-//   kernels_test [library]      exits 0 when every level agrees, printing the digests
+//   kernels_test [library] [expect=level]    exits 0 when every level agrees, printing the digests
 
 #include <math.h>
 #include <stdint.h>
@@ -37,6 +38,9 @@
 
 #ifndef MCV2_TEST_DIRECT
 #include <dlfcn.h>
+#endif
+#if defined(__aarch64__) && defined(__linux__)
+#include <sys/auxv.h>
 #endif
 
 namespace {
@@ -54,23 +58,52 @@ struct Level {
   MCV2_KERNELS(MCV2_DECLARE_##level)                                                                                   \
   }
 #define MCV2_DECLARE_scalar(type, name, parameters) type mcv2_scalar_##name parameters;
+#define MCV2_DECLARE_sse2(type, name, parameters) type mcv2_sse2_##name parameters;
 #define MCV2_DECLARE_sse41(type, name, parameters) type mcv2_sse41_##name parameters;
 #define MCV2_DECLARE_avx2(type, name, parameters) type mcv2_avx2_##name parameters;
+#define MCV2_DECLARE_avx512(type, name, parameters) type mcv2_avx512_##name parameters;
 #define MCV2_DECLARE_neon(type, name, parameters) type mcv2_neon_##name parameters;
+#define MCV2_DECLARE_sve256(type, name, parameters) type mcv2_sve256_##name parameters;
+#define MCV2_DECLARE_sve512(type, name, parameters) type mcv2_sve512_##name parameters;
 #define MCV2_ENTRY_scalar(type, name, parameters) mcv2_scalar_##name,
+#define MCV2_ENTRY_sse2(type, name, parameters) mcv2_sse2_##name,
 #define MCV2_ENTRY_sse41(type, name, parameters) mcv2_sse41_##name,
 #define MCV2_ENTRY_avx2(type, name, parameters) mcv2_avx2_##name,
+#define MCV2_ENTRY_avx512(type, name, parameters) mcv2_avx512_##name,
 #define MCV2_ENTRY_neon(type, name, parameters) mcv2_neon_##name,
+#define MCV2_ENTRY_sve256(type, name, parameters) mcv2_sve256_##name,
+#define MCV2_ENTRY_sve512(type, name, parameters) mcv2_sve512_##name,
 } // namespace
 MCV2_DECLARE_LEVEL(scalar)
 #if defined(__x86_64__)
+MCV2_DECLARE_LEVEL(sse2)
 MCV2_DECLARE_LEVEL(sse41)
 MCV2_DECLARE_LEVEL(avx2)
+MCV2_DECLARE_LEVEL(avx512)
 #elif defined(__aarch64__)
 MCV2_DECLARE_LEVEL(neon)
+MCV2_DECLARE_LEVEL(sve256)
+MCV2_DECLARE_LEVEL(sve512)
 #endif
 namespace {
 #endif
+
+// every level with its bit, the most preferred of an architecture last: the dispatcher takes the last one it runs
+constexpr struct {
+  const char *name;
+  int32_t bit;
+} KNOWN[] = {{"scalar", MCV2_LEVEL_SCALAR}, {"sse2", MCV2_LEVEL_SSE2},     {"sse41", MCV2_LEVEL_SSE41},
+             {"avx2", MCV2_LEVEL_AVX2},     {"avx512", MCV2_LEVEL_AVX512}, {"neon", MCV2_LEVEL_NEON},
+             {"sve256", MCV2_LEVEL_SVE256}, {"sve512", MCV2_LEVEL_SVE512}};
+
+// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library whether SVE is there
+int64_t hwcap() {
+#if defined(__aarch64__) && defined(__linux__)
+  return (int64_t)getauxval(AT_HWCAP);
+#else
+  return 0;
+#endif
+}
 
 // splitmix64: the same sequence on every platform
 struct Random {
@@ -156,10 +189,10 @@ constexpr int32_t KINDS[] = {0, 1, 2, 3, 4, 8};
 // runs every kernel TRIALS times on every level, comparing with the first (scalar) level
 void run(const std::vector<Level> &levels, int trials) {
   const Level &scalar = levels[0];
-  const char *names[] = {"predicted", "solid",         "palette",   "intra_grid",   "residual_grid",   "reduced",
-                         "compact",   "predict",       "fit",       "cell_sums",    "luma_residual",   "cluster",
-                         "palette_cluster", "assign",  "assign_pattern", "seeded", "load_source", "halve",
-                         "ycocg",     "residual_target", "cell_means"};
+  const char *names[] = {
+      "predicted",      "solid",  "palette",     "intra_grid",    "residual_grid", "reduced",         "compact",
+      "predict",        "fit",    "cell_sums",   "luma_residual", "cluster",       "palette_cluster", "assign",
+      "assign_pattern", "seeded", "load_source", "halve",         "ycocg",         "residual_target", "cell_means"};
   Digest total;
   for (int kernel = 0; kernel < 21; kernel++) {
     Random random{0x6D637632ull * (kernel + 1)};
@@ -347,30 +380,53 @@ void run(const std::vector<Level> &levels, int trials) {
   printf("%-16s %016llx\n", "all", (unsigned long long)total.value);
 }
 
+// the level the dispatcher takes: the last one of KNOWN this CPU runs
+const char *best(int32_t available) {
+  const char *name = "none";
+  for (const auto &level : KNOWN) {
+    if (available & level.bit) {
+      name = level.name;
+    }
+  }
+  return name;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
   std::vector<Level> levels;
+  // an optional last argument expect=<level>: the level the dispatcher must take on this CPU (or emulator)
+  const char *expected = nullptr;
+  if (argc > 1 && strncmp(argv[argc - 1], "expect=", 7) == 0) {
+    expected = argv[--argc] + 7;
+  }
 #ifdef MCV2_TEST_DIRECT
-  (void)argc;
-  (void)argv;
-  const int32_t available = mcv2_cpu_levels();
-  levels.push_back({"scalar", MCV2_KERNELS(MCV2_ENTRY_scalar)});
+  if (argc != 1) {
+    fprintf(stderr, "usage: %s [expect=level]\n", argv[0]);
+    return 2;
+  }
+  const int32_t available = mcv2_cpu_levels(hwcap());
+  const Level linked[] = {
+      {"scalar", MCV2_KERNELS(MCV2_ENTRY_scalar)},
 #if defined(__x86_64__)
-  if (available & MCV2_LEVEL_SSE41) {
-    levels.push_back({"sse41", MCV2_KERNELS(MCV2_ENTRY_sse41)});
-  }
-  if (available & MCV2_LEVEL_AVX2) {
-    levels.push_back({"avx2", MCV2_KERNELS(MCV2_ENTRY_avx2)});
-  }
+      {"sse2", MCV2_KERNELS(MCV2_ENTRY_sse2)},     {"sse41", MCV2_KERNELS(MCV2_ENTRY_sse41)},
+      {"avx2", MCV2_KERNELS(MCV2_ENTRY_avx2)},     {"avx512", MCV2_KERNELS(MCV2_ENTRY_avx512)},
 #elif defined(__aarch64__)
-  if (available & MCV2_LEVEL_NEON) {
-    levels.push_back({"neon", MCV2_KERNELS(MCV2_ENTRY_neon)});
-  }
+      {"neon", MCV2_KERNELS(MCV2_ENTRY_neon)},
+      {"sve256", MCV2_KERNELS(MCV2_ENTRY_sve256)},
+      {"sve512", MCV2_KERNELS(MCV2_ENTRY_sve512)},
 #endif
+  };
+  for (const Level &level : linked) {
+    for (const auto &candidate : KNOWN) {
+      if (strcmp(candidate.name, level.name) == 0 && (available & candidate.bit)) {
+        levels.push_back(level);
+      }
+    }
+  }
 #else
   if (argc != 2) {
-    fprintf(stderr, "usage: %s library\n", argv[0]);
+    fprintf(stderr, "usage: %s library [expect=level]\n", argv[0]);
     return 2;
   }
   void *library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
@@ -378,13 +434,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "cannot load %s: %s\n", argv[1], dlerror());
     return 2;
   }
-  const int32_t available = ((int32_t(*)(void))dlsym(library, "mcv2_cpu_levels"))();
-  const struct {
-    const char *name;
-    int32_t bit;
-  } known[] = {{"scalar", MCV2_LEVEL_SCALAR}, {"sse41", MCV2_LEVEL_SSE41}, {"avx2", MCV2_LEVEL_AVX2},
-               {"neon", MCV2_LEVEL_NEON}};
-  for (const auto &candidate : known) {
+  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, "mcv2_cpu_levels"))(hwcap());
+  for (const auto &candidate : KNOWN) {
     if (!(available & candidate.bit)) {
       continue;
     }
@@ -406,7 +457,11 @@ int main(int argc, char **argv) {
   for (const Level &level : levels) {
     printf(" %s", level.name);
   }
-  printf("\n");
+  printf("\ndispatched: %s\n", best(available));
+  if (expected != nullptr && strcmp(expected, best(available)) != 0) {
+    fprintf(stderr, "expected the %s level, the dispatcher takes %s\n", expected, best(available));
+    return 1;
+  }
   run(levels, 400);
   if (failures) {
     fprintf(stderr, "%d differences\n", failures);

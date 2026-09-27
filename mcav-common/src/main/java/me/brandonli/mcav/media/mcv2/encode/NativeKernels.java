@@ -50,14 +50,22 @@ final class NativeKernels extends Kernels {
 
   /** The dispatch levels of the library, as bits of its {@code mcv2_cpu_levels} and in its symbols' names. */
   enum Level {
-    /** Plain code for every CPU of the architecture. */
+    /** Plain code for every CPU of the architecture, used only when asked for. */
     SCALAR(1, "scalar"),
+    /** x86-64, whose every CPU has SSE2. */
+    SSE2(16, "sse2"),
     /** x86-64 with SSE4.1. */
     SSE41(2, "sse41"),
     /** x86-64 with AVX2, which the operating system saves. */
     AVX2(4, "avx2"),
+    /** x86-64 with the AVX-512 of Ice Lake and later: F, DQ, BW, VL, VBMI, VBMI2, VNNI and BITALG. */
+    AVX512(32, "avx512"),
     /** AArch64, whose every CPU has NEON. */
-    NEON(8, "neon");
+    NEON(8, "neon"),
+    /** AArch64 with SVE at a vector length of 256 bits. */
+    SVE256(64, "sve256"),
+    /** AArch64 with SVE at a vector length of 512 bits. */
+    SVE512(128, "sve512");
 
     private final int bit;
 

@@ -577,17 +577,24 @@ void fit(const float *values, int32_t offset, int32_t stride, int32_t size, int3
 void cell_sums(const int32_t *source, int32_t size, int32_t *sums) {
   const int32_t cell = size / 4;
   if (cell % VI::N != 0) {
-    for (int32_t i = 0; i < CHANNELS * 16; i++) {
-      sums[i] = 0;
-    }
-    for (int32_t y = 0; y < size; y++) {
-      const int32_t row_at = (y / cell) * 4;
-      for (int32_t x = 0; x < size; x++) {
-        const int32_t at = (y * size + x) * CHANNELS;
-        const int32_t to = (row_at + x / cell) * CHANNELS;
-        sums[to] = wrap_add(sums[to], source[at]);
-        sums[to + 1] = wrap_add(sums[to + 1], source[at + 1]);
-        sums[to + 2] = wrap_add(sums[to + 2], source[at + 2]);
+    // a cell narrower than a vector: each cell's pixels summed in turn, which int sums do not depend on the order of
+    for (int32_t cy = 0; cy < 4; cy++) {
+      for (int32_t cx = 0; cx < 4; cx++) {
+        int32_t r = 0;
+        int32_t g = 0;
+        int32_t b = 0;
+        for (int32_t y = cy * cell; y < (cy + 1) * cell; y++) {
+          const int32_t *row = source + (y * size + cx * cell) * CHANNELS;
+          for (int32_t x = 0; x < cell * CHANNELS; x += CHANNELS) {
+            r = wrap_add(r, row[x]);
+            g = wrap_add(g, row[x + 1]);
+            b = wrap_add(b, row[x + 2]);
+          }
+        }
+        const int32_t to = (cy * 4 + cx) * CHANNELS;
+        sums[to] = r;
+        sums[to + 1] = g;
+        sums[to + 2] = b;
       }
     }
     return;
