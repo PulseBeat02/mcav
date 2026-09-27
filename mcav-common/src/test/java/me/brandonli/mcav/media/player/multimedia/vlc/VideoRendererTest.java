@@ -84,9 +84,9 @@ final class VideoRendererTest {
 
   VideoRendererTest() {
     this.owner.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
   }
 
   /**
@@ -138,12 +138,12 @@ final class VideoRendererTest {
    */
   private void attachBlockingRecorder(final List<Integer> rendered, final CountDownLatch rendering, final CountDownLatch proceed) {
     this.attach((image, _) -> {
-        final int[] pixels = image.getPixels();
-        rendered.add(pixels[0] & WHITE);
-        rendering.countDown();
-        awaitRelease(proceed);
-        return false;
-      });
+      final int[] pixels = image.getPixels();
+      rendered.add(pixels[0] & WHITE);
+      rendering.countDown();
+      awaitRelease(proceed);
+      return false;
+    });
   }
 
   private static BiConsumer<String, Throwable> reportingHandler(final List<String> reported) {
@@ -465,13 +465,13 @@ final class VideoRendererTest {
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final CountDownLatch escaped = new CountDownLatch(1);
     this.attach((_, _) -> {
-        final Thread worker = Thread.currentThread();
-        worker.setUncaughtExceptionHandler((_, thrown) -> {
-          uncaught.set(thrown);
-          escaped.countDown();
-        });
-        throw failure;
+      final Thread worker = Thread.currentThread();
+      worker.setUncaughtExceptionHandler((_, thrown) -> {
+        uncaught.set(thrown);
+        escaped.countDown();
       });
+      throw failure;
+    });
     this.renderer.createBufferFormat(1, 1, 1, 1);
     this.renderer.start();
     this.display(1, 1, RED);

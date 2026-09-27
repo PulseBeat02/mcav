@@ -111,12 +111,11 @@ final class PaletteFitTest {
       final int[] source = new int[size * size * 3];
       for (int y = 0; y < size; y++) {
         for (int x = 0; x < size; x++) {
-          final boolean bright =
-            switch (kind) {
-              case 0 -> (x & 1) == 0;
-              case 1 -> (y & 2) == 0;
-              default -> ((x ^ y) & 1) == 0;
-            };
+          final boolean bright = switch (kind) {
+            case 0 -> (x & 1) == 0;
+            case 1 -> (y & 2) == 0;
+            default -> ((x ^ y) & 1) == 0;
+          };
           System.arraycopy(bright ? light : dark, 0, source, (y * size + x) * 3, 3);
         }
       }

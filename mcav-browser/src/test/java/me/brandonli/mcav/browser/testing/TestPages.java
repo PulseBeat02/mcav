@@ -88,189 +88,184 @@ public final class TestPages implements AutoCloseable {
 
   // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context; the
   // page reports every state its context takes, so a test that hears nothing can tell why
-  private static final String TONE_SCRIPT =
-    """
-    <script>
-      const context = new AudioContext();
-      context.addEventListener('statechange', () => {
-        report('state', { key: context.state });
-        // whether the clock of the context runs: without an audio device that renders, it stands still
-        let times = 0;
-        const clock = setInterval(() => {
-          report('time', { key: context.currentTime.toFixed(2) });
-          if (++times === 10) {
-            clearInterval(clock);
-          }
-        }, 1000);
-      });
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = %s;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
-    </script>
-    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+  private static final String TONE_SCRIPT = """
+  <script>
+    const context = new AudioContext();
+    context.addEventListener('statechange', () => {
+      report('state', { key: context.state });
+      // whether the clock of the context runs: without an audio device that renders, it stands still
+      let times = 0;
+      const clock = setInterval(() => {
+        report('time', { key: context.currentTime.toFixed(2) });
+        if (++times === 10) {
+          clearInterval(clock);
+        }
+      }, 1000);
+    });
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %d;
+    const gain = context.createGain();
+    gain.gain.value = %s;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
+  </script>
+  """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
 
   // the tone of TONE_SCRIPT on a page that first wraps everything of Web Audio that a capture could call, keeps every
   // script processor it sees, reports how many, and feeds each one samples of its own, without waiting for a click
-  private static final String WRAPPED_TONE_SCRIPT =
-    """
-    <script>
-      const taps = new Set();
-      const keep = (node) => {
-        if (node instanceof ScriptProcessorNode) {
-          taps.add(node);
-        }
-        return node;
-      };
-      for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
-        for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
-          const original = prototype[name];
-          if (typeof original === 'function') {
-            prototype[name] = function (...args) {
-              return keep(original.apply(this, args));
-            };
-          }
+  private static final String WRAPPED_TONE_SCRIPT = """
+  <script>
+    const taps = new Set();
+    const keep = (node) => {
+      if (node instanceof ScriptProcessorNode) {
+        taps.add(node);
+      }
+      return node;
+    };
+    for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
+      for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
+        const original = prototype[name];
+        if (typeof original === 'function') {
+          prototype[name] = function (...args) {
+            return keep(original.apply(this, args));
+          };
         }
       }
-      const connect = AudioNode.prototype.connect;
-      AudioNode.prototype.connect = function (target, ...rest) {
-        keep(this);
-        keep(target);
-        return connect.call(this, target, ...rest);
-      };
-      const listen = EventTarget.prototype.addEventListener;
-      EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
-        keep(this);
-        return listen.call(this, type, listener, ...rest);
-      };
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = %s;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
-      forged.getChannelData(0).fill(0.5);
-      forged.getChannelData(1).fill(0.5);
-      setInterval(() => {
-        for (const tap of taps) {
-          const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
-          if (typeof tap.onaudioprocess === 'function') {
-            tap.onaudioprocess(event);
-          }
-          tap.dispatchEvent(event);
+    }
+    const connect = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (target, ...rest) {
+      keep(this);
+      keep(target);
+      return connect.call(this, target, ...rest);
+    };
+    const listen = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+      keep(this);
+      return listen.call(this, type, listener, ...rest);
+    };
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %d;
+    const gain = context.createGain();
+    gain.gain.value = %s;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
+    forged.getChannelData(0).fill(0.5);
+    forged.getChannelData(1).fill(0.5);
+    setInterval(() => {
+      for (const tap of taps) {
+        const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+        if (typeof tap.onaudioprocess === 'function') {
+          tap.onaudioprocess(event);
         }
-      }, 50);
-      report('taps', { clientX: taps.size });
-      addEventListener('pointerdown', () => context.resume());
-    </script>
-    """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+        tap.dispatchEvent(event);
+      }
+    }, 50);
+    report('taps', { clientX: taps.size });
+    addEventListener('pointerdown', () => context.resume());
+  </script>
+  """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
 
   // an audio element that plays the tone at the volume and muting of the address, from the first click
-  private static final String ELEMENT_SCRIPT =
-    """
-    <audio id="tone" src="/tone.wav" loop></audio>
-    <script>
-      const element = document.getElementById('tone');
-      const parameters = new URLSearchParams(location.search);
-      element.volume = Number(parameters.get('volume') || '1');
-      element.muted = parameters.get('muted') === '1';
-      addEventListener('pointerdown', () =>
-        element.play().then(() => report('play', { key: 'playing' })).catch((error) => report('play', { key: error.name }))
-      );
-    </script>
-    """;
+  private static final String ELEMENT_SCRIPT = """
+  <audio id="tone" src="/tone.wav" loop></audio>
+  <script>
+    const element = document.getElementById('tone');
+    const parameters = new URLSearchParams(location.search);
+    element.volume = Number(parameters.get('volume') || '1');
+    element.muted = parameters.get('muted') === '1';
+    addEventListener('pointerdown', () =>
+      element.play().then(() => report('play', { key: 'playing' })).catch((error) => report('play', { key: error.name }))
+    );
+  </script>
+  """;
 
   // from the first click, the picture turns white and the tone plays at once, and both stop at once, in turns
-  private static final String TOGGLE_SCRIPT =
-    """
-    <script>
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = 0;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      let on = false;
-      let started = false;
-      addEventListener('pointerdown', () => {
-        context.resume();
-        if (started) {
-          return;
-        }
-        started = true;
-        setInterval(() => {
-          on = !on;
-          document.body.style.background = on ? '#ffffff' : '#000000';
-          gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
-        }, %d);
-      });
-    </script>
-    """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLIS);
-
-  private static final String SCRIPT =
-    """
-    <script>
-      const page = document.body.dataset.page;
-      // Serialize transport as well as DOM observation: independent fetches can arrive out of order.
-      let reports = Promise.resolve();
-      const report = (type, event) => {
-        const parameters = new URLSearchParams({
-          page: page,
-          type: type,
-          x: String(Math.round(event.clientX || 0)),
-          y: String(Math.round(event.clientY || 0)),
-          button: String(event.button || 0),
-          buttons: String(event.buttons || 0),
-          key: event.key || ''
-        });
-        const address = '/event?' + parameters.toString();
-        reports = reports.then(async () => {
-          const response = await fetch(address, { keepalive: true });
-          if (!response.ok) {
-            throw new Error('Event reporting failed with HTTP ' + response.status);
-          }
-        }).catch(error => console.error('TestPages event reporting failed', page, type, error));
-        return reports;
-      };
-      const closeLater = delay => setTimeout(() => {
-        report('closing', {}).then(() => window.close());
-      }, delay);
-      for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
-        document.addEventListener(type, event => report(type, event));
+  private static final String TOGGLE_SCRIPT = """
+  <script>
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %d;
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    let on = false;
+    let started = false;
+    addEventListener('pointerdown', () => {
+      context.resume();
+      if (started) {
+        return;
       }
-      document.addEventListener('wheel', event => report('wheel', { clientX: event.clientX, clientY: event.clientY, key: String(Math.sign(event.deltaY)) }));
-      document.addEventListener('contextmenu', event => {
-        event.preventDefault();
-        report('contextmenu', event);
+      started = true;
+      setInterval(() => {
+        on = !on;
+        document.body.style.background = on ? '#ffffff' : '#000000';
+        gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+      }, %d);
+    });
+  </script>
+  """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLIS);
+
+  private static final String SCRIPT = """
+  <script>
+    const page = document.body.dataset.page;
+    // Serialize transport as well as DOM observation: independent fetches can arrive out of order.
+    let reports = Promise.resolve();
+    const report = (type, event) => {
+      const parameters = new URLSearchParams({
+        page: page,
+        type: type,
+        x: String(Math.round(event.clientX || 0)),
+        y: String(Math.round(event.clientY || 0)),
+        button: String(event.button || 0),
+        buttons: String(event.buttons || 0),
+        key: event.key || ''
       });
-      document.addEventListener('keydown', event => {
-        const reported = report('keydown', event);
-        if (page === 'main' && event.key === 'o') {
-          window.open('/popup', '_blank');
+      const address = '/event?' + parameters.toString();
+      reports = reports.then(async () => {
+        const response = await fetch(address, { keepalive: true });
+        if (!response.ok) {
+          throw new Error('Event reporting failed with HTTP ' + response.status);
         }
-        if (page === 'popup' && event.key === 'n') {
-          window.open('/second', '_blank');
-          closeLater(1000);
-        }
-        if (page === 'second' && event.key === 'w') {
-          closeLater(300);
-        }
-        if (page === 'popup' && event.key === 'x') {
-          reported.then(() => window.close());
-        }
-      });
-      report('size', { clientX: window.innerWidth, clientY: window.innerHeight });
-    </script>
-    """;
+      }).catch(error => console.error('TestPages event reporting failed', page, type, error));
+      return reports;
+    };
+    const closeLater = delay => setTimeout(() => {
+      report('closing', {}).then(() => window.close());
+    }, delay);
+    for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
+      document.addEventListener(type, event => report(type, event));
+    }
+    document.addEventListener('wheel', event => report('wheel', { clientX: event.clientX, clientY: event.clientY, key: String(Math.sign(event.deltaY)) }));
+    document.addEventListener('contextmenu', event => {
+      event.preventDefault();
+      report('contextmenu', event);
+    });
+    document.addEventListener('keydown', event => {
+      const reported = report('keydown', event);
+      if (page === 'main' && event.key === 'o') {
+        window.open('/popup', '_blank');
+      }
+      if (page === 'popup' && event.key === 'n') {
+        window.open('/second', '_blank');
+        closeLater(1000);
+      }
+      if (page === 'second' && event.key === 'w') {
+        closeLater(300);
+      }
+      if (page === 'popup' && event.key === 'x') {
+        reported.then(() => window.close());
+      }
+    });
+    report('size', { clientX: window.innerWidth, clientY: window.innerHeight });
+  </script>
+  """;
 
   private final HttpServer server;
   private final List<PageEvent> events;
@@ -319,23 +314,23 @@ public final class TestPages implements AutoCloseable {
         pages.script(
           exchange,
           "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
-          " document.getElementById('link').click();"
+            " document.getElementById('link').click();"
         )
       );
       httpServer.createContext("/named-frame", exchange ->
         pages.html(
           exchange,
           "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
-          FRAME_WIDTH +
-          "px;height:60px;border:0\"></iframe>" +
-          "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+            FRAME_WIDTH +
+            "px;height:60px;border:0\"></iframe>" +
+            "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
         )
       );
       httpServer.createContext("/form-target", exchange ->
         pages.html(
           exchange,
           "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
-          " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
+            " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
         )
       );
       httpServer.createContext("/download", TestPages::download);
@@ -446,9 +441,20 @@ public final class TestPages implements AutoCloseable {
   private static void toneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
     final java.nio.ByteBuffer wave = java.nio.ByteBuffer.allocate(44 + rate * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
-    wave.put("RIFF".getBytes(StandardCharsets.US_ASCII)).putInt(36 + rate * 4).put("WAVE".getBytes(StandardCharsets.US_ASCII));
-    wave.put("fmt ".getBytes(StandardCharsets.US_ASCII)).putInt(16).putShort((short) 1).putShort((short) 2);
-    wave.putInt(rate).putInt(rate * 4).putShort((short) 4).putShort((short) 16);
+    wave
+      .put("RIFF".getBytes(StandardCharsets.US_ASCII))
+      .putInt(36 + rate * 4)
+      .put("WAVE".getBytes(StandardCharsets.US_ASCII));
+    wave
+      .put("fmt ".getBytes(StandardCharsets.US_ASCII))
+      .putInt(16)
+      .putShort((short) 1)
+      .putShort((short) 2);
+    wave
+      .putInt(rate)
+      .putInt(rate * 4)
+      .putShort((short) 4)
+      .putShort((short) 16);
     wave.put("data".getBytes(StandardCharsets.US_ASCII)).putInt(rate * 4);
     for (int frame = 0; frame < rate; frame++) {
       final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);

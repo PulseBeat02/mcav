@@ -117,7 +117,9 @@ final class VLCReleaseTest {
     builder.redirectErrorStream(true);
     final Process process = builder.start();
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    final Thread drain = Thread.ofPlatform().name("vlc-probe-output").start(() -> copy(process.getInputStream(), output));
+    final Thread drain = Thread.ofPlatform()
+      .name("vlc-probe-output")
+      .start(() -> copy(process.getInputStream(), output));
     final boolean exited = process.waitFor(PLAYBACK_TIMEOUT_MINUTES, TimeUnit.MINUTES);
     if (!exited) {
       process.destroyForcibly();

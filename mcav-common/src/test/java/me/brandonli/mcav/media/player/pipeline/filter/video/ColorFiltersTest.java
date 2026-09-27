@@ -271,9 +271,17 @@ final class ColorFiltersTest {
     final ImageBuffer other = mock(ImageBuffer.class);
     when(other.getWidth()).thenReturn(3);
     when(other.getHeight()).thenReturn(3);
-    when(other.getPixels()).thenReturn(
-      new int[] { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF }
-    );
+    when(other.getPixels()).thenReturn(new int[] {
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+      0xFFFFFFFF,
+    });
     final BlendFilter filter = new BlendFilter(other, 0.0);
     final int blended = applyToSolid(filter, 0xFF000000);
     assertEquals(0xFFFFFFFF, blended);

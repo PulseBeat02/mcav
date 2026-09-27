@@ -220,15 +220,15 @@ final class PlaybackSessionStopStressTest {
       this.stopAfterFrames = random.nextInt(1, frameCount + 1);
       this.waitBeforeStopNanos = random.nextLong(0L, 2_000_000L);
       this.description = "round %d of seed %d: stop %s, %d frames, stop after %d frames or %d ns, %s audio%s".formatted(
-          number,
-          SEED,
-          point,
-          frameCount,
-          this.stopAfterFrames,
-          this.waitBeforeStopNanos,
-          separateAudio ? "separate" : "interleaved",
-          stuckDecoder ? ", decoder stuck for a moment" : ""
-        );
+        number,
+        SEED,
+        point,
+        frameCount,
+        this.stopAfterFrames,
+        this.waitBeforeStopNanos,
+        separateAudio ? "separate" : "interleaved",
+        stuckDecoder ? ", decoder stuck for a moment" : ""
+      );
       final List<Object> video = new ArrayList<>();
       final List<Object> audio = new ArrayList<>();
       for (int index = 0; index < frameCount; index++) {
@@ -267,12 +267,13 @@ final class PlaybackSessionStopStressTest {
       videoCallback.attach(videoStep);
       audioCallback.attach(audioStep);
       final ScriptedFrameGrabber audio = this.audioGrabber;
-      final PlaybackSession.GrabberFactory audioFactory = audio == null
-        ? null
-        : () -> {
-          this.audioOpened.set(true);
-          return audio;
-        };
+      final PlaybackSession.GrabberFactory audioFactory =
+        audio == null
+          ? null
+          : () -> {
+              this.audioOpened.set(true);
+              return audio;
+            };
       return new PlaybackSession(
         () -> this.videoGrabber,
         audioFactory,

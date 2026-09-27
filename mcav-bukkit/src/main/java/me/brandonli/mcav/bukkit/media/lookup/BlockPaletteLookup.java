@@ -121,7 +121,7 @@ public final class BlockPaletteLookup {
 
     static {
       final Reader reader = IOUtils.getResourceAsStreamReader(PALETTE_RESOURCE);
-      final Map<String, int@Nullable[]> palette = parsePalette(reader);
+      final Map<String, int @Nullable []> palette = parsePalette(reader);
       final Map<Integer, Material> materials = resolveMaterials(palette);
 
       MATERIALS = materials;
@@ -169,12 +169,12 @@ public final class BlockPaletteLookup {
    * @throws UncheckedIOException if the palette is empty or cannot be read
    */
   @VisibleForTesting
-  static Map<String, int@Nullable[]> parsePalette(final Reader reader) {
+  static Map<String, int @Nullable []> parsePalette(final Reader reader) {
     final Gson gson = GsonProvider.getSimple();
     final TypeToken<LinkedHashMap<String, int[]>> typeToken = new TypeToken<>() {};
     final Type type = typeToken.getType();
     try (reader) {
-      final Map<String, int@Nullable[]> palette = gson.fromJson(reader, type);
+      final Map<String, int @Nullable []> palette = gson.fromJson(reader, type);
       if (palette == null || palette.isEmpty()) {
         final String message = "Block palette resource is empty";
         final IOException emptyPalette = new IOException(message);
@@ -196,11 +196,11 @@ public final class BlockPaletteLookup {
    * @return an immutable map from the RGB color to its block
    */
   @VisibleForTesting
-  static Map<Integer, Material> resolveMaterials(final Map<String, int@Nullable[]> palette) {
+  static Map<Integer, Material> resolveMaterials(final Map<String, int @Nullable []> palette) {
     final Map<Integer, Material> materials = new HashMap<>();
-    for (final Map.Entry<String, int@Nullable[]> entry : palette.entrySet()) {
+    for (final Map.Entry<String, int @Nullable []> entry : palette.entrySet()) {
       final String name = entry.getKey();
-      final int@Nullable[] rgb = entry.getValue();
+      final int @Nullable [] rgb = entry.getValue();
       if (rgb == null || rgb.length < RGB_COMPONENTS) {
         continue;
       }

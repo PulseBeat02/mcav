@@ -218,18 +218,16 @@ final class InteractUtilsTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "NONE, 38, 51",
-      "FLIPPED, 38, 51",
-      "CLOCKWISE_45, 51, 89",
-      "FLIPPED_45, 51, 89",
-      "CLOCKWISE, 89, 76",
-      "COUNTER_CLOCKWISE, 89, 76",
-      "CLOCKWISE_135, 76, 38",
-      "COUNTER_CLOCKWISE_45, 76, 38",
-    }
-  )
+  @CsvSource({
+    "NONE, 38, 51",
+    "FLIPPED, 38, 51",
+    "CLOCKWISE_45, 51, 89",
+    "FLIPPED_45, 51, 89",
+    "CLOCKWISE, 89, 76",
+    "COUNTER_CLOCKWISE, 89, 76",
+    "CLOCKWISE_135, 76, 38",
+    "COUNTER_CLOCKWISE_45, 76, 38",
+  })
   void turnsThePixelWithTheMapInsideTheFrame(final Rotation rotation, final int pixelX, final int pixelY) {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(rotation);

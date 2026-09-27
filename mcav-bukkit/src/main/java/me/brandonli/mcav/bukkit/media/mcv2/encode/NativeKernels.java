@@ -521,8 +521,8 @@ final class NativeKernels extends Kernels {
     checkBlock(prediction.length, size);
     try {
       return this.finished(
-          (long) this.binding.predicted.invokeExact(of(prediction), size, of(out), of(this.source), this.rate, this.limit)
-        );
+        (long) this.binding.predicted.invokeExact(of(prediction), size, of(out), of(this.source), this.rate, this.limit)
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -544,8 +544,8 @@ final class NativeKernels extends Kernels {
     checkRange(record.length, offset, SELECTORS_AT + (size * size) / Byte.SIZE);
     try {
       return this.finished(
-          (long) this.binding.palette.invokeExact(of(record), offset, size, of(out), of(this.source), this.rate, this.limit)
-        );
+        (long) this.binding.palette.invokeExact(of(record), offset, size, of(out), of(this.source), this.rate, this.limit)
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -558,8 +558,8 @@ final class NativeKernels extends Kernels {
     checkRange(record.length, offset, CHANNELS * grid * grid);
     try {
       return this.finished(
-          (long) this.binding.intraGrid.invokeExact(of(record), offset, grid, size, of(out), of(this.source), this.rate, this.limit)
-        );
+        (long) this.binding.intraGrid.invokeExact(of(record), offset, grid, size, of(out), of(this.source), this.rate, this.limit)
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -581,19 +581,19 @@ final class NativeKernels extends Kernels {
     checkRange(record.length, offset, CHANNELS * grid * grid);
     try {
       return this.finished(
-          (long) this.binding.residualGrid.invokeExact(
-              of(prediction),
-              of(record),
-              offset,
-              grid,
-              q,
-              size,
-              of(out),
-              of(this.source),
-              this.rate,
-              this.limit
-            )
-        );
+        (long) this.binding.residualGrid.invokeExact(
+          of(prediction),
+          of(record),
+          offset,
+          grid,
+          q,
+          size,
+          of(out),
+          of(this.source),
+          this.rate,
+          this.limit
+        )
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -601,7 +601,7 @@ final class NativeKernels extends Kernels {
 
   @Override
   boolean reduced(
-    final int@Nullable[] prediction,
+    final int @Nullable [] prediction,
     final byte[] record,
     final int offset,
     final int luma,
@@ -623,21 +623,21 @@ final class NativeKernels extends Kernels {
     }
     try {
       return this.finished(
-          (long) this.binding.reduced.invokeExact(
-              predicted,
-              prediction == null ? 1 : 0,
-              of(record),
-              offset,
-              luma,
-              chroma,
-              q,
-              size,
-              of(out),
-              of(this.source),
-              this.rate,
-              this.limit
-            )
-        );
+        (long) this.binding.reduced.invokeExact(
+          predicted,
+          prediction == null ? 1 : 0,
+          of(record),
+          offset,
+          luma,
+          chroma,
+          q,
+          size,
+          of(out),
+          of(this.source),
+          this.rate,
+          this.limit
+        )
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -666,19 +666,19 @@ final class NativeKernels extends Kernels {
     checkRange(record.length, body, CompactRecord.bodyBytes(kind));
     try {
       return this.finished(
-          (long) this.binding.compact.invokeExact(
-              of(prediction),
-              of(record),
-              body,
-              kind,
-              q,
-              size,
-              of(out),
-              of(this.source),
-              this.rate,
-              this.limit
-            )
-        );
+        (long) this.binding.compact.invokeExact(
+          of(prediction),
+          of(record),
+          body,
+          kind,
+          q,
+          size,
+          of(out),
+          of(this.source),
+          this.rate,
+          this.limit
+        )
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }
@@ -847,20 +847,20 @@ final class NativeKernels extends Kernels {
     Preconditions.checkArgument(range >= 0 && range <= MAX_COORDINATE, "Invalid range");
     try {
       return (int) this.binding.seeded.invokeExact(
-          of(reference),
-          width,
-          height,
-          of(source),
-          x,
-          y,
-          size,
-          globalX,
-          globalY,
-          range,
-          halfPixel ? 1 : 0,
-          of(seeds),
-          seeds.length
-        );
+        of(reference),
+        width,
+        height,
+        of(source),
+        x,
+        y,
+        size,
+        globalX,
+        globalY,
+        range,
+        halfPixel ? 1 : 0,
+        of(seeds),
+        seeds.length
+      );
     } catch (final Throwable e) {
       throw new IllegalStateException(FAILED, e);
     }

@@ -26,7 +26,8 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
  * Builds an audio pipeline from {@link AudioFilter}s; create one with {@link PipelineBuilder#audio()}.
  */
 public abstract class AudioPipelineStepBuilder
-  extends AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep, AudioPipelineStepBuilder> {
+  extends AbstractPipelineStepBuilder<ByteBuffer, OriginalAudioMetadata, AudioFilter, AudioPipelineStep, AudioPipelineStepBuilder>
+{
 
   /**
    * Constructs an empty builder.

@@ -317,9 +317,8 @@ public final class BrowserHelper {
         this.activated = true;
         final String value = message.getText();
         final int action = message.getNumber();
-        final List<DevToolsInput.DevToolsCall> calls = action == HelperProtocol.KEY_PRESS
-          ? DevToolsInput.pressKey(value)
-          : DevToolsInput.typeText(value);
+        final List<DevToolsInput.DevToolsCall> calls =
+          action == HelperProtocol.KEY_PRESS ? DevToolsInput.pressKey(value) : DevToolsInput.typeText(value);
         this.engine.dispatch(calls);
         yield true;
       }

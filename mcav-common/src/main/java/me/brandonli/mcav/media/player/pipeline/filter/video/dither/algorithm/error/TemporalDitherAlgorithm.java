@@ -71,7 +71,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   private final int errorThreshold;
   private final int errorStrength;
 
-  private volatile byte@Nullable[] previousIndices;
+  private volatile byte @Nullable [] previousIndices;
 
   /**
    * Constructs a new temporal algorithm with default settings.
@@ -219,7 +219,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
    * @param indices  the indices of the frame that was just dithered
    * @param previous the indices of the frame before, or {@code null} if there were none of the same size
    */
-  private void remember(final byte[] indices, final byte@Nullable[] previous) {
+  private void remember(final byte[] indices, final byte @Nullable [] previous) {
     if (previous == null) {
       this.previousIndices = indices.clone();
       return;
@@ -231,7 +231,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   private void processStrips(
     final int[] pixels,
     final int width,
-    final byte@Nullable[] previous,
+    final byte @Nullable [] previous,
     final byte[] indices,
     final ForkJoinPool pool,
     final int parallelism
@@ -251,7 +251,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     task.join();
   }
 
-  private byte@Nullable[] getPreviousIndices(final int expectedLength) {
+  private byte @Nullable [] getPreviousIndices(final int expectedLength) {
     final byte[] previous = this.previousIndices;
     if (previous == null || previous.length != expectedLength) {
       return null;
@@ -268,7 +268,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     final int width,
     final int startY,
     final int endY,
-    final byte@Nullable[] previous,
+    final byte @Nullable [] previous,
     final byte[] indices
   ) {
     final StripPass pass = new StripPass(pixels, width, previous, indices);
@@ -296,7 +296,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
 
     private final int[] pixels;
     private final int width;
-    private final byte@Nullable[] previous;
+    private final byte @Nullable [] previous;
     private final byte[] indices;
     private final int[] paletteColors;
     private final byte[] colorMap;
@@ -304,7 +304,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     private final ErrorRows errors;
     private int firstWrittenRow;
 
-    StripPass(final int[] pixels, final int width, final byte@Nullable[] previous, final byte[] indices) {
+    StripPass(final int[] pixels, final int width, final byte @Nullable [] previous, final byte[] indices) {
       final DitherPalette palette = TemporalDitherAlgorithm.this.getPalette();
       final DiffusionKernel kernel = TemporalDitherAlgorithm.this.getKernel();
       this.pixels = pixels;

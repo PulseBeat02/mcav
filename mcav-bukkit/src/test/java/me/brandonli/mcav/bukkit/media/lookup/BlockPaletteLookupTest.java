@@ -222,7 +222,7 @@ final class BlockPaletteLookupTest {
     }
 
     @Override
-    public int read(final char@NonNull[] buffer, final int offset, final int length) throws IOException {
+    public int read(final char @NonNull [] buffer, final int offset, final int length) throws IOException {
       return this.content.read(buffer, offset, length);
     }
 

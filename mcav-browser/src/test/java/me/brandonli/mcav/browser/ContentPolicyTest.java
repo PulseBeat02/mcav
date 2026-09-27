@@ -127,16 +127,23 @@ class ContentPolicyTest {
   @Test
   void theReportsNeverCarryTheUserTheQueryOrTheFragmentOfAnAddress() {
     assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("myapp://callback?code=secret"), false, false));
-    final CefResourceRequestHandler resources =
-      this.policy.getResourceRequestHandler(this.browser, frame(true), request("https://a/"), true, false, "", new BoolRef());
+    final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
+      this.browser,
+      frame(true),
+      request("https://a/"),
+      true,
+      false,
+      "",
+      new BoolRef()
+    );
     assertTrue(resources.onBeforeResourceLoad(this.browser, frame(true), request("ftp://user:password@example.com/file")));
     assertFalse(
       this.policy.onCertificateError(
-          this.browser,
-          CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
-          "https://expired/page#token=secret",
-          mock(CefCallback.class)
-        )
+        this.browser,
+        CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
+        "https://expired/page#token=secret",
+        mock(CefCallback.class)
+      )
     );
     this.policy.onLoadError(this.browser, frame(true), CefLoadHandler.ErrorCode.ERR_CONNECTION_REFUSED, "refused", "https://a/?sig=secret");
     assertEquals(
@@ -152,10 +159,24 @@ class ContentPolicyTest {
 
   @Test
   void everyRequestGoesThroughTheResourcePolicy() {
-    final CefResourceRequestHandler first =
-      this.policy.getResourceRequestHandler(this.browser, frame(true), request("https://a/"), true, false, "", new BoolRef());
-    final CefResourceRequestHandler second =
-      this.policy.getResourceRequestHandler(this.browser, frame(false), request("https://b/"), false, true, "https://a", new BoolRef());
+    final CefResourceRequestHandler first = this.policy.getResourceRequestHandler(
+      this.browser,
+      frame(true),
+      request("https://a/"),
+      true,
+      false,
+      "",
+      new BoolRef()
+    );
+    final CefResourceRequestHandler second = this.policy.getResourceRequestHandler(
+      this.browser,
+      frame(false),
+      request("https://b/"),
+      false,
+      true,
+      "https://a",
+      new BoolRef()
+    );
     assertSame(first, second);
     assertFalse(first.onBeforeResourceLoad(this.browser, frame(true), request("https://example.com/a.png")));
     assertTrue(first.onBeforeResourceLoad(this.browser, frame(true), request("file:///home/server/config.yml")));
@@ -164,8 +185,15 @@ class ContentPolicyTest {
 
   @Test
   void anUnknownSchemeIsNeverHandedToAnotherProgram() {
-    final CefResourceRequestHandler resources =
-      this.policy.getResourceRequestHandler(this.browser, frame(true), request("steam://run/1"), true, false, "", new BoolRef());
+    final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
+      this.browser,
+      frame(true),
+      request("steam://run/1"),
+      true,
+      false,
+      "",
+      new BoolRef()
+    );
     final BoolRef allow = new BoolRef(true);
     resources.onProtocolExecution(this.browser, frame(true), request("steam://run/1"), allow);
     assertFalse(allow.get());
@@ -201,27 +229,27 @@ class ContentPolicyTest {
     final CefJSDialogCallback confirm = mock(CefJSDialogCallback.class);
     assertTrue(
       this.policy.onJSDialog(
-          this.browser,
-          "https://a/",
-          CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_CONFIRM,
-          "ok?",
-          "",
-          confirm,
-          new BoolRef()
-        )
+        this.browser,
+        "https://a/",
+        CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_CONFIRM,
+        "ok?",
+        "",
+        confirm,
+        new BoolRef()
+      )
     );
     verify(confirm).Continue(false, "");
     final CefJSDialogCallback prompt = mock(CefJSDialogCallback.class);
     assertTrue(
       this.policy.onJSDialog(
-          this.browser,
-          "https://a/",
-          CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_PROMPT,
-          "name?",
-          "x",
-          prompt,
-          new BoolRef()
-        )
+        this.browser,
+        "https://a/",
+        CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_PROMPT,
+        "name?",
+        "x",
+        prompt,
+        new BoolRef()
+      )
     );
     verify(prompt).Continue(false, "");
     final CefJSDialogCallback unload = mock(CefJSDialogCallback.class);
@@ -246,8 +274,16 @@ class ContentPolicyTest {
   @Test
   void fileChoosersAreCancelled() {
     final CefFileDialogCallback callback = mock(CefFileDialogCallback.class);
-    final boolean handled =
-      this.policy.onFileDialog(this.browser, CefDialogHandler.FileDialogMode.FILE_DIALOG_OPEN, "Pick", "", null, null, null, callback);
+    final boolean handled = this.policy.onFileDialog(
+      this.browser,
+      CefDialogHandler.FileDialogMode.FILE_DIALOG_OPEN,
+      "Pick",
+      "",
+      null,
+      null,
+      null,
+      callback
+    );
     assertTrue(handled);
     verify(callback).Cancel();
     assertEquals(List.of("notice: Refused a file chooser"), this.events.log);
@@ -286,12 +322,12 @@ class ContentPolicyTest {
     this.policy.onLoadEnd(this.browser, frame(true), 200);
     this.policy.onLoadError(this.browser, frame(false), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://frame/");
     this.policy.onLoadError(
-        this.browser,
-        frame(true),
-        CefLoadHandler.ErrorCode.ERR_NAME_NOT_RESOLVED,
-        "no such host",
-        "https://x.invalid/"
-      );
+      this.browser,
+      frame(true),
+      CefLoadHandler.ErrorCode.ERR_NAME_NOT_RESOLVED,
+      "no such host",
+      "https://x.invalid/"
+    );
     this.policy.onLoadingStateChange(this.browser, false, true, false);
     assertEquals(List.of("loading: true", "load error: -105 no such host https://x.invalid/", "loading: false"), this.events.log);
   }

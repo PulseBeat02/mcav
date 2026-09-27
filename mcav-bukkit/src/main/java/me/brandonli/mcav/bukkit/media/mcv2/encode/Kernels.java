@@ -72,7 +72,7 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
   abstract boolean residualGrid(int[] prediction, byte[] record, int offset, int grid, int q, int size, int[] out);
 
   /** {@link Reconstruction#reduced}, measured; an intra record has no prediction. */
-  abstract boolean reduced(int@Nullable[] prediction, byte[] record, int offset, int luma, int chroma, int q, int size, int[] out);
+  abstract boolean reduced(int @Nullable [] prediction, byte[] record, int offset, int luma, int chroma, int q, int size, int[] out);
 
   /** {@link Reconstruction#compact}, measured. */
   abstract boolean compact(int[] prediction, byte[] record, int body, int kind, int q, int size, int[] out);

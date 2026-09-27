@@ -86,14 +86,11 @@ final class PlaybackSessionTerminalTest {
     final ObservedQueue queue = new ObservedQueue();
     queue.add("last decoded frame");
     final AtomicBoolean restoredInterrupt = new AtomicBoolean();
-    final Thread producer = new Thread(
-      () -> {
-        session.signalEnd(queue, "end of media");
-        final Thread current = Thread.currentThread();
-        restoredInterrupt.set(current.isInterrupted());
-      },
-      "terminal-marker-producer"
-    );
+    final Thread producer = new Thread(() -> {
+      session.signalEnd(queue, "end of media");
+      final Thread current = Thread.currentThread();
+      restoredInterrupt.set(current.isInterrupted());
+    }, "terminal-marker-producer");
     producer.setDaemon(true);
     try {
       producer.start();

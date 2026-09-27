@@ -307,10 +307,11 @@ final class MotionSearch {
           } else if (!halfX) {
             value4 = 2 * (a + (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF));
           } else {
-            value4 = a +
-            (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
-            (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
-            (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF);
+            value4 =
+              a +
+              (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
+              (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
+              (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF);
           }
           sum += Math.abs(value4 - 4 * source[target + c]);
         }

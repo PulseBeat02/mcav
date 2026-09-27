@@ -112,7 +112,7 @@ final class KernelDifferential {
         case 0 -> -0.0f;
         case 1 -> Float.MIN_VALUE * v.next(1, 1000);
         case 2 -> 1e30f * v.next(-3, 3);
-        default -> (v.next(-1_000_000, 1_000_000) / 3.0f) / 1000;
+        default -> v.next(-1_000_000, 1_000_000) / 3.0f / 1000;
       };
     }
     return values;
@@ -227,7 +227,7 @@ final class KernelDifferential {
         final int q = v.next(0, 4);
         final int offset = v.next(0, 2);
         final byte[] record = v.bytes(offset + luma * luma + 2 * chroma * chroma);
-        final int@Nullable[] predicted = v.next(0, 1) == 0 ? null : prediction;
+        final int @Nullable [] predicted = v.next(0, 1) == 0 ? null : prediction;
         finishedJava = java.reduced(predicted, record, offset, luma, chroma, q, size, expected);
         finishedOther = other.reduced(predicted, record, offset, luma, chroma, q, size, actual);
       }
@@ -308,9 +308,10 @@ final class KernelDifferential {
     // sometimes nearly flat, so the clusters meet ties and empty sides; the clusterings now and then on values far
     // outside a picture's, whose sums overflow an int
     final int low = v.next(0, 255);
-    final int[] source = kernel >= 11 && v.next(0, 7) == 0
-      ? ints(v, channels, EXTREME_LOW, EXTREME_HIGH)
-      : ints(v, channels, low, Math.min(255, low + (v.next(0, 1) == 0 ? 8 : 255)));
+    final int[] source =
+      kernel >= 11 && v.next(0, 7) == 0
+        ? ints(v, channels, EXTREME_LOW, EXTREME_HIGH)
+        : ints(v, channels, low, Math.min(255, low + (v.next(0, 1) == 0 ? 8 : 255)));
     return switch (kernel) {
       case 9 -> {
         final int[] expected = new int[FastFits.CELL_SUMS];

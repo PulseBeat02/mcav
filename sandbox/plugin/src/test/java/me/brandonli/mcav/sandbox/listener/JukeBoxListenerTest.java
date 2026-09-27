@@ -135,8 +135,12 @@ final class JukeBoxListenerTest {
   @Test
   void replacesCharactersThatFileNamesCannotContain() throws IOException {
     final Path image = this.createImage("my_disk_.iso");
-    final PlayerInteractEvent event =
-      this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_PIGSTEP, "[my:disk?.iso]");
+    final PlayerInteractEvent event = this.interaction(
+      Action.RIGHT_CLICK_BLOCK,
+      Material.JUKEBOX,
+      Material.MUSIC_DISC_PIGSTEP,
+      "[my:disk?.iso]"
+    );
     this.listener.onJukeboxInteract(event);
     final Path absolute = image.toAbsolutePath();
     verify(this.player).performCommand(
@@ -169,16 +173,24 @@ final class JukeBoxListenerTest {
   @Test
   void ignoresBlocksOtherThanJukeboxes() throws IOException {
     this.createImage("alpine.iso");
-    final PlayerInteractEvent event =
-      this.interaction(Action.RIGHT_CLICK_BLOCK, Material.NOTE_BLOCK, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    final PlayerInteractEvent event = this.interaction(
+      Action.RIGHT_CLICK_BLOCK,
+      Material.NOTE_BLOCK,
+      Material.MUSIC_DISC_CAT,
+      "[alpine.iso]"
+    );
     this.assertIgnored(event);
   }
 
   @Test
   void ignoresItemsOtherThanMusicDiscs() throws IOException {
     this.createImage("alpine.iso");
-    final PlayerInteractEvent event =
-      this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.DISC_FRAGMENT_5, "[alpine.iso]");
+    final PlayerInteractEvent event = this.interaction(
+      Action.RIGHT_CLICK_BLOCK,
+      Material.JUKEBOX,
+      Material.DISC_FRAGMENT_5,
+      "[alpine.iso]"
+    );
     this.assertIgnored(event);
   }
 

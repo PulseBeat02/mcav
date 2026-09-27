@@ -136,10 +136,10 @@ public final class Mcv2Pack {
   /** The description shown in the client's pack list. */
   static String describe(final Mcv2Configuration configuration) {
     return "mcav MCV2 decoder, %dx%d video, stream %d".formatted(
-        configuration.getVideoWidth(),
-        configuration.getVideoHeight(),
-        configuration.getStreamId()
-      );
+      configuration.getVideoWidth(),
+      configuration.getVideoHeight(),
+      configuration.getStreamId()
+    );
   }
 
   static byte[] resource(final String file) {
@@ -261,7 +261,10 @@ public final class Mcv2Pack {
     final int words = books.length / Integer.BYTES;
     for (int word = 0; word < words; word++) {
       final long value = Mcv2Format.u32(books, word * Integer.BYTES);
-      table.append(word % WORDS_PER_LINE == 0 ? "    " : " ").append("0x%08Xu".formatted(value)).append(word < words - 1 ? "," : "");
+      table
+        .append(word % WORDS_PER_LINE == 0 ? "    " : " ")
+        .append("0x%08Xu".formatted(value))
+        .append(word < words - 1 ? "," : "");
       if (word % WORDS_PER_LINE == WORDS_PER_LINE - 1) {
         table.append('\n');
       }

@@ -135,18 +135,17 @@ final class CommandTaskDeadlineTest {
   void inheritedChildPipesCannotExtendTheTimeoutOrTheReaderExecutorClose() throws Exception {
     final Path program = this.directory.resolve("InheritedPipes.java");
     final Path childPid = this.directory.resolve("child.pid");
-    final String source =
-      """
-      import java.nio.file.*;
-      class InheritedPipes {
-        public static void main(String[] args) throws Exception {
-          if (args.length == 1) { Thread.sleep(30_000L); return; }
-          Process child = new ProcessBuilder(args[0], args[1], "child").inheritIO().start();
-          Files.writeString(Path.of(args[2]), Long.toString(child.pid()));
-          Thread.sleep(500L);
-        }
+    final String source = """
+    import java.nio.file.*;
+    class InheritedPipes {
+      public static void main(String[] args) throws Exception {
+        if (args.length == 1) { Thread.sleep(30_000L); return; }
+        Process child = new ProcessBuilder(args[0], args[1], "child").inheritIO().start();
+        Files.writeString(Path.of(args[2]), Long.toString(child.pid()));
+        Thread.sleep(500L);
       }
-      """;
+    }
+    """;
     Files.writeString(program, source);
     final String java = javaExecutable();
     final String programPath = program.toString();

@@ -61,95 +61,94 @@ final class DevToolsInput {
    * another window, is submitted into its own frame. A link or form that targets a frame of the page by its name is left
    * to the page. Every navigation still goes through the navigation policy of the helper.
    */
-  static final String OPEN_IN_PLACE_SCRIPT =
-    """
-    (() => {
-      // the helper places the script again when it could not tell whether the first time worked; once is enough
-      const PLACED = Symbol.for('mcav.open-in-place');
-      if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+  static final String OPEN_IN_PLACE_SCRIPT = """
+  (() => {
+    // the helper places the script again when it could not tell whether the first time worked; once is enough
+    const PLACED = Symbol.for('mcav.open-in-place');
+    if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+      return;
+    }
+    Object.defineProperty(globalThis, PLACED, { value: true });
+    // like Chromium's popup blocker, only a click or a key lets a page open a window
+    const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
+    const openInPlace = address => {
+      let target;
+      try {
+        target = new URL(String(address), document.baseURI);
+      } catch (error) {
         return;
       }
-      Object.defineProperty(globalThis, PLACED, { value: true });
-      // like Chromium's popup blocker, only a click or a key lets a page open a window
-      const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
-      const openInPlace = address => {
-        let target;
-        try {
-          target = new URL(String(address), document.baseURI);
-        } catch (error) {
-          return;
-        }
-        if (target.protocol === 'http:' || target.protocol === 'https:') {
-          // a frame of another origin may set the address of the top frame, but not call its methods
-          window.top.location.href = target.href;
-        }
-      };
-      const namesAFrame = (view, name) => {
-        let found;
-        try {
-          found = view[name];
-        } catch (error) {
-          found = undefined;
-        }
-        // the window of a frame is its own window property, which an element of the page named so is not
-        if (found !== undefined && found !== null && found !== view && found.window === found) {
+      if (target.protocol === 'http:' || target.protocol === 'https:') {
+        // a frame of another origin may set the address of the top frame, but not call its methods
+        window.top.location.href = target.href;
+      }
+    };
+    const namesAFrame = (view, name) => {
+      let found;
+      try {
+        found = view[name];
+      } catch (error) {
+        found = undefined;
+      }
+      // the window of a frame is its own window property, which an element of the page named so is not
+      if (found !== undefined && found !== null && found !== view && found.window === found) {
+        return true;
+      }
+      let count = 0;
+      try {
+        count = view.frames.length;
+      } catch (error) {
+        return false;
+      }
+      for (let index = 0; index < count; index++) {
+        if (namesAFrame(view.frames[index], name)) {
           return true;
         }
-        let count = 0;
-        try {
-          count = view.frames.length;
-        } catch (error) {
-          return false;
-        }
-        for (let index = 0; index < count; index++) {
-          if (namesAFrame(view.frames[index], name)) {
-            return true;
-          }
-        }
+      }
+      return false;
+    };
+    const opensElsewhere = name => {
+      const text = String(name || '');
+      const lower = text.toLowerCase();
+      if (lower === '' || lower === '_self' || lower === '_top' || lower === '_parent') {
         return false;
-      };
-      const opensElsewhere = name => {
-        const text = String(name || '');
-        const lower = text.toLowerCase();
-        if (lower === '' || lower === '_self' || lower === '_top' || lower === '_parent') {
-          return false;
+      }
+      return lower === '_blank' || !namesAFrame(window.top, text);
+    };
+    Object.defineProperty(window, 'open', {
+      configurable: true,
+      writable: true,
+      value: function (address) {
+        if (isActive() && address !== undefined && address !== null && String(address) !== '') {
+          openInPlace(address);
         }
-        return lower === '_blank' || !namesAFrame(window.top, text);
-      };
-      Object.defineProperty(window, 'open', {
-        configurable: true,
-        writable: true,
-        value: function (address) {
-          if (isActive() && address !== undefined && address !== null && String(address) !== '') {
-            openInPlace(address);
-          }
-          return null;
+        return null;
+      }
+    });
+    window.addEventListener('click', event => {
+      const origin = event.target instanceof Element ? event.target.closest('a[href], area[href]') : null;
+      if (origin !== null && !event.defaultPrevented && isActive() && opensElsewhere(origin.target)) {
+        event.preventDefault();
+        openInPlace(origin.href);
+      }
+    });
+    window.addEventListener('submit', event => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !isActive()) {
+        return;
+      }
+      // the target of the button that sends the form wins over the target of the form
+      const button = event.submitter;
+      if (button instanceof HTMLElement && button.hasAttribute('formtarget')) {
+        if (opensElsewhere(button.getAttribute('formtarget'))) {
+          button.setAttribute('formtarget', '_self');
         }
-      });
-      window.addEventListener('click', event => {
-        const origin = event.target instanceof Element ? event.target.closest('a[href], area[href]') : null;
-        if (origin !== null && !event.defaultPrevented && isActive() && opensElsewhere(origin.target)) {
-          event.preventDefault();
-          openInPlace(origin.href);
-        }
-      });
-      window.addEventListener('submit', event => {
-        const form = event.target;
-        if (!(form instanceof HTMLFormElement) || !isActive()) {
-          return;
-        }
-        // the target of the button that sends the form wins over the target of the form
-        const button = event.submitter;
-        if (button instanceof HTMLElement && button.hasAttribute('formtarget')) {
-          if (opensElsewhere(button.getAttribute('formtarget'))) {
-            button.setAttribute('formtarget', '_self');
-          }
-        } else if (opensElsewhere(form.target)) {
-          form.target = '_self';
-        }
-      }, true);
-    })();
-    """;
+      } else if (opensElsewhere(form.target)) {
+        form.target = '_self';
+      }
+    }, true);
+  })();
+  """;
 
   private static final String[] BUTTON_NAMES = { "left", "middle", "right" };
 
@@ -211,18 +210,17 @@ final class DevToolsInput {
     final String button = BUTTON_NAMES[input.getButton()];
     final int clickCount = input.getClickCount();
     final int after = heldAfter(input, held);
-    final String parameters =
-      switch (input.getAction()) {
-        case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", x, y, after) + buttonParameters(button, clickCount) + "}";
-        case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", x, y, after) + buttonParameters(button, clickCount) + "}";
-        case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", x, y, after) +
+    final String parameters = switch (input.getAction()) {
+      case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", x, y, after) + buttonParameters(button, clickCount) + "}";
+      case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", x, y, after) + buttonParameters(button, clickCount) + "}";
+      case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", x, y, after) +
         ",\"deltaX\":" +
         input.getDeltaX() +
         ",\"deltaY\":" +
         input.getDeltaY() +
         "}";
-        default -> mouseParameters("mouseMoved", x, y, after) + ",\"button\":\"" + heldButtonName(after) + "\"}";
-      };
+      default -> mouseParameters("mouseMoved", x, y, after) + ",\"button\":\"" + heldButtonName(after) + "\"}";
+    };
     final DevToolsCall call = new DevToolsCall(MOUSE_METHOD, parameters);
     return List.of(call);
   }

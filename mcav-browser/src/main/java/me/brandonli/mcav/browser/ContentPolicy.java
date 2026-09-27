@@ -62,7 +62,14 @@ import org.cef.network.CefRequest;
  */
 final class ContentPolicy
   implements
-    CefLifeSpanHandler, CefRequestHandler, CefJSDialogHandler, CefDownloadHandler, CefDialogHandler, CefContextMenuHandler, CefLoadHandler {
+    CefLifeSpanHandler,
+    CefRequestHandler,
+    CefJSDialogHandler,
+    CefDownloadHandler,
+    CefDialogHandler,
+    CefContextMenuHandler,
+    CefLoadHandler
+{
 
   private final HelperEvents events;
   private final String engineVersion;

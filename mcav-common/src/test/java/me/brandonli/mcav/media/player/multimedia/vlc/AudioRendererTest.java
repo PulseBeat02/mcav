@@ -69,9 +69,9 @@ final class AudioRendererTest {
 
   AudioRendererTest() {
     this.owner.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
   }
 
   @AfterEach
@@ -102,12 +102,12 @@ final class AudioRendererTest {
    */
   private void attachBlockingRecorder(final List<Short> received, final CountDownLatch blocked, final CountDownLatch proceed) {
     this.attach((samples, _) -> {
-        final short first = samples.getShort(0);
-        received.add(first);
-        blocked.countDown();
-        awaitRelease(proceed);
-        return false;
-      });
+      final short first = samples.getShort(0);
+      received.add(first);
+      blocked.countDown();
+      awaitRelease(proceed);
+      return false;
+    });
   }
 
   /**
@@ -286,13 +286,13 @@ final class AudioRendererTest {
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final CountDownLatch escaped = new CountDownLatch(1);
     this.attach((_, _) -> {
-        final Thread worker = Thread.currentThread();
-        worker.setUncaughtExceptionHandler((_, thrown) -> {
-          uncaught.set(thrown);
-          escaped.countDown();
-        });
-        throw failure;
+      final Thread worker = Thread.currentThread();
+      worker.setUncaughtExceptionHandler((_, thrown) -> {
+        uncaught.set(thrown);
+        escaped.countDown();
       });
+      throw failure;
+    });
 
     this.renderer.start();
     this.play((short) 1, (short) 1);
@@ -311,16 +311,16 @@ final class AudioRendererTest {
     final AssertionError errorFailure = new AssertionError("filter assertion");
     final CountDownLatch third = new CountDownLatch(1);
     this.attach((_, _) -> {
-        final int call = calls.incrementAndGet();
-        if (call == 1) {
-          throw runtimeFailure;
-        }
-        if (call == 2) {
-          throw errorFailure;
-        }
-        third.countDown();
-        return false;
-      });
+      final int call = calls.incrementAndGet();
+      if (call == 1) {
+        throw runtimeFailure;
+      }
+      if (call == 2) {
+        throw errorFailure;
+      }
+      third.countDown();
+      return false;
+    });
     this.renderer.start();
     this.play((short) 1, (short) 1);
     this.play((short) 2, (short) 2);

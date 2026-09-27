@@ -243,9 +243,9 @@ final class PlaybackSessionTest {
     final VideoFilter recorder = recordingSizes(imageSizes, videoMetadata, frames);
     this.onVideo(recorder);
     this.onAudio((_, metadata) -> {
-        audioMetadata.set(metadata);
-        return chunks.incrementAndGet() > 0;
-      });
+      audioMetadata.set(metadata);
+      return chunks.incrementAndGet() > 0;
+    });
   }
 
   /**
@@ -491,12 +491,12 @@ final class PlaybackSessionTest {
   void reportsFailingFiltersAndKeepsPlaying() throws Exception {
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((_, _) -> {
-        frames.incrementAndGet();
-        throw new IllegalStateException("video filter bug");
-      });
+      frames.incrementAndGet();
+      throw new IllegalStateException("video filter bug");
+    });
     this.onAudio((_, _) -> {
-        throw new AssertionError("audio filter bug");
-      });
+      throw new AssertionError("audio filter bug");
+    });
     final ScriptedFrameGrabber grabber = pictureSoundPicture();
     final PlaybackSession session = this.session(grabber, 0L, false);
     session.start();
@@ -563,9 +563,9 @@ final class PlaybackSessionTest {
     final Map<ImageBuffer, Boolean> seen = Collections.synchronizedMap(new IdentityHashMap<>());
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((image, _) -> {
-        seen.put(image, Boolean.TRUE);
-        return frames.incrementAndGet() > 0;
-      });
+      seen.put(image, Boolean.TRUE);
+      return frames.incrementAndGet() > 0;
+    });
     final List<Object> script = frames(24, 5_000L);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
     final PlaybackSession session = this.session(grabber, 0L, false);
@@ -583,10 +583,10 @@ final class PlaybackSessionTest {
   void scalesFramesToTheAttachedSizeWhenTheDecoderDidNot() throws Exception {
     final List<String> sizes = Collections.synchronizedList(new ArrayList<>());
     this.onVideo((image, _) -> {
-        final int width = image.getWidth();
-        final int height = image.getHeight();
-        return sizes.add(width + "x" + height);
-      });
+      final int width = image.getWidth();
+      final int height = image.getHeight();
+      return sizes.add(width + "x" + height);
+    });
     final Dimension size = Dimension.of(2, 1);
     this.dimensionCallback.attach(size);
     final ScriptedFrameGrabber grabber = videoAt(0L, FRAME_MICROS);
@@ -680,12 +680,12 @@ final class PlaybackSessionTest {
     final AtomicLong now = new AtomicLong();
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((_, _) -> {
-        final int frameNumber = frames.incrementAndGet();
-        if (frameNumber == 1) {
-          now.addAndGet(300_000_000L);
-        }
-        return true;
-      });
+      final int frameNumber = frames.incrementAndGet();
+      if (frameNumber == 1) {
+        now.addAndGet(300_000_000L);
+      }
+      return true;
+    });
     final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOS, PlaybackSession.MAX_VIDEO_LAG_NANOS, now::get);
     final List<Object> script = frames(6, FRAME_MICROS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
@@ -916,9 +916,9 @@ final class PlaybackSessionTest {
   void describesSourcesWithoutSoundWithTheOutputFormat() throws Exception {
     final AtomicReference<OriginalAudioMetadata> audioMetadata = new AtomicReference<>();
     this.onAudio((_, metadata) -> {
-        audioMetadata.set(metadata);
-        return true;
-      });
+      audioMetadata.set(metadata);
+      return true;
+    });
     final Frame sound = ScriptedFrameGrabber.audio(0L);
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(sound);
     grabber.setSampleRate(0);
@@ -948,13 +948,13 @@ final class PlaybackSessionTest {
   void handsTheSamplesOnAsLittleEndianBytes() throws Exception {
     final AtomicReference<byte[]> received = new AtomicReference<>();
     this.onAudio((samples, _) -> {
-        final ByteBuffer view = samples.duplicate();
-        final int remaining = view.remaining();
-        final byte[] bytes = new byte[remaining];
-        view.get(bytes);
-        received.set(bytes);
-        return true;
-      });
+      final ByteBuffer view = samples.duplicate();
+      final int remaining = view.remaining();
+      final byte[] bytes = new byte[remaining];
+      view.get(bytes);
+      received.set(bytes);
+      return true;
+    });
     final Frame chunk = ScriptedFrameGrabber.audio(0L);
     final short[] samples = { 0x0102, (short) 0xFFFE };
     final ShortBuffer sampleBuffer = ShortBuffer.wrap(samples);
@@ -983,9 +983,9 @@ final class PlaybackSessionTest {
   void handsAudioToThePipelineAheadOfItsTimestamp() throws Exception {
     final List<Long> deliveries = Collections.synchronizedList(new ArrayList<>());
     this.onAudio((_, _) -> {
-        final long now = System.nanoTime();
-        return deliveries.add(now);
-      });
+      final long now = System.nanoTime();
+      return deliveries.add(now);
+    });
     final Frame firstSound = ScriptedFrameGrabber.audio(0L);
     final Frame laterSound = ScriptedFrameGrabber.audio(500_000L);
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(firstSound, laterSound);

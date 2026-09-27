@@ -94,7 +94,7 @@ public final class MapPaletteLoader {
     return colors;
   }
 
-  private static int toColor(final int@Nullable[] rgb, final int index) {
+  private static int toColor(final int @Nullable [] rgb, final int index) {
     if (rgb == null || rgb.length != 3) {
       final String message = "Map color %d does not have three components".formatted(index);
       throw new PaletteLoadingException(message);

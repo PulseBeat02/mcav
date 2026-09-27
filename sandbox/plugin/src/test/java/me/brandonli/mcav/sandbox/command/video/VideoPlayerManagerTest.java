@@ -394,7 +394,8 @@ final class VideoPlayerManagerTest {
     final BukkitScheduler scheduler = TestServer.scheduler();
     final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(failure);
-    final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, () -> this.manager.startFilter(this.filter)
+    final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, () ->
+      this.manager.startFilter(this.filter)
     );
     assertSame(failure, thrown);
     verify(this.filter, times(1)).release();
@@ -429,10 +430,10 @@ final class VideoPlayerManagerTest {
     this.manager.setPlayer(this.player);
     assertThrows(CancellationException.class, () ->
       this.manager.startNative(() -> {
-          this.manager.releaseVideoPlayer();
-          verify(this.player, never()).release();
-          return true;
-        })
+        this.manager.releaseVideoPlayer();
+        verify(this.player, never()).release();
+        return true;
+      })
     );
     verify(this.player, times(1)).release();
     final VideoPlayerMultiplexer current = this.manager.getPlayer();
@@ -545,7 +546,8 @@ final class VideoPlayerManagerTest {
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(failure);
     doThrow(cleanup).when(this.filter).release();
-    final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, () -> this.manager.startFilter(this.filter)
+    final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, () ->
+      this.manager.startFilter(this.filter)
     );
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
@@ -580,8 +582,8 @@ final class VideoPlayerManagerTest {
     final IllegalStateException failure = new IllegalStateException("native start");
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
-          throw failure;
-        })
+        throw failure;
+      })
     );
     assertSame(failure, thrown);
     verify(this.player, never()).release();
@@ -598,9 +600,9 @@ final class VideoPlayerManagerTest {
     doThrow(cleanup).when(this.player).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
-          this.manager.releaseVideoPlayer();
-          throw failure;
-        })
+        this.manager.releaseVideoPlayer();
+        throw failure;
+      })
     );
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
@@ -617,9 +619,9 @@ final class VideoPlayerManagerTest {
     doThrow(failure).when(this.player).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
-          this.manager.releaseVideoPlayer();
-          throw failure;
-        })
+        this.manager.releaseVideoPlayer();
+        throw failure;
+      })
     );
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
@@ -635,9 +637,9 @@ final class VideoPlayerManagerTest {
     doThrow(fatal).when(this.player).release();
     final InternalError thrown = assertThrows(InternalError.class, () ->
       this.manager.startNative(() -> {
-          this.manager.releaseVideoPlayer();
-          throw failure;
-        })
+        this.manager.releaseVideoPlayer();
+        throw failure;
+      })
     );
     assertSame(fatal, thrown);
     final Throwable[] suppressed = failure.getSuppressed();
@@ -749,9 +751,9 @@ final class VideoPlayerManagerTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
       this.manager.startNative(() -> {
-          this.manager.releaseVideoPlayer();
-          throw fatal;
-        })
+        this.manager.releaseVideoPlayer();
+        throw fatal;
+      })
     );
     assertSame(fatal, thrown);
     verify(this.player, never()).release();

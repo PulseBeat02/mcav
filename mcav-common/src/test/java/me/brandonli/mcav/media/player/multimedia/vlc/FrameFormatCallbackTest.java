@@ -76,15 +76,13 @@ final class FrameFormatCallbackTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "100, 60, 112, 64, 100, 60",
-      "640, 480, 320, 240, 320, 240",
-      "400, 200, 320, 240, 320, 200",
-      "0, 240, 320, 240, 320, 240",
-      "320, 0, 320, 240, 320, 240",
-    }
-  )
+  @CsvSource({
+    "100, 60, 112, 64, 100, 60",
+    "640, 480, 320, 240, 320, 240",
+    "400, 200, 320, 240, 320, 200",
+    "0, 240, 320, 240, 320, 240",
+    "320, 0, 320, 240, 320, 240",
+  })
   void usesTheTrackSizeLimitedToTheBuffer(
     final int trackWidth,
     final int trackHeight,

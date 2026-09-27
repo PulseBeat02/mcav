@@ -129,17 +129,17 @@ final class VideoMapCommandTest {
 
   private void playOnWall(final String blockDimensions, final DitheringArgument dithering) {
     this.command.playMapVideo(
-        this.sender,
-        this.selector,
-        PlayerArgument.FFMPEG,
-        AudioArgument.NONE,
-        "640x384",
-        blockDimensions,
-        20,
-        dithering,
-        "",
-        "clip.mp4"
-      );
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      "640x384",
+      blockDimensions,
+      20,
+      dithering,
+      "",
+      "clip.mp4"
+    );
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider(final DitheringArgument dithering) {
@@ -187,8 +187,9 @@ final class VideoMapCommandTest {
 
   @Test
   void passesTheArgumentsOnAndConfiguresTheWallOfMaps() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider =
-      this.playAndCaptureProvider(DitheringArgument.FILTER_LITE);
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
+      DitheringArgument.FILTER_LITE
+    );
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
@@ -200,8 +201,9 @@ final class VideoMapCommandTest {
 
   @Test
   void dithersTheVideoOntoTheWallOfMaps() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider =
-      this.playAndCaptureProvider(DitheringArgument.FILTER_LITE);
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
+      DitheringArgument.FILTER_LITE
+    );
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
     final DitherAlgorithm algorithm = DitheringArgument.FILTER_LITE.createAlgorithm();
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
@@ -230,8 +232,9 @@ final class VideoMapCommandTest {
 
   @Test
   void givesEveryVideoItsOwnTemporalDitheringAlgorithm() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider =
-      this.playAndCaptureProvider(DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
+      DitheringArgument.FLOYD_STEINBERG_TEMPORAL
+    );
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     final ArgumentCaptor<DitherAlgorithm> algorithms = ArgumentCaptor.forClass(DitherAlgorithm.class);

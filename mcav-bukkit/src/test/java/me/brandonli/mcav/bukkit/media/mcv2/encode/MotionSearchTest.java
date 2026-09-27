@@ -134,7 +134,7 @@ final class MotionSearchTest {
     assertEquals(vector(7, -4), seeded(half, 24, true, vector(6, -4)));
     final int whole = seeded(half, 24, false, vector(6, -4));
     assertEquals(0, (whole >> 16) & 1);
-    assertEquals(0, ((short) whole) & 1);
+    assertEquals(0, (short) whole & 1);
   }
 
   @Test

@@ -99,7 +99,7 @@ final class LiveSearchPropertyTest {
   ) {
     final FrameJob[] job = new FrameJob[1];
     final BlockCoder coder = code(frames(seed, amplitude), lambda, skip, job);
-    return coder.isSkipped() == (job[0].cost(0, 0)[0] <= skip * lambda);
+    return coder.isSkipped() == job[0].cost(0, 0)[0] <= skip * lambda;
   }
 
   @Property(seed = SEED, tries = 200)

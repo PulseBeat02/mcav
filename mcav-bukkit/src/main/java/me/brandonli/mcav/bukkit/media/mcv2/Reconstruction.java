@@ -667,9 +667,9 @@ public final class Reconstruction {
       final int from = y * size * CHANNELS;
       for (int x = 0; x < size; x++) {
         final int at = from + x * CHANNELS;
-        out[at] = round(prediction[at] * quarter + ((c0[x] + c1[x]) - c2[x]), shift);
+        out[at] = round(prediction[at] * quarter + (c0[x] + c1[x] - c2[x]), shift);
         out[at + 1] = round(prediction[at + 1] * quarter + (c0[x] + c2[x]), shift);
-        out[at + 2] = round(prediction[at + 2] * quarter + ((c0[x] - c1[x]) - c2[x]), shift);
+        out[at + 2] = round(prediction[at + 2] * quarter + (c0[x] - c1[x] - c2[x]), shift);
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -694,7 +694,7 @@ public final class Reconstruction {
    * @param out        the reconstructed channels
    */
   public static void reduced(
-    final int@Nullable[] prediction,
+    final int @Nullable [] prediction,
     final byte[] record,
     final int offset,
     final int luma,
@@ -723,7 +723,7 @@ public final class Reconstruction {
    * @return whether the block was finished: false when the measure stopped it
    */
   public static boolean reduced(
-    final int@Nullable[] prediction,
+    final int @Nullable [] prediction,
     final byte[] record,
     final int offset,
     final int luma,
@@ -758,13 +758,13 @@ public final class Reconstruction {
       for (int x = 0; x < size; x++) {
         final int at = from + x * CHANNELS;
         if (prediction == null) {
-          out[at] = round((yv[x] + co[x]) - cg[x], shift);
+          out[at] = round(yv[x] + co[x] - cg[x], shift);
           out[at + 1] = round(yv[x] + cg[x], shift);
-          out[at + 2] = round((yv[x] - co[x]) - cg[x], shift);
+          out[at + 2] = round(yv[x] - co[x] - cg[x], shift);
         } else {
-          out[at] = round(prediction[at] * quarter + (((yv[x] + co[x]) - cg[x]) << q), shift);
+          out[at] = round(prediction[at] * quarter + ((yv[x] + co[x] - cg[x]) << q), shift);
           out[at + 1] = round(prediction[at + 1] * quarter + ((yv[x] + cg[x]) << q), shift);
-          out[at + 2] = round(prediction[at + 2] * quarter + (((yv[x] - co[x]) - cg[x]) << q), shift);
+          out[at + 2] = round(prediction[at + 2] * quarter + ((yv[x] - co[x] - cg[x]) << q), shift);
         }
       }
       if (score != null && !score.row(out, from, size)) {
@@ -830,9 +830,9 @@ public final class Reconstruction {
       final int by = record[body + 1];
       final int bco = record[body + 2];
       final int bcg = record[body + 3];
-      final int red = ((by + bco) - bcg) << GAIN_SHIFT;
+      final int red = (by + bco - bcg) << GAIN_SHIFT;
       final int green = (by + bcg) << GAIN_SHIFT;
-      final int blue = ((by - bco) - bcg) << GAIN_SHIFT;
+      final int blue = (by - bco - bcg) << GAIN_SHIFT;
       for (int y = 0; y < size; y++) {
         final int from = y * size * CHANNELS;
         for (int at = from; at < from + size * CHANNELS; at += CHANNELS) {

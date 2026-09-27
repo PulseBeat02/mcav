@@ -621,13 +621,10 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     final AtomicBoolean opened = new AtomicBoolean();
     final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(
-      () -> {
-        opened.set(true);
-        return true;
-      },
-      executor
-    );
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
+      opened.set(true);
+      return true;
+    }, executor);
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, "browser", screen, start, "queued browser");
     this.command.shutdown();
@@ -647,15 +644,12 @@ final class AbstractInteractiveCommandTest {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
     final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(
-      () -> {
-        // Models a release command arriving after startup began but before it creates its native resource.
-        this.command.releaseCurrent();
-        this.assertReleased();
-        return true;
-      },
-      executor
-    );
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
+      // Models a release command arriving after startup began but before it creates its native resource.
+      this.command.releaseCurrent();
+      this.assertReleased();
+      return true;
+    }, executor);
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, "browser", screen, start, "late browser");
     final Runnable task = pending.getFirst();
@@ -1106,8 +1100,8 @@ final class AbstractInteractiveCommandTest {
     this.command.releaseFailure = cleanup;
     final RuntimeException thrown = assertThrows(RuntimeException.class, () ->
       this.command.createResource(() -> {
-          throw failure;
-        })
+        throw failure;
+      })
     );
     assertSame(failure, thrown);
     this.assertReleased("browser");
@@ -1395,8 +1389,8 @@ final class AbstractInteractiveCommandTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
       this.command.createResource(() -> {
-          throw fatal;
-        })
+        throw fatal;
+      })
     );
     assertSame(fatal, thrown);
     this.assertReleased();
@@ -1410,8 +1404,8 @@ final class AbstractInteractiveCommandTest {
     this.command.releaseFailure = fatal;
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
       this.command.createResource(() -> {
-          throw new IllegalStateException("resource failure");
-        })
+        throw new IllegalStateException("resource failure");
+      })
     );
     assertSame(fatal, thrown);
     this.assertReleased("browser");

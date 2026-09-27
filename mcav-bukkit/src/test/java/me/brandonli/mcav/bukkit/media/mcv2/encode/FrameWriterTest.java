@@ -92,7 +92,8 @@ final class FrameWriterTest {
     for (final FrameWriter.Options options : List.of(DERIVED, SHORT)) {
       for (final int mode : new int[] { Mcv2Format.MODE_SPARSE_SPLIT, Mcv2Format.MODE_IMMEDIATE_MOTION }) {
         final TreeNode node = TreeNode.leaf(mode, 0, new byte[2]);
-        final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> predicted(32, 32, 0, 0, options, node)
+        final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+          predicted(32, 32, 0, 0, options, node)
         );
         assertEquals("Illegal leaf mode " + mode, exception.getMessage());
       }

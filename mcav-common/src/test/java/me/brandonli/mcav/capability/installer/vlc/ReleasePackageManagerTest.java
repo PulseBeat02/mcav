@@ -61,14 +61,13 @@ final class ReleasePackageManagerTest {
   private static final String APP_IMAGE_URL = "https://example.com/VLC-3.0.24-x86_64.AppImage";
   private static final String APP_IMAGE_SHA256 = "4f3c9a1b".repeat(8);
   private static final String OTHER_SHA256 = "0123abcd".repeat(8);
-  private static final String RELEASE_JSON =
-    """
-    {"assets": [
-      {"name": "VLC.AppImage.zsync", "browser_download_url": "https://example.com/VLC.AppImage.zsync", "digest": "sha256:%s"},
-      {"name": "VLC-3.0.24-x86_64.AppImage", "browser_download_url": "%s", "digest": "sha256:%s"},
-      {"name": "VLC-later.AppImage", "browser_download_url": "https://example.com/later.AppImage", "digest": "sha256:%s"}
-    ]}
-    """.formatted(OTHER_SHA256, APP_IMAGE_URL, APP_IMAGE_SHA256, OTHER_SHA256);
+  private static final String RELEASE_JSON = """
+  {"assets": [
+    {"name": "VLC.AppImage.zsync", "browser_download_url": "https://example.com/VLC.AppImage.zsync", "digest": "sha256:%s"},
+    {"name": "VLC-3.0.24-x86_64.AppImage", "browser_download_url": "%s", "digest": "sha256:%s"},
+    {"name": "VLC-later.AppImage", "browser_download_url": "https://example.com/later.AppImage", "digest": "sha256:%s"}
+  ]}
+  """.formatted(OTHER_SHA256, APP_IMAGE_URL, APP_IMAGE_SHA256, OTHER_SHA256);
 
   @Test
   void returnsTheFixedDownloadsUnchangedOutsideOfLinux() {
@@ -145,10 +144,9 @@ final class ReleasePackageManagerTest {
   @Test
   void keepsTheFixedDownloadsWhenTheReleaseHasNoAppImage() {
     final Download[] fixed = { WINDOWS_DOWNLOAD };
-    final String release =
-      """
-      {"assets": [{"name": "VLC.tar.gz", "browser_download_url": "https://example.com/VLC.tar.gz", "digest": "sha256:%s"}]}
-      """.formatted(OTHER_SHA256);
+    final String release = """
+    {"assets": [{"name": "VLC.tar.gz", "browser_download_url": "https://example.com/VLC.tar.gz", "digest": "sha256:%s"}]}
+    """.formatted(OTHER_SHA256);
     final Download[] downloads = ReleasePackageManager.addAppImageDownload(fixed, LINUX_X86_64, _ -> Optional.of(release));
     assertArrayEquals(fixed, downloads);
   }
@@ -167,10 +165,9 @@ final class ReleasePackageManagerTest {
   )
   void refusesAnAppImageWithoutAUsableSha256Digest(final String digestField) {
     // the AppImage is run to extract it, so an AppImage that cannot be verified is never offered
-    final String release =
-      """
-      {"assets": [{"name": "VLC.AppImage", "browser_download_url": "https://example.com/VLC.AppImage"%s}]}
-      """.formatted(digestField);
+    final String release = """
+    {"assets": [{"name": "VLC.AppImage", "browser_download_url": "https://example.com/VLC.AppImage"%s}]}
+    """.formatted(digestField);
     final Download[] fixed = { WINDOWS_DOWNLOAD };
     final Download[] downloads = ReleasePackageManager.addAppImageDownload(fixed, LINUX_X86_64, _ -> Optional.of(release));
     assertArrayEquals(fixed, downloads);
@@ -178,13 +175,12 @@ final class ReleasePackageManagerTest {
 
   @Test
   void refusesTheReleaseWhenItsFirstAppImageHasNoDigest() {
-    final String release =
-      """
-      {"assets": [
-        {"name": "unverified.AppImage", "browser_download_url": "https://example.com/unverified.AppImage"},
-        {"name": "verified.AppImage", "browser_download_url": "https://example.com/verified.AppImage", "digest": "sha256:%s"}
-      ]}
-      """.formatted(APP_IMAGE_SHA256);
+    final String release = """
+    {"assets": [
+      {"name": "unverified.AppImage", "browser_download_url": "https://example.com/unverified.AppImage"},
+      {"name": "verified.AppImage", "browser_download_url": "https://example.com/verified.AppImage", "digest": "sha256:%s"}
+    ]}
+    """.formatted(APP_IMAGE_SHA256);
     final Optional<Download> download = ReleasePackageManager.findAppImageAsset(release, LINUX_X86_64);
     final boolean refused = download.isEmpty();
     assertTrue(refused, "the published AppImage is refused rather than replaced by another asset");
@@ -193,10 +189,9 @@ final class ReleasePackageManagerTest {
   @Test
   void acceptsDigestsInUpperCase() {
     final String upperHash = APP_IMAGE_SHA256.toUpperCase(Locale.ROOT);
-    final String release =
-      """
-      {"assets": [{"name": "VLC.AppImage", "browser_download_url": "https://example.com/VLC.AppImage", "digest": "sha256:%s"}]}
-      """.formatted(upperHash);
+    final String release = """
+    {"assets": [{"name": "VLC.AppImage", "browser_download_url": "https://example.com/VLC.AppImage", "digest": "sha256:%s"}]}
+    """.formatted(upperHash);
     final Optional<Download> download = ReleasePackageManager.findAppImageAsset(release, LINUX_X86_64);
     final boolean found = download.isPresent();
     assertTrue(found);
@@ -221,18 +216,17 @@ final class ReleasePackageManagerTest {
 
   @Test
   void skipsMalformedAssets() {
-    final String release =
-      """
-      {"assets": [
-        "not an object",
-        {"browser_download_url": "https://example.com/no-name.AppImage"},
-        {"name": "no-url.AppImage"},
-        {"name": {"nested": true}, "browser_download_url": "https://example.com/object-name.AppImage"},
-        {"name": "array-url.AppImage", "browser_download_url": ["https://example.com/array.AppImage"]},
-        {"name": null, "browser_download_url": "https://example.com/null-name.AppImage"},
-        {"name": "good.AppImage", "browser_download_url": "https://example.com/good.AppImage", "digest": "sha256:%s"}
-      ]}
-      """.formatted(APP_IMAGE_SHA256);
+    final String release = """
+    {"assets": [
+      "not an object",
+      {"browser_download_url": "https://example.com/no-name.AppImage"},
+      {"name": "no-url.AppImage"},
+      {"name": {"nested": true}, "browser_download_url": "https://example.com/object-name.AppImage"},
+      {"name": "array-url.AppImage", "browser_download_url": ["https://example.com/array.AppImage"]},
+      {"name": null, "browser_download_url": "https://example.com/null-name.AppImage"},
+      {"name": "good.AppImage", "browser_download_url": "https://example.com/good.AppImage", "digest": "sha256:%s"}
+    ]}
+    """.formatted(APP_IMAGE_SHA256);
     final Optional<Download> download = ReleasePackageManager.findAppImageAsset(release, LINUX_X86_64);
     final boolean found = download.isPresent();
     assertTrue(found);

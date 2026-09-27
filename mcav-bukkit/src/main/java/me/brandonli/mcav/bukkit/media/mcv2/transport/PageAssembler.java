@@ -66,7 +66,7 @@ public final class PageAssembler {
    * @throws Mcv2Exception if the page is invalid, belongs to another stream, contradicts the other pages of its frame,
    *                       or completes a frame that is not valid
    */
-  public byte@Nullable[] push(final byte[] symbols) throws Mcv2Exception {
+  public byte @Nullable [] push(final byte[] symbols) throws Mcv2Exception {
     final TransportPage page = TransportPages.readPage(symbols, this.symbolBits);
     if (page.getStreamId() != this.streamId) {
       throw new Mcv2Exception("Wrong stream");

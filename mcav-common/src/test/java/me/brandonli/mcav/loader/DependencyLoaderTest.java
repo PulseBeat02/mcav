@@ -455,18 +455,12 @@ final class DependencyLoaderTest {
   void keepsWorkingWhenAnOptionalModuleCannotBeLinked() {
     final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError("libgtk-x11-2.0.so.0: cannot open shared object file");
     final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
-    final boolean withoutGtk = DependencyLoader.loadOptionalModule(
-      () -> {
-        throw missingGtk;
-      },
-      "Face detection"
-    );
-    final boolean withoutClass = DependencyLoader.loadOptionalModule(
-      () -> {
-        throw failedInitializer;
-      },
-      "Face detection"
-    );
+    final boolean withoutGtk = DependencyLoader.loadOptionalModule(() -> {
+      throw missingGtk;
+    }, "Face detection");
+    final boolean withoutClass = DependencyLoader.loadOptionalModule(() -> {
+      throw failedInitializer;
+    }, "Face detection");
     assertFalse(withoutGtk);
     assertFalse(withoutClass);
   }

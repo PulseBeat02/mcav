@@ -204,9 +204,8 @@ public final class BrowserBenchmark {
       player.release();
     }
     final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
-    final String incompleteText = incomplete == 0
-      ? ""
-      : " (wall incomplete after " + FULL_TIMEOUT_MILLIS + " ms in " + incomplete + " rounds)";
+    final String incompleteText =
+      incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLIS + " ms in " + incomplete + " rounds)";
     return describe(first) + " / " + describe(full) + missedText + incompleteText;
   }
 

@@ -315,7 +315,13 @@ final class Mcv2ChannelTest {
     assertTrue(channel.send(large()) > 0);
     // the two pages on maps 500 and 501, then the keyframe's anchor
     final List<ClientboundMapItemDataPacket> sent = MapPackets.unbundle(this.server.getSentPackets(LOADED).getFirst());
-    assertEquals(List.of(500, 501, 100), sent.stream().map(packet -> packet.mapId().id()).toList());
+    assertEquals(
+      List.of(500, 501, 100),
+      sent
+        .stream()
+        .map(packet -> packet.mapId().id())
+        .toList()
+    );
   }
 
   @Test

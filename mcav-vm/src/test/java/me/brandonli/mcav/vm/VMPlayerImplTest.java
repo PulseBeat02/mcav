@@ -500,7 +500,9 @@ final class VMPlayerImplTest {
   @Test
   void shutsQemuDownAndCanStartAgainWhenTheConnectionFails() {
     final PlayerException failure = new PlayerException("Failed to connect");
-    when(this.vnc.start(any(VNCSource.class))).thenThrow(failure).thenReturn(true);
+    when(this.vnc.start(any(VNCSource.class)))
+      .thenThrow(failure)
+      .thenReturn(true);
     final VMPlayerImpl player = this.player();
 
     final PlayerException exception = assertThrows(PlayerException.class, () -> startDefaultMachine(player));
@@ -625,7 +627,9 @@ final class VMPlayerImplTest {
     final VMPlayerImpl.ProcessFactory factory = (_, _, _, _) -> created.getAndIncrement() == 0 ? previous : next;
     final VMPlayerImpl player = new VMPlayerImpl(this.vnc, this.finder, factory, this.audio);
     final IllegalStateException connectionFailure = new IllegalStateException("VNC initialization failed");
-    when(this.vnc.start(any(VNCSource.class))).thenThrow(connectionFailure).thenReturn(true);
+    when(this.vnc.start(any(VNCSource.class)))
+      .thenThrow(connectionFailure)
+      .thenReturn(true);
     final IllegalStateException original = assertThrows(IllegalStateException.class, () -> startDefaultMachine(player));
     assertSame(connectionFailure, original);
     this.assertIgnoresInputAndPlayback(player);
@@ -681,7 +685,9 @@ final class VMPlayerImplTest {
     assertSame(primary, thrown);
     assertArrayEquals(new Throwable[] { cleanup }, thrown.getSuppressed());
     when(this.qemu.isAlive()).thenReturn(false);
-    doAnswer(_ -> null).when(this.qemu).shutdown();
+    doAnswer(_ -> null)
+      .when(this.qemu)
+      .shutdown();
     final boolean repeated = player.release();
     final boolean finished = player.release();
     assertFalse(repeated);
@@ -701,7 +707,9 @@ final class VMPlayerImplTest {
     assertSame(primary, thrown);
     assertArrayEquals(new Throwable[] { cleanup }, thrown.getSuppressed());
     when(this.qemu.isAlive()).thenReturn(false);
-    doAnswer(_ -> null).when(this.qemu).shutdown();
+    doAnswer(_ -> null)
+      .when(this.qemu)
+      .shutdown();
     assertTrue(player.release());
     verify(this.qemu, times(2)).shutdown();
   }

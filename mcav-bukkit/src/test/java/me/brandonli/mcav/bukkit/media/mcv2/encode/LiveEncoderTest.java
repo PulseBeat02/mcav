@@ -422,7 +422,12 @@ final class LiveEncoderTest {
     // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
     // the motion's lambda uses
     assertEquals(72, play(settings, 64, 64, 4, 0).getStats().lambda());
-    assertEquals(72, play(EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts(), false)), 100, 70, 6, 9).getStats().lambda());
+    assertEquals(
+      72,
+      play(EncoderSettings.LIVE.withLive(live(0, LiveSearch.LIVE.shortcuts(), false)), 100, 70, 6, 9)
+        .getStats()
+        .lambda()
+    );
     // a fast pan raises it
     final Mcv2Encoder pan = play(settings, 100, 70, 6, 9);
     assertTrue(pan.getStats().lambda() > 72);
@@ -712,7 +717,8 @@ final class LiveEncoderTest {
     encoder.switchTo(EncoderSettings.LIVE_FAST);
     encoder.encode(scene(96, 64, 9, 3), 96, 64, 9);
     assertThrows(IllegalArgumentException.class, () -> encoder.switchTo(EncoderSettings.SHIP));
-    assertThrows(IllegalArgumentException.class, () -> new Mcv2Encoder(EncoderSettings.SHIP, POOL, 2, false).switchTo(EncoderSettings.LIVE)
+    assertThrows(IllegalArgumentException.class, () ->
+      new Mcv2Encoder(EncoderSettings.SHIP, POOL, 2, false).switchTo(EncoderSettings.LIVE)
     );
     assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
   }

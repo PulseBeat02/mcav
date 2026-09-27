@@ -170,7 +170,7 @@ final class VMSoundTest {
     final int start = left.length - AudioFilter.SAMPLE_RATE;
     int crossings = 0;
     for (int index = start + 1; index < left.length; index++) {
-      if ((left[index - 1] < 0) != (left[index] < 0)) {
+      if (left[index - 1] < 0 != left[index] < 0) {
         crossings++;
       }
     }
@@ -194,25 +194,23 @@ final class VMSoundTest {
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();
     final VMPlayer player = VMPlayer.create();
-    player
-      .getAudioAttachableCallback()
-      .attach(
-        AudioPipelineStep.of((samples, metadata) -> {
-          final long arrival = System.nanoTime();
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          final short[] left = leftChannel(copy);
-          final int windows = left.length / WINDOW_FRAMES;
-          for (int window = 0; window < windows; window++) {
-            final boolean tone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
-            // the samples of a chunk played before it arrived, the last one just now
-            final long end = (long) (window + 1) * WINDOW_FRAMES;
-            final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-            sound.add(new long[] { arrival - before, tone ? 1 : 0 });
-          }
-          return true;
-        })
-      );
+    player.getAudioAttachableCallback().attach(
+      AudioPipelineStep.of((samples, metadata) -> {
+        final long arrival = System.nanoTime();
+        final byte[] copy = new byte[samples.remaining()];
+        samples.get(copy);
+        final short[] left = leftChannel(copy);
+        final int windows = left.length / WINDOW_FRAMES;
+        for (int window = 0; window < windows; window++) {
+          final boolean tone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
+          // the samples of a chunk played before it arrived, the last one just now
+          final long end = (long) (window + 1) * WINDOW_FRAMES;
+          final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
+          sound.add(new long[] { arrival - before, tone ? 1 : 0 });
+        }
+        return true;
+      })
+    );
     final VideoAttachableCallback video = player.getVideoAttachableCallback();
     video.attach(
       VideoPipelineStep.of((image, metadata) -> {
@@ -247,7 +245,10 @@ final class VMSoundTest {
     assertTrue(offsets.size() >= 10, "matched " + offsets.size() + " of " + pictureOnsets.size() + " changes of the picture");
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
-    final long within = offsets.stream().filter(offset -> offset >= -40 && offset <= 80).count();
+    final long within = offsets
+      .stream()
+      .filter(offset -> offset >= -40 && offset <= 80)
+      .count();
     final int half = offsets.size() / 2;
     final double firstHalf = median(offsets.subList(0, half));
     final double secondHalf = median(offsets.subList(half, offsets.size()));
@@ -264,7 +265,10 @@ final class VMSoundTest {
       secondHalf
     );
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
-    final long acceptable = offsets.stream().filter(offset -> offset >= -90 && offset <= 185).count();
+    final long acceptable = offsets
+      .stream()
+      .filter(offset -> offset >= -90 && offset <= 185)
+      .count();
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, offsets.size());
     // the picture reaches the pipeline late now and then, when QEMU refreshes its VNC display late or the host is busy;
     // the sound is held so that the two arrive together in the middle, and they must not drift apart

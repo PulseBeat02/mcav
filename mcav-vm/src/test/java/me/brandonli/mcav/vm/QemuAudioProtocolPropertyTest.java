@@ -48,7 +48,11 @@ final class QemuAudioProtocolPropertyTest {
   Arbitrary<Sent> messages() {
     final Arbitrary<Sent> data = Arbitraries.integers()
       .between(0, 256)
-      .flatMap(frames -> Arbitraries.bytes().array(byte[].class).ofSize(frames * FRAME))
+      .flatMap(frames ->
+        Arbitraries.bytes()
+          .array(byte[].class)
+          .ofSize(frames * FRAME)
+      )
       .map(samples -> new Sent(QemuAudioProtocol.Kind.DATA, samples));
     final Arbitrary<Sent> others = Arbitraries.of(
       new Sent(QemuAudioProtocol.Kind.BEGIN, new byte[0]),

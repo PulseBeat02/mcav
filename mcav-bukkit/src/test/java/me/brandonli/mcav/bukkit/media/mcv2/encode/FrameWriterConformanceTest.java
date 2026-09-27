@@ -98,9 +98,8 @@ final class FrameWriterConformanceTest {
         // the reader expands patterns into the palettes they stand for; rewriting them restores the stored leaves
         roots.add(TreeReader.withPatterns(root, Mcv2Format.ROOT_SIZE));
       }
-      final FrameWriter.Options options = edgeOptions == null
-        ? FrameWriter.Options.production((parsed.getFlags() & Mcv2Format.ENDPOINT_565) != 0)
-        : edgeOptions;
+      final FrameWriter.Options options =
+        edgeOptions == null ? FrameWriter.Options.production((parsed.getFlags() & Mcv2Format.ENDPOINT_565) != 0) : edgeOptions;
       final byte[] written = FrameWriter.write(
         parsed.getWidth(),
         parsed.getHeight(),

@@ -219,17 +219,16 @@ final class CefBrowserPlayer implements BrowserPlayer {
   public void sendMouseEvent(final MouseClick type, final int x, final int y) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
     this.moveMouse(x, y);
-    final Runnable input =
-      switch (type) {
-        case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
-        case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, x, y, 1);
-        case DOUBLE -> () -> {
-          this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
-          this.click(HelperProtocol.BUTTON_LEFT, x, y, 2);
-        };
-        case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, x, y, HelperProtocol.BUTTON_LEFT, 1);
-        case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, x, y, HelperProtocol.BUTTON_LEFT, 1);
+    final Runnable input = switch (type) {
+      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
+      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, x, y, 1);
+      case DOUBLE -> () -> {
+        this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
+        this.click(HelperProtocol.BUTTON_LEFT, x, y, 2);
       };
+      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, x, y, HelperProtocol.BUTTON_LEFT, 1);
+      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, x, y, HelperProtocol.BUTTON_LEFT, 1);
+    };
     input.run();
   }
 
@@ -287,9 +286,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void reportIfDropped(final boolean queued) {
     if (!queued) {
       this.dropReports.log(
-          () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full")),
-          dropped -> this.report("Browser input queue is full", new RejectedExecutionException(dropped + " more inputs were dropped"))
-        );
+        () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full")),
+        dropped -> this.report("Browser input queue is full", new RejectedExecutionException(dropped + " more inputs were dropped"))
+      );
     }
   }
 

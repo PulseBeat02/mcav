@@ -62,7 +62,8 @@ final class CapabilityGuardTest {
     this.guard.markPreparing(Capability.VLC);
     final boolean vlcPreparing = this.guard.isPreparing(Capability.VLC);
     final boolean ytdlpPreparing = this.guard.isPreparing(Capability.YT_DLP);
-    final IllegalStateException notPreparing = assertThrows(IllegalStateException.class, () -> this.guard.checkNotPreparing(Capability.VLC)
+    final IllegalStateException notPreparing = assertThrows(IllegalStateException.class, () ->
+      this.guard.checkNotPreparing(Capability.VLC)
     );
     final IllegalStateException usable = assertThrows(IllegalStateException.class, () -> this.guard.checkUsable(Capability.VLC));
     final String notPreparingMessage = notPreparing.getMessage();
@@ -76,7 +77,8 @@ final class CapabilityGuardTest {
   @Test
   void namesTheCapabilityInTheMessage() {
     this.guard.markPreparing(Capability.YT_DLP);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> this.guard.checkNotPreparing(Capability.YT_DLP)
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      this.guard.checkNotPreparing(Capability.YT_DLP)
     );
     final String message = exception.getMessage();
     assertEquals(YTDLP_PREPARING, message);

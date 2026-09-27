@@ -53,13 +53,12 @@ import org.junit.jupiter.api.Test;
 final class PluginTranslatorTest {
 
   private static final Key KEY = Key.key("mcav", "test");
-  private static final String MESSAGES =
-    """
-    plain=Plain text
-    colored=<red>Hello <arg:0>, you are <arg:1></red>
-    link=Open $URL$ now
-    rich=Hello <red>world</red>
-    """;
+  private static final String MESSAGES = """
+  plain=Plain text
+  colored=<red>Hello <arg:0>, you are <arg:1></red>
+  link=Open $URL$ now
+  rich=Hello <red>world</red>
+  """;
 
   private PluginTranslator translator;
 

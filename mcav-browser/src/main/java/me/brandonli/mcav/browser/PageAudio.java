@@ -58,219 +58,218 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    * The script that hands the sound of a document to the binding: it mixes what the top document and the frames of its
    * origin play into one 48 kHz stereo Web Audio context, whose tap sends 16-bit little-endian PCM, and outputs silence.
    */
-  static final String SCRIPT =
-    """
-    // mcav: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
-    // page's own scripts. Without a sound card every Web Audio context and media element runs on a clock of its own, and
-    // sound carried between them stutters, so a document has one context: every AudioContext the page makes is the same
-    // one, at 48 kHz, and its audio and video elements play into it. A tap on it sends 16-bit little-endian PCM through
-    // the DevTools binding, and nothing reaches the speakers of the server: the tap outputs silence.
-    (() => {
-      'use strict';
-      // the helper places the script again when it could not tell whether the first time worked; once is enough
-      const PLACED = Symbol.for('mcav.audio');
-      if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+  static final String SCRIPT = """
+  // mcav: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
+  // page's own scripts. Without a sound card every Web Audio context and media element runs on a clock of its own, and
+  // sound carried between them stutters, so a document has one context: every AudioContext the page makes is the same
+  // one, at 48 kHz, and its audio and video elements play into it. A tap on it sends 16-bit little-endian PCM through
+  // the DevTools binding, and nothing reaches the speakers of the server: the tap outputs silence.
+  (() => {
+    'use strict';
+    // the helper places the script again when it could not tell whether the first time worked; once is enough
+    const PLACED = Symbol.for('mcav.audio');
+    if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
+      return;
+    }
+    Object.defineProperty(globalThis, PLACED, { value: true });
+    const BINDING = '__mcavAudio';
+    const INSTALLED = Symbol.for('mcav.audio.installed');
+    const RATE = 48000;
+    const CHUNK = 2048;
+    const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
+    if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
+      return;
+    }
+    Object.defineProperty(globalThis, INSTALLED, { value: true });
+
+    // the page runs after this script and may replace any of these; the originals are kept, so a page cannot reach the
+    // tap through a method it wrapped
+    const getter = (type, name) => Object.getOwnPropertyDescriptor(type.prototype, name).get;
+    const NativeAudioContext = AudioContext;
+    const nativeCreateGain = BaseAudioContext.prototype.createGain;
+    const nativeCreateScriptProcessor = BaseAudioContext.prototype.createScriptProcessor;
+    const nativeResume = AudioContext.prototype.resume;
+    const nativeAddEventListener = EventTarget.prototype.addEventListener;
+    const nativeGetChannelData = AudioBuffer.prototype.getChannelData;
+    const destinationOf = getter(BaseAudioContext, 'destination');
+    const stateOf = getter(BaseAudioContext, 'state');
+    const gainOf = getter(GainNode, 'gain');
+    const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value').set;
+    const inputBufferOf = getter(AudioProcessingEvent, 'inputBuffer');
+    const channelsOf = getter(AudioBuffer, 'numberOfChannels');
+    const NativeElementSource = MediaElementAudioSourceNode;
+    const nativeConnect = AudioNode.prototype.connect;
+    const nativeDisconnect = AudioNode.prototype.disconnect;
+    const nativeCreateElementSource = AudioContext.prototype.createMediaElementSource;
+    const nativePlay = HTMLMediaElement.prototype.play;
+    const toBase64 = btoa.bind(globalThis);
+    const fromCharCode = String.fromCharCode;
+    const construct = Reflect.construct;
+
+    let send = null;
+    const findSend = () => {
+      if (send === null && typeof globalThis[BINDING] === 'function') {
+        send = globalThis[BINDING];
+        // the page cannot send through it once it is taken
+        delete globalThis[BINDING];
+      }
+      return send;
+    };
+    findSend();
+
+    const toSample = (value) => {
+      const clamped = value > 1 ? 1 : value < -1 ? -1 : value || 0;
+      return Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
+    };
+
+    const deliver = (buffer) => {
+      const deliverTo = findSend();
+      if (deliverTo === null) {
         return;
       }
-      Object.defineProperty(globalThis, PLACED, { value: true });
-      const BINDING = '__mcavAudio';
-      const INSTALLED = Symbol.for('mcav.audio.installed');
-      const RATE = 48000;
-      const CHUNK = 2048;
-      const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
-      if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
+      const left = nativeGetChannelData.call(buffer, 0);
+      const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
+      const bytes = new Uint8Array(left.length * 4);
+      const view = new DataView(bytes.buffer);
+      let loud = false;
+      for (let frame = 0; frame < left.length; frame++) {
+        const first = toSample(left[frame]);
+        const second = toSample(right[frame]);
+        view.setInt16(frame * 4, first, true);
+        view.setInt16(frame * 4 + 2, second, true);
+        loud = loud || first !== 0 || second !== 0;
+      }
+      if (!loud) {
+        // silence is not sent: the server plays nothing when nothing arrives
         return;
       }
-      Object.defineProperty(globalThis, INSTALLED, { value: true });
-
-      // the page runs after this script and may replace any of these; the originals are kept, so a page cannot reach the
-      // tap through a method it wrapped
-      const getter = (type, name) => Object.getOwnPropertyDescriptor(type.prototype, name).get;
-      const NativeAudioContext = AudioContext;
-      const nativeCreateGain = BaseAudioContext.prototype.createGain;
-      const nativeCreateScriptProcessor = BaseAudioContext.prototype.createScriptProcessor;
-      const nativeResume = AudioContext.prototype.resume;
-      const nativeAddEventListener = EventTarget.prototype.addEventListener;
-      const nativeGetChannelData = AudioBuffer.prototype.getChannelData;
-      const destinationOf = getter(BaseAudioContext, 'destination');
-      const stateOf = getter(BaseAudioContext, 'state');
-      const gainOf = getter(GainNode, 'gain');
-      const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value').set;
-      const inputBufferOf = getter(AudioProcessingEvent, 'inputBuffer');
-      const channelsOf = getter(AudioBuffer, 'numberOfChannels');
-      const NativeElementSource = MediaElementAudioSourceNode;
-      const nativeConnect = AudioNode.prototype.connect;
-      const nativeDisconnect = AudioNode.prototype.disconnect;
-      const nativeCreateElementSource = AudioContext.prototype.createMediaElementSource;
-      const nativePlay = HTMLMediaElement.prototype.play;
-      const toBase64 = btoa.bind(globalThis);
-      const fromCharCode = String.fromCharCode;
-      const construct = Reflect.construct;
-
-      let send = null;
-      const findSend = () => {
-        if (send === null && typeof globalThis[BINDING] === 'function') {
-          send = globalThis[BINDING];
-          // the page cannot send through it once it is taken
-          delete globalThis[BINDING];
-        }
-        return send;
-      };
-      findSend();
-
-      const toSample = (value) => {
-        const clamped = value > 1 ? 1 : value < -1 ? -1 : value || 0;
-        return Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
-      };
-
-      const deliver = (buffer) => {
-        const deliverTo = findSend();
-        if (deliverTo === null) {
-          return;
-        }
-        const left = nativeGetChannelData.call(buffer, 0);
-        const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
-        const bytes = new Uint8Array(left.length * 4);
-        const view = new DataView(bytes.buffer);
-        let loud = false;
-        for (let frame = 0; frame < left.length; frame++) {
-          const first = toSample(left[frame]);
-          const second = toSample(right[frame]);
-          view.setInt16(frame * 4, first, true);
-          view.setInt16(frame * 4 + 2, second, true);
-          loud = loud || first !== 0 || second !== 0;
-        }
-        if (!loud) {
-          // silence is not sent: the server plays nothing when nothing arrives
-          return;
-        }
-        let text = '';
-        for (let start = 0; start < bytes.length; start += 0x2000) {
-          text += fromCharCode.apply(null, bytes.subarray(start, start + 0x2000));
-        }
-        deliverTo(toBase64(text));
-      };
-
-      // the one context of the document, made again should the page close it
-      let mixer = null;
-      const createMixer = () => {
-        const context = construct(NativeAudioContext, [{ sampleRate: RATE }], NativeAudioContext);
-        const bus = nativeCreateGain.call(context);
-        const tap = nativeCreateScriptProcessor.call(context, CHUNK, 2, 2);
-        const silence = nativeCreateGain.call(context);
-        setValue.call(gainOf.call(silence), 0);
-        nativeConnect.call(bus, tap);
-        nativeConnect.call(tap, silence);
-        nativeConnect.call(silence, destinationOf.call(context));
-        nativeAddEventListener.call(tap, 'audioprocess', (event) => deliver(inputBufferOf.call(event)));
-        return { context, bus };
-      };
-      const mixerOf = () => {
-        if (mixer === null || stateOf.call(mixer.context) === 'closed') {
-          mixer = createMixer();
-        }
-        return mixer;
-      };
-      // before the first click on the screen a page may not play sound; the click lets the context play
-      const resume = () => {
-        if (mixer !== null && stateOf.call(mixer.context) === 'suspended') {
-          nativeResume.call(mixer.context).catch(() => {});
-        }
-      };
-      for (const type of GESTURES) {
-        addEventListener(type, resume, { capture: true, passive: true });
+      let text = '';
+      for (let start = 0; start < bytes.length; start += 0x2000) {
+        text += fromCharCode.apply(null, bytes.subarray(start, start + 0x2000));
       }
+      deliverTo(toBase64(text));
+    };
 
-      const SharedAudioContext = new Proxy(NativeAudioContext, {
-        construct(target, args, newTarget) {
-          if (newTarget !== SharedAudioContext) {
-            // a subclass gets a context of its own, whose sound is not captured
-            return construct(target, args, newTarget);
-          }
-          return mixerOf().context;
-        },
-      });
-      globalThis.AudioContext = SharedAudioContext;
+    // the one context of the document, made again should the page close it
+    let mixer = null;
+    const createMixer = () => {
+      const context = construct(NativeAudioContext, [{ sampleRate: RATE }], NativeAudioContext);
+      const bus = nativeCreateGain.call(context);
+      const tap = nativeCreateScriptProcessor.call(context, CHUNK, 2, 2);
+      const silence = nativeCreateGain.call(context);
+      setValue.call(gainOf.call(silence), 0);
+      nativeConnect.call(bus, tap);
+      nativeConnect.call(tap, silence);
+      nativeConnect.call(silence, destinationOf.call(context));
+      nativeAddEventListener.call(tap, 'audioprocess', (event) => deliver(inputBufferOf.call(event)));
+      return { context, bus };
+    };
+    const mixerOf = () => {
+      if (mixer === null || stateOf.call(mixer.context) === 'closed') {
+        mixer = createMixer();
+      }
+      return mixer;
+    };
+    // before the first click on the screen a page may not play sound; the click lets the context play
+    const resume = () => {
+      if (mixer !== null && stateOf.call(mixer.context) === 'suspended') {
+        nativeResume.call(mixer.context).catch(() => {});
+      }
+    };
+    for (const type of GESTURES) {
+      addEventListener(type, resume, { capture: true, passive: true });
+    }
 
-      // whatever the page connects to the destination also reaches the tap
-      const isOutput = (target) => mixer !== null && target === destinationOf.call(mixer.context);
-      AudioNode.prototype.connect = function connect(target, ...rest) {
-        const result = nativeConnect.call(this, target, ...rest);
-        if (isOutput(target)) {
-          nativeConnect.call(this, mixer.bus, rest.length > 0 ? rest[0] : 0);
-        }
-        return result;
-      };
-      AudioNode.prototype.disconnect = function disconnect(...args) {
-        const result = nativeDisconnect.apply(this, args);
-        if (isOutput(args[0])) {
-          try {
-            nativeDisconnect.call(this, mixer.bus);
-          } catch (error) {
-            // it was not connected to the tap
-          }
-        }
-        return result;
-      };
-
-      // an element plays into the context once it plays; should the page ask for its source, it gets the same node, now
-      // without the way to the tap, which its own graph takes over
-      const sources = new WeakMap();
-      const sourceOf = (context, element, byPage) => {
-        const known = sources.get(element);
-        if (known !== undefined && known.node.context === context) {
-          if (byPage && !known.byPage) {
-            known.byPage = true;
-            nativeDisconnect.call(known.node);
-          }
-          return known.node;
-        }
-        const node = nativeCreateElementSource.call(context, element);
-        sources.set(element, { node, byPage });
-        if (!byPage) {
-          nativeConnect.call(node, mixerOf().bus);
-        }
-        return node;
-      };
-      NativeAudioContext.prototype.createMediaElementSource = function createMediaElementSource(element) {
-        return sourceOf(this, element, true);
-      };
-      const SharedElementSource = new Proxy(NativeElementSource, {
-        construct(target, args, newTarget) {
-          const options = args[1];
-          const element = options !== null && typeof options === 'object' ? options.mediaElement : undefined;
-          if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
-            return sourceOf(args[0], element, true);
-          }
+    const SharedAudioContext = new Proxy(NativeAudioContext, {
+      construct(target, args, newTarget) {
+        if (newTarget !== SharedAudioContext) {
+          // a subclass gets a context of its own, whose sound is not captured
           return construct(target, args, newTarget);
-        },
-      });
-      globalThis.MediaElementAudioSourceNode = SharedElementSource;
-      const capture = (element) => {
-        if (sources.has(element)) {
-          return;
         }
+        return mixerOf().context;
+      },
+    });
+    globalThis.AudioContext = SharedAudioContext;
+
+    // whatever the page connects to the destination also reaches the tap
+    const isOutput = (target) => mixer !== null && target === destinationOf.call(mixer.context);
+    AudioNode.prototype.connect = function connect(target, ...rest) {
+      const result = nativeConnect.call(this, target, ...rest);
+      if (isOutput(target)) {
+        nativeConnect.call(this, mixer.bus, rest.length > 0 ? rest[0] : 0);
+      }
+      return result;
+    };
+    AudioNode.prototype.disconnect = function disconnect(...args) {
+      const result = nativeDisconnect.apply(this, args);
+      if (isOutput(args[0])) {
         try {
-          sourceOf(mixerOf().context, element, false);
+          nativeDisconnect.call(this, mixer.bus);
         } catch (error) {
-          // the element plays as without mcav
+          // it was not connected to the tap
         }
-      };
-      HTMLMediaElement.prototype.play = function play(...args) {
-        capture(this);
-        return nativePlay.apply(this, args);
-      };
-      addEventListener(
-        'play',
-        (event) => {
-          if (event.target instanceof HTMLMediaElement) {
-            capture(event.target);
-          }
-        },
-        true
-      );
-    })();
-    """;
+      }
+      return result;
+    };
+
+    // an element plays into the context once it plays; should the page ask for its source, it gets the same node, now
+    // without the way to the tap, which its own graph takes over
+    const sources = new WeakMap();
+    const sourceOf = (context, element, byPage) => {
+      const known = sources.get(element);
+      if (known !== undefined && known.node.context === context) {
+        if (byPage && !known.byPage) {
+          known.byPage = true;
+          nativeDisconnect.call(known.node);
+        }
+        return known.node;
+      }
+      const node = nativeCreateElementSource.call(context, element);
+      sources.set(element, { node, byPage });
+      if (!byPage) {
+        nativeConnect.call(node, mixerOf().bus);
+      }
+      return node;
+    };
+    NativeAudioContext.prototype.createMediaElementSource = function createMediaElementSource(element) {
+      return sourceOf(this, element, true);
+    };
+    const SharedElementSource = new Proxy(NativeElementSource, {
+      construct(target, args, newTarget) {
+        const options = args[1];
+        const element = options !== null && typeof options === 'object' ? options.mediaElement : undefined;
+        if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
+          return sourceOf(args[0], element, true);
+        }
+        return construct(target, args, newTarget);
+      },
+    });
+    globalThis.MediaElementAudioSourceNode = SharedElementSource;
+    const capture = (element) => {
+      if (sources.has(element)) {
+        return;
+      }
+      try {
+        sourceOf(mixerOf().context, element, false);
+      } catch (error) {
+        // the element plays as without mcav
+      }
+    };
+    HTMLMediaElement.prototype.play = function play(...args) {
+      capture(this);
+      return nativePlay.apply(this, args);
+    };
+    addEventListener(
+      'play',
+      (event) => {
+        if (event.target instanceof HTMLMediaElement) {
+          capture(event.target);
+        }
+      },
+      true
+    );
+  })();
+  """;
 
   /**
    * How many seconds of sound pass on per second at most, and at once after a quiet time.

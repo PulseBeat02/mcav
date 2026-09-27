@@ -270,7 +270,7 @@ public final class Mcv2Natives {
    * @return its bytes, or null when there is none
    * @throws UncheckedIOException if it cannot be read
    */
-  static byte@Nullable[] read(final @Nullable InputStream stream) {
+  static byte @Nullable [] read(final @Nullable InputStream stream) {
     if (stream == null) {
       return null;
     }
@@ -295,7 +295,7 @@ public final class Mcv2Natives {
     final String mode,
     final @Nullable String platform,
     final @Nullable Path folder,
-    final Function<String, byte@Nullable[]> resources,
+    final Function<String, byte @Nullable []> resources,
     final @Nullable String highest
   ) {
     if (OFF.equals(mode)) {

@@ -137,7 +137,7 @@ final class Mcv2NativesTest {
     assertThrows(UncheckedIOException.class, () -> Mcv2Natives.read(failing));
   }
 
-  private static byte@Nullable[] unexpected(final String platform) {
+  private static byte @Nullable [] unexpected(final String platform) {
     throw new AssertionError("no library should be read for " + platform);
   }
 
@@ -268,7 +268,11 @@ final class Mcv2NativesTest {
     for (final String line : Files.readAllLines(cpuinfo)) {
       // x86-64 lists its features as flags, AArch64 as Features
       if (line.startsWith("flags") || line.startsWith("Features")) {
-        flags.addAll(Splitter.on(' ').omitEmptyStrings().splitToList(line.substring(line.indexOf(':') + 1)));
+        flags.addAll(
+          Splitter.on(' ')
+            .omitEmptyStrings()
+            .splitToList(line.substring(line.indexOf(':') + 1))
+        );
         break;
       }
     }

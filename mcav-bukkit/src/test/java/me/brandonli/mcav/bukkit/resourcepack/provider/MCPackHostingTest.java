@@ -323,9 +323,9 @@ final class MCPackHostingTest {
     final Thread testThread = Thread.currentThread();
     final CountDownLatch release = new CountDownLatch(1);
     this.service.setUploadHook(() -> {
-        testThread.interrupt();
-        awaitRelease(release);
-      });
+      testThread.interrupt();
+      awaitRelease(release);
+    });
     final MCPackHosting hosting = this.createHosting(this.zip);
 
     try {

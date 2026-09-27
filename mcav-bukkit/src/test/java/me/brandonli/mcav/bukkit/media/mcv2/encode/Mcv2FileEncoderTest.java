@@ -95,7 +95,13 @@ final class Mcv2FileEncoderTest {
     assertTrue(result.millisecondsPerFrame() > 0);
     final List<byte[]> frames = frames(out.toByteArray());
     assertEquals(count, frames.size());
-    assertEquals(result.bytes(), frames.stream().mapToLong(frame -> frame.length).sum());
+    assertEquals(
+      result.bytes(),
+      frames
+        .stream()
+        .mapToLong(frame -> frame.length)
+        .sum()
+    );
     // the same frames, encoded one by one outside any budget, give the same bytes
     final Mcv2Encoder alone = new Mcv2Encoder(EncoderSettings.LIVE, ForkJoinPool.commonPool(), 1, false);
     try (Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
@@ -172,7 +178,9 @@ final class Mcv2FileEncoderTest {
     doThrow(new FFmpegFrameGrabber.Exception("stuck")).when(grabber).close();
     final Mcv2FileEncoder.GrabberReader reader = new Mcv2FileEncoder.GrabberReader(grabber, 8, 8);
     assertTrue(
-      assertThrows(IOException.class, () -> reader.read(new byte[192])).getMessage().startsWith("Cannot decode the video: broken")
+      assertThrows(IOException.class, () -> reader.read(new byte[192]))
+        .getMessage()
+        .startsWith("Cannot decode the video: broken")
     );
     assertTrue(assertThrows(IOException.class, reader::close).getMessage().startsWith("Cannot close the video: stuck"));
   }

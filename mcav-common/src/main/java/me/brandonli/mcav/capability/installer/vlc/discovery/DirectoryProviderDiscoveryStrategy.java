@@ -244,7 +244,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    *
    * @return the children of the directory, or {@code null} if it is not a readable directory or needs no search
    */
-  private static File@Nullable[] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
+  private static File @Nullable [] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
     final Path realPath = toRealDirectory(directory);
     if (realPath == null) {
       return null;

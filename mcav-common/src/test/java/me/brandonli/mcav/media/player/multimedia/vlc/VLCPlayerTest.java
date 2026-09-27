@@ -107,9 +107,9 @@ final class VLCPlayerTest {
 
   VLCPlayerTest() {
     this.player.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
   }
 
   @AfterEach
@@ -493,8 +493,8 @@ final class VLCPlayerTest {
     final AssertionError reporting = new AssertionError("handler failed");
     when(factory.videoSurfaces()).thenThrow(failure);
     this.player.setExceptionHandler((_, _) -> {
-        throw reporting;
-      });
+      throw reporting;
+    });
     final UnsatisfiedLinkError thrown = assertThrows(UnsatisfiedLinkError.class, () -> this.player.start(this.video));
     final Throwable[] suppressed = thrown.getSuppressed();
     assertSame(failure, thrown);
@@ -509,8 +509,8 @@ final class VLCPlayerTest {
     final AssertionError failure = new AssertionError("video setup failed");
     when(factory.videoSurfaces()).thenThrow(failure);
     this.player.setExceptionHandler((_, _) -> {
-        throw failure;
-      });
+      throw failure;
+    });
     final AssertionError thrown = assertThrows(AssertionError.class, () -> this.player.start(this.video));
     final Throwable[] suppressed = thrown.getSuppressed();
     assertSame(failure, thrown);
@@ -619,8 +619,8 @@ final class VLCPlayerTest {
     final AssertionError reporting = new AssertionError("reporter failed");
     this.vlc.failFactoryCreation(failure);
     this.player.setExceptionHandler((_, _) -> {
-        throw reporting;
-      });
+      throw reporting;
+    });
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.player.start(this.video));
     final Throwable[] suppressed = thrown.getSuppressed();
     final int references = this.references();
@@ -655,17 +655,17 @@ final class VLCPlayerTest {
     final CountDownLatch escape = new CountDownLatch(1);
     final AtomicReference<Boolean> callbackResult = new AtomicReference<>();
     this.attachVideoFilter((_, _) -> {
-        entered.countDown();
-        try {
-          escape.await();
-        } catch (final InterruptedException exception) {
-          final Thread current = Thread.currentThread();
-          current.interrupt();
-        }
-        final boolean result = releaseInside ? this.player.release() : this.player.start(this.video);
-        callbackResult.set(result);
-        return false;
-      });
+      entered.countDown();
+      try {
+        escape.await();
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
+      final boolean result = releaseInside ? this.player.release() : this.player.start(this.video);
+      callbackResult.set(result);
+      return false;
+    });
     final AtomicReference<Boolean> replacementResult = new AtomicReference<>();
     final Thread replacement = new Thread(() -> replacementResult.set(this.player.start(this.audio)), "vlc-replacement");
     replacement.setDaemon(true);
@@ -722,13 +722,10 @@ final class VLCPlayerTest {
     final AtomicReference<Boolean> replacementResult = new AtomicReference<>();
     final AtomicReference<Boolean> competingResult = new AtomicReference<>();
     final Thread replacement = new Thread(() -> replacementResult.set(this.player.start(this.audio)), "vlc-blocked-replacement");
-    final Thread competing = new Thread(
-      () -> {
-        final boolean result = cancel ? this.player.release() : this.player.start(this.video);
-        competingResult.set(result);
-      },
-      "vlc-competing-lifecycle"
-    );
+    final Thread competing = new Thread(() -> {
+      final boolean result = cancel ? this.player.release() : this.player.start(this.video);
+      competingResult.set(result);
+    }, "vlc-competing-lifecycle");
     replacement.setDaemon(true);
     competing.setDaemon(true);
     try {
@@ -833,9 +830,9 @@ final class VLCPlayerTest {
     final AtomicReference<Boolean> released = new AtomicReference<>();
     final AtomicReference<Boolean> restarted = new AtomicReference<>();
     this.player.setExceptionHandler((_, _) -> {
-        restarted.set(this.player.start(this.audio));
-        released.set(this.player.release());
-      });
+      restarted.set(this.player.start(this.audio));
+      released.set(this.player.release());
+    });
     final boolean started = this.player.start(this.video);
     final Boolean releaseResult = released.get();
     final Boolean restartResult = restarted.get();
@@ -1019,16 +1016,16 @@ final class VLCPlayerTest {
     final CountDownLatch entered = new CountDownLatch(1);
     final AtomicBoolean finished = new AtomicBoolean();
     this.attachVideoFilter((_, _) -> {
-        entered.countDown();
-        try {
-          Thread.sleep(300);
-        } catch (final InterruptedException exception) {
-          final Thread renderThread = Thread.currentThread();
-          renderThread.interrupt();
-        }
-        finished.set(true);
-        return false;
-      });
+      entered.countDown();
+      try {
+        Thread.sleep(300);
+      } catch (final InterruptedException exception) {
+        final Thread renderThread = Thread.currentThread();
+        renderThread.interrupt();
+      }
+      finished.set(true);
+      return false;
+    });
     this.startVideo();
     final MediaPlayer mediaPlayer = mock(MediaPlayer.class);
     this.renderFrame(mediaPlayer, 1, 1, RED);
@@ -1047,17 +1044,17 @@ final class VLCPlayerTest {
     final CountDownLatch finished = new CountDownLatch(1);
     final AtomicReference<Boolean> repeatedRelease = new AtomicReference<>();
     this.attachVideoFilter((_, _) -> {
-        entered.countDown();
-        try {
-          escape.await();
-        } catch (final InterruptedException exception) {
-          final Thread current = Thread.currentThread();
-          current.interrupt();
-        }
-        repeatedRelease.set(this.player.release());
-        finished.countDown();
-        return false;
-      });
+      entered.countDown();
+      try {
+        escape.await();
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
+      repeatedRelease.set(this.player.release());
+      finished.countDown();
+      return false;
+    });
     final AtomicReference<Boolean> firstRelease = new AtomicReference<>();
     final Thread releaser = new Thread(() -> firstRelease.set(this.player.release()), "vlc-external-release");
     releaser.setDaemon(true);
@@ -1090,11 +1087,11 @@ final class VLCPlayerTest {
     final AtomicReference<Boolean> releasedFromPipeline = new AtomicReference<>();
     final CountDownLatch done = new CountDownLatch(1);
     this.attachVideoFilter((_, _) -> {
-        final boolean released = this.player.release();
-        releasedFromPipeline.set(released);
-        done.countDown();
-        return false;
-      });
+      final boolean released = this.player.release();
+      releasedFromPipeline.set(released);
+      done.countDown();
+      return false;
+    });
     this.startVideo();
     final MediaPlayer mediaPlayer = mock(MediaPlayer.class);
     this.renderFrame(mediaPlayer, 1, 1, RED);
@@ -1220,13 +1217,12 @@ final class VLCPlayerTest {
   @ParameterizedTest
   @ValueSource(strings = { "pause", "resume", "seek" })
   void idleControlsAllowReleaseFromAnotherThread(final String operation) throws Exception {
-    final boolean controlled =
-      switch (operation) {
-        case "pause" -> this.player.pause();
-        case "resume" -> this.player.resume();
-        case "seek" -> this.player.seek(100L);
-        default -> throw new AssertionError(operation);
-      };
+    final boolean controlled = switch (operation) {
+      case "pause" -> this.player.pause();
+      case "resume" -> this.player.resume();
+      case "seek" -> this.player.seek(100L);
+      default -> throw new AssertionError(operation);
+    };
     assertFalse(controlled);
     final CompletableFuture<Boolean> release = CompletableFuture.supplyAsync(this.player::release);
     final boolean released = release.get(5L, TimeUnit.SECONDS);

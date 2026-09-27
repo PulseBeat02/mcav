@@ -125,9 +125,8 @@ final class GlobalMotion {
       (_, candidate) -> {
         final int dx = windowX(candidate, coarseX, PHASE_WINDOW);
         final int dy = windowY(candidate, coarseY, PHASE_WINDOW);
-        errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
-          ? Long.MAX_VALUE
-          : sampledError(source, reference, width, height, dx, dy);
+        errors[candidate] =
+          Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE ? Long.MAX_VALUE : sampledError(source, reference, width, height, dx, dy);
       }
     );
     long best = Long.MAX_VALUE;
@@ -218,9 +217,8 @@ final class GlobalMotion {
       (_, candidate) -> {
         final int dx = windowX(candidate, coarseX, PROJECTION_WINDOW);
         final int dy = windowY(candidate, coarseY, PROJECTION_WINDOW);
-        errors[candidate] = Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE
-          ? Long.MAX_VALUE
-          : sampledError(source, reference, width, height, dx, dy);
+        errors[candidate] =
+          Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE ? Long.MAX_VALUE : sampledError(source, reference, width, height, dx, dy);
       }
     );
     long best = Long.MAX_VALUE;

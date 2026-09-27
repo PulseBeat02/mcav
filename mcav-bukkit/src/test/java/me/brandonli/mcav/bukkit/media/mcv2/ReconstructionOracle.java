@@ -317,9 +317,9 @@ public final class ReconstructionOracle {
         final float c1 = (float) interpolate(nodes, 1, 3, grid, size, x, y);
         final float c2 = (float) interpolate(nodes, 2, 3, grid, size, x, y);
         final int at = (y * size + x) * 3;
-        out[at] = rgb8(prediction[at] * 0.25f + ((c0 + c1) - c2));
+        out[at] = rgb8(prediction[at] * 0.25f + (c0 + c1 - c2));
         out[at + 1] = rgb8(prediction[at + 1] * 0.25f + (c0 + c2));
-        out[at + 2] = rgb8(prediction[at + 2] * 0.25f + ((c0 - c1) - c2));
+        out[at + 2] = rgb8(prediction[at + 2] * 0.25f + (c0 - c1 - c2));
       }
     }
   }
@@ -340,7 +340,7 @@ public final class ReconstructionOracle {
    * @param out        the reconstructed channels
    */
   public static void reduced(
-    final int@Nullable[] prediction,
+    final int @Nullable [] prediction,
     final byte[] record,
     final int offset,
     final int luma,
@@ -366,17 +366,17 @@ public final class ReconstructionOracle {
         final float cg = (float) interpolate(nodes, 65, 2, chroma, size, x, y);
         final int at = (y * size + x) * 3;
         if (prediction == null) {
-          out[at] = rgb8((yv + co) - cg);
+          out[at] = rgb8(yv + co - cg);
           out[at + 1] = rgb8(yv + cg);
-          out[at + 2] = rgb8((yv - co) - cg);
+          out[at + 2] = rgb8(yv - co - cg);
           continue;
         }
         final double ys = yv * scale;
         final double cos = co * scale;
         final double cgs = cg * scale;
-        out[at] = rgb8((float) (prediction[at] * 0.25 + ((ys + cos) - cgs)));
+        out[at] = rgb8((float) (prediction[at] * 0.25 + (ys + cos - cgs)));
         out[at + 1] = rgb8((float) (prediction[at + 1] * 0.25 + (ys + cgs)));
-        out[at + 2] = rgb8((float) (prediction[at + 2] * 0.25 + ((ys - cos) - cgs)));
+        out[at + 2] = rgb8((float) (prediction[at + 2] * 0.25 + (ys - cos - cgs)));
       }
     }
   }
@@ -471,9 +471,9 @@ public final class ReconstructionOracle {
           final float by = record[body + 1];
           final float bco = record[body + 2];
           final float bcg = record[body + 3];
-          out[at] = rgb8(p0 * gain + ((by + bco) - bcg));
+          out[at] = rgb8(p0 * gain + (by + bco - bcg));
           out[at + 1] = rgb8(p1 * gain + (by + bcg));
-          out[at + 2] = rgb8(p2 * gain + ((by - bco) - bcg));
+          out[at + 2] = rgb8(p2 * gain + (by - bco - bcg));
           continue;
         }
         if (kind == CompactRecord.DC_Y) {
@@ -487,7 +487,7 @@ public final class ReconstructionOracle {
         float cov = co;
         float cgv = cg;
         if (kind == CompactRecord.LOW2) {
-          yv = ((float) record[body] + (float) record[body + 1] * axis[x]) + (float) record[body + 2] * axis[y];
+          yv = (float) record[body] + (float) record[body + 1] * axis[x] + (float) record[body + 2] * axis[y];
           cov = record[body + 3];
           cgv = record[body + 4];
         } else {
@@ -496,9 +496,9 @@ public final class ReconstructionOracle {
         final float ys = yv * step;
         final float cos = cov * step;
         final float cgs = cgv * step;
-        out[at] = rgb8(p0 + ((ys + cos) - cgs));
+        out[at] = rgb8(p0 + (ys + cos - cgs));
         out[at + 1] = rgb8(p1 + (ys + cgs));
-        out[at + 2] = rgb8(p2 + ((ys - cos) - cgs));
+        out[at + 2] = rgb8(p2 + (ys - cos - cgs));
       }
     }
   }

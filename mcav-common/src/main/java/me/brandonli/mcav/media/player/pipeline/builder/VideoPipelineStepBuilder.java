@@ -26,7 +26,8 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
  * Builds a video pipeline from {@link VideoFilter}s; create one with {@link PipelineBuilder#video()}.
  */
 public abstract class VideoPipelineStepBuilder
-  extends AbstractPipelineStepBuilder<ImageBuffer, OriginalVideoMetadata, VideoFilter, VideoPipelineStep, VideoPipelineStepBuilder> {
+  extends AbstractPipelineStepBuilder<ImageBuffer, OriginalVideoMetadata, VideoFilter, VideoPipelineStep, VideoPipelineStepBuilder>
+{
 
   /**
    * Constructs an empty builder.

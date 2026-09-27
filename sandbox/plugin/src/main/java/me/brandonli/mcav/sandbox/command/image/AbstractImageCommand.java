@@ -168,7 +168,8 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final Pair<Integer, Integer> resolution = request.getResolution();
     final ImageConfigurationProvider configProvider = request.getConfigProvider();
     try {
-      final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () -> this.showImage(generation, resolution, configProvider, sender)
+      final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () ->
+        this.showImage(generation, resolution, configProvider, sender)
       );
       if (!scheduled) {
         this.manager.discardLoaded(generation);

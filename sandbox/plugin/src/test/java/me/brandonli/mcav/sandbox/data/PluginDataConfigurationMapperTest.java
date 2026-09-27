@@ -58,28 +58,27 @@ import org.mockito.Mockito;
  */
 final class PluginDataConfigurationMapperTest {
 
-  private static final String FULL_CONFIGURATION =
-    """
-    language: en_us
-    discord-bot:
-      enabled: true
-      token: secret-token
-      guild-id: "123"
-      channel-id: "456"
-    http-server:
-      enabled: true
-      host-name: mc.example.com
-      port: 8080
-    simple-voice-chat:
-      enabled: true
-    mcv2:
-      encoder-threads: 3
-      native: "off"
-    browser:
-      allow-private-networks: true
-      javascript-jit: true
-      autoplay-sound: true
-    """;
+  private static final String FULL_CONFIGURATION = """
+  language: en_us
+  discord-bot:
+    enabled: true
+    token: secret-token
+    guild-id: "123"
+    channel-id: "456"
+  http-server:
+    enabled: true
+    host-name: mc.example.com
+    port: 8080
+  simple-voice-chat:
+    enabled: true
+  mcv2:
+    encoder-threads: 3
+    native: "off"
+  browser:
+    allow-private-networks: true
+    javascript-jit: true
+    autoplay-sound: true
+  """;
 
   @TempDir
   private Path folder;

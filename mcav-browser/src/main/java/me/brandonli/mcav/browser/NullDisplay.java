@@ -453,7 +453,9 @@ final class NullDisplay implements AutoCloseable {
         closeQuietly(evicted);
       }
       // a client waits in a read most of its time, so each gets a virtual thread
-      Thread.ofVirtual().name("mcav-browser-null-display-client").start(() -> this.serve(client));
+      Thread.ofVirtual()
+        .name("mcav-browser-null-display-client")
+        .start(() -> this.serve(client));
     }
   }
 
@@ -545,12 +547,11 @@ final class NullDisplay implements AutoCloseable {
    */
   private static ByteOrder readSetup(final DataInputStream in, final OutputStream output, final byte[] cookie) throws IOException {
     final int orderByte = in.readUnsignedByte();
-    final ByteOrder order =
-      switch (orderByte) {
-        case 'l' -> ByteOrder.LITTLE_ENDIAN;
-        case 'B' -> ByteOrder.BIG_ENDIAN;
-        default -> throw new ProtocolException("The connection setup names the byte order " + orderByte);
-      };
+    final ByteOrder order = switch (orderByte) {
+      case 'l' -> ByteOrder.LITTLE_ENDIAN;
+      case 'B' -> ByteOrder.BIG_ENDIAN;
+      default -> throw new ProtocolException("The connection setup names the byte order " + orderByte);
+    };
     final byte[] head = new byte[11];
     in.readFully(head);
     final ByteBuffer setup = ByteBuffer.wrap(head).order(order);

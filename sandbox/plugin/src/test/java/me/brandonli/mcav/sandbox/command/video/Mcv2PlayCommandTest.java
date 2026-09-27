@@ -260,9 +260,9 @@ final class Mcv2PlayCommandTest {
     final SolidFrames frames = new SolidFrames(3, new CountDownLatch(0));
     final List<String> opened = new ArrayList<>();
     this.command.setOpener((video, width, height) -> {
-        opened.add(video + " " + width + "x" + height);
-        return frames;
-      });
+      opened.add(video + " " + width + "x" + height);
+      return frames;
+    });
     this.command.encode(this.sender, "clip.mp4", "clip.mcs", "16x16", Mcv2Profile.LIVE);
     final List<String> told = this.finish();
     assertEquals(List.of("clip.mp4 16x16"), opened);

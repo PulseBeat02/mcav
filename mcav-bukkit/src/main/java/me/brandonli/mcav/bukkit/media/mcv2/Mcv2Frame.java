@@ -70,16 +70,16 @@ public final class Mcv2Frame {
 
   private final int[] leaves;
 
-  private final byte@Nullable[] endpointTable;
+  private final byte @Nullable [] endpointTable;
 
-  private final byte@Nullable[][] selectorTables;
+  private final byte @Nullable [][] selectorTables;
 
   Mcv2Frame(
     final byte[] data,
     final Header header,
     final int[] leaves,
-    final byte@Nullable[] endpointTable,
-    final byte@Nullable[][] selectorTables
+    final byte @Nullable [] endpointTable,
+    final byte @Nullable [][] selectorTables
   ) {
     this.data = data;
     this.width = header.width();
@@ -129,11 +129,11 @@ public final class Mcv2Frame {
     return this.leaves;
   }
 
-  byte@Nullable[] endpointTable() {
+  byte @Nullable [] endpointTable() {
     return this.endpointTable;
   }
 
-  byte@Nullable[] selectorTable(final int size) {
+  byte @Nullable [] selectorTable(final int size) {
     final byte[][] tables = this.selectorTables;
     return tables == null ? null : tables[Mcv2Format.sizeIndex(size)];
   }
@@ -143,7 +143,7 @@ public final class Mcv2Frame {
    *
    * @return the table, or null when the frame has none
    */
-  public byte@Nullable[] getEndpointTable() {
+  public byte @Nullable [] getEndpointTable() {
     final byte[] table = this.endpointTable;
     return table == null ? null : table.clone();
   }
@@ -154,7 +154,7 @@ public final class Mcv2Frame {
    * @param size the leaf size, 8, 16 or 32
    * @return the table of {@code 1 + size / 8}-byte words, or null when the frame names no words of that size
    */
-  public byte@Nullable[] getSelectorTable(final int size) {
+  public byte @Nullable [] getSelectorTable(final int size) {
     Preconditions.checkArgument(Mcv2Format.isBlockSize(size), "Invalid leaf size %s", size);
     final byte[] table = this.selectorTable(size);
     return table == null ? null : table.clone();

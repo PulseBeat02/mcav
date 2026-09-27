@@ -62,17 +62,17 @@ final class FrameJob {
 
   private final int trials;
 
-  private final int@Nullable[] previousMotion;
+  private final int @Nullable [] previousMotion;
 
-  private final byte@Nullable[][] levelPictures;
+  private final byte @Nullable [][] levelPictures;
 
   private final Buffers buffers;
 
   private final int[] columns = new int[BLOCK_SIZES];
 
-  private byte@Nullable[] halfReference;
+  private byte @Nullable [] halfReference;
 
-  private byte@Nullable[] quarterReference;
+  private byte @Nullable [] quarterReference;
 
   /** The side of the square cells of a motion field, one vector each: the smallest block. */
   static final int MOTION_CELL = SMALLEST_BLOCK;
@@ -158,8 +158,8 @@ final class FrameJob {
     final boolean keyframe,
     final int[] vectorsX,
     final int[] vectorsY,
-    final int@Nullable[] previousMotion,
-    final byte@Nullable[][] levelPictures
+    final int @Nullable [] previousMotion,
+    final byte @Nullable [][] levelPictures
   ) {
     this(settings, source, reference, width, height, keyframe, vectorsX, vectorsY, previousMotion, levelPictures, null);
   }
@@ -188,8 +188,8 @@ final class FrameJob {
     final boolean keyframe,
     final int[] vectorsX,
     final int[] vectorsY,
-    final int@Nullable[] previousMotion,
-    final byte@Nullable[][] levelPictures,
+    final int @Nullable [] previousMotion,
+    final byte @Nullable [][] levelPictures,
     final @Nullable Buffers reuse
   ) {
     this.settings = settings;
@@ -276,7 +276,7 @@ final class FrameJob {
    * @param level the level
    * @return the picture, or null for the reference search, which decodes its trials instead
    */
-  byte@Nullable[] levelPicture(final int level) {
+  byte @Nullable [] levelPicture(final int level) {
     final byte[][] pictures = this.levelPictures;
     return pictures == null ? null : pictures[level];
   }

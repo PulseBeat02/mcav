@@ -232,18 +232,17 @@ final class ReconstructionPropertyTest {
     } else if (compact == CompactRecord.PQ64) {
       record[4] = (byte) random.nextInt(16);
     }
-    final Kernel run =
-      switch (kernel) {
-        case 0 -> (out, score) -> Reconstruction.predicted(prediction, size, out, score);
-        case 1 -> (out, score) -> Reconstruction.solid(color, size, out, score);
-        case 2 -> (out, score) -> Reconstruction.palette(record, 0, size, out, score);
-        case 3 -> (out, score) -> Reconstruction.intraGrid(record, 0, grid, size, scratch, out, score);
-        case 4 -> (out, score) -> Reconstruction.residualGrid(prediction, record, 2, grid, q, size, scratch, out, score);
-        case 5 -> (out, score) -> Reconstruction.reduced(null, record, 0, 4, 1, 0, size, scratch, out, score);
-        case 6 -> (out, score) -> Reconstruction.reduced(prediction, record, 2, 8, 2, q, size, scratch, out, score);
-        default -> (out, score) ->
-          Reconstruction.compact(prediction, record, 0, compact, compact == CompactRecord.GAIN_BIAS ? 0 : q, size, scratch, out, score);
-      };
+    final Kernel run = switch (kernel) {
+      case 0 -> (out, score) -> Reconstruction.predicted(prediction, size, out, score);
+      case 1 -> (out, score) -> Reconstruction.solid(color, size, out, score);
+      case 2 -> (out, score) -> Reconstruction.palette(record, 0, size, out, score);
+      case 3 -> (out, score) -> Reconstruction.intraGrid(record, 0, grid, size, scratch, out, score);
+      case 4 -> (out, score) -> Reconstruction.residualGrid(prediction, record, 2, grid, q, size, scratch, out, score);
+      case 5 -> (out, score) -> Reconstruction.reduced(null, record, 0, 4, 1, 0, size, scratch, out, score);
+      case 6 -> (out, score) -> Reconstruction.reduced(prediction, record, 2, 8, 2, q, size, scratch, out, score);
+      default -> (out, score) ->
+        Reconstruction.compact(prediction, record, 0, compact, compact == CompactRecord.GAIN_BIAS ? 0 : q, size, scratch, out, score);
+    };
     assertMeasured(random, size, run);
   }
 }

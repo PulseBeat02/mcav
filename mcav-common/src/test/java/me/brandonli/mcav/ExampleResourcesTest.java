@@ -190,47 +190,41 @@ final class ExampleResourcesTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("synthetic window failure");
     final CompletableFuture<Throwable> callerFailure = new CompletableFuture<>();
     final CompletableFuture<Throwable> dispatchFailure = new CompletableFuture<>();
-    final Thread caller = new Thread(
-      () -> {
-        try (final MockedStatic<SwingUtilities> swing = mockStatic(SwingUtilities.class)) {
-          swing
-            .when(() -> SwingUtilities.invokeLater(any(Runnable.class)))
-            .thenAnswer(invocation -> {
-              final Runnable create = invocation.getArgument(0);
-              final Thread dispatcher = new Thread(
-                () -> {
-                  try (
-                    final MockedConstruction<JFrame> frames = mockConstruction(JFrame.class, (frame, context) -> {
-                      doThrow(fatal).when(frame).setDefaultCloseOperation(anyInt());
-                    })
-                  ) {
-                    try {
-                      create.run();
-                      dispatchFailure.complete(new AssertionError("fatal creation unexpectedly returned"));
-                    } finally {
-                      final List<JFrame> constructed = frames.constructed();
-                      final int constructedCount = constructed.size();
-                      assertEquals(1, constructedCount, "fatal dispatch must attempt exactly one frame construction");
-                    }
-                  } catch (final Throwable failure) {
-                    // Transport the synthetic fatal error to the test thread; do not lose it to an uncaught-handler log.
-                    dispatchFailure.complete(failure);
-                  }
-                },
-                "example-fatal-window-dispatch"
-              );
-              dispatcher.setDaemon(true);
-              dispatcher.start();
-              return null;
-            });
-          SwingVideoWindow.open("test", 1, 1);
-          callerFailure.complete(new AssertionError("fatal creation unexpectedly returned"));
-        } catch (final Throwable failure) {
-          callerFailure.complete(failure);
-        }
-      },
-      "example-fatal-window-caller"
-    );
+    final Thread caller = new Thread(() -> {
+      try (final MockedStatic<SwingUtilities> swing = mockStatic(SwingUtilities.class)) {
+        swing
+          .when(() -> SwingUtilities.invokeLater(any(Runnable.class)))
+          .thenAnswer(invocation -> {
+            final Runnable create = invocation.getArgument(0);
+            final Thread dispatcher = new Thread(() -> {
+              try (
+                final MockedConstruction<JFrame> frames = mockConstruction(JFrame.class, (frame, context) -> {
+                  doThrow(fatal).when(frame).setDefaultCloseOperation(anyInt());
+                })
+              ) {
+                try {
+                  create.run();
+                  dispatchFailure.complete(new AssertionError("fatal creation unexpectedly returned"));
+                } finally {
+                  final List<JFrame> constructed = frames.constructed();
+                  final int constructedCount = constructed.size();
+                  assertEquals(1, constructedCount, "fatal dispatch must attempt exactly one frame construction");
+                }
+              } catch (final Throwable failure) {
+                // Transport the synthetic fatal error to the test thread; do not lose it to an uncaught-handler log.
+                dispatchFailure.complete(failure);
+              }
+            }, "example-fatal-window-dispatch");
+            dispatcher.setDaemon(true);
+            dispatcher.start();
+            return null;
+          });
+        SwingVideoWindow.open("test", 1, 1);
+        callerFailure.complete(new AssertionError("fatal creation unexpectedly returned"));
+      } catch (final Throwable failure) {
+        callerFailure.complete(failure);
+      }
+    }, "example-fatal-window-caller");
     caller.setDaemon(true);
     caller.start();
     try {
@@ -253,13 +247,12 @@ final class ExampleResourcesTest {
     org.mockito.Mockito.doThrow(failure).when(api).install();
     try (final MockedStatic<MCAV> entry = mockStatic(MCAV.class)) {
       entry.when(MCAV::api).thenReturn(api);
-      final Executable run =
-        switch (example) {
-          case "ffmpeg" -> FFmpegPlayerExample::main;
-          case "vlc" -> VLCPlayerExample::main;
-          case "multiplexer" -> MultiplexerInputExample::main;
-          default -> throw new IllegalArgumentException(example);
-        };
+      final Executable run = switch (example) {
+        case "ffmpeg" -> FFmpegPlayerExample::main;
+        case "vlc" -> VLCPlayerExample::main;
+        case "multiplexer" -> MultiplexerInputExample::main;
+        default -> throw new IllegalArgumentException(example);
+      };
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, run);
       assertSame(failure, thrown);
       verify(api).release();

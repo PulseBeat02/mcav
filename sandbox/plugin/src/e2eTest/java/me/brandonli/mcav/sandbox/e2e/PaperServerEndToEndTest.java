@@ -129,7 +129,10 @@ final class PaperServerEndToEndTest {
       final String mediaInfo = fetchMediaInfo(server, httpPort);
       try (SoundListener sound = SoundListener.connect(httpPort); TonePage page = TonePage.start()) {
         streamABrowser(server, sound, page);
-        final boolean qemu = server.getLines().stream().noneMatch(line -> line.contains("QEMU is not installed"));
+        final boolean qemu = server
+          .getLines()
+          .stream()
+          .noneMatch(line -> line.contains("QEMU is not installed"));
         if (qemu) {
           runAMachine(server, sound);
         } else {

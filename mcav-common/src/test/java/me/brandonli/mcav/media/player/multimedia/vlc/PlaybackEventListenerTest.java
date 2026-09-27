@@ -52,9 +52,9 @@ final class PlaybackEventListenerTest {
 
   PlaybackEventListenerTest() {
     this.owner.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
   }
 
   private long awaitMillis(final long timeoutMillis) throws InterruptedException {

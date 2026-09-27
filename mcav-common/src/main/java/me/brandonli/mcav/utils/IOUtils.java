@@ -279,7 +279,7 @@ public final class IOUtils {
    */
   @VisibleForTesting
   static void moveReplacing(final Path source, final Path target, final FileMover mover, final Duration retryDelay) throws IOException {
-    for (int attempt = 1;; attempt++) {
+    for (int attempt = 1; ; attempt++) {
       try {
         moveOnce(source, target, mover);
         return;
@@ -491,7 +491,7 @@ public final class IOUtils {
    * Parses a download list. Malformed JSON is reported as an {@link IOException}, because a resource that cannot be
    * parsed is an I/O failure of that resource, and {@link UncheckedIOException} can only wrap an {@link IOException}.
    */
-  private static Download@Nullable[] parseDownloads(final Reader reader) throws IOException {
+  private static Download @Nullable [] parseDownloads(final Reader reader) throws IOException {
     final Gson gson = new Gson();
     final TypeToken<Download[]> typeToken = new TypeToken<>() {};
     final Type downloadArrayType = typeToken.getType();

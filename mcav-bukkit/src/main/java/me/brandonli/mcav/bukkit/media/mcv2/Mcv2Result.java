@@ -389,9 +389,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.requested = configuration;
     this.screen = new Screen(configuration, channel);
     this.fallbackViewers = ConcurrentHashMap.newKeySet();
-    this.fallback = fallbackAlgorithm == null
-      ? null
-      : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
+    this.fallback =
+      fallbackAlgorithm == null
+        ? null
+        : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
     if (dithering == null) {
       final ExecutorService thread = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-dither").factory());
       this.ditheringThread = thread;
@@ -528,12 +529,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final EncoderPool encoderPool = this.requested.getEncoderPool();
     final Mcv2Encoder encoder = this.encoders.apply(this.ladder.getFirst());
     // the screen's own thread only hands frames to the budget and waits for them
-    final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-screen").unstarted(() -> this.encodeLoop(encoder));
+    final Thread thread = Thread.ofPlatform()
+      .daemon()
+      .name("mcav-mcv2-screen")
+      .unstarted(() -> this.encodeLoop(encoder));
     // the frames are verified and sent on their own thread while the next frame is searched: a hand-off, so one frame
     // is in flight at most, and the search waits for its turn when verifying and sending fall behind
     final BlockingQueue<Handoff> queue = new SynchronousQueue<>();
     final Pipeline started = new Pipeline(encoderPool, queue);
-    final Thread delivery = Thread.ofPlatform().daemon().name("mcav-mcv2-sender").unstarted(() -> this.deliverLoop(started, thread));
+    final Thread delivery = Thread.ofPlatform()
+      .daemon()
+      .name("mcav-mcv2-sender")
+      .unstarted(() -> this.deliverLoop(started, thread));
     this.pace();
     synchronized (this.lock) {
       this.pipeline = started;

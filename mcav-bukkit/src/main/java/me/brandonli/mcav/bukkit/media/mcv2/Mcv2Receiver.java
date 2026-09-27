@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Receiver {
 
-  private byte@Nullable[] reference;
+  private byte @Nullable [] reference;
 
   private long frameId = -1;
 

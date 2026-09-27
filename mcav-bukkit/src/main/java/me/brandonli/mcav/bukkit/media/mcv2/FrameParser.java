@@ -420,7 +420,7 @@ public final class FrameParser {
 
     private int base;
 
-    private byte@Nullable[] symbols;
+    private byte @Nullable [] symbols;
 
     private int width;
 
@@ -457,9 +457,8 @@ public final class FrameParser {
       final int wordBytes = tables.wordBytes();
       final int endpointBytes = tables.pairCount * tables.pairEntry;
       final byte[] book = tables.pairCount > 0 ? this.readEndpointTable(tables.pairCount, tables.pairEntry, wordBytes) : null;
-      final byte[][] books = (this.flags & SELECTOR_TABLE) != 0
-        ? this.readSelectorTables(tables.wordCounts, endpointBytes, wordBytes)
-        : null;
+      final byte[][] books =
+        (this.flags & SELECTOR_TABLE) != 0 ? this.readSelectorTables(tables.wordCounts, endpointBytes, wordBytes) : null;
       final int[] present = this.readDirectory(groups, levels[0]);
       final byte[] modes = new byte[descriptors];
       final byte[] quantizers = new byte[descriptors];
@@ -608,8 +607,8 @@ public final class FrameParser {
       final byte[] modes,
       final byte[] quantizers,
       final int[] positions,
-      final byte@Nullable[] book,
-      final byte@Nullable[][] books,
+      final byte @Nullable [] book,
+      final byte @Nullable [][] books,
       final Leaves leaves,
       final int payloadEnd
     ) throws Mcv2Exception {
@@ -844,8 +843,8 @@ public final class FrameParser {
       final int q,
       final int size,
       final int offset,
-      final byte@Nullable[] book,
-      final byte@Nullable[] words
+      final byte @Nullable [] book,
+      final byte @Nullable [] words
     ) throws Mcv2Exception {
       checkUnsupportedLeaf(mode);
       // splits never get here: the walk counts them before it validates a leaf

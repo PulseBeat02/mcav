@@ -52,7 +52,7 @@ public final class Mcv2Decoder {
    * @return the decoded picture, {@code width * height * 3} bytes
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
    */
-  public static byte[] decode(final Mcv2Frame frame, final byte@Nullable[] reference, final long referenceId) throws Mcv2Exception {
+  public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     return decode(frame, reference, referenceId, Workers.SEQUENTIAL);
   }
 
@@ -67,7 +67,7 @@ public final class Mcv2Decoder {
    * @return the decoded picture, {@code width * height * 3} bytes
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
    */
-  public static byte[] decode(final Mcv2Frame frame, final byte@Nullable[] reference, final long referenceId, final Workers workers)
+  public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId, final Workers workers)
     throws Mcv2Exception {
     return decode(frame, reference, referenceId, workers, null);
   }
@@ -86,10 +86,10 @@ public final class Mcv2Decoder {
    */
   public static byte[] decode(
     final Mcv2Frame frame,
-    final byte@Nullable[] reference,
+    final byte @Nullable [] reference,
     final long referenceId,
     final Workers workers,
-    final byte@Nullable[] into
+    final byte @Nullable [] into
   ) throws Mcv2Exception {
     Preconditions.checkNotNull(frame, "Frame must not be null");
     Preconditions.checkNotNull(workers, "Workers must not be null");
@@ -149,7 +149,7 @@ public final class Mcv2Decoder {
    * @return the decoded picture
    * @throws Mcv2Exception if the bytes are not a valid frame or the reference does not match
    */
-  public static byte[] decode(final byte[] data, final byte@Nullable[] reference, final long referenceId) throws Mcv2Exception {
+  public static byte[] decode(final byte[] data, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     return decode(FrameParser.parse(data), reference, referenceId);
   }
 

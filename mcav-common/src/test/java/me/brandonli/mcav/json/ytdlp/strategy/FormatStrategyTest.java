@@ -63,20 +63,20 @@ final class FormatStrategyTest {
 
   private static String audio(final String id, final double quality, final String extension, final String protocol) {
     return "{\"format_id\": \"%s\", \"quality\": %s, \"audio_ext\": \"%s\", \"video_ext\": \"none\", \"protocol\": \"%s\"}".formatted(
-        id,
-        quality,
-        extension,
-        protocol
-      );
+      id,
+      quality,
+      extension,
+      protocol
+    );
   }
 
   private static String video(final String id, final double quality, final String extension, final String protocol) {
     return "{\"format_id\": \"%s\", \"quality\": %s, \"audio_ext\": \"none\", \"video_ext\": \"%s\", \"protocol\": \"%s\"}".formatted(
-        id,
-        quality,
-        extension,
-        protocol
-      );
+      id,
+      quality,
+      extension,
+      protocol
+    );
   }
 
   private static String select(final FormatStrategy strategy, final URLParseDump dump) {

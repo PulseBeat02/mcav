@@ -299,7 +299,7 @@ public class GLTextureFilter implements FunctionalVideoFilter {
     } catch (final IllegalStateException exception) {
       throw new IllegalStateException(
         "No OpenGL context is current on this thread; call start(), upload() and release() on the render thread " +
-        "after making the context current and calling GL.createCapabilities()",
+          "after making the context current and calling GL.createCapabilities()",
         exception
       );
     }

@@ -213,8 +213,8 @@ final class PaletteFit {
     final float dr1 = r - c[3];
     final float dg1 = g - c[4];
     final float db1 = b - c[5];
-    final float e0 = (dr0 * dr0 + dg0 * dg0) + db0 * db0;
-    final float e1 = (dr1 * dr1 + dg1 * dg1) + db1 * db1;
+    final float e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
+    final float e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
     return e1 < e0;
   }
 }

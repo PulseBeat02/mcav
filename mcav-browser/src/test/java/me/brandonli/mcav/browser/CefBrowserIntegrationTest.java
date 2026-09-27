@@ -154,8 +154,18 @@ class CefBrowserIntegrationTest {
     this.awaitInput(player);
     player.sendMouseEvent(MouseClick.LEFT, 100, 50);
     // a report of a probe click may still arrive, so the click is looked for where it was made
-    Await.until("a click", () -> this.pages.getEvents("click").stream().anyMatch(event -> event.getX() == 100));
-    final TestPages.PageEvent click = this.pages.getEvents("click").stream().filter(event -> event.getX() == 100).findFirst().orElseThrow();
+    Await.until("a click", () ->
+      this.pages
+        .getEvents("click")
+        .stream()
+        .anyMatch(event -> event.getX() == 100)
+    );
+    final TestPages.PageEvent click = this.pages
+      .getEvents("click")
+      .stream()
+      .filter(event -> event.getX() == 100)
+      .findFirst()
+      .orElseThrow();
     assertEquals(50, click.getY());
     assertEquals(0, click.getButton());
     player.sendMouseEvent(MouseClick.RIGHT, 10, 20);
@@ -165,10 +175,19 @@ class CefBrowserIntegrationTest {
     Await.until("a double click", () -> this.pages.count("dblclick") > 0);
     player.sendMouseEvent(MouseClick.HOLD, 5, 5);
     player.sendMouseEvent(MouseClick.RELEASE, 6, 6);
-    Await.until("the held button released", () -> this.pages.getEvents("mouseup").stream().anyMatch(event -> event.getX() == 6));
+    Await.until("the held button released", () ->
+      this.pages
+        .getEvents("mouseup")
+        .stream()
+        .anyMatch(event -> event.getX() == 6)
+    );
     // the move to the release happens while the button is held, which makes it a drag
-    final TestPages.PageEvent drag =
-      this.pages.getEvents("mousemove").stream().filter(event -> event.getX() == 6 && event.getY() == 6).findFirst().orElseThrow();
+    final TestPages.PageEvent drag = this.pages
+      .getEvents("mousemove")
+      .stream()
+      .filter(event -> event.getX() == 6 && event.getY() == 6)
+      .findFirst()
+      .orElseThrow();
     assertEquals(1, drag.getButtons(), drag::toString);
     player.sendKeyEvent("hi");
     player.sendKeyEvent("Enter");
@@ -245,10 +264,17 @@ class CefBrowserIntegrationTest {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/named-frame");
     clickUntil(player, "the second page in the frame", () ->
-      this.pages.getEvents("size").stream().anyMatch(event -> event.getPage().equals("second"))
+      this.pages
+        .getEvents("size")
+        .stream()
+        .anyMatch(event -> event.getPage().equals("second"))
     );
-    final TestPages.PageEvent size =
-      this.pages.getEvents("size").stream().filter(event -> event.getPage().equals("second")).findFirst().orElseThrow();
+    final TestPages.PageEvent size = this.pages
+      .getEvents("size")
+      .stream()
+      .filter(event -> event.getPage().equals("second"))
+      .findFirst()
+      .orElseThrow();
     assertEquals(TestPages.FRAME_WIDTH, size.getX(), "the second page fills the frame, not the page");
     Thread.sleep(500L);
     assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "the page itself stays");

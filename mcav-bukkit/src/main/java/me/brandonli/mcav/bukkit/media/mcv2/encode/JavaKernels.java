@@ -88,7 +88,7 @@ final class JavaKernels extends Kernels {
 
   @Override
   boolean reduced(
-    final int@Nullable[] prediction,
+    final int @Nullable [] prediction,
     final byte[] record,
     final int offset,
     final int luma,

@@ -106,18 +106,16 @@ final class YTDLPInstallerTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "WINDOWS, X86, BITS_64, yt-dlp.exe, 66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
-      "WINDOWS, X86, BITS_32, yt-dlp_x86.exe, a8f91bd41452506bc81ebd2f369b186fea0ee7075413ba00cef9fd346a0a5d0c",
-      "WINDOWS, ARM, BITS_64, yt-dlp_arm64.exe, 05b438997bafc3affdfda9d041353c9d73e04dc842207254b655b0887c4445b0",
-      "LINUX, X86, BITS_64, yt-dlp_linux, 58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a",
-      "LINUX, ARM, BITS_64, yt-dlp_linux_aarch64, b16e4dab368a816cd05d477d698a605a6ae87ccee1c8ffd38fa21d7254141fcc",
-      "LINUX, ARM, BITS_32, yt-dlp_linux_armv7l.zip, bd51eb5fed7788008f4f30d281a182376a1297910b6c78e747403e757a546508",
-      "MAC, ARM, BITS_64, yt-dlp_macos, 0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
-      "MAC, X86, BITS_64, yt-dlp_macos, 0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
-    }
-  )
+  @CsvSource({
+    "WINDOWS, X86, BITS_64, yt-dlp.exe, 66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+    "WINDOWS, X86, BITS_32, yt-dlp_x86.exe, a8f91bd41452506bc81ebd2f369b186fea0ee7075413ba00cef9fd346a0a5d0c",
+    "WINDOWS, ARM, BITS_64, yt-dlp_arm64.exe, 05b438997bafc3affdfda9d041353c9d73e04dc842207254b655b0887c4445b0",
+    "LINUX, X86, BITS_64, yt-dlp_linux, 58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a",
+    "LINUX, ARM, BITS_64, yt-dlp_linux_aarch64, b16e4dab368a816cd05d477d698a605a6ae87ccee1c8ffd38fa21d7254141fcc",
+    "LINUX, ARM, BITS_32, yt-dlp_linux_armv7l.zip, bd51eb5fed7788008f4f30d281a182376a1297910b6c78e747403e757a546508",
+    "MAC, ARM, BITS_64, yt-dlp_macos, 0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
+    "MAC, X86, BITS_64, yt-dlp_macos, 0f192b7ec147ab6288885d6351d9ab67367640029b4377576ef46dd79cf7b202",
+  })
   void bundlesTheOfficialBuildOfEachPlatform(
     final OS operatingSystem,
     final Arch architecture,

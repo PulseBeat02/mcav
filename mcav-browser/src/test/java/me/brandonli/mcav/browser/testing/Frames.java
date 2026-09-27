@@ -194,7 +194,11 @@ public final class Frames {
       run++;
       final int center = all.get(index).getCenter();
       if (index == all.size() - 1 || all.get(index + 1).getCenter() != center) {
-        centers.append(centers.isEmpty() ? "" : ", ").append(String.format("%06x", center)).append(" x").append(run);
+        centers
+          .append(centers.isEmpty() ? "" : ", ")
+          .append(String.format("%06x", center))
+          .append(" x")
+          .append(run);
         run = 0;
       }
     }

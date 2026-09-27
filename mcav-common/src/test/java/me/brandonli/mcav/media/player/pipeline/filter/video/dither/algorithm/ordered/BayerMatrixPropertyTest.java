@@ -89,18 +89,16 @@ final class BayerMatrixPropertyTest {
 
   @Property(seed = SEED, generation = GenerationMode.EXHAUSTIVE)
   void theConstantsAreTheGeneratorsMatricesCountedFromOne(@ForAll("constantSizes") final int size) {
-    final ThresholdMatrix constant =
-      switch (size) {
-        case 2 -> BayerDither.NORMAL_2X2;
-        case 4 -> BayerDither.NORMAL_4X4;
-        default -> BayerDither.NORMAL_8X8;
-      };
-    final int max =
-      switch (size) {
-        case 2 -> BayerDither.NORMAL_2X2_MAX;
-        case 4 -> BayerDither.NORMAL_4X4_MAX;
-        default -> BayerDither.NORMAL_8X8_MAX;
-      };
+    final ThresholdMatrix constant = switch (size) {
+      case 2 -> BayerDither.NORMAL_2X2;
+      case 4 -> BayerDither.NORMAL_4X4;
+      default -> BayerDither.NORMAL_8X8;
+    };
+    final int max = switch (size) {
+      case 2 -> BayerDither.NORMAL_2X2_MAX;
+      case 4 -> BayerDither.NORMAL_4X4_MAX;
+      default -> BayerDither.NORMAL_8X8_MAX;
+    };
     final int[][] generated = BayerDither.createBayerMatrix(size);
     final int[][] entries = constant.toArray();
 

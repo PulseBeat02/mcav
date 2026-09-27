@@ -65,7 +65,10 @@ public final class NoFlagsServerMain {
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
     System.out.println("JVM arguments: " + arguments);
     System.out.println("DISPLAY=" + System.getenv("DISPLAY") + " WAYLAND_DISPLAY=" + System.getenv("WAYLAND_DISPLAY"));
-    final List<String> options = arguments.stream().filter(argument -> !GRAALVM_DEFAULTS.contains(argument)).toList();
+    final List<String> options = arguments
+      .stream()
+      .filter(argument -> !GRAALVM_DEFAULTS.contains(argument))
+      .toList();
     check(options.equals(List.of("-Djava.awt.headless=true")), "the JVM runs with no option but headless AWT");
     check(GraphicsEnvironment.isHeadless(), "AWT is headless");
     check(System.getenv("DISPLAY") == null && System.getenv("WAYLAND_DISPLAY") == null, "there is no display");

@@ -175,7 +175,7 @@ public final class FrameWriter {
     for (final TreeNode root : input) {
       countSolids(root, colors);
     }
-    byte@Nullable[] defaultColor = null;
+    byte @Nullable [] defaultColor = null;
     if (frame.keyframe() && !colors.isEmpty()) {
       int best = -1;
       for (final Map.Entry<Key, Integer> entry : colors.entrySet()) {
@@ -190,7 +190,7 @@ public final class FrameWriter {
       roots.add(rewrite(root, defaultColor));
     }
     if (options.derivedOffsets()) {
-      final byte@Nullable[] derived = Derived.pack(frame, roots, options, defaultColor);
+      final byte @Nullable [] derived = Derived.pack(frame, roots, options, defaultColor);
       if (derived != null) {
         return derived;
       }
@@ -208,7 +208,7 @@ public final class FrameWriter {
     }
   }
 
-  private static TreeNode rewrite(final TreeNode node, final byte@Nullable[] defaultColor) {
+  private static TreeNode rewrite(final TreeNode node, final byte @Nullable [] defaultColor) {
     if (node.isSplit()) {
       return TreeNode.split(
         rewrite(node.getChild(0), defaultColor),
@@ -223,7 +223,7 @@ public final class FrameWriter {
     return node;
   }
 
-  private static TreeNode restore(final TreeNode node, final byte@Nullable[] defaultColor) {
+  private static TreeNode restore(final TreeNode node, final byte @Nullable [] defaultColor) {
     if (node.isSplit()) {
       return TreeNode.split(
         restore(node.getChild(0), defaultColor),
@@ -253,7 +253,7 @@ public final class FrameWriter {
   private static byte[] finish(
     final Frame frame,
     final int flags,
-    final byte@Nullable[] defaultColor,
+    final byte @Nullable [] defaultColor,
     final byte[] index,
     final byte[] payload
   ) {
@@ -288,7 +288,12 @@ public final class FrameWriter {
 
     private Derived() {}
 
-    static byte@Nullable[] pack(final Frame frame, final List<TreeNode> roots, final Options options, final byte@Nullable[] defaultColor) {
+    static byte @Nullable [] pack(
+      final Frame frame,
+      final List<TreeNode> roots,
+      final Options options,
+      final byte @Nullable [] defaultColor
+    ) {
       final int count = roots.size();
       final int groups = (count + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final List<TreeNode> flat = new ArrayList<>();
@@ -466,7 +471,7 @@ public final class FrameWriter {
       }
       head.writeBytes(plane);
       final int walkpoints = pairs.length / 2;
-      final byte@Nullable[] twoLevel = options.twoLevelWalk() ? twoLevelWalk(pairs, walkpoints) : null;
+      final byte @Nullable [] twoLevel = options.twoLevelWalk() ? twoLevelWalk(pairs, walkpoints) : null;
       if (twoLevel != null) {
         head.writeBytes(twoLevel);
       } else {
@@ -578,7 +583,7 @@ public final class FrameWriter {
     }
 
     /** The two-level walk region, or null when it does not fit sixteen delta bits or is not smaller. */
-    private static byte@Nullable[] twoLevelWalk(final int[] pairs, final int walkpoints) {
+    private static byte @Nullable [] twoLevelWalk(final int[] pairs, final int walkpoints) {
       int cursorDelta = 0;
       int splitsDelta = 0;
       for (int i = 0; i < walkpoints; i++) {
@@ -635,7 +640,7 @@ public final class FrameWriter {
       this.stride = options.shortIndex() ? SHORT_DESCRIPTOR_BYTES : WORD_BYTES;
     }
 
-    static byte[] pack(final Frame frame, final List<TreeNode> roots, final Options options, final byte@Nullable[] defaultColor) {
+    static byte[] pack(final Frame frame, final List<TreeNode> roots, final Options options, final byte @Nullable [] defaultColor) {
       return new Stored(options).write(frame, roots, defaultColor);
     }
 
@@ -659,7 +664,7 @@ public final class FrameWriter {
       this.used += bytes;
     }
 
-    private byte[] write(final Frame frame, final List<TreeNode> roots, final byte@Nullable[] defaultColor) {
+    private byte[] write(final Frame frame, final List<TreeNode> roots, final byte @Nullable [] defaultColor) {
       final int count = roots.size();
       final int groups = (count + GROUP_ROOTS - 1) / GROUP_ROOTS;
       int active = 0;

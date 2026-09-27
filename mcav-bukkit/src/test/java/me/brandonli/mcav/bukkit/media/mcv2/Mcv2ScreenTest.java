@@ -99,9 +99,9 @@ final class Mcv2ScreenTest {
     );
     // item components are only bound on a running server, so the tests that build a screen get mock page items
     this.statics = Mockito.mockStatic(Mcv2Screen.class, Mockito.CALLS_REAL_METHODS);
-    this.statics.when(() -> Mcv2Screen.pageItem(ArgumentMatchers.anyInt())).thenAnswer(invocation ->
-        this.items.computeIfAbsent(invocation.getArgument(0), _ -> mock(ItemStack.class))
-      );
+    this.statics
+      .when(() -> Mcv2Screen.pageItem(ArgumentMatchers.anyInt()))
+      .thenAnswer(invocation -> this.items.computeIfAbsent(invocation.getArgument(0), _ -> mock(ItemStack.class)));
   }
 
   @AfterEach

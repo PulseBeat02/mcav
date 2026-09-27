@@ -94,13 +94,12 @@ final class SocksProtocol {
       throw new ProtocolException("The reserved byte of the request is " + reserved);
     }
     final int type = in.readUnsignedByte();
-    final String host =
-      switch (type) {
-        case ADDRESS_IPV4 -> readAddress(in, IPV4_BYTES);
-        case ADDRESS_IPV6 -> readAddress(in, IPV6_BYTES);
-        case ADDRESS_DOMAIN -> readHostName(in);
-        default -> throw new Refusal(ADDRESS_NOT_SUPPORTED, "The request names an address of type " + type);
-      };
+    final String host = switch (type) {
+      case ADDRESS_IPV4 -> readAddress(in, IPV4_BYTES);
+      case ADDRESS_IPV6 -> readAddress(in, IPV6_BYTES);
+      case ADDRESS_DOMAIN -> readHostName(in);
+      default -> throw new Refusal(ADDRESS_NOT_SUPPORTED, "The request names an address of type " + type);
+    };
     final int port = in.readUnsignedShort();
     if (command != CONNECT) {
       throw new Refusal(COMMAND_NOT_SUPPORTED, "The request asks for command " + command + " instead of a connection");

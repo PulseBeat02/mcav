@@ -155,11 +155,11 @@ final class AbstractImageCommandTest {
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
     this.server.createContext(path, exchange -> {
-        exchange.sendResponseHeaders(200, bytes.length);
-        try (final OutputStream output = exchange.getResponseBody()) {
-          output.write(bytes);
-        }
-      });
+      exchange.sendResponseHeaders(200, bytes.length);
+      try (final OutputStream output = exchange.getResponseBody()) {
+        output.write(bytes);
+      }
+    });
     this.server.start();
     final InetSocketAddress bound = this.server.getAddress();
     final int port = bound.getPort();

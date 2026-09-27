@@ -248,7 +248,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @return the arguments for yt-dlp, or {@code null} if an option was refused
    */
-  private static String@Nullable[] parseFlags(final CommandSender sender, final String flags) {
+  private static String @Nullable [] parseFlags(final CommandSender sender, final String flags) {
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
     try {
       return flagsParser.parseYTDLPFlags(flags);

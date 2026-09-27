@@ -176,13 +176,10 @@ final class VNCPlayerImplTest {
   }
 
   private VNCPlayerImpl mockedPlayer(final VernacularClient client, final AtomicReference<VernacularConfig> config) {
-    final VNCPlayerImpl player = new VNCPlayerImpl(
-      configuration -> {
-        config.set(configuration);
-        return client;
-      },
-      Socket::new
-    );
+    final VNCPlayerImpl player = new VNCPlayerImpl(configuration -> {
+      config.set(configuration);
+      return client;
+    }, Socket::new);
     return this.track(player);
   }
 
@@ -1647,13 +1644,10 @@ final class VNCPlayerImplTest {
     pushError(config, failure);
     final CountDownLatch restarted = new CountDownLatch(1);
     final AtomicBoolean result = new AtomicBoolean();
-    final Thread starter = new Thread(
-      () -> {
-        result.set(player.start(source));
-        restarted.countDown();
-      },
-      "restart-vnc-probe"
-    );
+    final Thread starter = new Thread(() -> {
+      result.set(player.start(source));
+      restarted.countDown();
+    }, "restart-vnc-probe");
     try {
       starter.start();
       final boolean restartedWhileBusy = restarted.await(250, TimeUnit.MILLISECONDS);

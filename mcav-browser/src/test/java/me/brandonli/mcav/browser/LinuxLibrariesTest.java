@@ -198,7 +198,11 @@ class LinuxLibrariesTest {
         assertTrue(pin.pool().startsWith("pool/main/") || pin.pool().startsWith("pool/updates/main/"), pin.pool());
         assertFalse(pin.files().isEmpty());
       }
-      final LinuxLibraries.Pin nss = pins.stream().filter(pin -> pin.name().equals("libnss3")).findFirst().orElseThrow();
+      final LinuxLibraries.Pin nss = pins
+        .stream()
+        .filter(pin -> pin.name().equals("libnss3"))
+        .findFirst()
+        .orElseThrow();
       assertEquals("libnss3.so", nss.sonames().getFirst(), "NSS is linked as a whole, decided by its main library");
       assertTrue(nss.sonames().contains("libsoftokn3.so"));
       assertTrue(LinuxLibraries.fingerprint(pins).matches("[0-9a-f]{12}"));
@@ -263,7 +267,10 @@ class LinuxLibrariesTest {
     try (final Stream<Path> files = Files.list(installation)) {
       assertEquals(
         List.of("install.lock", "libmcavtest.so.1"),
-        files.map(file -> file.getFileName().toString()).sorted().toList(),
+        files
+          .map(file -> file.getFileName().toString())
+          .sorted()
+          .toList(),
         "neither the link nor the documentation of the package"
       );
     }
@@ -286,8 +293,11 @@ class LinuxLibrariesTest {
   @Test
   void aMirrorThatFailsIsFollowedByTheNextAndAllFailingIsReported() throws IOException {
     final byte[] deb = testPackage();
-    final LinuxLibraries fallback =
-      this.installer(deb, List.of("https://broken.test/debian/", "https://mirror.test/debian/"), List.of(pin(deb)));
+    final LinuxLibraries fallback = this.installer(
+      deb,
+      List.of("https://broken.test/debian/", "https://mirror.test/debian/"),
+      List.of(pin(deb))
+    );
     fallback.install("linux-amd64");
     assertEquals(2, this.downloads.size());
     this.downloads.clear();
@@ -381,9 +391,9 @@ class LinuxLibrariesTest {
         "host linux-amd64 libz.so.1",
         "linux-amd64 libpresent1 1 " + hash + " 1 pool/main/p/p/p.deb libpresent.so.1=usr/lib/x86_64-linux-gnu/libpresent.so.1",
         "linux-amd64 libmissing1 1 " +
-        hash +
-        " 1 pool/main/m/m/m.deb libmissing.so.1=usr/lib/x86_64-linux-gnu/libmissing.so.1 " +
-        "libmissingmodule.so=usr/lib/x86_64-linux-gnu/nss/libmissingmodule.so"
+          hash +
+          " 1 pool/main/m/m/m.deb libmissing.so.1=usr/lib/x86_64-linux-gnu/libmissing.so.1 " +
+          "libmissingmodule.so=usr/lib/x86_64-linux-gnu/nss/libmissingmodule.so"
       )
     );
     final Path installation = this.folder.resolve("installation");
@@ -391,7 +401,13 @@ class LinuxLibrariesTest {
     final Path linked = LinuxLibraries.link(installation, session, libraries.findMissing("linux-amd64", List.of(host)));
     assertEquals(session.resolve(LinuxLibraries.SESSION_FOLDER), linked);
     try (final Stream<Path> links = Files.list(linked)) {
-      assertEquals(List.of("libmissing.so.1", "libmissingmodule.so"), links.map(link -> link.getFileName().toString()).sorted().toList());
+      assertEquals(
+        List.of("libmissing.so.1", "libmissingmodule.so"),
+        links
+          .map(link -> link.getFileName().toString())
+          .sorted()
+          .toList()
+      );
     }
     assertEquals(installation.resolve("libmissing.so.1"), Files.readSymbolicLink(linked.resolve("libmissing.so.1")));
     final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
@@ -449,8 +465,11 @@ class LinuxLibrariesTest {
   void theDefaultSessionsOfLinuxLinkTheLibrariesTheServerLacks() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
-    final LinuxLibraries libraries =
-      this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb).replace("linux-amd64", platform)));
+    final LinuxLibraries libraries = this.installer(
+      deb,
+      List.of("https://mirror.test/debian/"),
+      List.of(pin(deb).replace("linux-amd64", platform))
+    );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), 1_000L, OS.LINUX);
     final HelperLauncher withLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries);
     final Path session = Files.createDirectory(this.folder.resolve("session"));
@@ -465,8 +484,11 @@ class LinuxLibrariesTest {
   void aServerThatHasEveryLibraryDownloadsNothing() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
-    final LinuxLibraries libraries =
-      this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb).replace("linux-amd64", platform)));
+    final LinuxLibraries libraries = this.installer(
+      deb,
+      List.of("https://mirror.test/debian/"),
+      List.of(pin(deb).replace("linux-amd64", platform))
+    );
     final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
     Files.write(loader.resolve("libmcavtest.so.1"), elf(2, 1, platform.endsWith("arm64") ? 183 : 62));
@@ -490,8 +512,9 @@ class LinuxLibrariesTest {
   void librariesAnotherProcessInstalledWhileThisOneWaitedAreNotInstalledAgain() throws Exception {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://deb.test/debian/"), List.of(pin(deb)));
-    final Path installation =
-      this.folder.resolve("cache").resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64")));
+    final Path installation = this.folder
+      .resolve("cache")
+      .resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64")));
     final java.util.concurrent.atomic.AtomicReference<Thread> installer = new java.util.concurrent.atomic.AtomicReference<>();
     final java.util.concurrent.CompletableFuture<Path> installed;
     synchronized (LinuxLibraries.INSTALL_LOCK) {
@@ -596,7 +619,11 @@ class LinuxLibrariesTest {
       Files.writeString(configuration.resolve(name + ".conf"), "/opt/" + name + "\n");
     }
     final List<Path> folders = LinuxLibraries.hostFolders(root, "linux-amd64");
-    final List<Path> expected = names.stream().sorted().map(name -> root.resolve("opt/" + name)).toList();
+    final List<Path> expected = names
+      .stream()
+      .sorted()
+      .map(name -> root.resolve("opt/" + name))
+      .toList();
     assertEquals(expected, folders.subList(0, names.size()));
   }
 

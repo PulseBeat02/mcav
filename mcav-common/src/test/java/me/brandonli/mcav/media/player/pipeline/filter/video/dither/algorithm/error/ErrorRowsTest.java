@@ -182,11 +182,10 @@ final class ErrorRowsTest {
 
   @Test
   void sumsLargeWeightsWithoutWrappingOrForbiddingAmplification() {
-    final DiffusionKernel kernel = new DiffusionKernel(
-      "Two unit shares",
-      Integer.MAX_VALUE,
-      new int[][] { { 1, 0, Integer.MAX_VALUE }, { 0, 1, Integer.MAX_VALUE } }
-    );
+    final DiffusionKernel kernel = new DiffusionKernel("Two unit shares", Integer.MAX_VALUE, new int[][] {
+      { 1, 0, Integer.MAX_VALUE },
+      { 0, 1, Integer.MAX_VALUE },
+    });
     final ErrorRows rows = new ErrorRows(kernel, 2);
     rows.diffuse(0, 0, 1, 50, -50, 3);
     final int right = rows.applyPendingError(GRAY, 1, 0);

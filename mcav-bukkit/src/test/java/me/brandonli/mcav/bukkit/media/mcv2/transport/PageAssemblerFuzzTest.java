@@ -113,7 +113,9 @@ final class PageAssemblerFuzzTest {
           assertThrows(Mcv2Exception.class, () -> assembler.push(cut));
         }
         default -> {
-          final byte[] foreign = FOREIGN.get(symbolBits - 6).get(index).get(number);
+          final byte[] foreign = FOREIGN.get(symbolBits - 6)
+            .get(index)
+            .get(number);
           assertThrows(Mcv2Exception.class, () -> assembler.push(foreign));
         }
       }

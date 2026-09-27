@@ -100,7 +100,10 @@ public final class HeadlessProofMain {
     }
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
     System.out.println("JVM arguments: " + arguments + ", Java " + Runtime.version() + ", " + System.getProperty("os.arch"));
-    final List<String> options = arguments.stream().filter(argument -> !GRAALVM_DEFAULTS.contains(argument)).toList();
+    final List<String> options = arguments
+      .stream()
+      .filter(argument -> !GRAALVM_DEFAULTS.contains(argument))
+      .toList();
     check(options.isEmpty(), "the JVM runs with no option at all");
     check(GraphicsEnvironment.isHeadless(), "AWT is headless");
     check(System.getenv("DISPLAY") == null && System.getenv("WAYLAND_DISPLAY") == null, "there is no display");

@@ -89,18 +89,16 @@ final class PlatformDiscoveryStrategiesTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "libvlc.so, libvlccore.so, true",
-      "libvlc.so.5, libvlccore.so.9, true",
-      "libvlc.so.5.6.1, libvlccore.so.9.0.1, true",
-      "libvlc.so.12, libvlccore.so.10.0.12, true",
-      "libvlc.so.x, libvlccore.so, false",
-      "libvlc.so.5a, libvlccore.so, false",
-      "libvlc.so-5, libvlccore.so, false",
-      "libvlc.dylib, libvlccore.dylib, false",
-    }
-  )
+  @CsvSource({
+    "libvlc.so, libvlccore.so, true",
+    "libvlc.so.5, libvlccore.so.9, true",
+    "libvlc.so.5.6.1, libvlccore.so.9.0.1, true",
+    "libvlc.so.12, libvlccore.so.10.0.12, true",
+    "libvlc.so.x, libvlccore.so, false",
+    "libvlc.so.5a, libvlccore.so, false",
+    "libvlc.so-5, libvlccore.so, false",
+    "libvlc.dylib, libvlccore.dylib, false",
+  })
   void linuxRecognizesVersionedSharedLibraries(final String library, final String coreLibrary, final boolean expected) throws IOException {
     final Path directory = createFiles(this.temp, "lib", library, coreLibrary);
     final List<SearchProvider> providers = providersFor(directory);

@@ -296,13 +296,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
           "%s into %s at %dx%d with the %s profile, on %d encoder threads".formatted(
-              source,
-              target,
-              width,
-              height,
-              profile.name().toLowerCase(Locale.ROOT),
-              budget.getThreads()
-            )
+            source,
+            target,
+            width,
+            height,
+            profile.name().toLowerCase(Locale.ROOT),
+            budget.getThreads()
+          )
         )
       );
       this.encoding = Thread.ofPlatform()

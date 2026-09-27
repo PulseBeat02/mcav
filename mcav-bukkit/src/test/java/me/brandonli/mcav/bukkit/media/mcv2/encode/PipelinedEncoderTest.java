@@ -160,7 +160,12 @@ final class PipelinedEncoderTest {
         encoder.requestKeyframe();
       }
       if (i > 0) {
-        keyframes.add(encoder.finish(frames.get(i - 1)).getStats().keyframe());
+        keyframes.add(
+          encoder
+            .finish(frames.get(i - 1))
+            .getStats()
+            .keyframe()
+        );
       }
     }
     keyframes.add(encoder.finish(frames.get(4)).getStats().keyframe());

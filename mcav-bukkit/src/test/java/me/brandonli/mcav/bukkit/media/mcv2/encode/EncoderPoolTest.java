@@ -82,28 +82,27 @@ final class EncoderPoolTest {
       final List<Thread> callers = new ArrayList<>();
       for (int caller = 0; caller < 3; caller++) {
         callers.add(
-          Thread.ofPlatform()
-            .start(() -> {
-              try {
-                pool.run(() -> {
-                  final ForkJoinPool inner = ForkJoinTask.getPool();
-                  final Workers workers = new Workers(inner, 4);
-                  for (int loop = 0; loop < 5; loop++) {
-                    workers.forEach(
-                      16,
-                      () -> seen,
-                      (threads, item) -> {
-                        threads.add(Thread.currentThread());
-                        total.addAndGet(IntStream.range(0, 20_000).parallel().sum());
-                      }
-                    );
-                  }
-                  return null;
-                });
-              } catch (final InterruptedException exception) {
-                Thread.currentThread().interrupt();
-              }
-            })
+          Thread.ofPlatform().start(() -> {
+            try {
+              pool.run(() -> {
+                final ForkJoinPool inner = ForkJoinTask.getPool();
+                final Workers workers = new Workers(inner, 4);
+                for (int loop = 0; loop < 5; loop++) {
+                  workers.forEach(
+                    16,
+                    () -> seen,
+                    (threads, item) -> {
+                      threads.add(Thread.currentThread());
+                      total.addAndGet(IntStream.range(0, 20_000).parallel().sum());
+                    }
+                  );
+                }
+                return null;
+              });
+            } catch (final InterruptedException exception) {
+              Thread.currentThread().interrupt();
+            }
+          })
         );
       }
       for (final Thread caller : callers) {
@@ -152,7 +151,11 @@ final class EncoderPoolTest {
   @Test
   void runsANestedLoopOnASingleThread() throws InterruptedException {
     try (EncoderPool pool = new EncoderPool(1)) {
-      final int sum = pool.run(() -> ForkJoinTask.getPool().submit(() -> IntStream.range(0, 1000).parallel().sum()).join());
+      final int sum = pool.run(() ->
+        ForkJoinTask.getPool()
+          .submit(() -> IntStream.range(0, 1000).parallel().sum())
+          .join()
+      );
       assertEquals(499_500, sum);
     }
   }
@@ -213,22 +216,21 @@ final class EncoderPoolTest {
       final CountDownLatch started = new CountDownLatch(1);
       final CountDownLatch cancelled = new CountDownLatch(1);
       final AtomicReference<Throwable> thrown = new AtomicReference<>();
-      final Thread caller = Thread.ofPlatform()
-        .start(() -> {
-          try {
-            pool.run(() -> {
-              started.countDown();
-              try {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(60));
-              } catch (final InterruptedException exception) {
-                cancelled.countDown();
-              }
-              return null;
-            });
-          } catch (final InterruptedException exception) {
-            thrown.set(exception);
-          }
-        });
+      final Thread caller = Thread.ofPlatform().start(() -> {
+        try {
+          pool.run(() -> {
+            started.countDown();
+            try {
+              Thread.sleep(TimeUnit.SECONDS.toMillis(60));
+            } catch (final InterruptedException exception) {
+              cancelled.countDown();
+            }
+            return null;
+          });
+        } catch (final InterruptedException exception) {
+          thrown.set(exception);
+        }
+      });
       assertTrue(started.await(30, TimeUnit.SECONDS));
       caller.interrupt();
       caller.join(TimeUnit.SECONDS.toMillis(30));

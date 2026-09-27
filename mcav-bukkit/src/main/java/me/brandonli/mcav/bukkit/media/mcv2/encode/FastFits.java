@@ -126,7 +126,7 @@ final class FastFits {
       for (int x = 0; x < size; x++) {
         final int at = (y * size + x) * CHANNELS;
         sums[row + x / cell] +=
-        4 * (source[at] + 2 * source[at + 1] + source[at + 2]) - (prediction[at] + 2 * prediction[at + 1] + prediction[at + 2]);
+          4 * (source[at] + 2 * source[at + 1] + source[at + 2]) - (prediction[at] + 2 * prediction[at + 1] + prediction[at + 2]);
       }
     }
     final float scale = LUMA_SCALE * cell * cell;

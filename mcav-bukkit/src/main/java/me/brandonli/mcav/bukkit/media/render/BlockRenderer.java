@@ -74,9 +74,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   private final BlockConfiguration configuration;
   private final Set<UUID> activeViewers;
 
-  private Position@Nullable[] positions;
-  private BlockData@Nullable[] originalBlocks;
-  private BlockData@Nullable[] displayedBlocks;
+  private Position @Nullable [] positions;
+  private BlockData @Nullable [] originalBlocks;
+  private BlockData @Nullable [] displayedBlocks;
   private int ticksSinceFullResend;
 
   /**
@@ -178,7 +178,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    */
   private int getBlockX(final int originX, final int index) {
     final int width = this.configuration.getBlockWidth();
-    final int leftX = originX - (width / 2);
+    final int leftX = originX - width / 2;
     final int column = index % width;
     return leftX + column;
   }
@@ -221,7 +221,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    */
   private static Map<Position, BlockData> collectChanges(
     final Position[] positions,
-    final BlockData@Nullable[] previousBlocks,
+    final BlockData @Nullable [] previousBlocks,
     final BlockData[] blocks
   ) {
     final Map<Position, BlockData> changes = new HashMap<>();

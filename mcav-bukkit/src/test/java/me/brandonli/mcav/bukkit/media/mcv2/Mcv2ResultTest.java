@@ -826,9 +826,27 @@ final class Mcv2ResultTest {
         .stream()
         .filter(event -> event.getEventType().getName().equals("me.brandonli.mcav.Mcv2Frame"))
         .toList();
-      assertEquals(List.of(2, 2, 1, 1, 2), recorded.stream().map(event -> event.getInt("sentTo")).toList());
-      assertEquals(List.of(0, 0, 1, 0, 0), recorded.stream().map(event -> event.getInt("behind")).toList());
-      assertEquals(List.of(0, 0, 0, 1, 0), recorded.stream().map(event -> event.getInt("waiting")).toList());
+      assertEquals(
+        List.of(2, 2, 1, 1, 2),
+        recorded
+          .stream()
+          .map(event -> event.getInt("sentTo"))
+          .toList()
+      );
+      assertEquals(
+        List.of(0, 0, 1, 0, 0),
+        recorded
+          .stream()
+          .map(event -> event.getInt("behind"))
+          .toList()
+      );
+      assertEquals(
+        List.of(0, 0, 0, 1, 0),
+        recorded
+          .stream()
+          .map(event -> event.getInt("waiting"))
+          .toList()
+      );
     }
     result.release();
   }
@@ -1052,7 +1070,7 @@ final class Mcv2ResultTest {
     assertEquals(1, changes.size());
     assertEquals(
       "MCV2 screen steps down to 64x32 at 60 fps with the live-fast search: encoding 64x32 with the live search takes 18.0 ms" +
-      " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
+        " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
       changes.getFirst().describe()
     );
     assertEquals(1, made.size());
@@ -1109,7 +1127,10 @@ final class Mcv2ResultTest {
     assertEquals(EncoderSettings.SHIP, encoder.getSettings());
     assertEquals(
       List.of(EncoderSettings.SHIP, EncoderSettings.SHIP.faster(), EncoderSettings.SHIP),
-      made.stream().map(e -> e.getSettings()).toList()
+      made
+        .stream()
+        .map(e -> e.getSettings())
+        .toList()
     );
     assertEquals(List.of(), switched);
   }

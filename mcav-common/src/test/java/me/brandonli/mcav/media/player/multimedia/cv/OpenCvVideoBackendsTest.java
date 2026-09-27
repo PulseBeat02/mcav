@@ -37,45 +37,42 @@ final class OpenCvVideoBackendsTest {
   /**
    * The video section of the Linux build of the JavaCPP presets: cameras only.
    */
-  private static final String LINUX =
-    """
-    General configuration for OpenCV 4.14.0 =====================================
+  private static final String LINUX = """
+  General configuration for OpenCV 4.14.0 =====================================
 
-    Video I/O:
-        v4l/v4l2:                    YES (linux/videodev2.h)
-        Orbbec:                      YES
+  Video I/O:
+      v4l/v4l2:                    YES (linux/videodev2.h)
+      Orbbec:                      YES
 
-    Parallel framework:             pthreads
-    """;
+  Parallel framework:             pthreads
+  """;
 
   /**
    * The video section of the Windows build, which has FFmpeg and Media Foundation.
    */
-  private static final String WINDOWS =
-    """
-    General configuration for OpenCV 4.14.0 =====================================
+  private static final String WINDOWS = """
+  General configuration for OpenCV 4.14.0 =====================================
 
-    Video I/O:
-        DC1394:                      NO
-        FFMPEG:                      YES (prebuilt binaries)
-          avcodec:                   YES (58.134.100)
-        DirectShow:                  YES
-        Media Foundation:            YES
+  Video I/O:
+      DC1394:                      NO
+      FFMPEG:                      YES (prebuilt binaries)
+        avcodec:                   YES (58.134.100)
+      DirectShow:                  YES
+      Media Foundation:            YES
 
-    Parallel framework:             Concurrency
-    """;
+  Parallel framework:             Concurrency
+  """;
 
   /**
    * The video section of the macOS build, which has AVFoundation.
    */
-  private static final String MACOS =
-    """
-    General configuration for OpenCV 4.14.0 =====================================
+  private static final String MACOS = """
+  General configuration for OpenCV 4.14.0 =====================================
 
-    Video I/O:
-        AVFoundation:                YES
-        FFMPEG:                      NO
-    """;
+  Video I/O:
+      AVFoundation:                YES
+      FFMPEG:                      NO
+  """;
 
   @Test
   void findsNoFileBackendInTheLinuxBuild() {
@@ -93,28 +90,26 @@ final class OpenCvVideoBackendsTest {
 
   @Test
   void readsOnlyTheVideoSection() {
-    final String elsewhere =
-      """
-      General configuration for OpenCV 4.14.0 =====================================
+    final String elsewhere = """
+    General configuration for OpenCV 4.14.0 =====================================
 
-      Media I/O:
-          FFMPEG:                      YES
+    Media I/O:
+        FFMPEG:                      YES
 
-      Video I/O:
-          v4l/v4l2:                    YES (linux/videodev2.h)
-      """;
+    Video I/O:
+        v4l/v4l2:                    YES (linux/videodev2.h)
+    """;
     final boolean files = OpenCvVideoBackends.listsEnabledFileBackend(elsewhere);
     assertFalse(files, "a backend named in another section says nothing about video files");
   }
 
   @Test
   void needsAnEnabledBackendAndAVideoSection() {
-    final String disabled =
-      """
-      Video I/O:
-          FFMPEG:                      NO
-          GStreamer:                   NO
-      """;
+    final String disabled = """
+    Video I/O:
+        FFMPEG:                      NO
+        GStreamer:                   NO
+    """;
     final String truncated = "Video I/O:\n    FFMPEG:                      YES";
     final boolean noBackend = OpenCvVideoBackends.listsEnabledFileBackend(disabled);
     final boolean noSection = OpenCvVideoBackends.listsEnabledFileBackend("General configuration only");

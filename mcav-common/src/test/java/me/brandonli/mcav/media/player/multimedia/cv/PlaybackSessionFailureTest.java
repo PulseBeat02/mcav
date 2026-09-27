@@ -148,16 +148,12 @@ final class PlaybackSessionFailureTest {
       });
       throw opening;
     };
-    final PlaybackSession playback = session(
-      () -> video,
-      audio,
-      (_, failure) -> {
-        reported.set(failure);
-        final Thread worker = Thread.currentThread();
-        worker.interrupt();
-        throw reporting;
-      }
-    );
+    final PlaybackSession playback = session(() -> video, audio, (_, failure) -> {
+      reported.set(failure);
+      final Thread worker = Thread.currentThread();
+      worker.interrupt();
+      throw reporting;
+    });
     try {
       playback.start();
       awaitNaturalEnd(playback);
@@ -186,16 +182,12 @@ final class PlaybackSessionFailureTest {
     })
       .when(video)
       .grab();
-    final PlaybackSession playback = session(
-      () -> video,
-      null,
-      (_, thrown) -> {
-        reported.set(thrown);
-        final Thread worker = Thread.currentThread();
-        worker.interrupt();
-        throw reporting;
-      }
-    );
+    final PlaybackSession playback = session(() -> video, null, (_, thrown) -> {
+      reported.set(thrown);
+      final Thread worker = Thread.currentThread();
+      worker.interrupt();
+      throw reporting;
+    });
     try {
       playback.start();
       awaitNaturalEnd(playback);

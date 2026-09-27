@@ -45,104 +45,100 @@ public final class DiffusionKernel {
   /**
    * Floyd-Steinberg, the classic four-tap kernel.
    */
-  public static final DiffusionKernel FLOYD_STEINBERG = new DiffusionKernel(
-    "Floyd-Steinberg",
-    16,
-    new int[][] { { 1, 0, 7 }, { -1, 1, 3 }, { 0, 1, 5 }, { 1, 1, 1 } }
-  );
+  public static final DiffusionKernel FLOYD_STEINBERG = new DiffusionKernel("Floyd-Steinberg", 16, new int[][] {
+    { 1, 0, 7 },
+    { -1, 1, 3 },
+    { 0, 1, 5 },
+    { 1, 1, 1 },
+  });
 
   /**
    * Filter Lite, also known as Sierra Lite, a three-tap kernel that is the fastest error diffusion.
    */
-  public static final DiffusionKernel FILTER_LITE = new DiffusionKernel(
-    "Filter Lite",
-    4,
-    new int[][] { { 1, 0, 2 }, { -1, 1, 1 }, { 0, 1, 1 } }
-  );
+  public static final DiffusionKernel FILTER_LITE = new DiffusionKernel("Filter Lite", 4, new int[][] {
+    { 1, 0, 2 },
+    { -1, 1, 1 },
+    { 0, 1, 1 },
+  });
 
   /**
    * Atkinson, which diffuses only three quarters of the error and produces a high-contrast look.
    */
-  public static final DiffusionKernel ATKINSON = new DiffusionKernel(
-    "Atkinson",
-    8,
-    new int[][] { { 1, 0, 1 }, { 2, 0, 1 }, { -1, 1, 1 }, { 0, 1, 1 }, { 1, 1, 1 }, { 0, 2, 1 } }
-  );
+  public static final DiffusionKernel ATKINSON = new DiffusionKernel("Atkinson", 8, new int[][] {
+    { 1, 0, 1 },
+    { 2, 0, 1 },
+    { -1, 1, 1 },
+    { 0, 1, 1 },
+    { 1, 1, 1 },
+    { 0, 2, 1 },
+  });
 
   /**
    * Burkes, a seven-tap kernel over two rows.
    */
-  public static final DiffusionKernel BURKES = new DiffusionKernel(
-    "Burkes",
-    32,
-    new int[][] { { 1, 0, 8 }, { 2, 0, 4 }, { -2, 1, 2 }, { -1, 1, 4 }, { 0, 1, 8 }, { 1, 1, 4 }, { 2, 1, 2 } }
-  );
+  public static final DiffusionKernel BURKES = new DiffusionKernel("Burkes", 32, new int[][] {
+    { 1, 0, 8 },
+    { 2, 0, 4 },
+    { -2, 1, 2 },
+    { -1, 1, 4 },
+    { 0, 1, 8 },
+    { 1, 1, 4 },
+    { 2, 1, 2 },
+  });
 
   /**
    * Jarvis, Judice, and Ninke, a twelve-tap kernel over three rows that produces very smooth results.
    */
-  public static final DiffusionKernel JARVIS_JUDICE_NINKE = new DiffusionKernel(
-    "Jarvis-Judice-Ninke",
-    48,
-    new int[][] {
-      { 1, 0, 7 },
-      { 2, 0, 5 },
-      { -2, 1, 3 },
-      { -1, 1, 5 },
-      { 0, 1, 7 },
-      { 1, 1, 5 },
-      { 2, 1, 3 },
-      { -2, 2, 1 },
-      { -1, 2, 3 },
-      { 0, 2, 5 },
-      { 1, 2, 3 },
-      { 2, 2, 1 },
-    }
-  );
+  public static final DiffusionKernel JARVIS_JUDICE_NINKE = new DiffusionKernel("Jarvis-Judice-Ninke", 48, new int[][] {
+    { 1, 0, 7 },
+    { 2, 0, 5 },
+    { -2, 1, 3 },
+    { -1, 1, 5 },
+    { 0, 1, 7 },
+    { 1, 1, 5 },
+    { 2, 1, 3 },
+    { -2, 2, 1 },
+    { -1, 2, 3 },
+    { 0, 2, 5 },
+    { 1, 2, 3 },
+    { 2, 2, 1 },
+  });
 
   /**
    * Stucki, a twelve-tap kernel over three rows with sharper results than Jarvis, Judice, and Ninke.
    */
-  public static final DiffusionKernel STUCKI = new DiffusionKernel(
-    "Stucki",
-    42,
-    new int[][] {
-      { 1, 0, 8 },
-      { 2, 0, 4 },
-      { -2, 1, 2 },
-      { -1, 1, 4 },
-      { 0, 1, 8 },
-      { 1, 1, 4 },
-      { 2, 1, 2 },
-      { -2, 2, 1 },
-      { -1, 2, 2 },
-      { 0, 2, 4 },
-      { 1, 2, 2 },
-      { 2, 2, 1 },
-    }
-  );
+  public static final DiffusionKernel STUCKI = new DiffusionKernel("Stucki", 42, new int[][] {
+    { 1, 0, 8 },
+    { 2, 0, 4 },
+    { -2, 1, 2 },
+    { -1, 1, 4 },
+    { 0, 1, 8 },
+    { 1, 1, 4 },
+    { 2, 1, 2 },
+    { -2, 2, 1 },
+    { -1, 2, 2 },
+    { 0, 2, 4 },
+    { 1, 2, 2 },
+    { 2, 2, 1 },
+  });
 
   /**
    * Stevenson and Arce, a twelve-tap kernel over four rows on a hexagonal grid.
    */
-  public static final DiffusionKernel STEVENSON_ARCE = new DiffusionKernel(
-    "Stevenson-Arce",
-    200,
-    new int[][] {
-      { 2, 0, 32 },
-      { -3, 1, 12 },
-      { -1, 1, 26 },
-      { 1, 1, 30 },
-      { 3, 1, 16 },
-      { -2, 2, 12 },
-      { 0, 2, 26 },
-      { 2, 2, 12 },
-      { -3, 3, 5 },
-      { -1, 3, 12 },
-      { 1, 3, 12 },
-      { 3, 3, 5 },
-    }
-  );
+  public static final DiffusionKernel STEVENSON_ARCE = new DiffusionKernel("Stevenson-Arce", 200, new int[][] {
+    { 2, 0, 32 },
+    { -3, 1, 12 },
+    { -1, 1, 26 },
+    { 1, 1, 30 },
+    { 3, 1, 16 },
+    { -2, 2, 12 },
+    { 0, 2, 26 },
+    { 2, 2, 12 },
+    { -3, 3, 5 },
+    { -1, 3, 12 },
+    { 1, 3, 12 },
+    { 3, 3, 5 },
+  });
 
   private final String name;
   private final int divisor;

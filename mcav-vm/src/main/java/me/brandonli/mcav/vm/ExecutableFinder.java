@@ -165,14 +165,13 @@ public final class ExecutableFinder {
     final List<String> entries = List.of(segments);
     final List<Path> directories = toDirectories(entries);
 
-    final List<Path> fallbacks =
-      switch (this.os) {
-        case MAC -> this.getMacDirectories();
-        case LINUX, FREEBSD -> this.resolveUnder(UNIX_FOLDERS);
-        case WINDOWS -> this.getWindowsDirectories();
-        // an unknown operating system has no well-known install folders, so only PATH is searched
-        case OTHER -> List.of();
-      };
+    final List<Path> fallbacks = switch (this.os) {
+      case MAC -> this.getMacDirectories();
+      case LINUX, FREEBSD -> this.resolveUnder(UNIX_FOLDERS);
+      case WINDOWS -> this.getWindowsDirectories();
+      // an unknown operating system has no well-known install folders, so only PATH is searched
+      case OTHER -> List.of();
+    };
     directories.addAll(fallbacks);
     return directories;
   }

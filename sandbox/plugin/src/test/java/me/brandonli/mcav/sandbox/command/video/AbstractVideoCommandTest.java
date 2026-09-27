@@ -872,7 +872,8 @@ final class AbstractVideoCommandTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     when(this.manager.getService()).thenThrow(fatal);
 
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "0", "")
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "0", "")
     );
     assertSame(fatal, thrown);
     final boolean starting = this.status.get();

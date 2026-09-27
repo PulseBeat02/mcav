@@ -653,7 +653,8 @@ final class ModuleLoaderTest {
   @Test
   void passesVirtualMachineErrorsOfAStopAfterAFailedStartThrough() {
     final ModuleLoader loader = new ModuleLoader();
-    final StackOverflowError thrown = assertThrows(StackOverflowError.class, () -> loader.loadModules(FailingStartAndFatalStopModule.class)
+    final StackOverflowError thrown = assertThrows(StackOverflowError.class, () ->
+      loader.loadModules(FailingStartAndFatalStopModule.class)
     );
     assertSame(FailingStartAndFatalStopModule.FAILURE, thrown, "a virtual machine error is never only attached");
   }

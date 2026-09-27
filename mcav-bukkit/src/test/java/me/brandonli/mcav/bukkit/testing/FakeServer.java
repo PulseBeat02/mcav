@@ -278,9 +278,9 @@ public final class FakeServer implements AutoCloseable {
    */
   public void removePlayer(final UUID uuid) {
     this.onlinePlayers.removeIf(player -> {
-        final UUID playerUuid = player.getUniqueId();
-        return uuid.equals(playerUuid);
-      });
+      final UUID playerUuid = player.getUniqueId();
+      return uuid.equals(playerUuid);
+    });
     this.bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(null);
   }
 

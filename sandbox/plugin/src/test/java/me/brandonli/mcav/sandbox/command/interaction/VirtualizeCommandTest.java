@@ -136,17 +136,17 @@ final class VirtualizeCommandTest {
 
   private void create(final String resolution, final String blocks, final String flags) {
     this.command.createVM(
-        this.sender,
-        this.selector,
-        resolution,
-        30,
-        blocks,
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.X86_64,
-        AudioArgument.NONE,
-        flags
-      );
+      this.sender,
+      this.selector,
+      resolution,
+      30,
+      blocks,
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.X86_64,
+      AudioArgument.NONE,
+      flags
+    );
   }
 
   @Test
@@ -346,17 +346,17 @@ final class VirtualizeCommandTest {
     when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     this.startsWith(CompletableFuture.completedFuture(true));
     this.command.createVM(
-        this.sender,
-        this.selector,
-        "640x480",
-        30,
-        "5x4",
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.X86_64,
-        AudioArgument.SIMPLE_VOICE_CHAT,
-        ""
-      );
+      this.sender,
+      this.selector,
+      "640x480",
+      30,
+      "5x4",
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.X86_64,
+      AudioArgument.SIMPLE_VOICE_CHAT,
+      ""
+    );
     // a disabling plugin hands out its provider no more, and QEMU fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
@@ -402,12 +402,12 @@ final class VirtualizeCommandTest {
     final String first = this.image("a.img");
     final String second = this.image("b.img");
     this.assertArguments(
-        "-drive file=a.img,media=disk -drive file=b.img",
-        "-drive",
-        "file=" + first + ",media=disk",
-        "-drive",
-        "file=" + second
-      );
+      "-drive file=a.img,media=disk -drive file=b.img",
+      "-drive",
+      "file=" + first + ",media=disk",
+      "-drive",
+      "file=" + second
+    );
   }
 
   @Test
@@ -527,31 +527,31 @@ final class VirtualizeCommandTest {
   @Test
   void acceptsTheHardwareOfCommonMachines() {
     this.assertArguments(
-        "-machine q35,accel=kvm,usb=on -cpu host,+ssse3,-avx -smp 4,cores=2 -m 2G,slots=2,maxmem=4G -boot order=dc,menu=on",
-        "-machine",
-        "q35,accel=kvm,usb=on",
-        "-cpu",
-        "host,+ssse3,-avx",
-        "-smp",
-        "4,cores=2",
-        "-m",
-        "2G,slots=2,maxmem=4G",
-        "-boot",
-        "order=dc,menu=on"
-      );
+      "-machine q35,accel=kvm,usb=on -cpu host,+ssse3,-avx -smp 4,cores=2 -m 2G,slots=2,maxmem=4G -boot order=dc,menu=on",
+      "-machine",
+      "q35,accel=kvm,usb=on",
+      "-cpu",
+      "host,+ssse3,-avx",
+      "-smp",
+      "4,cores=2",
+      "-m",
+      "2G,slots=2,maxmem=4G",
+      "-boot",
+      "order=dc,menu=on"
+    );
     this.assertArguments(
-        "-accel tcg,thread=multi -rtc base=utc,clock=host -k en-us -vga virtio -name \"my vm\",debug-threads=on",
-        "-accel",
-        "tcg,thread=multi",
-        "-rtc",
-        "base=utc,clock=host",
-        "-k",
-        "en-us",
-        "-vga",
-        "virtio",
-        "-name",
-        "my vm,debug-threads=on"
-      );
+      "-accel tcg,thread=multi -rtc base=utc,clock=host -k en-us -vga virtio -name \"my vm\",debug-threads=on",
+      "-accel",
+      "tcg,thread=multi",
+      "-rtc",
+      "base=utc,clock=host",
+      "-k",
+      "en-us",
+      "-vga",
+      "virtio",
+      "-name",
+      "my vm,debug-threads=on"
+    );
   }
 
   @Test
@@ -565,17 +565,17 @@ final class VirtualizeCommandTest {
       start
     );
     this.command.createVM(
-        this.sender,
-        this.selector,
-        "640x480",
-        30,
-        "5x4",
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.X86_64,
-        AudioArgument.SIMPLE_VOICE_CHAT,
-        "-m 256M"
-      );
+      this.sender,
+      this.selector,
+      "640x480",
+      30,
+      "5x4",
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.X86_64,
+      AudioArgument.SIMPLE_VOICE_CHAT,
+      "-m 256M"
+    );
     final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
     verify(audio).attach(pipelines.capture());
     assertSame(output, pipelines.getValue().getFilter());
@@ -594,17 +594,17 @@ final class VirtualizeCommandTest {
       start
     );
     this.command.createVM(
-        this.sender,
-        this.selector,
-        "640x480",
-        30,
-        "5x4",
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.X86_64,
-        AudioArgument.HTTP_SERVER,
-        "-m 256M"
-      );
+      this.sender,
+      this.selector,
+      "640x480",
+      30,
+      "5x4",
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.X86_64,
+      AudioArgument.HTTP_SERVER,
+      "-m 256M"
+    );
   }
 
   @Test
@@ -644,17 +644,17 @@ final class VirtualizeCommandTest {
   @Test
   void aMachineOfAnArchitectureWithoutSoundCannotChooseAnAudioOutput() {
     this.command.createVM(
-        this.sender,
-        this.selector,
-        "640x480",
-        30,
-        "5x4",
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.AARCH64,
-        AudioArgument.SIMPLE_VOICE_CHAT,
-        "-m 256M"
-      );
+      this.sender,
+      this.selector,
+      "640x480",
+      30,
+      "5x4",
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.AARCH64,
+      AudioArgument.SIMPLE_VOICE_CHAT,
+      "-m 256M"
+    );
     this.assertReceived(Message.VM_NO_SOUND.build());
     this.machines.verifyNoInteractions();
   }
@@ -685,17 +685,17 @@ final class VirtualizeCommandTest {
   @Test
   void anAudioOutputThatCannotPlayNowStartsNothing() {
     this.command.createVM(
-        this.sender,
-        this.selector,
-        "640x480",
-        30,
-        "5x4",
-        0,
-        DitheringArgument.FILTER_LITE,
-        VMPlayer.Architecture.X86_64,
-        AudioArgument.DISCORD_BOT,
-        "-m 256M"
-      );
+      this.sender,
+      this.selector,
+      "640x480",
+      30,
+      "5x4",
+      0,
+      DitheringArgument.FILTER_LITE,
+      VMPlayer.Architecture.X86_64,
+      AudioArgument.DISCORD_BOT,
+      "-m 256M"
+    );
     this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
     this.machines.verifyNoInteractions();
   }
@@ -712,10 +712,10 @@ final class VirtualizeCommandTest {
   void keepsTheAttachmentPropertiesOfADrive() throws IOException {
     final String image = this.image("disk.img");
     this.assertArguments(
-        "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
-        "-drive",
-        "file=" + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
-      );
+      "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
+      "-drive",
+      "file=" + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+    );
   }
 
   @ParameterizedTest

@@ -64,14 +64,14 @@ final class FrameCanvas implements AutoCloseable {
     if (region.getPageWidth() != this.width || region.getPageHeight() != this.height) {
       throw new ProtocolException(
         "A frame of a " +
-        region.getPageWidth() +
-        "x" +
-        region.getPageHeight() +
-        " page arrived for a " +
-        this.width +
-        "x" +
-        this.height +
-        " page"
+          region.getPageWidth() +
+          "x" +
+          region.getPageHeight() +
+          " page arrived for a " +
+          this.width +
+          "x" +
+          this.height +
+          " page"
       );
     }
     if (this.closed) {

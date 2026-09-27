@@ -125,9 +125,11 @@ final class AudioProviderTest {
     when(this.guild.getAudioManager()).thenReturn(this.audioManager);
     this.builders = Mockito.mockStatic(JDABuilder.class);
     // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
-    this.builders.when(() -> {
+    this.builders
+      .when(() -> {
         final JDABuilder _ = JDABuilder.createLight("token", GatewayIntent.GUILD_VOICE_STATES);
-      }).thenReturn(this.builder);
+      })
+      .thenReturn(this.builder);
     this.discordPlayers = Mockito.mockStatic(DiscordPlayer.class);
     this.discordPlayers.when(() -> DiscordPlayer.voice(this.jda)).thenReturn(this.discord);
     this.httpResults = Mockito.mockStatic(HttpResult.class);

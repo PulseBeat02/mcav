@@ -471,7 +471,7 @@ public final class HttpDownloader {
     }
 
     @Override
-    public int read(final byte@NonNull[] buffer, final int offset, final int length) throws IOException {
+    public int read(final byte @NonNull [] buffer, final int offset, final int length) throws IOException {
       return this.delegate.read(buffer, offset, length);
     }
 

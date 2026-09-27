@@ -53,7 +53,7 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
 
   private final LineOpener lineOpener;
   private volatile @Nullable SourceDataLine line;
-  private byte@Nullable[] chunk;
+  private byte @Nullable [] chunk;
 
   /**
    * Constructs a new direct audio output. Nothing is opened until {@link #start()} is called.

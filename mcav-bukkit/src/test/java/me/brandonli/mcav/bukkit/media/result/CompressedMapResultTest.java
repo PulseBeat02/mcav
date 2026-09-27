@@ -742,33 +742,27 @@ final class CompressedMapResultTest {
       return this.nextFrame.clone();
     });
     try (final ExecutorService workers = Executors.newFixedThreadPool(2); final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
-      final CompletableFuture<Void> released = CompletableFuture.runAsync(
-        () -> {
-          try (final MockedStatic<MapPacketFactory> packets = Mockito.mockStatic(MapPacketFactory.class)) {
-            packets
-              .when(() -> MapPacketFactory.clear(this.viewers, 3, 1))
-              .thenAnswer(_ -> {
-                clearing.countDown();
-                assertTrue(finishClear.await(10, TimeUnit.SECONDS));
-                order.add("clear");
-                return null;
-              });
-            result.release();
-          }
-        },
-        workers
-      );
+      final CompletableFuture<Void> released = CompletableFuture.runAsync(() -> {
+        try (final MockedStatic<MapPacketFactory> packets = Mockito.mockStatic(MapPacketFactory.class)) {
+          packets
+            .when(() -> MapPacketFactory.clear(this.viewers, 3, 1))
+            .thenAnswer(_ -> {
+              clearing.countDown();
+              assertTrue(finishClear.await(10, TimeUnit.SECONDS));
+              order.add("clear");
+              return null;
+            });
+          result.release();
+        }
+      }, workers);
       final CompletableFuture<Void> restarted;
       try {
         assertTrue(clearing.await(5, TimeUnit.SECONDS));
-        restarted = CompletableFuture.runAsync(
-          () -> {
-            restarting.countDown();
-            result.start();
-            result.process(image, this.algorithm);
-          },
-          workers
-        );
+        restarted = CompletableFuture.runAsync(() -> {
+          restarting.countDown();
+          result.start();
+          result.process(image, this.algorithm);
+        }, workers);
         assertTrue(restarting.await(5, TimeUnit.SECONDS));
         assertThrows(
           TimeoutException.class,

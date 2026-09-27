@@ -72,8 +72,8 @@ public final class TreeReader {
     final boolean defaultSolid = (frame.getFlags() & DEFAULT_SOLID) != 0;
     // the frame hands out copies of its bytes and tables, so each is taken once for all the leaves
     final byte[] data = frame.getData();
-    final byte@Nullable[] endpoints = frame.getEndpointTable();
-    final List<byte@Nullable[]> selectors = new ArrayList<>(BLOCK_SIZES);
+    final byte @Nullable [] endpoints = frame.getEndpointTable();
+    final List<byte @Nullable []> selectors = new ArrayList<>(BLOCK_SIZES);
     for (int size = SMALLEST_BLOCK; size <= ROOT_SIZE; size *= 2) {
       selectors.add(frame.getSelectorTable(size));
     }
@@ -121,8 +121,8 @@ public final class TreeReader {
     final Mcv2Frame frame,
     final byte[] data,
     final Mcv2Frame.Leaf leaf,
-    final byte@Nullable[] endpoints,
-    final List<byte@Nullable[]> selectors,
+    final byte @Nullable [] endpoints,
+    final List<byte @Nullable []> selectors,
     final boolean defaultSolid
   ) throws Mcv2Exception {
     final int mode = leaf.mode();
@@ -130,7 +130,7 @@ public final class TreeReader {
       return TreeNode.leaf(MODE_MOTION, 0, new byte[] { (byte) leaf.offset(), (byte) (leaf.offset() >> Byte.SIZE) });
     }
     if (mode == MODE_PATTERN) {
-      final byte@Nullable[] table = selectors.get(Integer.numberOfTrailingZeros(leaf.size() / SMALLEST_BLOCK));
+      final byte @Nullable [] table = selectors.get(Integer.numberOfTrailingZeros(leaf.size() / SMALLEST_BLOCK));
       final PatternRecord record = PatternRecord.expand(data, leaf.offset(), leaf.size(), endpoints, table);
       return TreeNode.leaf(MODE_PALETTE, 0, fullPalette(record, leaf.size()));
     }
@@ -195,7 +195,7 @@ public final class TreeReader {
    * @param size   the leaf size
    * @return the pattern record, or null when the selectors do not repeat along an axis
    */
-  public static byte@Nullable[] patternRecord(final byte[] record, final int size) {
+  public static byte @Nullable [] patternRecord(final byte[] record, final int size) {
     for (int kind = 0; kind < 2; kind++) {
       boolean repeats = true;
       for (int y = 0; y < size && repeats; y++) {

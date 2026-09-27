@@ -135,7 +135,8 @@ final class ImageEntityCommandTest {
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, CHARACTER, position, MRL));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, null, position, MRL));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, null, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, position, null)
+    assertThrows(NullPointerException.class, () ->
+      this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, position, null)
     );
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));

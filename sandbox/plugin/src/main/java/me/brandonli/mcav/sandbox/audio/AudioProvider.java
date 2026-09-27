@@ -339,12 +339,11 @@ public final class AudioProvider {
         this.releaseSpeakers();
         this.owner = source;
       }
-      final AudioFilter output =
-        switch (argument) {
-          case DISCORD_BOT -> this.constructDiscordFilter(dump);
-          case HTTP_SERVER -> this.constructHttpFilter(dump);
-          default -> this.constructSVCFilter(players);
-        };
+      final AudioFilter output = switch (argument) {
+        case DISCORD_BOT -> this.constructDiscordFilter(dump);
+        case HTTP_SERVER -> this.constructHttpFilter(dump);
+        default -> this.constructSVCFilter(players);
+      };
       return (samples, metadata) -> IDENTITY.equivalent(this.owner, source) && output.applyFilter(samples, metadata);
     }
   }

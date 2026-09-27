@@ -259,7 +259,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the 6x6 "central white point" matrix at normal strength, a close variant
    * of {@link #CLUSTERED_DOT_6X6_NORMAL} with 37 shades.
    */
-  CLUSTERED_DOT_6X6_2_NORMAL(() -> bayer(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAX, PixelMapper.NORMAL_STRENGTH)
+  CLUSTERED_DOT_6X6_2_NORMAL(() ->
+    bayer(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
 
   /**
@@ -278,7 +279,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the 6x6 "balanced centered point" matrix at normal strength, a close
    * variant of {@link #CLUSTERED_DOT_6X6_NORMAL} with 37 shades.
    */
-  CLUSTERED_DOT_6X6_3_NORMAL(() -> bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAX, PixelMapper.NORMAL_STRENGTH)
+  CLUSTERED_DOT_6X6_3_NORMAL(() ->
+    bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAX, PixelMapper.NORMAL_STRENGTH)
   ),
 
   /**

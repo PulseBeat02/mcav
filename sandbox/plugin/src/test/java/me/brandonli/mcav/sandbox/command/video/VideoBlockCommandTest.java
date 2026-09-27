@@ -123,15 +123,15 @@ final class VideoBlockCommandTest {
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
-        this.sender,
-        this.selector,
-        PlayerArgument.FFMPEG,
-        AudioArgument.HTTP_SERVER,
-        "32x18",
-        this.location,
-        "--loop",
-        "clip.mp4"
-      );
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.HTTP_SERVER,
+      "32x18",
+      this.location,
+      "--loop",
+      "clip.mp4"
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );

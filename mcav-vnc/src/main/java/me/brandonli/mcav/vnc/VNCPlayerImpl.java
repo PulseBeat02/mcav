@@ -508,10 +508,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
 
     final int[] translated = this.translateCoordinates(x, y);
     this.forward(() -> {
-        vncClient.moveMouse(translated[0], translated[1]);
-        final Runnable press = clickAction(vncClient, type);
-        press.run();
-      });
+      vncClient.moveMouse(translated[0], translated[1]);
+      final Runnable press = clickAction(vncClient, type);
+      press.run();
+    });
   }
 
   private static Runnable clickAction(final VernacularClient vncClient, final MouseClick type) {
@@ -537,14 +537,14 @@ public final class VNCPlayerImpl implements VNCPlayer {
 
     final OptionalInt symbol = KeySymbols.lookup(text);
     this.forward(() -> {
-        if (symbol.isPresent()) {
-          final int code = symbol.getAsInt();
-          vncClient.updateKey(code, true);
-          vncClient.updateKey(code, false);
-        } else {
-          vncClient.type(text);
-        }
-      });
+      if (symbol.isPresent()) {
+        final int code = symbol.getAsInt();
+        vncClient.updateKey(code, true);
+        vncClient.updateKey(code, false);
+      } else {
+        vncClient.type(text);
+      }
+    });
   }
 
   private @Nullable VernacularClient getConnectedClient() {

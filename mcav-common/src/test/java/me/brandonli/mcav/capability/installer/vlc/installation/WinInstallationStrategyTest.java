@@ -52,13 +52,12 @@ final class WinInstallationStrategyTest {
   void extractsTheInnerDirectoryIntoTheInstallationDirectory() throws IOException {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
-    final Path archive =
-      this.createZip(
-          "vlc-3.0.24-win64.zip",
-          "vlc-3.0.24/libvlc.dll",
-          "vlc-3.0.24/libvlccore.dll",
-          "vlc-3.0.24/plugins/codec/libavcodec_plugin.dll"
-        );
+    final Path archive = this.createZip(
+      "vlc-3.0.24-win64.zip",
+      "vlc-3.0.24/libvlc.dll",
+      "vlc-3.0.24/libvlccore.dll",
+      "vlc-3.0.24/plugins/codec/libavcodec_plugin.dll"
+    );
     final Path installed = strategy.execute(archive);
     final Path installDirectory = installer.getInstallDirectory();
     final boolean hasLibrary = containsFile(installed, "libvlc.dll");

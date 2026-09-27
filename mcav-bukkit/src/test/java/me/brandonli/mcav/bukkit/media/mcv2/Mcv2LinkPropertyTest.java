@@ -38,7 +38,9 @@ final class Mcv2LinkPropertyTest {
   @Provide
   Arbitrary<List<Step>> streams() {
     final Arbitrary<Step> step = Combinators.combine(
-      Arbitraries.integers().between(0, 9).map(i -> i == 0),
+      Arbitraries.integers()
+        .between(0, 9)
+        .map(i -> i == 0),
       Arbitraries.integers().between(0, 400),
       Arbitraries.integers().between(0, 500)
     ).as(Step::new);
@@ -74,7 +76,7 @@ final class Mcv2LinkPropertyTest {
         link.written(bytes);
       }
       final boolean keyframe = id == 0 || step.keyframe();
-      final long reference = keyframe ? id : (fromKeyframe ? lastKey : id - 1);
+      final long reference = keyframe ? id : fromKeyframe ? lastKey : id - 1;
       if (keyframe) {
         lastKey = id;
       }

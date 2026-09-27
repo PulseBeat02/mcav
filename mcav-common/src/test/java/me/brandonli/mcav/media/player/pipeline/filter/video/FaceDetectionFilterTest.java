@@ -113,7 +113,8 @@ final class FaceDetectionFilterTest {
     final Path withoutCascade = this.directory.resolve("without-cascade.xml");
     Files.writeString(unparsable, "");
     Files.writeString(withoutCascade, "<?xml version=\"1.0\"?>\n<opencv_storage>\n<unrelated>1</unrelated>\n</opencv_storage>\n");
-    final IllegalArgumentException missingFailure = assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(missing, RED)
+    final IllegalArgumentException missingFailure = assertThrows(IllegalArgumentException.class, () ->
+      new FaceDetectionFilter(missing, RED)
     );
     final String missingMessage = missingFailure.getMessage();
     assertEquals("Cascade file does not exist: " + missing, missingMessage);

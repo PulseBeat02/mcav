@@ -214,7 +214,10 @@ class CefEngineTest {
       } catch (final InterruptedException | java.lang.reflect.InvocationTargetException exception) {
         throw new IllegalStateException(exception);
       }
-      return mockingDetails(browser).getInvocations().stream().anyMatch(call -> call.getMethod().getName().equals("loadURL"));
+      return mockingDetails(browser)
+        .getInvocations()
+        .stream()
+        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
     });
     verify(lost).close();
     verify(working).addEventListener(audio);
@@ -259,7 +262,10 @@ class CefEngineTest {
       } catch (final InterruptedException | java.lang.reflect.InvocationTargetException exception) {
         throw new IllegalStateException(exception);
       }
-      return mockingDetails(browser).getInvocations().stream().anyMatch(call -> call.getMethod().getName().equals("loadURL"));
+      return mockingDetails(browser)
+        .getInvocations()
+        .stream()
+        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
     });
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();

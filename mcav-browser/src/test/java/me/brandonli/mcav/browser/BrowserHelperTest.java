@@ -207,13 +207,24 @@ class BrowserHelperTest {
       assertEquals(ScriptedEngine.RED, region.getPixels()[2] & 0xFF);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_TYPE, "ab"));
       peer.readFrameWithBlue(4);
-      peer.send(out -> HelperProtocol.writeMouse(out, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
+      peer.send(out ->
+        HelperProtocol.writeMouse(out, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
       );
       peer.readFrameWithBlue(5);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_PRESS, "Enter"));
       peer.readFrameWithBlue(7);
-      assertTrue(engine.getCalls().get(0).startsWith(DevToolsInput.KEY_METHOD + " {\"type\":\"keyDown\",\"key\":\"a\""));
-      assertTrue(engine.getCalls().get(4).startsWith(DevToolsInput.MOUSE_METHOD + " {\"type\":\"mousePressed\",\"x\":1,\"y\":2"));
+      assertTrue(
+        engine
+          .getCalls()
+          .get(0)
+          .startsWith(DevToolsInput.KEY_METHOD + " {\"type\":\"keyDown\",\"key\":\"a\"")
+      );
+      assertTrue(
+        engine
+          .getCalls()
+          .get(4)
+          .startsWith(DevToolsInput.MOUSE_METHOD + " {\"type\":\"mousePressed\",\"x\":1,\"y\":2")
+      );
       assertTrue(engine.getCalls().get(5).contains("\"key\":\"Enter\""));
       assertNull(helper.getStopReason());
       peer.send(HelperProtocol::writeClose);

@@ -895,13 +895,11 @@ final class MatImageBufferTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "715827883, 1, Image dimensions exceed the maximum BGR buffer size: 715827883x1",
-      "65536, 65536, Image dimensions exceed the maximum BGR buffer size: 65536x65536",
-      "2147483647, 2147483647, Image dimensions exceed the maximum BGR buffer size: 2147483647x2147483647",
-    }
-  )
+  @CsvSource({
+    "715827883, 1, Image dimensions exceed the maximum BGR buffer size: 715827883x1",
+    "65536, 65536, Image dimensions exceed the maximum BGR buffer size: 65536x65536",
+    "2147483647, 2147483647, Image dimensions exceed the maximum BGR buffer size: 2147483647x2147483647",
+  })
   void rejectsUnrepresentableDimensionsBeforeNativeAllocation(final int width, final int height, final String expectedMessage) {
     // Length2 differs from BOTH wrapped counts for every row: pixels715827883/0/1 and BGR-2147483647/0/3.
     // If a mutation removes the dimension guard, the existing length guard still rejects before any allocation.

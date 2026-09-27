@@ -69,9 +69,9 @@ final class VLCPlaybackTest {
 
   VLCPlaybackTest() {
     this.owner.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
   }
 
   private static Source source(final String resource) {

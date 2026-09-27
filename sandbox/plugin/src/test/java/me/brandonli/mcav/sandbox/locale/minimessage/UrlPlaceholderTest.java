@@ -71,7 +71,10 @@ final class UrlPlaceholderTest {
   @ParameterizedTest
   @ValueSource(
     strings = {
-      "https://example.test/a'b\\c", "https://example.test/?q=<red>paint</red>", "https://example.test/\"quoted\"?x=$URL$", INJECTION,
+      "https://example.test/a'b\\c",
+      "https://example.test/?q=<red>paint</red>",
+      "https://example.test/\"quoted\"?x=$URL$",
+      INJECTION,
     }
   )
   void invalidClickTargetsKeepLiteralTextWithoutAnEvent(final String url) {

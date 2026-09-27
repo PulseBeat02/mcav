@@ -925,20 +925,17 @@ final class VMProcessTest {
     final AtomicBoolean restored = new AtomicBoolean();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final CountDownLatch returned = new CountDownLatch(1);
-    final Thread stopping = new Thread(
-      () -> {
-        try {
-          process.shutdown();
-          final Thread current = Thread.currentThread();
-          restored.set(current.isInterrupted());
-        } catch (final Throwable thrown) {
-          failure.set(thrown);
-        } finally {
-          returned.countDown();
-        }
-      },
-      "interrupted-output-shutdown"
-    );
+    final Thread stopping = new Thread(() -> {
+      try {
+        process.shutdown();
+        final Thread current = Thread.currentThread();
+        restored.set(current.isInterrupted());
+      } catch (final Throwable thrown) {
+        failure.set(thrown);
+      } finally {
+        returned.countDown();
+      }
+    }, "interrupted-output-shutdown");
     stopping.setDaemon(true);
     try {
       stopping.start();
@@ -1192,7 +1189,7 @@ final class VMProcessTest {
     }
 
     @Override
-    public int read(final byte@NonNull[] buffer, final int offset, final int length) {
+    public int read(final byte @NonNull [] buffer, final int offset, final int length) {
       this.awaitFinish();
       return -1;
     }
@@ -1236,7 +1233,7 @@ final class VMProcessTest {
     }
 
     @Override
-    public int read(final byte@NonNull[] buffer, final int offset, final int length) {
+    public int read(final byte @NonNull [] buffer, final int offset, final int length) {
       if (this.position == 0) {
         try {
           Thread.sleep(this.delayMillis);
@@ -1278,7 +1275,7 @@ final class VMProcessTest {
     }
 
     @Override
-    public int read(final byte@NonNull[] buffer, final int offset, final int length) {
+    public int read(final byte @NonNull [] buffer, final int offset, final int length) {
       final int value = this.read();
       if (value < 0) {
         return -1;
@@ -1306,7 +1303,7 @@ final class VMProcessTest {
     }
 
     @Override
-    public int read(final byte@NonNull[] buffer, final int offset, final int length) throws IOException {
+    public int read(final byte @NonNull [] buffer, final int offset, final int length) throws IOException {
       if (this.delivered) {
         throw new IOException("Stream closed");
       }

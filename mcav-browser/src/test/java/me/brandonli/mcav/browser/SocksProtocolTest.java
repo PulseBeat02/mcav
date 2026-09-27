@@ -123,7 +123,8 @@ class SocksProtocolTest {
     assertEquals("The reserved byte of the request is 7", reserved.getMessage());
     final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 0)));
     assertEquals("The request names an empty host", empty.getMessage());
-    final ProtocolException character = assertThrows(ProtocolException.class, () -> request(domainRequest(SocksProtocol.CONNECT, "a b", 80))
+    final ProtocolException character = assertThrows(ProtocolException.class, () ->
+      request(domainRequest(SocksProtocol.CONNECT, "a b", 80))
     );
     assertEquals("The host name of the request holds the byte 32", character.getMessage());
     assertThrows(EOFException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 5, 'a')));
@@ -170,7 +171,8 @@ class SocksProtocolTest {
   @Test
   void aHostNameThatStartsWithABracketIsRefused() {
     for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
-      final ProtocolException failure = assertThrows(ProtocolException.class, () -> request(domainRequest(SocksProtocol.CONNECT, host, 443))
+      final ProtocolException failure = assertThrows(ProtocolException.class, () ->
+        request(domainRequest(SocksProtocol.CONNECT, host, 443))
       );
       assertEquals("The host name of the request holds a bracket: " + host, failure.getMessage());
     }

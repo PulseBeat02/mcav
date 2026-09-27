@@ -214,15 +214,14 @@ final class QemuHardwareValues {
     final char last = size.charAt(size.length() - 1);
     final boolean suffix = Character.isLetter(last);
     final long number = Long.parseLong(suffix ? size.substring(0, size.length() - 1) : size);
-    final int shift =
-      switch (Character.toUpperCase(last)) {
-        case 'K' -> 10;
-        case 'G' -> 30;
-        case 'T' -> 40;
-        default -> 20;
-      };
+    final int shift = switch (Character.toUpperCase(last)) {
+      case 'K' -> 10;
+      case 'G' -> 30;
+      case 'T' -> 40;
+      default -> 20;
+    };
     // a number of at most nine digits shifted by at most 40 bits fits a long unless it is beyond 2^63 bytes
-    return number > (Long.MAX_VALUE >> shift) ? Long.MAX_VALUE : number << shift;
+    return number > Long.MAX_VALUE >> shift ? Long.MAX_VALUE : number << shift;
   }
 
   /**

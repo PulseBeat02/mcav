@@ -52,20 +52,18 @@ final class CompactRecordTest {
   }
 
   @ParameterizedTest(name = "{3}")
-  @CsvSource(
-    {
-      "00,  -1, 0, negative offset",
-      "00,   1, 0, offset at the end",
-      "00,   0, -1, negative quantizer",
-      "00,   0, 8, quantizer above 7",
-      "0900, 0, 0, class 9",
-      "3000, 0, 0, motion form 3",
-      "0700000000, 0, 1, gain with a quantizer",
-      "010000000000, 0, 0, truncated body",
-      "0500000040, 0, 0, vector index 64",
-      "060000000010, 0, 0, product padding",
-    }
-  )
+  @CsvSource({
+    "00,  -1, 0, negative offset",
+    "00,   1, 0, offset at the end",
+    "00,   0, -1, negative quantizer",
+    "00,   0, 8, quantizer above 7",
+    "0900, 0, 0, class 9",
+    "3000, 0, 0, motion form 3",
+    "0700000000, 0, 1, gain with a quantizer",
+    "010000000000, 0, 0, truncated body",
+    "0500000040, 0, 0, vector index 64",
+    "060000000010, 0, 0, product padding",
+  })
   void rejectsBrokenRecords(final String hex, final int offset, final int q, final String name) {
     final byte[] data = HexFormat.of().parseHex(hex);
     assertThrows(Mcv2Exception.class, () -> CompactRecord.parse(data, offset, q), name);

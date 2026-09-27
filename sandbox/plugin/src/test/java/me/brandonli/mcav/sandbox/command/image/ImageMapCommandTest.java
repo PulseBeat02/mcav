@@ -150,8 +150,9 @@ final class ImageMapCommandTest {
 
   @Test
   void givesEveryImageItsOwnTemporalAlgorithm() {
-    final AbstractImageCommand.ImageConfigurationProvider provider =
-      this.showAndCaptureProvider(DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.showAndCaptureProvider(
+      DitheringArgument.FLOYD_STEINBERG_TEMPORAL
+    );
     final DitherAlgorithm first = this.createImageAndCaptureAlgorithm(provider);
     final DitherAlgorithm second = this.createImageAndCaptureAlgorithm(provider);
     assertNotSame(first, second);
@@ -176,7 +177,8 @@ final class ImageMapCommandTest {
     assertThrows(NullPointerException.class, () ->
       this.command.showMapImage(null, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL)
     );
-    assertThrows(NullPointerException.class, () -> this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL)
+    assertThrows(NullPointerException.class, () ->
+      this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL)
     );
     assertThrows(NullPointerException.class, () ->
       this.command.showMapImage(this.sender, this.selector, null, BLOCKS, MAP_ID, dithering, MRL)

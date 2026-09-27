@@ -852,7 +852,8 @@ class HelperSessionTest {
       final Path created = HelperSession.createFolder(root);
       assertTrue(Files.isDirectory(created), "a file system without POSIX permissions gets a plain folder");
     }
-    final PlayerException missing = assertThrows(PlayerException.class, () -> HelperSession.createFolder(this.directory.resolve("missing"))
+    final PlayerException missing = assertThrows(PlayerException.class, () ->
+      HelperSession.createFolder(this.directory.resolve("missing"))
     );
     assertTrue(missing.getMessage().startsWith("The folder of the browser session cannot be created"), missing.getMessage());
   }

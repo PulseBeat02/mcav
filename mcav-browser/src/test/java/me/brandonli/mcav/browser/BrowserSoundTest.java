@@ -104,20 +104,18 @@ class BrowserSoundTest {
 
     static Recording attach(final BrowserPlayer player) {
       final Recording recording = new Recording();
-      player
-        .getAudioAttachableCallback()
-        .attach(
-          AudioPipelineStep.of((samples, metadata) -> {
-            assertEquals(AudioFilter.SAMPLE_RATE, metadata.getAudioSampleRate());
-            assertEquals(AudioFilter.CHANNELS, metadata.getAudioChannels());
-            final byte[] copy = new byte[samples.remaining()];
-            samples.get(copy);
-            synchronized (recording.pcm) {
-              recording.pcm.writeBytes(copy);
-            }
-            return true;
-          })
-        );
+      player.getAudioAttachableCallback().attach(
+        AudioPipelineStep.of((samples, metadata) -> {
+          assertEquals(AudioFilter.SAMPLE_RATE, metadata.getAudioSampleRate());
+          assertEquals(AudioFilter.CHANNELS, metadata.getAudioChannels());
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          synchronized (recording.pcm) {
+            recording.pcm.writeBytes(copy);
+          }
+          return true;
+        })
+      );
       return recording;
     }
 
@@ -278,35 +276,31 @@ class BrowserSoundTest {
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();
-    player
-      .getAudioAttachableCallback()
-      .attach(
-        AudioPipelineStep.of((samples, metadata) -> {
-          final long arrival = System.nanoTime();
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          final short[] left = leftChannel(copy);
-          final int windows = left.length / WINDOW_FRAMES;
-          for (int window = 0; window < windows; window++) {
-            final boolean tone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
-            // the samples of a chunk played before it arrived, the last one just now
-            final long end = (long) (window + 1) * WINDOW_FRAMES;
-            final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-            sound.add(new long[] { arrival - before, tone ? 1 : 0 });
-          }
-          return true;
-        })
-      );
-    player
-      .getVideoAttachableCallback()
-      .attach(
-        VideoPipelineStep.of((image, metadata) -> {
-          final int[] pixels = image.getPixels();
-          final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
-          picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
-          return false;
-        })
-      );
+    player.getAudioAttachableCallback().attach(
+      AudioPipelineStep.of((samples, metadata) -> {
+        final long arrival = System.nanoTime();
+        final byte[] copy = new byte[samples.remaining()];
+        samples.get(copy);
+        final short[] left = leftChannel(copy);
+        final int windows = left.length / WINDOW_FRAMES;
+        for (int window = 0; window < windows; window++) {
+          final boolean tone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
+          // the samples of a chunk played before it arrived, the last one just now
+          final long end = (long) (window + 1) * WINDOW_FRAMES;
+          final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
+          sound.add(new long[] { arrival - before, tone ? 1 : 0 });
+        }
+        return true;
+      })
+    );
+    player.getVideoAttachableCallback().attach(
+      VideoPipelineStep.of((image, metadata) -> {
+        final int[] pixels = image.getPixels();
+        final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
+        picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
+        return false;
+      })
+    );
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
     // 40 s of turns, 50 of them on
@@ -332,7 +326,10 @@ class BrowserSoundTest {
     assertTrue(offsets.size() >= 10, "matched " + offsets.size() + " of " + pictureOnsets.size() + " changes of the picture");
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
-    final long within = offsets.stream().filter(offset -> offset >= -40 && offset <= 80).count();
+    final long within = offsets
+      .stream()
+      .filter(offset -> offset >= -40 && offset <= 80)
+      .count();
     final int halfCount = offsets.size() / 2;
     final double firstHalf = median(offsets.subList(0, halfCount));
     final double secondHalf = median(offsets.subList(halfCount, offsets.size()));
@@ -349,7 +346,10 @@ class BrowserSoundTest {
       secondHalf
     );
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
-    final long acceptable = offsets.stream().filter(offset -> offset >= -90 && offset <= 185).count();
+    final long acceptable = offsets
+      .stream()
+      .filter(offset -> offset >= -90 && offset <= 185)
+      .count();
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, offsets.size());
     // the target of the review of the A/V sync: 95% of the changes within [-40, +80] ms, sound late rather than early;
     // the sound of a page arrives after its picture, so no hold can bring the two closer
@@ -363,7 +363,7 @@ class BrowserSoundTest {
   private static int zeroCrossings(final short[] left, final int start) {
     int crossings = 0;
     for (int index = start + 1; index < left.length; index++) {
-      if ((left[index - 1] < 0) != (left[index] < 0)) {
+      if (left[index - 1] < 0 != left[index] < 0) {
         crossings++;
       }
     }

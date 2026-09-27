@@ -27,8 +27,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
  * @param <T> the type of algorithm the builder creates
  * @param <B> the type of the builder itself, for method chaining
  */
-public interface ErrorDiffusionDitherBuilder<T extends ErrorDiffusionDither, B extends ErrorDiffusionDitherBuilder<T, B>>
-  extends DitherAlgorithmBuilder<T, B> {
+public interface ErrorDiffusionDitherBuilder<
+  T extends ErrorDiffusionDither,
+  B extends ErrorDiffusionDitherBuilder<T, B>
+> extends DitherAlgorithmBuilder<T, B> {
   /**
    * Sets the error diffusion algorithm. Defaults to {@link Algorithm#FILTER_LITE}.
    *

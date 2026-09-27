@@ -95,7 +95,7 @@ final class FastFitsTest {
   void clustersTwoColours(final int size) {
     final int[] source = new int[size * size * 3];
     for (int i = 0; i < size * size; i++) {
-      final boolean bright = (i % size) >= size / 2;
+      final boolean bright = i % size >= size / 2;
       source[i * 3] = bright ? 200 : 10;
       source[i * 3 + 1] = bright ? 210 : 20;
       source[i * 3 + 2] = bright ? 220 : 30;

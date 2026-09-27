@@ -90,9 +90,10 @@ final class MapProbe implements DitherResultStep {
       final ResizeFilter filter = new ResizeFilter(width, height);
       filter.applyFilter(samples);
     }
-    final byte[] dithered = algorithm instanceof final ParallelDitherAlgorithm parallel
-      ? parallel.ditherIntoBytes(samples, this.ditherPool)
-      : algorithm.ditherIntoBytes(samples);
+    final byte[] dithered =
+      algorithm instanceof final ParallelDitherAlgorithm parallel
+        ? parallel.ditherIntoBytes(samples, this.ditherPool)
+        : algorithm.ditherIntoBytes(samples);
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final DeltaMapEncoder current = this.getEncoder(width, height);

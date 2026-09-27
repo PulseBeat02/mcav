@@ -114,15 +114,14 @@ final class VLCInstallerTest {
     final OS operatingSystem = platform.getOS();
     final String url = installer.getUrl();
 
-    final String expectedPrefix =
-      switch (operatingSystem) {
-        // Windows and macOS take the zip and the disk image VideoLAN publishes
-        case WINDOWS, MAC -> "https://get.videolan.org/vlc/";
-        // Linux takes an AppImage, because it installs without root
-        case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
-        // no VLC is published for the rest, and an unresolved download answers with an empty URL
-        default -> "";
-      };
+    final String expectedPrefix = switch (operatingSystem) {
+      // Windows and macOS take the zip and the disk image VideoLAN publishes
+      case WINDOWS, MAC -> "https://get.videolan.org/vlc/";
+      // Linux takes an AppImage, because it installs without root
+      case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
+      // no VLC is published for the rest, and an unresolved download answers with an empty URL
+      default -> "";
+    };
     assertTrue(url.startsWith(expectedPrefix), url);
   }
 
@@ -300,16 +299,15 @@ final class VLCInstallerTest {
     Assumptions.assumeTrue(operatingSystem == OS.LINUX, "The executable fixture uses a POSIX shell");
     final Path archive = this.folder.resolve("fixture.AppImage");
     // Model the AppImage extraction protocol, not the VLC binary: the returned library must never be loaded.
-    final String script =
-      """
-      #!/bin/sh
-      set -eu
-      test "$1" = --appimage-extract
-      mkdir -p squashfs-root/usr/lib/vlc/plugins
-      printf fixture-core > squashfs-root/usr/lib/libvlccore.so.9
-      printf fixture-api > squashfs-root/usr/lib/libvlc.so.5
-      printf fixture-plugin > squashfs-root/usr/lib/vlc/plugins/test.so
-      """;
+    final String script = """
+    #!/bin/sh
+    set -eu
+    test "$1" = --appimage-extract
+    mkdir -p squashfs-root/usr/lib/vlc/plugins
+    printf fixture-core > squashfs-root/usr/lib/libvlccore.so.9
+    printf fixture-api > squashfs-root/usr/lib/libvlc.so.5
+    printf fixture-plugin > squashfs-root/usr/lib/vlc/plugins/test.so
+    """;
     Files.writeString(archive, script);
     final VLCInstaller installer = VLCInstaller.create(this.folder);
     final Path installed = installer.install(archive);
@@ -436,12 +434,11 @@ final class VLCInstallerTest {
     final Path library = libraryDirectory.resolve(libraryName);
     Files.createDirectories(libraryDirectory);
     Files.writeString(library, "structural library fixture, never loaded");
-    final String counterpart =
-      switch (operatingSystem) {
-        case WINDOWS -> "libvlccore.dll";
-        case MAC -> "libvlccore.dylib";
-        case LINUX, FREEBSD, OTHER -> "libvlc.so.5";
-      };
+    final String counterpart = switch (operatingSystem) {
+      case WINDOWS -> "libvlccore.dll";
+      case MAC -> "libvlccore.dylib";
+      case LINUX, FREEBSD, OTHER -> "libvlc.so.5";
+    };
     final Path companion = libraryDirectory.resolve(counterpart);
     Files.writeString(companion, "structural companion fixture, never loaded");
     return libraryDirectory;

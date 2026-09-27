@@ -91,7 +91,7 @@ public final class Mcv2Encoder {
   private final boolean verify;
 
   /** The picture the live search's check decodes into, kept from frame to frame. */
-  private byte@Nullable[] verified;
+  private byte @Nullable [] verified;
 
   /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
   private long frameBudget;
@@ -99,7 +99,7 @@ public final class Mcv2Encoder {
   /** The most bytes a live frame may take, or 0 for any number. */
   private int frameLimit;
 
-  private byte@Nullable[] reference;
+  private byte @Nullable [] reference;
 
   private long referenceId;
 
@@ -111,7 +111,7 @@ public final class Mcv2Encoder {
 
   private int framesSinceKey;
 
-  private int@Nullable[] motion;
+  private int @Nullable [] motion;
 
   private @Nullable LiveBuffers buffers;
 
@@ -121,10 +121,10 @@ public final class Mcv2Encoder {
 
   private final List<BlockCoder[]> busyCoders = new ArrayList<>();
 
-  private long@Nullable[] projections;
+  private long @Nullable [] projections;
 
   /** Which superblocks the previous live frame split, in raster order, updated by every live frame. */
-  private boolean@Nullable[] splitBefore;
+  private boolean @Nullable [] splitBefore;
 
   private volatile @Nullable Stats stats;
 
@@ -454,7 +454,7 @@ public final class Mcv2Encoder {
    *
    * @return the reference, or null before the first frame
    */
-  public byte@Nullable[] getReference() {
+  public byte @Nullable [] getReference() {
     final byte[] current = this.reference;
     return current == null ? null : current.clone();
   }
@@ -632,7 +632,7 @@ public final class Mcv2Encoder {
       }
     } else {
       // a search that must be redone at a higher lambda starts from the same history of splits
-      final boolean@Nullable[] history = this.frameLimit > 0 && this.splitBefore != null ? this.splitBefore.clone() : null;
+      final boolean @Nullable [] history = this.frameLimit > 0 && this.splitBefore != null ? this.splitBefore.clone() : null;
       FrameJob searched = job;
       LiveFrame frame = this.evaluateLive(searched, live, started);
       best = writeLive(searched, frame, frameId, referenceId, mx, my, live);
@@ -803,7 +803,7 @@ public final class Mcv2Encoder {
     final byte[] reference,
     final long referenceId,
     final Workers workers,
-    final byte@Nullable[] into
+    final byte @Nullable [] into
   ) {
     try {
       return Mcv2Decoder.decode(frame, frame.isKeyframe() ? null : reference, referenceId, workers, into);
@@ -865,10 +865,10 @@ public final class Mcv2Encoder {
     final int columns = job.columns(0);
     final int superblocks = columns * ((job.height() + ROOT_SIZE - 1) / ROOT_SIZE);
     this.workers.forEach(
-        superblocks,
-        () -> this.coders(job),
-        (coders, index) -> superblock(job, coders, (index % columns) * ROOT_SIZE, (index / columns) * ROOT_SIZE)
-      );
+      superblocks,
+      () -> this.coders(job),
+      (coders, index) -> superblock(job, coders, (index % columns) * ROOT_SIZE, (index / columns) * ROOT_SIZE)
+    );
     this.releaseCoders();
   }
 
@@ -968,29 +968,29 @@ public final class Mcv2Encoder {
       }
     }
     this.workers.forEach(
-        superblocks,
-        () -> this.coders(job),
-        (coders, index) -> {
-          final int x = (index % columns) * ROOT_SIZE;
-          final int y = (index / columns) * ROOT_SIZE;
-          final double threshold = steadyApplies && !splits[index] ? steady : split[0];
-          final boolean late = budget > 0 && System.nanoTime() - started >= budget;
-          for (final BlockCoder coder : coders) {
-            coder.setHurried(late);
-          }
-          descend(job, coders, 0, x, y, -1, deepest, threshold, split, live.childGate(), 0);
-          final List<Leaf> chosen = new ArrayList<>();
-          roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
-          // only this task reads and writes the superblock's entry
-          splits[index] = roots[index].isSplit();
-          serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
-          fillMotion(motion, job.width(), job.height(), roots[index], index, job.vectorX(0), job.vectorY(0));
-          for (final Leaf leaf : chosen) {
-            assemble(job, leaf, picture);
-          }
-          leaves.set(index, chosen);
+      superblocks,
+      () -> this.coders(job),
+      (coders, index) -> {
+        final int x = (index % columns) * ROOT_SIZE;
+        final int y = (index / columns) * ROOT_SIZE;
+        final double threshold = steadyApplies && !splits[index] ? steady : split[0];
+        final boolean late = budget > 0 && System.nanoTime() - started >= budget;
+        for (final BlockCoder coder : coders) {
+          coder.setHurried(late);
         }
-      );
+        descend(job, coders, 0, x, y, -1, deepest, threshold, split, live.childGate(), 0);
+        final List<Leaf> chosen = new ArrayList<>();
+        roots[index] = Preconditions.checkNotNull(this.select(job, 0, x, y, 0, chosen)).node();
+        // only this task reads and writes the superblock's entry
+        splits[index] = roots[index].isSplit();
+        serialized[index] = TreeReader.withPatterns(roots[index], ROOT_SIZE);
+        fillMotion(motion, job.width(), job.height(), roots[index], index, job.vectorX(0), job.vectorY(0));
+        for (final Leaf leaf : chosen) {
+          assemble(job, leaf, picture);
+        }
+        leaves.set(index, chosen);
+      }
+    );
     this.releaseCoders();
     final List<Leaf> all = new ArrayList<>();
     for (int index = 0; index < superblocks; index++) {
@@ -1081,8 +1081,19 @@ public final class Mcv2Encoder {
     final double quarter = (cost / QUARTERS) * gate;
     double splitCost = lambda * BlockCoder.INDEX_BITS;
     for (int i = 0; i < QUARTERS && splitCost < cost; i++) {
-      splitCost +=
-      descend(job, coders, level + 1, x + (i % 2) * half, y + (i / 2) * half, vector, deepest, split[level + 1], split, gate, quarter);
+      splitCost += descend(
+        job,
+        coders,
+        level + 1,
+        x + (i % 2) * half,
+        y + (i / 2) * half,
+        vector,
+        deepest,
+        split[level + 1],
+        split,
+        gate,
+        quarter
+      );
     }
     return Math.min(cost, splitCost);
   }

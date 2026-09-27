@@ -232,14 +232,13 @@ class NetworkGuardTest {
     final Socket missing = this.client(guard);
     exchange(missing, GREETING, 2);
     assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), exchange(missing, SocksProtocolTest.domainRequest(1, "missing.test", 80), 10));
-    final NetworkGuard slow =
-      this.guard(
-          InetAddress::isLoopbackAddress,
-          address -> {
-            throw new SocketTimeoutException("connect timed out");
-          },
-          5_000
-        );
+    final NetworkGuard slow = this.guard(
+      InetAddress::isLoopbackAddress,
+      address -> {
+        throw new SocketTimeoutException("connect timed out");
+      },
+      5_000
+    );
     final Socket timedOut = this.client(slow);
     exchange(timedOut, GREETING, 2);
     assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), exchange(timedOut, SocksProtocolTest.domainRequest(1, "echo.test", 80), 10));

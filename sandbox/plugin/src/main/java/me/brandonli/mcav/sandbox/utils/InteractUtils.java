@@ -64,7 +64,7 @@ public final class InteractUtils {
    * @return the x and y pixel coordinates on the wall, or {@code null} if the player does not look at a map frame
    * of a complete vertical wall
    */
-  public static int@Nullable[] getBoardCoordinates(final Player player) {
+  public static int @Nullable [] getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null");
     final Entity targetEntity = player.getTargetEntity(MAX_TARGET_DISTANCE);
     if (targetEntity == null) {
@@ -82,7 +82,7 @@ public final class InteractUtils {
    * vertical wall or the line of sight misses the frame
    * @throws IllegalArgumentException if the entity is not an item frame
    */
-  public static int@Nullable[] getBoardCoordinates(final Player player, final Entity entity) {
+  public static int @Nullable [] getBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, "Player must not be null");
     Preconditions.checkNotNull(entity, "Entity must not be null");
     if (!(entity instanceof final ItemFrame frame)) {
@@ -109,7 +109,7 @@ public final class InteractUtils {
    * @return the column and row, or {@code null} if the player does not look at a block face or the wall is not
    * complete
    */
-  private static int@Nullable[] getRelativeMapIndex(final Player player, final ItemFrame frame) {
+  private static int @Nullable [] getRelativeMapIndex(final Player player, final ItemFrame frame) {
     final BlockFace hitFace = player.getTargetBlockFace(MAX_TARGET_DISTANCE);
     if (hitFace == null) {
       return null;
@@ -130,7 +130,7 @@ public final class InteractUtils {
    *
    * @return the column and row, or {@code null} if the wall does not face along an axis
    */
-  private static int@Nullable[] indexOnWall(final BlockFace hitFace, final Location frameLocation, final Location cornerLocation) {
+  private static int @Nullable [] indexOnWall(final BlockFace hitFace, final Location frameLocation, final Location cornerLocation) {
     final int frameX = frameLocation.getBlockX();
     final int frameY = frameLocation.getBlockY();
     final int frameZ = frameLocation.getBlockZ();
@@ -152,7 +152,7 @@ public final class InteractUtils {
    * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, taking the rotation of the
    * map inside the frame into account.
    */
-  private static double@Nullable[] getRotatedFramePosition(final Player player, final ItemFrame frame) {
+  private static double @Nullable [] getRotatedFramePosition(final Player player, final ItemFrame frame) {
     final double[] position = getFramePosition(player, frame);
     if (position == null) {
       return null;
@@ -172,7 +172,7 @@ public final class InteractUtils {
    * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, as if the map were not
    * rotated. Returns {@code null} for misses and unsupported floor or ceiling frames.
    */
-  private static double@Nullable[] getFramePosition(final Player player, final ItemFrame frame) {
+  private static double @Nullable [] getFramePosition(final Player player, final ItemFrame frame) {
     final BlockFace face = frame.getAttachedFace();
     final boolean alongX = face == BlockFace.EAST || face == BlockFace.WEST;
     final boolean alongZ = face == BlockFace.NORTH || face == BlockFace.SOUTH;

@@ -109,7 +109,8 @@ final class ArgumentUtilsTest {
   @ParameterizedTest
   @ValueSource(strings = { "65x1", "1x65", "65x65", "8192x1" })
   void rejectsWallsWiderOrTallerThanTheLimit(final String text) {
-    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseScreenDimensions(text)
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+      ArgumentUtils.parseScreenDimensions(text)
     );
     final String message = exception.getMessage();
     assertEquals("A wall may be at most 64 maps on each side: " + text, message);

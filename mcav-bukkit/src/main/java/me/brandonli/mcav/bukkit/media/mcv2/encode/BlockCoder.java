@@ -380,9 +380,8 @@ final class BlockCoder {
       if (live == null || (live.modes() & LOCAL_MODES) != 0) {
         for (int v = 0; v < j.vectorCount(); v++) {
           // a block below the live search's smallest searching size predicts with its parent's vector
-          this.localVectors[v] = live != null && this.size < live.searchBlock() && parent >= 0
-            ? parent
-            : this.search(x, y, v, live, parent);
+          this.localVectors[v] =
+            live != null && this.size < live.searchBlock() && parent >= 0 ? parent : this.search(x, y, v, live, parent);
           this.predict(this.localVectors[v], this.localPrediction[v]);
         }
       } else {
@@ -478,7 +477,7 @@ final class BlockCoder {
    */
   private void predict(final int vector, final int[] out) {
     final BlockCoder parent = this.root;
-    final int@Nullable[] from = parent == null ? null : parent.prediction(vector);
+    final int @Nullable [] from = parent == null ? null : parent.prediction(vector);
     if (parent != null && from != null) {
       final int n = this.size * CHANNELS;
       for (int py = 0; py < this.size; py++) {
@@ -488,20 +487,20 @@ final class BlockCoder {
     }
     final FrameJob j = this.job;
     this.kernels.predict(
-        j.reference(),
-        j.width(),
-        j.height(),
-        this.x,
-        this.y,
-        this.size,
-        MotionSearch.unpackX(vector),
-        MotionSearch.unpackY(vector),
-        out
-      );
+      j.reference(),
+      j.width(),
+      j.height(),
+      this.x,
+      this.y,
+      this.size,
+      MotionSearch.unpackX(vector),
+      MotionSearch.unpackY(vector),
+      out
+    );
   }
 
   /** The superblock's prediction at a vector, when its last evaluation made one, or null. */
-  private int@Nullable[] prediction(final int vector) {
+  private int @Nullable [] prediction(final int vector) {
     final FrameJob j = this.job;
     for (int v = 0; v < j.vectorCount(); v++) {
       if (vector == MotionSearch.pack(j.vectorX(v), j.vectorY(v))) {
@@ -620,19 +619,19 @@ final class BlockCoder {
       Arrays.fill(seeds, this.halfResolutionMotion(x, y, v));
     }
     return this.kernels.seeded(
-        j.reference(),
-        j.width(),
-        j.height(),
-        this.source,
-        x,
-        y,
-        this.size,
-        j.vectorX(v),
-        j.vectorY(v),
-        j.settings().motionRange(),
-        j.settings().halfPixel(),
-        seeds
-      );
+      j.reference(),
+      j.width(),
+      j.height(),
+      this.source,
+      x,
+      y,
+      this.size,
+      j.vectorX(v),
+      j.vectorY(v),
+      j.settings().motionRange(),
+      j.settings().halfPixel(),
+      seeds
+    );
   }
 
   /**
@@ -650,21 +649,20 @@ final class BlockCoder {
         this.halfSeeds[k] = MotionSearch.pack(MotionSearch.unpackX(this.seeds[k]) / 2, MotionSearch.unpackY(this.seeds[k]) / 2);
       }
     }
-    final int coarse =
-      this.kernels.seeded(
-          j.halfReference(),
-          (j.width() + 1) / 2,
-          (j.height() + 1) / 2,
-          this.halfSource,
-          x / 2,
-          y / 2,
-          this.size / 2,
-          j.vectorX(v) / 2,
-          j.vectorY(v) / 2,
-          j.settings().motionRange() / 2,
-          true,
-          this.halfSeeds
-        );
+    final int coarse = this.kernels.seeded(
+      j.halfReference(),
+      (j.width() + 1) / 2,
+      (j.height() + 1) / 2,
+      this.halfSource,
+      x / 2,
+      y / 2,
+      this.size / 2,
+      j.vectorX(v) / 2,
+      j.vectorY(v) / 2,
+      j.settings().motionRange() / 2,
+      true,
+      this.halfSeeds
+    );
     return MotionSearch.pack(MotionSearch.unpackX(coarse) * 2, MotionSearch.unpackY(coarse) * 2);
   }
 
@@ -680,21 +678,20 @@ final class BlockCoder {
     }
     final int halfWidth = (j.width() + 1) / 2;
     final int halfHeight = (j.height() + 1) / 2;
-    final int coarse =
-      this.kernels.seeded(
-          j.quarterReference(),
-          (halfWidth + 1) / 2,
-          (halfHeight + 1) / 2,
-          this.quarterSource,
-          x / 4,
-          y / 4,
-          this.size / 4,
-          j.vectorX(v) / 4,
-          j.vectorY(v) / 4,
-          j.settings().motionRange() / 4,
-          true,
-          this.quarterSeeds
-        );
+    final int coarse = this.kernels.seeded(
+      j.quarterReference(),
+      (halfWidth + 1) / 2,
+      (halfHeight + 1) / 2,
+      this.quarterSource,
+      x / 4,
+      y / 4,
+      this.size / 4,
+      j.vectorX(v) / 4,
+      j.vectorY(v) / 4,
+      j.settings().motionRange() / 4,
+      true,
+      this.quarterSeeds
+    );
     return MotionSearch.pack(MotionSearch.unpackX(coarse) * 2, MotionSearch.unpackY(coarse) * 2);
   }
 

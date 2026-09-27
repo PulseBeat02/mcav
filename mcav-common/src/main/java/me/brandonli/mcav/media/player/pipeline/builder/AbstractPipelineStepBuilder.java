@@ -34,7 +34,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <B> the type of the concrete builder, returned from {@link #then(Filter)}
  */
 public abstract class AbstractPipelineStepBuilder<
-  T, M, F extends Filter<T, M>, S extends PipelineStep<T, M, S>, B extends AbstractPipelineStepBuilder<T, M, F, S, B>
+  T,
+  M,
+  F extends Filter<T, M>,
+  S extends PipelineStep<T, M, S>,
+  B extends AbstractPipelineStepBuilder<T, M, F, S, B>
 > {
 
   private final List<F> filters;

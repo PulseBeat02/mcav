@@ -62,8 +62,8 @@ public final class PatternRecord {
     final byte[] data,
     final int offset,
     final int size,
-    final byte@Nullable[] endpoints,
-    final byte@Nullable[] selectors
+    final byte @Nullable [] endpoints,
+    final byte @Nullable [] selectors
   ) throws Mcv2Exception {
     final int length = Mcv2Format.patternSize(size, endpoints != null, selectors != null);
     final int head = endpoints != null ? 1 : ENDPOINT_BYTES;

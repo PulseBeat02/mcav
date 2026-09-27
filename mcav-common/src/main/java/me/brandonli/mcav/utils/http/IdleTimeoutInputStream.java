@@ -69,7 +69,7 @@ final class IdleTimeoutInputStream extends InputStream {
   }
 
   @Override
-  public int read(final byte@NonNull[] buffer, final int offset, final int length) throws IOException {
+  public int read(final byte @NonNull [] buffer, final int offset, final int length) throws IOException {
     Objects.checkFromIndexSize(offset, length, buffer.length);
     if (length == 0) {
       return 0;

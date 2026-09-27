@@ -37,47 +37,43 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class OSUtilsTest {
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "windows 11, WINDOWS",
-      "mac os x, MAC",
-      "darwin, MAC",
-      "freebsd, FREEBSD",
-      "linux, LINUX",
-      "sunos, OTHER",
-      "solaris, OTHER",
-      "openbsd, OTHER",
-      "netbsd, OTHER",
-      "aix, OTHER",
-      "'', OTHER",
-    }
-  )
+  @CsvSource({
+    "windows 11, WINDOWS",
+    "mac os x, MAC",
+    "darwin, MAC",
+    "freebsd, FREEBSD",
+    "linux, LINUX",
+    "sunos, OTHER",
+    "solaris, OTHER",
+    "openbsd, OTHER",
+    "netbsd, OTHER",
+    "aix, OTHER",
+    "'', OTHER",
+  })
   void detectsTheOperatingSystem(final String osName, final OS expected) {
     final OS detected = OSUtils.detectOS(osName);
     assertEquals(expected, detected);
   }
 
   @ParameterizedTest
-  @CsvSource(
-    {
-      "aarch64, ARM",
-      "arm, ARM",
-      "arm64, ARM",
-      "amd64, X86",
-      "x86_64, X86",
-      "x86, X86",
-      "i386, X86",
-      "i686, X86",
-      "riscv64, OTHER",
-      "ppc64le, OTHER",
-      "ppc64, OTHER",
-      "s390x, OTHER",
-      "loongarch64, OTHER",
-      "sparcv9, OTHER",
-      "ia64, OTHER",
-      "'', OTHER",
-    }
-  )
+  @CsvSource({
+    "aarch64, ARM",
+    "arm, ARM",
+    "arm64, ARM",
+    "amd64, X86",
+    "x86_64, X86",
+    "x86, X86",
+    "i386, X86",
+    "i686, X86",
+    "riscv64, OTHER",
+    "ppc64le, OTHER",
+    "ppc64, OTHER",
+    "s390x, OTHER",
+    "loongarch64, OTHER",
+    "sparcv9, OTHER",
+    "ia64, OTHER",
+    "'', OTHER",
+  })
   void detectsTheArchitecture(final String osArch, final Arch expected) {
     final Arch detected = OSUtils.detectArch(osArch);
     assertEquals(expected, detected);

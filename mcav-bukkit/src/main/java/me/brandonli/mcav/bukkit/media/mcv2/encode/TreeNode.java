@@ -41,9 +41,9 @@ public final class TreeNode {
 
   private final byte[] record;
 
-  private final TreeNode@Nullable[] children;
+  private final TreeNode @Nullable [] children;
 
-  private TreeNode(final int mode, final int q, final byte[] record, final TreeNode@Nullable[] children) {
+  private TreeNode(final int mode, final int q, final byte[] record, final TreeNode @Nullable [] children) {
     this.mode = mode;
     this.q = q;
     this.record = record;

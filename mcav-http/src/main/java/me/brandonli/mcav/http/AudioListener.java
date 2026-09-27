@@ -250,7 +250,7 @@ final class AudioListener {
     }
   }
 
-  private byte@Nullable[] takeNext() {
+  private byte @Nullable [] takeNext() {
     this.lock.lock();
     try {
       this.sending = false;

@@ -144,9 +144,9 @@ public final class CapabilityGuard {
     final String name = capability.getDisplayName();
     final String constant = capability.name();
     return "%s is still being prepared in the background; wait for MCAVApi.whenCapabilityReady(Capability.%s) or try again shortly".formatted(
-        name,
-        constant
-      );
+      name,
+      constant
+    );
   }
 
   /**

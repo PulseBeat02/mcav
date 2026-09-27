@@ -148,7 +148,8 @@ final class HttpDownloaderTest {
       final Path flakyDestination = this.directory.resolve("flaky.bin");
       final Path brokenDestination = this.directory.resolve("broken.bin");
       HttpDownloader.download(flaky, flakyDestination, null, NO_DELAY);
-      final IOException exception = assertThrows(IOException.class, () -> HttpDownloader.download(broken, brokenDestination, null, NO_DELAY)
+      final IOException exception = assertThrows(IOException.class, () ->
+        HttpDownloader.download(broken, brokenDestination, null, NO_DELAY)
       );
       final Throwable cause = exception.getCause();
       final int flakyRequests = server.getRequestCount("/flaky");

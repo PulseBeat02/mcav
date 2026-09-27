@@ -240,7 +240,7 @@ final class Mcv2PacerTest {
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), change.to());
     assertEquals(
       "MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7 ms" +
-      " a frame has at 60 fps with the encoder threads it has",
+        " a frame has at 60 fps with the encoder threads it has",
       change.describe()
     );
     // every other frame is encoded now
@@ -264,7 +264,7 @@ final class Mcv2PacerTest {
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1, FAST), change.to());
     assertEquals(
       "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search" +
-      " takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
+        " takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
       change.describe()
     );
     // every frame is still encoded, and it holds
@@ -276,7 +276,7 @@ final class Mcv2PacerTest {
     assertNotNull(climbed);
     assertEquals(
       "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search" +
-      " takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
+        " takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
       climbed.describe()
     );
     assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
@@ -397,7 +397,7 @@ final class Mcv2PacerTest {
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), first.to());
     assertEquals(
       "MCV2 screen steps back up to 1920x1080 at 30 fps: encoding 1280x720 takes 4.0 ms per frame, well within the 66.7 ms" +
-      " a frame has at 15 fps",
+        " a frame has at 15 fps",
       first.describe()
     );
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1), driver.changes.get(2).to());

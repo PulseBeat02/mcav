@@ -101,7 +101,7 @@ class CefBrowserPlayerTest {
     @Override
     public boolean sendMouse(final MouseInput mouse) {
       this.sent.add(
-          "mouse " +
+        "mouse " +
           mouse.getAction() +
           " " +
           mouse.getX() +
@@ -115,7 +115,7 @@ class CefBrowserPlayerTest {
           mouse.getDeltaX() +
           "," +
           mouse.getDeltaY()
-        );
+      );
       return this.accepting;
     }
 
@@ -142,15 +142,14 @@ class CefBrowserPlayerTest {
 
   private List<byte[]> attachSoundRecorder() {
     final List<byte[]> heard = new java.util.concurrent.CopyOnWriteArrayList<>();
-    this.player.getAudioAttachableCallback()
-      .attach(
-        me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> {
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          heard.add(copy);
-          return true;
-        })
-      );
+    this.player.getAudioAttachableCallback().attach(
+      me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> {
+        final byte[] copy = new byte[samples.remaining()];
+        samples.get(copy);
+        heard.add(copy);
+        return true;
+      })
+    );
     return heard;
   }
 

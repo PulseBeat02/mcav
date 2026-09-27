@@ -70,9 +70,9 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private Mat mat;
   private @Nullable Mat spare;
-  private int@Nullable[] cachedPixels;
+  private int @Nullable [] cachedPixels;
   private @Nullable PixelCacheKey cachedKey;
-  private byte@Nullable[] scratch;
+  private byte @Nullable [] scratch;
   private boolean released;
 
   MatImageBuffer(final Mat mat) {

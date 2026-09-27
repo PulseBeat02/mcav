@@ -35,21 +35,20 @@ final class TonePage implements AutoCloseable {
    */
   static final int TONE_HERTZ = 1000;
 
-  private static final String PAGE =
-    """
-    <!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>
-    <body><script>
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = 1000;
-      const gain = context.createGain();
-      gain.gain.value = 0.5;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      addEventListener('pointerdown', () => context.resume());
-    </script></body></html>
-    """;
+  private static final String PAGE = """
+  <!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>
+  <body><script>
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = 1000;
+    const gain = context.createGain();
+    gain.gain.value = 0.5;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    addEventListener('pointerdown', () => context.resume());
+  </script></body></html>
+  """;
 
   private final HttpServer server;
 

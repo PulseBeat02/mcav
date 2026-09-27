@@ -807,10 +807,10 @@ final class HelperSession implements BrowserSession {
     // a text longer than one message goes as several, in order
     final List<String> parts = HelperProtocol.split(value);
     return this.send(out -> {
-        for (final String part : parts) {
-          HelperProtocol.writeKey(out, action, part);
-        }
-      });
+      for (final String part : parts) {
+        HelperProtocol.writeKey(out, action, part);
+      }
+    });
   }
 
   private boolean send(final MessageWriter writer) {

@@ -112,18 +112,18 @@ final class VideoMcv2CommandTest {
 
   private void play(final String resolution, final String wall, final int map) {
     this.command.playMcv2Video(
-        this.sender,
-        this.selector,
-        PlayerArgument.FFMPEG,
-        AudioArgument.NONE,
-        resolution,
-        wall,
-        map,
-        Mcv2Profile.LOW,
-        DitheringArgument.FILTER_LITE,
-        "",
-        "clip.mp4"
-      );
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      resolution,
+      wall,
+      map,
+      Mcv2Profile.LOW,
+      DitheringArgument.FILTER_LITE,
+      "",
+      "clip.mp4"
+    );
   }
 
   @Test
@@ -195,7 +195,14 @@ final class VideoMcv2CommandTest {
       final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
       final ArgumentCaptor<Mcv2Result.Resizer> resizers = ArgumentCaptor.forClass(Mcv2Result.Resizer.class);
       verify(result).setSmallerSizes(sizes.capture(), resizers.capture());
-      assertEquals(List.of("426x256", "320x192"), sizes.getValue().stream().map(size -> size[0] + "x" + size[1]).toList());
+      assertEquals(
+        List.of("426x256", "320x192"),
+        sizes
+          .getValue()
+          .stream()
+          .map(size -> size[0] + "x" + size[1])
+          .toList()
+      );
       final Mcv2Configuration smaller = mock(Mcv2Configuration.class);
       final UUID offline = UUID.randomUUID();
       when(smaller.getViewers()).thenReturn(List.of(this.viewer, offline));
@@ -212,17 +219,35 @@ final class VideoMcv2CommandTest {
   void stepsDownToTwoThirdsAndHalfOfTheVideo() {
     assertEquals(
       List.of("1280x720", "960x540"),
-      VideoMcv2Command.smallerSizes(1920, 1080).stream().map(size -> size[0] + "x" + size[1]).toList()
+      VideoMcv2Command.smallerSizes(1920, 1080)
+        .stream()
+        .map(size -> size[0] + "x" + size[1])
+        .toList()
     );
     assertEquals(
       List.of("256x144", "192x108"),
-      VideoMcv2Command.smallerSizes(384, 216).stream().map(size -> size[0] + "x" + size[1]).toList()
+      VideoMcv2Command.smallerSizes(384, 216)
+        .stream()
+        .map(size -> size[0] + "x" + size[1])
+        .toList()
     );
     // a size under 128 by 72 is left out
-    assertEquals(List.of("160x80"), VideoMcv2Command.smallerSizes(240, 120).stream().map(size -> size[0] + "x" + size[1]).toList());
+    assertEquals(
+      List.of("160x80"),
+      VideoMcv2Command.smallerSizes(240, 120)
+        .stream()
+        .map(size -> size[0] + "x" + size[1])
+        .toList()
+    );
     assertEquals(List.of(), VideoMcv2Command.smallerSizes(200, 100));
     // exactly 128 by 72 is kept
-    assertEquals(List.of("128x72"), VideoMcv2Command.smallerSizes(192, 108).stream().map(size -> size[0] + "x" + size[1]).toList());
+    assertEquals(
+      List.of("128x72"),
+      VideoMcv2Command.smallerSizes(192, 108)
+        .stream()
+        .map(size -> size[0] + "x" + size[1])
+        .toList()
+    );
   }
 
   @Test

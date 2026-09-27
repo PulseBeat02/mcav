@@ -88,9 +88,9 @@ final class VLCPlayerIntegrationTest {
 
   VLCPlayerIntegrationTest() {
     this.player.setExceptionHandler((message, error) -> {
-        this.messages.add(message);
-        this.errors.add(error);
-      });
+      this.messages.add(message);
+      this.errors.add(error);
+    });
     final VideoPipelineStep videoStep = VideoPipelineStep.of(this::recordFrame);
     final AudioPipelineStep audioStep = AudioPipelineStep.of(this::recordSamples);
     final VideoAttachableCallback videoCallback = this.player.getVideoAttachableCallback();

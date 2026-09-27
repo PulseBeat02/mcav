@@ -123,16 +123,16 @@ final class VideoEntityCommandTest {
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
-        this.sender,
-        this.selector,
-        PlayerArgument.FFMPEG,
-        AudioArgument.DISCORD_BOT,
-        "64x36",
-        "@",
-        this.location,
-        "",
-        "clip.mp4"
-      );
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.DISCORD_BOT,
+      "64x36",
+      "@",
+      this.location,
+      "",
+      "clip.mp4"
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );

@@ -109,7 +109,11 @@ class JcefNativesTest {
 
   private List<String> leftovers() throws IOException {
     try (final Stream<Path> files = Files.list(this.folder)) {
-      return files.map(path -> path.getFileName().toString()).filter(name -> !name.endsWith(".lock")).sorted().toList();
+      return files
+        .map(path -> path.getFileName().toString())
+        .filter(name -> !name.endsWith(".lock"))
+        .sorted()
+        .toList();
     }
   }
 
@@ -192,7 +196,7 @@ class JcefNativesTest {
     assertEquals(
       URI.create(
         REPOSITORY +
-        "jcef-natives-linux-amd64/jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179/jcef-natives-linux-amd64-jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179.jar"
+          "jcef-natives-linux-amd64/jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179/jcef-natives-linux-amd64-jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179.jar"
       ),
       this.requested.getFirst()
     );

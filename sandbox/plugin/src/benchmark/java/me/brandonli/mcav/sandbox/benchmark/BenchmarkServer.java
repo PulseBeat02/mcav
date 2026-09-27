@@ -38,26 +38,24 @@ import java.util.concurrent.TimeUnit;
  */
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FPS_PAGE =
-    """
-    <!doctype html><html><body style="margin:0;overflow:hidden">
-    <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
-    <script>
-    const colors = ["#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3", "#6d9930", "#b40000"];
-    let frame = 0;
-    function step() { document.getElementById("d").style.background = colors[frame++ % colors.length]; requestAnimationFrame(step); }
-    requestAnimationFrame(step);
-    </script></body></html>
-    """;
-  private static final String LATENCY_PAGE =
-    """
-    <!doctype html><html><body style="margin:0;overflow:hidden">
-    <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#f7e9a3"></div>
-    <script>
-    const events = new EventSource("/events");
-    events.onmessage = message => { document.getElementById("d").style.background = message.data; };
-    </script></body></html>
-    """;
+  private static final String FPS_PAGE = """
+  <!doctype html><html><body style="margin:0;overflow:hidden">
+  <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
+  <script>
+  const colors = ["#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3", "#6d9930", "#b40000"];
+  let frame = 0;
+  function step() { document.getElementById("d").style.background = colors[frame++ % colors.length]; requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+  </script></body></html>
+  """;
+  private static final String LATENCY_PAGE = """
+  <!doctype html><html><body style="margin:0;overflow:hidden">
+  <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#f7e9a3"></div>
+  <script>
+  const events = new EventSource("/events");
+  events.onmessage = message => { document.getElementById("d").style.background = message.data; };
+  </script></body></html>
+  """;
 
   private final HttpServer server;
   private final ExecutorService executor;
