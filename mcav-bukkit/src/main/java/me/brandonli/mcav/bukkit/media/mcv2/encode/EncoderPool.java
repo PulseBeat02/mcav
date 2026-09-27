@@ -25,7 +25,6 @@ import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import me.brandonli.mcav.bukkit.media.mcv2.Workers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,9 +67,6 @@ public final class EncoderPool implements AutoCloseable {
   private final ForkJoinPool pool;
 
   private final int threads;
-
-  /** The lane of every encoder of the budget: a frame's verification goes before any search, of any screen. */
-  private final Workers.Lane lane = new Workers.Lane();
 
   /**
    * Creates a budget.
@@ -178,14 +174,7 @@ public final class EncoderPool implements AutoCloseable {
    * @return the encoder
    */
   public Mcv2Encoder encoder(final EncoderSettings settings, final boolean verify) {
-    return new Mcv2Encoder(
-      settings,
-      this.pool,
-      this.threads,
-      verify,
-      settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory(),
-      this.lane
-    );
+    return new Mcv2Encoder(settings, this.pool, this.threads, verify);
   }
 
   /**
@@ -221,25 +210,6 @@ public final class EncoderPool implements AutoCloseable {
       }
       throw new IllegalStateException("An encode failed", cause);
     }
-  }
-
-  /**
-   * Runs a task on the budget's threads before any loop's next item and waits for it: the first thread to be free, or
-   * to finish an item of a loop of the budget's encoders, runs it, so a frame's verification is not left waiting until
-   * the next frame's search has handed out its last item.
-   *
-   * @param task the task
-   * @param <T>  the result type, which the task never returns null for
-   * @return what the task returned
-   * @throws InterruptedException if the calling thread was interrupted before, when the task is not started, or while
-   *                              it waits, when the task is not started if it has not started yet
-   */
-  public <T> T runFirst(final Callable<T> task) throws InterruptedException {
-    Preconditions.checkNotNull(task, "Task must not be null");
-    if (Thread.interrupted()) {
-      throw new InterruptedException("Interrupted before the task started");
-    }
-    return this.lane.call(task, this.pool);
   }
 
   /**

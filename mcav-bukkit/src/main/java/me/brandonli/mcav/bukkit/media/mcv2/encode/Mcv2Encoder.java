@@ -88,9 +88,6 @@ public final class Mcv2Encoder {
 
   private final Workers workers;
 
-  /** The workers of a frame's verification, which go before the next frame's search on the pool. */
-  private final Workers finishing;
-
   private final boolean verify;
 
   /** The picture the live search's check decodes into, kept from frame to frame. */
@@ -281,7 +278,7 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Constructs a new encoder whose coders use the given kernels, on a lane of its own.
+   * Constructs a new encoder whose coders use the given kernels.
    *
    * @param settings the profile
    * @param pool     the pool block evaluation runs on
@@ -296,33 +293,11 @@ public final class Mcv2Encoder {
     final boolean verify,
     final Kernels.Factory kernels
   ) {
-    this(settings, pool, threads, verify, kernels, new Workers.Lane());
-  }
-
-  /**
-   * Constructs a new encoder whose coders use the given kernels.
-   *
-   * @param settings the profile
-   * @param pool     the pool block evaluation runs on
-   * @param threads  how many workers evaluate blocks at once, at least 1
-   * @param verify   whether every frame is checked against its own decode
-   * @param kernels  makes the kernels of each coder
-   * @param lane     the lane of the pool's workers, on which a frame's verification goes before any search
-   */
-  Mcv2Encoder(
-    final EncoderSettings settings,
-    final ForkJoinPool pool,
-    final int threads,
-    final boolean verify,
-    final Kernels.Factory kernels,
-    final Workers.Lane lane
-  ) {
     Preconditions.checkNotNull(settings, "Settings must not be null");
     Preconditions.checkNotNull(pool, "Pool must not be null");
     Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
     this.settings = settings;
-    this.workers = new Workers(pool, threads).on(lane);
-    this.finishing = this.workers.first();
+    this.workers = new Workers(pool, threads);
     this.verify = verify;
     this.kernels = kernels;
     this.framesSinceKey = settings.keyInterval();
@@ -761,10 +736,10 @@ public final class Mcv2Encoder {
     if (pending.checked) {
       try {
         final Mcv2Frame written = parseChosen(pending.data);
-        checkTree(written, pending.roots, this.finishing);
-        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.finishing, this.verified);
+        checkTree(written, pending.roots, this.workers);
+        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.workers, this.verified);
         this.verified = decoded;
-        Preconditions.checkState(same(pending.picture, decoded, this.finishing), "MCV2 live picture and decoded picture disagree");
+        Preconditions.checkState(same(pending.picture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
       } catch (final IllegalStateException exception) {
         this.failed = true;
         throw exception;

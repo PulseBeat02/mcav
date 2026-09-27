@@ -67,11 +67,12 @@ import org.slf4j.LoggerFactory;
  * ({@link Mcv2Encoder#begin}), then hands it to the screen's sender thread, which verifies it ({@link Mcv2Encoder#finish})
  * and sends it while the next frame is searched: one frame is in flight at most, and a frame is sent only once
  * verified. A frame that fails its verification stops the screen. A keyframe the channel asks for while a frame is in
- * flight comes with the frame after it; another preset begins only after the frame in flight is sent.
- * The screen's threads only wait for the budget. When the encoder is slower than the video, frames that arrive while it works replace each other and only the
- * newest is encoded, which the encoder's previous-frame reference allows. The encoder bounds every frame to what the
- * screen's page slots carry ({@link Mcv2Encoder#setFrameLimit}): a frame that would take more pages is searched again
- * at a higher lambda. One that still has more pages than the screen has slots is not sent, and the next is a keyframe.
+ * flight comes with the frame after it; another preset begins only after the frame in flight is sent. The screen's
+ * threads only wait for the budget. When the encoder is slower than the video, frames that arrive while it works
+ * replace each other and only the newest is encoded, which the encoder's previous-frame reference allows. The encoder
+ * bounds every frame to what the screen's page slots carry ({@link Mcv2Encoder#setFrameLimit}): a frame that would take
+ * more pages is searched again at a higher lambda. One that still has more pages than the screen has slots is not sent,
+ * and the next is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
@@ -860,7 +861,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         final Handoff handoff = running.queue().take();
         final Mcv2Encoder.Encoded encoded;
         try {
-          encoded = running.budget().runFirst(() -> handoff.encoder().finish(handoff.pending()));
+          encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
         } catch (final IllegalStateException failure) {
           screenThread.interrupt();
           throw failure;

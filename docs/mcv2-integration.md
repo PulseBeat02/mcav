@@ -559,11 +559,29 @@ the source alone, so its stream is as deterministic as any other: pinned digests
 does, and a fast pan, where it switches) and the pack decoding adaptive and switching streams bit-exactly
 (`shader_check.py`). Only a step to or from `ship`'s search starts a new encoder, whose first frame is a keyframe.
 
-**Keyframes, scene cuts and resync.** A keyframe (every 4 s, or at a scene cut) runs the full intra search and costs
-about as much as a P frame. No intra refresh: a P frame that refreshes part of the picture still predicts the rest from
-the frame before, so it cannot let a viewer back in. **A viewer who fell behind** (its backlog over the limit, §10) or
-starts watching is sent nothing more until the next keyframe - at most 4 s at 30 fps - and from it every frame; its
-client holds the last picture it decoded meanwhile.
+**Keyframes, scene cuts and resync.** A keyframe (every 120 frames - 4 s at 30 fps, 2 s at 60 fps - or at a scene
+cut) runs the full intra search and costs no more than a P frame: at 1080p60 (live-fast, 12 threads) its search and
+write take 14.0 ms against 15.1 on the proxy and 20.1 against 21.7 on gameplay (no motion search), its verification
+about 1 ms more on the proxy, and the p95 interval with every keyframe and the frame after it left out is the same to
+0.05 ms, so keyframes do not set the p95 (addendum 15, item 2). No intra refresh: a P frame that refreshes part of the
+picture still predicts the rest from the frame before, so it cannot let a viewer back in. **A viewer who fell behind**
+(its backlog over the limit, §10) or starts watching is sent nothing more until the next keyframe - at most 120 frames
+- and from it every frame; its client holds the last picture it decoded meanwhile. Keyframes come from the key
+interval, scene cuts, a viewer shown the screen, a frame that could not be sent and a step to or from `ship`'s encoder;
+not from a switch between live presets.
+
+**Pipelining.** A screen searches and writes frame N+1 while frame N is verified (`Mcv2Encoder.begin` and `finish`,
+one extra frame in flight at most): a frame is sent only once verified, a frame that fails stops the screen as before,
+the stream is identical by digest to one encoded a frame at a time, and a keyframe or preset asked for while a frame is
+in flight comes with the frame after it (one frame of extra resync latency). At 1080p60 (live-fast, 12 threads,
+interleaved runs, host load 24-65 from other work) it sustains 74 frames a second on the proxy against 63 one at a
+time, and 52 against 45 on gameplay, at about the same p95 interval (19.9 against 19.3 ms; 30.8 against 29.6): with
+frames back to back, frame N's verification (5-7 ms) already runs entirely beside frame N+1's search, so the interval
+between finished frames is the search's own time and spread. **Giving the verification precedence** over the search was
+tried three ways (addendum 15, item 1): a lane whose urgent loops every search worker helps between items, and the
+same with at most three, one or two helpers. The verification got faster (7.0 to 5.3 ms on the proxy), but the search
+slowed as much or more and the rate fell 10-20 % (proxy 67, 61, 57 and 59 frames a second against 74) with no better
+p95 interval or latency, so none was kept. Two screens on one budget share it evenly either way.
 
 **Measured** (Temurin 25, 12 threads of the i7-8700, native AVX2 kernels, verify on, as a screen encodes, 660 frames
 with 60 warm-up frames left out, three runs each; the report's LIVE SPEED section has every run):

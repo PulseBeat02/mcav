@@ -256,29 +256,6 @@ final class EncoderPoolTest {
   }
 
   @Test
-  void runsATaskFirstOnItsThreads() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(2)) {
-      final Thread caller = Thread.currentThread();
-      assertEquals("budget", pool.runFirst(() -> Thread.currentThread().equals(caller) ? "caller" : "budget"));
-      assertThrows(IllegalStateException.class, () ->
-        pool.runFirst(() -> {
-          throw new IllegalStateException("failed");
-        })
-      );
-      final AtomicReference<Thread> ran = new AtomicReference<>();
-      Thread.currentThread().interrupt();
-      assertThrows(InterruptedException.class, () ->
-        pool.runFirst(() -> {
-          ran.set(Thread.currentThread());
-          return "never";
-        })
-      );
-      assertFalse(Thread.currentThread().isInterrupted());
-      assertNull(ran.get());
-    }
-  }
-
-  @Test
   void refusesWorkOnceClosed() {
     final EncoderPool pool = new EncoderPool(1);
     pool.close();
