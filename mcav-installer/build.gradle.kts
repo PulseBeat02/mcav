@@ -1,6 +1,6 @@
 plugins {
     id("maven-publish")
-    alias(libs.plugins.shadow.installer)
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
