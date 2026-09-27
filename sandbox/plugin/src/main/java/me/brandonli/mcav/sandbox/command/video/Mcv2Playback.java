@@ -20,7 +20,7 @@ package me.brandonli.mcav.sandbox.command.video;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
-import me.brandonli.mcav.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 
 /**
  * Plays an encoded MCV2 stream on a screen, one frame per run, looping. A stream cannot make a keyframe on request, so

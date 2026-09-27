@@ -32,12 +32,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.zip.Deflater;
-import me.brandonli.mcav.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
-import me.brandonli.mcav.media.mcv2.encode.LiveSearch;
-import me.brandonli.mcav.media.mcv2.encode.Mcv2Encoder;
-import me.brandonli.mcav.media.mcv2.transport.MapAlphabet;
-import me.brandonli.mcav.media.mcv2.transport.TransportPages;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Encoder;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 
 /**
  * The encoder benchmark behind every encode time in the MCV2 report: encodes the frames of a raw RGB source (row-major,
@@ -49,8 +49,8 @@ import me.brandonli.mcav.media.mcv2.transport.TransportPages;
  * <p>Compile with a JDK and run on the JVM to measure (the report used Temurin 25), for example:
  *
  * <pre>
- * javac -cp mcav-common/build/libs/mcav-common-*.jar -d build/bench tools/mcv2/Mcv2Bench.java
- * java -XX:ActiveProcessorCount=12 -Xmx3g -cp build/bench:mcav-common/build/libs/mcav-common-*.jar:guava.jar:slf4j-api.jar \
+ * javac -cp mcav-bukkit/build/libs/mcav-bukkit-*.jar -d build/bench tools/mcv2/Mcv2Bench.java
+ * java -XX:ActiveProcessorCount=12 -Xmx3g -cp build/bench:mcav-bukkit/build/libs/mcav-bukkit-*.jar:guava.jar:slf4j-api.jar \
  *   Mcv2Bench source=proxy_1920x1080_60.rgb width=1920 height=1080 frames=660 warm=60 loop=pingpong fps=60 threads=12 \
  *   profile=live budget=true verify=true
  * </pre>

@@ -1,10 +1,10 @@
 """Differential test of mcav's MCV2 decoder against the reference decoder, on generated streams.
 
-    python tools/mcv2/differential.py <gpu-codec checkout> <mcav-common classpath> [--streams N] [--encoded N]
+    python tools/mcv2/differential.py <gpu-codec checkout> <mcav-bukkit classpath> [--streams N] [--encoded N]
         [--mutants N] [--seed S] [--out DIR] [--java JAVA]
 
-The classpath holds mcav-common's classes and resources (the residual books) and Guava, for example
-`mcav-common/build/classes/java/main:mcav-common/build/resources/main:<guava jar>` after `./gradlew :mcav-common:jar`.
+The classpath holds mcav-bukkit's classes and resources (the residual books) and Guava, for example
+`mcav-bukkit/build/classes/java/main:mcav-bukkit/build/resources/main:<guava jar>` after `./gradlew :mcav-bukkit:jar`.
 
 The committed conformance corpus proves what was already measured; this finds what was not. It generates three kinds of
 research archives (u32 length, then the frame) and decodes each with both decoders, frame by frame:

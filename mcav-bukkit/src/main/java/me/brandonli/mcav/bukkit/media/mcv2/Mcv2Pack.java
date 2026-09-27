@@ -30,11 +30,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
-import me.brandonli.mcav.media.mcv2.Mcv2Format;
-import me.brandonli.mcav.media.mcv2.ResidualBooks;
-import me.brandonli.mcav.media.mcv2.transport.MapAlphabet;
-import me.brandonli.mcav.media.mcv2.transport.TransportPages;
 import net.minecraft.world.level.material.MapColor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

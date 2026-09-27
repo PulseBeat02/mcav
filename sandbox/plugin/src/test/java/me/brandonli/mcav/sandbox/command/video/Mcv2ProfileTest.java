@@ -19,7 +19,7 @@ package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2ProfileTest {

@@ -30,12 +30,9 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
-import me.brandonli.mcav.media.mcv2.FrameParser;
-import me.brandonli.mcav.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.media.mcv2.Mcv2Frame;
-import me.brandonli.mcav.media.mcv2.transport.MapAlphabet;
-import me.brandonli.mcav.media.mcv2.transport.TransportPages;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 

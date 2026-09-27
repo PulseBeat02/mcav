@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import me.brandonli.mcav.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 
 /**
  * The MCV2 encoder profiles the sandbox offers.

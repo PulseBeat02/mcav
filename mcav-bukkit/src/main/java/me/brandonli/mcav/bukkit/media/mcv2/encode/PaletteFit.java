@@ -1,0 +1,220 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.bukkit.media.mcv2.encode;
+
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.PALETTE_COLORS;
+
+import java.util.Arrays;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Reconstruction;
+
+/**
+ * The two-colour palette fit of the reference encoder ({@code encoder.palette_candidate}), reproduced operation for
+ * operation: luma extrema seed two endpoints, four Lloyd iterations move them to their clusters' means in float32
+ * (means divided in float64 and rounded to float32, as numpy promotes them), the endpoints are rounded to RGB8 and
+ * optionally to RGB565, and every pixel finally takes the nearer endpoint, the first one on a tie.
+ */
+final class PaletteFit {
+
+  /** The reference's Lloyd iterations. */
+  private static final int ITERATIONS = 4;
+
+  private PaletteFit() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
+  /**
+   * Fits a palette to a block.
+   *
+   * @param source    the block's channels, 0..255, {@code count * 3} values
+   * @param count     the number of pixels
+   * @param quantize  whether the endpoints are rounded to RGB565 before the final assignment
+   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors receives one selector per pixel, 0 or 1
+   */
+  static void fit(final int[] source, final int count, final boolean quantize, final int[] colors, final byte[] selectors) {
+    final float[] endpoints = new float[PALETTE_COLORS * CHANNELS];
+    cluster(source, count, endpoints);
+    finish(source, count, endpoints, quantize, colors, selectors);
+  }
+
+  /**
+   * The Lloyd iterations of the fit, which do not depend on the rounding of the endpoints, so a palette and the
+   * patterns of both endpoint precisions share one run.
+   *
+   * @param source    the block's channels, 0..255, {@code count * 3} values
+   * @param count     the number of pixels
+   * @param endpoints receives the float32 endpoints: R, G, B of endpoint 0, then of endpoint 1
+   */
+  static void cluster(final int[] source, final int count, final float[] endpoints) {
+    int low = 0;
+    int high = 0;
+    int lowLuma = Integer.MAX_VALUE;
+    int highLuma = Integer.MIN_VALUE;
+    for (int i = 0; i < count; i++) {
+      final int luma = source[i * CHANNELS] + 2 * source[i * CHANNELS + 1] + source[i * CHANNELS + 2];
+      if (luma < lowLuma) {
+        lowLuma = luma;
+        low = i;
+      }
+      if (luma > highLuma) {
+        highLuma = luma;
+        high = i;
+      }
+    }
+    final float[] c = endpoints;
+    for (int ch = 0; ch < CHANNELS; ch++) {
+      c[ch] = source[low * CHANNELS + ch];
+      c[CHANNELS + ch] = source[high * CHANNELS + ch];
+    }
+    final long[] sums = new long[PALETTE_COLORS * CHANNELS];
+    final int[] weights = new int[PALETTE_COLORS];
+    for (int iteration = 0; iteration < ITERATIONS; iteration++) {
+      Arrays.fill(sums, 0);
+      weights[0] = 0;
+      weights[1] = 0;
+      for (int i = 0; i < count; i++) {
+        final int r = source[i * CHANNELS];
+        final int g = source[i * CHANNELS + 1];
+        final int b = source[i * CHANNELS + 2];
+        final int index = nearer(r, g, b, c) ? 1 : 0;
+        weights[index]++;
+        sums[index * CHANNELS] += r;
+        sums[index * CHANNELS + 1] += g;
+        sums[index * CHANNELS + 2] += b;
+      }
+      for (int index = 0; index < PALETTE_COLORS; index++) {
+        if (weights[index] > 0) {
+          for (int ch = 0; ch < CHANNELS; ch++) {
+            c[index * CHANNELS + ch] = (float) ((double) sums[index * CHANNELS + ch] / weights[index]);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Rounds clustered endpoints to RGB8, optionally to RGB565, and gives every pixel the nearer one.
+   *
+   * @param source    the block's channels, 0..255, {@code count * 3} values
+   * @param count     the number of pixels
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether the endpoints are rounded to RGB565 before the final assignment
+   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors receives one selector per pixel, 0 or 1
+   */
+  static void finish(
+    final int[] source,
+    final int count,
+    final float[] endpoints,
+    final boolean quantize,
+    final int[] colors,
+    final byte[] selectors
+  ) {
+    round(endpoints, quantize, colors);
+    for (int i = 0; i < count; i++) {
+      selectors[i] = nearest(source, i, colors);
+    }
+  }
+
+  /**
+   * Rounds clustered endpoints to RGB8, and optionally to RGB565.
+   *
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether to round them to RGB565 as well
+   * @param colors    receives the rounded endpoints: R, G, B of endpoint 0, then of endpoint 1
+   */
+  static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
+    for (int i = 0; i < PALETTE_COLORS * CHANNELS; i++) {
+      colors[i] = Reconstruction.rgb8(endpoints[i]);
+    }
+    if (quantize) {
+      for (int e = 0; e < PALETTE_COLORS; e++) {
+        final int at = e * CHANNELS;
+        final int value = Mcv2Format.pack565(colors[at], colors[at + 1], colors[at + 2]);
+        final int packed = Mcv2Format.unpack565(value & 0xFF, value >> Byte.SIZE);
+        colors[at] = (packed >> 16) & 0xFF;
+        colors[at + 1] = (packed >> 8) & 0xFF;
+        colors[at + 2] = packed & 0xFF;
+      }
+    }
+  }
+
+  /** The selector of pixel i: 1 when endpoint 1 is strictly nearer in integer RGB distance, else 0. */
+  private static byte nearest(final int[] source, final int i, final int[] colors) {
+    final int at = i * CHANNELS;
+    final int dr0 = source[at] - colors[0];
+    final int dg0 = source[at + 1] - colors[1];
+    final int db0 = source[at + 2] - colors[2];
+    final int dr1 = source[at] - colors[3];
+    final int dg1 = source[at + 1] - colors[4];
+    final int db1 = source[at + 2] - colors[5];
+    final int e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
+    final int e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
+    return (byte) (e1 < e0 ? 1 : 0);
+  }
+
+  /**
+   * {@link #finish} for a pattern candidate, which is only valid when the selectors repeat along one axis: every row the
+   * first row, or every row a single selector. The pixels are assigned row by row, and the assignment stops at the first
+   * row after which neither can hold, which is most blocks' first or second row.
+   *
+   * @param source    the block's channels, 0..255, {@code size * size * 3} values
+   * @param size      the block size
+   * @param endpoints the endpoints from {@link #cluster}
+   * @param quantize  whether the endpoints are rounded to RGB565 before the assignment
+   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors receives one selector per pixel, all of them when the selectors repeat along an axis
+   * @return whether they do
+   */
+  static boolean finishPattern(
+    final int[] source,
+    final int size,
+    final float[] endpoints,
+    final boolean quantize,
+    final int[] colors,
+    final byte[] selectors
+  ) {
+    round(endpoints, quantize, colors);
+    boolean columns = true;
+    boolean rows = true;
+    for (int y = 0; y < size && (columns || rows); y++) {
+      for (int x = 0; x < size; x++) {
+        final int i = y * size + x;
+        selectors[i] = nearest(source, i, colors);
+        columns &= selectors[i] == selectors[x];
+        rows &= selectors[i] == selectors[y * size];
+      }
+    }
+    return columns || rows;
+  }
+
+  /** Whether endpoint 1 is strictly nearer than endpoint 0, with the reference's float32 squared distances. */
+  private static boolean nearer(final int r, final int g, final int b, final float[] c) {
+    final float dr0 = r - c[0];
+    final float dg0 = g - c[1];
+    final float db0 = b - c[2];
+    final float dr1 = r - c[3];
+    final float dg1 = g - c[4];
+    final float db1 = b - c[5];
+    final float e0 = (dr0 * dr0 + dg0 * dg0) + db0 * db0;
+    final float e1 = (dr1 * dr1 + dg1 * dg1) + db1 * db1;
+    return e1 < e0;
+  }
+}

@@ -26,7 +26,6 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
-import me.brandonli.mcav.media.mcv2.Mcv2Format;
 
 /**
  * One frame of an MCV2 screen for Java Flight Recorder: when it reached the result, how long its encode took, when its

@@ -29,7 +29,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 PACK = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
-BOOKS = ROOT / "mcav-common/src/main/resources/me/brandonli/mcav/media/mcv2/residual_books.bin"
+BOOKS = ROOT / "mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin"
 SCREEN = (1920, 1080)
 STREAM_ID = 7
 

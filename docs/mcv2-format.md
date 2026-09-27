@@ -10,7 +10,7 @@ writes it. Why the codec is built this way, and the evidence for it, is in the d
   `85445433aeb9f8a35a5ce528d47d8829976d1401`: `mcvideo/format.py`, `v2.py`, `compact.py`, `pattern.py`, `decoder.py`,
   `pixels.py` and `transport.py`, with `codebooks.py` for the residual books. That repository's `FORMAT.md` predates
   every kept frontier round and is not a source.
-- **What is described:** mcav's implementation in `mcav-common`, package `me.brandonli.mcav.media.mcv2`. Each rule
+- **What is described:** mcav's implementation in `mcav-bukkit`, package `me.brandonli.mcav.bukkit.media.mcv2`. Each rule
   names the Java method that enforces it and the reference function it mirrors. `FrameParser.parse` is written to
   accept exactly the frames the reference's `v2.parse_frame` accepts (reached through `format.parse_frame`), apart
   from the syntax below, and `Mcv2Decoder` is bit-exact with the reference on all 780 conformance frames (design doc,
@@ -352,7 +352,7 @@ bytes as above, or with flag 8192 two u16 RGB565 colours (R in bits 11-15, G in 
 
 ## 6. Transport
 
-`me.brandonli.mcav.media.mcv2.transport`, reference `transport.py`. A frame travels as pages; a page is a 32-byte
+`me.brandonli.mcav.bukkit.media.mcv2.transport`, reference `transport.py`. A frame travels as pages; a page is a 32-byte
 header (`<4sBBHIIHHIII`) followed by a slice of the frame.
 
 | offset | size | field | rule (`TransportPages.readPage`, `read_page`) |

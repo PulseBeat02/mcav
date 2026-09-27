@@ -7,7 +7,7 @@ mcav.mp4 filter=lfs diff=lfs merge=lfs -text
 *.mcs binary
 *.bin binary
 *.rgb binary
-mcav-common/src/test/resources/me/brandonli/mcav/media/mcv2/**/*Inputs/** binary
+mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/**/*Inputs/** binary
 *.so binary
 *.dll binary
 *.dylib binary

@@ -256,4 +256,4 @@ dmypy.json
 logs/
 
 # the MCV2 live encoder's prebuilt native kernels are committed resources
-!mcav-common/src/main/resources/me/brandonli/mcav/media/mcv2/encode/natives/**
+!mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/encode/natives/**

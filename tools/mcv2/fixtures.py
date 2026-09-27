@@ -1,8 +1,8 @@
-"""Regenerate the MCV2 test fixtures of mcav-common from the gpu-codec reference checkout.
+"""Regenerate the MCV2 test fixtures of mcav-bukkit from the gpu-codec reference checkout.
 
     python tools/mcv2/fixtures.py <gpu-codec checkout> <fixture root> [conformance|edge|pages|encoder|all]
 
-The fixture root is mcav-common/src/test/resources/me/brandonli/mcav/media/mcv2; the checkout is the research
+The fixture root is mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2; the checkout is the research
 repository mcav ports MCV2 from, at commit 85445433aeb9f8a35a5ce528d47d8829976d1401. Run it with a Python that has
 numpy, the reference's only dependency. Every fixture the Java tests read is written by the reference itself:
 

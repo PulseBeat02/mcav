@@ -19,7 +19,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicLong;
-import me.brandonli.mcav.media.mcv2.Mcv2Format;
 
 /**
  * One viewer's side of an MCV2 stream: which frames the viewer can decode, and how much video its connection has not

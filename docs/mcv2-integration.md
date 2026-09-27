@@ -40,11 +40,16 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
 
 | part | module | package |
 |---|---|---|
-| frame parser and validator, decoder, reconstruction kernels, residual books, receiver state machine | `mcav-common` | `me.brandonli.mcav.media.mcv2` |
-| transport pages, CRC, page assembler, map alphabet | `mcav-common` | `me.brandonli.mcav.media.mcv2.transport` |
-| encoder, tree serializer, fits, motion search, profiles | `mcav-common` | `me.brandonli.mcav.media.mcv2.encode` |
+| frame parser and validator, decoder, reconstruction kernels, residual books, receiver state machine | `mcav-bukkit` | `me.brandonli.mcav.bukkit.media.mcv2` |
+| transport pages, CRC, page assembler, map alphabet | `mcav-bukkit` | `me.brandonli.mcav.bukkit.media.mcv2.transport` |
+| encoder, tree serializer, fits, motion search, profiles, Java and native kernels | `mcav-bukkit` | `me.brandonli.mcav.bukkit.media.mcv2.encode` |
 | video result step, map packets, player sessions, configuration, resource pack generation | `mcav-bukkit` | `me.brandonli.mcav.bukkit.media.mcv2` |
 | demo command | `sandbox/plugin` | |
+
+MCV2 is a Bukkit feature, so all of it lives in `mcav-bukkit`: the Java code and its tests, the residual books and
+fitting matrices, the native kernels' sources (`src/main/native/mcv2`) and their six committed libraries, the native
+tests (`src/test/native/mcv2`), the fuzz inputs and the Gradle tasks that rebuild and format the kernels. `mcav-common`
+holds nothing of it.
 
 The core is pure Java with no Python; the live searches can run their pixel kernels in an optional native library,
 which computes exactly what the Java kernels compute (§13). Static data it needs is committed as checked resources:
@@ -579,7 +584,7 @@ streams bit-exactly (`shader_check.py`, 60 of 60 frames each, EGL on the UHD 630
 
 The live searches spend most of their time in pixel kernels: reconstructing and scoring each candidate leaf (motion,
 solid colour, palette, intra and residual grids, reduced grids, compact records), predicting and searching local
-motion, the least-squares and cell-mean fits, palette clustering, and colour conversion. `mcav-common` ships them as a
+motion, the least-squares and cell-mean fits, palette clustering, and colour conversion. `mcav-bukkit` ships them as a
 small C++17 library per platform (`src/main/native/mcv2`), called through the Foreign Function & Memory API (no JNI).
 **The native kernels compute exactly what the Java kernels compute** - the Java kernels (`JavaKernels`) are the
 oracle, and a stream is byte-identical whichever kernels encoded it - so the decoder, the pack and every pinned digest
@@ -668,10 +673,10 @@ less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE S
 Anything else - another processor, another operating system - runs the Java kernels, which compute the same stream.
 
 **Rebuilding.** The libraries are committed; the normal build needs no C or C++ toolchain.
-`./gradlew :mcav-common:buildMcv2Natives -Pmcav.natives=build` rebuilds all six with Zig 0.16.0 (its clang 21.1.0
+`./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build` rebuilds all six with Zig 0.16.0 (its clang 21.1.0
 and linkers; `ZIG=/path/to/zig`, and the script refuses another version) and writes `SHA256SUMS`; the new digests go
 into `Mcv2Natives.DIGESTS`, which `Mcv2NativesTest` checks against the resources.
-`./gradlew :mcav-common:formatMcv2Natives -Pmcav.natives=build` formats the sources with clang-format (LLVM style, 120
+`./gradlew :mcav-bukkit:formatMcv2Natives -Pmcav.natives=build` formats the sources with clang-format (LLVM style, 120
 columns; opt-in). Every library is reproducible: two builds give the same bytes (`SOURCE_DATE_EPOCH=0` keeps the
 link time out of the PE header, and a macOS library is named `@rpath/libmcv2kernels.dylib` rather than the path it was
 built at, which its UUID would hash). The Linux libraries import nothing (no `DT_NEEDED`, no undefined symbol), so they
@@ -680,7 +685,7 @@ no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
 
 ## Handover notes
 
-- The conformance fixtures are in `mcav-common/src/test/resources/me/brandonli/mcav/media/mcv2/conformance`; the
+- The conformance fixtures are in `mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/conformance`; the
   scripts that produced their digests with the reference decoder are in `tools/mcv2/` and take the gpu-codec checkout
   as an argument.
 - `mcav-overhaul-handover.md` is not edited by this work (mcav-features deletes it); notes belong here.

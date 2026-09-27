@@ -21,9 +21,9 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.HexFormat;
-import me.brandonli.mcav.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.media.mcv2.Mcv2Receiver;
-import me.brandonli.mcav.media.mcv2.UnsupportedSyntaxException;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Receiver;
+import me.brandonli.mcav.bukkit.media.mcv2.UnsupportedSyntaxException;
 
 /**
  * Decodes research archives (a little-endian u32 length before every frame) with mcav's MCV2 receiver, which commits
@@ -33,7 +33,7 @@ import me.brandonli.mcav.media.mcv2.UnsupportedSyntaxException;
  * not implement - and {@code truncated} if the archive ends inside a frame. tools/mcv2/differential.py compares these
  * lines with the reference decoder's.
  *
- * <p>Run with a JDK (the launcher compiles this file): {@code java -cp <mcav-common classes>:<guava jar>
+ * <p>Run with a JDK (the launcher compiles this file): {@code java -cp <mcav-bukkit classes>:<guava jar>
  * tools/mcv2/Mcv2Digests.java <archive>...}
  */
 public final class Mcv2Digests {
