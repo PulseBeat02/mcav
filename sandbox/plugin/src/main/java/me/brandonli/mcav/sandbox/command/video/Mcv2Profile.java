@@ -40,8 +40,13 @@ public enum Mcv2Profile {
    */
   LIVE,
   /**
-   * The fastest live profile, the default of a screen: a faster search than {@link #LIVE}'s for somewhat more bandwidth
-   * at the same quality, which a {@link #LIVE} screen that cannot keep up steps down to first.
+   * The default of a screen: the {@link #LIVE} search while the picture is quiet and the {@link #LIVE_FAST} one once it
+   * moves, which keeps a 1080p30 frame in time on quiet content and on gameplay alike.
+   */
+  LIVE_ADAPTIVE,
+  /**
+   * The fastest live profile: a faster search than {@link #LIVE}'s for somewhat more bandwidth at the same quality, which
+   * a screen that cannot keep up steps down to.
    */
   LIVE_FAST,
   /**
@@ -63,6 +68,7 @@ public enum Mcv2Profile {
       case KEYFRAME -> EncoderSettings.SHIP.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
       case INTRA -> EncoderSettings.SHIP.withKeyInterval(1);
       case LIVE -> EncoderSettings.LIVE;
+      case LIVE_ADAPTIVE -> EncoderSettings.LIVE_ADAPTIVE;
       case LIVE_FAST -> EncoderSettings.LIVE_FAST;
       case LIVE_KEYFRAME -> EncoderSettings.LIVE.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
     };

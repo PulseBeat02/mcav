@@ -126,6 +126,8 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      // one preset, so the pacer steps only frame rates and sizes; the tests of the preset ladder give their own
+      .settings(EncoderSettings.LIVE_FAST)
       .build();
   }
 
@@ -385,6 +387,8 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      // one preset, so the pacer steps the frame rate and the size, which this is about
+      .settings(EncoderSettings.LIVE_FAST)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -453,6 +457,8 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      // one preset, so the pacer steps the frame rate and the size, which this is about
+      .settings(EncoderSettings.LIVE_FAST)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -1150,6 +1156,8 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      // one preset, so the pacer steps the frame rate and the size, which this is about
+      .settings(EncoderSettings.LIVE_FAST)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,

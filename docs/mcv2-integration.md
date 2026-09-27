@@ -449,7 +449,7 @@ sandbox sends it to whoever started the screen.
 **Measured** (Temurin 25; details in the report's SERVER VIABILITY and LIVE SPEED sections). The server's tick with
 live 1080p screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83
 with two (all 12 processors: 1.08 and 2.21; measured with the first `live` profile, whose encoder threads load the
-machine the same way). Encode time of `live-fast`, the screens' default, per frame (mean / p95 ms, and CPU ms per
+machine the same way). Encode time of `live-fast` per frame (mean / p95 ms, and CPU ms per
 frame) by encoder threads, native AVX2 kernels, verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up
 frames left out), the host at load 4-7:
 
@@ -545,10 +545,13 @@ captures 7.8-19.2) and `live-fast` (`EncoderSettings.LIVE_FAST`: `LiveSearch.LIV
 without a search up to 60 lambda, a 32-pixel block whose superblock the previous frame coded whole split only above
 900 lambda and a 16-pixel block above 600, and the motion search starting at half resolution; at lambda 55 it reaches
 the VMAF `live` reaches at 72. Each rung's rate against `ship` at equal VMAF mean (600 frames; map / after compression):
-`live` -5.1% / -3.4% (1080p30 proxy) and +7.9% / +6.9% (30 fps gameplay), inside its +10%; `live-fast` +17.7% / +18.4%
-and +29.4% / +17.1%, inside its +30%. **A screen's default is `live-fast`** (`Mcv2Configuration`): the default for a
-source that plays while it is encoded is the slowest rung that meets the 1080p30 gate, else the fastest within +30%;
-`live-fast` meets it on quiet content and on gameplay, `live` on quiet content only (below).
+`live` -5.1% / -3.4% (1080p30 proxy) and +7.9% / +6.9% (30 fps gameplay), inside its +10%; `adaptive` -5.5% / -3.8%
+(the proxy, where it codes as `live`) and +24.9% / +14.3% (gameplay), VMAF 75.7 and 76.1 at its default; `live-fast`
++17.7% / +18.4% and +29.4% / +17.1%, inside its +30%. **A screen's default is `adaptive`** (`Mcv2Configuration`): the
+default for a source that plays while it is encoded is the slowest rung that meets its frame rate's gate. At 30 fps that
+is `adaptive`, which meets the 1080p30 gate on quiet content and on gameplay with the 12-thread gate budget, where
+`live` meets it on quiet content only; with the default budget of 6 threads gameplay sits at the gate's limit. No rung
+meets the 1080p60 gate on this machine (below): a 60 fps screen steps down to `live-fast`, then to fewer frames.
 A screen that cannot keep up steps **down the ladder first** (`EncoderSettings.faster()`: `ship`'s search to `live`'s,
 `live` to `adaptive` and `adaptive` to `live-fast` with the lambda of the live-fast search scaled by 55/72, so the
 picture keeps its quality), then the frame rate, then the size, then the dithered maps (`Mcv2Pacer`, §11). **Between
@@ -583,18 +586,26 @@ same with at most three, one or two helpers. The verification got faster (7.0 to
 slowed as much or more and the rate fell 10-20 % (proxy 67, 61, 57 and 59 frames a second against 74) with no better
 p95 interval or latency, so none was kept. Two screens on one budget share it evenly either way.
 
-**Measured** (Temurin 25, 12 threads of the i7-8700, native AVX2 kernels, verify on, as a screen encodes, 660 frames
-with 60 warm-up frames left out, three runs each; the report's LIVE SPEED section has every run):
+**Measured at 1080p30** (Temurin 25, the i7-8700's 12 threads - the gate budget - and 6 - the default budget - native
+AVX2 kernels, verify on, as a screen encodes one frame at a time, 660 frames with 60 warm-up frames left out, three
+interleaved runs each, the host at load 15-38 from other work; the report's LIVE 1080p60 section has every run):
 
-| rung | 1080p30 proxy: mean / p95 | 30 fps gameplay: mean / p95 | CPU per frame | VMAF mean / min (proxy; gameplay) | Mbit/s map / zlib (proxy; gameplay) |
-| --- | --- | --- | --- | --- | --- |
-| `live` | 19.0-19.6 / 21.7-23.2 ms | 27.8-28.6 / 35.1-36.9 ms | 159-160; 242-244 ms | 75.7 / 69.0; 76.1 / 65.2 | 2.80 / 1.83; 13.1 / 8.3 |
-| `live-fast` | 17.5-18.1 / 20.3-21.2 ms | 24.0-24.6 / 30.3-31.2 ms | 143-146; 206-211 ms | 76.1 / 71.9; 76.1 / 66.3 | 3.27 / 2.12; 15.3 / 8.7 |
+| rung | threads | 1080p30 proxy: p95 (best of 3) | 30 fps gameplay: p95 | CPU per frame (proxy; gameplay) | VMAF mean / min (proxy; gameplay) | Mbit/s map / zlib (proxy; gameplay) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `live` | 12 | 21.4 ms | 33.6 ms | 136; 206 ms | 75.7 / 69.0; 76.1 / 65.2 | 2.80 / 1.83; 13.0 / 8.3 |
+| `adaptive` | 12 | 21.5 ms | 29.7 ms | 137; 193 ms | 75.7 / 69.0; 76.1 / 66.3 | 2.80 / 1.83; 15.2 / 8.6 |
+| `live-fast` | 12 | 20.3 ms | 28.3 ms | 122; 176 ms | 76.1 / 71.9; 76.1 / 66.3 | 3.28 / 2.12; 15.3 / 8.7 |
+| `adaptive` | 6 | 23.8 ms | 31.9-33.9 ms | 107; 141 ms | | |
+| `live-fast` | 6 | 21.8 ms | 32.9-34.6 ms | 98; 142 ms | | |
 
-**`live-fast` meets the 32 ms p95 gate on quiet content and on gameplay** (every run; the host carried a load of 4-13
-from other work); `live` meets it on quiet content only. About 8 ms of a gameplay frame lies outside the parallel
-search - the verification's decode (3.7 ms), the writer (1.5), the global motion (1.1), the tree check (0.7) - which
-is why more threads stop helping (the hardware guide is §11). Decode on the Intel UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new
+**`adaptive` and `live-fast` meet the 32 ms p95 gate on quiet content and on gameplay with 12 threads; `live` on quiet
+content only.** With 6 threads gameplay sits at the limit. **At 1080p60 no rung meets the gate** (the p95 of the
+interval between finished frames under 16 ms, of arrival to finished under 33 ms): with 12 threads `live-fast`
+reaches 22.1 / 46.4 ms on the 1080p60 proxy and 34.1 ms on 60 fps gameplay, which it cannot sustain (45 frames a
+second); with 6 threads neither keeps 60 frames a second. A 60 fps gameplay frame takes 203-209 ms of CPU, 17 ms at a
+perfect split over the 12 hardware threads, before the 5-10 ms of verification and writing that do not split -
+pipelining hides those behind the next frame's search - which is why more threads stop helping (the hardware guide is
+§11). Decode on the Intel UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new
 frame of the first live profile, 5.7-5.9 ms per rendered frame without new video; the pack decodes both rungs'
 streams bit-exactly (`shader_check.py`, 60 of 60 frames each, EGL on the UHD 630 and GLX on llvmpipe).
 

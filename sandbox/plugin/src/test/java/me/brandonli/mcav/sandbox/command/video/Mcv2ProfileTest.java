@@ -32,6 +32,7 @@ final class Mcv2ProfileTest {
     assertEquals(EncoderSettings.SHIP.lambda(), Mcv2Profile.KEYFRAME.getSettings().lambda());
     assertEquals(1, Mcv2Profile.INTRA.getSettings().keyInterval());
     assertEquals(EncoderSettings.LIVE, Mcv2Profile.LIVE.getSettings());
+    assertEquals(EncoderSettings.LIVE_ADAPTIVE, Mcv2Profile.LIVE_ADAPTIVE.getSettings());
     assertEquals(EncoderSettings.LIVE_FAST, Mcv2Profile.LIVE_FAST.getSettings());
     assertEquals(EncoderSettings.ReferencePolicy.LAST_KEYFRAME, Mcv2Profile.LIVE_KEYFRAME.getSettings().reference());
     assertEquals(EncoderSettings.LIVE.live(), Mcv2Profile.LIVE_KEYFRAME.getSettings().live());
