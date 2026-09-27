@@ -41,6 +41,21 @@ MCV2_KERNELS(MCV2_DECLARE_NARROW)
 #endif
 #define MCV2_HAND_OFF(name, ...) MCV2_HAND_OFF_BELOW(MCV2_NARROW_BELOW, name, __VA_ARGS__)
 
+// A level may also give one kernel's blocks of one size to a narrower level that runs them faster, so no wider level
+// is slower than a narrower one (NatBench): MCV2_<KERNEL>_TO(name) names that level's kernel and MCV2_<KERNEL>_AT the
+// size. Every level computes the same numbers, so the result does not change.
+#if defined(MCV2_FIT_TO)
+MCV2_EXPORT void MCV2_FIT_TO(fit)(const float *values, int32_t offset, int32_t stride, int32_t size, int32_t grid,
+                                  const float *matrix, float *out, int32_t out_offset, int32_t out_stride);
+#endif
+#if defined(MCV2_CELL_SUMS_TO)
+MCV2_EXPORT void MCV2_CELL_SUMS_TO(cell_sums)(const int32_t *source, int32_t size, int32_t *sums);
+#endif
+#if defined(MCV2_CELL_MEANS_TO)
+MCV2_EXPORT void MCV2_CELL_MEANS_TO(cell_means)(const float *target, int32_t size, int32_t channel, int32_t grid,
+                                                float *out, int32_t out_offset, int32_t out_stride);
+#endif
+
 int64_t MCV2_PREFIX(predicted)(const int32_t *prediction, int32_t size, int32_t *out, const int32_t *source,
                                double rate, double limit) {
   MCV2_HAND_OFF(predicted, prediction, size, out, source, rate, limit)
@@ -94,11 +109,21 @@ void MCV2_PREFIX(predict)(const uint8_t *reference, int32_t width, int32_t heigh
 void MCV2_PREFIX(fit)(const float *values, int32_t offset, int32_t stride, int32_t size, int32_t grid,
                       const float *matrix, float *out, int32_t out_offset, int32_t out_stride) {
   MCV2_HAND_OFF(fit, values, offset, stride, size, grid, matrix, out, out_offset, out_stride)
+#if defined(MCV2_FIT_TO)
+  if (size == MCV2_FIT_AT) {
+    return MCV2_FIT_TO(fit)(values, offset, stride, size, grid, matrix, out, out_offset, out_stride);
+  }
+#endif
   mcv2::fit(values, offset, stride, size, grid, matrix, out, out_offset, out_stride);
 }
 
 void MCV2_PREFIX(cell_sums)(const int32_t *source, int32_t size, int32_t *sums) {
   MCV2_HAND_OFF(cell_sums, source, size, sums)
+#if defined(MCV2_CELL_SUMS_TO)
+  if (size == MCV2_CELL_SUMS_AT) {
+    return MCV2_CELL_SUMS_TO(cell_sums)(source, size, sums);
+  }
+#endif
   mcv2::cell_sums(source, size, sums);
 }
 
@@ -159,6 +184,11 @@ void MCV2_PREFIX(residual_target)(const float *ycocg, const int32_t *prediction,
 void MCV2_PREFIX(cell_means)(const float *target, int32_t size, int32_t channel, int32_t grid, float *out,
                              int32_t out_offset, int32_t out_stride) {
   MCV2_HAND_OFF(cell_means, target, size, channel, grid, out, out_offset, out_stride)
+#if defined(MCV2_CELL_MEANS_TO)
+  if (size == MCV2_CELL_MEANS_AT) {
+    return MCV2_CELL_MEANS_TO(cell_means)(target, size, channel, grid, out, out_offset, out_stride);
+  }
+#endif
   mcv2::cell_means(target, size, channel, grid, out, out_offset, out_stride);
 }
 }

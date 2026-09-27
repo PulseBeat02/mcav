@@ -69,9 +69,14 @@ build() {
   echo "$platform/$name: $(wc -c < "$out/$platform/$name") bytes"
 }
 
-# x86-64: SSE2 is the baseline; AVX-512 only with the Ice Lake feature set, and not on macOS (cpu.cpp)
+# x86-64: SSE2 is the baseline; AVX-512 only with the Ice Lake feature set, and not on macOS (cpu.cpp). Branches are
+# kept inside 32-byte blocks on Linux and Windows: on Skylake-family CPUs a jump that crosses one runs slower since the
+# JCC erratum's microcode update, and without it a kernel's speed moved by up to 15 % with where the linker placed it
+# (NatBench). LLVM pads only ELF and COFF output, so the macOS library is built without the option.
 avx512="-mavx512f -mavx512dq -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512vnni -mavx512bitalg"
-x86=(cpu level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2 "level_avx512:$avx512")
+jcc="-mbranches-within-32B-boundaries"
+x86=("cpu:$jcc" "level_scalar:$jcc" "level_sse2:$jcc" "level_sse41:-msse4.1 $jcc" "level_avx2:-mavx2 $jcc"
+  "level_avx512:$avx512 $jcc")
 x86_macos=(cpu level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2)
 # AArch64: NEON is the baseline; SVE at 256 and 512 bits on Linux, whose kernel says whether SVE may run
 arm=(cpu level_scalar level_neon)

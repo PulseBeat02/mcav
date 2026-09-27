@@ -642,7 +642,9 @@ library has asked:
   (`-Dmcv2.native.level=avx2` on an AVX-512 machine).
 - A block narrower than a vector - 8 pixels, and 16 for the colour clustering, which takes two vectors of a row - goes
   from the AVX-512 kernels to the AVX2 ones and from the SVE 512 kernels to the NEON ones, so no kernel reads or writes
-  past a row.
+  past a row. Where a narrower level measured faster at one size, a kernel hands that size to it (every level computes
+  the same numbers): the 8-pixel fit from SSE4.1 and AVX2 to SSE2, the 16-pixel cell sums from SSE4.1 to SSE2 and the
+  16-pixel cell means from AVX2 to SSE2.
 
 **Tests.** In the JVM: every kernel at every level the CPU runs against Java (unit, jqwik 2,000 tries, Jazzer in
 `fuzzTest` with the kernels as a differential target), whole encodes byte-identical, the reference conformance and the
@@ -684,8 +686,11 @@ java.lang.foreign.SymbolLookup has been called ...`), which `--enable-native-acc
 prediction and search 2.2-4.6x (its whole-pixel costs as byte differences), the source loading 3-7x, the palette
 clustering 4.8-7.5x, the colour clusters 3.8-4.5x, the luma residual 2.6-7.2x, the cell means 1.3-3.0x and the halving
 1.3-3.4x (8 to 32 pixels); a call costs some 50-90 ns of checks and arguments before any work (a bare downcall 6 ns).
-A wider level is never slower than a narrower one at any block size on this machine (scalar, SSE2, SSE4.1, AVX2), where
-lanes do not pay a kernel runs one lane at a time and lets the compiler vectorize it. The whole live encoder spends 2.7x
+A wider level is never slower than a narrower one at any block size on this machine (scalar, SSE2, SSE4.1, AVX2; within
+10 %, NatBench's noise), where lanes do not pay a kernel runs one lane at a time and lets the compiler vectorize it,
+and the Linux and Windows x86-64 libraries keep branches inside 32-byte blocks (`-mbranches-within-32B-boundaries`):
+on Skylake-family CPUs a jump that crosses one runs slower since the JCC erratum's microcode update, and without it a
+kernel's speed moved by up to 15 % with where the linker placed it. The whole live encoder spends 2.7x
 less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE SPEED section has every kernel).
 
 **Platforms.** Six libraries ship; each was tested as far as a machine or an emulator for it was at hand:

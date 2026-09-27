@@ -85,15 +85,15 @@ public final class Mcv2Natives {
     "linux-aarch64",
     "caf5e65b587c0b360528a3ec5d942d6d8fa5cecb75760005dfe86ac5a0f7c64b",
     "linux-x86_64",
-    "2088f8f4fa4d52148c8237f6b6725990cfaaefe0dd1d74a332168a462cfa2bd3",
+    "00109fa1b7b477a4f65ea102bded265edf32a4ee51a06dfaa59682f17d84a4ec",
     "macos-aarch64",
     "c8696a7661e64b418c2f8e8cc5799e48f2bfa9e73bc27bdefb9dbaf149ae60d8",
     "macos-x86_64",
-    "c6e1ea4c6daa03edce08484712c2ee9fe4c8a85e52e828b047c4b226d919481d",
+    "5e99dda5e4ef2395f2c9814bdaba394db9d04291ffbc29ecde1ca6925341cd99",
     "windows-aarch64",
     "ee879280dba2396af4a007f45060b716bab61e16a3bdf66f3d4d87839b2c444b",
     "windows-x86_64",
-    "bafb5bdff71569a0e833b709f42893491b4abf969e7c7f2241b0b31cfc361f7d"
+    "5422771b3b3cde3badce82db482d1bc0e99d54d1c1c755c7598f02e3009dcbe0"
   );
 
   /**
