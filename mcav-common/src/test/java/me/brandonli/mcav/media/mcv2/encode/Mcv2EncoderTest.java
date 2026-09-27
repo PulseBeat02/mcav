@@ -341,7 +341,7 @@ final class Mcv2EncoderTest {
       picture[i * 3] = (byte) red[i];
       picture[i * 3 + 1] = (byte) i;
     }
-    final byte[] half = Mcv2Encoder.half(picture, 3, 3, Workers.SEQUENTIAL);
+    final byte[] half = Mcv2Encoder.half(picture, 3, 3, Workers.SEQUENTIAL, new byte[2 * 2 * 3]);
     assertArrayEquals(new byte[] { 6, 2, 0, 15, 4, 0, (byte) 150, 7, 0, (byte) 255, 8, 0 }, half);
   }
 }

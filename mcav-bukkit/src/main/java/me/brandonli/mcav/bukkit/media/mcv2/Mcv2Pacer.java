@@ -31,7 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * its {@linkplain Preset presets}, from the one it was asked for down to the fastest, then with the fastest at every
  * second, third, fourth and sixth frame while at least {@link #MIN_FPS} frames a second remain; then the same for each
  * smaller size the screen can switch to; and last the dithered maps, which need no encoder. The screen reports how long
- * every encoded P frame took; keyframes, which come every few seconds and cost more, are left out. When the smoothed
+ * every encoded P frame held its pipeline - the frame's search, and the wait for the frame before it to be verified
+ * and sent, which is what bounds the frames it keeps up with; keyframes, which come every few seconds and cost more,
+ * are left out. When the smoothed
  * time has been over the time a frame has, {@link #HIGH} of it, for {@link #DOWN_SECONDS}, the pacer steps down to the
  * first rung below that the measured time predicts to fit in {@link #FIT} of its frame time - the encode time grows
  * with the pixels and with the preset's cost, the frame time with the frames skipped - else to the first that keeps up

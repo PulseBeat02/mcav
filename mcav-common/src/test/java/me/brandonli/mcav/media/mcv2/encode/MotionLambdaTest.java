@@ -33,6 +33,9 @@ final class MotionLambdaTest {
 
   private static final double BASE = 72;
 
+  /** The samples of a 400x300 frame: every fourth pixel of every fourth row. */
+  private static final int SAMPLES = 100 * 75;
+
   /** A 5x5 grey picture whose four sampled pixels, at the corners, hold the given grey values. */
   private static byte[] corners(final int a, final int b, final int c, final int d) {
     final byte[] rgb = new byte[5 * 5 * 3];
@@ -50,12 +53,18 @@ final class MotionLambdaTest {
   void blursTheLumaOfEveryFourthPixelOverThreeByThreeSamples() {
     // luma r + 2 g + b of the samples: 40, 80 on the first row, 120, 160 on the second; each blurred sample sums its
     // 3x3 neighbourhood, the edge samples repeated, so the top left one is 4 * 40 + 2 * 80 + 2 * 120 + 160
-    assertArrayEquals(new int[] { 720, 840, 960, 1080 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 5, 5, Workers.SEQUENTIAL));
+    assertArrayEquals(
+      new int[] { 720, 840, 960, 1080 },
+      MotionLambda.blurredLuma(corners(10, 20, 30, 40), 5, 5, Workers.SEQUENTIAL, new int[4], new int[4])
+    );
     // 3600 over four samples, in units of 36 per luma step
     assertEquals(25.0, MotionLambda.temporalInformation(new int[] { 720, 840, 960, 1080 }, new int[4], Workers.SEQUENTIAL));
     assertEquals(25.0, MotionLambda.temporalInformation(new int[4], new int[] { 720, 840, 960, 1080 }, Workers.SEQUENTIAL));
     // a picture four pixels wide or less has one column of samples
-    assertArrayEquals(new int[] { 360 }, MotionLambda.blurredLuma(corners(10, 20, 30, 40), 1, 1, Workers.SEQUENTIAL));
+    assertArrayEquals(
+      new int[] { 360 },
+      MotionLambda.blurredLuma(corners(10, 20, 30, 40), 1, 1, Workers.SEQUENTIAL, new int[1], new int[1])
+    );
   }
 
   @Test
@@ -67,9 +76,9 @@ final class MotionLambdaTest {
     random.nextBytes(first);
     random.nextBytes(second);
     final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
-    final int[] blurred = MotionLambda.blurredLuma(first, 400, 300, Workers.SEQUENTIAL);
-    assertArrayEquals(blurred, MotionLambda.blurredLuma(first, 400, 300, workers));
-    final int[] other = MotionLambda.blurredLuma(second, 400, 300, Workers.SEQUENTIAL);
+    final int[] blurred = MotionLambda.blurredLuma(first, 400, 300, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
+    assertArrayEquals(blurred, MotionLambda.blurredLuma(first, 400, 300, workers, new int[SAMPLES], new int[SAMPLES]));
+    final int[] other = MotionLambda.blurredLuma(second, 400, 300, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
     assertEquals(
       MotionLambda.temporalInformation(blurred, other, Workers.SEQUENTIAL),
       MotionLambda.temporalInformation(blurred, other, workers)

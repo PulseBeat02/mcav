@@ -51,7 +51,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Block evaluation runs in parallel. Every block's result depends only on the previous decoded frame, never on a
  * neighbour, and every reduction runs in a fixed order, so the output is the same for any number of threads.
  *
- * <p>Instances are not thread-safe; one encoder encodes one stream.
+ * <p>A frame is encoded in two steps: {@link #begin} analyses, searches and writes it and leaves the encoder ready for
+ * the next frame, whose reference is this frame's reconstruction; {@link #finish} verifies it. {@link #encode} does
+ * both. A pipelined caller verifies frame N on one thread while it searches frame N+1 on another, one frame in flight
+ * at most: it calls {@code finish} for every frame, in order, and begins frame N+2 only after frame N is finished.
+ *
+ * <p>Instances are not thread-safe beyond that: one encoder encodes one stream.
  */
 public final class Mcv2Encoder {
 
@@ -61,11 +66,19 @@ public final class Mcv2Encoder {
   /** The bands the verification compares the decoded picture in. */
   private static final int COMPARE_BANDS = 16;
 
+  /** The decoded pictures a live encoder keeps: the reference, a frame being verified, and the next frame. */
+  private static final int PICTURES = 3;
+
   /** The deepest level: 8-pixel leaves. */
   private static final int DEEPEST = BLOCK_SIZES - 1;
 
   /** The scene cut's luma differences are 16 times Y's: (r + 2 g + b) is four Y, against four-times predictions. */
   static final double SCENE_LUMA_SCALE = 16.0;
+
+  private static final String STOPPED = "The encoder stopped after a frame failed its verification";
+
+  /** No picture: what a keyframe predicts from, and what no frame in flight holds. */
+  private static final byte[] NONE = new byte[0];
 
   private final EncoderSettings settings;
 
@@ -106,7 +119,15 @@ public final class Mcv2Encoder {
   /** Which superblocks the previous live frame split, in raster order, updated by every live frame. */
   private boolean@Nullable[] splitBefore;
 
-  private @Nullable Stats stats;
+  private volatile @Nullable Stats stats;
+
+  /** Whether a frame failed its verification, which stops the encoder. */
+  private volatile boolean failed;
+
+  /** The frame begun last and the one before it, which must be finished before another begins. */
+  private @Nullable Pending newer;
+
+  private @Nullable Pending older;
 
   /** Makes the pixel kernels of each coder: the native ones for a live search where they load, else Java's. */
   private final Kernels.Factory kernels;
@@ -127,6 +148,111 @@ public final class Mcv2Encoder {
    * @param lambda      the lambda the frame was searched with
    */
   public record Stats(int bytes, boolean keyframe, int globalX, int globalY, int trial, int leaves, long nanoseconds, double lambda) {}
+
+  /** A verified frame: its bytes and its outcome. */
+  public static final class Encoded {
+
+    private final byte[] data;
+
+    private final Stats stats;
+
+    private Encoded(final byte[] data, final Stats stats) {
+      this.data = data;
+      this.stats = stats;
+    }
+
+    /**
+     * Gets the frame bytes.
+     *
+     * @return the bytes, which the caller may keep
+     */
+    public byte[] getData() {
+      return this.data;
+    }
+
+    /**
+     * Gets the frame's outcome.
+     *
+     * @return the statistics
+     */
+    public Stats getStats() {
+      return this.stats;
+    }
+  }
+
+  /**
+   * A frame {@link #begin} searched and wrote, which {@link #finish} verifies: its bytes, and what the check reads, none
+   * of which the next frame's search changes.
+   */
+  public static final class Pending {
+
+    private final byte[] data;
+
+    /** Whether {@link #finish} checks the frame: a live frame with verification on. */
+    private final boolean checked;
+
+    private final List<TreeNode> roots;
+
+    /** The picture the search assembled from its reconstructions, the next frame's reference. */
+    final byte[] picture;
+
+    private final byte[] predictFrom;
+
+    private final long predictFromId;
+
+    private final boolean key;
+
+    private final int globalX;
+
+    private final int globalY;
+
+    private final int trial;
+
+    private final int leaves;
+
+    private final double lambda;
+
+    private long searchNanos;
+
+    private volatile boolean finished;
+
+    private Pending(
+      final byte[] data,
+      final boolean checked,
+      final List<TreeNode> roots,
+      final byte[] picture,
+      final byte[] predictFrom,
+      final long predictFromId,
+      final boolean key,
+      final int globalX,
+      final int globalY,
+      final int trial,
+      final int leaves,
+      final double lambda
+    ) {
+      this.data = data;
+      this.checked = checked;
+      this.roots = roots;
+      this.picture = picture;
+      this.predictFrom = predictFrom;
+      this.predictFromId = predictFromId;
+      this.key = key;
+      this.globalX = globalX;
+      this.globalY = globalY;
+      this.trial = trial;
+      this.leaves = leaves;
+      this.lambda = lambda;
+    }
+
+    /**
+     * Checks whether the frame is a keyframe.
+     *
+     * @return true for a keyframe
+     */
+    public boolean isKeyframe() {
+      return this.key;
+    }
+  }
 
   /**
    * Constructs a new encoder.
@@ -170,8 +296,8 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * The pictures a live search reuses from frame to frame: one per level, and two decoded pictures, one of which is the
-   * reference while the other receives the next frame.
+   * The pictures a live search reuses from frame to frame: one per level, and three decoded pictures: the reference,
+   * the picture of the frame being verified meanwhile, and the one that receives the next frame.
    */
   private static final class LiveBuffers {
 
@@ -183,11 +309,20 @@ public final class Mcv2Encoder {
 
     private final byte[][] pictures;
 
+    /** The reference at half and at a quarter of the resolution, for the motion search's first levels. */
+    private final byte[] half;
+
+    private final byte[] quarter;
+
     private LiveBuffers(final int width, final int height) {
       this.width = width;
       this.height = height;
       this.levels = new byte[BLOCK_SIZES][width * height * CHANNELS];
-      this.pictures = new byte[2][width * height * CHANNELS];
+      this.pictures = new byte[PICTURES][width * height * CHANNELS];
+      final int halfWidth = (width + 1) / 2;
+      final int halfHeight = (height + 1) / 2;
+      this.half = new byte[halfWidth * halfHeight * CHANNELS];
+      this.quarter = new byte[((halfWidth + 1) / 2) * ((halfHeight + 1) / 2) * CHANNELS];
     }
 
     boolean fits(final int w, final int h) {
@@ -199,12 +334,20 @@ public final class Mcv2Encoder {
     }
 
     /**
-     * The decoded picture that is not the given reference. Identity is the point: under the keyframe policy the
-     * reference stays in one buffer for many frames, so the buffers cannot simply take turns.
+     * The first decoded picture that is none of the given ones: the reference, and the picture and the reference of a
+     * frame that may still be verified. Identity is the point: under the keyframe policy the reference stays in one
+     * buffer for many frames, so the buffers cannot simply take turns.
      */
     @SuppressWarnings("ReferenceEquality")
-    private byte[] spare(final byte[] reference) {
-      return reference == this.pictures[0] ? this.pictures[1] : this.pictures[0];
+    private byte[] spare(final byte[] reference, final byte[] verifying, final byte[] verifyingReference) {
+      for (int index = 0; index < PICTURES - 1; index++) {
+        final byte[] picture = this.pictures[index];
+        if (picture != reference && picture != verifying && picture != verifyingReference) {
+          return picture;
+        }
+      }
+      // the frame being verified and its reference take two pictures at most, and the next reference is one of them
+      return this.pictures[PICTURES - 1];
     }
   }
 
@@ -270,7 +413,7 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Encodes one frame.
+   * Encodes one frame: {@link #begin} and {@link #finish} at once.
    *
    * @param rgb     the picture, row-major RGB, {@code width * height * 3} bytes
    * @param width   the width, 1 to 4096
@@ -278,9 +421,29 @@ public final class Mcv2Encoder {
    * @param frameId the unsigned 32-bit frame id, newer than the previous frame's
    * @return the frame bytes
    * @throws IllegalArgumentException if the picture or the id is invalid
-   * @throws IllegalStateException    if the verification finds the frame does not decode to what was chosen
+   * @throws IllegalStateException    if the verification finds the frame does not decode to what was chosen, or an
+   *                                  earlier frame's did
    */
   public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
+    return this.finish(this.begin(rgb, width, height, frameId)).getData();
+  }
+
+  /**
+   * Searches and writes one frame, and makes its reconstruction the reference of the frame after it; {@link #finish}
+   * verifies it. The reference's search verifies here already: its check reads the frame's job, which the next frame
+   * reuses. A request for a keyframe made after this call applies to the frame after the next one.
+   *
+   * @param rgb     the picture, row-major RGB, {@code width * height * 3} bytes
+   * @param width   the width, 1 to 4096
+   * @param height  the height, 1 to 4096
+   * @param frameId the unsigned 32-bit frame id, newer than the previous frame's
+   * @return the frame, which {@link #finish} verifies
+   * @throws IllegalArgumentException if the picture or the id is invalid
+   * @throws IllegalStateException    if a verification failed, or the frame before the one begun last is not finished
+   */
+  public Pending begin(final byte[] rgb, final int width, final int height, final long frameId) {
+    Preconditions.checkState(!this.failed, STOPPED);
+    Preconditions.checkState(this.older == null || this.older.finished, "Two frames are in flight already");
     Preconditions.checkNotNull(rgb, "Picture must not be null");
     Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
     Preconditions.checkArgument(rgb.length == width * height * CHANNELS, "Picture size does not match the dimensions");
@@ -293,7 +456,7 @@ public final class Mcv2Encoder {
     final LiveSearch live = settings.live();
     boolean key = true;
     int motion = 0;
-    byte[] predictFrom = new byte[0];
+    byte[] predictFrom = NONE;
     final boolean predictable = width == this.width && height == this.height && this.framesSinceKey < settings.keyInterval();
     if (live == null) {
       if (previous != null && predictable) {
@@ -430,18 +593,21 @@ public final class Mcv2Encoder {
       bestLeaves = frame.leaves();
       bestRoots = frame.roots();
       liveMotion = frame.motion();
-      if (this.verify) {
-        // the bytes must describe the chosen tree, and the picture assembled from the search's reconstructions must be
-        // the one the decoder produces, into a picture the encoder keeps for the check alone: the picture a client
-        // decodes. The distortions the search measured only steered its choices, so they are not measured again here,
-        // where a pass over every pixel costs a live frame more than its decode; the encoder's tests check them.
-        final Mcv2Frame written = parseChosen(best);
-        checkTree(written, bestRoots, this.workers);
-        final byte[] decoded = decodeChosen(written, predictFrom, this.referenceId, this.workers, this.verified);
-        this.verified = decoded;
-        Preconditions.checkState(same(bestPicture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
-      }
     }
+    final Pending pending = new Pending(
+      best,
+      live != null && this.verify,
+      bestRoots,
+      bestPicture,
+      predictFrom,
+      this.referenceId,
+      key,
+      vectorsX[job.trialVector(bestTrial)],
+      vectorsY[job.trialVector(bestTrial)],
+      bestTrial,
+      bestLeaves.size(),
+      settings.lambda()
+    );
     if (key || settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
       this.reference = bestPicture;
       this.referenceId = frameId;
@@ -453,17 +619,55 @@ public final class Mcv2Encoder {
     this.height = height;
     this.lastFrameId = frameId;
     this.framesSinceKey = key ? 1 : this.framesSinceKey + 1;
-    this.stats = new Stats(
-      best.length,
-      key,
-      vectorsX[job.trialVector(bestTrial)],
-      vectorsY[job.trialVector(bestTrial)],
-      bestTrial,
-      bestLeaves.size(),
-      System.nanoTime() - started,
-      settings.lambda()
+    this.older = this.newer;
+    this.newer = pending;
+    pending.searchNanos = System.nanoTime() - started;
+    return pending;
+  }
+
+  /**
+   * Verifies a frame {@link #begin} searched and wrote, on the budget's workers - possibly while the next frame is
+   * searched on another thread: the bytes must describe the chosen tree, and the picture assembled from the search's
+   * reconstructions must be the one the decoder produces, decoded into a picture the encoder keeps for the check alone:
+   * the picture a client decodes. The distortions the search measured only steered its choices, so they are not
+   * measured again here, where a pass over every pixel costs a live frame more than its decode; the encoder's tests
+   * check them. A frame that fails stops the encoder: the frame after it, begun already, predicts from its picture.
+   *
+   * @param pending the frame
+   * @return the frame's bytes and statistics
+   * @throws IllegalStateException if the verification finds the frame does not decode to what was chosen, if an
+   *                               earlier frame's did, or if the frame is finished already
+   */
+  public Encoded finish(final Pending pending) {
+    Preconditions.checkNotNull(pending, "Frame must not be null");
+    Preconditions.checkState(!this.failed, STOPPED);
+    Preconditions.checkState(!pending.finished, "The frame is finished already");
+    final long started = System.nanoTime();
+    if (pending.checked) {
+      try {
+        final Mcv2Frame written = parseChosen(pending.data);
+        checkTree(written, pending.roots, this.workers);
+        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.workers, this.verified);
+        this.verified = decoded;
+        Preconditions.checkState(same(pending.picture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
+      } catch (final IllegalStateException exception) {
+        this.failed = true;
+        throw exception;
+      }
+    }
+    pending.finished = true;
+    final Stats stats = new Stats(
+      pending.data.length,
+      pending.key,
+      pending.globalX,
+      pending.globalY,
+      pending.trial,
+      pending.leaves,
+      pending.searchNanos + System.nanoTime() - started,
+      pending.lambda
     );
-    return best;
+    this.stats = stats;
+    return new Encoded(pending.data, stats);
   }
 
   /**
@@ -656,14 +860,21 @@ public final class Mcv2Encoder {
     final TreeNode[] serialized = new TreeNode[superblocks];
     final AtomicReferenceArray<List<Leaf>> leaves = new AtomicReferenceArray<>(superblocks);
     // the other of the two pictures: the one the reference is not, which this frame's reconstruction replaces
-    final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(job.reference());
+    // the frame begun before this one may still be verified: its picture and its reference stay as they are
+    final Pending verifying = this.newer;
+    final byte[] picture = Preconditions.checkNotNull(this.buffers).spare(
+      job.reference(),
+      verifying == null ? NONE : verifying.picture,
+      verifying == null ? NONE : verifying.predictFrom
+    );
     final long budget = this.frameBudget;
     final int[] motion = new int[FrameJob.motionColumns(job.width()) * FrameJob.motionColumns(job.height())];
     if ((live.shortcuts() & LiveSearch.HALF_MOTION) != 0 && !job.isKeyframe()) {
-      final byte[] halfReference = half(job.reference(), job.width(), job.height(), this.workers);
+      final LiveBuffers pyramid = Preconditions.checkNotNull(this.buffers);
+      final byte[] halfReference = half(job.reference(), job.width(), job.height(), this.workers, pyramid.half);
       job.halfReference(halfReference);
       if ((live.shortcuts() & LiveSearch.QUARTER_MOTION) != 0) {
-        job.quarterReference(half(halfReference, (job.width() + 1) / 2, (job.height() + 1) / 2, this.workers));
+        job.quarterReference(half(halfReference, (job.width() + 1) / 2, (job.height() + 1) / 2, this.workers, pyramid.quarter));
       }
     }
     this.workers.forEach(
@@ -701,11 +912,13 @@ public final class Mcv2Encoder {
   /**
    * A picture at half resolution: each pixel the rounded mean of a 2x2 square, the last row and column of an odd size
    * repeated.
+   *
+   * @param out receives the picture, {@code ((width + 1) / 2) * ((height + 1) / 2) * 3} bytes
+   * @return {@code out}
    */
-  static byte[] half(final byte[] picture, final int width, final int height, final Workers workers) {
+  static byte[] half(final byte[] picture, final int width, final int height, final Workers workers, final byte[] out) {
     final int w = (width + 1) / 2;
     final int h = (height + 1) / 2;
-    final byte[] out = new byte[w * h * CHANNELS];
     workers.forEach(
       h,
       () -> out,

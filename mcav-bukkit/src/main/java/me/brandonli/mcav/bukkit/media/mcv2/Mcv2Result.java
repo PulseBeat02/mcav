@@ -22,13 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -61,9 +61,13 @@ import org.slf4j.LoggerFactory;
  * frame onto a wall of maps takes a large part of a second, and done on the video's thread it would hold the video, and
  * every viewer's frame rate, to the dithering's.
  *
- * <p>Frames are encoded one at a time, inside the screen's encoder budget ({@link Mcv2Configuration#getEncoderPool()}),
- * which every screen of the server shares unless it was given its own; a thread of the screen only waits for the
- * budget. When the encoder is slower than the video, frames that arrive while it works replace each other and only the
+ * <p>Frames are encoded inside the screen's encoder budget ({@link Mcv2Configuration#getEncoderPool()}), which every
+ * screen of the server shares unless it was given its own, in two steps: the screen's thread searches and writes a frame
+ * ({@link Mcv2Encoder#begin}), then hands it to the screen's sender thread, which verifies it ({@link Mcv2Encoder#finish})
+ * and sends it while the next frame is searched: one frame is in flight at most, and a frame is sent only once
+ * verified. A frame that fails its verification stops the screen. A keyframe the channel asks for while a frame is in
+ * flight comes with the frame after it; a new encoder (another preset) begins only after the frame in flight is sent.
+ * The screen's threads only wait for the budget. When the encoder is slower than the video, frames that arrive while it works replace each other and only the
  * newest is encoded, which the encoder's previous-frame reference allows. A frame with more pages than the screen has
  * page slots is not sent, and the next is a keyframe.
  *
@@ -148,9 +152,13 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private @Nullable Thread sender;
 
-  private @Nullable BlockingQueue<Delivery> deliveries;
+  /** The budget the screen encodes in and the hand-off to its sender, while the result runs. */
+  private @Nullable Pipeline pipeline;
 
-  private @Nullable EncoderPool budget;
+  /** The frames handed to the sender, and the ones it has verified and sent, for draining the pipeline. */
+  private long handed;
+
+  private long delivered;
 
   private @Nullable Mcv2Pacer pacer;
 
@@ -209,6 +217,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.preset = preset;
     }
   }
+
+  /** A frame searched and written, on its way to the sender, which verifies and sends it. */
+  private record Handoff(Mcv2Encoder encoder, Mcv2Encoder.Pending pending, long frameId, Arrival source) {}
+
+  /** The budget a started result encodes in, and where its screen's thread hands frames to its sender. */
+  private record Pipeline(EncoderPool budget, BlockingQueue<Handoff> queue) {}
 
   /** An encoded frame on its way to the viewers, with its encoder statistics and where it came from. */
   private static final class Delivery {
@@ -504,16 +518,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Mcv2Encoder encoder = this.encoders.apply(this.ladder.getFirst());
     // the screen's own thread only hands frames to the budget and waits for them
     final Thread thread = Thread.ofPlatform().daemon().name("mcav-mcv2-screen").unstarted(() -> this.encodeLoop(encoder));
-    // the frames go out on their own thread, so the encoder starts the next frame while the last is being sent; one
-    // frame waits at most, and the encoder waits for its turn when sending falls behind
-    final BlockingQueue<Delivery> queue = new ArrayBlockingQueue<>(1);
-    final Thread delivery = Thread.ofPlatform().daemon().name("mcav-mcv2-sender").unstarted(() -> this.deliverLoop(queue));
+    // the frames are verified and sent on their own thread while the next frame is searched: a hand-off, so one frame
+    // is in flight at most, and the search waits for its turn when verifying and sending fall behind
+    final BlockingQueue<Handoff> queue = new SynchronousQueue<>();
+    final Pipeline started = new Pipeline(encoderPool, queue);
+    final Thread delivery = Thread.ofPlatform().daemon().name("mcav-mcv2-sender").unstarted(() -> this.deliverLoop(started, thread));
     this.pace();
     synchronized (this.lock) {
-      this.budget = encoderPool;
+      this.pipeline = started;
       this.worker = thread;
       this.sender = delivery;
-      this.deliveries = queue;
+      this.handed = 0;
+      this.delivered = 0;
       this.running = true;
     }
     delivery.start();
@@ -665,7 +681,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Mcv2Encoder encoder = first;
     try {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
-        encoder = this.encoderFor(arrival, encoder);
+        final Mcv2Encoder next = this.encoderFor(arrival, encoder);
+        if (next != encoder) {
+          // the frame in flight is the old encoder's: it goes out before the new encoder's keyframe
+          this.drain();
+          encoder = next;
+        }
         this.send(encoder, arrival, frameId);
         frameId = (frameId + 1) & Mcv2Format.MAX_U32;
       }
@@ -730,7 +751,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Encodes one frame and hands it to the sender thread, or sends it on this thread when the result was not started.
+   * Encodes one frame: searches and writes it, and hands it to the sender thread, which verifies and sends it while the
+   * next frame is searched; when the result was not started, encodes and sends it on this thread. The pacer is told
+   * how long the frame held the pipeline: its search, and the wait for the frame before it to be verified and sent.
    *
    * @param encoder the encoder
    * @param arrival the frame and when it arrived
@@ -743,24 +766,33 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     final int width = arrival.width;
     final int height = arrival.height;
-    final EncoderPool encoderPool;
+    final Pipeline running;
     synchronized (this.lock) {
-      encoderPool = this.budget;
+      running = this.pipeline;
     }
     final long started = this.clock.getAsLong();
-    final byte[] frame = encoderPool == null
-      ? encoder.encode(arrival.rgb, width, height, frameId)
-      : encoderPool.run(() -> encoder.encode(arrival.rgb, width, height, frameId));
+    final boolean keyframe;
+    Delivery delivery = null;
+    if (running == null) {
+      final byte[] frame = encoder.encode(arrival.rgb, width, height, frameId);
+      final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
+      keyframe = stats.keyframe();
+      delivery = new Delivery(frame, stats, frameId, arrival);
+    } else {
+      final Mcv2Encoder.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
+      keyframe = pending.isKeyframe();
+      // counted before the hand-off: once the sender has the frame, a drain waits for it
+      synchronized (this.lock) {
+        this.handed++;
+      }
+      running.queue().put(new Handoff(encoder, pending, frameId, arrival));
+    }
     final long finished = this.clock.getAsLong();
-    final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
-    final Delivery delivery = new Delivery(frame, stats, frameId, arrival);
-    final BlockingQueue<Delivery> queue;
     Mcv2Pacer.Change change = null;
     synchronized (this.lock) {
-      queue = this.deliveries;
       final Mcv2Pacer screenPacer = this.pacer;
       if (screenPacer != null) {
-        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, stats.keyframe(), finished);
+        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, keyframe, finished);
         if (change != null) {
           this.follow(change);
         }
@@ -769,22 +801,48 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (change != null) {
       this.announce(change);
     }
-    if (queue == null) {
+    if (delivery != null) {
       this.deliver(delivery);
-    } else {
-      queue.put(delivery);
     }
   }
 
   /**
-   * Sends the frames the encoder hands over, in order, until the result is released.
+   * Waits until the sender has verified and sent every frame handed to it.
    *
-   * @param queue where the encoder hands them over
+   * @throws InterruptedException if the thread is interrupted while it waits
    */
-  private void deliverLoop(final BlockingQueue<Delivery> queue) {
+  void drain() throws InterruptedException {
+    synchronized (this.lock) {
+      while (this.delivered < this.handed) {
+        this.lock.wait();
+      }
+    }
+  }
+
+  /**
+   * Verifies and sends the frames the screen's thread hands over, in order, until the result is released. A frame that
+   * fails its verification stops the screen: the screen's thread is interrupted, and the failure ends this thread as it
+   * ended the screen's thread when the screen verified its frames there.
+   *
+   * @param running      the budget, and where the screen's thread hands the frames over
+   * @param screenThread the screen's thread
+   */
+  private void deliverLoop(final Pipeline running, final Thread screenThread) {
     try {
       while (true) {
-        this.deliver(queue.take());
+        final Handoff handoff = running.queue().take();
+        final Mcv2Encoder.Encoded encoded;
+        try {
+          encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
+        } catch (final IllegalStateException failure) {
+          screenThread.interrupt();
+          throw failure;
+        }
+        this.deliver(new Delivery(encoded.getData(), encoded.getStats(), handoff.frameId(), handoff.source()));
+        synchronized (this.lock) {
+          this.delivered++;
+          this.lock.notifyAll();
+        }
       }
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
@@ -885,8 +943,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       delivery = this.sender;
       this.worker = null;
       this.sender = null;
-      this.deliveries = null;
-      this.budget = null;
+      this.pipeline = null;
       this.pacer = null;
     }
     stop(thread);

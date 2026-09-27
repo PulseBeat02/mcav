@@ -525,7 +525,7 @@ change. Quiet content (TI under 4.6: the proxy, Sintel) stays at the base; the k
 contents (the 1080p30 and 1080p60 proxies, 30 and 60 fps gameplay, a 30 fps dinner scene, Sintel at 24 fps), and each
 gameplay capture predicts the other's lambda within 1%. It raises only, never lowers; its property tests hold it
 bounded, steady on a steady source, monotone in the motion and restarting at a cut. At the default, gameplay gets a
-lambda of 195 on average (154-214 per frame) and scores VMAF 76.1 at 13.1 Mbit/s of map colours instead of 27.7.
+lambda of 195 on average (154-214 per frame) and scores VMAF 76.1 at 13.1 Mbit/s of map colours instead of 27.6.
 
 **The preset ladder** (addendum 13 item 4). Three presets, each faster than the one above, all decoded by the same
 pack: `ship` (the reference's exhaustive search, byte-identical to it), `live` (this section's search, lambda 72) and
@@ -597,10 +597,17 @@ native access - is logged once as a warning, and the Java kernels run.
 `-Dmcv2.native=off` on the server's command line, which wins over the configuration. A library that is not there has
 the same effect: `MCV2 kernels: Java, no library for <platform>`.
 
-**Native access.** Java 25 lets a plugin call native code by default and prints one warning the first time it does
-(`WARNING: A restricted method in java.lang.foreign.SymbolLookup has been called ...`). Paper loads plugins into the
-unnamed module, so `--enable-native-access=ALL-UNNAMED` on the server's `java` command line silences it;
-`--illegal-native-access=deny` refuses the load and the Java kernels run.
+**Native access.** Paper's launcher jar declares `Enable-Native-Access: ALL-UNNAMED` in its manifest, which Java
+honours for `java -jar`, so on a Paper server the kernels load without any flag and nothing is printed (checked on Paper
+26.2 build 123: `MCV2 kernels: native avx2 (linux-x86_64)` at startup, no warning). Another launcher gets Java 25's
+default: the library loads and the JVM prints one warning (`WARNING: A restricted method in
+java.lang.foreign.SymbolLookup has been called ...`), which `--enable-native-access=ALL-UNNAMED` silences;
+`--illegal-native-access=deny` refuses the load, and the Java kernels run.
+
+**Speed.** On AVX2 the reconstruction kernels run 2-3x faster than Java at 8 pixels and 2.4-4.6x at 32, the motion
+prediction and search 2.2-4.6x, the source loading 3-7x; the palette clustering and the cell means gain nothing, and a
+call costs some 50-90 ns of checks and arguments before any work (a bare downcall 6 ns). The whole live encoder spends
+2.7x less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE SPEED section has every kernel).
 
 **Platforms.** Five libraries ship; each was tested as far as a machine for it was at hand:
 

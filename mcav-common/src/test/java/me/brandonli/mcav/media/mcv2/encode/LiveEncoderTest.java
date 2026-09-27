@@ -54,7 +54,7 @@ final class LiveEncoderTest {
   private static final int ALL = LiveSearch.ALL_MODES;
 
   /** A client: decodes frames against the pictures of the frames it has decoded, by id. */
-  private static final class Client {
+  static final class Client {
 
     private final Map<Long, byte[]> pictures = new HashMap<>();
 

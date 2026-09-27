@@ -65,6 +65,11 @@ final class MotionLambda {
   /** The blurred luma of the last frame's samples, times {@link #LUMA_SCALE} and {@link #BOX_AREA}. */
   private int[] previous = new int[0];
 
+  /** The next frame's samples, which take turns with the previous frame's, and the sums across a row. */
+  private int[] spare = new int[0];
+
+  private int[] across = new int[0];
+
   private int columns;
 
   private int rows;
@@ -107,12 +112,17 @@ final class MotionLambda {
   void observe(final byte[] rgb, final int width, final int height, final boolean restart, final Workers workers) {
     final int columns = (width + SAMPLING - 1) / SAMPLING;
     final int rows = (height + SAMPLING - 1) / SAMPLING;
-    final int[] current = blurredLuma(rgb, width, height, workers);
+    if (this.across.length != columns * rows) {
+      this.across = new int[columns * rows];
+      this.spare = new int[columns * rows];
+    }
+    final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
     if (restart || columns != this.columns || rows != this.rows) {
       this.motion = Double.NaN;
     } else {
       this.add(temporalInformation(current, this.previous, workers));
     }
+    this.spare = this.previous.length == current.length ? this.previous : new int[current.length];
     this.previous = current;
     this.columns = columns;
     this.rows = rows;
@@ -135,14 +145,22 @@ final class MotionLambda {
    * @param width  the width
    * @param height  the height
    * @param workers the workers, a band of rows each
-   * @return the blurred samples, row-major
+   * @param across  scratch for the sums across a row, as many as the samples
+   * @param blurred receives the blurred samples, row-major: {@code ceil(width / 4) * ceil(height / 4)} of them
+   * @return {@code blurred}
    */
-  static int[] blurredLuma(final byte[] rgb, final int width, final int height, final Workers workers) {
+  static int[] blurredLuma(
+    final byte[] rgb,
+    final int width,
+    final int height,
+    final Workers workers,
+    final int[] across,
+    final int[] blurred
+  ) {
     final int columns = (width + SAMPLING - 1) / SAMPLING;
     final int rows = (height + SAMPLING - 1) / SAMPLING;
     final int bands = (rows + BAND_ROWS - 1) / BAND_ROWS;
     // each row of samples summed over three columns, then three of those rows: the same sums as the box, separably
-    final int[] across = new int[columns * rows];
     workers.forEach(
       bands,
       () -> across,
@@ -160,7 +178,6 @@ final class MotionLambda {
         }
       }
     );
-    final int[] blurred = new int[across.length];
     workers.forEach(
       bands,
       () -> blurred,

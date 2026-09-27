@@ -270,6 +270,9 @@ final class NativeKernels extends Kernels {
 
   private static final String FAILED = "MCV2 native kernel failed";
 
+  /** The segments a coder's kernels remember, a power of two: more than the buffers a coder passes. */
+  private static final int SEGMENTS = 256;
+
   /** The bound kernels of one level of a loaded library, shared by every coder. */
   static final class Binding {
 
@@ -390,6 +393,14 @@ final class NativeKernels extends Kernels {
   /** The Java kernels for what the library does not do: compact classes the encoder never tries. */
   private final JavaKernels fallback = new JavaKernels();
 
+  /**
+   * The heap segments of the arrays passed lately, by the slot of each array's identity hash: a coder passes the same
+   * buffers block after block, and a segment made for every call was most of what a live frame allocated.
+   */
+  private final Object[] cachedArrays = new Object[SEGMENTS];
+
+  private final MemorySegment[] cachedSegments = new MemorySegment[SEGMENTS];
+
   NativeKernels(final Binding binding) {
     this.binding = binding;
   }
@@ -403,16 +414,35 @@ final class NativeKernels extends Kernels {
     return this.binding.level();
   }
 
-  private static MemorySegment of(final int[] array) {
-    return MemorySegment.ofArray(array);
+  private MemorySegment of(final int[] array) {
+    final int slot = slot(array);
+    return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
   }
 
-  private static MemorySegment of(final byte[] array) {
-    return MemorySegment.ofArray(array);
+  private MemorySegment of(final byte[] array) {
+    final int slot = slot(array);
+    return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
   }
 
-  private static MemorySegment of(final float[] array) {
-    return MemorySegment.ofArray(array);
+  private MemorySegment of(final float[] array) {
+    final int slot = slot(array);
+    return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
+  }
+
+  /** Whether a slot holds an array's segment: identity is the point, since a segment wraps that one array. */
+  @SuppressWarnings("ReferenceEquality")
+  private boolean remembers(final int slot, final Object array) {
+    return this.cachedArrays[slot] == array;
+  }
+
+  private static int slot(final Object array) {
+    return System.identityHashCode(array) & (SEGMENTS - 1);
+  }
+
+  private MemorySegment remember(final int slot, final Object array, final MemorySegment segment) {
+    this.cachedArrays[slot] = array;
+    this.cachedSegments[slot] = segment;
+    return segment;
   }
 
   private static void checkSize(final int size) {
