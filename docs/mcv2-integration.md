@@ -263,9 +263,10 @@ picture's top edge, and the picture's framing on the wall matches the debug view
   `MapPacketFactory` path as **one bundle per frame**, so all pages of a frame arrive together. **Every frame fits the
   screen's slots**: the screen gives its encoder the slots' capacity (12,256 bytes a slot, 98 KB with the default
   eight; `Mcv2Encoder.setFrameLimit`), and a live frame that would take more is searched again at twice the lambda, up
-  to four times. A live gameplay keyframe at 1080p takes ~150 KB at the default lambda, P frames 46 KB on average at
-  60 fps, so without the bound such a stream would never show; with four slots even its P frames would be searched
-  twice. A frame that still has more pages than the screen has slots is not sent, and the next frame is a keyframe. Each viewer receives the stream
+  to four times. A live gameplay keyframe at 1080p can take more (the first live profile's ~150 KB; with today's rungs
+  the largest unbounded one measured is 97.7 KiB, `live-fast` on 60 fps gameplay), P frames 46 KB on average at 60
+  fps, so without the bound such a stream might never show (a frame too large is not sent, and the next is a
+  keyframe); with four slots even its P frames would be searched twice. On the lab server no frame of the default `live` was too large (the largest 95,441 bytes). A frame that still has more pages than the screen has slots is not sent, and the next frame is a keyframe. Each viewer receives the stream
   through its own **`Mcv2Link`** (§10): a frame only when the viewer can decode it and its connection's unwritten
   video is within the backlog limit.
 - **`Mcv2Result`** is the video filter: it resizes each frame to the video size, hands the newest frame to a dedicated
