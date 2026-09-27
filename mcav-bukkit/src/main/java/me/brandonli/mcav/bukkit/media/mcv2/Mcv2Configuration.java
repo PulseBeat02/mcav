@@ -385,7 +385,7 @@ public final class Mcv2Configuration {
 
     private int unsentLimit = DEFAULT_UNSENT_LIMIT;
 
-    private EncoderSettings settings = EncoderSettings.LIVE_ADAPTIVE;
+    private EncoderSettings settings = EncoderSettings.LIVE;
 
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
@@ -511,12 +511,12 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets the encoder profile; defaults to {@link EncoderSettings#LIVE_ADAPTIVE}: a screen encodes a source while it
-     * plays, and adaptive - the {@code live} search on quiet pictures, the {@code live-fast} search once they move - is
-     * the slowest rung of the preset ladder that keeps the 95th percentile of a 1080p30 frame under 32 ms with 12 encoder
-     * threads of a 6-core server, on quiet content and on gameplay alike; with the default budget of 6 threads, gameplay
-     * is at that limit. No rung encodes 1080p60 frames that fast there: a screen steps down the ladder to
-     * {@code live-fast} and then to fewer frames when it cannot keep up ({@link EncoderSettings#faster()}).
+     * Sets the encoder profile; defaults to {@link EncoderSettings#LIVE}: a screen encodes a source while it plays, and
+     * live is the slowest rung of the preset ladder that keeps the 95th percentile of a 1080p30 frame under 32 ms with 12
+     * encoder threads of a 6-core server, on quiet content and on gameplay alike. With the default budget of 6 threads
+     * gameplay needs the next rung, {@link EncoderSettings#LIVE_ADAPTIVE}, and no rung encodes 1080p60 frames that fast
+     * there: a screen steps down the ladder, to adaptive, then {@code live-fast}, then fewer frames, when it cannot keep
+     * up ({@link EncoderSettings#faster()}).
      *
      * @param settings the settings
      * @return this builder

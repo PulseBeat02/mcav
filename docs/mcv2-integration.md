@@ -446,34 +446,35 @@ example `MCV2 screen steps down to 1920x1080 at 30 fps with the live-fast search
 search takes 36.0 ms per frame, more than the 33.3 ms a frame has at 30 fps with the encoder threads it has` - and the
 sandbox sends it to whoever started the screen.
 
-**Measured** (Temurin 25; details in the report's SERVER VIABILITY and LIVE SPEED sections). The server's tick with
-live 1080p screens encoding in the default budget: TPS 20.0, MSPT p95 0.55 ms without a screen, 0.63 with one, 0.83
-with two (all 12 processors: 1.08 and 2.21; measured with the first `live` profile, whose encoder threads load the
-machine the same way). Encode time of `live-fast` per frame (mean / p95 ms, and CPU ms per
-frame) by encoder threads, native AVX2 kernels, verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up
-frames left out), the host at load 4-7:
+**Measured** (Temurin 25; details in the report's SERVER VIABILITY and LIVE 1080p60 sections). The server's tick with
+live 1080p screens encoding in the default budget (the lab's Paper server, 60 s warm, 120 s of ticks, two runs each):
+TPS 20.0 (19.3-20.0), MSPT p95 0.53-0.72 ms without a screen, 0.78-0.90 with one, 0.79-0.91 with two. Encode time of
+`live`, the default, per frame (mean / p95 ms, and CPU ms per frame) by encoder threads, the final native AVX2 kernels,
+verified as a screen encodes, 30 fps sources, 330 frames (30 warm-up frames left out), the host at load 7-21:
 
-| source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 10 threads | 12 threads |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1920x1080 proxy | 73.1 / 79.7 (79) | 44.0 / 68.3 (84) | 32.9 / 44.2 (101) | 24.8 / 31.0 (96) | 20.4 / 23.8 (113) | 18.3 / 21.2 (144) | 18.1 / 20.6 (149) |
-| 1920x1080 gameplay | 109.4 / 135.9 (121) | 62.9 / 97.5 (121) | 44.7 / 59.6 (135) | 35.7 / 48.4 (141) | 27.9 / 36.0 (154) | 24.8 / 31.7 (204) | 24.9 / 31.6 (214) |
-| 1280x720 proxy | 37.7 / 47.7 (48) | 22.2 / 31.5 (52) | 17.6 / 26.0 (61) | 13.9 / 17.5 (57) | 11.8 / 13.8 (67) | 12.3 / 17.7 (83) | 10.8 / 14.0 (80) |
-| 1280x720 gameplay | 59.9 / 82.1 (73) | 33.9 / 53.9 (76) | 25.1 / 32.8 (86) | 19.7 / 26.8 (80) | 17.0 / 21.4 (94) | 14.8 / 19.1 (112) | 15.1 / 19.0 (116) |
+| source | 1 thread | 2 threads | 3 threads | 4 threads | 6 threads | 8 threads | 10 threads | 12 threads |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1920x1080 proxy | 73.2 / 84.7 (79) | 41.1 / 50.0 (87) | 30.5 / 38.1 (93) | 24.4 / 29.7 (94) | 20.3 / 24.2 (113) | 18.2 / 20.9 (124) | 17.8 / 20.7 (138) | 18.0 / 21.0 (146) |
+| 1920x1080 gameplay | 112.3 / 139.3 (121) | 64.5 / 90.9 (133) | 44.4 / 57.6 (130) | 35.6 / 47.0 (136) | 29.1 / 37.5 (162) | 26.6 / 34.2 (186) | 25.5 / 33.1 (208) | 25.2 / 32.3 (213) |
+| 1280x720 proxy | 39.0 / 48.1 (49) | 22.8 / 34.3 (52) | 17.0 / 21.8 (60) | 14.2 / 18.3 (60) | 11.7 / 14.1 (66) | 10.8 / 13.5 (70) | 10.6 / 13.2 (78) | 10.6 / 13.7 (80) |
+| 1280x720 gameplay | 57.4 / 72.1 (69) | 32.4 / 44.6 (73) | 24.2 / 33.1 (81) | 19.5 / 26.9 (79) | 16.8 / 22.1 (92) | 15.4 / 19.2 (101) | 15.2 / 19.9 (114) | 15.3 / 19.4 (115) |
 
-**Cores needed ~= CPU-ms x fps / 1000** with the one-thread CPU time (1080p30: ~2.4 cores of this CPU on quiet
-content, ~3.6 on fast gameplay; 720p30: ~1.4 and ~2.2), but a frame also has 9-11 ms of work outside the parallel
-search (the verification's decode, the writer, the global motion), so the frame time stops falling past ~6 threads:
-the 32 ms p95 of 1080p30 needs 4 threads on quiet content and 10 on gameplay; 720p30 needs 2 and 4. More threads cost
-more CPU per frame on shared cores (hyperthreads, memory bandwidth). The frames per second a server encodes live with
-the default budget (half its processors, `1000 / mean ms`, at most the source's 30), the pacer stepping to the rungs
-that fit:
+On gameplay `adaptive`, the rung a screen steps to first, costs less (1080p: 98.6 / 124.1 ms and 113 CPU ms on one
+thread, 25.8 / 33.2 on six; 720p: 49.9 / 61.7 and 57, 14.9 / 19.1); on quiet content it is `live`. **Cores needed ~=
+CPU-ms x fps / 1000** with the one-thread CPU time (1080p30: ~2.4 cores of this CPU on quiet content, ~3.6 on fast
+gameplay; 720p30: ~1.5 and ~2.1), but a frame also has 9-11 ms of work outside the parallel search (the verification's
+decode, the writer, the global motion), so the frame time stops falling past ~8 threads: the 32 ms p95 of 1080p30
+needs 4 threads on quiet content and, on gameplay, all 12 with `live` (31.2-31.9 ms over 660 frames) or 6-8 with
+`adaptive`; 720p30 needs 3 and 4. More threads cost more CPU per frame on shared cores (hyperthreads, memory
+bandwidth). The frames per second a server encodes live with the default budget (half its processors, `1000 / mean
+ms` of the faster of `live` and `adaptive`, at most the source's 30), the pacer stepping to the rungs that fit:
 
 | server | default encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 | --- | ---: | --- | --- | --- | --- |
-| 2 processors | 1 | 13 fps | 9 fps | 26 fps | 16 fps |
-| 4 processors | 2 | 22 fps | 15 fps | 30 fps (full rate) | 29 fps |
-| 6 processors | 3 | 30 fps (full rate) | 22 fps | 30 fps (full rate) | 30 fps (full rate) |
-| 8 processors | 4 | 30 fps (full rate) | 28 fps | 30 fps (full rate) | 30 fps (full rate) |
+| 2 processors | 1 | 13 fps | 10 fps | 25 fps | 20 fps |
+| 4 processors | 2 | 24 fps | 17 fps | 30 fps (full rate) | 30 fps (full rate) |
+| 6 processors | 3 | 30 fps (full rate) | 25 fps | 30 fps (full rate) | 30 fps (full rate) |
+| 8 processors | 4 | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) |
 | 12 processors | 6 | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) |
 | 20 processors | 10 | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) | 30 fps (full rate) |
 
@@ -491,9 +492,11 @@ progress every thirty seconds, and `/mcav mcv2 cancel` stops it; `/mcav mcv2 pla
 ## 12. LIVE 1080p60: the `live` profile
 
 A separate profile beside `ship` and `low_bandwidth` (which stay byte-identical to the reference), for sources that
-play while they are encoded. The same pack decodes it; no format change. The owner's gate (revised 2026-09-26) is
-1080p at 30 fps with a p95 under 32 ms per frame, 1080p60 a stretch goal; the quality rule is VMAF mean >= 75 at the
-default setting on the 1080p30 source and on real gameplay, and at most 10% more bandwidth than `ship` at equal VMAF.
+play while they are encoded. The same pack decodes it; no format change. The owner's gates: 1080p at 30 fps with a p95
+under 32 ms per frame (revised 2026-09-26), and since addendum 14 1080p at 60 fps - the p95 of the interval between
+finished frames under 16 ms and of arrival to finished under 33 ms - each rung at VMAF mean >= 75 at its default and at
+most 10 % (`live`) or 30 % (the faster rungs) more bandwidth than `ship` at equal VMAF, on both sources of its rate.
+1080p30 is met; 1080p60 is not, on this machine (below).
 
 **The profile** (`EncoderSettings.LIVE`, `LiveSearch.LIVE`): **lambda 72**, a keyframe every 120 frames (4 s at 30 fps),
 scene cut at a mean absolute luma change of 45 after prediction, P frames predicting from the previous frame; **one
@@ -547,11 +550,13 @@ without a search up to 60 lambda, a 32-pixel block whose superblock the previous
 the VMAF `live` reaches at 72. Each rung's rate against `ship` at equal VMAF mean (600 frames; map / after compression):
 `live` -5.1% / -3.4% (1080p30 proxy) and +7.9% / +6.9% (30 fps gameplay), inside its +10%; `adaptive` -5.5% / -3.8%
 (the proxy, where it codes as `live`) and +24.9% / +14.3% (gameplay), VMAF 75.7 and 76.1 at its default; `live-fast`
-+17.7% / +18.4% and +29.4% / +17.1%, inside its +30%. **A screen's default is `adaptive`** (`Mcv2Configuration`): the
++17.7% / +18.4% and +29.4% / +17.1%, inside its +30%. **A screen's default is `live`** (`Mcv2Configuration`): the
 default for a source that plays while it is encoded is the slowest rung that meets its frame rate's gate. At 30 fps that
-is `adaptive`, which meets the 1080p30 gate on quiet content and on gameplay with the 12-thread gate budget, where
-`live` meets it on quiet content only; with the default budget of 6 threads gameplay sits at the gate's limit. No rung
-meets the 1080p60 gate on this machine (below): a 60 fps screen steps down to `live-fast`, then to fewer frames.
+is `live`, which meets the 1080p30 gate on quiet content and on gameplay with the 12-thread gate budget - on gameplay by
+the least margin, 31.2-31.9 ms in six runs; with the default budget of 6 threads gameplay needs `adaptive` for that
+p95 (31.6 ms; `live` 36.4 ms, though its mean of 29 ms keeps a 30 fps screen at its full rate, so the pacer keeps it).
+No rung meets the 1080p60 gate on this machine (below): a 60 fps screen steps down to `adaptive`, `live-fast`, then to
+fewer frames.
 A screen that cannot keep up steps **down the ladder first** (`EncoderSettings.faster()`: `ship`'s search to `live`'s,
 `live` to `adaptive` and `adaptive` to `live-fast` with the lambda of the live-fast search scaled by 55/72, so the
 picture keeps its quality), then the frame rate, then the size, then the dithered maps (`Mcv2Pacer`, §11). **Between
@@ -586,23 +591,26 @@ same with at most three, one or two helpers. The verification got faster (7.0 to
 slowed as much or more and the rate fell 10-20 % (proxy 67, 61, 57 and 59 frames a second against 74) with no better
 p95 interval or latency, so none was kept. Two screens on one budget share it evenly either way.
 
-**Measured at 1080p30** (Temurin 25, the i7-8700's 12 threads - the gate budget - and 6 - the default budget - native
-AVX2 kernels, verify on, as a screen encodes one frame at a time, 660 frames with 60 warm-up frames left out, three
-interleaved runs each, the host at load 15-38 from other work; the report's LIVE 1080p60 section has every run):
+**Measured at 1080p30** (Temurin 25, the i7-8700's 12 threads - the gate budget - and 6 - the default budget - the final
+native AVX2 kernels, verify on, as a screen encodes one frame at a time, 660 frames with 60 warm-up frames left out,
+three interleaved runs each, three more for `live` and `adaptive` on gameplay with 12 threads, the host at load 8-41
+from other work; the report's LIVE 1080p60 section has every run):
 
 | rung | threads | 1080p30 proxy: p95 (best of 3) | 30 fps gameplay: p95 | CPU per frame (proxy; gameplay) | VMAF mean / min (proxy; gameplay) | Mbit/s map / zlib (proxy; gameplay) |
 | --- | --- | --- | --- | --- | --- | --- |
-| `live` | 12 | 21.4 ms | 33.6 ms | 136; 206 ms | 75.7 / 69.0; 76.1 / 65.2 | 2.80 / 1.83; 13.0 / 8.3 |
-| `adaptive` | 12 | 21.5 ms | 29.7 ms | 137; 193 ms | 75.7 / 69.0; 76.1 / 66.3 | 2.80 / 1.83; 15.2 / 8.6 |
-| `live-fast` | 12 | 20.3 ms | 28.3 ms | 122; 176 ms | 76.1 / 71.9; 76.1 / 66.3 | 3.28 / 2.12; 15.3 / 8.7 |
-| `adaptive` | 6 | 23.8 ms | 31.9-33.9 ms | 107; 141 ms | | |
-| `live-fast` | 6 | 21.8 ms | 32.9-34.6 ms | 98; 142 ms | | |
+| `live` | 12 | 20.1 ms | 31.2 ms (six runs 31.2-31.9) | 141; 210 ms | 75.7 / 69.0; 76.1 / 65.2 | 2.80 / 1.83; 13.0 / 8.3 |
+| `adaptive` | 12 | 20.4 ms | 27.0 ms (six runs 27.0-28.1) | 142; 182 ms | 75.7 / 69.0; 76.1 / 66.3 | 2.80 / 1.83; 15.2 / 8.6 |
+| `live-fast` | 12 | 17.6 ms | 27.2 ms | 128; 182 ms | 76.1 / 71.9; 76.1 / 66.3 | 3.28 / 2.12; 15.3 / 8.7 |
+| `live` | 6 | 22.6 ms | 36.4 ms | 103; 154 ms | | |
+| `adaptive` | 6 | 22.5 ms | 31.6 ms | 101; 137 ms | | |
+| `live-fast` | 6 | 20.9 ms | 31.8 ms | 96; 135 ms | | |
 
-**`adaptive` and `live-fast` meet the 32 ms p95 gate on quiet content and on gameplay with 12 threads; `live` on quiet
-content only.** With 6 threads gameplay sits at the limit. **At 1080p60 no rung meets the gate** (the p95 of the
-interval between finished frames under 16 ms, of arrival to finished under 33 ms): with 12 threads `live-fast`
-reaches 22.1 / 46.4 ms on the 1080p60 proxy and 34.1 ms on 60 fps gameplay, which it cannot sustain (45 frames a
-second); with 6 threads neither keeps 60 frames a second. A 60 fps gameplay frame takes 203-209 ms of CPU, 17 ms at a
+**All three live rungs meet the 32 ms p95 gate on quiet content and on gameplay with 12 threads**, `live` on gameplay
+by the least margin. With 6 threads `adaptive` and `live-fast` meet it just, and `live` does not. **At 1080p60 no rung
+meets the gate** (the p95 of the interval between finished frames under 16 ms, of arrival to finished under 33 ms):
+with 12 threads `live-fast` reaches an interval p95 of 19.7 ms on the 1080p60 proxy, where its latency p95 of 25.9 ms
+meets the second half, and 31.3 ms on 60 fps gameplay, which it cannot sustain (49 frames a second); with 6 threads the
+proxy keeps 59-62 frames a second (19.9 ms) and gameplay 41. A 60 fps gameplay frame takes 207 ms of CPU, 17 ms at a
 perfect split over the 12 hardware threads, before the 5-10 ms of verification and writing that do not split -
 pipelining hides those behind the next frame's search - which is why more threads stop helping (the hardware guide is
 §11). Decode on the Intel UHD 630: 7.4 ms (proxy) and 8.7 ms (gameplay) per new
@@ -697,12 +705,15 @@ less CPU on a gameplay frame and 1.8x less on quiet content (the report's LIVE S
 
 | platform | library | levels | tested |
 | --- | --- | --- | --- |
-| Linux x86-64 | `libmcv2kernels.so`, 213 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | every JVM test at scalar, SSE2, SSE4.1 and AVX2 (i7-8700); every level standalone, AVX-512 under Intel SDE; glibc and musl; a Paper server end to end |
-| Linux AArch64 | `libmcv2kernels.so`, 122 KB | scalar, NEON, SVE 256, SVE 512 | the standalone tests under qemu-aarch64 (Cortex-A72; SVE at 16, 32 and 64 bytes), glibc and musl, digests equal to the x86-64 library's |
-| Windows x86-64 | `mcv2kernels.dll`, 292 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | built from the sources tested above; the previous build (scalar, SSE4.1, AVX2) passed the native JVM tests in a Windows VM, which was down for this one |
-| Windows AArch64 | `mcv2kernels.dll`, 66 KB | scalar, NEON | built, **not tested** (no machine) |
-| macOS x86-64 | `libmcv2kernels.dylib`, 166 KB | scalar, SSE2, SSE4.1, AVX2 | built from the sources tested above; the previous build (scalar, SSE4.1, AVX2) passed the native JVM tests in a macOS VM, which was down for this one |
-| macOS AArch64 | `libmcv2kernels.dylib`, 99 KB | scalar, NEON | built, **not tested** (no machine) |
+| Linux x86-64 | `libmcv2kernels.so`, 253 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | every JVM test at scalar, SSE2, SSE4.1 and AVX2 (i7-8700); every level standalone, AVX-512 under Intel SDE; glibc and musl; a Paper server end to end |
+| Linux AArch64 | `libmcv2kernels.so`, 146 KB | scalar, NEON, SVE 256, SVE 512 | the standalone tests under qemu-aarch64 (Cortex-A72; SVE at 16, 32 and 64 bytes), glibc and musl, digests equal to the x86-64 library's |
+| Windows x86-64 | `mcv2kernels.dll`, 335 KB | scalar, SSE2, SSE4.1, AVX2, AVX-512 | the native JVM tests in a Windows VM (104 of 105, one Linux-only test skipped; "MCV2 kernels: native avx2 (windows-x86_64)") |
+| Windows AArch64 | `mcv2kernels.dll`, 79 KB | scalar, NEON | built, **not tested** (no machine) |
+| macOS x86-64 | `libmcv2kernels.dylib`, 199 KB | scalar, SSE2, SSE4.1, AVX2 | an earlier build (scalar, SSE4.1, AVX2) passed the native JVM tests in a macOS VM; the VM did not answer for this one (three attempts) |
+| macOS AArch64 | `libmcv2kernels.dylib`, 118 KB | scalar, NEON | built, **not tested** (no machine) |
+
+Every library's machine and exported entry points are checked in the default build (`NativeLibrariesTest`), with the
+sources it was built from.
 
 Anything else - another processor, another operating system - runs the Java kernels, which compute the same stream.
 

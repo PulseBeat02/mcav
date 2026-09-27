@@ -35,13 +35,14 @@ public enum Mcv2Profile {
   /** Every frame is a keyframe, so no viewer ever depends on a frame it missed; about 144% more bandwidth. */
   INTRA,
   /**
-   * The live profile: the search made for encoding as the video plays (a screen that falls behind lowers its resolution
-   * or frame rate), previous-frame prediction, the same bitstream as the others.
+   * The live profile and the default of a screen: the search made for encoding as the video plays, previous-frame
+   * prediction, the same bitstream as the others; a screen that falls behind steps to {@link #LIVE_ADAPTIVE}, then to
+   * {@link #LIVE_FAST}, then lowers its frame rate or resolution.
    */
   LIVE,
   /**
-   * The default of a screen: the {@link #LIVE} search while the picture is quiet and the {@link #LIVE_FAST} one once it
-   * moves, which keeps a 1080p30 frame in time on quiet content and on gameplay alike.
+   * The {@link #LIVE} search while the picture is quiet and the {@link #LIVE_FAST} one once it moves, which keeps a
+   * 1080p30 frame of gameplay in time with fewer encoder threads than {@link #LIVE} needs.
    */
   LIVE_ADAPTIVE,
   /**

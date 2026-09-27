@@ -48,8 +48,9 @@ mcav mcv2 stream @a "6x3" 200 30 "clip.mcs"
 
 sends 30 frames a second from its own thread (`mcav mcv2 play ... <ticks> ...` sends one frame every few server
 ticks instead); `mcav mcv2 stop` ends it. Profiles: `ship` (the shipped 1080p30 point, VMAF >= 75), `low` (the
-low-bandwidth point, VMAF >= 70), `live` (the fast search), and the robust reference modes `keyframe` (P frames predict
-from the last keyframe), `intra` (every frame a keyframe) and `live_keyframe`.
+low-bandwidth point, VMAF >= 70), the live searches `live`, `live_adaptive` and `live_fast` (fastest last), and the
+robust reference modes `keyframe` (P frames predict from the last keyframe), `intra` (every frame a keyframe) and
+`live_keyframe`.
 
 **A live source**, encoded while it plays:
 
@@ -57,8 +58,10 @@ from the last keyframe), `intra` (every frame a keyframe) and `live_keyframe`.
 mcav video mcv2 @a FFMPEG NONE "1920x1080" "6x3" 200 live FILTER_LITE "" "/absolute/path/to/video.mp4"
 ```
 
-`live` is the profile for this; the screen paces itself to what the encoder budget sustains and tells whoever started it
-(`MCV2 screen steps down to ...`); `mcav video release` ends it.
+`live` is the profile for this, the default of a screen. The screen paces itself to what the encoder budget sustains -
+a faster search first (`live_adaptive`, which switches to the `live_fast` search while the picture moves, then
+`live_fast`), then fewer frames, then a smaller video - and tells whoever started it (`MCV2 screen steps down to ...`);
+`mcav video release` ends it.
 
 ## 4. What to look for
 
@@ -96,12 +99,12 @@ Send the client log, a screenshot and the server log's lines around `MCV2` if so
 
 | what | measured on the devbox | how to see it on yours |
 | --- | --- | --- |
-| upload per viewer, live 1080p30 (default lambda 72) | quiet content 2.85 Mbit/s of map packets, 1.86 after the game's zlib (-35%); fast gameplay 27.7 and 17.0 | the server's network monitor, or `nload` on the server |
+| upload per viewer, live 1080p30 (`live`, the default) | quiet content 2.80 Mbit/s of map packets, 1.83 after the game's zlib (-35%); fast gameplay 13.0 and 8.3 (15.2 and 8.6 once the screen steps to `live_adaptive`) | the server's network monitor, or `nload` on the server |
 | upload per viewer, ship 1080p30 | 3.40 Mbit/s, 2.19 after zlib | as above |
 | compression CPU per viewer | 2.0% of a core (the first live profile, 60 fps, 5.4 Mbit/s), 1.3% (ship 30 fps) | a profiler on the server's Netty threads |
 | decode per new video frame, UHD 630 | live: 7.4 ms (quiet content) and 8.7 ms (gameplay) per new frame, 5.7-5.9 ms without new video; ship 7.9 / 8.8 / 6.6 | F3 frame time, wall in view and out |
-| server tick with 1 or 2 live screens | TPS 20.0; MSPT p95 0.63 / 0.83 ms at the default budget | `/mspt` (Paper) |
-| live encode, 1080p30 | 35 ms mean per frame of quiet content, 70 of gameplay, on a 6-core machine's 12 threads: about 28 and 14 fps (the report's LIVE 1080p60 section) | the screen's pacing messages |
+| server tick with 1 or 2 live screens | TPS 20.0 (19.3-20.0); MSPT p95 0.78-0.90 / 0.79-0.91 ms at the default budget, 0.53-0.72 without a screen | `/mspt` (Paper) |
+| live encode, 1080p30 | `live`: 18 ms mean per frame of quiet content (p95 20-21), 25 of gameplay (p95 31-32), on a 6-core machine's 12 threads: the full 30 fps; with the default 6 threads 20 and 29 ms (gameplay's p95 37: frames late now and then; `live_adaptive` 26, p95 33) | the screen's pacing messages |
 
 ## 7. What was verified on the devbox, and what needs your client
 

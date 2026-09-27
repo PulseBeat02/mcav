@@ -127,7 +127,7 @@ final class Mcv2PackTest {
     final JsonObject manifest = JsonParser.parseString(entries.get("mcav_mcv2.json")).getAsJsonObject();
     assertEquals("MCV2", manifest.get("codec").getAsString());
     assertEquals(Mcv2Pack.CODEC_COMMIT, manifest.get("gpu_codec_commit").getAsString());
-    assertEquals(EncoderSettings.LIVE_ADAPTIVE.lambda(), manifest.get("lambda").getAsDouble());
+    assertEquals(EncoderSettings.LIVE.lambda(), manifest.get("lambda").getAsDouble());
     assertEquals("previous_frame", manifest.get("reference").getAsString());
     assertEquals(320, manifest.get("video_width").getAsInt());
     assertEquals(180, manifest.get("video_height").getAsInt());
