@@ -17,8 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Builds the MCV2 native kernels for every platform with one pinned toolchain, Zig 0.16.0 (its clang 21.1.0 and
-# linkers), into the resources next to Mcv2Natives, and writes their SHA-256 manifest. The normal build never runs this:
-# the libraries are committed, and `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build` runs it.
+# linkers), into the resources next to Mcv2Natives, and writes their SHA-256 manifest (SHA256SUMS) and that of the
+# sources they are built from (SOURCES). The normal build never runs this: the libraries are committed, and
+# `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build` runs it.
 #
 #   build.sh [output folder]      (ZIG=/path/to/zig to choose the compiler; its version must be 0.16.0)
 #
@@ -87,4 +88,7 @@ build macos-x86_64 x86_64-macos.11.0 baseline libmcv2kernels.dylib "$macho" "${x
 build macos-aarch64 aarch64-macos.11.0 baseline libmcv2kernels.dylib "$macho" "${arm[@]}"
 
 (cd "$out" && sha256sum ./*/*mcv2kernels* | sed 's| \./| |' > SHA256SUMS)
-cat "$out/SHA256SUMS"
+# the sources the libraries are built from (all but the formatter's settings), which NativeLibrariesTest compares with
+# the sources in the tree: a source changed without the libraries rebuilt from it fails the default build
+(cd "$here" && LC_ALL=C ls -A | grep -vx '.clang-format' | xargs sha256sum) > "$out/SOURCES"
+cat "$out/SHA256SUMS" "$out/SOURCES"

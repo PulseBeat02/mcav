@@ -675,7 +675,16 @@ Anything else - another processor, another operating system - runs the Java kern
 **Rebuilding.** The libraries are committed; the normal build needs no C or C++ toolchain.
 `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build` rebuilds all six with Zig 0.16.0 (its clang 21.1.0
 and linkers; `ZIG=/path/to/zig`, and the script refuses another version) and writes `SHA256SUMS`; the new digests go
-into `Mcv2Natives.DIGESTS`, which `Mcv2NativesTest` checks against the resources.
+into `Mcv2Natives.DIGESTS`, which `Mcv2NativesTest` checks against the resources. The script also writes `SOURCES`,
+the SHA-256 of every source file it built from (all of `src/main/native/mcv2` but `.clang-format`), and
+`NativeLibrariesTest`, part of the default build, compares it with the sources in the tree: a source changed without
+the libraries rebuilt from it fails the build, and so does a library that is not built from the committed sources. The
+same test reads every library's headers, with no emulator: its machine (ELF `e_machine`, PE `Machine`, Mach-O
+`cputype`), its exports - exactly `mcv2_abi`, `mcv2_cpu_levels` and each kernel of the header's `MCV2_KERNELS` list at
+each level its platform dispatches to (x86-64 Linux and Windows: scalar, SSE2, SSE4.1, AVX2, AVX-512; macOS x86-64:
+scalar to AVX2; Linux AArch64: scalar, NEON, SVE256, SVE512; Windows and macOS AArch64: scalar, NEON), nothing else
+but the two symbols the Mach-O linker adds to every dylib - and, on Linux, no `DT_NEEDED` entry and no undefined
+symbol.
 `./gradlew :mcav-bukkit:formatMcv2Natives -Pmcav.natives=build` formats the sources with clang-format (LLVM style, 120
 columns; opt-in). Every library is reproducible: two builds give the same bytes (`SOURCE_DATE_EPOCH=0` keeps the
 link time out of the PE header, and a macOS library is named `@rpath/libmcv2kernels.dylib` rather than the path it was
