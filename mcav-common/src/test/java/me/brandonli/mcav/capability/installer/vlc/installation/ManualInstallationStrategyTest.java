@@ -68,7 +68,7 @@ final class ManualInstallationStrategyTest {
 
   @Test
   void findsTheDirectoryOfANestedLibrary() throws IOException {
-    final Path relativeNested = Path.of("vlc", "vlc-3.0.23");
+    final Path relativeNested = Path.of("vlc", "vlc-3.0.24");
     final Path nested = this.temp.resolve(relativeNested);
     Files.createDirectories(nested);
     createFile(nested, "libvlc.dll");

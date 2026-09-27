@@ -55,11 +55,14 @@ public final class VLCInstaller extends AbstractInstaller {
   /**
    * The VLC version the Windows and macOS downloads point to.
    */
-  public static final String VERSION = "3.0.23";
+  public static final String VERSION = "3.0.24";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCInstaller.class);
+
   private static final String NAME = "vlc";
+
   private static final String DOWNLOADS_RESOURCE = "vlc.json";
+
   // earlier versions of the library installed VLC through JuNest on Linux and as a bare VLC.app on macOS
   private static final List<String> LEGACY_DIRECTORIES = List.of("vlc-junest", "VLC.app");
 

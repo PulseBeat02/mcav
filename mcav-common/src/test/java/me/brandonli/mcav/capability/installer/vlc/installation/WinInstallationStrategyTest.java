@@ -54,10 +54,10 @@ final class WinInstallationStrategyTest {
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
     final Path archive =
       this.createZip(
-          "vlc-3.0.23-win64.zip",
-          "vlc-3.0.23/libvlc.dll",
-          "vlc-3.0.23/libvlccore.dll",
-          "vlc-3.0.23/plugins/codec/libavcodec_plugin.dll"
+          "vlc-3.0.24-win64.zip",
+          "vlc-3.0.24/libvlc.dll",
+          "vlc-3.0.24/libvlccore.dll",
+          "vlc-3.0.24/plugins/codec/libavcodec_plugin.dll"
         );
     final Path installed = strategy.execute(archive);
     final Path installDirectory = installer.getInstallDirectory();
@@ -79,11 +79,11 @@ final class WinInstallationStrategyTest {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
     final Path temporary = this.temp.resolve(TEMPORARY_DIRECTORY);
-    final Path previousRoot = temporary.resolve("vlc-3.0.23");
+    final Path previousRoot = temporary.resolve("vlc-3.0.24");
     Files.createDirectories(previousRoot);
     final Path stale = previousRoot.resolve("stale.dll");
     Files.writeString(stale, "left over from an interrupted extraction");
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll");
     final Path installed = strategy.execute(archive);
     final Path relocatedStale = installed.resolve("stale.dll");
     final boolean copied = Files.exists(relocatedStale);
@@ -95,7 +95,7 @@ final class WinInstallationStrategyTest {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
     final Optional<Path> before = strategy.getInstalledPath();
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll");
     final Path installed = strategy.execute(archive);
     final Optional<Path> after = strategy.getInstalledPath();
     final Optional<Path> expected = Optional.of(installed);
@@ -112,7 +112,7 @@ final class WinInstallationStrategyTest {
     Files.createDirectories(installDirectory);
     final Path stale = installDirectory.resolve("stale.dll");
     Files.createFile(stale);
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll");
     strategy.execute(archive);
     final boolean staleExists = Files.exists(stale);
     final boolean libraryExists = containsFile(installDirectory, "libvlc.dll");
@@ -124,7 +124,7 @@ final class WinInstallationStrategyTest {
   void failsAndCleansUpWhenTheZipHasNoLibrary() throws IOException {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final WinInstallationStrategy strategy = new WinInstallationStrategy(installer);
-    final Path archive = this.createZip("vlc.zip", "vlc-3.0.23/readme.txt");
+    final Path archive = this.createZip("vlc.zip", "vlc-3.0.24/readme.txt");
     final IOException thrown = assertThrows(IOException.class, () -> strategy.execute(archive));
     final String message = thrown.getMessage();
     final boolean namesTheLibrary = message.contains("libvlc.dll");

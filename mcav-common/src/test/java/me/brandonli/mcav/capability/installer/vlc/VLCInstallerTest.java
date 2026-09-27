@@ -62,9 +62,9 @@ import org.mockito.stubbing.Stubber;
  */
 final class VLCInstallerTest {
 
-  private static final String ZIP_NAME = "vlc-3.0.23-win64.zip";
+  private static final String ZIP_NAME = "vlc-3.0.24-win64.zip";
   private static final String ZIP_PATH = "/" + ZIP_NAME;
-  private static final String[] ZIP_ENTRIES = { "vlc-3.0.23/libvlc.dll", "vlc-3.0.23/libvlccore.dll", "vlc-3.0.23/plugins/x.dll" };
+  private static final String[] ZIP_ENTRIES = { "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll", "vlc-3.0.24/plugins/x.dll" };
 
   @TempDir
   private Path folder;

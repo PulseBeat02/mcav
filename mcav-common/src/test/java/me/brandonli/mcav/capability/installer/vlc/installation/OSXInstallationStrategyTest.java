@@ -69,7 +69,7 @@ final class OSXInstallationStrategyTest {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final List<String> commands = new ArrayList<>();
     final OSXInstallationStrategy strategy = strategyWith(installer, commands, OSXInstallationStrategyTest::nothingFails);
-    final Path archive = this.createDiskImage("vlc-3.0.23.dmg");
+    final Path archive = this.createDiskImage("vlc-3.0.24.dmg");
     final Path libraryDirectory = strategy.execute(archive);
 
     final Path installDirectory = installer.getInstallDirectory();

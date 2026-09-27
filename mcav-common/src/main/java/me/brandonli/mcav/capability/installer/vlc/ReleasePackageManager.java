@@ -58,14 +58,22 @@ import org.slf4j.LoggerFactory;
 public final class ReleasePackageManager {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ReleasePackageManager.class);
-  private static final String X86_64_RELEASE_API =
-    "https://api.github.com/repos/ivan-hc/VLC-appimage/releases/tags/continuous-with-plugins";
+
+  // the AppImage of Arch Linux's current VLC package is published under this tag every week; the
+  // continuous-with-plugins tag is no longer updated
+  private static final String X86_64_RELEASE_API = "https://api.github.com/repos/ivan-hc/VLC-appimage/releases/tags/continuous";
+
   private static final String X86_32_RELEASE_API =
     "https://api.github.com/repos/ivan-hc/32-bit-AppImage-packages-database/releases/tags/vlc";
+
   private static final String APP_IMAGE_SUFFIX = ".AppImage";
+
   private static final String SHA256_DIGEST_PREFIX = "sha256:";
+
   private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-fA-F]{64}");
+
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64);
+
   private static final Platform LINUX_X86_32 = Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_32);
 
   private ReleasePackageManager() {

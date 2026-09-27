@@ -192,10 +192,10 @@ final class VLCInstallationValidationTest {
     try (final OutputStream file = Files.newOutputStream(archive); final ZipOutputStream zip = new ZipOutputStream(file)) {
       if (defect != Defect.MISSING_MAIN) {
         final String suffix = defect == Defect.DIRECTORY_MAIN ? "/" : "";
-        writeEntry(zip, "vlc-3.0.23/" + platform.mainLibrary() + suffix, defect == Defect.EMPTY_MAIN || defect == Defect.DIRECTORY_MAIN);
+        writeEntry(zip, "vlc-3.0.24/" + platform.mainLibrary() + suffix, defect == Defect.EMPTY_MAIN || defect == Defect.DIRECTORY_MAIN);
       }
       if (defect != Defect.MISSING_CORE) {
-        final String prefix = defect == Defect.DIFFERENT_DIRECTORIES ? "vlc-3.0.23/other/" : "vlc-3.0.23/";
+        final String prefix = defect == Defect.DIFFERENT_DIRECTORIES ? "vlc-3.0.24/other/" : "vlc-3.0.24/";
         final String suffix = defect == Defect.DIRECTORY_CORE ? "/" : "";
         writeEntry(zip, prefix + platform.coreLibrary() + suffix, defect == Defect.EMPTY_CORE || defect == Defect.DIRECTORY_CORE);
       }

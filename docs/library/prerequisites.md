@@ -30,6 +30,11 @@ optional native features can also need system libraries, a display, or an audio 
 | macOS            | x86-64, ARM64 (Apple)     | VLC is downloaded and mounted without administrator rights.        |
 | Linux            | x86-64, ARM64             | VLC is used from the system, or downloaded as an AppImage on x86-64. |
 
+On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against the SHA-256 hash MCAV ships. VideoLAN
+publishes no Linux build, so on x86-64 Linux MCAV downloads the AppImage that is built every week from the VLC package
+of Arch Linux (<https://github.com/ivan-hc/VLC-appimage>), checked against the SHA-256 digest GitHub publishes for it;
+it follows VideoLAN's releases once Arch Linux packages them.
+
 FFmpeg and OpenCV are bundled with the library for every platform above. The OpenCV build differs per platform: the
 Windows and macOS builds read video files themselves, the Linux build has no file backend and only captures from
 cameras. `VideoPlayer.opencv()` therefore reads files with the bundled FFmpeg where OpenCV cannot, so a file plays on

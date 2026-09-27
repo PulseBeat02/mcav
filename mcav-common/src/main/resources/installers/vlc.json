@@ -5,8 +5,8 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://get.videolan.org/vlc/3.0.23/win64/vlc-3.0.23-win64.zip",
-    "hash": "992d19dbd0b8a7cde9167d2f7780b1ef6f92acc8a71acfa736101a21f35181e1"
+    "url": "https://get.videolan.org/vlc/3.0.24/win64/vlc-3.0.24-win64.zip",
+    "hash": "fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323"
   },
   {
     "platform": {
@@ -14,8 +14,8 @@
       "arch": "X86",
       "bits": "BITS_32"
     },
-    "url": "https://get.videolan.org/vlc/3.0.23/win32/vlc-3.0.23-win32.zip",
-    "hash": "8a12a33416ecb319ee06569fd7b5319af7362dfb6ef680df74b4a2c49af6515a"
+    "url": "https://get.videolan.org/vlc/3.0.24/win32/vlc-3.0.24-win32.zip",
+    "hash": "8511356afd680817f3aea624c63032d0936f3d77b2175fb36c8fc16adf9744e8"
   },
   {
     "platform": {
@@ -23,8 +23,8 @@
       "arch": "ARM",
       "bits": "BITS_64"
     },
-    "url": "https://get.videolan.org/vlc/3.0.23/macosx/vlc-3.0.23-arm64.dmg",
-    "hash": "fc6fac08d87f538517d44aca0c5e7a244b67c8c4cb589bf478363a7315fd5e0d"
+    "url": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-arm64.dmg",
+    "hash": "64a89d93cdd30b0e97131743e246373db82d6826ea882d265d46d74b136da2b7"
   },
   {
     "platform": {
@@ -32,7 +32,7 @@
       "arch": "X86",
       "bits": "BITS_64"
     },
-    "url": "https://get.videolan.org/vlc/3.0.23/macosx/vlc-3.0.23-intel64.dmg",
-    "hash": "ec01530ce69d849dd057fba8876e68ac39bf279dc28de4e9c04e4aec11fc98db"
+    "url": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-intel64.dmg",
+    "hash": "1ef6c903e2dc026d4e58ddf7b2a9ed0eb6f8caf80a9a9f46f96490340b962707"
   }
 ]

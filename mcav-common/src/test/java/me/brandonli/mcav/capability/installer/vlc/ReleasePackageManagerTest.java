@@ -58,14 +58,14 @@ final class ReleasePackageManagerTest {
   private static final Platform LINUX_ARM_64 = Platform.ofPlatform(OS.LINUX, Arch.ARM, Bits.BITS_64);
   private static final Platform LINUX_OTHER_64 = Platform.ofPlatform(OS.LINUX, Arch.OTHER, Bits.BITS_64);
   private static final Download WINDOWS_DOWNLOAD = new Download(WINDOWS_X86_64, "https://example.com/vlc.zip");
-  private static final String APP_IMAGE_URL = "https://example.com/VLC-3.0.21-x86_64.AppImage";
+  private static final String APP_IMAGE_URL = "https://example.com/VLC-3.0.24-x86_64.AppImage";
   private static final String APP_IMAGE_SHA256 = "4f3c9a1b".repeat(8);
   private static final String OTHER_SHA256 = "0123abcd".repeat(8);
   private static final String RELEASE_JSON =
     """
     {"assets": [
       {"name": "VLC.AppImage.zsync", "browser_download_url": "https://example.com/VLC.AppImage.zsync", "digest": "sha256:%s"},
-      {"name": "VLC-3.0.21-x86_64.AppImage", "browser_download_url": "%s", "digest": "sha256:%s"},
+      {"name": "VLC-3.0.24-x86_64.AppImage", "browser_download_url": "%s", "digest": "sha256:%s"},
       {"name": "VLC-later.AppImage", "browser_download_url": "https://example.com/later.AppImage", "digest": "sha256:%s"}
     ]}
     """.formatted(OTHER_SHA256, APP_IMAGE_URL, APP_IMAGE_SHA256, OTHER_SHA256);
@@ -102,7 +102,7 @@ final class ReleasePackageManagerTest {
     assertEquals(LINUX_X86_64, appImagePlatform);
     assertEquals(APP_IMAGE_URL, appImageUrl);
     assertEquals(APP_IMAGE_SHA256, appImageHash, "the download is verified against the digest GitHub publishes");
-    assertRequestedOnce(requested, "ivan-hc/VLC-appimage");
+    assertRequestedOnce(requested, "ivan-hc/VLC-appimage/releases/tags/continuous");
     assertEquals(1, fixed.length);
   }
 
@@ -116,7 +116,7 @@ final class ReleasePackageManagerTest {
     final Download appImage = downloads[0];
     final Platform appImagePlatform = appImage.getPlatform();
     assertEquals(LINUX_X86_32, appImagePlatform);
-    assertRequestedOnce(requested, "32-bit-AppImage-packages-database");
+    assertRequestedOnce(requested, "32-bit-AppImage-packages-database/releases/tags/vlc");
   }
 
   @Test
@@ -300,13 +300,13 @@ final class ReleasePackageManagerTest {
     };
   }
 
-  private static void assertRequestedOnce(final List<URI> requested, final String repository) {
+  private static void assertRequestedOnce(final List<URI> requested, final String release) {
     final int requestCount = requested.size();
     assertEquals(1, requestCount);
     final URI requestedUri = requested.getFirst();
     final String requestedText = requestedUri.toString();
-    final boolean asksTheRepository = requestedText.contains(repository);
-    assertTrue(asksTheRepository, requestedText);
+    final boolean asksTheRelease = requestedText.endsWith(release);
+    assertTrue(asksTheRelease, requestedText);
   }
 
   private static void assertNoAppImage(final String json) {
