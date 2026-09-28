@@ -271,6 +271,11 @@ final class BlockCoder {
     this.shortcuts = shortcuts(frame);
   }
 
+  /** Lets the coder's kernels go of the frame it evaluated, which an idle coder must not keep alive. */
+  void release() {
+    this.kernels.forgetArrays();
+  }
+
   /** The modes a frame's search tries: every one in the reference search. */
   private static int modes(final FrameJob frame) {
     final LiveSearch live = frame.settings().live();

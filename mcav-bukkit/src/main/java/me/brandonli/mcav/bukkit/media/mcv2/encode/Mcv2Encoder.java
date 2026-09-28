@@ -1210,6 +1210,11 @@ public final class Mcv2Encoder {
   /** Makes the coders of a finished frame's workers available to the next frame. */
   private void releaseCoders() {
     synchronized (this.idleCoders) {
+      for (final BlockCoder[] coders : this.busyCoders) {
+        for (final BlockCoder coder : coders) {
+          coder.release();
+        }
+      }
       this.idleCoders.addAll(this.busyCoders);
       this.busyCoders.clear();
     }

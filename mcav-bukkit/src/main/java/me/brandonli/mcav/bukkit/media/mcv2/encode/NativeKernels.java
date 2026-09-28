@@ -28,12 +28,14 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.PALETTE_COLORS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.invoke.MethodHandle;
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.function.BiFunction;
 import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;
@@ -451,6 +453,23 @@ final class NativeKernels extends Kernels {
     this.cachedArrays[slot] = array;
     this.cachedSegments[slot] = segment;
     return segment;
+  }
+
+  /**
+   * Whether the kernels keep an array.
+   *
+   * @param array the array
+   * @return true if its segment is kept
+   */
+  @VisibleForTesting
+  boolean keeps(final Object array) {
+    return this.remembers(slot(array), array);
+  }
+
+  @Override
+  void forgetArrays() {
+    Arrays.fill(this.cachedArrays, null);
+    Arrays.fill(this.cachedSegments, null);
   }
 
   private static void checkSize(final int size) {

@@ -75,6 +75,18 @@ final class NativeKernelsTest {
   }
 
   @Test
+  void forgetsTheArraysItWasPassed() {
+    final NativeKernels k = failing();
+    final byte[] picture = new byte[16 * 16 * 3];
+    final int[] block = new int[8 * 8 * 3];
+    failed(() -> k.predict(picture, 16, 16, 0, 0, 8, 0, 0, block));
+    assertTrue(k.keeps(picture), "a coder passes the same picture block after block");
+    k.forgetArrays();
+    assertFalse(k.keeps(picture));
+    assertFalse(k.keeps(block));
+  }
+
+  @Test
   void checksEveryIndexBeforeTheCall() {
     final NativeKernels k = failing();
     final int[] block = new int[8 * 8 * 3];

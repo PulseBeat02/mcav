@@ -166,4 +166,12 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
    * @param outStride the distance between consecutive means
    */
   abstract void cellMeans(float[] target, int size, int channel, int grid, float[] out, int outOffset, int outStride);
+
+  /**
+   * Lets go of the arrays the kernels were passed, once their coder's frame is done: kernels that keep the arrays to
+   * reuse what they made of them would otherwise keep a frame alive for as long as the coder waits for the next one.
+   */
+  void forgetArrays() {
+    // Java's kernels keep nothing
+  }
 }

@@ -19,11 +19,14 @@ package me.brandonli.mcav.bukkit.media.mcv2.encode;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
@@ -39,7 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * The conformance of the native kernels, at every level this processor runs: through them the reference search still
  * writes the Python reference encoder's streams byte for byte, the live profile still writes its pinned output, and
  * every picture of the edge corpus - random trees of every leaf mode, class and index form, at odd and cropped sizes -
- * re-encodes exactly as with the Java kernels.
+ * re-encodes exactly as with the Java kernels; and no coder waiting for the next frame keeps the last one alive.
  */
 final class NativeConformanceTest {
 
@@ -76,6 +79,26 @@ final class NativeConformanceTest {
         final byte[] rgb = Arrays.copyOfRange(source, i * frameBytes, (i + 1) * frameBytes);
         assertArrayEquals(expected.get(i), encoder.encode(rgb, WIDTH, HEIGHT, i), stream + " frame " + i);
       }
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("levels")
+  void keepsNoFrameOnceItIsEncoded(final NativeKernels.Level level) {
+    final Kernels.Factory factory = NativeTesting.factory(level);
+    final List<NativeKernels> made = new CopyOnWriteArrayList<>();
+    final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, false, () -> {
+      final NativeKernels kernels = (NativeKernels) factory.create();
+      made.add(kernels);
+      return kernels;
+    });
+    final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
+    final int frameBytes = WIDTH * HEIGHT * 3;
+    for (int i = 0; i < 2; i++) {
+      final byte[] rgb = Arrays.copyOfRange(source, i * frameBytes, (i + 1) * frameBytes);
+      encoder.encode(rgb, WIDTH, HEIGHT, i);
+      assertFalse(made.isEmpty());
+      assertTrue(made.stream().noneMatch(kernels -> kernels.keeps(rgb)), "frame " + i);
     }
   }
 
