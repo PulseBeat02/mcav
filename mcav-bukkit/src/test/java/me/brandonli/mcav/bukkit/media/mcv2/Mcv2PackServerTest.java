@@ -331,10 +331,26 @@ final class Mcv2PackServerTest {
     assertEquals(5, fifth.getConfiguration().getStreamId(), "the slot freed first");
     assertEquals(3, third.getConfiguration().getStreamId());
     assertEquals(7, seventh.getConfiguration().getStreamId());
+    // every slot writes its pages on maps of its own
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 32, fifth.getConfiguration().getPageMap());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 16, third.getConfiguration().getPageMap());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 48, seventh.getConfiguration().getPageMap());
     final IllegalStateException full = assertThrows(IllegalStateException.class, () -> this.packs.open(screen(544, Set.of())));
     assertEquals("Every one of the 8 MCV2 slots plays a screen", full.getMessage());
     this.settle();
     assertEquals(2, this.hostings.size(), "one pack for the eight slots, then one for the three new sizes");
+  }
+
+  @Test
+  void refusesAScreenWhosePageMapsCannotReachEverySlot() {
+    final Mcv2Configuration high = Mcv2ConfigurationTest.complete()
+      .pageMap(Integer.MAX_VALUE - 64)
+      .build();
+    assertEquals(1, this.packs.open(high).getConfiguration().getStreamId());
+    final Mcv2Configuration higher = Mcv2ConfigurationTest.complete()
+      .pageMap(Integer.MAX_VALUE - 63)
+      .build();
+    assertThrows(IllegalArgumentException.class, () -> this.packs.open(higher));
   }
 
   @Test
@@ -363,6 +379,8 @@ final class Mcv2PackServerTest {
     assertEquals(2, this.hostings.size());
     final Mcv2Configuration step = smaller.getConfiguration();
     assertEquals(2, step.getStreamId());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 8, step.getPageMap());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP, back.getConfiguration().getPageMap());
     assertEquals(requested.getFirstFrameId(), step.getFirstFrameId());
     assertEquals(1, back.getConfiguration().getStreamId());
     assertEquals(2, again.getConfiguration().getStreamId());
@@ -659,8 +677,8 @@ final class Mcv2PackServerTest {
 
   @Test
   void describesTheSlotsOfAPack() {
-    final Mcv2Configuration first = screen(320, Set.of()).withStream(1, 0);
-    final Mcv2Configuration second = screen(160, Set.of()).withStream(2, 0);
+    final Mcv2Configuration first = screen(320, Set.of()).withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, 0);
+    final Mcv2Configuration second = screen(160, Set.of()).withSlot(2, Mcv2Configuration.DEFAULT_PAGE_MAP, 0);
     assertEquals("slots 1: 320x96, 2: 160x96", Mcv2PackServer.describe(List.of(first, second)));
   }
 

@@ -105,6 +105,9 @@ public final class Mcv2PackServer {
 
   private static final long SHUTDOWN_SECONDS = 10;
 
+  /** The page maps every slot of a full pack takes, past a screen's first page map. */
+  private static final int PAGE_MAPS = Mcv2Pack.MAX_SCREENS * Mcv2Configuration.MAX_PAGE_SLOTS;
+
   /**
    * A hundred frame ids a second, more than any screen sends frames, so a screen that takes over a slot starts ahead of
    * every frame id the slot's earlier screens sent.
@@ -184,12 +187,12 @@ public final class Mcv2PackServer {
     private Slot(final long streamId, final Mcv2Configuration configuration) {
       this.streamId = streamId;
       this.geometry = Geometry.of(configuration);
-      this.template = configuration.withStream(streamId, 0);
+      this.template = configuration.withSlot(streamId, configuration.getPageMap(), 0);
     }
 
     private void reshape(final Mcv2Configuration configuration) {
       this.geometry = Geometry.of(configuration);
-      this.template = configuration.withStream(this.streamId, 0);
+      this.template = configuration.withSlot(this.streamId, configuration.getPageMap(), 0);
     }
   }
 
@@ -299,6 +302,11 @@ public final class Mcv2PackServer {
       this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor()),
       "The screens of a pack share one outline colour"
     );
+    Preconditions.checkArgument(
+      requested.getPageMap() <= Integer.MAX_VALUE - PAGE_MAPS,
+      "The page maps of every slot of the pack must be ints: the first page map is at most %s",
+      Integer.MAX_VALUE - PAGE_MAPS
+    );
     final Slot slot = this.acquire(requested);
     if (slot == null) {
       throw new IllegalStateException("Every one of the %d MCV2 slots plays a screen".formatted(Mcv2Pack.MAX_SCREENS));
@@ -323,6 +331,14 @@ public final class Mcv2PackServer {
         this.offer(player, pack);
       }
     }
+  }
+
+  /**
+   * The first page map of a screen in a slot: every slot sends its pages on maps of its own, from the screen's first
+   * page map on, so two screens that play at once never write each other's pages.
+   */
+  private static int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
+    return configuration.getPageMap() + (int) (slot.streamId - 1) * Mcv2Configuration.MAX_PAGE_SLOTS;
   }
 
   /** Finds a slot for a screen, changing the pack if it must; null if every slot plays. */
@@ -631,7 +647,7 @@ public final class Mcv2PackServer {
     private Lease(final Mcv2Configuration requested, final long firstFrameId, final Slot slot) {
       this.requested = requested;
       this.firstFrameId = firstFrameId;
-      this.configuration = requested.withStream(slot.streamId, firstFrameId);
+      this.configuration = requested.withSlot(slot.streamId, pageMapOf(requested, slot), firstFrameId);
       this.held = new HashMap<>();
       this.held.put(slot.geometry, slot);
     }
@@ -669,7 +685,7 @@ public final class Mcv2PackServer {
           slot.holder = this;
           this.held.put(geometry, slot);
         }
-        return new Mcv2Channel(resized.withStream(slot.streamId, this.firstFrameId), Mcv2PackServer.this.viewers);
+        return new Mcv2Channel(resized.withSlot(slot.streamId, pageMapOf(resized, slot), this.firstFrameId), Mcv2PackServer.this.viewers);
       }
     }
 

@@ -195,7 +195,7 @@ final class Mcv2SupportTest {
   @Test
   void createsTheOutputOfAScreenInItsSlot() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
-    final Mcv2Configuration slotted = configuration.withStream(3, 1234);
+    final Mcv2Configuration slotted = configuration.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, 1234);
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(slotted);
     when(this.packs.open(configuration)).thenReturn(lease);
@@ -247,7 +247,7 @@ final class Mcv2SupportTest {
   void recordsTheFramesOfAScreenForAMeasurement() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
-    when(lease.getConfiguration()).thenReturn(configuration.withStream(3, 0));
+    when(lease.getConfiguration()).thenReturn(configuration.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, 0));
     when(this.packs.open(configuration)).thenReturn(lease);
     System.setProperty(Mcv2Support.RECORD_PROPERTY, this.folder.toString());
     try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {

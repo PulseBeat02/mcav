@@ -110,6 +110,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** A pacing step, as the pacer describes it to the pacing listener too. */
   private static final String PACING_STEP = "{}";
 
+  private static final double NANOS_PER_SECOND = 1e9;
+
+  /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
+  private static final double FRAME_CREDIT_CAP = 1.5;
+
   /**
    * The time a frame of each search of the preset ladder takes relative to the live search's, as the pacer measures it
    * (wall time in the budget, 1080p30, 12 threads, native kernels): the exhaustive search takes 570-800 ms where live
@@ -141,6 +146,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Statistics statistics;
 
   private final LongSupplier clock;
+
+  /** The screen's frame rate per nanosecond of the clock. */
+  private final double framesPerNano;
+
+  /** The frames the screen may take now; one is taken for every frame shown. */
+  private double frameCredit = FRAME_CREDIT_CAP;
+
+  private long lastFrame = Long.MIN_VALUE;
 
   /** The settings the screen steps down through, from the ones it was asked for: each a faster search. */
   private final List<EncoderSettings> ladder;
@@ -406,6 +419,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.lock = new Object();
     this.statistics = new Statistics();
     this.clock = clock;
+    this.framesPerNano = configuration.getMaxFrameRate() / NANOS_PER_SECOND;
     this.ladder = ladder(configuration.getSettings());
     this.presets = presets(this.ladder);
     this.encoders = encoders;
@@ -579,6 +593,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
     Preconditions.checkNotNull(data, "Frame must not be null");
     Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    if (!this.takeFrame(this.clock.getAsLong())) {
+      return false;
+    }
     final boolean encode;
     final boolean everyoneDithered;
     Mcv2Pacer.Preset preset = this.presets.getFirst();
@@ -629,6 +646,32 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       }
     }
     return true;
+  }
+
+  /**
+   * Whether a frame arriving now is the screen's: a client decodes at most one frame for every frame it draws, and a
+   * frame it never got breaks the frames predicted from it until the next keyframe, so a source faster than the
+   * screen's rate, such as a browser painting at hundreds of frames a second, is thinned to it. A frame is earned every
+   * frame interval, and a few earned while nothing arrived do not add up to a burst.
+   *
+   * @param now the clock, in nanoseconds
+   * @return true if the frame is shown
+   */
+  boolean takeFrame(final long now) {
+    if (this.framesPerNano == 0) {
+      return true;
+    }
+    synchronized (this.lock) {
+      if (this.lastFrame != Long.MIN_VALUE) {
+        this.frameCredit = Math.min(FRAME_CREDIT_CAP, this.frameCredit + (now - this.lastFrame) * this.framesPerNano);
+      }
+      this.lastFrame = now;
+      if (this.frameCredit < 1) {
+        return false;
+      }
+      this.frameCredit -= 1;
+      return true;
+    }
   }
 
   /** Dithers one frame onto the maps of the viewers without the pack, then lets the next frame be dithered. */

@@ -123,6 +123,7 @@ final class Mcv2PackTest {
     assertTrue(screen.contains("const uint MCV2_STREAM_ID = 9u;"), screen);
     assertTrue(screen.contains("const int MCV2_VIDEO_WIDTH = 320;"), screen);
     assertTrue(screen.contains("const int MCV2_VIDEO_HEIGHT = 180;"), screen);
+    assertTrue(screen.contains("const int MCV2_DEBUG_TOP = 0;"), screen);
     assertTrue(screen.contains("const int MCV2_BYTES_HEIGHT = 48;"), screen);
     // one cell per 8x8 pixels: 40 columns, 23 rows of cells (180 / 8 rounded up)
     assertTrue(screen.contains("const int MCV2_CELLS_WIDTH = 40;"), screen);
@@ -184,6 +185,8 @@ final class Mcv2PackTest {
     assertTrue(second.contains("const int MCV2_SCREEN_INDEX = 1;"), second);
     assertTrue(second.contains("const int MCV2_FIRST_SLOT = 2;"), second);
     assertTrue(second.contains("const int MCV2_VIDEO_WIDTH = 640;"), second);
+    // the debug view draws the second screen's picture under the first one's
+    assertTrue(second.contains("const int MCV2_DEBUG_TOP = 188;"), second);
     assertTrue(entries.get("assets/mcav/shaders/post/s1/mcv2_decode.fsh").contains("#include <mcav:mcv2_screen_1.glsl>"));
     final JsonObject chain = JsonParser.parseString(entries.get("assets/minecraft/post_effect/entity_outline.json")).getAsJsonObject();
     assertEquals(640, chain.getAsJsonObject("targets").getAsJsonObject("mcav:mcv2_previous_1").get("width").getAsInt());

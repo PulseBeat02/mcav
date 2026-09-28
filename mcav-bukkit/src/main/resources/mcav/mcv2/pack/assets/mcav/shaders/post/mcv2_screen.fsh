@@ -4,10 +4,10 @@
 // Pass 10: the picture on the screen. Every pixel of the scene is cast onto the plane of the screen the anchors
 // describe; where the ray meets the screen in front of whatever the scene has there, it takes the decoded picture's
 // pixel. The transport strip at the top of the screen is covered with the scene row just below it. With
-// MCV2_DEBUG_VIEW the first screen's picture is also drawn one to one below the strip, which is how the in-game
-// conformance test captures it, and to its right one square per page slot (green: a valid page, red: none), one for
-// this frame's decision (green: decoded, blue: nothing new, red: a frame that cannot be decoded) and one per byte of
-// the count of decoded frames.
+// MCV2_DEBUG_VIEW every screen's picture is also drawn one to one below the strip, the screens one under the other
+// from MCV2_DEBUG_TOP, which is how the in-game conformance test captures them, and to the right of each picture one
+// square per page slot (green: a valid page, red: none), one for this frame's decision (green: decoded, blue: nothing
+// new, red: a frame that cannot be decoded) and one per byte of the count of decoded frames.
 
 #include <mcav:mcv2_config.glsl>
 #include <mcav:mcv2_screen.glsl>
@@ -48,9 +48,10 @@ void main() {
     ivec2 source = fromTop < strip && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
     vec4 scene = texelFetch(MainSampler, source, 0);
     fragColor = scene;
-    if (MCV2_DEBUG_VIEW && MCV2_SCREEN_INDEX == 0 && fromTop >= strip && fromTop < strip + 24 && pixel.x >= MCV2_VIDEO_WIDTH + 8) {
+    int debugRow = fromTop - strip - MCV2_DEBUG_TOP;
+    if (MCV2_DEBUG_VIEW && debugRow >= 0 && debugRow < 24 && pixel.x >= MCV2_VIDEO_WIDTH + 8) {
         int square = (pixel.x - MCV2_VIDEO_WIDTH - 8) / 24;
-        if ((pixel.x - MCV2_VIDEO_WIDTH - 8) % 24 < 20 && fromTop - strip < 20) {
+        if ((pixel.x - MCV2_VIDEO_WIDTH - 8) % 24 < 20 && debugRow < 20) {
             if (square < MCV2_PAGE_SLOTS) {
                 bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(square * 4, 0), 0).x) == 1u;
                 fragColor = valid ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
@@ -73,8 +74,8 @@ void main() {
     if ((view & 1u) == 0u) {
         return;
     }
-    if (MCV2_DEBUG_VIEW && MCV2_SCREEN_INDEX == 0 && fromTop >= strip && fromTop < strip + MCV2_VIDEO_HEIGHT && pixel.x < MCV2_VIDEO_WIDTH) {
-        fragColor = mcv2Picture(ivec2(pixel.x, fromTop - strip));
+    if (MCV2_DEBUG_VIEW && debugRow >= 0 && debugRow < MCV2_VIDEO_HEIGHT && pixel.x < MCV2_VIDEO_WIDTH) {
+        fragColor = mcv2Picture(ivec2(pixel.x, debugRow));
         return;
     }
     if ((view & 2u) == 0u) {

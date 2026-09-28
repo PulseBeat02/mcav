@@ -128,6 +128,8 @@ final class Mcv2ResultTest {
       .pageMap(500)
       // one preset, so the pacer steps only frame rates and sizes; the tests of the preset ladder give their own
       .settings(EncoderSettings.LIVE_FAST)
+      // every frame the tests give is the screen's; the rate is tested on its own
+      .maxFrameRate(0)
       .build();
   }
 
@@ -184,7 +186,11 @@ final class Mcv2ResultTest {
   @Test
   void recordsEveryFrameForTheFlightRecorder(@TempDir final Path directory) throws Exception {
     // a screen that took over a pack slot numbers its frames from where the pack server said
-    final Mcv2Configuration slotted = this.configuration.withStream(this.configuration.getStreamId(), 4_000_000_000L);
+    final Mcv2Configuration slotted = this.configuration.withSlot(
+      this.configuration.getStreamId(),
+      this.configuration.getPageMap(),
+      4_000_000_000L
+    );
     final Mcv2Result result = this.result(slotted, this.algorithm);
     try (Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Frame");
@@ -259,6 +265,7 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -332,6 +339,7 @@ final class Mcv2ResultTest {
       .rows(1)
       .pageMap(500)
       .pageSlots(1)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = this.result(narrow, null);
     final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
@@ -399,6 +407,7 @@ final class Mcv2ResultTest {
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
       .settings(EncoderSettings.LIVE_FAST)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -469,6 +478,7 @@ final class Mcv2ResultTest {
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
       .settings(EncoderSettings.LIVE_FAST)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -570,6 +580,7 @@ final class Mcv2ResultTest {
         .video(64, 32)
         .pageMap(500)
         .encoderPool(budget)
+        .maxFrameRate(0)
         .build();
       assertSame(budget, own.getEncoderPool());
       assertSame(EncoderPool.shared(), this.configuration.getEncoderPool());
@@ -585,6 +596,45 @@ final class Mcv2ResultTest {
     assertThrows(NullPointerException.class, () -> Mcv2Configuration.builder().encoderPool(null));
     assertThrows(NullPointerException.class, () -> this.result(this.configuration, null).setPacingListener(null));
     assertThrows(NullPointerException.class, () -> this.result(this.configuration, null).setFrameListener(null));
+  }
+
+  @Test
+  void thinsASourceFasterThanTheScreensRate() {
+    final Mcv2Result result = this.result(
+      Mcv2Configuration.builder()
+        .viewers(List.of(WITH_PACK))
+        .origin(new Location(mock(World.class), 0, 64, 0))
+        .facing(BlockFace.SOUTH)
+        .map(100)
+        .columns(1)
+        .rows(1)
+        .video(64, 32)
+        .pageMap(500)
+        .build(),
+      null
+    );
+    final long millisecond = TimeUnit.MILLISECONDS.toNanos(1);
+    // a browser painting every 5 ms: 30 frames of a second's 200
+    int taken = 0;
+    for (long now = 0; now < 1000 * millisecond; now += 5 * millisecond) {
+      taken += result.takeFrame(now) ? 1 : 0;
+    }
+    assertTrue(taken >= 30 && taken <= 32, "frames taken: " + taken);
+    // a 30 fps source with jitter keeps every frame
+    long now = 5000 * millisecond;
+    result.takeFrame(now);
+    for (int frame = 0; frame < 60; frame++) {
+      now += (frame % 2 == 0 ? 30 : 36) * millisecond + millisecond / 2;
+      assertTrue(result.takeFrame(now), "frame " + frame);
+    }
+    // frames saved up during a pause do not come out as a burst
+    now += 2000 * millisecond;
+    assertTrue(result.takeFrame(now));
+    assertFalse(result.takeFrame(now + millisecond));
+    // and a frame that is not the screen's goes nowhere: of two frames at once, the second
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    assertFalse(result.applyFilter(frame, this.metadata));
   }
 
   @Test
@@ -718,6 +768,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       .encoderPool(budget)
+      .maxFrameRate(0)
       .build();
     // no executor given: the result dithers on a thread of its own
     final Mcv2Result result = new Mcv2Result(own, new Mcv2Channel(own, this.viewers, this.screen), this.algorithm, System::nanoTime, null);
@@ -751,6 +802,7 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,
@@ -804,6 +856,7 @@ final class Mcv2ResultTest {
       .pageMap(500)
       .backlogLimit(400)
       .unsentLimit(0)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = this.result(tight, null);
     result.getChannel().update();
@@ -874,6 +927,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       .settings(settings)
+      .maxFrameRate(0)
       .build();
   }
 
@@ -1190,6 +1244,7 @@ final class Mcv2ResultTest {
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
       .settings(EncoderSettings.LIVE_FAST)
+      .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
       onlyPack,

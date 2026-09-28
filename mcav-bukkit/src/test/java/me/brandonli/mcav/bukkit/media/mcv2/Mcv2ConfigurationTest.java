@@ -115,17 +115,38 @@ final class Mcv2ConfigurationTest {
   }
 
   @Test
+  void showsThirtyFramesASecondUnlessToldOtherwise() {
+    assertEquals(Mcv2Configuration.DEFAULT_MAX_FRAME_RATE, complete().build().getMaxFrameRate());
+    assertEquals(30, Mcv2Configuration.DEFAULT_MAX_FRAME_RATE);
+    final Mcv2Configuration sixty = complete().maxFrameRate(60).build();
+    assertEquals(60, sixty.getMaxFrameRate());
+    assertEquals(60, sixty.withVideo(64, 64).getMaxFrameRate());
+    assertEquals(60, sixty.withSlot(2, Mcv2Configuration.DEFAULT_PAGE_MAP, 0).getMaxFrameRate());
+    assertEquals(0, complete().maxFrameRate(0).build().getMaxFrameRate());
+    assertEquals(Mcv2Configuration.MAX_FRAME_RATE, complete().maxFrameRate(Mcv2Configuration.MAX_FRAME_RATE).build().getMaxFrameRate());
+    assertThrows(IllegalArgumentException.class, () -> complete().maxFrameRate(-1).build());
+    assertThrows(IllegalArgumentException.class, () ->
+      complete()
+        .maxFrameRate(Mcv2Configuration.MAX_FRAME_RATE + 0.5)
+        .build()
+    );
+  }
+
+  @Test
   void copiesItselfWithTheStreamASlotGaveIt() {
     final Mcv2Configuration original = complete().video(320, 180).streamId(7).build();
-    final Mcv2Configuration slotted = original.withStream(3, Mcv2Format.MAX_U32);
+    final Mcv2Configuration slotted = original.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, Mcv2Format.MAX_U32);
     assertEquals(3, slotted.getStreamId());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 16, slotted.getPageMap());
     assertEquals(Mcv2Format.MAX_U32, slotted.getFirstFrameId());
     assertEquals(320, slotted.getVideoWidth());
     assertSame(original.getViewers(), slotted.getViewers());
     assertEquals(0, original.getFirstFrameId());
-    assertThrows(IllegalArgumentException.class, () -> original.withStream(Mcv2Configuration.MAX_STREAM_ID + 1, 0));
-    assertThrows(IllegalArgumentException.class, () -> original.withStream(1, -1));
-    assertThrows(IllegalArgumentException.class, () -> original.withStream(1, Mcv2Format.MAX_U32 + 1));
+    assertThrows(IllegalArgumentException.class, () ->
+      original.withSlot(Mcv2Configuration.MAX_STREAM_ID + 1, Mcv2Configuration.DEFAULT_PAGE_MAP, 0)
+    );
+    assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, -1));
+    assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, Mcv2Format.MAX_U32 + 1));
   }
 
   @Test

@@ -155,6 +155,7 @@ def generated(width, height, slots):
             "const int MCV2_BYTES_HEIGHT = %d;" % placeholders(width, height, slots)["BYTES_HEIGHT"],
             "const int MCV2_CELLS_WIDTH = %d;" % cells_width(width),
             "const int MCV2_CELLS_HEIGHT = %d;" % cells_height(height),
+            "const int MCV2_DEBUG_TOP = 0;",
             "",
         ]),
         "mcav:mcv2_books.glsl": "const uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",

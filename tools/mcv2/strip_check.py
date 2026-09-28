@@ -1,6 +1,7 @@
 """Check the transport strip and the status squares in pictures captured from a client with the MCV2 pack's debug view.
 
     python tools/mcv2/strip_check.py <captures folder> --slots N --video-width W
+        [--screens S --screen I --first-slot F --total-slots T --debug-top R]
 
 The captures are screenshots of the whole screen, as for capture_check.py. In every capture the page in every slot of
 the transport strip is read back, four six-bit symbols from the three bytes of each pixel, and validated by the
@@ -11,6 +12,11 @@ red: a frame that cannot be decoded) and four grey squares for the bytes of the 
 Every square must be one exact colour, a slot's square must agree with the page read from the same capture, no
 decision may be red, and the counter must never go down. The summary is one JSON line; the exit code is 1 when any
 check failed.
+
+A pack of several screens has every screen's slots in the strip, then one descriptor row per screen, and the debug
+view draws the screens' pictures one under the other: --screens and --total-slots describe the strip, --screen,
+--first-slot and --slots the screen checked, and --debug-top the row below the strip where its picture starts (the
+pack's MCV2_DEBUG_TOP of that screen).
 """
 
 import argparse
@@ -42,7 +48,13 @@ def main():
     parser.add_argument("captures", type=Path)
     parser.add_argument("--slots", type=int, required=True)
     parser.add_argument("--video-width", type=int, required=True)
+    parser.add_argument("--screens", type=int, default=1)
+    parser.add_argument("--screen", type=int, default=0)
+    parser.add_argument("--first-slot", type=int, default=0)
+    parser.add_argument("--total-slots", type=int)
+    parser.add_argument("--debug-top", type=int, default=0)
     arguments = parser.parse_args()
+    total_slots = arguments.total_slots if arguments.total_slots is not None else arguments.slots
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
     from mcvideo.transport import PAGE_HEADER, page_capacity, read_page
 
@@ -68,19 +80,19 @@ def main():
         pages = {}
         for slot in range(arguments.slots):
             try:
-                page = read_page(extent(page_symbols(screen, slot, rows)), 6)
+                page = read_page(extent(page_symbols(screen, arguments.first_slot + slot, rows)), 6)
                 pages[slot] = True
                 valid[slot] += 1
                 frames.add((page.frame_id, page.number))
             except ValueError as error:
                 pages[slot] = False
                 invalid[slot, str(error)] += 1
-        descriptor_row = arguments.slots * rows
+        descriptor_row = total_slots * rows + arguments.screen
         if [tuple(int(v) for v in screen[descriptor_row, x]) for x in range(2)] == DESCRIPTOR:
             descriptors += 1
         else:
             failures.append((capture.name, "descriptor"))
-        top = descriptor_row + 1
+        top = total_slots * rows + arguments.screens + arguments.debug_top
         if arguments.video_width + 8 + (arguments.slots + 5) * STEP > width:
             continue
         squared += 1

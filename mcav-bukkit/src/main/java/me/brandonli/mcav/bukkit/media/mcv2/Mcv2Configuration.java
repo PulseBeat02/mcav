@@ -61,6 +61,16 @@ public final class Mcv2Configuration {
   private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**
+   * The most frames a second a screen shows when none is set: the rate whose 1080p gate the default live preset met
+   * (the 1080p60 gate was not met). A client decodes at most one frame for every frame it draws, so a screen faster
+   * than its viewers' clients leaves them waiting for keyframes.
+   */
+  public static final double DEFAULT_MAX_FRAME_RATE = 30;
+
+  /** The highest rate a screen may be given, in frames a second. */
+  public static final double MAX_FRAME_RATE = 240;
+
+  /**
    * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about
    * 170 milliseconds of a 6 Mbit/s link.
    */
@@ -99,6 +109,8 @@ public final class Mcv2Configuration {
 
   private final long firstFrameId;
 
+  private final double maxFrameRate;
+
   private final EncoderSettings settings;
 
   private final NamedTextColor outlineColor;
@@ -128,6 +140,7 @@ public final class Mcv2Configuration {
     this.pageSlots = pageSlots;
     this.streamId = builder.streamId;
     this.firstFrameId = builder.firstFrameId;
+    this.maxFrameRate = builder.maxFrameRate;
     this.settings = builder.settings;
     this.outlineColor = builder.outlineColor;
     this.backlogLimit = builder.backlogLimit;
@@ -319,15 +332,17 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Copies the screen with the stream id and first frame id the resource pack's server gave it.
+   * Copies the screen with what the resource pack's server gave it with its slot of the pack: the slot's stream id and
+   * page maps, and the id of the screen's first frame.
    *
    * @param streamId     the stream id, 0 to {@value #MAX_STREAM_ID}
+   * @param pageMap      the first page map id, not negative
    * @param firstFrameId the id of the screen's first frame, an unsigned 32-bit value
    * @return the copy
-   * @throws IllegalArgumentException if a value is out of range
+   * @throws IllegalArgumentException if a value is out of range, or a page map is a map of the wall
    */
-  public Mcv2Configuration withStream(final long streamId, final long firstFrameId) {
-    return this.toBuilder().streamId(streamId).firstFrameId(firstFrameId).build();
+  public Mcv2Configuration withSlot(final long streamId, final int pageMap, final long firstFrameId) {
+    return this.toBuilder().streamId(streamId).pageMap(pageMap).firstFrameId(firstFrameId).build();
   }
 
   private Builder toBuilder() {
@@ -343,6 +358,7 @@ public final class Mcv2Configuration {
       .pageSlots(this.pageSlots)
       .streamId(this.streamId)
       .firstFrameId(this.firstFrameId)
+      .maxFrameRate(this.maxFrameRate)
       .settings(this.settings)
       .outlineColor(this.outlineColor)
       .backlogLimit(this.backlogLimit)
@@ -362,6 +378,15 @@ public final class Mcv2Configuration {
    */
   public long getFirstFrameId() {
     return this.firstFrameId;
+  }
+
+  /**
+   * Gets the most frames a second the screen shows; a faster source is thinned to it.
+   *
+   * @return the rate, at most {@value #MAX_FRAME_RATE}, or 0 for every frame the source gives
+   */
+  public double getMaxFrameRate() {
+    return this.maxFrameRate;
   }
 
   /**
@@ -413,6 +438,8 @@ public final class Mcv2Configuration {
     private long streamId = 1;
 
     private long firstFrameId;
+
+    private double maxFrameRate = DEFAULT_MAX_FRAME_RATE;
 
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
 
@@ -557,6 +584,17 @@ public final class Mcv2Configuration {
     }
 
     /**
+     * Sets the most frames a second the screen shows; defaults to {@link #DEFAULT_MAX_FRAME_RATE}.
+     *
+     * @param maxFrameRate at most {@value #MAX_FRAME_RATE}, or 0 for every frame the source gives
+     * @return this builder
+     */
+    public Builder maxFrameRate(final double maxFrameRate) {
+      this.maxFrameRate = maxFrameRate;
+      return this;
+    }
+
+    /**
      * Sets the encoder profile; defaults to {@link EncoderSettings#LIVE}: a screen encodes a source while it plays, and
      * live is the slowest rung of the preset ladder that keeps the 95th percentile of a 1080p30 frame under 32 ms with 12
      * encoder threads of a 6-core server, on quiet content and on gameplay alike. With the default budget of 6 threads
@@ -643,6 +681,11 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(
         this.firstFrameId >= 0 && this.firstFrameId <= Mcv2Format.MAX_U32,
         "First frame id must be an unsigned 32-bit value"
+      );
+      Preconditions.checkArgument(
+        this.maxFrameRate >= 0 && this.maxFrameRate <= MAX_FRAME_RATE,
+        "Frame rate must be 0 to %s",
+        MAX_FRAME_RATE
       );
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");

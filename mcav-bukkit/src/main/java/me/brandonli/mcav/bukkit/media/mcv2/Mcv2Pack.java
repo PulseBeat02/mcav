@@ -73,6 +73,12 @@ public final class Mcv2Pack {
 
   private static final String CHAIN_TEMPLATE = "/mcav/mcv2/chain.json";
 
+  /** The rows of the debug view's status squares right of a screen's picture: a picture shorter still takes them. */
+  private static final int DEBUG_SQUARES = 24;
+
+  /** The rows the debug view leaves between the pictures of two screens. */
+  private static final int DEBUG_GAP = 8;
+
   private static final String POST_CHAIN = "assets/minecraft/post_effect/entity_outline.json";
 
   private static final String INCLUDE = "assets/mcav/shaders/include/";
@@ -171,14 +177,16 @@ public final class Mcv2Pack {
       pack.data(file, resource(file));
     }
     int firstSlot = 0;
+    int debugTop = 0;
     for (int screen = 0; screen < screens.size(); screen++) {
       final Mcv2Configuration configuration = screens.get(screen);
       for (final String file : SCREEN_FILES) {
         pack.data(POST + "s" + screen + "/" + file, screenCopy(resource(POST + file), screen).getBytes(StandardCharsets.UTF_8));
       }
-      final String include = screenConfig(configuration, screen, firstSlot);
+      final String include = screenConfig(configuration, screen, firstSlot, debugTop);
       pack.data(INCLUDE + screenInclude(screen), include.getBytes(StandardCharsets.UTF_8));
       firstSlot += configuration.getPageSlots();
+      debugTop += Math.max(configuration.getVideoHeight(), DEBUG_SQUARES) + DEBUG_GAP;
     }
     pack.data(POST_CHAIN, postChain(screens).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_config.glsl", config(screens, debugView).getBytes(StandardCharsets.UTF_8));
@@ -330,8 +338,13 @@ public final class Mcv2Pack {
     );
   }
 
-  /** One screen's constants, which its copy of the passes includes. */
-  static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot) {
+  /**
+   * One screen's constants, which its copy of the passes includes.
+   *
+   * @param debugTop the row below the strip where the debug view draws this screen's picture, under the pictures of
+   *                 the screens before it
+   */
+  static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
     return guarded(
       "MCAV_MCV2_SCREEN_GLSL",
       String.join(
@@ -347,6 +360,7 @@ public final class Mcv2Pack {
         "const int MCV2_BYTES_HEIGHT = %d;".formatted(bytesHeight(configuration)),
         "const int MCV2_CELLS_WIDTH = %d;".formatted(cellsWidth(configuration)),
         "const int MCV2_CELLS_HEIGHT = %d;".formatted(cellsHeight(configuration)),
+        "const int MCV2_DEBUG_TOP = %d;".formatted(debugTop),
         ""
       )
     );
