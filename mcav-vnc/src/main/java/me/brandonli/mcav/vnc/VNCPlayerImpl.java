@@ -212,7 +212,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return vncClient;
   }
 
-  // the client connects on its own thread and would only report failures later, so the socket is opened here
+  // the client connects on its own thread and would only report failures later, so the socket is opened here; the
+  // client reads through a guard, because it trusts the lengths a server sends
   private Socket connect(final VNCSource source) {
     final String host = source.getHost();
     final int port = source.getPort();
@@ -221,7 +222,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     try {
       socket.connect(address, CONNECT_TIMEOUT_MILLIS);
       socket.setTcpNoDelay(true);
-      return socket;
+      return new GuardedSocket(socket);
     } catch (final IOException exception) {
       closeQuietly(socket);
       final String message = exception.getMessage();

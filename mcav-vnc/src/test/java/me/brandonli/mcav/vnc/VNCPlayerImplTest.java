@@ -40,6 +40,7 @@ import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.exceptions.AuthenticationFailedException;
 import com.shinyhut.vernacular.client.exceptions.NoSupportedSecurityTypesException;
+import com.shinyhut.vernacular.client.exceptions.UnexpectedVncException;
 import com.shinyhut.vernacular.client.exceptions.UnknownMessageTypeException;
 import com.shinyhut.vernacular.client.exceptions.VncException;
 import com.shinyhut.vernacular.client.rendering.ColorDepth;
@@ -606,7 +607,12 @@ final class VNCPlayerImplTest {
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
     assertEquals("The VNC connection failed", message);
-    assertInstanceOf(UnknownMessageTypeException.class, error);
+    // the guard refuses a message type the client could not decode before the client reads it
+    final UnexpectedVncException failure = assertInstanceOf(UnexpectedVncException.class, error);
+    final Throwable cause = failure.getCause();
+    final IOException refused = assertInstanceOf(IOException.class, cause);
+    final String reason = refused.getMessage();
+    assertTrue(reason.contains("message type 127"), reason);
   }
 
   @Test
