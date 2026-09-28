@@ -489,25 +489,25 @@ public final class VNCPlayerImpl implements VNCPlayer {
   }
 
   @Override
-  public void moveMouse(final int x, final int y) {
+  public void moveMouse(final int frameX, final int frameY) {
     final VernacularClient vncClient = this.getConnectedClient();
     if (vncClient == null) {
       return;
     }
 
-    final int[] translated = this.translateCoordinates(x, y);
+    final int[] translated = this.translateCoordinates(frameX, frameY);
     this.forward(() -> vncClient.moveMouse(translated[0], translated[1]));
   }
 
   @Override
-  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
+  public void sendMouseEvent(final MouseClick type, final int frameX, final int frameY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
     final VernacularClient vncClient = this.getConnectedClient();
     if (vncClient == null) {
       return;
     }
 
-    final int[] translated = this.translateCoordinates(x, y);
+    final int[] translated = this.translateCoordinates(frameX, frameY);
     this.forward(() -> {
       vncClient.moveMouse(translated[0], translated[1]);
       final Runnable press = clickAction(vncClient, type);
@@ -567,7 +567,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     }
   }
 
-  private int[] translateCoordinates(final int x, final int y) {
+  private int[] translateCoordinates(final int frameX, final int frameY) {
     // input is only forwarded while connected, and the source is set before the connection is made
     final VNCSource current = Objects.requireNonNull(this.source, "Source must be set while connected");
     final int targetWidth = this.remoteWidth;
@@ -576,8 +576,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
     // the remote size is unknown until the first screen update arrives
     final int smallerSide = Math.min(targetWidth, targetHeight);
     if (smallerSide <= 0) {
-      final int untranslatedX = Math.max(0, x);
-      final int untranslatedY = Math.max(0, y);
+      final int untranslatedX = Math.max(0, frameX);
+      final int untranslatedY = Math.max(0, frameY);
       return new int[] { untranslatedX, untranslatedY };
     }
 
@@ -587,8 +587,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final int frameHeight = sizeOrFallback(configuredHeight, targetHeight);
     final double widthRatio = (double) targetWidth / frameWidth;
     final double heightRatio = (double) targetHeight / frameHeight;
-    final long scaledX = Math.round(x * widthRatio);
-    final long scaledY = Math.round(y * heightRatio);
+    final long scaledX = Math.round(frameX * widthRatio);
+    final long scaledY = Math.round(frameY * heightRatio);
     final int clampedX = Math.clamp(scaledX, 0, targetWidth - 1);
     final int clampedY = Math.clamp(scaledY, 0, targetHeight - 1);
     return new int[] { clampedX, clampedY };

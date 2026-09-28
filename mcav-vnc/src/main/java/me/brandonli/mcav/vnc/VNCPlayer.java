@@ -90,10 +90,10 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
   /**
    * Moves the mouse pointer.
    *
-   * @param x the x coordinate in the streamed frame
-   * @param y the y coordinate in the streamed frame
+   * @param frameX the x coordinate in the streamed frame
+   * @param frameY the y coordinate in the streamed frame
    */
-  void moveMouse(final int x, final int y);
+  void moveMouse(final int frameX, final int frameY);
 
   /**
    * Types text. A key name from the X11 keysym table, such as {@code Return}, {@code Escape}, or {@code Left},
@@ -106,11 +106,11 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
   /**
    * Moves the mouse pointer and performs a click.
    *
-   * @param type the kind of click
-   * @param x    the x coordinate in the streamed frame
-   * @param y    the y coordinate in the streamed frame
+   * @param type   the kind of click
+   * @param frameX the x coordinate in the streamed frame
+   * @param frameY the y coordinate in the streamed frame
    */
-  void sendMouseEvent(final MouseClick type, final int x, final int y);
+  void sendMouseEvent(final MouseClick type, final int frameX, final int frameY);
 
   /**
    * Checks whether the player is connected and delivering frames.

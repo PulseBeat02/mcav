@@ -121,9 +121,9 @@ public final class VMInputExample {
       @Override
       public void mouseClicked(final MouseEvent event) {
         label.requestFocusInWindow();
-        final int x = event.getX();
-        final int y = event.getY();
-        player.sendMouseEvent(MouseClick.LEFT, x, y);
+        final int frameX = event.getX();
+        final int frameY = event.getY();
+        player.sendMouseEvent(MouseClick.LEFT, frameX, frameY);
       }
     };
     label.addMouseListener(clicks);

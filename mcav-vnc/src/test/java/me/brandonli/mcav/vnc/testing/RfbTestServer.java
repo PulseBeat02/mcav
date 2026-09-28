@@ -491,9 +491,9 @@ public final class RfbTestServer implements AutoCloseable {
 
   private void readPointerEvent(final DataInputStream input) throws IOException {
     final int mask = input.readUnsignedByte();
-    final int x = input.readUnsignedShort();
-    final int y = input.readUnsignedShort();
-    final ReceivedPointer pointer = new ReceivedPointer(mask, x, y);
+    final int screenX = input.readUnsignedShort();
+    final int screenY = input.readUnsignedShort();
+    final ReceivedPointer pointer = new ReceivedPointer(mask, screenX, screenY);
     synchronized (this.pointers) {
       this.pointers.add(pointer);
     }
@@ -688,13 +688,13 @@ public final class RfbTestServer implements AutoCloseable {
   public static final class ReceivedPointer {
 
     private final int buttonMask;
-    private final int x;
-    private final int y;
+    private final int screenX;
+    private final int screenY;
 
-    ReceivedPointer(final int buttonMask, final int x, final int y) {
+    ReceivedPointer(final int buttonMask, final int screenX, final int screenY) {
       this.buttonMask = buttonMask;
-      this.x = x;
-      this.y = y;
+      this.screenX = screenX;
+      this.screenY = screenY;
     }
 
     /**
@@ -712,7 +712,7 @@ public final class RfbTestServer implements AutoCloseable {
      * @return the x coordinate
      */
     public int getX() {
-      return this.x;
+      return this.screenX;
     }
 
     /**
@@ -721,12 +721,12 @@ public final class RfbTestServer implements AutoCloseable {
      * @return the y coordinate
      */
     public int getY() {
-      return this.y;
+      return this.screenY;
     }
 
     @Override
     public String toString() {
-      return "pointer " + this.buttonMask + " at " + this.x + "," + this.y;
+      return "pointer " + this.buttonMask + " at " + this.screenX + "," + this.screenY;
     }
   }
 }

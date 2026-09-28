@@ -65,22 +65,22 @@ final class RfbSession {
       this.server(new byte[] { 1, (byte) security });
       this.client(new byte[] { (byte) security });
     } else {
-      this.server(u32(security));
+      this.server(unsigned32(security));
     }
     switch (security) {
       case VNC -> {
         this.server(new byte[16]);
         this.client(new byte[16]);
-        this.server(u32(0));
+        this.server(unsigned32(0));
       }
       case MS_LOGON -> {
         this.server(new byte[24]);
         this.client(new byte[8 + 256 + 64]);
-        this.server(u32(0));
+        this.server(unsigned32(0));
       }
       default -> {
         if (minor >= 8) {
-          this.server(u32(0));
+          this.server(unsigned32(0));
         }
       }
     }
@@ -93,11 +93,11 @@ final class RfbSession {
     return "RFB 003.%03d\n".formatted(minor).getBytes(StandardCharsets.US_ASCII);
   }
 
-  static byte[] u16(final int value) {
+  static byte[] unsigned16(final int value) {
     return new byte[] { (byte) (value >>> 8), (byte) value };
   }
 
-  static byte[] u32(final long value) {
+  static byte[] unsigned32(final long value) {
     return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
   }
 
@@ -119,7 +119,7 @@ final class RfbSession {
 
   static byte[] serverInit(final int width, final int height, final int bitsPerPixel, final String name) {
     final byte[] text = name.getBytes(StandardCharsets.UTF_8);
-    return concat(u16(width), u16(height), pixelFormat(bitsPerPixel), u32(text.length), text);
+    return concat(unsigned16(width), unsigned16(height), pixelFormat(bitsPerPixel), unsigned32(text.length), text);
   }
 
   static byte[] setPixelFormat(final int bitsPerPixel) {
@@ -128,14 +128,14 @@ final class RfbSession {
 
   /** A framebuffer update header announcing some rectangles. */
   static byte[] update(final int rectangles) {
-    return concat(new byte[] { 0, 0 }, u16(rectangles));
+    return concat(new byte[] { 0, 0 }, unsigned16(rectangles));
   }
 
-  static byte[] rectangle(final int x, final int y, final int width, final int height, final int encoding) {
-    return concat(u16(x), u16(y), u16(width), u16(height), u32(encoding));
+  static byte[] rectangle(final int left, final int top, final int width, final int height, final int encoding) {
+    return concat(unsigned16(left), unsigned16(top), unsigned16(width), unsigned16(height), unsigned32(encoding));
   }
 
   static byte[] cutText(final int length) {
-    return concat(new byte[] { 3, 0, 0, 0 }, u32(length), new byte[Math.max(length, 0)]);
+    return concat(new byte[] { 3, 0, 0, 0 }, unsigned32(length), new byte[Math.max(length, 0)]);
   }
 }

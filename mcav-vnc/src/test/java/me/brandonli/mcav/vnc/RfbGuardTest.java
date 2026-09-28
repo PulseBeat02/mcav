@@ -25,8 +25,8 @@ import static me.brandonli.mcav.vnc.RfbSession.cutText;
 import static me.brandonli.mcav.vnc.RfbSession.rectangle;
 import static me.brandonli.mcav.vnc.RfbSession.serverInit;
 import static me.brandonli.mcav.vnc.RfbSession.setPixelFormat;
-import static me.brandonli.mcav.vnc.RfbSession.u16;
-import static me.brandonli.mcav.vnc.RfbSession.u32;
+import static me.brandonli.mcav.vnc.RfbSession.unsigned16;
+import static me.brandonli.mcav.vnc.RfbSession.unsigned32;
 import static me.brandonli.mcav.vnc.RfbSession.update;
 import static me.brandonli.mcav.vnc.RfbSession.version;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -138,7 +138,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    assertRefused(session, u32(19), "security type 19");
+    assertRefused(session, unsigned32(19), "security type 19");
   }
 
   @ParameterizedTest
@@ -147,8 +147,8 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(minor));
     session.client(version(minor));
-    final byte[] refusal = minor == 3 ? u32(0) : new byte[] { 0 };
-    session.server(concat(refusal, u32(4), new byte[] { 'n', 'o', 'p', 'e' }));
+    final byte[] refusal = minor == 3 ? unsigned32(0) : new byte[] { 0 };
+    session.server(concat(refusal, unsigned32(4), new byte[] { 'n', 'o', 'p', 'e' }));
     assertRefused(session, new byte[] { 1 }, "after the connection ended");
   }
 
@@ -157,7 +157,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(8));
     session.client(version(8));
-    session.server(concat(new byte[] { 0 }, u32(0)));
+    session.server(concat(new byte[] { 0 }, unsigned32(0)));
     assertRefused(session, new byte[] { 1 }, "after the connection ended");
   }
 
@@ -166,7 +166,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(8));
     session.client(version(8));
-    assertRefused(session, concat(new byte[] { 0 }, u32(RfbGuard.MAX_REASON + 1)), "failure reason");
+    assertRefused(session, concat(new byte[] { 0 }, unsigned32(RfbGuard.MAX_REASON + 1)), "failure reason");
   }
 
   @Test
@@ -178,7 +178,7 @@ final class RfbGuardTest {
     session.client(new byte[] { VNC });
     session.server(new byte[16]);
     session.client(new byte[16]);
-    session.server(u32(1));
+    session.server(unsigned32(1));
     assertRefused(session, new byte[] { 0 }, "after the connection ended");
   }
 
@@ -191,7 +191,7 @@ final class RfbGuardTest {
     session.client(new byte[] { VNC });
     session.server(new byte[16]);
     session.client(new byte[16]);
-    session.server(concat(u32(1), u32(2), new byte[] { 'n', 'o' }));
+    session.server(concat(unsigned32(1), unsigned32(2), new byte[] { 'n', 'o' }));
     assertRefused(session, new byte[] { 0 }, "after the connection ended");
   }
 
@@ -201,7 +201,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     assertRefused(session, serverInit(width, SIDE, 32, "desktop"), "framebuffer");
   }
@@ -212,7 +212,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     assertRefused(session, serverInit(SIDE, height, 32, "desktop"), "framebuffer");
   }
@@ -222,7 +222,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     assertRefused(session, serverInit(SIDE, SIDE, 24, "desktop"), "24 bits per pixel");
   }
@@ -232,10 +232,10 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     // only the length arrives: the guard refuses it before the client could allocate the name
-    final byte[] header = concat(u16(SIDE), u16(SIDE), RfbSession.pixelFormat(32), u32(RfbGuard.MAX_NAME + 1L));
+    final byte[] header = concat(unsigned16(SIDE), unsigned16(SIDE), RfbSession.pixelFormat(32), unsigned32(RfbGuard.MAX_NAME + 1L));
     assertRefused(session, header, "desktop name");
   }
 
@@ -250,13 +250,13 @@ final class RfbGuardTest {
   @Test
   void refusesClipboardTextAboveItsBound() throws IOException {
     final RfbSession session = connected();
-    assertRefused(session, concat(new byte[] { 3, 0, 0, 0 }, u32(0xFFFFFFFFL)), "clipboard text");
+    assertRefused(session, concat(new byte[] { 3, 0, 0, 0 }, unsigned32(0xFFFFFFFFL)), "clipboard text");
   }
 
   @Test
   void framesColourMapEntries() throws IOException {
     final RfbSession session = connected();
-    session.server(concat(new byte[] { 1, 0 }, u16(0), u16(2), new byte[12]));
+    session.server(concat(new byte[] { 1, 0 }, unsigned16(0), unsigned16(2), new byte[12]));
     assertAtAMessage(session);
   }
 
@@ -278,7 +278,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     session.server(serverInit(SIDE, SIDE, 16, "desktop"));
     session.server(concat(update(1), rectangle(0, 0, 2, 2, 0), pixels(2 * 2 * 2)));
@@ -290,7 +290,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(3));
     session.client(version(3));
-    session.server(u32(NONE));
+    session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
     session.server(serverInit(SIDE, SIDE, 8, "desktop"));
     session.client(setPixelFormat(24));
@@ -301,21 +301,21 @@ final class RfbGuardTest {
   @Test
   void framesCopyRectangles() throws IOException {
     final RfbSession session = connected();
-    session.server(concat(update(1), rectangle(0, 0, 8, 8, 1), u16(8), u16(8)));
+    session.server(concat(update(1), rectangle(0, 0, 8, 8, 1), unsigned16(8), unsigned16(8)));
     assertAtAMessage(session);
   }
 
   @Test
   void framesRreRectangles() throws IOException {
     final RfbSession session = connected();
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, 2), u32(2), pixels(4), pixels(2 * (4 + 8))));
+    session.server(concat(update(1), rectangle(0, 0, 4, 4, 2), unsigned32(2), pixels(4), pixels(2 * (4 + 8))));
     assertAtAMessage(session);
   }
 
   @Test
   void refusesMoreRreSubrectanglesThanPixels() throws IOException {
     final RfbSession session = connected();
-    assertRefused(session, concat(update(1), rectangle(0, 0, 2, 2, 2), u32(5), new byte[4]), "RRE subrectangles");
+    assertRefused(session, concat(update(1), rectangle(0, 0, 2, 2, 2), unsigned32(5), new byte[4]), "RRE subrectangles");
   }
 
   @Test
@@ -334,8 +334,8 @@ final class RfbGuardTest {
   @Test
   void framesZlibRectangles() throws IOException {
     final RfbSession session = connected();
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, 6), u32(10), pixels(10)));
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, 6), u32(0)));
+    session.server(concat(update(1), rectangle(0, 0, 4, 4, 6), unsigned32(10), pixels(10)));
+    session.server(concat(update(1), rectangle(0, 0, 4, 4, 6), unsigned32(0)));
     assertAtAMessage(session);
   }
 
@@ -343,14 +343,14 @@ final class RfbGuardTest {
   void refusesZlibDataFarLargerThanItsPixels() throws IOException {
     final RfbSession session = connected();
     final long limit = 4L * 4 * 4 + RfbGuard.ZLIB_SLACK;
-    assertRefused(session, concat(update(1), rectangle(0, 0, 4, 4, 6), u32(limit + 1)), "zlib data");
+    assertRefused(session, concat(update(1), rectangle(0, 0, 4, 4, 6), unsigned32(limit + 1)), "zlib data");
   }
 
   @Test
   void followsANewDesktopSizeWithinItsBounds() throws IOException {
     final RfbSession session = connected();
     session.server(concat(update(1), rectangle(0, 0, SIDE * 2, SIDE, -223)));
-    session.server(concat(update(1), rectangle(SIDE, 0, SIDE, 1, 1), u32(0)));
+    session.server(concat(update(1), rectangle(SIDE, 0, SIDE, 1, 1), unsigned32(0)));
     assertRefused(session, concat(update(1), rectangle(0, 0, RfbGuard.MAX_SIDE + 1, SIDE, -223)), "framebuffer");
   }
 
@@ -375,9 +375,9 @@ final class RfbGuardTest {
   @ValueSource(ints = { 0, 1 })
   void refusesARectangleOutsideTheFramebuffer(final int belowInsteadOfRight) throws IOException {
     final RfbSession session = connected();
-    final int x = belowInsteadOfRight == 1 ? 0 : SIDE - 1;
-    final int y = belowInsteadOfRight == 1 ? SIDE - 1 : 0;
-    assertRefused(session, concat(update(1), rectangle(x, y, 2, 2, 0)), "outside the framebuffer");
+    final int left = belowInsteadOfRight == 1 ? 0 : SIDE - 1;
+    final int top = belowInsteadOfRight == 1 ? SIDE - 1 : 0;
+    assertRefused(session, concat(update(1), rectangle(left, top, 2, 2, 0)), "outside the framebuffer");
   }
 
   @Test
@@ -400,14 +400,14 @@ final class RfbGuardTest {
   void followsEveryMessageTheClientSends() throws IOException {
     final RfbSession session = connected();
     // a list of encodings split across writes
-    session.client(concat(new byte[] { 2, 0 }, u16(2), u32(0)));
-    session.client(u32(1));
-    session.client(concat(new byte[] { 2, 0 }, u16(0)));
-    session.client(concat(new byte[] { 3, 0 }, u16(0), u16(0), u16(SIDE), u16(SIDE)));
-    session.client(concat(new byte[] { 4, 1, 0, 0 }, u32(65)));
-    session.client(concat(new byte[] { 5, 0 }, u16(1), u16(1)));
-    session.client(concat(new byte[] { 6, 0, 0, 0 }, u32(2), new byte[] { 'h', 'i' }));
-    session.client(concat(new byte[] { 6, 0, 0, 0 }, u32(0)));
+    session.client(concat(new byte[] { 2, 0 }, unsigned16(2), unsigned32(0)));
+    session.client(unsigned32(1));
+    session.client(concat(new byte[] { 2, 0 }, unsigned16(0)));
+    session.client(concat(new byte[] { 3, 0 }, unsigned16(0), unsigned16(0), unsigned16(SIDE), unsigned16(SIDE)));
+    session.client(concat(new byte[] { 4, 1, 0, 0 }, unsigned32(65)));
+    session.client(concat(new byte[] { 5, 0 }, unsigned16(1), unsigned16(1)));
+    session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(2), new byte[] { 'h', 'i' }));
+    session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(0)));
     session.client(setPixelFormat(16));
     // two bytes a pixel now
     session.server(concat(update(1), rectangle(0, 0, 2, 2, 0), pixels(2 * 2 * 2)));
@@ -453,7 +453,7 @@ final class RfbGuardTest {
     Arrays.fill(types, (byte) NONE);
     session.server(concat(new byte[] { (byte) types.length }, types));
     session.client(new byte[] { NONE });
-    session.server(u32(0));
+    session.server(unsigned32(0));
     session.client(new byte[] { 1 });
     session.server(serverInit(SIDE, SIDE, 32, "desktop"));
     assertAtAMessage(session);
@@ -462,7 +462,7 @@ final class RfbGuardTest {
   @Test
   void followsTheClientPastEveryEncodingItLists() throws IOException {
     final RfbSession session = connected();
-    session.client(concat(new byte[] { 2, 0 }, u16(3), pixels(3 * 4)));
+    session.client(concat(new byte[] { 2, 0 }, unsigned16(3), pixels(3 * 4)));
     session.client(setPixelFormat(8));
     session.server(concat(update(1), rectangle(0, 0, 2, 2, 0), pixels(2 * 2)));
     assertAtAMessage(session);
@@ -476,7 +476,7 @@ final class RfbGuardTest {
     guard.acceptClient(version, 0, version.length);
     guard.acceptServer(new byte[] { 9, 9, 1, NONE }, 2, 2);
     guard.acceptClient(new byte[] { NONE }, 0, 1);
-    guard.acceptServer(concat(new byte[] { 9 }, u32(0)), 1, 4);
+    guard.acceptServer(concat(new byte[] { 9 }, unsigned32(0)), 1, 4);
     guard.acceptClient(new byte[] { 1 }, 0, 1);
     final byte[] init = serverInit(SIDE, SIDE, 32, "desktop");
     guard.acceptServer(init, 0, init.length);
@@ -490,7 +490,7 @@ final class RfbGuardTest {
     final RfbSession session = new RfbSession();
     session.server(version(8));
     session.client(version(8));
-    session.server(concat(new byte[] { 0 }, u32(RfbGuard.MAX_REASON), pixels(RfbGuard.MAX_REASON)));
+    session.server(concat(new byte[] { 0 }, unsigned32(RfbGuard.MAX_REASON), pixels(RfbGuard.MAX_REASON)));
     assertRefused(session, new byte[] { 2 }, "after the connection ended");
   }
 
@@ -519,7 +519,7 @@ final class RfbGuardTest {
   void acceptsZlibDataUpToItsBound() throws IOException {
     final RfbSession session = connected();
     final int limit = 16 * 16 * 4 + RfbGuard.ZLIB_SLACK;
-    session.server(concat(update(1), rectangle(0, 0, 16, 16, 6), u32(limit), pixels(limit)));
+    session.server(concat(update(1), rectangle(0, 0, 16, 16, 6), unsigned32(limit), pixels(limit)));
     assertAtAMessage(session);
   }
 
@@ -528,8 +528,8 @@ final class RfbGuardTest {
     final RfbSession session = connected();
     final byte[] bytes = concat(update(1), rectangle(0, 0, 1, 1, 0), pixels(4), new byte[] { 9 });
     final InputStream input = session.guard().serverInput(new ByteArrayInputStream(bytes));
-    for (int i = 0; i < bytes.length - 1; i++) {
-      assertEquals(bytes[i] & 0xFF, input.read());
+    for (int offset = 0; offset < bytes.length - 1; offset++) {
+      assertEquals(bytes[offset] & 0xFF, input.read());
     }
     final IOException refused = assertThrows(IOException.class, input::read);
     assertTrue(refused.getMessage().contains("message type 9"), refused.getMessage());

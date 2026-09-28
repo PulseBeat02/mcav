@@ -97,9 +97,9 @@ public final class VNCInputExample {
     final MouseListener listener = new MouseAdapter() {
       @Override
       public void mouseClicked(final MouseEvent event) {
-        final int x = event.getX();
-        final int y = event.getY();
-        player.sendMouseEvent(MouseClick.LEFT, x, y);
+        final int frameX = event.getX();
+        final int frameY = event.getY();
+        player.sendMouseEvent(MouseClick.LEFT, frameX, frameY);
       }
     };
     label.addMouseListener(listener);

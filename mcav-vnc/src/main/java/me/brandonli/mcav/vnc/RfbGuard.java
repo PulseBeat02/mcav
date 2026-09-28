@@ -529,32 +529,32 @@ final class RfbGuard {
     }
 
     private void rectangle() throws IOException {
-      final int x = unsigned16(this.field, 0);
-      final int y = unsigned16(this.field, 2);
-      final int w = unsigned16(this.field, 4);
-      final int h = unsigned16(this.field, 6);
+      final int left = unsigned16(this.field, 0);
+      final int top = unsigned16(this.field, 2);
+      final int width = unsigned16(this.field, 4);
+      final int height = unsigned16(this.field, 6);
       final int encoding = (int) unsigned32(this.field, 8);
       final int pixel = RfbGuard.this.bytesPerPixel();
       if (encoding == DESKTOP_SIZE) {
-        this.resize(w, h);
+        this.resize(width, height);
         this.nextRectangle();
         return;
       }
       if (encoding == CURSOR) {
-        if (w > MAX_SIDE || h > MAX_SIDE) {
-          throw violation("a cursor of " + w + "x" + h + " pixels");
+        if (width > MAX_SIDE || height > MAX_SIDE) {
+          throw violation("a cursor of " + width + "x" + height + " pixels");
         }
-        final long mask = (long) ((w + 7) / 8) * h;
-        this.skip((long) w * h * pixel + mask, Then.RECTANGLE, Server.MESSAGE);
+        final long mask = (long) ((width + 7) / 8) * height;
+        this.skip((long) width * height * pixel + mask, Then.RECTANGLE, Server.MESSAGE);
         return;
       }
-      if (x + w > this.width || y + h > this.height) {
+      if (left + width > this.width || top + height > this.height) {
         throw violation("a rectangle outside the framebuffer");
       }
-      this.rectangleWidth = w;
-      this.rectangleHeight = h;
+      this.rectangleWidth = width;
+      this.rectangleHeight = height;
       switch (encoding) {
-        case RAW -> this.skip((long) w * h * pixel, Then.RECTANGLE, Server.MESSAGE);
+        case RAW -> this.skip((long) width * height * pixel, Then.RECTANGLE, Server.MESSAGE);
         case COPY_RECTANGLE -> this.skip(Integer.BYTES, Then.RECTANGLE, Server.MESSAGE);
         case RRE_ENCODING -> this.expect(Server.RRE);
         case HEXTILE -> {
@@ -748,8 +748,8 @@ final class RfbGuard {
 
     private void version() {
       int minor = 0;
-      for (int i = 8; i < VERSION_BYTES - 1; i++) {
-        final int digit = this.field[i] - '0';
+      for (int offset = 8; offset < VERSION_BYTES - 1; offset++) {
+        final int digit = this.field[offset] - '0';
         if (digit < 0 || digit > 9) {
           this.mode = ClientMode.UNTRACKED;
           return;

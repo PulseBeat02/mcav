@@ -288,19 +288,19 @@ public final class VMPlayerImpl implements VMPlayer {
   }
 
   @Override
-  public void moveMouse(final int x, final int y) {
+  public void moveMouse(final int frameX, final int frameY) {
     final boolean active = this.isActive();
     if (active) {
-      this.vncPlayer.moveMouse(x, y);
+      this.vncPlayer.moveMouse(frameX, frameY);
     }
   }
 
   @Override
-  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
+  public void sendMouseEvent(final MouseClick type, final int frameX, final int frameY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
     final boolean active = this.isActive();
     if (active) {
-      this.vncPlayer.sendMouseEvent(type, x, y);
+      this.vncPlayer.sendMouseEvent(type, frameX, frameY);
     }
   }
 

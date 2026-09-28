@@ -257,9 +257,9 @@ final class VNCPlayerImplTest {
 
   private static BufferedImage image(final int width, final int height, final int rgb) {
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        image.setRGB(x, y, rgb);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        image.setRGB(column, row, rgb);
       }
     }
     return image;
@@ -361,11 +361,11 @@ final class VNCPlayerImplTest {
     for (int index = 0; index < expected.length; index++) {
       final RfbTestServer.ReceivedPointer pointer = pointers.get(index);
       final int mask = pointer.getButtonMask();
-      final int x = pointer.getX();
-      final int y = pointer.getY();
+      final int screenX = pointer.getX();
+      final int screenY = pointer.getY();
       assertEquals(expected[index][0], mask, "mask " + index);
-      assertEquals(expected[index][1], x, "x " + index);
-      assertEquals(expected[index][2], y, "y " + index);
+      assertEquals(expected[index][1], screenX, "x " + index);
+      assertEquals(expected[index][2], screenY, "y " + index);
     }
   }
 
@@ -381,11 +381,11 @@ final class VNCPlayerImplTest {
 
     final List<RfbTestServer.ReceivedPointer> pointers = server.getPointers();
     final RfbTestServer.ReceivedPointer pointer = pointers.getFirst();
-    final int x = pointer.getX();
-    final int y = pointer.getY();
+    final int screenX = pointer.getX();
+    final int screenY = pointer.getY();
     final boolean noFrames = this.frames.isEmpty();
-    assertEquals(30, x);
-    assertEquals(0, y);
+    assertEquals(30, screenX);
+    assertEquals(0, screenY);
     assertTrue(noFrames);
 
     server.setAnswering(true);
