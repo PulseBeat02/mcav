@@ -120,6 +120,7 @@ final class Mcv2ScreenTest {
       .rows(2)
       .pageMap(500)
       .pageSlots(2)
+      .streamId(70)
       .outlineColor(NamedTextColor.GOLD)
       .build();
   }
@@ -227,7 +228,8 @@ final class Mcv2ScreenTest {
     assertEquals(0, patch.getY());
     assertEquals(1, patch.getHeight());
     final byte[] expected = new byte[128];
-    final int[] symbols = { 21, 3, 58, 44, 9, 37, 60, 17, 1, 1, 3, 2, 1, (1 + 1 + 3 + 2 + 1) & 63 };
+    // after the signature: column, row, columns, rows, facing, the stream id 70 in two symbols (6 + 1 * 64), the check
+    final int[] symbols = { 21, 3, 58, 44, 9, 37, 60, 17, 1, 1, 3, 2, 1, 6, 1, (1 + 1 + 3 + 2 + 1 + 6 + 1) & 63 };
     for (int i = 0; i < expected.length; i++) {
       expected[i] = (byte) ((i < symbols.length ? symbols[i] : 0) + 4);
     }

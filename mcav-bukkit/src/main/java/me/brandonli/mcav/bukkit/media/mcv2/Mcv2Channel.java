@@ -97,6 +97,15 @@ public final class Mcv2Channel {
   }
 
   /**
+   * Gets the configuration of the screen the channel sends to: its video size, stream id and viewers.
+   *
+   * @return the configuration
+   */
+  public Mcv2Configuration getConfiguration() {
+    return this.configuration;
+  }
+
+  /**
    * Spawns the screen's page frames. Call on the main thread.
    */
   public void open() {

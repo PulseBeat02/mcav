@@ -1,10 +1,10 @@
 #version 330
 #extension GL_ARB_separate_shader_objects : require
 
-// Vanilla 26.3 core/text.vsh, plus MCV2: a map that is a transport page of this pack's stream is moved to its slot
-// of the transport strip at the top of the screen, and an anchor map is moved to the descriptor row after it,
-// carrying the screen's position and orientation in view space for the post chain. Every other text is drawn
-// exactly as by vanilla.
+// Vanilla 26.3 core/text.vsh, plus MCV2: a map that is a transport page of one of the pack's screens is moved to its
+// slot of the transport strip at the top of the screen, and an anchor map is moved to its screen's descriptor row
+// after the slots, carrying the screen's position and orientation in view space for the post chain. Every other text
+// is drawn exactly as by vanilla.
 
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH)
 #include <minecraft:fog.glsl>
@@ -84,12 +84,13 @@ void main() {
         return;
     }
     int width = int(ScreenSize.x);
-    int rows = mcv2RowsPerPage(width);
-    if (mcv2IsPage(Sampler0)) {
+    int pageScreen = mcv2PageScreen(Sampler0);
+    if (pageScreen >= 0) {
         // the page number, header bytes 16 and 17
-        int slot = mcv2PageBits(Sampler0, 128, 16);
-        if (slot < MCV2_PAGE_SLOTS) {
-            gl_Position = mcv2Place(UV0, 0.0, float(slot * rows), float(width), float((slot + 1) * rows));
+        int page = mcv2PageBits(Sampler0, 128, 16);
+        if (page < MCV2_SCREEN_SLOTS[pageScreen]) {
+            int slot = MCV2_SCREEN_FIRST_SLOTS[pageScreen] + page;
+            gl_Position = mcv2Place(UV0, 0.0, float(mcv2SlotRow(width, slot)), float(width), float(mcv2SlotRow(width, slot + 1)));
             mcv2Kind = 1;
             mcv2Slot = slot;
         }
@@ -103,8 +104,14 @@ void main() {
     int columns = mcv2SymbolAt(Sampler0, 10);
     int screenRows = mcv2SymbolAt(Sampler0, 11);
     int facing = mcv2SymbolAt(Sampler0, 12);
-    int check = mcv2SymbolAt(Sampler0, 13);
-    if (((column + row + columns + screenRows + facing) & 63) != check || facing > 3) {
+    int streamLow = mcv2SymbolAt(Sampler0, 13);
+    int streamHigh = mcv2SymbolAt(Sampler0, 14);
+    int check = mcv2SymbolAt(Sampler0, 15);
+    if (((column + row + columns + screenRows + facing + streamLow + streamHigh) & 63) != check || facing > 3) {
+        return;
+    }
+    int anchorScreen = mcv2ScreenOf(uint(streamLow | (streamHigh << 6)));
+    if (anchorScreen < 0) {
         return;
     }
     // one block along the map's right and down edges in world space; frames hang on vertical walls, and facing
@@ -124,7 +131,7 @@ void main() {
     mcv2P1 = ProjMat[1];
     mcv2P2 = ProjMat[2];
     mcv2P3 = ProjMat[3];
-    float descriptor = float(mcv2DescriptorRow(width));
+    float descriptor = float(mcv2DescriptorRowOf(width, anchorScreen));
     gl_Position = mcv2Place(UV0, 0.0, descriptor, float(MCV2_DESCRIPTOR_PIXELS), descriptor + 1.0);
     mcv2Kind = 2;
 #endif

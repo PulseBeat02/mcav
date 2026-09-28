@@ -8,7 +8,9 @@
 // frame, or the last decoded keyframe.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 
 uniform sampler2D PagesSampler;
 uniform sampler2D StateSampler;

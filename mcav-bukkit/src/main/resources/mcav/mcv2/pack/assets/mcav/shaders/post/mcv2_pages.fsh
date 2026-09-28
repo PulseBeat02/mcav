@@ -6,7 +6,9 @@
 // this stream and slot and its CRC-32 matches; only the first texel of a slot chains the CRC pass's chunks.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 #include <mcav:mcv2_crc.glsl>
 
 uniform sampler2D MainSampler;

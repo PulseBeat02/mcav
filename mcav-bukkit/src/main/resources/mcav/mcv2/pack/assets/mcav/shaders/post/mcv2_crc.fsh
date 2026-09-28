@@ -7,7 +7,9 @@
 // (bytes 28 to 31) zeroed.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 #include <mcav:mcv2_crc.glsl>
 
 uniform sampler2D MainSampler;

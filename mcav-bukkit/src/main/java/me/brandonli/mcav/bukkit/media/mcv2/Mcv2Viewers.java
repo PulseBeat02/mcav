@@ -51,11 +51,13 @@ public final class Mcv2Viewers {
     REQUESTED,
     /** The client loaded the pack. */
     LOADED,
-    /** The client declined the pack, or could not download or apply it. */
+    /** The client could not download or apply the pack. */
     REFUSED,
+    /** The player declined the pack, and is not asked again while online, whichever pack follows. */
+    DECLINED,
   }
 
-  private final UUID packId;
+  private volatile UUID packId;
 
   private final Consumer<Player> onRefused;
 
@@ -104,6 +106,28 @@ public final class Mcv2Viewers {
   }
 
   /**
+   * Follows another pack from now on, which replaces the one followed so far: nobody has it loaded until their client
+   * reports so, and what they reported for the old pack no longer counts, except that a player who declined stays
+   * declined.
+   *
+   * @param newPackId the id of the new pack's request
+   */
+  public void retarget(final UUID newPackId) {
+    Preconditions.checkNotNull(newPackId, "Pack id must not be null");
+    this.packId = newPackId;
+    this.states.values().removeIf(state -> state != PackState.DECLINED);
+  }
+
+  /**
+   * Gets the id of the pack followed.
+   *
+   * @return the id of the pack's request
+   */
+  public UUID getPackId() {
+    return this.packId;
+  }
+
+  /**
    * Records that the pack was requested from a player.
    *
    * @param player the player's UUID
@@ -143,11 +167,15 @@ public final class Mcv2Viewers {
     switch (event.getStatus()) {
       case SUCCESSFULLY_LOADED -> this.states.put(uuid, PackState.LOADED);
       case ACCEPTED, DOWNLOADED -> this.states.put(uuid, PackState.REQUESTED);
-      default -> {
-        if (this.states.put(uuid, PackState.REFUSED) != PackState.REFUSED) {
-          this.onRefused.accept(player);
-        }
-      }
+      case DECLINED -> this.refuse(player, PackState.DECLINED);
+      default -> this.refuse(player, PackState.REFUSED);
+    }
+  }
+
+  private void refuse(final Player player, final PackState state) {
+    final PackState before = this.states.put(player.getUniqueId(), state);
+    if (before != PackState.REFUSED && before != PackState.DECLINED) {
+      this.onRefused.accept(player);
     }
   }
 

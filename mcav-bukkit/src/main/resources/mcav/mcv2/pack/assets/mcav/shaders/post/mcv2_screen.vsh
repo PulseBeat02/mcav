@@ -8,7 +8,9 @@
 // 630 and would move the screen's edges by a pixel where a ray grazes them.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 
 uniform sampler2D ViewSampler;
 

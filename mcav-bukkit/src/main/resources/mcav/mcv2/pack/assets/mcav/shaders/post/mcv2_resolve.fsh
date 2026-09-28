@@ -8,7 +8,9 @@
 // does not decode a frame, and the decode pass then reads nothing here.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 #include <mcav:mcv2_books.glsl>
 
 uniform sampler2D BytesSampler;

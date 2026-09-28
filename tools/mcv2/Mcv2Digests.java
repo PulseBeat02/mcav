@@ -16,11 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Receiver;
 import me.brandonli.mcav.bukkit.media.mcv2.UnsupportedSyntaxException;
@@ -33,8 +37,13 @@ import me.brandonli.mcav.bukkit.media.mcv2.UnsupportedSyntaxException;
  * not implement - and {@code truncated} if the archive ends inside a frame. tools/mcv2/differential.py compares these
  * lines with the reference decoder's.
  *
+ * <p>With {@code --rgb <file>} first, every picture decoded is also written to that file, raw RGB one after another:
+ * the reference decode of a stream a screen recorded ({@code -Dmcav.sandbox.mcv2.record}) for
+ * {@code tools/mcv2/capture_check.py}. The receiver decodes bit for bit what the reference decoder does, which
+ * differential.py checks.
+ *
  * <p>Run with a JDK (the launcher compiles this file): {@code java -cp <mcav-bukkit classes>:<guava jar>
- * tools/mcv2/Mcv2Digests.java <archive>...}
+ * tools/mcv2/Mcv2Digests.java [--rgb <file>] <archive>...}
  */
 public final class Mcv2Digests {
 
@@ -51,13 +60,18 @@ public final class Mcv2Digests {
 
   public static void main(final String[] args) throws Exception {
     final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-    for (final String argument : args) {
-      System.out.println(argument + digests(Files.readAllBytes(Path.of(argument)), sha256));
+    final boolean rgb = args.length >= 2 && args[0].equals("--rgb");
+    final List<String> archives = Arrays.asList(args).subList(rgb ? 2 : 0, args.length);
+    try (OutputStream pictures = rgb ? new BufferedOutputStream(Files.newOutputStream(Path.of(args[1]))) : OutputStream.nullOutputStream()) {
+      for (final String argument : archives) {
+        System.out.println(argument + digests(Files.readAllBytes(Path.of(argument)), sha256, pictures));
+      }
     }
   }
 
   /** One token per frame of an archive, each after a space, and a last one if the archive ends inside a frame. */
-  private static String digests(final byte[] archive, final MessageDigest sha256) {
+  private static String digests(final byte[] archive, final MessageDigest sha256, final OutputStream pictures)
+    throws IOException {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     final StringBuilder line = new StringBuilder();
     int offset = 0;
@@ -68,7 +82,7 @@ public final class Mcv2Digests {
         break;
       }
       final byte[] frame = Arrays.copyOfRange(archive, offset + LENGTH_BYTES, offset + LENGTH_BYTES + (int) length);
-      line.append(' ').append(token(receiver, frame, sha256));
+      line.append(' ').append(token(receiver, frame, sha256, pictures));
       offset += LENGTH_BYTES + (int) length;
     }
     return line.toString();
@@ -83,13 +97,17 @@ public final class Mcv2Digests {
   }
 
   /** The SHA-256 of the picture the receiver decodes, or why it decodes none. */
-  private static String token(final Mcv2Receiver receiver, final byte[] frame, final MessageDigest sha256) {
+  private static String token(final Mcv2Receiver receiver, final byte[] frame, final MessageDigest sha256, final OutputStream pictures)
+    throws IOException {
+    final byte[] picture;
     try {
-      return HexFormat.of().formatHex(sha256.digest(receiver.accept(frame)));
+      picture = receiver.accept(frame);
     } catch (final UnsupportedSyntaxException unsupported) {
       return UNSUPPORTED;
     } catch (final Mcv2Exception rejected) {
       return REJECTED;
     }
+    pictures.write(picture);
+    return HexFormat.of().formatHex(sha256.digest(picture));
   }
 }

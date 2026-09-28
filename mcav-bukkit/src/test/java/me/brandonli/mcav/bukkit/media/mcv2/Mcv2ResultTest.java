@@ -151,6 +151,8 @@ final class Mcv2ResultTest {
   @Test
   void encodesForViewersWithThePackAndDithersForTheOthers() throws InterruptedException {
     final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
+    result.setFrameListener(heard::add);
     result.start();
     verify(this.screen).build();
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
@@ -172,13 +174,18 @@ final class Mcv2ResultTest {
     final List<Packet<?>> packets = this.server.getSentPackets(WITH_PACK);
     assertEquals(500, MapPackets.unbundle(packets.getLast()).getFirst().mapId().id());
     assertSame(result.getChannel(), result.getChannel());
+    // the listener heard both frames sent, a keyframe first
+    assertEquals(2, heard.size());
+    assertEquals(statistics.getBytes(), heard.getFirst().length + heard.getLast().length);
     result.release();
     verify(this.screen).remove();
   }
 
   @Test
   void recordsEveryFrameForTheFlightRecorder(@TempDir final Path directory) throws Exception {
-    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    // a screen that took over a pack slot numbers its frames from where the pack server said
+    final Mcv2Configuration slotted = this.configuration.withStream(this.configuration.getStreamId(), 4_000_000_000L);
+    final Mcv2Result result = this.result(slotted, this.algorithm);
     try (Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Frame");
       recording.start();
@@ -198,7 +205,7 @@ final class Mcv2ResultTest {
         .toList();
       assertEquals(1, frames.size());
       final RecordedEvent frame = frames.getFirst();
-      assertEquals(0, frame.getLong("frameId"));
+      assertEquals(4_000_000_000L, frame.getLong("frameId"));
       assertTrue(frame.getBoolean("keyframe"));
       assertEquals(1, frame.getInt("sentTo"));
       assertEquals(0, frame.getInt("behind") + frame.getInt("waiting"));
@@ -331,8 +338,11 @@ final class Mcv2ResultTest {
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
     when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
     result.getChannel().requestKeyframe();
+    final List<byte[]> heard = new ArrayList<>();
+    result.setFrameListener(heard::add);
     result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0, Mcv2Pacer.Preset.ONLY), 0);
     verify(encoder).requestKeyframe();
+    assertEquals(List.of(), heard, "a frame that is not sent is not heard");
     assertEquals(1, result.getStatistics().getDropped());
     assertEquals(0, result.getStatistics().getFrames());
   }
@@ -574,6 +584,7 @@ final class Mcv2ResultTest {
     }
     assertThrows(NullPointerException.class, () -> Mcv2Configuration.builder().encoderPool(null));
     assertThrows(NullPointerException.class, () -> this.result(this.configuration, null).setPacingListener(null));
+    assertThrows(NullPointerException.class, () -> this.result(this.configuration, null).setFrameListener(null));
   }
 
   @Test

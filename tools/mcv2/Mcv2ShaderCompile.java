@@ -23,7 +23,6 @@ import static org.lwjgl.util.spvc.Spvc.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -117,9 +116,11 @@ public final class Mcv2ShaderCompile {
         failures += compile(pack, generated, vanilla, source, stage, variant.getValue(), output.resolve(variant.getKey() + "." + stage));
       }
     }
-    try (final var files = Files.list(pack.resolve("assets/mcav/shaders/post"))) {
-      for (final Path source : files.sorted().toList()) {
-        final String name = source.getFileName().toString();
+    // a generated pack has each screen's copy of its passes in post/s<screen>/
+    final Path post = pack.resolve("assets/mcav/shaders/post");
+    try (final var files = Files.walk(post)) {
+      for (final Path source : files.filter(Files::isRegularFile).sorted().toList()) {
+        final String name = post.relativize(source).toString().replace('/', '_');
         final String stage = name.substring(name.lastIndexOf('.') + 1);
         failures += compile(pack, generated, vanilla, source, stage, Map.of(), output.resolve(name));
       }

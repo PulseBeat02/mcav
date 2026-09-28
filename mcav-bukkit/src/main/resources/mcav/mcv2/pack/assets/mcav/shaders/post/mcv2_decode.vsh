@@ -6,7 +6,9 @@
 // motion, the payload start and the table bases, with the frame's length from the status.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 
 uniform sampler2D StatusSampler;
 uniform sampler2D CellsSampler;

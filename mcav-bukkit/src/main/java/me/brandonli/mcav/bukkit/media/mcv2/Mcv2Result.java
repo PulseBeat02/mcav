@@ -173,6 +173,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private Consumer<Mcv2Pacer.Change> pacingListener = _ -> {};
 
+  private volatile Consumer<byte[]> frameListener = _ -> {};
+
   private volatile Screen screen;
 
   private boolean opened = true;
@@ -504,6 +506,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
+   * Sets who hears every frame the screen sends, as the bytes of its bitstream, for example to record the stream the
+   * viewers were sent and decode it again with the reference decoder. A frame too large for the screen's page slots is
+   * not sent, and not heard.
+   *
+   * @param listener called with every frame sent, on the thread that sends the frames, which it should not hold up
+   */
+  public void setFrameListener(final Consumer<byte[]> listener) {
+    Preconditions.checkNotNull(listener, "Listener must not be null");
+    this.frameListener = listener;
+  }
+
+  /**
    * Gets the rung of the ladder the screen is on.
    *
    * @return the rung, or null before the result is started
@@ -695,7 +709,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @param first the encoder of the screen's settings, the top of its ladder
    */
   void encodeLoop(final Mcv2Encoder first) {
-    long frameId = 0;
+    long frameId = this.requested.getFirstFrameId();
     Mcv2Encoder encoder = first;
     try {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
@@ -894,6 +908,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final long[] before = recorded ? this.linkCounts() : new long[LINK_COUNTS];
     final Screen current = this.screen;
     final int colors = current.channel().send(frame);
+    if (colors >= 0) {
+      this.frameListener.accept(frame);
+    }
     if (recorded) {
       this.record(event, delivery, colors, before);
     }

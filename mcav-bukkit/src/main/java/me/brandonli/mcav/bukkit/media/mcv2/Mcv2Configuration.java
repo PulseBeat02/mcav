@@ -51,6 +51,9 @@ public final class Mcv2Configuration {
   /** The most page slots a pack reserves. */
   public static final int MAX_PAGE_SLOTS = 8;
 
+  /** The largest stream id: an anchor carries it in two six-bit symbols. */
+  public static final long MAX_STREAM_ID = 4095;
+
   /**
    * The page slots of a screen that configures none, when it has that many maps: all of them, 98 KB a frame. A live
    * gameplay frame takes 46 KB on average at 60 fps, a keyframe more, which the encoder brings under the slots' bound.
@@ -94,6 +97,8 @@ public final class Mcv2Configuration {
 
   private final long streamId;
 
+  private final long firstFrameId;
+
   private final EncoderSettings settings;
 
   private final NamedTextColor outlineColor;
@@ -122,6 +127,7 @@ public final class Mcv2Configuration {
     this.pageMap = builder.pageMap;
     this.pageSlots = pageSlots;
     this.streamId = builder.streamId;
+    this.firstFrameId = builder.firstFrameId;
     this.settings = builder.settings;
     this.outlineColor = builder.outlineColor;
     this.backlogLimit = builder.backlogLimit;
@@ -309,6 +315,22 @@ public final class Mcv2Configuration {
    */
   public Mcv2Configuration withVideo(final int width, final int height) {
     Preconditions.checkArgument(width >= 1 && height >= 1, "Video size must be positive");
+    return this.toBuilder().video(width, height).build();
+  }
+
+  /**
+   * Copies the screen with the stream id and first frame id the resource pack's server gave it.
+   *
+   * @param streamId     the stream id, 0 to {@value #MAX_STREAM_ID}
+   * @param firstFrameId the id of the screen's first frame, an unsigned 32-bit value
+   * @return the copy
+   * @throws IllegalArgumentException if a value is out of range
+   */
+  public Mcv2Configuration withStream(final long streamId, final long firstFrameId) {
+    return this.toBuilder().streamId(streamId).firstFrameId(firstFrameId).build();
+  }
+
+  private Builder toBuilder() {
     final Builder builder = builder()
       .viewers(this.viewers)
       .origin(this.origin)
@@ -316,10 +338,11 @@ public final class Mcv2Configuration {
       .map(this.map)
       .columns(this.columns)
       .rows(this.rows)
-      .video(width, height)
+      .video(this.videoWidth, this.videoHeight)
       .pageMap(this.pageMap)
       .pageSlots(this.pageSlots)
       .streamId(this.streamId)
+      .firstFrameId(this.firstFrameId)
       .settings(this.settings)
       .outlineColor(this.outlineColor)
       .backlogLimit(this.backlogLimit)
@@ -328,7 +351,17 @@ public final class Mcv2Configuration {
     if (pool != null) {
       builder.encoderPool(pool);
     }
-    return builder.build();
+    return builder;
+  }
+
+  /**
+   * Gets the id of the screen's first frame: the frames after it count up from it, so a screen that takes over the
+   * pack slot of an earlier one is newer to the clients than anything the earlier one sent.
+   *
+   * @return an unsigned 32-bit value
+   */
+  public long getFirstFrameId() {
+    return this.firstFrameId;
   }
 
   /**
@@ -378,6 +411,8 @@ public final class Mcv2Configuration {
     private int pageSlots;
 
     private long streamId = 1;
+
+    private long firstFrameId;
 
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
 
@@ -500,13 +535,24 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets the stream id every page carries.
+     * Sets the stream id every page and anchor carries, which tells the resource pack which of its screens they are.
      *
-     * @param streamId an unsigned 32-bit value
+     * @param streamId 0 to {@value #MAX_STREAM_ID}: an anchor carries it in two six-bit symbols
      * @return this builder
      */
     public Builder streamId(final long streamId) {
       this.streamId = streamId;
+      return this;
+    }
+
+    /**
+     * Sets the id of the screen's first frame; defaults to 0.
+     *
+     * @param firstFrameId an unsigned 32-bit value
+     * @return this builder
+     */
+    public Builder firstFrameId(final long firstFrameId) {
+      this.firstFrameId = firstFrameId;
       return this;
     }
 
@@ -593,7 +639,11 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Format.MAX_DIMENSION, "Video width must be 0 to 4096");
       Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Format.MAX_DIMENSION, "Video height must be 0 to 4096");
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
-      Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= Mcv2Format.MAX_U32, "Stream id must be an unsigned 32-bit value");
+      Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= MAX_STREAM_ID, "Stream id must be 0 to %s", MAX_STREAM_ID);
+      Preconditions.checkArgument(
+        this.firstFrameId >= 0 && this.firstFrameId <= Mcv2Format.MAX_U32,
+        "First frame id must be an unsigned 32-bit value"
+      );
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
       final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, this.columns * this.rows);

@@ -9,7 +9,9 @@
 // them; everything else reads what it needs of the frame. The facts all pixels share come from the vertex shader.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 #include <mcav:mcv2_books.glsl>
 
 uniform sampler2D BytesSampler;

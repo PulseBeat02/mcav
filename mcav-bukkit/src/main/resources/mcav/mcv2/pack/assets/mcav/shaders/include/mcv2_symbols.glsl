@@ -31,20 +31,31 @@ int mcv2PageBits(sampler2D map, int bit, int width) {
     return value;
 }
 
-// A map is a transport page of this pack's stream when its first seven symbols spell the fixed six-bit page prefix
-// ("MCP1", version 1, six bits) and its header names the stream.
-bool mcv2IsPage(sampler2D map) {
+// The screen of the pack whose stream id this is, or -1.
+int mcv2ScreenOf(uint stream) {
+    for (int screen = 0; screen < MCV2_SCREENS; ++screen) {
+        if (MCV2_SCREEN_STREAMS[screen] == stream) {
+            return screen;
+        }
+    }
+    return -1;
+}
+
+// The screen whose transport page a map is, or -1: a page's first seven symbols spell the fixed six-bit page prefix
+// ("MCP1", version 1, six bits), and its header names the stream, which names the screen.
+int mcv2PageScreen(sampler2D map) {
     if (mcv2SymbolAt(map, 0) != 13 || mcv2SymbolAt(map, 1) != 13 || mcv2SymbolAt(map, 2) != 4
         || mcv2SymbolAt(map, 3) != 20 || mcv2SymbolAt(map, 4) != 49 || mcv2SymbolAt(map, 5) != 4
         || mcv2SymbolAt(map, 6) != 32) {
-        return false;
+        return -1;
     }
     uint stream = uint(mcv2PageBits(map, 64, 16)) | (uint(mcv2PageBits(map, 80, 16)) << 16u);
-    return stream == MCV2_STREAM_ID;
+    return mcv2ScreenOf(stream);
 }
 
-// An anchor map marks where the screen is: a signature, then its column and row in the screen, the screen's size
-// in maps, the facing of its frame and a checksum, one symbol each in the first row.
+// An anchor map marks where a screen is: a signature, then its column and row in the screen, the screen's size in
+// maps, the facing of its frame, the screen's stream id in two symbols, low first, and a checksum, one symbol each in
+// the first row.
 bool mcv2IsAnchor(sampler2D map) {
     return mcv2SymbolAt(map, 0) == 21 && mcv2SymbolAt(map, 1) == 3 && mcv2SymbolAt(map, 2) == 58
         && mcv2SymbolAt(map, 3) == 44 && mcv2SymbolAt(map, 4) == 9 && mcv2SymbolAt(map, 5) == 37

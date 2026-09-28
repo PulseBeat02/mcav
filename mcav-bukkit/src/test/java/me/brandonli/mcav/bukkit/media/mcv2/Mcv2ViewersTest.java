@@ -167,4 +167,31 @@ final class Mcv2ViewersTest {
     assertNull(viewers.getState(PLAYER));
     viewers.unregister();
   }
+
+  @Test
+  void aPlayerWhoDeclinedIsNotAskedAgainWhenThePackChanges() {
+    final Mcv2Viewers viewers = this.viewers();
+    final Player other = mock(Player.class);
+    final UUID otherId = UUID.fromString("00000000-0000-0000-0000-000000000022");
+    when(other.getUniqueId()).thenReturn(otherId);
+    viewers.handleStatus(this.status(PACK, Status.DECLINED));
+    viewers.handleStatus(this.status(PACK, Status.DECLINED));
+    assertEquals(Mcv2Viewers.PackState.DECLINED, viewers.getState(PLAYER));
+    assertEquals(List.of(this.player), this.refused, "the refusal is reported once");
+    viewers.handleStatus(new PlayerResourcePackStatusEvent(other, PACK, Status.SUCCESSFULLY_LOADED));
+    assertTrue(viewers.isLoaded(otherId));
+
+    viewers.retarget(OTHER);
+
+    assertEquals(OTHER, viewers.getPackId());
+    assertEquals(Mcv2Viewers.PackState.DECLINED, viewers.getState(PLAYER));
+    assertNull(viewers.getState(otherId), "nobody has the new pack until their client says so");
+    // the old pack's answers no longer count
+    viewers.handleStatus(new PlayerResourcePackStatusEvent(other, PACK, Status.SUCCESSFULLY_LOADED));
+    assertFalse(viewers.isLoaded(otherId));
+    viewers.handleStatus(this.status(OTHER, Status.FAILED_DOWNLOAD));
+    assertEquals(Mcv2Viewers.PackState.REFUSED, viewers.getState(PLAYER));
+    assertEquals(List.of(this.player), this.refused, "a player who declined is not told again");
+    assertThrows(NullPointerException.class, () -> viewers.retarget(null));
+  }
 }

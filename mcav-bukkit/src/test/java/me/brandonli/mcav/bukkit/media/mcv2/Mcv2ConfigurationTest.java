@@ -81,6 +81,7 @@ final class Mcv2ConfigurationTest {
         .video(320, 180)
         .pageSlots(2)
         .streamId(7)
+        .firstFrameId(99)
         .settings(EncoderSettings.LIVE)
         .outlineColor(NamedTextColor.AQUA)
         .backlogLimit(1000)
@@ -99,6 +100,7 @@ final class Mcv2ConfigurationTest {
       assertEquals(original.getPageMap(), smaller.getPageMap());
       assertEquals(2, smaller.getPageSlots());
       assertEquals(7, smaller.getStreamId());
+      assertEquals(99, smaller.getFirstFrameId());
       assertEquals(EncoderSettings.LIVE, smaller.getSettings());
       assertEquals(NamedTextColor.AQUA, smaller.getOutlineColor());
       assertEquals(1000, smaller.getBacklogLimit());
@@ -113,12 +115,26 @@ final class Mcv2ConfigurationTest {
   }
 
   @Test
+  void copiesItselfWithTheStreamASlotGaveIt() {
+    final Mcv2Configuration original = complete().video(320, 180).streamId(7).build();
+    final Mcv2Configuration slotted = original.withStream(3, Mcv2Format.MAX_U32);
+    assertEquals(3, slotted.getStreamId());
+    assertEquals(Mcv2Format.MAX_U32, slotted.getFirstFrameId());
+    assertEquals(320, slotted.getVideoWidth());
+    assertSame(original.getViewers(), slotted.getViewers());
+    assertEquals(0, original.getFirstFrameId());
+    assertThrows(IllegalArgumentException.class, () -> original.withStream(Mcv2Configuration.MAX_STREAM_ID + 1, 0));
+    assertThrows(IllegalArgumentException.class, () -> original.withStream(1, -1));
+    assertThrows(IllegalArgumentException.class, () -> original.withStream(1, Mcv2Format.MAX_U32 + 1));
+  }
+
+  @Test
   void keepsWhatWasSet() {
     final Mcv2Configuration configuration = complete()
       .video(320, 180)
       .pageMap(50)
       .pageSlots(2)
-      .streamId(0xFFFFFFFFL)
+      .streamId(Mcv2Configuration.MAX_STREAM_ID)
       .settings(EncoderSettings.LOW_BANDWIDTH)
       .outlineColor(NamedTextColor.AQUA)
       .backlogLimit(0)
@@ -128,7 +144,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(180, configuration.getVideoHeight());
     assertEquals(50, configuration.getPageMap());
     assertEquals(2, configuration.getPageSlots());
-    assertEquals(0xFFFFFFFFL, configuration.getStreamId());
+    assertEquals(Mcv2Configuration.MAX_STREAM_ID, configuration.getStreamId());
     assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
     assertEquals(NamedTextColor.AQUA, configuration.getOutlineColor());
     assertEquals(0, configuration.getBacklogLimit());
@@ -195,7 +211,7 @@ final class Mcv2ConfigurationTest {
     refuses(builder -> builder.pageSlots(-1));
     refuses(builder -> builder.pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS + 1));
     refuses(builder -> builder.streamId(-1));
-    refuses(builder -> builder.streamId(1L << 32));
+    refuses(builder -> builder.streamId(Mcv2Configuration.MAX_STREAM_ID + 1));
     refuses(builder -> builder.backlogLimit(-1));
     refuses(builder -> builder.unsentLimit(-1));
     refuses(builder -> builder.pageMap(-1));
@@ -220,7 +236,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, complete().pageSlots(0).build().getPageSlots());
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, complete().pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS).build().getPageSlots());
     assertEquals(0, complete().streamId(0).build().getStreamId());
-    assertEquals(0xFFFFFFFFL, complete().streamId(0xFFFFFFFFL).build().getStreamId());
+    assertEquals(Mcv2Configuration.MAX_STREAM_ID, complete().streamId(Mcv2Configuration.MAX_STREAM_ID).build().getStreamId());
     assertEquals(0, complete().backlogLimit(0).build().getBacklogLimit());
     assertEquals(0, complete().unsentLimit(0).build().getUnsentLimit());
     // the page maps from 0, and up to the last int; the wall's maps up to the last int

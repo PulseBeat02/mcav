@@ -1,7 +1,7 @@
 """Run the MCV2 resource pack's post passes outside Minecraft and compare every picture with the reference decoder.
 
     python tools/mcv2/shader_check.py <stream.mcs> [<stream.mcs> ...] [--slots N] [--drop K] [--backend egl|glx]
-        [--pack DIR] [--spirv CLASSPATH]
+        [--pack DIR] [--spirv CLASSPATH] [--second-screen]
 
 Run with a Python that has numpy and moderngl. The OpenGL 3.3 context is the one moderngl finds: set DISPLAY to an
 X server for GLX (Xvfb gives Mesa's llvmpipe, the renderer of a headless client) or leave it unset for EGL on a render
@@ -14,13 +14,14 @@ hands the driver.
 
 For every frame, the reference's make_pages splits the frame into pages, each page is written into a simulated main
 target exactly as the core text shader writes it (four symbols to three bytes, slot by slot from the top of the
-screen), and the pack's post chain runs pass for pass as its entity_outline.json lists them, with the target sizes
-the pack builder fills in: mcav's passes with their own shaders (the pack's copies among them: Minecraft 26.3's blit is
+screen), and the pack's post chain for one screen runs pass for pass as Mcv2Pack assembles it from chain.json, with
+the target sizes the pack builder fills in: mcav's passes with their own shaders (the pack's copies among them: Minecraft 26.3's blit is
 not an exact copy of a video-sized target), Minecraft's blit as a texel copy, and Minecraft's own outline passes, which
 only touch the outline target, left out. The persistent targets carry over to the next
 frame, as they do in the client. The picture the chain keeps must equal the reference
 decoder's picture byte for byte. --drop K leaves out every K-th frame from the client's view, to check that the chain
-waits for the next frame it can decode instead of decoding against the wrong reference.
+waits for the next frame it can decode instead of decoding against the wrong reference. --second-screen plays the
+streams on the second screen of a two-screen pack, whose pages and descriptor follow the first screen's in the strip.
 """
 
 import argparse
@@ -36,9 +37,15 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 PACK = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
+CHAIN = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/chain.json"
 BOOKS = ROOT / "mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin"
 SCREEN = (1920, 1080)
 STREAM_ID = 7
+# the screen of the pack the streams play on: the only one, or with --second-screen the second of two, after a first
+# screen of eight slots that plays nothing
+SCREEN_INDEX = 0
+FIRST_SLOT = 0
+IDLE_SLOTS = 8
 
 VERTEX = """#version 330
 #extension GL_ARB_separate_shader_objects : require
@@ -86,11 +93,15 @@ def placeholders(width, height, slots):
 
 
 def post_chain(width, height, slots):
-    """The pack's post chain with its sizes filled in, as the client loads it."""
-    text = (PACK / "assets/minecraft/post_effect/entity_outline.json").read_text()
+    """The pack's post chain for one screen, as Mcv2Pack.postChain assembles it from the template: the screen's
+    decoding passes, its drawing passes, then the outline's."""
+    text = CHAIN.read_text().replace("@S@", str(SCREEN_INDEX))
     for name, value in placeholders(width, height, slots).items():
         text = text.replace("@%s@" % name, str(value))
-    return json.loads(text)
+    template = json.loads(text)
+    targets = dict(template["screen_targets"])
+    targets.update(template["targets"])
+    return {"targets": targets, "passes": template["decode"] + template["draw"] + template["tail"]}
 
 
 BLIT = """#version 330
@@ -103,23 +114,47 @@ void main() {
 """
 
 
+def screens_config(slots):
+    """The table of the pack's screens, as Mcv2Pack.config writes it."""
+    if SCREEN_INDEX == 0:
+        return [
+            "const int MCV2_SCREENS = 1;",
+            "const int MCV2_TOTAL_SLOTS = %d;" % slots,
+            "const uint MCV2_SCREEN_STREAMS[1] = uint[1](%du);" % STREAM_ID,
+            "const int MCV2_SCREEN_SLOTS[1] = int[1](%d);" % slots,
+            "const int MCV2_SCREEN_FIRST_SLOTS[1] = int[1](0);",
+        ]
+    return [
+        "const int MCV2_SCREENS = 2;",
+        "const int MCV2_TOTAL_SLOTS = %d;" % (IDLE_SLOTS + slots),
+        "const uint MCV2_SCREEN_STREAMS[2] = uint[2](1u, %du);" % STREAM_ID,
+        "const int MCV2_SCREEN_SLOTS[2] = int[2](%d, %d);" % (IDLE_SLOTS, slots),
+        "const int MCV2_SCREEN_FIRST_SLOTS[2] = int[2](0, %d);" % IDLE_SLOTS,
+    ]
+
+
 def generated(width, height, slots):
     """The generated includes, as the pack builder writes them."""
     books = BOOKS.read_bytes()
     words = [struct.unpack_from("<I", books, i)[0] for i in range(0, len(books), 4)]
     rows = ",\n".join("    " + ", ".join("0x%08Xu" % w for w in words[i : i + 8]) for i in range(0, len(words), 8))
     return {
-        "mcav:mcv2_config.glsl": "\n".join([
+        "mcav:mcv2_config.glsl": "\n".join(screens_config(slots) + [
+            "const bool MCV2_DEBUG_VIEW = false;",
+            "const ivec3 MCV2_OUTLINE_COLOR = ivec3(0, 0, 0);",
+            "",
+        ]),
+        "mcav:mcv2_screen.glsl": "\n".join([
+            "const int MCV2_SCREEN_INDEX = %d;" % SCREEN_INDEX,
             "const int MCV2_PAGE_SLOTS = %d;" % slots,
+            "const int MCV2_FIRST_SLOT = %d;" % FIRST_SLOT,
+            "const uint MCV2_STREAM_ID = %du;" % STREAM_ID,
             "const int MCV2_VIDEO_WIDTH = %d;" % width,
             "const int MCV2_VIDEO_HEIGHT = %d;" % height,
-            "const uint MCV2_STREAM_ID = %du;" % STREAM_ID,
             "const int MCV2_BYTES_WIDTH = 128;",
             "const int MCV2_BYTES_HEIGHT = %d;" % placeholders(width, height, slots)["BYTES_HEIGHT"],
             "const int MCV2_CELLS_WIDTH = %d;" % cells_width(width),
             "const int MCV2_CELLS_HEIGHT = %d;" % cells_height(height),
-            "const bool MCV2_DEBUG_VIEW = false;",
-            "const ivec3 MCV2_OUTLINE_COLOR = ivec3(0, 0, 0);",
             "",
         ]),
         "mcav:mcv2_books.glsl": "const uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",
@@ -185,8 +220,8 @@ class Chain:
         self.compiled = None
 
     def target(self, name):
-        """A target by the short name shader_check has always used: previous, key, status, ..."""
-        return self.targets[name if ":" in name else "mcav:mcv2_" + name]
+        """A target by the short name shader_check has always used: previous, key, status, ... of the one screen."""
+        return self.targets[name if ":" in name else "mcav:mcv2_%s_%d" % (name, SCREEN_INDEX)]
 
     def program(self, name, vertex="minecraft:core/screenquad"):
         """A pass's program: its fragment shader, and its vertex shader when the pass names one of the pack's instead
@@ -202,8 +237,8 @@ class Chain:
             elif self.compiled is not None:
                 vertex_source = (self.compiled / (vertex.split("/")[-1] + ".vsh")).read_text()
             else:
-                namespace, path = vertex.split(":")
-                vertex_source = desktop(resolve((PACK / "assets" / namespace / "shaders" / (path + ".vsh")).read_text(), self.includes))
+                # a screen's copy of a pass, post/s0/..., is the pass's source with the screen's include
+                vertex_source = desktop(resolve((PACK / "assets/mcav/shaders/post" / (vertex.split("/")[-1] + ".vsh")).read_text(), self.includes))
             self.programs[key] = self.context.program(vertex_shader=vertex_source, fragment_shader=source)
         return self.programs[key]
 
@@ -255,7 +290,7 @@ class Chain:
             # the shader discards the fragments after the page's 4,096 pixels, leaving the (here empty) scene
             strip = np.zeros((rows * SCREEN[0], 4), np.uint8)
             strip[:4096] = packed
-            slot = page_number(page)
+            slot = FIRST_SLOT + page_number(page)
             for r in range(rows):
                 screen[SCREEN[1] - 1 - (slot * rows + r)] = strip[r * SCREEN[0] : (r + 1) * SCREEN[0]]
         self.main.write(screen.tobytes())
@@ -299,7 +334,11 @@ def main():
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
     parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
     parser.add_argument("--spirv", metavar="CLASSPATH", help="compile the passes as Minecraft 26.3 does, with these LWJGL jars")
+    parser.add_argument("--second-screen", action="store_true", help="play on the second screen of a two-screen pack")
     arguments = parser.parse_args()
+    if arguments.second_screen:
+        global SCREEN_INDEX, FIRST_SLOT
+        SCREEN_INDEX, FIRST_SLOT = 1, IDLE_SLOTS
     if arguments.pack:
         global PACK
         PACK = arguments.pack

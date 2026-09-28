@@ -10,7 +10,9 @@
 // is 16 more fetches, which measured slower on the Intel UHD 630, and rounds differently from the inline one.
 
 #include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2_screen.glsl>
 #include <mcav:mcv2_strip.glsl>
+#include <mcav:mcv2_slots.glsl>
 
 uniform sampler2D MainSampler;
 uniform sampler2D StateSampler;

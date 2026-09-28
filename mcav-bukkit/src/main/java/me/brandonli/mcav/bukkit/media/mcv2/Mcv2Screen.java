@@ -58,9 +58,10 @@ import org.bukkit.plugin.Plugin;
  * because the client only runs the pack's post chain while a glowing entity is drawn, and the player is sent a team
  * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world.
  *
- * <p>An anchor is the first row of a wall map: a signature, the map's column and row, the wall's size and the
- * direction of the maps' right edge. The server sends every wall map as it stores it to players who start tracking the
- * frame, which erases the anchors, so they are sent again with every keyframe.
+ * <p>An anchor is the first row of a wall map: a signature, the map's column and row, the wall's size, the direction of
+ * the maps' right edge and the screen's stream id, which tells the pack which of its screens the wall is. The server
+ * sends every wall map as it stores it to players who start tracking the frame, which erases the anchors, so they are
+ * sent again with every keyframe.
  */
 public final class Mcv2Screen {
 
@@ -204,6 +205,8 @@ public final class Mcv2Screen {
     final int columns = this.configuration.getColumns();
     final int rows = this.configuration.getRows();
     final int facing = this.configuration.getFacingCode();
+    final int streamLow = (int) (this.configuration.getStreamId() % MapAlphabet.SIZE);
+    final int streamHigh = (int) (this.configuration.getStreamId() / MapAlphabet.SIZE);
     final List<MapTilePatch> patches = new ArrayList<>(columns * rows);
     for (int row = 0; row < rows; row++) {
       for (int column = 0; column < columns; column++) {
@@ -217,8 +220,10 @@ public final class Mcv2Screen {
         symbols[at + 2] = (byte) columns;
         symbols[at + 3] = (byte) rows;
         symbols[at + 4] = (byte) facing;
+        symbols[at + 5] = (byte) streamLow;
+        symbols[at + 6] = (byte) streamHigh;
         // a check symbol: the sum of the others in the six-bit alphabet
-        symbols[at + 5] = (byte) ((column + row + columns + rows + facing) % MapAlphabet.SIZE);
+        symbols[at + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
         final int mapId = this.configuration.getMap() + row * columns + column;
         patches.add(new MapTilePatch(mapId, 0, 0, MapLayout.MAP_SIZE, 1, MapAlphabet.toMapColors(symbols)));
       }

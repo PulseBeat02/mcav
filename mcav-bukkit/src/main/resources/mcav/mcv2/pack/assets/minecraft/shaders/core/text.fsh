@@ -75,7 +75,7 @@ float mcv2DescriptorFloat(int index) {
 void mcv2WritePage() {
     // alpha 1, so the translucent blend stores the bytes exactly
     int width = int(ScreenSize.x);
-    int row = int(ScreenSize.y) - 1 - int(gl_FragCoord.y) - mcv2Slot * mcv2RowsPerPage(width);
+    int row = int(ScreenSize.y) - 1 - int(gl_FragCoord.y) - mcv2SlotRow(width, mcv2Slot);
     int pixel = row * width + int(gl_FragCoord.x);
     if (row < 0 || pixel >= MCV2_PAGE_PIXELS) {
         discard;
