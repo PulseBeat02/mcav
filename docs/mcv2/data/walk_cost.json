@@ -1,0 +1,49 @@
+{
+  "renderer": "Mesa Intel(R) UHD Graphics 630 (CFL GT2)",
+  "version": "4.6 (Core Profile) Mesa 25.2.8-0ubuntu0.24.04.2",
+  "resolution": [
+    1920,
+    1080
+  ],
+  "repeats": 12,
+  "measurements": [
+    {
+      "steps": 0,
+      "mean_ms": 1.821547635534609,
+      "min_ms": 1.2802309938706458
+    },
+    {
+      "steps": 1,
+      "mean_ms": 2.6292144585485486,
+      "min_ms": 2.5924189831130207
+    },
+    {
+      "steps": 2,
+      "mean_ms": 5.309694179397246,
+      "min_ms": 4.992097994545475
+    },
+    {
+      "steps": 4,
+      "mean_ms": 7.642039814858105,
+      "min_ms": 5.399692978244275
+    },
+    {
+      "steps": 8,
+      "mean_ms": 6.6517237335739825,
+      "min_ms": 5.803926003864035
+    },
+    {
+      "steps": 16,
+      "mean_ms": 11.320579090600155,
+      "min_ms": 11.205043003428727
+    },
+    {
+      "steps": 32,
+      "mean_ms": 22.252951814814217,
+      "min_ms": 22.028359002433717
+    }
+  ],
+  "empty_draw_ms": 1.821547635534609,
+  "marginal_ms_per_dependent_lookup": 0.7230741018082136,
+  "interpretation": "Prices the access pattern of a variable-length walk, not a decoder. The chain is dependent so nothing is hoisted; a real decoder adds bit shifts on top of these fetches."
+}
