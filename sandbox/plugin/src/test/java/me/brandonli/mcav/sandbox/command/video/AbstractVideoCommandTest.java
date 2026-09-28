@@ -438,6 +438,14 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void takesNoFiltersFromAnEmptyOption() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    assertSame(FilterChain.NONE, AbstractVideoCommand.parseFilters(this.sender, plugin, "", true));
+    assertSame(FilterChain.NONE, AbstractVideoCommand.parseFilters(this.sender, plugin, null, false));
+    verify(this.sender, never()).sendMessage(any(Component.class));
+  }
+
+  @Test
   void refusesFiltersThatAreNotAllowedBeforeStartingAnything() {
     this.command.playVideo(
       _ -> "configuration",

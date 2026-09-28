@@ -108,6 +108,8 @@ final class VncAllowListTest {
     assertEquals("::1", bracketed.host());
     assertSame(bracketed, new VncAllowList(List.of(bracketed)).find("[::1]:5902"));
     assertEquals("[::1]:5902", bracketed.toString());
+    final VncAllowList.Entry unbalanced = new VncAllowList.Entry("[::1", 5902, null);
+    assertEquals("[::1", unbalanced.host(), "only a host in both brackets loses them");
   }
 
   @Test

@@ -21,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -34,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
+import org.bytedeco.javacv.FrameGrabber;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
@@ -94,6 +98,14 @@ final class CaptureDevicesTest {
     assertEquals(List.of(new CaptureDevices.Device(1, "device 1"), new CaptureDevices.Device(3, "device 3")), devices);
     assertEquals(List.of(), CaptureDevices.probe(0, _ -> true));
     assertThrows(IllegalArgumentException.class, () -> CaptureDevices.probe(-1, _ -> true));
+  }
+
+  @Test
+  void aDeviceOpensWhenItsGrabberStartsAndIsClosedAgain() throws IOException {
+    final FrameGrabber grabber = mock(FrameGrabber.class);
+    assertTrue(CaptureDevices.opens(_ -> grabber, 0));
+    verify(grabber).start();
+    verify(grabber).close();
   }
 
   @Test

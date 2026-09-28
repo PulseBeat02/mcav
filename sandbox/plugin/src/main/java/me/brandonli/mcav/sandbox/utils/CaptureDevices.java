@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -106,8 +107,7 @@ public final class CaptureDevices {
   }
 
   private static @Nullable Device readNode(final Path node) {
-    final Path fileName = node.getFileName();
-    final Matcher matcher = NODE.matcher(fileName == null ? "" : fileName.toString());
+    final Matcher matcher = NODE.matcher(String.valueOf(node.getFileName()));
     if (!matcher.matches()) {
       return null;
     }
@@ -142,7 +142,18 @@ public final class CaptureDevices {
 
   /** Whether the device of a number opens, which briefly opens it. */
   static boolean opens(final int index) {
-    try (FrameGrabber grabber = new OpenCVFrameGrabber(index)) {
+    return opens(OpenCVFrameGrabber::new, index);
+  }
+
+  /**
+   * Whether the device of a number opens, which briefly opens it.
+   *
+   * @param grabbers makes the grabber of a number
+   * @param index    the number
+   * @return true if its grabber started
+   */
+  static boolean opens(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
+    try (FrameGrabber grabber = grabbers.apply(index)) {
       grabber.start();
       return true;
     } catch (final IOException | RuntimeException | LinkageError exception) {

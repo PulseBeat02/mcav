@@ -79,6 +79,27 @@ final class SuggestionProviderTest {
   }
 
   @Test
+  void suggestsSeekPositions() {
+    final Stream<String> suggestions = this.provider.suggestPositions();
+    final List<String> expected = List.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+    assertSuggests(expected, suggestions);
+  }
+
+  @Test
+  void suggestsVolumes() {
+    final Stream<String> suggestions = this.provider.suggestVolumes();
+    final List<String> expected = List.of("0", "25", "50", "75", "100", "150", "200");
+    assertSuggests(expected, suggestions);
+  }
+
+  @Test
+  void suggestsSpeeds() {
+    final Stream<String> suggestions = this.provider.suggestSpeeds();
+    final List<String> expected = List.of("0.5", "0.75", "1", "1.25", "1.5", "2");
+    assertSuggests(expected, suggestions);
+  }
+
+  @Test
   void suggestsFrameRates() {
     final Stream<String> suggestions = this.provider.suggestTargetFps();
     final List<String> expected = List.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");

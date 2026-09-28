@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -154,6 +155,8 @@ public final class FilterChain {
   private static final Pattern OVERLAY_NAME = Pattern.compile("[A-Za-z0-9_-]{1,32}");
 
   private static final String OVERLAY_SUFFIX = ".png";
+
+  private static final String NO_OVERLAY = "no overlay %s in the overlays folder";
 
   private static final int PERCENT = 100;
 
@@ -361,15 +364,16 @@ public final class FilterChain {
       throw new IllegalArgumentException("overlay takes the name of a PNG file of the overlays folder, without .png");
     }
     final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
-    final long size;
+    final BasicFileAttributes attributes;
     try {
-      size = Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) ? Files.size(file) : -1;
-    } catch (final IOException exception) {
-      throw new IllegalArgumentException("the overlay " + name + " cannot be read", exception);
+      attributes = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+    } catch (final IOException missing) {
+      throw new IllegalArgumentException(NO_OVERLAY.formatted(name), missing);
     }
-    if (size < 0) {
-      throw new IllegalArgumentException("no overlay " + name + " in the overlays folder");
+    if (!attributes.isRegularFile()) {
+      throw new IllegalArgumentException(NO_OVERLAY.formatted(name));
     }
+    final long size = attributes.size();
     if (size > MAX_OVERLAY_BYTES) {
       throw new IllegalArgumentException("the overlay %s is larger than %d bytes".formatted(name, MAX_OVERLAY_BYTES));
     }

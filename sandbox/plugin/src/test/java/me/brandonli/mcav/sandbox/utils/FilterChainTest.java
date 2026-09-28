@@ -275,5 +275,9 @@ final class FilterChainTest {
     final ImageBuffer other = picture(20, 20, 0);
     rectangle.applyFilter(other);
     assertEquals(0xffffff, other.getPixels()[10] & 0xffffff);
+    final ImageBuffer taller = picture(20, 40, 0);
+    rectangle.applyFilter(taller);
+    assertEquals(0xffffff, taller.getPixels()[10 + 20 * 15] & 0xffffff, "the region is remade for the taller picture");
+    assertEquals(0, taller.getPixels()[10 + 20 * 30] & 0xffffff);
   }
 }
