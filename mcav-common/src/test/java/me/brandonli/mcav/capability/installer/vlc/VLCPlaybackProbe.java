@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -56,6 +57,11 @@ final class VLCPlaybackProbe {
   // half a second of 48 kHz stereo 16-bit sound
   private static final long AUDIO_BYTES = 96_000L;
 
+  // well past the playback timeout: a probe still running then is stuck, and its threads say where
+  private static final Duration STUCK = Duration.ofMinutes(3);
+
+  private static final int STUCK_EXIT = 3;
+
   private VLCPlaybackProbe() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -70,6 +76,7 @@ final class VLCPlaybackProbe {
   public static void main(final String[] arguments) throws IOException, InterruptedException {
     final Path folder = Path.of(arguments[0]);
     final Path video = Path.of(arguments[1]);
+    startWatchdog();
     final VLCInstaller installer = VLCInstaller.create(folder);
     final VLCInstallationKit kit = new VLCInstallationKit(installer, new PrivateDiscovery(), new VLCLoadState());
     final Optional<Path> loaded = kit.start();
@@ -77,6 +84,8 @@ final class VLCPlaybackProbe {
     System.out.println("libvlc " + version + " loaded from " + loaded.orElseThrow());
     final AtomicInteger frames = new AtomicInteger();
     final AtomicLong audioBytes = new AtomicLong();
+    // each step is printed before it runs, so a probe that stops shows where
+    System.out.println("step: creating the player");
     final VideoPlayerMultiplexer player = VideoPlayer.vlc();
     player.setExceptionHandler((message, error) -> System.out.println("player error: " + message + " " + error));
     player
@@ -86,8 +95,11 @@ final class VLCPlaybackProbe {
       .getAudioAttachableCallback()
       .attach(AudioPipelineStep.of((final ByteBuffer samples, final OriginalAudioMetadata metadata) -> countSamples(audioBytes, samples)));
     final Source source = FileSource.path(video);
+    System.out.println("step: starting the video");
     final boolean started = player.start(source);
+    System.out.println("step: started " + started);
     final boolean played = started && Polling.pollUntil(TIMEOUT, () -> frames.get() >= FRAMES && audioBytes.get() >= AUDIO_BYTES);
+    System.out.println("step: releasing, frames " + frames.get() + ", audio bytes " + audioBytes.get());
     final boolean released = player.release();
     System.out.println("started " + started + ", frames " + frames.get() + ", audio bytes " + audioBytes.get() + ", released " + released);
     if (!played || !released) {
@@ -95,6 +107,28 @@ final class VLCPlaybackProbe {
     }
     System.out.println(PASSED);
     System.exit(0);
+  }
+
+  private static void startWatchdog() {
+    final Thread watchdog = Thread.ofPlatform().daemon().name("vlc-probe-watchdog").unstarted(VLCPlaybackProbe::reportIfStuck);
+    watchdog.start();
+  }
+
+  private static void reportIfStuck() {
+    try {
+      Thread.sleep(STUCK.toMillis());
+    } catch (final InterruptedException exception) {
+      return;
+    }
+    System.out.println("probe stuck after " + STUCK.toMinutes() + " minutes; its threads:");
+    for (final Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+      final Thread thread = entry.getKey();
+      System.out.println("thread " + thread.getName() + " " + thread.getState());
+      for (final StackTraceElement element : entry.getValue()) {
+        System.out.println("    at " + element);
+      }
+    }
+    System.exit(STUCK_EXIT);
   }
 
   private static boolean countFrame(final AtomicInteger frames) {
