@@ -1,7 +1,7 @@
 """Run the MCV2 resource pack's post passes outside Minecraft and compare every picture with the reference decoder.
 
-    python tools/mcv2/shader_check.py <gpu-codec checkout> <stream.mcs> [<stream.mcs> ...] [--slots N] [--drop K]
-        [--backend egl|glx] [--pack DIR]
+    python tools/mcv2/shader_check.py <stream.mcs> [<stream.mcs> ...] [--slots N] [--drop K] [--backend egl|glx]
+        [--pack DIR] [--spirv CLASSPATH]
 
 Run with a Python that has numpy and moderngl. The OpenGL 3.3 context is the one moderngl finds: set DISPLAY to an
 X server for GLX (Xvfb gives Mesa's llvmpipe, the renderer of a headless client) or leave it unset for EGL on a render
@@ -293,7 +293,6 @@ def page_number(page):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("codec")
     parser.add_argument("streams", nargs="+")
     parser.add_argument("--slots", type=int, default=4)
     parser.add_argument("--drop", type=int, default=0)
@@ -304,7 +303,7 @@ def main():
     if arguments.pack:
         global PACK
         PACK = arguments.pack
-    sys.path.insert(0, arguments.codec)
+    sys.path.insert(0, str(ROOT / "tools/mcv2-reference"))
     import moderngl
     from mcvideo.decoder import decode
     from mcvideo.transport import make_pages

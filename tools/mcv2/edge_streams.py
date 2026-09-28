@@ -1,8 +1,8 @@
 """Generate MCV2 edge-case conformance streams with the reference serializer and decoder.
 
-Run with the gpu-codec reference checkout on the path (the research repository mcav ports MCV2 from):
+Run with a Python that has numpy; the reference is the one in tools/mcv2-reference:
 
-    python tools/mcv2/edge_streams.py <gpu-codec checkout> <output directory> [seed]
+    python tools/mcv2/edge_streams.py <output directory> [seed]
 
 Every stream is built with the reference's own `v2.pack_frame`, from random block trees that cover every leaf mode,
 every compact class and motion form, quantizers up to 7, frames whose edges crop partial blocks, and every index form
@@ -20,7 +20,7 @@ import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, sys.argv[1])
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
 
 import numpy as np  # noqa: E402
 from mcvideo import format as fmt  # noqa: E402
@@ -29,8 +29,8 @@ from mcvideo.decoder import Decoder  # noqa: E402
 from mcvideo.pattern import PATTERN_PALETTE  # noqa: E402
 from mcvideo.v2 import SPLIT, Node, pack_frame  # noqa: E402
 
-OUT = Path(sys.argv[2])
-SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 20260925
+OUT = Path(sys.argv[1])
+SEED = int(sys.argv[2]) if len(sys.argv) > 2 else 20260925
 RANDOM = random.Random(SEED)
 
 

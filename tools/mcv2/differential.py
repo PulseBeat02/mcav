@@ -1,9 +1,9 @@
 """Differential test of mcav's MCV2 decoder against the reference decoder, on generated streams.
 
-    python tools/mcv2/differential.py <gpu-codec checkout> <mcav-bukkit classpath> [--streams N] [--encoded N]
-        [--mutants N] [--seed S] [--out DIR] [--java JAVA]
+    python tools/mcv2/differential.py <mcav-bukkit classpath> [--streams N] [--encoded N] [--mutants N] [--seed S]
+        [--out DIR] [--java JAVA]
 
-The classpath holds mcav-bukkit's classes and resources (the residual books) and Guava, for example
+The reference is the one in tools/mcv2-reference. The classpath holds mcav-bukkit's classes and resources (the residual books) and Guava, for example
 `mcav-bukkit/build/classes/java/main:mcav-bukkit/build/resources/main:<guava jar>` after `./gradlew :mcav-bukkit:jar`.
 
 The committed conformance corpus proves what was already measured; this finds what was not. It generates three kinds of
@@ -34,7 +34,6 @@ import sys
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-parser.add_argument("codec", type=Path)
 parser.add_argument("classpath")
 parser.add_argument("--streams", type=int, default=200, help="random-tree archives")
 parser.add_argument("--encoded", type=int, default=40, help="reference-encoder archives")
@@ -43,7 +42,7 @@ parser.add_argument("--seed", type=int, default=20260926)
 parser.add_argument("--out", type=Path, default=Path("build/mcv2-differential"))
 parser.add_argument("--java", default="java")
 ARGS = parser.parse_args()
-sys.path.insert(0, str(ARGS.codec))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
 
 import numpy as np  # noqa: E402
 from mcvideo import format as fmt  # noqa: E402

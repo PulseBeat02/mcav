@@ -1,7 +1,7 @@
 """Time every pass of the MCV2 resource pack's post chain with GPU timer queries (GL_TIME_ELAPSED).
 
-    python tools/mcv2/shader_timing.py <gpu-codec checkout> <stream.mcs> [<stream.mcs> ...]
-        [--backend egl|glx] [--slots N] [--rounds R] [--repeats K] [--json OUT] [--pack DIR]
+    python tools/mcv2/shader_timing.py <stream.mcs> [<stream.mcs> ...] [--backend egl|glx] [--slots N] [--rounds R]
+        [--repeats K] [--json OUT] [--pack DIR]
 
 The chain is the one the client runs on every rendered frame: the pack's post chain (entity_outline.json) pass for
 pass, as shader_check runs it - mcav's passes with their own shaders and Minecraft's blits as texel copies of the same
@@ -14,7 +14,7 @@ which is what every rendered frame without new video costs (the decode pass then
 decode pass of a new frame is drawn K more times on the same inputs (--repeats) and the mean is reported, the way
 gpu-codec's harness times a draw. The whole stream is played R times (--rounds); the first round warms the GPU clocks
 and is not counted. Every picture is checked against the one the first round decoded, so a timing run is also a
-determinism check. Needs numpy, moderngl and the gpu-codec checkout (for its make_pages).
+determinism check. Needs numpy and moderngl; make_pages comes from the reference in tools/mcv2-reference.
 """
 
 import argparse
@@ -101,7 +101,6 @@ def summarize(samples, names):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("codec")
     parser.add_argument("streams", nargs="+")
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
     parser.add_argument("--slots", type=int, default=4)
@@ -112,7 +111,7 @@ def main():
     arguments = parser.parse_args()
     if arguments.pack:
         shader_check.PACK = arguments.pack
-    sys.path.insert(0, arguments.codec)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
     import moderngl
     from mcvideo.transport import make_pages
 

@@ -33,7 +33,8 @@ import org.junit.jupiter.params.provider.CsvSource;
  * count and with the verification on or off.
  *
  * <p>The full-size check (30 frames of the 1920x1080 source at both lambdas, identical to the frontier's recorded
- * streams) runs outside the tests, with {@code tools/mcv2/encode-check.sh}; its result is in the stage report.
+ * streams, which are committed as {@code conformance/p30r19-*.mcs}) needs that source, which is not part of mcav: it
+ * runs outside the tests, with {@code tools/mcv2/Mcv2Bench.java} ({@code profile=ship out=...}) and a byte comparison.
  */
 final class EncoderConformanceTest {
 
