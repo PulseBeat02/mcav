@@ -135,7 +135,7 @@ final class EntityRendererTest {
   @Test
   void showsTheDisplayToAViewerWhoComesOnlineAfterTheSpawn() {
     // the display is spawned with setVisibleByDefault(false), so a player sees it only after an explicit
-    // showEntity, and that is per session: a viewer who was offline at spawn, or who relogged, saw nothing at all
+    // showEntity, and that is per session: a viewer who was offline at spawn, or who relogged, is shown it again
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
     final Component text = Component.literal("frame");

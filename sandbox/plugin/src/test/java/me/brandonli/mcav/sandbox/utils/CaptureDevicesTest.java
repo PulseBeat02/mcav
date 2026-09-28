@@ -123,7 +123,7 @@ final class CaptureDevicesTest {
 
   @Test
   void triesDevicesOnlyWhereTheSystemDoesNotListThem() {
-    try (MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class)) {
+    try (final MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class)) {
       systems.when(OSUtils::getOS).thenReturn(OS.WINDOWS);
       assertEquals(List.of(), CaptureDevices.list());
       systems.when(OSUtils::getOS).thenReturn(OS.LINUX);

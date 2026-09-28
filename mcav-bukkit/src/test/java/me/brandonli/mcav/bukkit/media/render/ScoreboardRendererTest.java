@@ -231,7 +231,7 @@ final class ScoreboardRendererTest {
   @Test
   void putsTheScoreboardOnAViewerWhoComesOnlineAfterItWasCreated() {
     // the scoreboard a player sees is per session, so a viewer who was offline when the board was created, or who
-    // relogged, was never shown it again
+    // relogged, is shown it again
     final ScoreboardConfiguration configuration = this.createConfiguration(2);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();

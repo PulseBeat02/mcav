@@ -44,7 +44,7 @@ final class Mcv2HostingTest {
     final InjectorHosting injector = mock(InjectorHosting.class);
     final HttpHosting http = mock(HttpHosting.class);
     final WebsiteHosting website = mock(WebsiteHosting.class);
-    try (MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class)) {
+    try (final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class)) {
       hostings.when(() -> PackHosting.injector(ZIP)).thenReturn(injector);
       hostings.when(() -> PackHosting.http(ZIP, "mc.example", 8443)).thenReturn(http);
       hostings.when(() -> PackHosting.website(ZIP)).thenReturn(website);
@@ -58,8 +58,8 @@ final class Mcv2HostingTest {
   void anHttpServerWithoutAHostNameUsesTheAddressTheServerFinds() {
     final HttpHosting http = mock(HttpHosting.class);
     try (
-      MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
-      MockedStatic<ServerAddress> addresses = Mockito.mockStatic(ServerAddress.class)
+      final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
+      final MockedStatic<ServerAddress> addresses = Mockito.mockStatic(ServerAddress.class)
     ) {
       addresses.when(ServerAddress::getPublicIPAddress).thenReturn("203.0.113.9");
       hostings.when(() -> PackHosting.http(ZIP, "203.0.113.9", 25580)).thenReturn(http);

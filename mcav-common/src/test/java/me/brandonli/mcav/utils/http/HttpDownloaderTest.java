@@ -334,7 +334,7 @@ final class HttpDownloaderTest {
       server.respond("/file", 200, CONTENT);
       final URI uri = server.uri("/file");
       final Path destination = this.directory.resolve("file.bin");
-      // a directory with the fixed temporary name of older versions cannot get in the way anymore
+      // a directory left with the fixed temporary name older versions used does not get in the way
       final Path oldPartName = this.directory.resolve("file.bin.part");
       Files.createDirectories(oldPartName);
       HttpDownloader.download(uri, destination, null, NO_DELAY);

@@ -401,7 +401,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void listensToThePackStatusForItselfAndItsViewersUntilShutDown() {
-    try (MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
+    try (final MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
       this.packs.start();
       final ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
       verify(this.server.getPluginManager(), Mockito.times(2)).registerEvent(
@@ -662,7 +662,7 @@ final class Mcv2PackServerTest {
   @Test
   void shutdownStopsHostingClosesTheLeasesAndServesNothingMore() {
     final CraftPlayer alice = this.online(ALICE);
-    try (MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
+    try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       this.packs.start();
       this.packs.open(screen(320, Set.of(ALICE)));
       this.settle();
@@ -736,7 +736,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shutdownWithoutStartUnregistersNothing() {
-    try (MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
+    try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       this.packs.shutdown();
       lists.verifyNoInteractions();
     }

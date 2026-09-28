@@ -271,7 +271,7 @@ final class MCAVSandboxTest {
   void appliesAndLogsTheMcv2EncoderBudget() throws IOException {
     // a configured budget of three threads, the rest of the configuration its default
     final String defaults;
-    try (InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
     assertTrue(defaults.contains("  encoder-threads: 0\n"));
@@ -289,7 +289,7 @@ final class MCAVSandboxTest {
   @Test
   void decidesTheNativeKernelsAtStartup() throws IOException {
     final String defaults;
-    try (InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
     assertTrue(defaults.contains("  native: auto\n"));

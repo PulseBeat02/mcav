@@ -76,7 +76,7 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void copiesItselfAtAnotherVideoSize() {
-    try (EncoderPool budget = new EncoderPool(1)) {
+    try (final EncoderPool budget = new EncoderPool(1)) {
       final Mcv2Configuration original = complete()
         .video(320, 180)
         .pageSlots(2)

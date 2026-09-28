@@ -234,28 +234,10 @@ final class HelperSession implements BrowserSession {
     HelperSession session = null;
     try (final ServerSocketChannel server = bind(socket)) {
       final Path libraries = launcher.linkLibraries(folder);
-      final Path profile = folder.resolve("profile");
       final URI uri = source.getUri();
-      final HelperConfiguration configuration = new HelperConfiguration(
-        token,
-        socket,
-        natives,
-        profile,
-        uri,
-        source.getWidth(),
-        source.getHeight(),
-        source.getFrameInterval(),
-        options.getFrameRate(),
-        options.isJavaScriptJit(),
-        options.isPrivateNetworks(),
-        options.isAutoplay()
-      );
+      final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve("profile"), uri, source, options);
       process = startProcess(launcher, folder, libraries);
-      final OutputStream processInput = process.getOutputStream();
-      final Writer standardInput = new OutputStreamWriter(processInput, StandardCharsets.UTF_8);
-      standardInput.write(configuration.toLine());
-      standardInput.write('\n');
-      standardInput.flush();
+      final Writer standardInput = sendConfiguration(process, configuration);
       final long timeoutMillis = launcher.getStartTimeoutMillis();
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
       final SocketChannel channel = accept(server, process, deadline);
@@ -275,6 +257,41 @@ final class HelperSession implements BrowserSession {
       closeAfterFailure(session, process, folder);
       throw failure;
     }
+  }
+
+  private static HelperConfiguration configure(
+    final byte[] token,
+    final Path socket,
+    final Path natives,
+    final Path profile,
+    final URI uri,
+    final BrowserSource source,
+    final BrowserOptions options
+  ) {
+    return new HelperConfiguration(
+      token,
+      socket,
+      natives,
+      profile,
+      uri,
+      source.getWidth(),
+      source.getHeight(),
+      source.getFrameInterval(),
+      options.getFrameRate(),
+      options.isJavaScriptJit(),
+      options.isPrivateNetworks(),
+      options.isAutoplay()
+    );
+  }
+
+  // the helper reads its configuration as the first line of its standard input, which stays open for the session
+  private static Writer sendConfiguration(final Process process, final HelperConfiguration configuration) throws IOException {
+    final OutputStream processInput = process.getOutputStream();
+    final Writer standardInput = new OutputStreamWriter(processInput, StandardCharsets.UTF_8);
+    standardInput.write(configuration.toLine());
+    standardInput.write('\n');
+    standardInput.flush();
+    return standardInput;
   }
 
   private static void closeAfterFailure(final @Nullable HelperSession session, final @Nullable Process process, final Path folder) {

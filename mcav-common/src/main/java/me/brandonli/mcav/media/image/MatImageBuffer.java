@@ -165,8 +165,8 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private static void checkDimensions(final int width, final int height) {
     Preconditions.checkArgument(width > 0 && height > 0, "Image dimensions must be positive but were %sx%s", width, height);
-    // BGR arrays and ByteBuffer capacities use int indices. Avoid multiplying the long product by3 as well:
-    // even positive int dimensions can overflow long when the channel count is included.
+    // BGR arrays and ByteBuffer capacities are indexed by int; the pixels are compared with the limit divided by the
+    // channels, as multiplying two int dimensions and the channel count can overflow even a long
     final long pixels = (long) width * height;
     Preconditions.checkArgument(
       pixels <= Integer.MAX_VALUE / CHANNELS,

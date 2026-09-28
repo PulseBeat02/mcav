@@ -310,7 +310,6 @@ final class InstallationManager implements AutoCloseable {
 
   private static Path copy(final Artifact artifact, final Path target) throws IOException {
     final Path resolved = artifact.getPath();
-    // resolved artifacts always have a file
     final Path source = Objects.requireNonNull(resolved, "Resolved artifacts have a file");
     final String groupId = artifact.getGroupId();
     final String artifactId = artifact.getArtifactId();

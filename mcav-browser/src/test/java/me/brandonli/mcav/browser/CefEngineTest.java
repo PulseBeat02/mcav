@@ -238,7 +238,7 @@ class CefEngineTest {
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(slow);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
-    // a slow machine answered after more than a second, when the page used to be loaded without its scripts
+    // a slow machine can take more than a second to answer, and the page still waits for its scripts
     Thread.sleep(1_500L);
     EventQueue.invokeAndWait(() -> {});
     verify(browser, never()).loadURL(anyString());
@@ -370,7 +370,7 @@ class CefEngineTest {
     final Path authority = directory.resolve(NullDisplay.AUTHORITY_FILE);
     assertNull(CefEngine.startDisplay(false, authority));
     assertFalse(Files.exists(authority), "no display, no authority file");
-    try (NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
+    try (final NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
       assertTrue(display.getDisplay().startsWith("127.0.0.1:"));
       assertTrue(Files.exists(authority), "the helper's X clients find the cookie there");
     }

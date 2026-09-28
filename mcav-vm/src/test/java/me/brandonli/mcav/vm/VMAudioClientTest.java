@@ -112,7 +112,7 @@ class VMAudioClientTest {
   @Test
   void theSoundOfTheGuestReachesTheSinkAndAnEndIsReported() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         final Streams streams = handshake(socket);
         QemuAudioProtocolTest.writeAcknowledgement(streams.out());
         streams.out().write(new byte[] { (byte) 255, 1, 0, 1 });
@@ -125,7 +125,7 @@ class VMAudioClientTest {
         throw new UncheckedIOException(exception);
       }
     });
-    try (VMAudioClient client = this.connect()) {
+    try (final VMAudioClient client = this.connect()) {
       served.get(10, TimeUnit.SECONDS);
       assertArrayEquals(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, this.chunks.getFirst());
       assertArrayEquals(new byte[] { 9, 9, 9, 9 }, this.chunks.get(1));
@@ -137,7 +137,7 @@ class VMAudioClientTest {
   @Test
   void aSinkThatFailsEndsTheConnectionAndIsReported() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         final Streams streams = handshake(socket);
         QemuAudioProtocolTest.writeAcknowledgement(streams.out());
         streams.out().write(new byte[] { (byte) 255, 1, 0, 1 });
@@ -152,7 +152,7 @@ class VMAudioClientTest {
     final VMAudioClient.Sink failing = (samples, length) -> {
       throw new IllegalStateException("sink broke");
     };
-    try (VMAudioClient client = VMAudioClient.connect(this.address(), failing, (message, failure) -> this.failures.add(message))) {
+    try (final VMAudioClient client = VMAudioClient.connect(this.address(), failing, (message, failure) -> this.failures.add(message))) {
       served.get(10, TimeUnit.SECONDS);
       waitUntil(() -> !client.isAlive());
       assertEquals(List.of("The audio connection of the virtual machine ended"), this.failures);
@@ -166,7 +166,7 @@ class VMAudioClientTest {
    * @param server the listening socket
    */
   private static void trickleTheBanner(final ServerSocket server) {
-    try (Socket socket = server.accept()) {
+    try (final Socket socket = server.accept()) {
       final OutputStream out = socket.getOutputStream();
       for (final byte value : "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII)) {
         out.write(value);
@@ -193,7 +193,7 @@ class VMAudioClientTest {
   @Test
   void aFailureCallbackThatClosesTheClientDoesNotWaitForItself() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         final Streams streams = handshake(socket);
         QemuAudioProtocolTest.writeAcknowledgement(streams.out());
       } catch (final IOException exception) {
@@ -222,7 +222,7 @@ class VMAudioClientTest {
   @Test
   void theReaderRunsAsADaemonAndClosingWaitsForIt() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         handshake(socket);
         socket.getInputStream().read();
       } catch (final IOException exception) {
@@ -239,7 +239,7 @@ class VMAudioClientTest {
   @Test
   void closingTheClientEndsItQuietly() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         handshake(socket);
         socket.getInputStream().read();
       } catch (final IOException exception) {
@@ -265,7 +265,7 @@ class VMAudioClientTest {
   @Test
   void aServerThatWantsAPasswordFailsTheConnection() {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (Socket socket = this.server.accept()) {
+      try (final Socket socket = this.server.accept()) {
         final DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         out.write("RFB 003.008\n".getBytes(StandardCharsets.US_ASCII));
         out.write(new byte[] { 1, 2 });

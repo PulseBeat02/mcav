@@ -200,7 +200,7 @@ class HelperLauncherTest {
 
   private static Set<String> usedClasses(final String name) throws IOException {
     final byte[] bytes;
-    try (InputStream in = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
+    try (final InputStream in = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
       assertNotNull(in, name);
       bytes = in.readAllBytes();
     }

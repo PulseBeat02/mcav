@@ -561,7 +561,7 @@ final class LinuxLibraries {
   static boolean isBuiltFor(final Path library, final String platform) {
     final byte[] header = new byte[ELF_MACHINE_OFFSET + 2];
     final int read;
-    try (InputStream in = Files.newInputStream(library)) {
+    try (final InputStream in = Files.newInputStream(library)) {
       read = in.readNBytes(header, 0, header.length);
     } catch (final IOException exception) {
       return false;

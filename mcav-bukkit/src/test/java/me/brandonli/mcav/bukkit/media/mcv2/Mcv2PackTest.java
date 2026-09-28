@@ -59,7 +59,7 @@ final class Mcv2PackTest {
 
   private static Map<String, String> read(final Path zip) throws IOException {
     final Map<String, String> entries = new HashMap<>();
-    try (InputStream input = Files.newInputStream(zip); ZipInputStream stream = new ZipInputStream(input)) {
+    try (final InputStream input = Files.newInputStream(zip); final ZipInputStream stream = new ZipInputStream(input)) {
       for (ZipEntry entry = stream.getNextEntry(); entry != null; entry = stream.getNextEntry()) {
         entries.put(entry.getName(), new String(stream.readAllBytes(), StandardCharsets.UTF_8));
       }

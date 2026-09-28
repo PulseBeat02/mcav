@@ -68,7 +68,7 @@ final class VMSoundTest {
 
   private Path bootSector(final String name) throws IOException {
     final Path image = this.directory.resolve(name);
-    try (InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream(name), name)) {
+    try (final InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream(name), name)) {
       Files.copy(resource, image);
     }
     return image;

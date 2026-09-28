@@ -903,8 +903,8 @@ final class MatImageBufferTest {
     "2147483647, 2147483647, Image dimensions exceed the maximum BGR buffer size: 2147483647x2147483647",
   })
   void rejectsUnrepresentableDimensionsBeforeNativeAllocation(final int width, final int height, final String expectedMessage) {
-    // Length2 differs from BOTH wrapped counts for every row: pixels715827883/0/1 and BGR-2147483647/0/3.
-    // If a mutation removes the dimension guard, the existing length guard still rejects before any allocation.
+    // two elements differ from both wrapped counts of every row (pixels 715827883, 0 and 1, BGR -2147483647, 0 and 3),
+    // so without the dimension guard the length guard still refuses before anything is allocated
     final byte[] bytes = new byte[2];
     final ByteBuffer buffer = ByteBuffer.wrap(bytes);
     final int[] pixels = new int[2];
@@ -947,8 +947,8 @@ final class MatImageBufferTest {
   @Test
   void permitsTheLargestRepresentablePackedSizeToReachTheLengthCheck() {
     final byte[] shortInput = new byte[2];
-    // The original length error proves the inclusive boundary is allowed, without allocating its2147483646bytes.
-    // Intercept Mat construction too: removing the length guard must not let a mutation allocate native2GiB.
+    // the length error shows the inclusive boundary passes the size check, without allocating its 2147483646 bytes;
+    // matrices are intercepted too, so that without the length guard nothing allocates 2 GiB of native memory
     try (
       final MockedConstruction<Mat> allocations = Mockito.mockConstruction(Mat.class, (_, _) -> {
         throw new AssertionError("The length guard must reject before constructing a native matrix");

@@ -212,7 +212,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
     final Set<UUID> removed = new HashSet<>(remembered);
     removed.removeAll(watching);
     for (final UUID viewer : removed) {
-      @Nullable Scoreboard rememberedBoard = this.previousScoreboards.get(viewer);
+      final @Nullable Scoreboard rememberedBoard = this.previousScoreboards.get(viewer);
       final Scoreboard saved = requireNonNull(rememberedBoard);
       final Player player = Bukkit.getPlayer(viewer);
       if (player != null) {

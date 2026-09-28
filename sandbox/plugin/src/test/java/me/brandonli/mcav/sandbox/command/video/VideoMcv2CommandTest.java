@@ -176,7 +176,7 @@ final class VideoMcv2CommandTest {
       new VideoMcv2Command.Mcv2Settings(configuration, DitheringArgument.FILTER_LITE, this.sender);
     final FunctionalVideoFilter dithered = mock(FunctionalVideoFilter.class);
     try (
-      MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class, (_, context) -> {
+      final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class, (_, context) -> {
         final MapConfiguration wall = (MapConfiguration) context.arguments().getFirst();
         assertEquals(20, wall.getMap());
         assertEquals(5, wall.getMapBlockWidth());
@@ -185,7 +185,7 @@ final class VideoMcv2CommandTest {
         assertEquals(384, wall.getMapHeightResolution());
         assertEquals(List.of(this.viewer), List.copyOf(wall.getViewers()));
       });
-      MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(dithered);
 

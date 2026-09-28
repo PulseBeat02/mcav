@@ -192,7 +192,7 @@ final class Mcv2ResultTest {
       4_000_000_000L
     );
     final Mcv2Result result = this.result(slotted, this.algorithm);
-    try (Recording recording = new Recording()) {
+    try (final Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Frame");
       recording.start();
       final long before = System.currentTimeMillis();
@@ -569,7 +569,7 @@ final class Mcv2ResultTest {
 
   @Test
   void encodesInTheBudgetItIsGiven() throws InterruptedException {
-    try (EncoderPool budget = new EncoderPool(1)) {
+    try (final EncoderPool budget = new EncoderPool(1)) {
       final Mcv2Configuration own = Mcv2Configuration.builder()
         .viewers(List.of(WITH_PACK))
         .origin(new Location(mock(World.class), 0, 64, 0))
@@ -870,7 +870,7 @@ final class Mcv2ResultTest {
       Mcv2ChannelTest.frame(4, 4, true)
     );
     final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-    try (Recording recording = new Recording()) {
+    try (final Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Frame");
       recording.start();
       for (int id = 0; id < frames.size(); id++) {
@@ -1264,7 +1264,7 @@ final class Mcv2ResultTest {
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
-    try (LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
+    try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
       this.play(result, clock, encoder, frame, 300);
       // 25 ms a frame steps down to every other frame; 5 ms a frame climbs back once the top is free and has room
       encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(25));

@@ -63,7 +63,7 @@ final class EncoderPoolTest {
 
   @Test
   void runsOnLowPriorityDaemonThreadsOfItsOwn() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(2)) {
+    try (final EncoderPool pool = new EncoderPool(2)) {
       assertEquals(2, pool.getThreads());
       final Thread thread = pool.run(Thread::currentThread);
       assertTrue(thread.getName().startsWith("mcav-mcv2-encoder-"), thread.getName());
@@ -75,7 +75,7 @@ final class EncoderPoolTest {
 
   @Test
   void neverUsesMoreThreadsThanItsSize() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(2)) {
+    try (final EncoderPool pool = new EncoderPool(2)) {
       final Set<Thread> seen = ConcurrentHashMap.newKeySet();
       final AtomicLong total = new AtomicLong();
       // three encodes at once, each waiting for the parallel loops of its steps, whose items run no loop of their own,
@@ -121,7 +121,7 @@ final class EncoderPoolTest {
 
   @Test
   void blocksAThreadInsteadOfStartingASpare() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(1)) {
+    try (final EncoderPool pool = new EncoderPool(1)) {
       final Set<Thread> seen = ConcurrentHashMap.newKeySet();
       final AtomicInteger blocks = new AtomicInteger();
       pool.run(() -> {
@@ -151,7 +151,7 @@ final class EncoderPoolTest {
 
   @Test
   void runsANestedLoopOnASingleThread() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(1)) {
+    try (final EncoderPool pool = new EncoderPool(1)) {
       final int sum = pool.run(() ->
         ForkJoinTask.getPool()
           .submit(() -> IntStream.range(0, 1000).parallel().sum())
@@ -163,7 +163,7 @@ final class EncoderPoolTest {
 
   @Test
   void encodesInsideTheBudget() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(2)) {
+    try (final EncoderPool pool = new EncoderPool(2)) {
       final Mcv2Encoder encoder = pool.encoder(EncoderSettings.SHIP, true);
       final byte[] rgb = new byte[32 * 16 * 3];
       for (int i = 0; i < rgb.length; i++) {
@@ -182,7 +182,7 @@ final class EncoderPoolTest {
 
   @Test
   void passesOnWhatATaskThrows() {
-    try (EncoderPool pool = new EncoderPool(1)) {
+    try (final EncoderPool pool = new EncoderPool(1)) {
       final IllegalArgumentException runtime = new IllegalArgumentException("runtime");
       final IllegalArgumentException thrownRuntime = assertThrows(IllegalArgumentException.class, () ->
         pool.run(() -> {
@@ -213,7 +213,7 @@ final class EncoderPoolTest {
 
   @Test
   void cancelsTheTaskOfAnInterruptedCaller() throws InterruptedException {
-    try (EncoderPool pool = new EncoderPool(1)) {
+    try (final EncoderPool pool = new EncoderPool(1)) {
       final CountDownLatch started = new CountDownLatch(1);
       final CountDownLatch cancelled = new CountDownLatch(1);
       final AtomicReference<Throwable> thrown = new AtomicReference<>();
@@ -244,7 +244,7 @@ final class EncoderPoolTest {
 
   @Test
   void startsNothingForACallerInterruptedBefore() {
-    try (EncoderPool pool = new EncoderPool(1)) {
+    try (final EncoderPool pool = new EncoderPool(1)) {
       final AtomicReference<Thread> ran = new AtomicReference<>();
       Thread.currentThread().interrupt();
       assertThrows(InterruptedException.class, () ->

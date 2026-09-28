@@ -202,7 +202,7 @@ final class PacketUtilsTest {
   private static Connection connection() {
     final GlobalConfiguration configuration = mock(GlobalConfiguration.class);
     configuration.misc = mock(GlobalConfiguration.Misc.class);
-    try (MockedStatic<GlobalConfiguration> global = Mockito.mockStatic(GlobalConfiguration.class)) {
+    try (final MockedStatic<GlobalConfiguration> global = Mockito.mockStatic(GlobalConfiguration.class)) {
       global.when(GlobalConfiguration::get).thenReturn(configuration);
       return mock(Connection.class);
     }

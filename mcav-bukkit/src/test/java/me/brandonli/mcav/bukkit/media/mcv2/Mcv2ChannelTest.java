@@ -248,7 +248,7 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
-    try (Recording recording = new Recording()) {
+    try (final Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Send");
       recording.start();
       // sent, sent, held back by the backlog, then waiting for its reference, and one too large for the slot

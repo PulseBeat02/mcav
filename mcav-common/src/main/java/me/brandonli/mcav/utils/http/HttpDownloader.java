@@ -81,6 +81,7 @@ public final class HttpDownloader {
 
   private static final int HTTP_REQUEST_TIMEOUT = 408;
   private static final int HTTP_TOO_MANY_REQUESTS = 429;
+  private static final int HTTP_SERVER_ERROR = 500;
   // a fixed number of locks, so the locks of finished downloads never pile up; equal paths share a stripe
   private static final int TARGET_LOCK_STRIPES = 64;
   private static final Striped<Lock> TARGET_LOCKS = Striped.lock(TARGET_LOCK_STRIPES);
@@ -328,7 +329,7 @@ public final class HttpDownloader {
       return true;
     }
     final int status = statusException.getStatusCode();
-    return status >= 500 || status == HTTP_REQUEST_TIMEOUT || status == HTTP_TOO_MANY_REQUESTS;
+    return status >= HTTP_SERVER_ERROR || status == HTTP_REQUEST_TIMEOUT || status == HTTP_TOO_MANY_REQUESTS;
   }
 
   private static void downloadOnce(

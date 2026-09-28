@@ -73,7 +73,7 @@ final class OnlinePlayersTest {
     online.onQuit(new PlayerQuitEvent(player(alice), (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     assertEquals(Set.of(bob), players);
     assertThrows(UnsupportedOperationException.class, () -> players.add(alice));
-    try (MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
+    try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       online.stop();
       lists.verify(() -> HandlerList.unregisterAll(online));
     }

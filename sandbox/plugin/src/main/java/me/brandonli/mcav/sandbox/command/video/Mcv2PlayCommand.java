@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongConsumer;
 import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
@@ -345,21 +346,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   ) {
     final Path partial = target.resolveSibling(target.getFileName() + ".part");
     final long started = System.nanoTime();
-    final long[] reported = { started };
+    final LongConsumer progress = progressReporter(sender, started, interval);
     final Mcv2FileEncoder.Result result;
     try {
-      try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(partial))) {
-        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, out, frames -> {
-          final long now = System.nanoTime();
-          if (now - reported[0] >= interval) {
-            reported[0] = now;
-            sender.sendMessage(
-              Message.MCV2_ENCODE_PROGRESS.build(
-                String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, (now - started) / NANOS_PER_MILLISECOND / frames)
-              )
-            );
-          }
-        });
+      try (final OutputStream out = new BufferedOutputStream(Files.newOutputStream(partial))) {
+        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, out, progress);
       }
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException exception) {
@@ -384,6 +375,21 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         )
       )
     );
+  }
+
+  // tells the sender how many frames are encoded, at most once an interval
+  private static LongConsumer progressReporter(final CommandSender sender, final long started, final long interval) {
+    final long[] reported = { started };
+    return frames -> {
+      final long now = System.nanoTime();
+      if (now - reported[0] >= interval) {
+        reported[0] = now;
+        final double millisPerFrame = (now - started) / NANOS_PER_MILLISECOND / frames;
+        sender.sendMessage(
+          Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisPerFrame))
+        );
+      }
+    };
   }
 
   /**

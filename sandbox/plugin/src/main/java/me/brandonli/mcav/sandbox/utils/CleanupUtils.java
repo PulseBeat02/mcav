@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox.utils;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Runs independent resource cleanup actions even when an earlier action fails.
@@ -46,14 +47,7 @@ public final class CleanupUtils {
         action.run();
       } catch (final RuntimeException | Error exception) {
         ThrowableUtils.throwIfFatal(exception);
-        if (failure == null) {
-          failure = exception;
-        } else {
-          final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, exception);
-          if (!sameFailure) {
-            failure.addSuppressed(exception);
-          }
-        }
+        failure = combine(failure, exception);
       }
     }
     if (failure instanceof final RuntimeException exception) {
@@ -62,5 +56,17 @@ public final class CleanupUtils {
     if (failure instanceof final Error error) {
       throw error;
     }
+  }
+
+  // the first failure is the one rethrown; a later one is suppressed by it, unless it is that same failure again
+  private static Throwable combine(final @Nullable Throwable first, final Throwable next) {
+    if (first == null) {
+      return next;
+    }
+    final boolean sameFailure = FAILURE_IDENTITY.equivalent(first, next);
+    if (!sameFailure) {
+      first.addSuppressed(next);
+    }
+    return first;
   }
 }

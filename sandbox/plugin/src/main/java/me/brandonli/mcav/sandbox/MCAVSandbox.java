@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox;
 
+import java.util.function.Consumer;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
@@ -184,7 +185,7 @@ public final class MCAVSandbox extends JavaPlugin {
     EncoderPool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
     this.requireLogger().info(ENCODER_SHARE, EncoderPool.shared().getThreads(), processors);
-    // the native kernels extract into the data folder, never /tmp; deciding which kernels run now logs it at startup
+    // the native kernels extract into the data folder, never /tmp; installing them decides which kernels run and logs it
     Mcv2Natives.install(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
     Mcv2Natives.describe();
   }
@@ -243,47 +244,24 @@ public final class MCAVSandbox extends JavaPlugin {
     this.audioProvider = null;
     this.mcav = null;
     CleanupUtils.runAll(
-      () -> {
-        if (videos != null) {
-          videos.shutdown();
-        }
-      },
-      () -> {
-        if (images != null) {
-          images.shutdown();
-        }
-      },
-      () -> {
-        if (jukebox != null) {
-          jukebox.shutdown();
-        }
-      },
-      () -> {
-        if (commands != null) {
-          commands.shutdownCommands();
-        }
-      },
-      () -> {
-        if (audio != null) {
-          audio.shutdown();
-        }
-      },
-      () -> {
-        if (mcv2 != null) {
-          mcv2.shutdown();
-        }
-      },
-      () -> {
-        if (online != null) {
-          online.stop();
-        }
-      },
-      () -> {
-        if (library != null) {
-          library.release();
-        }
-      }
+      whenPresent(videos, VideoPlayerManager::shutdown),
+      whenPresent(images, ImageManager::shutdown),
+      whenPresent(jukebox, JukeBoxListener::shutdown),
+      whenPresent(commands, AnnotationParserHandler::shutdownCommands),
+      whenPresent(audio, AudioProvider::shutdown),
+      whenPresent(mcv2, Mcv2Support::shutdown),
+      whenPresent(online, OnlinePlayers::stop),
+      whenPresent(library, MCAVApi::release)
     );
+  }
+
+  // a part the plugin never created, because enabling it failed, has nothing to clean up
+  private static <T> Runnable whenPresent(final @Nullable T part, final Consumer<T> cleanup) {
+    return () -> {
+      if (part != null) {
+        cleanup.accept(part);
+      }
+    };
   }
 
   private static <T> T require(final @Nullable T value, final String name) {

@@ -173,12 +173,7 @@ final class CefEngine implements HelperEngine {
     // the server installed and verified the natives; jcefmaven's own downloader must never run
     builder.setSkipInstallation(true);
     builder.setProgressHandler((state, percent) -> {});
-    int guardPort = 0;
-    if (!configuration.isPrivateNetworks()) {
-      final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice);
-      this.guard = startedGuard;
-      guardPort = startedGuard.getPort();
-    }
+    final int guardPort = this.startGuard(configuration, events);
     // the authority file lies in the folder of the session, next to the socket, where the server told X clients
     final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
     final NullDisplay startedDisplay = startDisplay(linux, authority);
@@ -198,13 +193,7 @@ final class CefEngine implements HelperEngine {
     final ContentPolicy policy = new ContentPolicy(events, versionText, prepared ->
       openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio, events::onNotice)
     );
-    createdClient.addLifeSpanHandler(policy);
-    createdClient.addRequestHandler(policy);
-    createdClient.addJSDialogHandler(policy);
-    createdClient.addDownloadHandler(policy);
-    createdClient.addDialogHandler(policy);
-    createdClient.addContextMenuHandler(policy);
-    createdClient.addLoadHandler(policy);
+    addHandlers(createdClient, policy);
     final CefBrowserSettings browserSettings = new CefBrowserSettings();
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
     final int width = configuration.getWidth();
@@ -223,6 +212,27 @@ final class CefEngine implements HelperEngine {
       createdBrowser.createImmediately();
       createdBrowser.setFocus(true);
     });
+  }
+
+  // the page reaches the network through a guard that keeps it off private networks, unless those are allowed; the
+  // port of the guard, or 0 without one
+  private int startGuard(final HelperConfiguration configuration, final HelperEvents events) throws IOException {
+    if (configuration.isPrivateNetworks()) {
+      return 0;
+    }
+    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice);
+    this.guard = startedGuard;
+    return startedGuard.getPort();
+  }
+
+  private static void addHandlers(final CefClient client, final ContentPolicy policy) {
+    client.addLifeSpanHandler(policy);
+    client.addRequestHandler(policy);
+    client.addJSDialogHandler(policy);
+    client.addDownloadHandler(policy);
+    client.addDialogHandler(policy);
+    client.addContextMenuHandler(policy);
+    client.addLoadHandler(policy);
   }
 
   /**

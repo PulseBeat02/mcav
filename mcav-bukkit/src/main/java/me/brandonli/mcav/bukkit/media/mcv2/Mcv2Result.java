@@ -676,7 +676,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /** Dithers one frame onto the maps of the viewers without the pack, then lets the next frame be dithered. */
   private void dither(final Fallback dithered, final int[] argb, final int width, final int height) {
-    try (ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
+    try (final ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
       dithered.result().process(frame, dithered.algorithm());
     } finally {
       this.ditheringBusy.set(false);

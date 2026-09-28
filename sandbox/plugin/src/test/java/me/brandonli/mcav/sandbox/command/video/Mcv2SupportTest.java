@@ -203,7 +203,7 @@ final class Mcv2SupportTest {
     when(this.packs.getViewers()).thenReturn(viewers);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class, (_, context) ->
+      final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class, (_, context) ->
         arguments.add(context.arguments())
       )
     ) {
@@ -250,13 +250,13 @@ final class Mcv2SupportTest {
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, 0));
     when(this.packs.open(configuration)).thenReturn(lease);
     System.setProperty(Mcv2Support.RECORD_PROPERTY, this.folder.toString());
-    try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
+    try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
       verify(results.constructed().getFirst()).setFrameListener(any(FrameRecorder.class));
     } finally {
       System.clearProperty(Mcv2Support.RECORD_PROPERTY);
     }
-    try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
+    try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
       verify(results.constructed().getFirst(), Mockito.never()).setFrameListener(any());
     }
@@ -295,7 +295,7 @@ final class Mcv2SupportTest {
   @Test
   void writesThePackIntoItsOwnFolderAndTellsThePlayers() {
     try (
-      MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
+      final MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
         assertEquals(this.folder.resolve("mcv2").resolve("pack"), context.arguments().getFirst())
       )
     ) {

@@ -69,7 +69,7 @@ final class TonePage implements AutoCloseable {
       final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
       exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
       exchange.sendResponseHeaders(200, body.length);
-      try (OutputStream output = exchange.getResponseBody()) {
+      try (final OutputStream output = exchange.getResponseBody()) {
         output.write(body);
       }
     });

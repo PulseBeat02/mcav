@@ -300,24 +300,28 @@ public final class VideoPlayerManager {
     }
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
-      scheduler.runTask(this.plugin, () -> {
-        final boolean current;
-        synchronized (this.lifecycle) {
-          current = this.isCurrent(expected) && IDENTITY.equivalent(this.filter, output);
-        }
-        if (current) {
-          try {
-            output.start();
-          } catch (final RuntimeException | Error exception) {
-            ThrowableUtils.throwIfFatal(exception);
-            cleanupAfterFailure(exception, this::releaseVideoPlayer);
-            throw exception;
-          }
-        }
-      });
+      scheduler.runTask(this.plugin, () -> this.startIfCurrent(expected, output));
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       cleanupAfterFailure(exception, this::clearCurrentVideo);
+      throw exception;
+    }
+  }
+
+  // a display released or replaced since it was scheduled is not started any more
+  private void startIfCurrent(final long expected, final FunctionalVideoFilter output) {
+    final boolean current;
+    synchronized (this.lifecycle) {
+      current = this.isCurrent(expected) && IDENTITY.equivalent(this.filter, output);
+    }
+    if (!current) {
+      return;
+    }
+    try {
+      output.start();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      cleanupAfterFailure(exception, this::releaseVideoPlayer);
       throw exception;
     }
   }

@@ -221,7 +221,7 @@ final class ServerProcess implements AutoCloseable {
    * @return the matching processes
    */
   List<ProcessHandle> findDescendants(final Predicate<String> matcher) {
-    try (Stream<ProcessHandle> descendants = this.process.descendants()) {
+    try (final Stream<ProcessHandle> descendants = this.process.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
         .filter(handle -> matcher.test(programOf(handle)))

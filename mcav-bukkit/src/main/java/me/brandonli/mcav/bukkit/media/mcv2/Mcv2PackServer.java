@@ -553,7 +553,7 @@ public final class Mcv2PackServer {
   private void clearFolder() {
     try {
       Files.createDirectories(this.folder);
-      try (DirectoryStream<Path> old = Files.newDirectoryStream(this.folder, FILE_PREFIX + "*" + FILE_SUFFIX)) {
+      try (final DirectoryStream<Path> old = Files.newDirectoryStream(this.folder, FILE_PREFIX + "*" + FILE_SUFFIX)) {
         for (final Path file : old) {
           Files.deleteIfExists(file);
         }
@@ -607,7 +607,7 @@ public final class Mcv2PackServer {
    * @return the hash as lowercase hexadecimal
    */
   static String hash(final Path file, final String algorithm) {
-    try (InputStream input = Files.newInputStream(file)) {
+    try (final InputStream input = Files.newInputStream(file)) {
       final MessageDigest digest = MessageDigest.getInstance(algorithm);
       final byte[] buffer = new byte[HASH_BUFFER];
       for (int read = input.read(buffer); read >= 0; read = input.read(buffer)) {

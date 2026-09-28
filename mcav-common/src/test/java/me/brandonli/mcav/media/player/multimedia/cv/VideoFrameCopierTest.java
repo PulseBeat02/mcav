@@ -284,8 +284,8 @@ final class VideoFrameCopierTest {
   void copiesFramesAtTheirOwnSizeWhenTheAttachedSizeIsEmpty() {
     // attach() rejects an empty size, so the only way a copier ever sees one is the race this guards against: the
     // callback is detached between the copier asking whether a size is attached and asking what it is, and answers
-    // the second question with its empty fallback. Scaling a frame to 0x0 used to throw out of the decoding loop
-    // and end playback, so an empty size must be copied at the size of the frame instead.
+    // the second question with its empty fallback; scaling a frame to 0x0 throws out of the decoding loop and ends
+    // playback, so a frame of an empty size is copied at its own size instead
     final DimensionAttachableCallback detachedMidFrame = Mockito.mock(DimensionAttachableCallback.class);
     Mockito.when(detachedMidFrame.isAttached()).thenReturn(true);
     Mockito.when(detachedMidFrame.retrieve()).thenReturn(Dimension.NONE);

@@ -75,7 +75,7 @@ final class Mcv2FileEncoderTest {
     final ByteArrayOutputStream out = new ByteArrayOutputStream();
     final List<Long> progress = new ArrayList<>();
     final Mcv2FileEncoder.Result result;
-    try (EncoderPool budget = new EncoderPool(2)) {
+    try (final EncoderPool budget = new EncoderPool(2)) {
       result = Mcv2FileEncoder.encode(
         Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT),
         WIDTH,
@@ -104,7 +104,7 @@ final class Mcv2FileEncoderTest {
     );
     // the same frames, encoded one by one outside any budget, give the same bytes
     final Mcv2Encoder alone = new Mcv2Encoder(EncoderSettings.LIVE, ForkJoinPool.commonPool(), 1, false);
-    try (Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
+    try (final Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
       final byte[] rgb = new byte[WIDTH * HEIGHT * 3];
       for (int i = 0; i < count; i++) {
         assertTrue(reader.read(rgb));
@@ -130,7 +130,7 @@ final class Mcv2FileEncoderTest {
         closed.set(true);
       }
     };
-    try (EncoderPool budget = new EncoderPool(1)) {
+    try (final EncoderPool budget = new EncoderPool(1)) {
       assertThrows(InterruptedException.class, () ->
         Mcv2FileEncoder.encode(interrupting, WIDTH, HEIGHT, EncoderSettings.LIVE, budget, new ByteArrayOutputStream(), _ -> {})
       );
@@ -145,7 +145,7 @@ final class Mcv2FileEncoderTest {
   void refusesWhatItCannotEncode() throws IOException {
     final Mcv2FileEncoder.FrameReader none = mock(Mcv2FileEncoder.FrameReader.class);
     final ByteArrayOutputStream out = new ByteArrayOutputStream();
-    try (EncoderPool budget = new EncoderPool(1)) {
+    try (final EncoderPool budget = new EncoderPool(1)) {
       assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(null, 1, 1, EncoderSettings.LIVE, budget, out, _ -> {}));
       assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 0, 1, EncoderSettings.LIVE, budget, out, _ -> {}));
       assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 1, 0, EncoderSettings.LIVE, budget, out, _ -> {}));

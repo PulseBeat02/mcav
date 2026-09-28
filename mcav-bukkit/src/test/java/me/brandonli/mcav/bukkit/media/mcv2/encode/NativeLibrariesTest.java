@@ -145,7 +145,7 @@ final class NativeLibrariesTest {
   @Test
   void wasBuiltFromTheSourcesInTheTree() throws IOException {
     final Map<String, String> built = new TreeMap<>();
-    try (InputStream manifest = Mcv2Natives.class.getResourceAsStream("natives/SOURCES")) {
+    try (final InputStream manifest = Mcv2Natives.class.getResourceAsStream("natives/SOURCES")) {
       assertNotNull(manifest, "no natives/SOURCES: " + REBUILD);
       for (final String line : new String(manifest.readAllBytes(), StandardCharsets.US_ASCII).lines().toList()) {
         final List<String> fields = Splitter.on(' ').omitEmptyStrings().splitToList(line);
@@ -153,7 +153,7 @@ final class NativeLibrariesTest {
       }
     }
     final Map<String, String> tree = new TreeMap<>();
-    try (Stream<Path> files = Files.list(SOURCES)) {
+    try (final Stream<Path> files = Files.list(SOURCES)) {
       for (final Path file : files.toList()) {
         final String name = file.getFileName().toString();
         if (!name.equals(FORMAT_SETTINGS)) {

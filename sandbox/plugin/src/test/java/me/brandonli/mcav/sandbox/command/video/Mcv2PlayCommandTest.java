@@ -152,7 +152,7 @@ final class Mcv2PlayCommandTest {
   @Test
   void playsAStreamOnTheWallUntilStopped() throws IOException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
-    try (MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
       final Mcv2Channel channel = channels.constructed().getFirst();
       verify(channel).open();
@@ -183,7 +183,7 @@ final class Mcv2PlayCommandTest {
   void streamsAtAFrameRateOffTheServerTick() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
     try (
-      MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class, (channel, context) ->
+      final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class, (channel, context) ->
         when(channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()))
       )
     ) {
@@ -406,7 +406,7 @@ final class Mcv2PlayCommandTest {
   @Test
   void stopsTheStreamWhenThePluginStops() throws IOException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
-    try (MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
       this.command.shutdown();
       verify(this.task).cancel();

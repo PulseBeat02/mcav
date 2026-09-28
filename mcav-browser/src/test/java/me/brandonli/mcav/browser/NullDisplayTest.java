@@ -355,7 +355,7 @@ class NullDisplayTest {
       assertFalse(threads.isEmpty());
       assertTrue(threads.stream().allMatch(Thread::isDaemon), "the display never keeps the helper alive");
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
-      try (Socket client = introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, cookieOf(authority))) {
+      try (final Socket client = introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, cookieOf(authority))) {
         Await.until("the client is counted", () -> display.countClients() == 1);
         assertTrue(internsAnAtom(client));
       }
@@ -378,7 +378,7 @@ class NullDisplayTest {
       Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAX_CONNECTIONS - 1);
       // its place is given back right after it is no longer counted
       Thread.sleep(200L);
-      try (Socket next = introduce(loopback, port, cookie)) {
+      try (final Socket next = introduce(loopback, port, cookie)) {
         assertTrue(internsAnAtom(next), "one try is enough, with no client refused before");
       }
     } finally {
@@ -543,7 +543,7 @@ class NullDisplayTest {
       // a client that leaves frees its place
       clients.removeFirst().close();
       Await.until("a place for another client", () -> {
-        try (Socket next = introduce(loopback, port, cookie)) {
+        try (final Socket next = introduce(loopback, port, cookie)) {
           return internsAnAtom(next);
         } catch (final IOException ended) {
           return false;
@@ -568,7 +568,7 @@ class NullDisplayTest {
         client.setSoTimeout(10_000);
         silent.add(client);
       }
-      try (Socket introduced = introduce(loopback, port, cookieOf(authority))) {
+      try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
         assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
       }
       // it took the place of the oldest client that never introduced itself, and of that one only
@@ -706,16 +706,16 @@ class NullDisplayTest {
   @Test
   void aDisplayIsNamedForChromiumAndNoDisplayHasNoName(@TempDir final Path directory) throws IOException {
     assertNull(NullDisplay.nameOf(null));
-    try (NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
+    try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
       assertEquals(display.getDisplay(), NullDisplay.nameOf(display));
     }
   }
 
   @Test
   void aClientThatBreaksTheProtocolLosesItsConnectionAndOthersKeepTheDisplay(@TempDir final Path directory) throws IOException {
-    try (NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
+    try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
-      try (Socket broken = new Socket(InetAddress.getLoopbackAddress(), port)) {
+      try (final Socket broken = new Socket(InetAddress.getLoopbackAddress(), port)) {
         broken.setSoTimeout(10_000);
         // neither byte order of X11
         broken.getOutputStream().write(new byte[] { 'X', 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
@@ -723,7 +723,7 @@ class NullDisplayTest {
       }
       final byte[] entry = Files.readAllBytes(directory.resolve("Xauthority"));
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
-      try (Socket next = new Socket(InetAddress.getLoopbackAddress(), port)) {
+      try (final Socket next = new Socket(InetAddress.getLoopbackAddress(), port)) {
         next.setSoTimeout(10_000);
         next.getOutputStream().write(setup(cookie));
         final byte[] accepted = new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()];
@@ -739,13 +739,13 @@ class NullDisplayTest {
   void aClientThatDoesNotIntroduceItselfInTimeLosesItsConnectionAndOneThatDidMayIdle(@TempDir final Path directory)
     throws IOException, InterruptedException {
     final Path authority = directory.resolve("Xauthority");
-    try (NullDisplay display = NullDisplay.start(authority, 200)) {
+    try (final NullDisplay display = NullDisplay.start(authority, 200)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final byte[] entry = Files.readAllBytes(authority);
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       try (
-        Socket silent = new Socket(InetAddress.getLoopbackAddress(), port);
-        Socket introduced = new Socket(InetAddress.getLoopbackAddress(), port)
+        final Socket silent = new Socket(InetAddress.getLoopbackAddress(), port);
+        final Socket introduced = new Socket(InetAddress.getLoopbackAddress(), port)
       ) {
         silent.setSoTimeout(10_000);
         introduced.setSoTimeout(10_000);

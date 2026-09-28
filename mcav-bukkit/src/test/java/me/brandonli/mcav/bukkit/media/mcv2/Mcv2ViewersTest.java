@@ -117,7 +117,7 @@ final class Mcv2ViewersTest {
 
   @Test
   void unregistersTheListenerItReplacesOrStops() {
-    try (MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
+    try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       final Mcv2Viewers viewers = this.viewers();
       // nothing registered: nothing to unregister
       viewers.unregister();

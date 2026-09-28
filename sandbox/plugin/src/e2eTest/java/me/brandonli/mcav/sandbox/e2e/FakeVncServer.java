@@ -115,8 +115,8 @@ final class FakeVncServer implements AutoCloseable {
   private void serve(final Socket client) {
     try (
       client;
-      DataInputStream in = new DataInputStream(client.getInputStream());
-      DataOutputStream out = new DataOutputStream(client.getOutputStream())
+      final DataInputStream in = new DataInputStream(client.getInputStream());
+      final DataOutputStream out = new DataOutputStream(client.getOutputStream())
     ) {
       out.write("RFB 003.008\n".getBytes(StandardCharsets.US_ASCII));
       out.flush();

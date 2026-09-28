@@ -42,12 +42,13 @@ configurations.runtimeDownload {
     resolutionStrategy.cacheChangingModulesFor(0, "seconds")
 }
 
+// on every class path, a module of this build comes from its project instead of the published snapshot
 configurations.matching { it.name.endsWith("Classpath") }.configureEach {
     resolutionStrategy.dependencySubstitution.all {
-        val module = requested as? ModuleComponentSelector
-        val local = module?.takeIf { it.group == "me.brandonli" }?.let { rootProject.findProject(":${it.module}") }
-        if (local != null) {
-            useTarget(local)
+        val module = requested as? ModuleComponentSelector ?: return@all
+        val project = rootProject.findProject(":${module.module}")
+        if (module.group == "me.brandonli" && project != null) {
+            useTarget(project)
         }
     }
 }

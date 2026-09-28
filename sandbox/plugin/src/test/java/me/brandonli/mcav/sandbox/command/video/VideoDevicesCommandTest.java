@@ -87,7 +87,7 @@ final class VideoDevicesCommandTest {
     this.command.listDevices(this.sender);
     this.devices.when(CaptureDevices::list).thenThrow(new IllegalStateException("no sysfs"));
     final String output;
-    try (StandardErrorCapture errors = StandardErrorCapture.start()) {
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.command.listDevices(this.sender);
       output = errors.getOutput();
     }

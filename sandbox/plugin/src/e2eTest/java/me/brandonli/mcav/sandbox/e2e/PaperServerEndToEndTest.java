@@ -138,7 +138,7 @@ final class PaperServerEndToEndTest {
       runCommand(server, "plugins", "MCAV");
       runCommand(server, "mcav help", "mcav dump");
       final String mediaInfo = fetchMediaInfo(server, httpPort);
-      try (SoundListener sound = SoundListener.connect(httpPort); TonePage page = TonePage.start()) {
+      try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
         streamABrowser(server, sound, page);
         final boolean qemu = server
           .getLines()
@@ -315,7 +315,7 @@ final class PaperServerEndToEndTest {
     final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
     assertEquals(matcher.group(1), id.toString(), "the pack's id is derived from its hash");
     final Set<String> entries = new HashSet<>();
-    try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
+    try (final ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
       for (ZipEntry entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
         entries.add(entry.getName());
       }
@@ -508,7 +508,7 @@ final class PaperServerEndToEndTest {
   }
 
   private static void copyResource(final String name, final Path folder) throws IOException {
-    try (InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(name)) {
+    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(name)) {
       Files.copy(Objects.requireNonNull(resource, name), folder.resolve(name));
     }
   }

@@ -99,7 +99,7 @@ final class Mcv2NativesTest {
   @Test
   void shipsTheLibrariesItsDigestsName() throws IOException {
     final Map<String, String> listed = new HashMap<>();
-    try (InputStream sums = Mcv2Natives.class.getResourceAsStream("natives/SHA256SUMS")) {
+    try (final InputStream sums = Mcv2Natives.class.getResourceAsStream("natives/SHA256SUMS")) {
       assertNotNull(sums);
       for (final String line : new String(sums.readAllBytes(), StandardCharsets.US_ASCII).lines().toList()) {
         final List<String> fields = Splitter.on(' ').omitEmptyStrings().splitToList(line);
@@ -216,7 +216,7 @@ final class Mcv2NativesTest {
     final Path taken = Files.createDirectories(folder.resolve("taken"));
     Files.writeString(taken.resolve("inside"), "keeps the folder non-empty");
     assertThrows(IOException.class, () -> Mcv2Natives.extract(folder, "taken", NOT_A_LIBRARY, digest));
-    try (Stream<Path> files = Files.list(folder)) {
+    try (final Stream<Path> files = Files.list(folder)) {
       assertEquals(2, files.count());
     }
   }

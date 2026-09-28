@@ -54,7 +54,7 @@ final class PluginDescriptorTest {
     // the names of permissions hold dots, which are not a path here
     final YamlConfiguration descriptor = new YamlConfiguration();
     descriptor.options().pathSeparator('/');
-    try (InputStream in = PluginDescriptorTest.class.getResourceAsStream("/paper-plugin.yml")) {
+    try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream("/paper-plugin.yml")) {
       assertNotNull(in, "the build writes the descriptor");
       final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
       descriptor.load(reader);
@@ -75,7 +75,7 @@ final class PluginDescriptorTest {
     final Path classes = Path.of(MCAVSandbox.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     final Set<String> checked = new TreeSet<>();
     final List<Path> files;
-    try (Stream<Path> walk = Files.walk(classes.resolve(COMMANDS))) {
+    try (final Stream<Path> walk = Files.walk(classes.resolve(COMMANDS))) {
       files = walk.filter(file -> file.toString().endsWith(".class")).toList();
     }
     final ClassLoader loader = PluginDescriptorTest.class.getClassLoader();

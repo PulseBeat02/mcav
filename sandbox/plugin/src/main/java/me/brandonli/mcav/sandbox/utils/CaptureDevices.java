@@ -103,7 +103,7 @@ public final class CaptureDevices {
       return List.of();
     }
     final List<Device> devices = new ArrayList<>();
-    try (Stream<Path> nodes = Files.list(folder)) {
+    try (final Stream<Path> nodes = Files.list(folder)) {
       for (final Path node : (Iterable<Path>) nodes::iterator) {
         final Device device = readNode(node);
         if (device != null) {
@@ -164,7 +164,7 @@ public final class CaptureDevices {
    * @return true if its grabber started
    */
   static boolean opens(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
-    try (FrameGrabber grabber = grabbers.apply(index)) {
+    try (final FrameGrabber grabber = grabbers.apply(index)) {
       grabber.start();
       return true;
     } catch (final IOException | RuntimeException | LinkageError exception) {
