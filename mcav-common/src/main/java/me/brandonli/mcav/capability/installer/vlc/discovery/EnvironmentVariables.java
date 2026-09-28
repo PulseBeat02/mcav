@@ -35,6 +35,9 @@ final class EnvironmentVariables {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EnvironmentVariables.class);
 
+  private static final String C_LIBRARY_UNAVAILABLE =
+    "The C library of this process cannot be loaded, so the VLC plugin path cannot be set: {}";
+
   private final Supplier<LibC> libc;
 
   /**
@@ -111,7 +114,7 @@ final class EnvironmentVariables {
       return Optional.of(loaded);
     } catch (final LinkageError error) {
       final String reason = error.getMessage();
-      LOGGER.warn("The C library of this process cannot be loaded, so the VLC plugin path cannot be set: {}", reason);
+      LOGGER.warn(C_LIBRARY_UNAVAILABLE, reason);
       return Optional.empty();
     }
   }

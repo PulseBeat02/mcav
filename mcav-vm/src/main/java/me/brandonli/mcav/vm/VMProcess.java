@@ -72,6 +72,11 @@ final class VMProcess {
   private static final String AUDIO_ID = "mcav-audio";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VMProcess.class);
+  private static final String ACCELERATOR_FAILED = "QEMU failed with the {} accelerator, retrying with software emulation: {}";
+  private static final String STARTING = "Starting QEMU: {}";
+  private static final String QEMU_OUTPUT = "qemu: {}";
+  private static final String READER_NOT_STOPPED = "QEMU output reader did not stop within {} ms";
+  private static final String STILL_ALIVE = "QEMU is still alive after forced termination";
   private static final String LOCALHOST = "127.0.0.1";
   // QEMU listens on the IPv4 loopback address, which is parsed from the literal rather than looked up
   static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
@@ -223,7 +228,7 @@ final class VMProcess {
         throw exception;
       }
 
-      LOGGER.warn("QEMU failed with the {} accelerator, retrying with software emulation: {}", accelerator, reason);
+      LOGGER.warn(ACCELERATOR_FAILED, accelerator, reason);
       this.launch(SOFTWARE_ACCELERATOR);
     }
   }
@@ -345,7 +350,7 @@ final class VMProcess {
   private void launch(final @Nullable String accelerator) {
     final List<String> command = this.buildCommand(accelerator);
     final String rendered = String.join(" ", command);
-    LOGGER.info("Starting QEMU: {}", rendered);
+    LOGGER.info(STARTING, rendered);
 
     final Process started;
     try {
@@ -570,7 +575,7 @@ final class VMProcess {
     if (line.isBlank()) {
       return;
     }
-    LOGGER.debug("qemu: {}", line);
+    LOGGER.debug(QEMU_OUTPUT, line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
       while (this.outputTail.size() > OUTPUT_TAIL_LINES) {
@@ -633,7 +638,7 @@ final class VMProcess {
         final long remaining = deadline - System.nanoTime();
         if (remaining <= 0) {
           drain.interrupt();
-          LOGGER.warn("QEMU output reader did not stop within {} ms", OUTPUT_TIMEOUT_MILLIS);
+          LOGGER.warn(READER_NOT_STOPPED, OUTPUT_TIMEOUT_MILLIS);
           return;
         }
         try {
@@ -714,7 +719,7 @@ final class VMProcess {
       if (!alive) {
         this.process = null;
       } else {
-        LOGGER.warn("QEMU is still alive after forced termination");
+        LOGGER.warn(STILL_ALIVE);
       }
     } finally {
       if (interrupted) {

@@ -74,6 +74,9 @@ final class JcefNatives {
   static final String INSTALL_MARKER = "install.lock";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
+  private static final String LOCK_RELEASED = "Released the installation lock {} of {}";
+  private static final String DOWNLOADING_NATIVES = "Downloading the CEF natives for {} ({} MB, once)";
+  private static final String NATIVES_INSTALLED = "Installed the CEF natives for {} in {} ms";
   private static final String REPOSITORY = "https://repo.maven.apache.org/maven2/me/friwi/";
   private static final String ARCHIVE_SUFFIX = ".tar.gz";
   // every copy of mcav in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
@@ -193,7 +196,7 @@ final class JcefNatives {
         if (!Files.isRegularFile(marker)) {
           this.installLocked(identifier, sha256, size, installation);
         }
-        LOGGER.debug("Released the installation lock {} of {}", lock, name);
+        LOGGER.debug(LOCK_RELEASED, lock, name);
       }
     }
     return installation;
@@ -275,7 +278,7 @@ final class JcefNatives {
   private void installLocked(final String identifier, final String sha256, final long size, final Path installation) throws IOException {
     final long start = System.currentTimeMillis();
     final URI uri = this.createUri(identifier);
-    LOGGER.info("Downloading the CEF natives for {} ({} MB, once)", identifier, NativePlatform.approximateMegabytes(identifier));
+    LOGGER.info(DOWNLOADING_NATIVES, identifier, NativePlatform.approximateMegabytes(identifier));
     final Path suffix = Path.of(UUID.randomUUID().toString());
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".jar");
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
@@ -292,7 +295,7 @@ final class JcefNatives {
       IOUtils.deleteRecursively(staging);
     }
     final long elapsed = System.currentTimeMillis() - start;
-    LOGGER.info("Installed the CEF natives for {} in {} ms", identifier, elapsed);
+    LOGGER.info(NATIVES_INSTALLED, identifier, elapsed);
   }
 
   private URI createUri(final String identifier) {

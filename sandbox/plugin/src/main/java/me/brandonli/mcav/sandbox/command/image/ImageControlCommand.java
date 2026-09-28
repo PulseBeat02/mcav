@@ -40,6 +40,8 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ImageControlCommand.class);
 
+  private static final String RELEASE_FAILED = "Failed to release the image";
+
   private final MCAVSandbox plugin;
   private final ImageManager manager;
 
@@ -86,7 +88,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    */
   private static void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error("Failed to release the image", error);
+      LOGGER.error(RELEASE_FAILED, error);
       return;
     }
     done.run();

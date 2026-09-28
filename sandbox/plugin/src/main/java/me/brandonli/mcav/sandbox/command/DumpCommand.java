@@ -40,6 +40,8 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DumpCommand.class);
 
+  private static final String UPLOAD_FAILED = "Failed to upload the dump";
+
   private final Supplier<String> uploader;
 
   /**
@@ -79,7 +81,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   private static void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error("Failed to upload the dump", error);
+      LOGGER.error(UPLOAD_FAILED, error);
       final Component failure = Message.DUMP_FAILED.build();
       sender.sendMessage(failure);
       return;

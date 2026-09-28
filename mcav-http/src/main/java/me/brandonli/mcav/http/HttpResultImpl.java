@@ -67,6 +67,7 @@ public final class HttpResultImpl implements HttpResult {
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HttpResultImpl.class);
+  private static final String RUNNING_AT = "Audio web player running at {}";
   private static final int SEND_TIME_LIMIT_MILLIS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
 
@@ -162,7 +163,7 @@ public final class HttpResultImpl implements HttpResult {
         this.context = this.createApplication();
         this.acceptingListeners = true;
         final String url = this.getFullUrl();
-        LOGGER.info("Audio web player running at {}", url);
+        LOGGER.info(RUNNING_AT, url);
       } catch (final RuntimeException exception) {
         final String message = exception.getMessage();
         throw new HttpException("Failed to start the web server on port " + this.port + ": " + message, exception);

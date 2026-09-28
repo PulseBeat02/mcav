@@ -84,6 +84,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
 
+  private static final String WORKER_REFUSED = "The video worker refused to start a video";
+
+  private static final String PLAYBACK_FAILED = "Failed to play a video";
+
   /** Recognises a raw FFmpeg input, {@code format||input}, as the media argument. */
   private static final FFmpegDirectSourceDetector RAW_INPUTS = new FFmpegDirectSourceDetector();
 
@@ -315,7 +319,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
     } catch (final RejectedExecutionException | CancellationException exception) {
       initializing.set(false);
-      LOGGER.error("The video worker refused to start a video", exception);
+      LOGGER.error(WORKER_REFUSED, exception);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;
@@ -341,7 +345,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Throwable error
   ) {
     if (error != null) {
-      LOGGER.error("Failed to play a video", error);
+      LOGGER.error(PLAYBACK_FAILED, error);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;

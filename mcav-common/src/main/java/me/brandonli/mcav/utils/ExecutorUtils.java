@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 public final class ExecutorUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorUtils.class);
+  private static final String EXECUTOR_NOT_FINISHED = "Executor did not finish in {} ms, interrupted {} pending tasks";
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   private ExecutorUtils() {
@@ -72,7 +73,7 @@ public final class ExecutorUtils {
       }
       final List<Runnable> unfinished = service.shutdownNow();
       final int unfinishedCount = unfinished.size();
-      LOGGER.warn("Executor did not finish in {} ms, interrupted {} pending tasks", millis, unfinishedCount);
+      LOGGER.warn(EXECUTOR_NOT_FINISHED, millis, unfinishedCount);
       return false;
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();

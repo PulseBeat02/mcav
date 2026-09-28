@@ -47,6 +47,8 @@ public final class VLCPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCPlayerExample.class);
 
+  private static final String PLAYBACK_FAILED = "Playback failed in {}";
+
   private VLCPlayerExample() {}
 
   static void main() throws InterruptedException {
@@ -83,7 +85,7 @@ public final class VLCPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.vlc();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback failed in {}", context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();

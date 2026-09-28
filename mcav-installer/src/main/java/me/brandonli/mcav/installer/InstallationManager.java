@@ -72,6 +72,9 @@ import org.slf4j.LoggerFactory;
 final class InstallationManager implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(InstallationManager.class);
+  private static final String RESOLVED = "Resolved {} artifacts for {}";
+  private static final String COPIED = "Copied {}";
+  private static final String OBSOLETE_FILE_NOT_DELETED = "Could not delete the obsolete file {}";
   /**
    * The repositories artifacts are downloaded from.
    */
@@ -250,7 +253,7 @@ final class InstallationManager implements AutoCloseable {
     }
 
     final int count = artifacts.size();
-    LOGGER.info("Resolved {} artifacts for {}", count, artifactId);
+    LOGGER.info(RESOLVED, count, artifactId);
     return artifacts;
   }
 
@@ -325,7 +328,7 @@ final class InstallationManager implements AutoCloseable {
     Files.createDirectories(directory);
     final Path partial = destination.resolveSibling(fileName + PART_SUFFIX);
     copyAtomically(source, partial, destination);
-    LOGGER.debug("Copied {}", artifact);
+    LOGGER.debug(COPIED, artifact);
     return destination;
   }
 
@@ -396,7 +399,7 @@ final class InstallationManager implements AutoCloseable {
       try {
         Files.deleteIfExists(file);
       } catch (final IOException exception) {
-        LOGGER.warn("Could not delete the obsolete file {}", file, exception);
+        LOGGER.warn(OBSOLETE_FILE_NOT_DELETED, file, exception);
       }
     }
   }

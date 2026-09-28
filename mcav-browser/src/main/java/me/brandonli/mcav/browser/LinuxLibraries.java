@@ -106,6 +106,14 @@ final class LinuxLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
+  private static final String LOCK_RELEASED = "Released the installation lock {} of {}";
+
+  private static final String DOWNLOADING_LIBRARIES = "Downloading {} Linux libraries for the browser ({} MB, once)";
+
+  private static final String LIBRARIES_INSTALLED = "Installed the Linux libraries of the browser in {}";
+
+  private static final String LIBRARIES_MISSING = "The server lacks {}, which the browser gets from {}";
+
   // every copy of mcav in this JVM shares this monitor, like the one of the CEF natives
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
@@ -297,7 +305,7 @@ final class LinuxLibraries {
         if (!Files.isRegularFile(marker)) {
           this.installLocked(wanted, installation);
         }
-        LOGGER.debug("Released the installation lock {} of {}", lock, name);
+        LOGGER.debug(LOCK_RELEASED, lock, name);
       }
     }
     return installation;
@@ -323,7 +331,7 @@ final class LinuxLibraries {
     for (final Pin pin : wanted) {
       bytes += pin.size();
     }
-    LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once)", wanted.size(), bytes / 1_000_000L);
+    LOGGER.info(DOWNLOADING_LIBRARIES, wanted.size(), bytes / 1_000_000L);
     final String suffix = UUID.randomUUID().toString();
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".deb");
@@ -341,7 +349,7 @@ final class LinuxLibraries {
       Files.deleteIfExists(download);
       IOUtils.deleteRecursively(staging);
     }
-    LOGGER.info("Installed the Linux libraries of the browser in {}", installation);
+    LOGGER.info(LIBRARIES_INSTALLED, installation);
   }
 
   private void download(final Pin pin, final Path destination) throws IOException {
@@ -519,7 +527,7 @@ final class LinuxLibraries {
       for (final String soname : sonames) {
         Files.createSymbolicLink(libraries.resolve(soname), installation.resolve(soname));
       }
-      LOGGER.debug("The server lacks {}, which the browser gets from {}", sonames, installation);
+      LOGGER.debug(LIBRARIES_MISSING, sonames, installation);
     }
     return libraries;
   }

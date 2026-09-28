@@ -58,6 +58,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   static final String NAME = "mcav_resource_pack_http";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
+  private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download";
   private static final byte[] GET = "GET ".getBytes(StandardCharsets.US_ASCII);
   private static final byte[] HEAD = "HEAD ".getBytes(StandardCharsets.US_ASCII);
   private static final String STATUS_OK = "200 OK";
@@ -172,7 +173,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     try {
       body = this.packFile.read();
     } catch (final IOException exception) {
-      LOGGER.warn("Could not read the resource pack for an HTTP download", exception);
+      LOGGER.warn(PACK_NOT_READ, exception);
       respondWithError(context);
       return;
     }

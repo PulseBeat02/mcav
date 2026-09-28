@@ -43,6 +43,12 @@ public final class ModuleLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ModuleLoader.class);
 
+  private static final String STARTING_MODULE = "Starting module {}";
+
+  private static final String STOP_AFTER_FAILED_START_FAILED = "Module {} failed to stop after it failed to start";
+
+  private static final String STOP_FAILED = "Module {} failed to stop";
+
   private final Map<Class<?>, MCAVModule> modules;
   private final List<MCAVModule> startOrder;
 
@@ -111,7 +117,7 @@ public final class ModuleLoader {
 
   private static void startModule(final MCAVModule module) {
     final String moduleName = module.getModuleName();
-    LOGGER.info("Starting module {}", moduleName);
+    LOGGER.info(STARTING_MODULE, moduleName);
     try {
       module.start();
     } catch (final ModuleException exception) {
@@ -138,7 +144,7 @@ public final class ModuleLoader {
       // a module is foreign code, so a failed stop must not replace the start failure; only a virtual machine error,
       // which no module can cause or recover from, is too severe to be attached
       ThrowableUtils.throwIfFatal(stopFailure);
-      LOGGER.error("Module {} failed to stop after it failed to start", moduleName, stopFailure);
+      LOGGER.error(STOP_AFTER_FAILED_START_FAILED, moduleName, stopFailure);
       final Equivalence<Object> identity = Equivalence.identity();
       if (!identity.equivalent(stopFailure, startFailure)) {
         startFailure.addSuppressed(stopFailure);
@@ -178,7 +184,7 @@ public final class ModuleLoader {
         // one broken module, even one failing an assertion or a native call, must not keep the others running; only a
         // virtual machine error stops the shutdown, because nothing can be released reliably after it
         ThrowableUtils.throwIfFatal(exception);
-        LOGGER.error("Module {} failed to stop", moduleName, exception);
+        LOGGER.error(STOP_FAILED, moduleName, exception);
       }
     }
     this.startOrder.clear();

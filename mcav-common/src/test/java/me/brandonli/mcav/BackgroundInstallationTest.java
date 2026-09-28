@@ -52,6 +52,10 @@ final class BackgroundInstallationTest {
   private static final String YTDLP_THREAD = "MCAV Installer yt-dlp";
   private static final String NOT_STOPPED = "{} did not stop within {} ms after it was cancelled";
 
+  private static final String PREPARATION_FAILED = "{} could not be prepared because of an unexpected failure";
+
+  private static final String THREAD_FAILED = "{} ended with an error";
+
   private final DependencyLoader dependencies = Mockito.mock(DependencyLoader.class);
   private final CapabilityGuard guard = new CapabilityGuard();
   private final Logger logger = Mockito.mock(Logger.class);
@@ -121,7 +125,7 @@ final class BackgroundInstallationTest {
     assertTrue(ytdlp);
     assertEquals("VLC is not available on this system", refusalMessage);
     final Logger verifiedLogger = Mockito.verify(this.logger);
-    verifiedLogger.warn("{} could not be prepared because of an unexpected failure", "VLC", failure);
+    verifiedLogger.warn(PREPARATION_FAILED, "VLC", failure);
   }
 
   @Test
@@ -137,7 +141,7 @@ final class BackgroundInstallationTest {
     joinAll(installation);
     assertFalse(ytdlp, "nobody waits forever for a preparation that ended with an error");
     final Logger verifiedLogger = Mockito.verify(this.logger);
-    verifiedLogger.error("{} ended with an error", YTDLP_THREAD, error);
+    verifiedLogger.error(THREAD_FAILED, YTDLP_THREAD, error);
   }
 
   @Test

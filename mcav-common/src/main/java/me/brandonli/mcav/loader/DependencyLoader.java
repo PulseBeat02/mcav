@@ -56,6 +56,18 @@ import org.slf4j.LoggerFactory;
 public final class DependencyLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DependencyLoader.class);
+  private static final String LOADING_NATIVES = "Loading JavaCV natives...";
+  private static final String NATIVES_LOADED = "JavaCV natives loaded in {} ms";
+  private static final String FEATURE_UNAVAILABLE = "{} is not available on this system, because its native libraries cannot be loaded: {}";
+  private static final String DEVICES_UNAVAILABLE = "The FFmpeg device library is not available, capture devices will not work";
+  private static final String PREPARING_VLC = "Preparing VLC...";
+  private static final String VLC_READY = "VLC ready in {} ms";
+  private static final String VLC_UNAVAILABLE = "VLC is not available, VLC players cannot be used: {}";
+  private static final String PREPARATION_CANCELLED = "Preparing {} was cancelled";
+  private static final String YTDLP_UNSUPPORTED = "yt-dlp is not available for this platform, URL parsing cannot be used";
+  private static final String PREPARING_YTDLP = "Preparing yt-dlp...";
+  private static final String YTDLP_READY = "yt-dlp ready in {} ms";
+  private static final String YTDLP_UNAVAILABLE = "yt-dlp could not be installed, URL parsing cannot be used: {}";
   private static final String JNI_AVDEVICE = "jniavdevice";
   // the class of the device library, which a second load names without the library when the first failure is not kept
   private static final String AVDEVICE_CLASS = "org.bytedeco.ffmpeg.global.avdevice";
@@ -122,7 +134,7 @@ public final class DependencyLoader {
   @VisibleForTesting
   static void loadModules(final Runnable nativeLoader) {
     final long start = System.currentTimeMillis();
-    LOGGER.info("Loading JavaCV natives...");
+    LOGGER.info(LOADING_NATIVES);
     try {
       nativeLoader.run();
     } catch (final UnsatisfiedLinkError | NoClassDefFoundError exception) {
@@ -131,7 +143,7 @@ public final class DependencyLoader {
     }
     final long end = System.currentTimeMillis();
     final long elapsed = end - start;
-    LOGGER.info("JavaCV natives loaded in {} ms", elapsed);
+    LOGGER.info(NATIVES_LOADED, elapsed);
   }
 
   private void loadNatives() {
@@ -196,7 +208,7 @@ public final class DependencyLoader {
       return true;
     } catch (final LinkageError error) {
       final String reason = error.getMessage();
-      LOGGER.warn("{} is not available on this system, because its native libraries cannot be loaded: {}", feature, reason);
+      LOGGER.warn(FEATURE_UNAVAILABLE, feature, reason);
       return false;
     }
   }
@@ -223,7 +235,7 @@ public final class DependencyLoader {
       if (!avdeviceOnly) {
         throw new NativeLoadingException("Failed to load FFmpeg: " + exception.getMessage(), exception);
       }
-      LOGGER.warn("The FFmpeg device library is not available, capture devices will not work");
+      LOGGER.warn(DEVICES_UNAVAILABLE);
     }
     setup.run();
   }
@@ -254,13 +266,13 @@ public final class DependencyLoader {
    */
   @VisibleForTesting
   void installVLC(final VLCStarter starter) {
-    this.logger.info("Preparing VLC...");
+    this.logger.info(PREPARING_VLC);
     final long start = System.currentTimeMillis();
     try {
       starter.start();
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
-      this.logger.info("VLC ready in {} ms", elapsed);
+      this.logger.info(VLC_READY, elapsed);
     } catch (final IOException | RuntimeException | LinkageError exception) {
       // every mcav failure is a RuntimeException, and LinkageError covers VLC natives that cannot be linked; other
       // errors, such as an OutOfMemoryError, are not a reason to run without VLC and must reach the caller
@@ -268,7 +280,7 @@ public final class DependencyLoader {
       final boolean cancelled = this.logCancellation(Capability.VLC);
       if (!cancelled) {
         final String reason = exception.getMessage();
-        this.logger.warn("VLC is not available, VLC players cannot be used: {}", reason);
+        this.logger.warn(VLC_UNAVAILABLE, reason);
       }
     }
   }
@@ -291,7 +303,7 @@ public final class DependencyLoader {
     final boolean cancelled = currentThread.isInterrupted();
     if (cancelled) {
       final String name = capability.getDisplayName();
-      this.logger.info("Preparing {} was cancelled", name);
+      this.logger.info(PREPARATION_CANCELLED, name);
     }
     return cancelled;
   }
@@ -317,23 +329,23 @@ public final class DependencyLoader {
     final boolean supported = installer.isSupported();
     if (!supported) {
       this.capabilities.remove(Capability.YT_DLP);
-      this.logger.warn("yt-dlp is not available for this platform, URL parsing cannot be used");
+      this.logger.warn(YTDLP_UNSUPPORTED);
       return;
     }
-    this.logger.info("Preparing yt-dlp...");
+    this.logger.info(PREPARING_YTDLP);
     final long start = System.currentTimeMillis();
     try {
       installer.download(true);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
-      this.logger.info("yt-dlp ready in {} ms", elapsed);
+      this.logger.info(YTDLP_READY, elapsed);
     } catch (final IOException | RuntimeException exception) {
       // an installer reports unchecked failures, such as a cache folder that cannot be created, as RuntimeExceptions
       this.capabilities.remove(Capability.YT_DLP);
       final boolean cancelled = this.logCancellation(Capability.YT_DLP);
       if (!cancelled) {
         final String reason = exception.getMessage();
-        this.logger.warn("yt-dlp could not be installed, URL parsing cannot be used: {}", reason);
+        this.logger.warn(YTDLP_UNAVAILABLE, reason);
       }
     }
   }

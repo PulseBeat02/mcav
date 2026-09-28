@@ -47,6 +47,8 @@ public final class MultiplexerInputExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
 
+  private static final String PLAYBACK_FAILED = "Playback failed in {}";
+
   private MultiplexerInputExample() {}
 
   static void main() throws IOException, InterruptedException {
@@ -82,7 +84,7 @@ public final class MultiplexerInputExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback failed in {}", context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();

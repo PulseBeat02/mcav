@@ -98,6 +98,15 @@ import org.slf4j.LoggerFactory;
 final class HelperSession implements BrowserSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
+  private static final String HELPER_OUTPUT_BEFORE_FAILURE = "The browser helper wrote before its start failed:{}{}";
+  private static final String HELPER_CEF_VERSION = "The browser helper runs CEF {}";
+  private static final String PAGE_LOAD_FAILED = "The browser could not load {}: {} ({})";
+  private static final String PAGE_NOTICE = "Browser: {}";
+  private static final String NOTICES_SKIPPED = "Browser: {} more notices of the page were not logged";
+  private static final String HELPER_OUTPUT = "browser helper: {}";
+  private static final String HELPER_KILLED = "The browser helper did not stop within {} ms and is killed";
+  private static final String CLOSE_FAILED = "Failed to close {}";
+  private static final String FOLDER_NOT_REMOVED = "The folder of the browser session {} could not be removed: {}";
   private static final int MAX_QUEUED_INPUT = 128;
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
@@ -484,7 +493,7 @@ final class HelperSession implements BrowserSession {
       // a helper that crashed says why only in its output, such as the check of Chromium that failed
       final String tail = this.getOutputTail();
       if (!tail.isEmpty()) {
-        LOGGER.warn("The browser helper wrote before its start failed:{}{}", System.lineSeparator(), tail);
+        LOGGER.warn(HELPER_OUTPUT_BEFORE_FAILURE, System.lineSeparator(), tail);
       }
       throw new PlayerException("The browser could not open " + AddressText.describe(uri.toString()) + ": " + cause.getMessage(), cause);
     } catch (final TimeoutException exception) {
@@ -587,7 +596,7 @@ final class HelperSession implements BrowserSession {
       }
       case HelperProtocol.AUDIO -> this.listener.onAudio(message.getSamples());
       case HelperProtocol.READY -> {
-        LOGGER.debug("The browser helper runs CEF {}", message.getText());
+        LOGGER.debug(HELPER_CEF_VERSION, message.getText());
         this.onStartEvent(StartEvent.READY);
       }
       case HelperProtocol.LOADING -> {
@@ -601,13 +610,13 @@ final class HelperSession implements BrowserSession {
         // the helper describes the address already; a helper is not trusted to, so the server does it again
         final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
-        this.logBudget.log(() -> LOGGER.warn("The browser could not load {}: {} ({})", url, text, code), HelperSession::logSkipped);
+        this.logBudget.log(() -> LOGGER.warn(PAGE_LOAD_FAILED, url, text, code), HelperSession::logSkipped);
         final PlayerException failure = new PlayerException(text + " (" + code + ")");
         this.started.completeExceptionally(failure);
       }
       case HelperProtocol.NOTICE -> {
         final String text = message.getText();
-        this.logBudget.log(() -> LOGGER.info("Browser: {}", text), HelperSession::logSkipped);
+        this.logBudget.log(() -> LOGGER.info(PAGE_NOTICE, text), HelperSession::logSkipped);
       }
       case HelperProtocol.FAILURE -> {
         final String text = message.getText();
@@ -625,7 +634,7 @@ final class HelperSession implements BrowserSession {
    * @param lines the number of lines that were not logged
    */
   private static void logSkipped(final long lines) {
-    LOGGER.info("Browser: {} more notices of the page were not logged", lines);
+    LOGGER.info(NOTICES_SKIPPED, lines);
   }
 
   private void onFrame() {
@@ -733,7 +742,7 @@ final class HelperSession implements BrowserSession {
     if (line.isBlank()) {
       return;
     }
-    LOGGER.debug("browser helper: {}", line);
+    LOGGER.debug(HELPER_OUTPUT, line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
       while (this.outputTail.size() > OUTPUT_TAIL_LINES) {
@@ -900,7 +909,7 @@ final class HelperSession implements BrowserSession {
     try {
       final boolean exited = process.waitFor(STOP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       if (!exited) {
-        LOGGER.warn("The browser helper did not stop within {} ms and is killed", STOP_TIMEOUT_MILLIS);
+        LOGGER.warn(HELPER_KILLED, STOP_TIMEOUT_MILLIS);
         // the helper may have started more processes while it did not stop
         try (final Stream<ProcessHandle> later = process.descendants()) {
           later.forEach(descendants::add);
@@ -944,7 +953,7 @@ final class HelperSession implements BrowserSession {
     try {
       closeable.close();
     } catch (final Exception exception) {
-      LOGGER.debug("Failed to close {}", closeable, exception);
+      LOGGER.debug(CLOSE_FAILED, closeable, exception);
     }
   }
 
@@ -958,7 +967,7 @@ final class HelperSession implements BrowserSession {
     try {
       IOUtils.deleteRecursively(folder);
     } catch (final IOException exception) {
-      LOGGER.warn("The folder of the browser session {} could not be removed: {}", folder, exception.getMessage());
+      LOGGER.warn(FOLDER_NOT_REMOVED, folder, exception.getMessage());
     }
   }
 

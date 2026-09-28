@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 public class MCPackHosting implements WebsiteHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCPackHosting.class);
+  private static final String UPLOAD_CACHE_NOT_WRITTEN = "Could not write the upload cache {}, the pack will be uploaded again next time";
   private static final URI UPLOAD_URI = URI.create("https://mc-packs.net");
   private static final String DOWNLOAD_URL_FORMAT = "https://download.mc-packs.net/pack/%s.zip";
   private static final String HASH_ALGORITHM = "SHA-1";
@@ -350,7 +351,7 @@ public class MCPackHosting implements WebsiteHosting {
       gson.toJson(cache, CACHE_TYPE, writer);
     } catch (final IOException exception) {
       // the upload itself succeeded, a missing cache entry only costs one extra upload on the next start
-      LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time", cacheFile, exception);
+      LOGGER.warn(UPLOAD_CACHE_NOT_WRITTEN, cacheFile, exception);
     }
   }
 }

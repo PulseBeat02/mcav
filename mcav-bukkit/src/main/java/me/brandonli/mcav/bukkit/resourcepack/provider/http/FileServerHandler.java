@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileServerHandler.class);
+  private static final String CLOSE_FAILED = "Could not close a resource pack download connection after an error";
   private static final ChannelFutureListener LOG_CLOSE_FAILURE = FileServerHandler::logCloseFailure;
   private static final int MAX_HEADER_BYTES = 8192;
   private static final byte[] HEADER_TERMINATOR = { '\r', '\n', '\r', '\n' };
@@ -344,7 +345,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
       return;
     }
     final Throwable failure = closing.cause();
-    LOGGER.debug("Could not close a resource pack download connection after an error", failure);
+    LOGGER.debug(CLOSE_FAILED, failure);
   }
 
   /**

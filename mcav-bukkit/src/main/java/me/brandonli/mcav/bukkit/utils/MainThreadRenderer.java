@@ -47,6 +47,10 @@ import org.slf4j.LoggerFactory;
 public abstract class MainThreadRenderer<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MainThreadRenderer.class);
+  private static final String TASK_SKIPPED_WHILE_DISABLED =
+    "Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown";
+  private static final String TASK_SKIPPED_BEFORE_SCHEDULING =
+    "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown";
   private static final long START_DELAY_TICKS = 0L;
   private static final long PERIOD_TICKS = 1L;
 
@@ -190,7 +194,7 @@ public abstract class MainThreadRenderer<T> {
     final boolean enabled = plugin.isEnabled();
     if (!enabled) {
       final String pluginName = plugin.getName();
-      LOGGER.warn("Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown", pluginName);
+      LOGGER.warn(TASK_SKIPPED_WHILE_DISABLED, pluginName);
       return;
     }
     final BukkitScheduler scheduler = Bukkit.getScheduler();
@@ -198,11 +202,7 @@ public abstract class MainThreadRenderer<T> {
       scheduler.runTask(plugin, task);
     } catch (final IllegalPluginAccessException exception) {
       final String pluginName = plugin.getName();
-      LOGGER.warn(
-        "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown",
-        pluginName,
-        exception
-      );
+      LOGGER.warn(TASK_SKIPPED_BEFORE_SCHEDULING, pluginName, exception);
     }
   }
 }

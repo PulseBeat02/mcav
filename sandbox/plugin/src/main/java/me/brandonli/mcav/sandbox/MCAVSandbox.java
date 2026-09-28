@@ -66,6 +66,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available";
 
+  private static final String NO_BROWSER =
+    "There is no browser for the operating system and processor of this server, browsers will not be available";
+
   private static final String LOADED = "MCAV loaded in {} ms";
 
   private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
@@ -165,7 +168,7 @@ public final class MCAVSandbox extends JavaPlugin {
     final BrowserModule browserModule = api.getModule(BrowserModule.class);
     this.browserSupported = browserModule.isSupported();
     if (!this.browserSupported) {
-      pluginLogger.warn("There is no browser for the operating system and processor of this server, browsers will not be available");
+      pluginLogger.warn(NO_BROWSER);
     }
 
     final long end = System.currentTimeMillis();

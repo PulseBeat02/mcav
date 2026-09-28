@@ -64,6 +64,8 @@ import org.slf4j.LoggerFactory;
 public final class HttpDownloader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HttpDownloader.class);
+  private static final String ATTEMPT_FAILED = "Download attempt {}/{} of {} failed: {}";
+  private static final String UNEXPECTED_STATUS = "Server answered with status {} for {}";
   private static final String USER_AGENT = "mcav (+https://github.com/PulseBeat02/mcav)";
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
   private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(30);
@@ -296,7 +298,7 @@ public final class HttpDownloader {
       } catch (final IOException exception) {
         lastFailure = exception;
         final String reason = exception.getMessage();
-        LOGGER.warn("Download attempt {}/{} of {} failed: {}", attempt, MAX_ATTEMPTS, uri, reason);
+        LOGGER.warn(ATTEMPT_FAILED, attempt, MAX_ATTEMPTS, uri, reason);
         final boolean retryable = isRetryable(exception);
         if (!retryable) {
           throw exception;
@@ -434,7 +436,7 @@ public final class HttpDownloader {
     final int status = response.statusCode();
     final boolean successful = status / 100 == 2;
     if (!successful) {
-      LOGGER.warn("Server answered with status {} for {}", status, uri);
+      LOGGER.warn(UNEXPECTED_STATUS, status, uri);
       return Optional.empty();
     }
     final String body = response.body();

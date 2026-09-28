@@ -59,6 +59,11 @@ public final class ReleasePackageManager {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ReleasePackageManager.class);
 
+  private static final String APPIMAGE_UNRESOLVED = "Could not resolve the VLC AppImage from {}: {}";
+
+  private static final String APPIMAGE_UNVERIFIED =
+    "Refusing the VLC AppImage {}: GitHub publishes no SHA-256 digest for it, and unverified code is never run";
+
   // the AppImage of Arch Linux's current VLC package is published under this tag every week; the
   // continuous-with-plugins tag is no longer updated
   private static final String X86_64_RELEASE_API = "https://api.github.com/repos/ivan-hc/VLC-appimage/releases/tags/continuous";
@@ -136,7 +141,7 @@ public final class ReleasePackageManager {
       return findAppImageAsset(json, platform);
     } catch (final IOException | JsonParseException exception) {
       final String reason = exception.getMessage();
-      LOGGER.warn("Could not resolve the VLC AppImage from {}: {}", releaseApi, reason);
+      LOGGER.warn(APPIMAGE_UNRESOLVED, releaseApi, reason);
       return Optional.empty();
     }
   }
@@ -198,7 +203,7 @@ public final class ReleasePackageManager {
     final JsonElement digestElement = asset.get("digest");
     final Optional<String> sha256 = readSha256(digestElement);
     if (sha256.isEmpty()) {
-      LOGGER.warn("Refusing the VLC AppImage {}: GitHub publishes no SHA-256 digest for it, and unverified code is never run", url);
+      LOGGER.warn(APPIMAGE_UNVERIFIED, url);
       return Optional.empty();
     }
     final String hash = sha256.get();

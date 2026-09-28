@@ -41,6 +41,10 @@ public final class VMModule implements MCAVModule {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VMModule.class);
 
+  private static final String QEMU_FOUND = "Found QEMU at {}";
+
+  private static final String QEMU_MISSING = "{} is not on the PATH or in the usual install folders, virtual machines cannot be started";
+
   private final ExecutableFinder finder;
   private volatile boolean qemuInstalled;
 
@@ -68,9 +72,9 @@ public final class VMModule implements MCAVModule {
     this.qemuInstalled = qemu.isPresent();
     if (qemu.isPresent()) {
       final Path path = qemu.get();
-      LOGGER.info("Found QEMU at {}", path);
+      LOGGER.info(QEMU_FOUND, path);
     } else {
-      LOGGER.warn("{} is not on the PATH or in the usual install folders, virtual machines cannot be started", command);
+      LOGGER.warn(QEMU_MISSING, command);
     }
   }
 

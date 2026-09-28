@@ -59,6 +59,12 @@ public final class AudioProvider {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
 
+  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available";
+
+  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}";
+
+  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available";
+
   // the source a video plays as, as there is one video at a time
   private static final Object VIDEO = new Object();
   // sources are told apart by identity
@@ -147,7 +153,7 @@ public final class AudioProvider {
 
   private void onHttpStarted(final HttpResult server, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error("The audio web page could not be started, so its audio is not available", error);
+      LOGGER.error(WEB_PAGE_FAILED, error);
       return;
     }
     final boolean accepted;
@@ -163,7 +169,7 @@ public final class AudioProvider {
       return;
     }
     final String address = server.getFullUrl();
-    LOGGER.info("The audio web page is available at {}", address);
+    LOGGER.info(WEB_PAGE_AVAILABLE, address);
   }
 
   private void startDiscord() {
@@ -224,7 +230,7 @@ public final class AudioProvider {
   }
 
   private void onDiscordFailed(final JDA bot, final Throwable error) {
-    LOGGER.error("The Discord bot could not connect, so its audio is not available", error);
+    LOGGER.error(DISCORD_FAILED, error);
     final boolean current;
     synchronized (this.lock) {
       // JDA does not override equals, so this asks whether the failed bot is still the very instance in use

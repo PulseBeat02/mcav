@@ -59,6 +59,8 @@ import org.slf4j.LoggerFactory;
 public final class CommandTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CommandTask.class);
+  private static final String EXITED = "Command {} exited with code {}";
+  private static final String RUNNING = "Running command {}";
   private static final int NOT_RUN = Integer.MIN_VALUE;
   private static final long PROCESS_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20L);
 
@@ -162,7 +164,7 @@ public final class CommandTask {
       // close() waits indefinitely for blocked pipe readers. Cancellation must not extend the caller's deadline.
       readers.shutdownNow();
     }
-    LOGGER.debug("Command {} exited with code {}", this.command, this.exitCode);
+    LOGGER.debug(EXITED, this.command, this.exitCode);
     return this.exitCode;
   }
 
@@ -207,7 +209,7 @@ public final class CommandTask {
       final File directoryFile = directory.toFile();
       builder.directory(directoryFile);
     }
-    LOGGER.debug("Running command {}", this.command);
+    LOGGER.debug(RUNNING, this.command);
     return builder.start();
   }
 

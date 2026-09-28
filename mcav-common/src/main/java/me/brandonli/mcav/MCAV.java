@@ -49,6 +49,10 @@ public final class MCAV implements MCAVApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
 
+  private static final String BUILDING_PALETTE = "Building the map color lookup table...";
+
+  private static final String PALETTE_BUILT = "Map color lookup table built in {} ms";
+
   private final DependencyLoader dependencyLoader;
   private final ModuleLoader moduleLoader;
   private final CapabilityGuard guard;
@@ -154,11 +158,11 @@ public final class MCAV implements MCAVApi {
   }
 
   private static void loadPalette() {
-    LOGGER.info("Building the map color lookup table...");
+    LOGGER.info(BUILDING_PALETTE);
     final long start = System.currentTimeMillis();
     DitherPalette.init();
     final long end = System.currentTimeMillis();
-    LOGGER.info("Map color lookup table built in {} ms", end - start);
+    LOGGER.info(PALETTE_BUILT, end - start);
   }
 
   @Override

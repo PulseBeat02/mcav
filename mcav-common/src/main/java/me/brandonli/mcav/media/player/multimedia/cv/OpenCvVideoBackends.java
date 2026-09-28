@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 final class OpenCvVideoBackends {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenCvVideoBackends.class);
+  private static final String NO_FILE_BACKEND =
+    "The OpenCV build of this platform has no video file backend, so files are read with the FFmpeg reader of JavaCV instead";
   private static final String VIDEO_SECTION = "Video I/O:";
   private static final String SECTION_END = "\n\n";
   private static final String ENABLED = "YES";
@@ -76,9 +78,7 @@ final class OpenCvVideoBackends {
   static boolean decideFromBuildInformation(final String information) {
     final boolean backend = listsEnabledFileBackend(information);
     if (!backend) {
-      LOGGER.info(
-        "The OpenCV build of this platform has no video file backend, so files are read with the FFmpeg reader of JavaCV instead"
-      );
+      LOGGER.info(NO_FILE_BACKEND);
     }
     return backend;
   }

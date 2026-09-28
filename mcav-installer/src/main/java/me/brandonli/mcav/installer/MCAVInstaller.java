@@ -42,6 +42,10 @@ public final class MCAVInstaller {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVInstaller.class);
 
+  private static final String DOWNLOADING = "Downloading {}:{}:{} and its dependencies...";
+
+  private static final String LOADED = "Loaded {} jars for {} in {} ms";
+
   private final Logger logger;
   private final Path folder;
   private final ClassLoader classLoader;
@@ -176,7 +180,7 @@ public final class MCAVInstaller {
     Objects.requireNonNull(loader, "Loader must not be null");
 
     final long start = System.currentTimeMillis();
-    this.logger.info("Downloading {}:{}:{} and its dependencies...", groupId, artifactId, version);
+    this.logger.info(DOWNLOADING, groupId, artifactId, version);
     final List<Path> jars;
     try (final InstallationManager manager = this.managerFactory.apply(this.folder)) {
       jars = manager.downloadDependencies(groupId, artifactId, version);
@@ -186,7 +190,7 @@ public final class MCAVInstaller {
     final long end = System.currentTimeMillis();
     final long elapsed = end - start;
     final int count = jars.size();
-    this.logger.info("Loaded {} jars for {} in {} ms", count, artifactId, elapsed);
+    this.logger.info(LOADED, count, artifactId, elapsed);
     return jars;
   }
 }

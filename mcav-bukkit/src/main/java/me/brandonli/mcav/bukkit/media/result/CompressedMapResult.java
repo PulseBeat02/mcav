@@ -72,6 +72,8 @@ public class CompressedMapResult implements DitherResultStep {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CompressedMapResult.class);
 
+  private static final String DITHERING_THREAD_FAILED = "Uncaught exception in map dithering thread {}";
+
   private final MapConfiguration configuration;
   private final int maxBytesPerFrame;
   private final Set<UUID> activeViewers;
@@ -317,7 +319,7 @@ public class CompressedMapResult implements DitherResultStep {
   // exceptions of dither tasks are rethrown to the caller by the pool; anything else that escapes a worker is logged
   private static void logUncaughtException(final Thread thread, final Throwable throwable) {
     final String threadName = thread.getName();
-    LOGGER.error("Uncaught exception in map dithering thread {}", threadName, throwable);
+    LOGGER.error(DITHERING_THREAD_FAILED, threadName, throwable);
   }
 
   private static ForkJoinWorkerThread createDitherThread(final ForkJoinPool pool) {

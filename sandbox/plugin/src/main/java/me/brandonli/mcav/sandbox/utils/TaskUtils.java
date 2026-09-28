@@ -36,6 +36,10 @@ public final class TaskUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TaskUtils.class);
 
+  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled";
+
+  private static final String CALLBACK_FAILED = "A callback of a background task failed";
+
   private TaskUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -70,7 +74,7 @@ public final class TaskUtils {
       scheduler.runTask(plugin, task);
       return true;
     } catch (final IllegalPluginAccessException exception) {
-      LOGGER.warn("Dropped a task for the main thread because the plugin is disabled", exception);
+      LOGGER.warn(TASK_DROPPED, exception);
       return false;
     }
   }
@@ -111,7 +115,7 @@ public final class TaskUtils {
   }
 
   private static @Nullable Void logCallbackFailure(final Throwable failure) {
-    LOGGER.error("A callback of a background task failed", failure);
+    LOGGER.error(CALLBACK_FAILED, failure);
     return null;
   }
 }

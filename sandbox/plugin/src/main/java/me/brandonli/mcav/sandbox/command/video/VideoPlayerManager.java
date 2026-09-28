@@ -67,6 +67,9 @@ public final class VideoPlayerManager {
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
 
+  private static final String CLEANUP_RETAINED =
+    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain";
+
   /** How often a looping video is checked for its end, in ticks: twice a second. */
   private static final long LOOP_CHECK_TICKS = 10L;
 
@@ -442,7 +445,7 @@ public final class VideoPlayerManager {
     try {
       return scheduler.callSyncMethod(this.plugin, call);
     } catch (final IllegalPluginAccessException exception) {
-      LOGGER.warn("The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain", exception);
+      LOGGER.warn(CLEANUP_RETAINED, exception);
       return null;
     }
   }

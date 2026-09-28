@@ -112,6 +112,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
+  private static final String START_FAILED = "Failed to start {}";
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final int REACH = 100;
   private static final String CANNOT_RELEASE = "A player failed to stop";
@@ -588,7 +589,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final boolean success = error == null && Boolean.TRUE.equals(started);
     if (!success) {
       final String description = attempt.getDescription();
-      LOGGER.error("Failed to start {}", description, error);
+      LOGGER.error(START_FAILED, description, error);
       final T failed = attempt.getPlayer();
       final FunctionalVideoFilter maps = attempt.getMaps();
       this.releaseIfCurrent(failed, maps);

@@ -59,6 +59,10 @@ public final class VLCInstaller extends AbstractInstaller {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCInstaller.class);
 
+  private static final String OLD_INSTALLATION_DELETED = "Deleted the old VLC installation at {}";
+
+  private static final String OLD_INSTALLATION_NOT_DELETED = "Could not delete the old VLC installation at {}: {}";
+
   private static final String NAME = "vlc";
 
   private static final String DOWNLOADS_RESOURCE = "vlc.json";
@@ -228,10 +232,10 @@ public final class VLCInstaller extends AbstractInstaller {
   private static void deleteLegacyInstallation(final Path legacy) {
     try {
       ManualInstallationStrategy.deleteRecursively(legacy);
-      LOGGER.info("Deleted the old VLC installation at {}", legacy);
+      LOGGER.info(OLD_INSTALLATION_DELETED, legacy);
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      LOGGER.warn("Could not delete the old VLC installation at {}: {}", legacy, reason);
+      LOGGER.warn(OLD_INSTALLATION_NOT_DELETED, legacy, reason);
     }
   }
 

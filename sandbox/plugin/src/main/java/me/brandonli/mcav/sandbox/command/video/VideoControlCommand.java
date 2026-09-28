@@ -42,6 +42,8 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoControlCommand.class);
 
+  private static final String RELEASE_FAILED = "Failed to release the video player";
+
   private final MCAVSandbox plugin;
   private final VideoPlayerManager manager;
 
@@ -132,7 +134,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    */
   private static void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error("Failed to release the video player", error);
+      LOGGER.error(RELEASE_FAILED, error);
       return;
     }
     done.run();

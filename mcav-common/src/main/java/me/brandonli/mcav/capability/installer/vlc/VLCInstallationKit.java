@@ -47,6 +47,9 @@ import org.slf4j.LoggerFactory;
 public final class VLCInstallationKit {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCInstallationKit.class);
+  private static final String USING_LIBRARY_INSTALLATION = "Using the VLC installation of the library at {}";
+  private static final String USING_LOADED_LIBRARIES = "Using the VLC libraries vlcj loaded earlier in this JVM";
+  private static final String USING_SYSTEM_INSTALLATION = "Using the VLC installation of the system at {}";
   private static final VLCLoadState SHARED_LOAD_STATE = new VLCLoadState();
 
   private final Installer installer;
@@ -150,15 +153,15 @@ public final class VLCInstallationKit {
     if (!loaded) {
       throw new UnsupportedOperatingSystemException("VLC was installed to " + libraryDirectory + " but its libraries could not be loaded");
     }
-    LOGGER.info("Using the VLC installation of the library at {}", libraryDirectory);
+    LOGGER.info(USING_LIBRARY_INSTALLATION, libraryDirectory);
     return Optional.of(libraryDirectory);
   }
 
   private static void logSystemInstallation(final @Nullable Path systemPath) {
     if (systemPath == null) {
-      LOGGER.info("Using the VLC libraries vlcj loaded earlier in this JVM");
+      LOGGER.info(USING_LOADED_LIBRARIES);
       return;
     }
-    LOGGER.info("Using the VLC installation of the system at {}", systemPath);
+    LOGGER.info(USING_SYSTEM_INSTALLATION, systemPath);
   }
 }
