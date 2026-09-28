@@ -166,8 +166,8 @@ final class EncoderPoolTest {
     try (final EncoderPool pool = new EncoderPool(2)) {
       final Mcv2Encoder encoder = pool.encoder(EncoderSettings.SHIP, true);
       final byte[] rgb = new byte[32 * 16 * 3];
-      for (int i = 0; i < rgb.length; i++) {
-        rgb[i] = (byte) (i * 7);
+      for (int index = 0; index < rgb.length; index++) {
+        rgb[index] = (byte) (index * 7);
       }
       final byte[] inside = pool.run(() -> encoder.encode(rgb, 32, 16, 0));
       final Mcv2Encoder alone = new Mcv2Encoder(EncoderSettings.SHIP, ForkJoinPool.commonPool(), 1, true);

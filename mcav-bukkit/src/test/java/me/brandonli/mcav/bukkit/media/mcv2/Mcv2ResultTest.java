@@ -379,12 +379,12 @@ final class Mcv2ResultTest {
   private int play(final Mcv2Result result, final AtomicLong clock, final Mcv2Encoder encoder, final ImageBuffer frame, final int frames)
     throws InterruptedException {
     int encoded = 0;
-    for (int i = 0; i < frames; i++) {
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       final long arrival = clock.addAndGet(16_666_667L);
       result.applyFilter(frame, this.metadata);
       final Mcv2Result.Arrival handed = result.poll();
       if (handed != null) {
-        result.send(encoder, handed, i);
+        result.send(encoder, handed, frameNumber);
         encoded++;
       }
       // the encode ran on the clock; the video's next frame comes a frame after this one, whatever it took
@@ -825,13 +825,13 @@ final class Mcv2ResultTest {
     this.play(result, clock, encoder, frame, 300);
     // two seconds a frame: nothing fits, and the frame that arrived while the last was encoded is not encoded any more
     encodeNanos.set(TimeUnit.SECONDS.toNanos(2));
-    for (int i = 0; i < 20 && !result.getRung().isDithered(); i++) {
+    for (int frameNumber = 0; frameNumber < 20 && !result.getRung().isDithered(); frameNumber++) {
       clock.addAndGet(16_666_667L);
       result.applyFilter(frame, this.metadata);
       final Mcv2Result.Arrival encoding = result.poll();
       assertNotNull(encoding);
       result.applyFilter(frame, this.metadata);
-      result.send(encoder, encoding, 300 + i);
+      result.send(encoder, encoding, 300 + frameNumber);
     }
     assertTrue(result.getRung().isDithered());
     assertNull(result.poll());
@@ -1007,9 +1007,9 @@ final class Mcv2ResultTest {
     drainer.join(TimeUnit.SECONDS.toMillis(10));
     assertFalse(drainer.isAlive());
     awaitFrames(result, 1);
-    for (int i = 2; i <= 3; i++) {
+    for (int frameNumber = 2; frameNumber <= 3; frameNumber++) {
       result.applyFilter(frame, this.metadata);
-      awaitFrames(result, i);
+      awaitFrames(result, frameNumber);
     }
     // the first frame's encoder was replaced once the pipeline was empty; its replacement began and finished the rest
     assertEquals(2, made.size());
@@ -1194,7 +1194,7 @@ final class Mcv2ResultTest {
       List.of(EncoderSettings.SHIP, EncoderSettings.SHIP.faster(), EncoderSettings.SHIP),
       made
         .stream()
-        .map(e -> e.getSettings())
+        .map(created -> created.getSettings())
         .toList()
     );
     assertEquals(List.of(), switched);
@@ -1214,7 +1214,7 @@ final class Mcv2ResultTest {
     final int frames
   ) throws InterruptedException {
     Mcv2Encoder encoder = first;
-    for (int i = 0; i < frames; i++) {
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       final long arrival = clock.addAndGet(16_666_667L);
       result.applyFilter(frame, this.metadata);
       final Mcv2Result.Arrival handed = result.poll();
@@ -1223,7 +1223,7 @@ final class Mcv2ResultTest {
         if (!settings.equals(encoder.getSettings())) {
           encoder = result.encoderFor(settings, encoder);
         }
-        result.send(encoder, handed, i);
+        result.send(encoder, handed, frameNumber);
       }
       clock.set(arrival);
     }

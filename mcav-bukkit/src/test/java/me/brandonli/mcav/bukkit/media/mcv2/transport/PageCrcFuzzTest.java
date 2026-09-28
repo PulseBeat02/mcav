@@ -74,8 +74,8 @@ final class PageCrcFuzzTest {
     final List<byte[]> pages = PAGES.get(symbolBits - 6);
     final byte[] original = pages.get((data[1] & 0xFF) % pages.size());
     final byte[] symbols = Arrays.copyOf(original, Math.max(0, original.length + data[2]));
-    for (int i = 3; i < data.length && i - 3 < symbols.length; i++) {
-      symbols[i - 3] ^= data[i];
+    for (int offset = 3; offset < data.length && offset - 3 < symbols.length; offset++) {
+      symbols[offset - 3] ^= data[offset];
     }
     final TransportPage page;
     try {

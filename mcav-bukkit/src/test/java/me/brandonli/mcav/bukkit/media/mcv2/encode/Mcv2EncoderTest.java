@@ -59,23 +59,26 @@ final class Mcv2EncoderTest {
   static byte[] texture(final int width, final int height, final int seed) {
     final Random random = new Random(seed);
     final byte[] rgb = new byte[width * height * 3];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final double wave = 45 * Math.sin((x + seed) / 6.0) * Math.cos(y / 5.0) + 25 * Math.sin((x - 2 * y) / 9.0);
-        for (int c = 0; c < 3; c++) {
-          rgb[(y * width + x) * 3 + c] = (byte) Math.min(255, Math.max(0, (int) (120 + wave + 25 * c + random.nextInt(16))));
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final double wave = 45 * Math.sin((column + seed) / 6.0) * Math.cos(row / 5.0) + 25 * Math.sin((column - 2 * row) / 9.0);
+        for (int channel = 0; channel < 3; channel++) {
+          rgb[(row * width + column) * 3 + channel] = (byte) Math.min(
+            255,
+            Math.max(0, (int) (120 + wave + 25 * channel + random.nextInt(16)))
+          );
         }
       }
     }
     return rgb;
   }
 
-  /** The picture whose pixel (x, y) is the given one's (x + dx, y), wrapping around. */
-  private static byte[] panned(final byte[] rgb, final int width, final int height, final int dx) {
+  /** The picture whose pixel (column, row) is the given one's (column + panX, row), wrapping around. */
+  private static byte[] panned(final byte[] rgb, final int width, final int height, final int panX) {
     final byte[] out = new byte[rgb.length];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        System.arraycopy(rgb, (y * width + Math.floorMod(x + dx, width)) * 3, out, (y * width + x) * 3, 3);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        System.arraycopy(rgb, (row * width + Math.floorMod(column + panX, width)) * 3, out, (row * width + column) * 3, 3);
       }
     }
     return out;
@@ -287,10 +290,10 @@ final class Mcv2EncoderTest {
   @Test
   void checksTheTreeAndEveryLeafOfTheKeptFrame() {
     final byte[] source = new byte[8 * 8 * 3];
-    for (int i = 0; i < source.length; i += 3) {
-      source[i] = 1;
-      source[i + 1] = 2;
-      source[i + 2] = 3;
+    for (int offset = 0; offset < source.length; offset += 3) {
+      source[offset] = 1;
+      source[offset + 1] = 2;
+      source[offset + 2] = 3;
     }
     final FrameJob job = new FrameJob(EncoderSettings.SHIP, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
     final List<TreeNode> roots = List.of(solid(1, 2, 3));
@@ -316,7 +319,7 @@ final class Mcv2EncoderTest {
     // the leaves are measured on the workers, and the first that disagrees in the list's order is the one reported
     final List<Mcv2Encoder.Leaf> many = new ArrayList<>();
     many.add(new Mcv2Encoder.Leaf(8, 0, 8, 2, 1));
-    for (int i = 0; i < 64; i++) {
+    for (int index = 0; index < 64; index++) {
       many.add(new Mcv2Encoder.Leaf(0, 0, 8, 2, 0));
     }
     final Workers parallel = new Workers(POOL, 4);
@@ -339,9 +342,9 @@ final class Mcv2EncoderTest {
     // a 3x3 picture: the right column and the bottom row have no neighbour to share a square with
     final int[] red = { 0, 4, 9, 8, 12, 20, 100, 200, 255 };
     final byte[] picture = new byte[3 * 3 * 3];
-    for (int i = 0; i < red.length; i++) {
-      picture[i * 3] = (byte) red[i];
-      picture[i * 3 + 1] = (byte) i;
+    for (int index = 0; index < red.length; index++) {
+      picture[index * 3] = (byte) red[index];
+      picture[index * 3 + 1] = (byte) index;
     }
     final byte[] half = Mcv2Encoder.half(picture, 3, 3, Workers.SEQUENTIAL, new byte[2 * 2 * 3]);
     assertArrayEquals(new byte[] { 6, 2, 0, 15, 4, 0, (byte) 150, 7, 0, (byte) 255, 8, 0 }, half);

@@ -213,19 +213,19 @@ public final class Mcv2Screen {
     final int holders = HELD_CHUNKS.getOrDefault(chunk, 0) + 1;
     HELD_CHUNKS.put(chunk, holders);
     if (holders == 1) {
-      chunk.world().addPluginChunkTicket(chunk.x(), chunk.z(), BukkitModule.getPlugin());
+      chunk.world().addPluginChunkTicket(chunk.chunkX(), chunk.chunkZ(), BukkitModule.getPlugin());
     }
   }
 
   private static void release(final HeldChunk chunk) {
     final Integer holders = HELD_CHUNKS.computeIfPresent(chunk, (_, count) -> count == 1 ? null : count - 1);
     if (holders == null) {
-      chunk.world().removePluginChunkTicket(chunk.x(), chunk.z(), BukkitModule.getPlugin());
+      chunk.world().removePluginChunkTicket(chunk.chunkX(), chunk.chunkZ(), BukkitModule.getPlugin());
     }
   }
 
   /** A chunk a screen keeps loaded, in chunk coordinates. */
-  private record HeldChunk(World world, int x, int z) {}
+  private record HeldChunk(World world, int chunkX, int chunkZ) {}
 
   /** The team of the page frames, with the configured colour. */
   PlayerTeam team() {
@@ -254,8 +254,8 @@ public final class Mcv2Screen {
     for (int row = 0; row < rows; row++) {
       for (int column = 0; column < columns; column++) {
         final byte[] symbols = new byte[MapLayout.MAP_SIZE];
-        for (int i = 0; i < SIGNATURE.length; i++) {
-          symbols[i] = (byte) SIGNATURE[i];
+        for (int index = 0; index < SIGNATURE.length; index++) {
+          symbols[index] = (byte) SIGNATURE[index];
         }
         final int at = SIGNATURE.length;
         symbols[at] = (byte) column;

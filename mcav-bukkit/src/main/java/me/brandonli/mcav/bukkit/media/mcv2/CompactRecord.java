@@ -89,29 +89,29 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
   /**
    * Parses and validates the record at an offset, like {@code compact.parse_record} of the reference.
    *
-   * @param data   the frame bytes; the record must end inside them
-   * @param offset the offset of the control byte
-   * @param q      the leaf's quantizer
+   * @param data      the frame bytes; the record must end inside them
+   * @param offset    the offset of the control byte
+   * @param quantizer the leaf's quantizer
    * @return the record
    * @throws Mcv2Exception if the record is truncated, names an unknown class or motion form, gives the gain class a
    *                       quantizer, or has an out-of-range book index or nonzero index padding
    */
-  public static CompactRecord parse(final byte[] data, final int offset, final int q) throws Mcv2Exception {
-    if (offset < 0 || offset >= data.length || q < 0 || q > Mcv2Format.MAX_QUANTIZER) {
+  public static CompactRecord parse(final byte[] data, final int offset, final int quantizer) throws Mcv2Exception {
+    if (offset < 0 || offset >= data.length || quantizer < 0 || quantizer > Mcv2Format.MAX_QUANTIZER) {
       throw new Mcv2Exception("Truncated compact control");
     }
     final int control = Byte.toUnsignedInt(data[offset]);
     final int kind = control & NIBBLE_MASK;
     final int form = control >> NIBBLE_BITS;
-    if (kind >= BODY_BYTES.length || form > FORM_BYTES || (kind == GAIN_BIAS && q != 0)) {
+    if (kind >= BODY_BYTES.length || form > FORM_BYTES || (kind == GAIN_BIAS && quantizer != 0)) {
       throw new Mcv2Exception("Invalid compact class or control");
     }
     final int length = 1 + form + BODY_BYTES[kind];
     if (length > data.length - offset) {
       throw new Mcv2Exception("Truncated compact record");
     }
-    final int dx = deltaX(data, offset);
-    final int dy = deltaY(data, offset);
+    final int deltaX = deltaX(data, offset);
+    final int deltaY = deltaY(data, offset);
     final int last = Byte.toUnsignedInt(data[offset + length - 1]);
     if (kind == VQ64 && last >= ResidualBooks.VECTORS) {
       throw new Mcv2Exception("Invalid VQ index");
@@ -119,7 +119,7 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
     if (kind == PQ64 && (last & PQ_PADDING) != 0) {
       throw new Mcv2Exception("Noncanonical PQ padding");
     }
-    return new CompactRecord(kind, form, dx, dy, offset + 1 + form, length);
+    return new CompactRecord(kind, form, deltaX, deltaY, offset + 1 + form, length);
   }
 
   /**

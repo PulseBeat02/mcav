@@ -109,9 +109,9 @@ final class BlockRendererTest {
 
   private static Map<Position, BlockData> expectAll(final BlockData block) {
     final Map<Position, BlockData> expected = new HashMap<>();
-    for (int x = 9; x <= 11; x++) {
-      for (int y = 64; y <= 65; y++) {
-        final Position position = Position.block(x, y, -6);
+    for (int blockX = 9; blockX <= 11; blockX++) {
+      for (int blockY = 64; blockY <= 65; blockY++) {
+        final Position position = Position.block(blockX, blockY, -6);
         expected.put(position, block);
       }
     }
@@ -120,10 +120,10 @@ final class BlockRendererTest {
 
   private Map<Position, BlockData> expectOriginal() {
     final Map<Position, BlockData> expected = new HashMap<>();
-    for (int x = 9; x <= 11; x++) {
-      for (int y = 64; y <= 65; y++) {
-        final Position position = Position.block(x, y, -6);
-        final BlockData original = this.world.getOriginalBlock(x, y, -6);
+    for (int blockX = 9; blockX <= 11; blockX++) {
+      for (int blockY = 64; blockY <= 65; blockY++) {
+        final Position position = Position.block(blockX, blockY, -6);
+        final BlockData original = this.world.getOriginalBlock(blockX, blockY, -6);
         expected.put(position, original);
       }
     }

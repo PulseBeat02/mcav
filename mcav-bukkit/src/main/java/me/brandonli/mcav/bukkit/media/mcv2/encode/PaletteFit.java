@@ -67,21 +67,21 @@ final class PaletteFit {
     int high = 0;
     int lowLuma = Integer.MAX_VALUE;
     int highLuma = Integer.MIN_VALUE;
-    for (int i = 0; i < count; i++) {
-      final int luma = source[i * CHANNELS] + 2 * source[i * CHANNELS + 1] + source[i * CHANNELS + 2];
+    for (int pixel = 0; pixel < count; pixel++) {
+      final int luma = source[pixel * CHANNELS] + 2 * source[pixel * CHANNELS + 1] + source[pixel * CHANNELS + 2];
       if (luma < lowLuma) {
         lowLuma = luma;
-        low = i;
+        low = pixel;
       }
       if (luma > highLuma) {
         highLuma = luma;
-        high = i;
+        high = pixel;
       }
     }
-    final float[] c = endpoints;
-    for (int ch = 0; ch < CHANNELS; ch++) {
-      c[ch] = source[low * CHANNELS + ch];
-      c[CHANNELS + ch] = source[high * CHANNELS + ch];
+    final float[] centres = endpoints;
+    for (int channel = 0; channel < CHANNELS; channel++) {
+      centres[channel] = source[low * CHANNELS + channel];
+      centres[CHANNELS + channel] = source[high * CHANNELS + channel];
     }
     final long[] sums = new long[PALETTE_COLORS * CHANNELS];
     final int[] weights = new int[PALETTE_COLORS];
@@ -89,20 +89,20 @@ final class PaletteFit {
       Arrays.fill(sums, 0);
       weights[0] = 0;
       weights[1] = 0;
-      for (int i = 0; i < count; i++) {
-        final int r = source[i * CHANNELS];
-        final int g = source[i * CHANNELS + 1];
-        final int b = source[i * CHANNELS + 2];
-        final int index = nearer(r, g, b, c) ? 1 : 0;
+      for (int pixel = 0; pixel < count; pixel++) {
+        final int red = source[pixel * CHANNELS];
+        final int green = source[pixel * CHANNELS + 1];
+        final int blue = source[pixel * CHANNELS + 2];
+        final int index = nearer(red, green, blue, centres) ? 1 : 0;
         weights[index]++;
-        sums[index * CHANNELS] += r;
-        sums[index * CHANNELS + 1] += g;
-        sums[index * CHANNELS + 2] += b;
+        sums[index * CHANNELS] += red;
+        sums[index * CHANNELS + 1] += green;
+        sums[index * CHANNELS + 2] += blue;
       }
       for (int index = 0; index < PALETTE_COLORS; index++) {
         if (weights[index] > 0) {
-          for (int ch = 0; ch < CHANNELS; ch++) {
-            c[index * CHANNELS + ch] = (float) ((double) sums[index * CHANNELS + ch] / weights[index]);
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            centres[index * CHANNELS + channel] = (float) ((double) sums[index * CHANNELS + channel] / weights[index]);
           }
         }
       }
@@ -128,8 +128,8 @@ final class PaletteFit {
     final byte[] selectors
   ) {
     round(endpoints, quantize, colors);
-    for (int i = 0; i < count; i++) {
-      selectors[i] = nearest(source, i, colors);
+    for (int pixel = 0; pixel < count; pixel++) {
+      selectors[pixel] = nearest(source, pixel, colors);
     }
   }
 
@@ -141,12 +141,12 @@ final class PaletteFit {
    * @param colors    receives the rounded endpoints: R, G, B of endpoint 0, then of endpoint 1
    */
   static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
-    for (int i = 0; i < PALETTE_COLORS * CHANNELS; i++) {
-      colors[i] = Reconstruction.rgb8(endpoints[i]);
+    for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
+      colors[index] = Reconstruction.rgb8(endpoints[index]);
     }
     if (quantize) {
-      for (int e = 0; e < PALETTE_COLORS; e++) {
-        final int at = e * CHANNELS;
+      for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
+        final int at = endpoint * CHANNELS;
         final int value = Mcv2Format.pack565(colors[at], colors[at + 1], colors[at + 2]);
         final int packed = Mcv2Format.unpack565(value & 0xFF, value >> Byte.SIZE);
         colors[at] = (packed >> 16) & 0xFF;
@@ -156,18 +156,18 @@ final class PaletteFit {
     }
   }
 
-  /** The selector of pixel i: 1 when endpoint 1 is strictly nearer in integer RGB distance, else 0. */
-  private static byte nearest(final int[] source, final int i, final int[] colors) {
-    final int at = i * CHANNELS;
-    final int dr0 = source[at] - colors[0];
-    final int dg0 = source[at + 1] - colors[1];
-    final int db0 = source[at + 2] - colors[2];
-    final int dr1 = source[at] - colors[3];
-    final int dg1 = source[at + 1] - colors[4];
-    final int db1 = source[at + 2] - colors[5];
-    final int e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
-    final int e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
-    return (byte) (e1 < e0 ? 1 : 0);
+  /** The selector of a pixel: 1 when endpoint 1 is strictly nearer in integer RGB distance, else 0. */
+  private static byte nearest(final int[] source, final int pixel, final int[] colors) {
+    final int at = pixel * CHANNELS;
+    final int firstRedDelta = source[at] - colors[0];
+    final int firstGreenDelta = source[at + 1] - colors[1];
+    final int firstBlueDelta = source[at + 2] - colors[2];
+    final int secondRedDelta = source[at] - colors[3];
+    final int secondGreenDelta = source[at + 1] - colors[4];
+    final int secondBlueDelta = source[at + 2] - colors[5];
+    final int firstDistance = firstRedDelta * firstRedDelta + firstGreenDelta * firstGreenDelta + firstBlueDelta * firstBlueDelta;
+    final int secondDistance = secondRedDelta * secondRedDelta + secondGreenDelta * secondGreenDelta + secondBlueDelta * secondBlueDelta;
+    return (byte) (secondDistance < firstDistance ? 1 : 0);
   }
 
   /**
@@ -194,27 +194,27 @@ final class PaletteFit {
     round(endpoints, quantize, colors);
     boolean columns = true;
     boolean rows = true;
-    for (int y = 0; y < size && (columns || rows); y++) {
-      for (int x = 0; x < size; x++) {
-        final int i = y * size + x;
-        selectors[i] = nearest(source, i, colors);
-        columns &= selectors[i] == selectors[x];
-        rows &= selectors[i] == selectors[y * size];
+    for (int row = 0; row < size && (columns || rows); row++) {
+      for (int column = 0; column < size; column++) {
+        final int pixel = row * size + column;
+        selectors[pixel] = nearest(source, pixel, colors);
+        columns &= selectors[pixel] == selectors[column];
+        rows &= selectors[pixel] == selectors[row * size];
       }
     }
     return columns || rows;
   }
 
   /** Whether endpoint 1 is strictly nearer than endpoint 0, with the reference's float32 squared distances. */
-  private static boolean nearer(final int r, final int g, final int b, final float[] c) {
-    final float dr0 = r - c[0];
-    final float dg0 = g - c[1];
-    final float db0 = b - c[2];
-    final float dr1 = r - c[3];
-    final float dg1 = g - c[4];
-    final float db1 = b - c[5];
-    final float e0 = dr0 * dr0 + dg0 * dg0 + db0 * db0;
-    final float e1 = dr1 * dr1 + dg1 * dg1 + db1 * db1;
-    return e1 < e0;
+  private static boolean nearer(final int red, final int green, final int blue, final float[] endpoints) {
+    final float firstRedDelta = red - endpoints[0];
+    final float firstGreenDelta = green - endpoints[1];
+    final float firstBlueDelta = blue - endpoints[2];
+    final float secondRedDelta = red - endpoints[3];
+    final float secondGreenDelta = green - endpoints[4];
+    final float secondBlueDelta = blue - endpoints[5];
+    final float firstDistance = firstRedDelta * firstRedDelta + firstGreenDelta * firstGreenDelta + firstBlueDelta * firstBlueDelta;
+    final float secondDistance = secondRedDelta * secondRedDelta + secondGreenDelta * secondGreenDelta + secondBlueDelta * secondBlueDelta;
+    return secondDistance < firstDistance;
   }
 }

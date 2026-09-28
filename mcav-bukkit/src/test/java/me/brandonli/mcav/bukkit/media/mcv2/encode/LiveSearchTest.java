@@ -240,7 +240,7 @@ final class LiveSearchTest {
 
   @ParameterizedTest(name = "lambda {0} -> q{1}")
   @CsvSource({ "0, 0", "1, 0", "31, 0", "33, 1", "65.26, 1", "127, 1", "129, 2", "511, 2", "513, 3", "2047, 3", "2049, 4", "1e9, 4" })
-  void derivesTheQuantizerFromLambda(final double lambda, final int q) {
-    assertEquals(q, LiveSearch.quantizer(lambda));
+  void derivesTheQuantizerFromLambda(final double lambda, final int quantizer) {
+    assertEquals(quantizer, LiveSearch.quantizer(lambda));
   }
 }

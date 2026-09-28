@@ -69,16 +69,35 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
   abstract boolean intraGrid(byte[] record, int offset, int grid, int size, int[] out);
 
   /** {@link Reconstruction#residualGrid}, measured. */
-  abstract boolean residualGrid(int[] prediction, byte[] record, int offset, int grid, int q, int size, int[] out);
+  abstract boolean residualGrid(int[] prediction, byte[] record, int offset, int grid, int quantizer, int size, int[] out);
 
   /** {@link Reconstruction#reduced}, measured; an intra record has no prediction. */
-  abstract boolean reduced(int @Nullable [] prediction, byte[] record, int offset, int luma, int chroma, int q, int size, int[] out);
+  abstract boolean reduced(
+    int @Nullable [] prediction,
+    byte[] record,
+    int offset,
+    int luma,
+    int chroma,
+    int quantizer,
+    int size,
+    int[] out
+  );
 
   /** {@link Reconstruction#compact}, measured. */
-  abstract boolean compact(int[] prediction, byte[] record, int body, int kind, int q, int size, int[] out);
+  abstract boolean compact(int[] prediction, byte[] record, int body, int kind, int quantizer, int size, int[] out);
 
   /** {@link Reconstruction#predict}. */
-  abstract void predict(byte[] reference, int width, int height, int x, int y, int size, int mx, int my, int[] out);
+  abstract void predict(
+    byte[] reference,
+    int width,
+    int height,
+    int blockLeft,
+    int blockTop,
+    int size,
+    int motionX,
+    int motionY,
+    int[] out
+  );
 
   /** {@link Fits#fit}, with the kernels' own scratch space. */
   abstract void fit(float[] values, int offset, int stride, int size, int grid, float[] out, int outOffset, int outStride);
@@ -107,8 +126,8 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
     int width,
     int height,
     int[] source,
-    int x,
-    int y,
+    int blockLeft,
+    int blockTop,
     int size,
     int globalX,
     int globalY,
@@ -120,15 +139,15 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
   /**
    * Loads a block of a picture into channels, the picture's last row and column repeated past its edges.
    *
-   * @param image  the picture, row-major RGB
-   * @param width  the picture width
-   * @param height the picture height
-   * @param x      the block's left edge, inside the picture
-   * @param y      the block's top edge, inside the picture
-   * @param size   the block size
-   * @param source receives {@code size * size * 3} channels
+   * @param image     the picture, row-major RGB
+   * @param width     the picture width
+   * @param height    the picture height
+   * @param blockLeft the block's left edge, inside the picture
+   * @param blockTop  the block's top edge, inside the picture
+   * @param size      the block size
+   * @param source    receives {@code size * size * 3} channels
    */
-  abstract void loadSource(byte[] image, int width, int height, int x, int y, int size, int[] source);
+  abstract void loadSource(byte[] image, int width, int height, int blockLeft, int blockTop, int size, int[] source);
 
   /** {@link BlockCoder#halve}. */
   abstract void halve(int[] block, int size, int[] out);

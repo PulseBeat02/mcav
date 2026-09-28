@@ -91,32 +91,32 @@ public final class TreeReader {
     for (int size = SMALLEST_BLOCK; size <= ROOT_SIZE; size *= 2) {
       selectors.add(frame.getSelectorTable(size));
     }
-    for (int i = 0; i < count; i++) {
-      nodes[i] = node(frame, data, frame.getLeaf(i), endpoints, selectors, defaultSolid);
+    for (int leafIndex = 0; leafIndex < count; leafIndex++) {
+      nodes[leafIndex] = node(frame, data, frame.getLeaf(leafIndex), endpoints, selectors, defaultSolid);
     }
     // the leaves grouped by superblock, each group in the frame's order: counted, then placed
     final int columns = (frame.getWidth() + ROOT_SIZE - 1) / ROOT_SIZE;
     final int superblocks = columns * ((frame.getHeight() + ROOT_SIZE - 1) / ROOT_SIZE);
     final int[] first = new int[superblocks + 1];
-    for (int i = 0; i < count; i++) {
-      first[superblock(frame.getLeaf(i), columns) + 1]++;
+    for (int leafIndex = 0; leafIndex < count; leafIndex++) {
+      first[superblock(frame.getLeaf(leafIndex), columns) + 1]++;
     }
-    for (int k = 0; k < superblocks; k++) {
-      first[k + 1] += first[k];
+    for (int superblockIndex = 0; superblockIndex < superblocks; superblockIndex++) {
+      first[superblockIndex + 1] += first[superblockIndex];
     }
     final int[] next = Arrays.copyOf(first, superblocks);
     final int[] order = new int[count];
-    for (int i = 0; i < count; i++) {
-      order[next[superblock(frame.getLeaf(i), columns)]++] = i;
+    for (int leafIndex = 0; leafIndex < count; leafIndex++) {
+      order[next[superblock(frame.getLeaf(leafIndex), columns)]++] = leafIndex;
     }
     final TreeNode[] roots = new TreeNode[superblocks];
-    workers.forEach(superblocks, HashMap<Long, TreeNode>::new, (leaves, k) -> {
+    workers.forEach(superblocks, HashMap<Long, TreeNode>::new, (leaves, superblockIndex) -> {
       leaves.clear();
-      for (int j = first[k]; j < first[k + 1]; j++) {
-        final Mcv2Frame.Leaf leaf = frame.getLeaf(order[j]);
-        leaves.put(key(leaf.x(), leaf.y(), leaf.size()), nodes[order[j]]);
+      for (int orderIndex = first[superblockIndex]; orderIndex < first[superblockIndex + 1]; orderIndex++) {
+        final Mcv2Frame.Leaf leaf = frame.getLeaf(order[orderIndex]);
+        leaves.put(key(leaf.x(), leaf.y(), leaf.size()), nodes[order[orderIndex]]);
       }
-      roots[k] = visit(leaves, (k % columns) * ROOT_SIZE, (k / columns) * ROOT_SIZE, ROOT_SIZE);
+      roots[superblockIndex] = visit(leaves, (superblockIndex % columns) * ROOT_SIZE, (superblockIndex / columns) * ROOT_SIZE, ROOT_SIZE);
     });
     return Arrays.asList(roots);
   }
@@ -162,21 +162,21 @@ public final class TreeReader {
   }
 
   /** A block's key in the leaf map: its position and size, each in its own bits. */
-  private static long key(final int x, final int y, final int size) {
-    return ((long) x << KEY_X_SHIFT) | ((long) y << KEY_Y_SHIFT) | size;
+  private static long key(final int left, final int top, final int size) {
+    return ((long) left << KEY_X_SHIFT) | ((long) top << KEY_Y_SHIFT) | size;
   }
 
-  private static TreeNode visit(final Map<Long, TreeNode> leaves, final int x, final int y, final int size) {
-    final TreeNode leaf = leaves.get(key(x, y, size));
+  private static TreeNode visit(final Map<Long, TreeNode> leaves, final int left, final int top, final int size) {
+    final TreeNode leaf = leaves.get(key(left, top, size));
     if (leaf != null) {
       return leaf;
     }
     final int half = size / 2;
     return TreeNode.split(
-      visit(leaves, x, y, half),
-      visit(leaves, x + half, y, half),
-      visit(leaves, x, y + half, half),
-      visit(leaves, x + half, y + half, half)
+      visit(leaves, left, top, half),
+      visit(leaves, left + half, top, half),
+      visit(leaves, left, top + half, half),
+      visit(leaves, left + half, top + half, half)
     );
   }
 
@@ -185,10 +185,10 @@ public final class TreeReader {
     final byte[] full = new byte[recordSize(MODE_PALETTE, size)];
     putColor(full, 0, record.getColor0());
     putColor(full, CHANNELS, record.getColor1());
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int index = y * size + x;
-        final int selector = record.getSelector(record.getOrientation() == 0 ? x : y);
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int index = row * size + column;
+        final int selector = record.getSelector(record.getOrientation() == 0 ? column : row);
         full[ENDPOINT_PAIR_BYTES + index / Byte.SIZE] |= (byte) (selector << (index % Byte.SIZE));
       }
     }
@@ -212,10 +212,10 @@ public final class TreeReader {
   public static byte @Nullable [] patternRecord(final byte[] record, final int size) {
     for (int kind = 0; kind < 2; kind++) {
       boolean repeats = true;
-      for (int y = 0; y < size && repeats; y++) {
-        for (int x = 0; x < size; x++) {
-          final int axis = kind == 0 ? bit(record, x) : bit(record, y * size);
-          if (bit(record, y * size + x) != axis) {
+      for (int row = 0; row < size && repeats; row++) {
+        for (int column = 0; column < size; column++) {
+          final int axis = kind == 0 ? bit(record, column) : bit(record, row * size);
+          if (bit(record, row * size + column) != axis) {
             repeats = false;
             break;
           }
@@ -226,9 +226,9 @@ public final class TreeReader {
         System.arraycopy(record, 0, pattern, 0, ENDPOINT_PAIR_BYTES);
         pattern[ENDPOINT_PAIR_BYTES] = (byte) kind;
         final int axis = ENDPOINT_PAIR_BYTES + 1;
-        for (int i = 0; i < size; i++) {
-          final int value = kind == 0 ? bit(record, i) : bit(record, i * size);
-          pattern[axis + i / Byte.SIZE] |= (byte) (value << (i % Byte.SIZE));
+        for (int position = 0; position < size; position++) {
+          final int value = kind == 0 ? bit(record, position) : bit(record, position * size);
+          pattern[axis + position / Byte.SIZE] |= (byte) (value << (position % Byte.SIZE));
         }
         return pattern;
       }

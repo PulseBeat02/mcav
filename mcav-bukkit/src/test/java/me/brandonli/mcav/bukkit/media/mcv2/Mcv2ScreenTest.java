@@ -142,8 +142,8 @@ final class Mcv2ScreenTest {
     assertEquals(new Location(this.world, 10, 64, -6), this.spawned.get(0));
     assertEquals(new Location(this.world, 12, 64, -6), this.spawned.get(2));
     assertEquals(new Location(this.world, 11, 63, -6), this.spawned.get(4));
-    for (int i = 0; i < 6; i++) {
-      final ItemFrame frame = this.frames.get(i);
+    for (int index = 0; index < 6; index++) {
+      final ItemFrame frame = this.frames.get(index);
       verify(frame).setVisibleByDefault(false);
       verify(frame).setPersistent(false);
       verify(frame).setFacingDirection(BlockFace.NORTH, true);
@@ -151,8 +151,8 @@ final class Mcv2ScreenTest {
       verify(frame).setInvulnerable(true);
       verify(frame).setFixed(true);
       verify(frame).setSilent(true);
-      final int column = i % 3;
-      final int row = i / 3;
+      final int column = index % 3;
+      final int row = index / 3;
       final ItemStack expected = this.items.get(500 + Mcv2Screen.slot(column, row, 2));
       verify(frame).setItem(expected, false);
     }
@@ -238,8 +238,8 @@ final class Mcv2ScreenTest {
     final byte[] expected = new byte[128];
     // after the signature: column, row, columns, rows, facing, the stream id 70 in two symbols (6 + 1 * 64), the check
     final int[] symbols = { 21, 3, 58, 44, 9, 37, 60, 17, 1, 1, 3, 2, 1, 6, 1, (1 + 1 + 3 + 2 + 1 + 6 + 1) & 63 };
-    for (int i = 0; i < expected.length; i++) {
-      expected[i] = (byte) ((i < symbols.length ? symbols[i] : 0) + 4);
+    for (int index = 0; index < expected.length; index++) {
+      expected[index] = (byte) ((index < symbols.length ? symbols[index] : 0) + 4);
     }
     assertArrayEquals(expected, patch.getColors());
   }

@@ -61,9 +61,9 @@ final class ConformanceTest {
     final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + "/" + stream));
     assertEquals(digests.size(), frames.size(), "frame count");
     final Mcv2Receiver receiver = new Mcv2Receiver();
-    for (int i = 0; i < frames.size(); i++) {
-      final byte[] picture = receiver.accept(frames.get(i));
-      assertEquals(digests.get(i), Mcv2Fixtures.sha256(picture), "frame " + i);
+    for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
+      final byte[] picture = receiver.accept(frames.get(frameIndex));
+      assertEquals(digests.get(frameIndex), Mcv2Fixtures.sha256(picture), "frame " + frameIndex);
     }
   }
 

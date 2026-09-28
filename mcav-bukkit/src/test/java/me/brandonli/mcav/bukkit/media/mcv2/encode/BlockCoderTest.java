@@ -47,8 +47,8 @@ final class BlockCoderTest {
   private static byte[] reference(final int low, final int high) {
     final Random random = new Random(8);
     final byte[] rgb = new byte[8 * 8 * 3];
-    for (int i = 0; i < rgb.length; i++) {
-      rgb[i] = (byte) (low + random.nextInt(high - low));
+    for (int index = 0; index < rgb.length; index++) {
+      rgb[index] = (byte) (low + random.nextInt(high - low));
     }
     return rgb;
   }
@@ -87,9 +87,9 @@ final class BlockCoderTest {
   /** The rounded mean of a channel of YCoCg values over a square cell of an 8x8 block, as a cell fit takes it. */
   private static int cellMean(final float[] values, final int channel, final int cell, final int column, final int row, final int low) {
     double sum = 0;
-    for (int y = row * cell; y < (row + 1) * cell; y++) {
-      for (int x = column * cell; x < (column + 1) * cell; x++) {
-        sum += values[(y * 8 + x) * 3 + channel];
+    for (int pixelRow = row * cell; pixelRow < (row + 1) * cell; pixelRow++) {
+      for (int pixelColumn = column * cell; pixelColumn < (column + 1) * cell; pixelColumn++) {
+        sum += values[(pixelRow * 8 + pixelColumn) * 3 + channel];
       }
     }
     final float mean = (float) (sum / (cell * cell));
@@ -100,13 +100,13 @@ final class BlockCoderTest {
   void fitsAReducedGridAsTheMeansOfItsCells() {
     final byte[] source = reference(0, 256);
     final float[] ycocg = new float[source.length];
-    for (int i = 0; i < source.length; i += 3) {
-      final int r = source[i] & 0xFF;
-      final int g = source[i + 1] & 0xFF;
-      final int b = source[i + 2] & 0xFF;
-      ycocg[i] = (r + 2 * g + b) * 0.25f;
-      ycocg[i + 1] = (r - b) * 0.5f;
-      ycocg[i + 2] = (-r + 2 * g - b) * 0.25f;
+    for (int offset = 0; offset < source.length; offset += 3) {
+      final int red = source[offset] & 0xFF;
+      final int green = source[offset + 1] & 0xFF;
+      final int blue = source[offset + 2] & 0xFF;
+      ycocg[offset] = (red + 2 * green + blue) * 0.25f;
+      ycocg[offset + 1] = (red - blue) * 0.5f;
+      ycocg[offset + 2] = (-red + 2 * green - blue) * 0.25f;
     }
     final EncoderSettings settings = STILL.withLive(cellFits(Mcv2Format.MODE_INTRA_Y4C1, 0));
     final FrameJob job = new FrameJob(settings, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
@@ -114,8 +114,8 @@ final class BlockCoderTest {
     assertEquals(Mcv2Format.MODE_INTRA_Y4C1, job.mode(0, 2, 0));
     final byte[] record = job.record(0, 2, 0);
     // a 4x4 luma grid of 2x2 cells, then the whole block's chroma
-    for (int i = 0; i < 16; i++) {
-      assertEquals(cellMean(ycocg, 0, 2, i % 4, i / 4, 0), record[i] & 0xFF, "luma node " + i);
+    for (int node = 0; node < 16; node++) {
+      assertEquals(cellMean(ycocg, 0, 2, node % 4, node / 4, 0), record[node] & 0xFF, "luma node " + node);
     }
     assertEquals(cellMean(ycocg, 1, 8, 0, 0, Byte.MIN_VALUE), record[16]);
     assertEquals(cellMean(ycocg, 2, 8, 0, 0, Byte.MIN_VALUE), record[17]);
@@ -128,14 +128,14 @@ final class BlockCoderTest {
     final byte[] reference = reference(40, 200);
     final byte[] source = reference.clone();
     final int[] offsets = new int[16];
-    for (int i = 0; i < 16; i++) {
-      offsets[i] = -36 + 12 * (i % 4) + 16 * (i / 4);
+    for (int node = 0; node < 16; node++) {
+      offsets[node] = -36 + 12 * (node % 4) + 16 * (node / 4);
     }
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
-        for (int c = 0; c < 3; c++) {
-          final int at = (y * 8 + x) * 3 + c;
-          source[at] = (byte) ((source[at] & 0xFF) + offsets[(y / 2) * 4 + x / 2]);
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        for (int channel = 0; channel < 3; channel++) {
+          final int at = (row * 8 + column) * 3 + channel;
+          source[at] = (byte) ((source[at] & 0xFF) + offsets[(row / 2) * 4 + column / 2]);
         }
       }
     }
@@ -145,8 +145,8 @@ final class BlockCoderTest {
     assertEquals(Mcv2Format.MODE_COMPACT, job.mode(0, 2, 0));
     final byte[] record = job.record(0, 2, 0);
     assertEquals(CompactRecord.GRID4_YC, record[0]);
-    for (int i = 0; i < 16; i++) {
-      assertEquals(offsets[i], record[1 + i], "luma node " + i);
+    for (int node = 0; node < 16; node++) {
+      assertEquals(offsets[node], record[1 + node], "luma node " + node);
     }
     assertEquals(0, record[17]);
     assertEquals(0, record[18]);
@@ -158,8 +158,8 @@ final class BlockCoderTest {
     // class is perfect for less, and nothing after it can be cheaper
     final byte[] reference = reference(40, 200);
     final byte[] source = reference.clone();
-    for (int i = 0; i < source.length; i++) {
-      source[i] = (byte) ((source[i] & 0xFF) + 16);
+    for (int index = 0; index < source.length; index++) {
+      source[index] = (byte) ((source[index] & 0xFF) + 16);
     }
     final FrameJob job = code(source, reference);
     for (int trial = 0; trial < 2; trial++) {
@@ -181,12 +181,12 @@ final class BlockCoderTest {
     nodes[10] = 96;
     final byte[] reference = reference(40, 150);
     final byte[] source = reference.clone();
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
-        final double bump = ReconstructionOracle.interpolate(nodes, 0, 1, 4, 8, x, y);
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        final double bump = ReconstructionOracle.interpolate(nodes, 0, 1, 4, 8, column, row);
         assertEquals(Math.rint(bump), bump);
-        for (int c = 0; c < 3; c++) {
-          final int at = (y * 8 + x) * 3 + c;
+        for (int channel = 0; channel < 3; channel++) {
+          final int at = (row * 8 + column) * 3 + channel;
           source[at] = (byte) ((source[at] & 0xFF) + (int) bump);
         }
       }
@@ -203,10 +203,10 @@ final class BlockCoderTest {
   @Test
   void aUniformKeyframeBlockIsSolid() {
     final byte[] source = new byte[8 * 8 * 3];
-    for (int i = 0; i < source.length; i += 3) {
-      source[i] = 10;
-      source[i + 1] = 20;
-      source[i + 2] = 30;
+    for (int offset = 0; offset < source.length; offset += 3) {
+      source[offset] = 10;
+      source[offset + 1] = 20;
+      source[offset + 2] = 30;
     }
     final FrameJob job = new FrameJob(STILL, source, new byte[0], 8, 8, true, new int[] { 0 }, new int[] { 0 }, null, null);
     new BlockCoder(job, 8).code(2, 0, 0, 0);
@@ -255,12 +255,12 @@ final class BlockCoderTest {
   void halvesABlockIntoTheRoundedMeansOfItsSquares() {
     // every 2x2 square of a 4x4 block around its own level, which the square's mean restores
     final int[] block = new int[4 * 4 * 3];
-    for (int y = 0; y < 4; y++) {
-      for (int x = 0; x < 4; x++) {
-        final int level = 40 * (2 * (y / 2) + x / 2) + 20;
-        final int wobble = (x % 2 == 0 ? 3 : -1) * (y % 2 == 0 ? 1 : -1);
-        for (int c = 0; c < 3; c++) {
-          block[(y * 4 + x) * 3 + c] = level + c + wobble;
+    for (int row = 0; row < 4; row++) {
+      for (int column = 0; column < 4; column++) {
+        final int level = 40 * (2 * (row / 2) + column / 2) + 20;
+        final int wobble = (column % 2 == 0 ? 3 : -1) * (row % 2 == 0 ? 1 : -1);
+        for (int channel = 0; channel < 3; channel++) {
+          block[(row * 4 + column) * 3 + channel] = level + channel + wobble;
         }
       }
     }

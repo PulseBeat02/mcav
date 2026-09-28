@@ -281,16 +281,16 @@ final class Mcv2PackTest {
     for (int word = 0; word < 512; word++) {
       assertTrue(matcher.find());
       final long value = Long.parseLong(matcher.group(1), 16);
-      for (int i = 0; i < 4; i++) {
-        parsed[word * 4 + i] = (byte) (value >> (8 * i));
+      for (int index = 0; index < 4; index++) {
+        parsed[word * 4 + index] = (byte) (value >> (8 * index));
       }
     }
     assertFalse(matcher.find());
     assertArrayEquals(books, parsed);
     // the whole include of ten words: eight to a line, a comma after every word but the last
     final byte[] ten = new byte[40];
-    for (int i = 0; i < ten.length; i++) {
-      ten[i] = (byte) i;
+    for (int index = 0; index < ten.length; index++) {
+      ten[index] = (byte) index;
     }
     assertEquals(
       """

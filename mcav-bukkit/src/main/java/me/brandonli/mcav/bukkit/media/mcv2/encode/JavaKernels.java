@@ -79,11 +79,11 @@ final class JavaKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int grid,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
-    return Reconstruction.residualGrid(prediction, record, offset, grid, q, size, this.scratch, out, this.score);
+    return Reconstruction.residualGrid(prediction, record, offset, grid, quantizer, size, this.scratch, out, this.score);
   }
 
   @Override
@@ -93,11 +93,11 @@ final class JavaKernels extends Kernels {
     final int offset,
     final int luma,
     final int chroma,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
-    return Reconstruction.reduced(prediction, record, offset, luma, chroma, q, size, this.scratch, out, this.score);
+    return Reconstruction.reduced(prediction, record, offset, luma, chroma, quantizer, size, this.scratch, out, this.score);
   }
 
   @Override
@@ -106,11 +106,11 @@ final class JavaKernels extends Kernels {
     final byte[] record,
     final int body,
     final int kind,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
-    return Reconstruction.compact(prediction, record, body, kind, q, size, this.scratch, out, this.score);
+    return Reconstruction.compact(prediction, record, body, kind, quantizer, size, this.scratch, out, this.score);
   }
 
   @Override
@@ -118,14 +118,14 @@ final class JavaKernels extends Kernels {
     final byte[] reference,
     final int width,
     final int height,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
-    final int mx,
-    final int my,
+    final int motionX,
+    final int motionY,
     final int[] out
   ) {
-    Reconstruction.predict(reference, width, height, x, y, size, mx, my, out);
+    Reconstruction.predict(reference, width, height, blockLeft, blockTop, size, motionX, motionY, out);
   }
 
   @Override
@@ -192,8 +192,8 @@ final class JavaKernels extends Kernels {
     final int width,
     final int height,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int globalX,
     final int globalY,
@@ -201,17 +201,25 @@ final class JavaKernels extends Kernels {
     final boolean halfPixel,
     final int[] seeds
   ) {
-    return MotionSearch.seeded(reference, width, height, source, x, y, size, globalX, globalY, range, halfPixel, seeds);
+    return MotionSearch.seeded(reference, width, height, source, blockLeft, blockTop, size, globalX, globalY, range, halfPixel, seeds);
   }
 
   @Override
-  void loadSource(final byte[] image, final int width, final int height, final int x, final int y, final int size, final int[] source) {
-    for (int py = 0; py < size; py++) {
-      final int sy = Math.min(y + py, height - 1);
-      for (int px = 0; px < size; px++) {
-        final int sx = Math.min(x + px, width - 1);
-        final int from = (sy * width + sx) * CHANNELS;
-        final int to = (py * size + px) * CHANNELS;
+  void loadSource(
+    final byte[] image,
+    final int width,
+    final int height,
+    final int blockLeft,
+    final int blockTop,
+    final int size,
+    final int[] source
+  ) {
+    for (int row = 0; row < size; row++) {
+      final int sourceRow = Math.min(blockTop + row, height - 1);
+      for (int column = 0; column < size; column++) {
+        final int sourceColumn = Math.min(blockLeft + column, width - 1);
+        final int from = (sourceRow * width + sourceColumn) * CHANNELS;
+        final int to = (row * size + column) * CHANNELS;
         source[to] = image[from] & 0xFF;
         source[to + 1] = image[from + 1] & 0xFF;
         source[to + 2] = image[from + 2] & 0xFF;
@@ -226,28 +234,28 @@ final class JavaKernels extends Kernels {
 
   @Override
   void ycocg(final int[] source, final int count, final boolean chroma, final float[] out) {
-    for (int i = 0; i < count * CHANNELS; i += CHANNELS) {
-      final int r = source[i];
-      final int g = source[i + 1];
-      final int b = source[i + 2];
-      out[i] = (r + 2 * g + b) * 0.25f;
+    for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
+      final int red = source[offset];
+      final int green = source[offset + 1];
+      final int blue = source[offset + 2];
+      out[offset] = (red + 2 * green + blue) * 0.25f;
       if (chroma) {
-        out[i + 1] = (r - b) * 0.5f;
-        out[i + 2] = (-r + 2 * g - b) * 0.25f;
+        out[offset + 1] = (red - blue) * 0.5f;
+        out[offset + 2] = (-red + 2 * green - blue) * 0.25f;
       }
     }
   }
 
   @Override
   void residualTarget(final float[] ycocg, final int[] prediction, final int count, final boolean chroma, final float[] target) {
-    for (int i = 0; i < count * CHANNELS; i += CHANNELS) {
-      final float r = prediction[i] * 0.25f;
-      final float g = prediction[i + 1] * 0.25f;
-      final float b = prediction[i + 2] * 0.25f;
-      target[i] = ycocg[i] - (r + 2 * g + b) * 0.25f;
+    for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
+      final float predictedRed = prediction[offset] * 0.25f;
+      final float predictedGreen = prediction[offset + 1] * 0.25f;
+      final float predictedBlue = prediction[offset + 2] * 0.25f;
+      target[offset] = ycocg[offset] - (predictedRed + 2 * predictedGreen + predictedBlue) * 0.25f;
       if (chroma) {
-        target[i + 1] = ycocg[i + 1] - (r - b) * 0.5f;
-        target[i + 2] = ycocg[i + 2] - (-r + 2 * g - b) * 0.25f;
+        target[offset + 1] = ycocg[offset + 1] - (predictedRed - predictedBlue) * 0.5f;
+        target[offset + 2] = ycocg[offset + 2] - (-predictedRed + 2 * predictedGreen - predictedBlue) * 0.25f;
       }
     }
   }
@@ -263,15 +271,15 @@ final class JavaKernels extends Kernels {
     final int outStride
   ) {
     final int side = size / grid;
-    for (int j = 0; j < grid; j++) {
-      for (int i = 0; i < grid; i++) {
+    for (int cellRow = 0; cellRow < grid; cellRow++) {
+      for (int cellColumn = 0; cellColumn < grid; cellColumn++) {
         double sum = 0;
-        for (int y = j * side; y < (j + 1) * side; y++) {
-          for (int x = i * side; x < (i + 1) * side; x++) {
-            sum += target[(y * size + x) * CHANNELS + channel];
+        for (int row = cellRow * side; row < (cellRow + 1) * side; row++) {
+          for (int column = cellColumn * side; column < (cellColumn + 1) * side; column++) {
+            sum += target[(row * size + column) * CHANNELS + channel];
           }
         }
-        out[outOffset + (j * grid + i) * outStride] = (float) (sum / (side * side));
+        out[outOffset + (cellRow * grid + cellColumn) * outStride] = (float) (sum / (side * side));
       }
     }
   }

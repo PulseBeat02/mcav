@@ -47,13 +47,13 @@ final class PipelinedEncoderPropertyTest {
     @ForAll @IntRange(min = 8, max = 120) final int width,
     @ForAll @IntRange(min = 8, max = 90) final int height,
     @ForAll @IntRange(min = 2, max = 6) final int frames,
-    @ForAll @IntRange(min = -5, max = 5) final int dx
+    @ForAll @IntRange(min = -5, max = 5) final int panPerFrame
   ) throws InterruptedException, ExecutionException {
     final EncoderSettings settings = PROFILES.get(profile).withKeyInterval(keyInterval);
-    final List<byte[]> one = PipelinedEncoderTest.sequential(settings, width, height, frames, dx);
-    final List<byte[]> two = PipelinedEncoderTest.pipelined(settings, width, height, frames, dx);
-    for (int i = 0; i < one.size(); i++) {
-      if (!Arrays.equals(one.get(i), two.get(i))) {
+    final List<byte[]> one = PipelinedEncoderTest.sequential(settings, width, height, frames, panPerFrame);
+    final List<byte[]> two = PipelinedEncoderTest.pipelined(settings, width, height, frames, panPerFrame);
+    for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
+      if (!Arrays.equals(one.get(frameIndex), two.get(frameIndex))) {
         return false;
       }
     }

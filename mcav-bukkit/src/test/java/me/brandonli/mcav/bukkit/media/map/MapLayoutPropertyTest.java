@@ -234,12 +234,12 @@ final class MapLayoutPropertyTest {
       assertInsideRegion(patch, region);
 
       final int columns = this.grid.getColumns();
-      final int x = patch.getX();
-      final int y = patch.getY();
-      final int gridX = (index % columns) * MapLayout.MAP_SIZE + x;
-      final int gridY = (index / columns) * MapLayout.MAP_SIZE + y;
-      final int sourceX = region.getSourceX() + x - region.getLocalX();
-      final int sourceY = region.getSourceY() + y - region.getLocalY();
+      final int left = patch.getX();
+      final int top = patch.getY();
+      final int gridX = (index % columns) * MapLayout.MAP_SIZE + left;
+      final int gridY = (index / columns) * MapLayout.MAP_SIZE + top;
+      final int sourceX = region.getSourceX() + left - region.getLocalX();
+      final int sourceY = region.getSourceY() + top - region.getLocalY();
       this.checkOffset(gridX - sourceX, gridY - sourceY);
       this.mark(patch, sourceX, sourceY);
     }
@@ -301,15 +301,15 @@ final class MapLayoutPropertyTest {
     }
 
     private static void assertInsideRegion(final MapTilePatch patch, final MapRegion region) {
-      final int x = patch.getX();
-      final int y = patch.getY();
-      final int right = x + patch.getWidth();
-      final int bottom = y + patch.getHeight();
+      final int left = patch.getX();
+      final int top = patch.getY();
+      final int right = left + patch.getWidth();
+      final int bottom = top + patch.getHeight();
       final int regionX = region.getLocalX();
       final int regionY = region.getLocalY();
       final int regionRight = regionX + region.getWidth();
       final int regionBottom = regionY + region.getHeight();
-      final boolean inside = x >= regionX && y >= regionY && right <= regionRight && bottom <= regionBottom;
+      final boolean inside = left >= regionX && top >= regionY && right <= regionRight && bottom <= regionBottom;
       final boolean insideMap = right <= MapLayout.MAP_SIZE && bottom <= MapLayout.MAP_SIZE;
       assertTrue(inside && insideMap, "patch inside the covered region of its map");
     }

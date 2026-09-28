@@ -106,10 +106,10 @@ final class Mcv2FileEncoderTest {
     final Mcv2Encoder alone = new Mcv2Encoder(EncoderSettings.LIVE, ForkJoinPool.commonPool(), 1, false);
     try (final Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
       final byte[] rgb = new byte[WIDTH * HEIGHT * 3];
-      for (int i = 0; i < count; i++) {
+      for (int frameNumber = 0; frameNumber < count; frameNumber++) {
         assertTrue(reader.read(rgb));
-        assertArrayEquals(alone.encode(rgb, WIDTH, HEIGHT, i), frames.get(i), "frame " + i);
-        assertEquals(i, FrameParser.parse(frames.get(i)).getFrameId());
+        assertArrayEquals(alone.encode(rgb, WIDTH, HEIGHT, frameNumber), frames.get(frameNumber), "frame " + frameNumber);
+        assertEquals(frameNumber, FrameParser.parse(frames.get(frameNumber)).getFrameId());
       }
       assertFalse(reader.read(rgb));
     }
@@ -194,8 +194,8 @@ final class Mcv2FileEncoderTest {
   void packsPaddedRows() {
     final Frame frame = new Frame(2, 2, Frame.DEPTH_UBYTE, 3, 8);
     final ByteBuffer pixels = (ByteBuffer) frame.image[0];
-    for (int i = 0; i < 16; i++) {
-      pixels.put(i, (byte) i);
+    for (int index = 0; index < 16; index++) {
+      pixels.put(index, (byte) index);
     }
     final byte[] rgb = new byte[12];
     Mcv2FileEncoder.copy(frame, rgb, 2, 2);

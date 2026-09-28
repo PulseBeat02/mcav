@@ -542,8 +542,8 @@ final class NativeKernels extends Kernels {
       return this.finished(
         (long) this.binding.predicted.invokeExact(of(prediction), size, of(out), of(this.source), this.rate, this.limit)
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -552,8 +552,8 @@ final class NativeKernels extends Kernels {
     this.checkScored(size, out);
     try {
       return this.finished((long) this.binding.solid.invokeExact(color, size, of(out), of(this.source), this.rate, this.limit));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -565,8 +565,8 @@ final class NativeKernels extends Kernels {
       return this.finished(
         (long) this.binding.palette.invokeExact(of(record), offset, size, of(out), of(this.source), this.rate, this.limit)
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -579,8 +579,8 @@ final class NativeKernels extends Kernels {
       return this.finished(
         (long) this.binding.intraGrid.invokeExact(of(record), offset, grid, size, of(out), of(this.source), this.rate, this.limit)
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -590,7 +590,7 @@ final class NativeKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int grid,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
@@ -605,7 +605,7 @@ final class NativeKernels extends Kernels {
           of(record),
           offset,
           grid,
-          q,
+          quantizer,
           size,
           of(out),
           of(this.source),
@@ -613,8 +613,8 @@ final class NativeKernels extends Kernels {
           this.limit
         )
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -625,7 +625,7 @@ final class NativeKernels extends Kernels {
     final int offset,
     final int luma,
     final int chroma,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
@@ -649,7 +649,7 @@ final class NativeKernels extends Kernels {
           offset,
           luma,
           chroma,
-          q,
+          quantizer,
           size,
           of(out),
           of(this.source),
@@ -657,8 +657,8 @@ final class NativeKernels extends Kernels {
           this.limit
         )
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -668,13 +668,13 @@ final class NativeKernels extends Kernels {
     final byte[] record,
     final int body,
     final int kind,
-    final int q,
+    final int quantizer,
     final int size,
     final int[] out
   ) {
     Preconditions.checkArgument(kind >= 0 && kind <= CompactRecord.LOW2, "Invalid compact class");
     if (((NATIVE_CLASSES >> kind) & 1) == 0) {
-      if (!this.fallback.compact(prediction, record, body, kind, q, size, out)) {
+      if (!this.fallback.compact(prediction, record, body, kind, quantizer, size, out)) {
         return false;
       }
       this.distortion = this.fallback.distortion();
@@ -690,7 +690,7 @@ final class NativeKernels extends Kernels {
           of(record),
           body,
           kind,
-          q,
+          quantizer,
           size,
           of(out),
           of(this.source),
@@ -698,8 +698,8 @@ final class NativeKernels extends Kernels {
           this.limit
         )
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -708,24 +708,24 @@ final class NativeKernels extends Kernels {
     final byte[] reference,
     final int width,
     final int height,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
-    final int mx,
-    final int my,
+    final int motionX,
+    final int motionY,
     final int[] out
   ) {
     checkPicture(reference.length, width, height);
     checkSize(size);
     checkBlock(out.length, size);
-    checkCoordinate(x);
-    checkCoordinate(y);
-    checkCoordinate(mx);
-    checkCoordinate(my);
+    checkCoordinate(blockLeft);
+    checkCoordinate(blockTop);
+    checkCoordinate(motionX);
+    checkCoordinate(motionY);
     try {
-      this.binding.predict.invokeExact(of(reference), width, height, x, y, size, mx, my, of(out));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+      this.binding.predict.invokeExact(of(reference), width, height, blockLeft, blockTop, size, motionX, motionY, of(out));
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -747,8 +747,8 @@ final class NativeKernels extends Kernels {
     checkRange(out.length, outOffset, (grid * grid - 1) * outStride + 1);
     try {
       this.binding.fit.invokeExact(of(values), offset, stride, size, grid, of(Fits.matrix(size, grid)), of(out), outOffset, outStride);
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -759,8 +759,8 @@ final class NativeKernels extends Kernels {
     checkRange(sums.length, 0, FastFits.CELL_SUMS);
     try {
       this.binding.cellSums.invokeExact(of(source), size, of(sums));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -772,8 +772,8 @@ final class NativeKernels extends Kernels {
     checkRange(nodes.length, 0, FastFits.CELL_GRID * FastFits.CELL_GRID);
     try {
       this.binding.lumaResidual.invokeExact(of(source), of(prediction), size, of(nodes));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -784,8 +784,8 @@ final class NativeKernels extends Kernels {
     checkRange(endpoints.length, 0, PALETTE_COLORS * CHANNELS);
     try {
       this.binding.cluster.invokeExact(of(source), size, of(endpoints));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -796,8 +796,8 @@ final class NativeKernels extends Kernels {
     checkRange(endpoints.length, 0, PALETTE_COLORS * CHANNELS);
     try {
       this.binding.paletteCluster.invokeExact(of(source), count, of(endpoints));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -816,8 +816,8 @@ final class NativeKernels extends Kernels {
     PaletteFit.round(endpoints, quantize, colors);
     try {
       this.binding.assign.invokeExact(of(source), count, of(colors), of(selectors));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -836,8 +836,8 @@ final class NativeKernels extends Kernels {
     PaletteFit.round(endpoints, quantize, colors);
     try {
       return (int) this.binding.assignPattern.invokeExact(of(source), size, of(colors), of(selectors)) != 0;
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -847,8 +847,8 @@ final class NativeKernels extends Kernels {
     final int width,
     final int height,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int globalX,
     final int globalY,
@@ -859,8 +859,8 @@ final class NativeKernels extends Kernels {
     checkPicture(reference.length, width, height);
     checkSize(size);
     checkBlock(source.length, size);
-    checkCoordinate(x);
-    checkCoordinate(y);
+    checkCoordinate(blockLeft);
+    checkCoordinate(blockTop);
     checkCoordinate(globalX);
     checkCoordinate(globalY);
     Preconditions.checkArgument(range >= 0 && range <= MAX_COORDINATE, "Invalid range");
@@ -870,8 +870,8 @@ final class NativeKernels extends Kernels {
         width,
         height,
         of(source),
-        x,
-        y,
+        blockLeft,
+        blockTop,
         size,
         globalX,
         globalY,
@@ -880,21 +880,29 @@ final class NativeKernels extends Kernels {
         of(seeds),
         seeds.length
       );
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
   @Override
-  void loadSource(final byte[] image, final int width, final int height, final int x, final int y, final int size, final int[] source) {
+  void loadSource(
+    final byte[] image,
+    final int width,
+    final int height,
+    final int blockLeft,
+    final int blockTop,
+    final int size,
+    final int[] source
+  ) {
     checkPicture(image.length, width, height);
     checkSize(size);
     checkBlock(source.length, size);
-    Preconditions.checkArgument(x >= 0 && x < width && y >= 0 && y < height, "Block outside the picture");
+    Preconditions.checkArgument(blockLeft >= 0 && blockLeft < width && blockTop >= 0 && blockTop < height, "Block outside the picture");
     try {
-      this.binding.loadSource.invokeExact(of(image), width, height, x, y, size, of(source));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+      this.binding.loadSource.invokeExact(of(image), width, height, blockLeft, blockTop, size, of(source));
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -905,8 +913,8 @@ final class NativeKernels extends Kernels {
     checkBlock(out.length, size / 2);
     try {
       this.binding.halve.invokeExact(of(block), size, of(out));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -917,8 +925,8 @@ final class NativeKernels extends Kernels {
     checkRange(out.length, 0, count * CHANNELS);
     try {
       this.binding.ycocg.invokeExact(of(source), count, chroma ? 1 : 0, of(out));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -930,8 +938,8 @@ final class NativeKernels extends Kernels {
     checkRange(target.length, 0, count * CHANNELS);
     try {
       this.binding.residualTarget.invokeExact(of(ycocg), of(prediction), count, chroma ? 1 : 0, of(target));
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 
@@ -953,8 +961,8 @@ final class NativeKernels extends Kernels {
     checkRange(out.length, outOffset, (grid * grid - 1) * outStride + 1);
     try {
       this.binding.cellMeans.invokeExact(of(target), size, channel, grid, of(out), outOffset, outStride);
-    } catch (final Throwable e) {
-      throw new IllegalStateException(FAILED, e);
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
     }
   }
 }

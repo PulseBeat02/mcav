@@ -42,66 +42,66 @@ final class Fft {
   /**
    * Transforms a complex sequence in place.
    *
-   * @param re      the real parts
-   * @param im      the imaginary parts
-   * @param inverse whether to apply the inverse transform, unnormalized
+   * @param real      the real parts
+   * @param imaginary the imaginary parts
+   * @param inverse   whether to apply the inverse transform, unnormalized
    */
-  static void transform(final double[] re, final double[] im, final boolean inverse) {
-    final int n = re.length;
-    if (n <= 1) {
+  static void transform(final double[] real, final double[] imaginary, final boolean inverse) {
+    final int length = real.length;
+    if (length <= 1) {
       return;
     }
-    int p = 2;
-    while (p * p <= n && n % p != 0) {
-      p++;
+    int radix = 2;
+    while (radix * radix <= length && length % radix != 0) {
+      radix++;
     }
-    if (n % p != 0) {
-      p = n;
+    if (length % radix != 0) {
+      radix = length;
     }
-    final int m = n / p;
-    final double[][] subRe = new double[p][m];
-    final double[][] subIm = new double[p][m];
-    for (int r = 0; r < p; r++) {
-      for (int k = 0; k < m; k++) {
-        subRe[r][k] = re[k * p + r];
-        subIm[r][k] = im[k * p + r];
+    final int subLength = length / radix;
+    final double[][] subReal = new double[radix][subLength];
+    final double[][] subImaginary = new double[radix][subLength];
+    for (int subsequence = 0; subsequence < radix; subsequence++) {
+      for (int element = 0; element < subLength; element++) {
+        subReal[subsequence][element] = real[element * radix + subsequence];
+        subImaginary[subsequence][element] = imaginary[element * radix + subsequence];
       }
-      if (m > 1) {
-        transform(subRe[r], subIm[r], inverse);
+      if (subLength > 1) {
+        transform(subReal[subsequence], subImaginary[subsequence], inverse);
       }
     }
-    final double[][] twiddles = twiddles(n, inverse);
+    final double[][] twiddles = twiddles(length, inverse);
     final double[] cosines = twiddles[0];
     final double[] sines = twiddles[1];
-    for (int k = 0; k < m; k++) {
-      for (int q = 0; q < p; q++) {
-        final int index = k + q * m;
-        double sumRe = 0;
-        double sumIm = 0;
-        for (int r = 0; r < p; r++) {
-          final int turn = (int) (((long) r * index) % n);
-          final double c = cosines[turn];
-          final double s = sines[turn];
-          sumRe += subRe[r][k] * c - subIm[r][k] * s;
-          sumIm += subRe[r][k] * s + subIm[r][k] * c;
+    for (int element = 0; element < subLength; element++) {
+      for (int outputBlock = 0; outputBlock < radix; outputBlock++) {
+        final int index = element + outputBlock * subLength;
+        double sumReal = 0;
+        double sumImaginary = 0;
+        for (int subsequence = 0; subsequence < radix; subsequence++) {
+          final int turn = (int) (((long) subsequence * index) % length);
+          final double cosine = cosines[turn];
+          final double sine = sines[turn];
+          sumReal += subReal[subsequence][element] * cosine - subImaginary[subsequence][element] * sine;
+          sumImaginary += subReal[subsequence][element] * sine + subImaginary[subsequence][element] * cosine;
         }
-        re[index] = sumRe;
-        im[index] = sumIm;
+        real[index] = sumReal;
+        imaginary[index] = sumImaginary;
       }
     }
   }
 
   /**
-   * The twiddle factors of one length and direction: entry j is the cosine and sine of {@code sign * 2 pi j / n},
+   * The twiddle factors of one length and direction: entry j is the cosine and sine of {@code sign * 2 pi j / length},
    * computed exactly as the transform's inner loop would compute them.
    */
-  private static double[][] twiddles(final int n, final boolean inverse) {
-    return TWIDDLES.computeIfAbsent(inverse ? -n : n, _ -> {
+  private static double[][] twiddles(final int length, final boolean inverse) {
+    return TWIDDLES.computeIfAbsent(inverse ? -length : length, _ -> {
       final double sign = inverse ? 1.0 : -1.0;
-      final double[] cosines = new double[n];
-      final double[] sines = new double[n];
-      for (long turn = 0; turn < n; turn++) {
-        final double angle = (sign * 2 * Math.PI * turn) / n;
+      final double[] cosines = new double[length];
+      final double[] sines = new double[length];
+      for (long turn = 0; turn < length; turn++) {
+        final double angle = (sign * 2 * Math.PI * turn) / length;
         cosines[(int) turn] = Math.cos(angle);
         sines[(int) turn] = Math.sin(angle);
       }
@@ -131,45 +131,45 @@ final class Fft {
    * @return the real and imaginary parts, row-major
    */
   static double[][] forward2d(final double[] plane, final int rows, final int columns, final Workers workers) {
-    final double[] re = plane.clone();
-    final double[] im = new double[plane.length];
-    transform2d(re, im, rows, columns, false, workers);
-    return new double[][] { re, im };
+    final double[] real = plane.clone();
+    final double[] imaginary = new double[plane.length];
+    transform2d(real, imaginary, rows, columns, false, workers);
+    return new double[][] { real, imaginary };
   }
 
   /**
    * The real part of the 2D inverse transform, unnormalized, on the calling thread.
    *
-   * @param re      the real parts, row-major; not modified
-   * @param im      the imaginary parts, row-major; not modified
-   * @param rows    the number of rows
-   * @param columns the number of columns
+   * @param real      the real parts, row-major; not modified
+   * @param imaginary the imaginary parts, row-major; not modified
+   * @param rows      the number of rows
+   * @param columns   the number of columns
    * @return the real part of the result
    */
-  static double[] inverse2dReal(final double[] re, final double[] im, final int rows, final int columns) {
-    return inverse2dReal(re, im, rows, columns, Workers.SEQUENTIAL);
+  static double[] inverse2dReal(final double[] real, final double[] imaginary, final int rows, final int columns) {
+    return inverse2dReal(real, imaginary, rows, columns, Workers.SEQUENTIAL);
   }
 
   /**
    * The real part of the 2D inverse transform, unnormalized.
    *
-   * @param re      the real parts, row-major; not modified
-   * @param im      the imaginary parts, row-major; not modified
-   * @param rows    the number of rows
-   * @param columns the number of columns
-   * @param workers the workers that transform the lines
+   * @param real      the real parts, row-major; not modified
+   * @param imaginary the imaginary parts, row-major; not modified
+   * @param rows      the number of rows
+   * @param columns   the number of columns
+   * @param workers   the workers that transform the lines
    * @return the real part of the result
    */
-  static double[] inverse2dReal(final double[] re, final double[] im, final int rows, final int columns, final Workers workers) {
-    final double[] outRe = re.clone();
-    final double[] outIm = im.clone();
-    transform2d(outRe, outIm, rows, columns, true, workers);
-    return outRe;
+  static double[] inverse2dReal(final double[] real, final double[] imaginary, final int rows, final int columns, final Workers workers) {
+    final double[] outReal = real.clone();
+    final double[] outImaginary = imaginary.clone();
+    transform2d(outReal, outImaginary, rows, columns, true, workers);
+    return outReal;
   }
 
   private static void transform2d(
-    final double[] re,
-    final double[] im,
+    final double[] real,
+    final double[] imaginary,
     final int rows,
     final int columns,
     final boolean inverse,
@@ -178,26 +178,26 @@ final class Fft {
     workers.forEach(
       rows,
       () -> new double[2][columns],
-      (line, y) -> {
-        System.arraycopy(re, y * columns, line[0], 0, columns);
-        System.arraycopy(im, y * columns, line[1], 0, columns);
+      (line, row) -> {
+        System.arraycopy(real, row * columns, line[0], 0, columns);
+        System.arraycopy(imaginary, row * columns, line[1], 0, columns);
         transform(line[0], line[1], inverse);
-        System.arraycopy(line[0], 0, re, y * columns, columns);
-        System.arraycopy(line[1], 0, im, y * columns, columns);
+        System.arraycopy(line[0], 0, real, row * columns, columns);
+        System.arraycopy(line[1], 0, imaginary, row * columns, columns);
       }
     );
     workers.forEach(
       columns,
       () -> new double[2][rows],
-      (line, x) -> {
-        for (int y = 0; y < rows; y++) {
-          line[0][y] = re[y * columns + x];
-          line[1][y] = im[y * columns + x];
+      (line, column) -> {
+        for (int row = 0; row < rows; row++) {
+          line[0][row] = real[row * columns + column];
+          line[1][row] = imaginary[row * columns + column];
         }
         transform(line[0], line[1], inverse);
-        for (int y = 0; y < rows; y++) {
-          re[y * columns + x] = line[0][y];
-          im[y * columns + x] = line[1][y];
+        for (int row = 0; row < rows; row++) {
+          real[row * columns + column] = line[0][row];
+          imaginary[row * columns + column] = line[1][row];
         }
       }
     );

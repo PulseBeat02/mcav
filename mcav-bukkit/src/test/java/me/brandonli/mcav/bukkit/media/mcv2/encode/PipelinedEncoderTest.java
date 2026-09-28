@@ -47,25 +47,36 @@ final class PipelinedEncoderTest {
   private static final String STOPPED = "The encoder stopped after a frame failed its verification";
 
   /** Encodes a panning scene one frame at a time. */
-  static List<byte[]> sequential(final EncoderSettings settings, final int width, final int height, final int frames, final int dx) {
+  static List<byte[]> sequential(
+    final EncoderSettings settings,
+    final int width,
+    final int height,
+    final int frames,
+    final int panPerFrame
+  ) {
     final Mcv2Encoder encoder = new Mcv2Encoder(settings, POOL, 2, true);
     final List<byte[]> stream = new ArrayList<>();
-    for (int i = 0; i < frames; i++) {
-      stream.add(encoder.encode(LiveEncoderTest.scene(width, height, i, dx), width, height, i));
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+      stream.add(encoder.encode(LiveEncoderTest.scene(width, height, frameNumber, panPerFrame), width, height, frameNumber));
     }
     return stream;
   }
 
   /** Encodes the same scene pipelined: frame N is verified on another thread while frame N+1 is searched. */
-  static List<byte[]> pipelined(final EncoderSettings settings, final int width, final int height, final int frames, final int dx)
+  static List<byte[]> pipelined(final EncoderSettings settings, final int width, final int height, final int frames, final int panPerFrame)
     throws InterruptedException, ExecutionException {
     final Mcv2Encoder encoder = new Mcv2Encoder(settings, POOL, 2, true);
     final ExecutorService verifier = Executors.newSingleThreadExecutor();
     try {
       final List<byte[]> stream = new ArrayList<>();
       Future<Mcv2Encoder.Encoded> verifying = null;
-      for (int i = 0; i < frames; i++) {
-        final Mcv2Encoder.Pending pending = encoder.begin(LiveEncoderTest.scene(width, height, i, dx), width, height, i);
+      for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+        final Mcv2Encoder.Pending pending = encoder.begin(
+          LiveEncoderTest.scene(width, height, frameNumber, panPerFrame),
+          width,
+          height,
+          frameNumber
+        );
         if (verifying != null) {
           stream.add(verifying.get().getData());
         }
@@ -95,9 +106,9 @@ final class PipelinedEncoderTest {
       final List<byte[]> one = sequential(settings, 100, 70, 7, 3);
       final List<byte[]> two = pipelined(settings, 100, 70, 7, 3);
       final LiveEncoderTest.Client client = new LiveEncoderTest.Client();
-      for (int i = 0; i < one.size(); i++) {
-        assertArrayEquals(one.get(i), two.get(i), settings + " frame " + i);
-        client.decode(two.get(i));
+      for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
+        assertArrayEquals(one.get(frameIndex), two.get(frameIndex), settings + " frame " + frameIndex);
+        client.decode(two.get(frameIndex));
       }
     }
   }
@@ -153,16 +164,16 @@ final class PipelinedEncoderTest {
     final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE_FAST, POOL, 2, true);
     final List<Mcv2Encoder.Pending> frames = new ArrayList<>();
     final List<Boolean> keyframes = new ArrayList<>();
-    for (int i = 0; i < 5; i++) {
-      frames.add(encoder.begin(LiveEncoderTest.scene(64, 64, i, 1), 64, 64, i));
-      if (i == 2) {
+    for (int frameNumber = 0; frameNumber < 5; frameNumber++) {
+      frames.add(encoder.begin(LiveEncoderTest.scene(64, 64, frameNumber, 1), 64, 64, frameNumber));
+      if (frameNumber == 2) {
         // frame 2 is begun already: the request applies to frame 3
         encoder.requestKeyframe();
       }
-      if (i > 0) {
+      if (frameNumber > 0) {
         keyframes.add(
           encoder
-            .finish(frames.get(i - 1))
+            .finish(frames.get(frameNumber - 1))
             .getStats()
             .keyframe()
         );

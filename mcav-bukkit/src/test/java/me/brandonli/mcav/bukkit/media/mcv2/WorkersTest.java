@@ -60,8 +60,8 @@ final class WorkersTest {
         counts.incrementAndGet(index);
         threads.add(Thread.currentThread());
       });
-      for (int i = 0; i < counts.length(); i++) {
-        assertEquals(1, counts.get(i), "index " + i);
+      for (int position = 0; position < counts.length(); position++) {
+        assertEquals(1, counts.get(position), "index " + position);
       }
       // one scratch per worker, and the work ran on the pool, not on the caller
       assertEquals(4, scratches.get());

@@ -78,23 +78,23 @@ final class LiveEncoderTest {
     }
   }
 
-  /** A scene: textured, with a flat band, a two-colour checkerboard and a smooth ramp, panning by dx per frame. */
-  static byte[] scene(final int width, final int height, final int frame, final int dx) {
+  /** A scene: textured, with a flat band, a two-colour checkerboard and a smooth ramp, panning by {@code panPerFrame} pixels a frame. */
+  static byte[] scene(final int width, final int height, final int frame, final int panPerFrame) {
     final Random random = new Random(frame * 7919L);
     final byte[] rgb = new byte[width * height * 3];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int sx = x + frame * dx;
-        final int at = (y * width + x) * 3;
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int sourceColumn = column + frame * panPerFrame;
+        final int at = (row * width + column) * 3;
         final int value;
-        if (y < height / 4) {
+        if (row < height / 4) {
           value = 90;
-        } else if (y < height / 2) {
-          value = ((sx / 4 + y / 4) & 1) == 0 ? 40 : 200;
-        } else if (x < width / 3) {
-          value = 30 + ((sx * 3 + y) % 180);
+        } else if (row < height / 2) {
+          value = ((sourceColumn / 4 + row / 4) & 1) == 0 ? 40 : 200;
+        } else if (column < width / 3) {
+          value = 30 + ((sourceColumn * 3 + row) % 180);
         } else {
-          value = (int) (120 + 60 * Math.sin(sx / 7.0) * Math.cos(y / 5.0)) + random.nextInt(8);
+          value = (int) (120 + 60 * Math.sin(sourceColumn / 7.0) * Math.cos(row / 5.0)) + random.nextInt(8);
         }
         rgb[at] = (byte) value;
         rgb[at + 1] = (byte) Math.min(255, value + 20);
@@ -141,13 +141,18 @@ final class LiveEncoderTest {
   }
 
   /** Encodes a panning scene with verification on, and checks that a client decodes the encoder's references. */
-  private static Mcv2Encoder play(final EncoderSettings settings, final int width, final int height, final int frames, final int dx)
-    throws Mcv2Exception {
+  private static Mcv2Encoder play(
+    final EncoderSettings settings,
+    final int width,
+    final int height,
+    final int frames,
+    final int panPerFrame
+  ) throws Mcv2Exception {
     final Mcv2Encoder encoder = new Mcv2Encoder(settings, POOL, 3, true);
     final Client client = new Client();
-    for (int i = 0; i < frames; i++) {
-      final byte[] data = encoder.encode(scene(width, height, i, dx), width, height, i);
-      assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + i);
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+      final byte[] data = encoder.encode(scene(width, height, frameNumber, panPerFrame), width, height, frameNumber);
+      assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + frameNumber);
       final Mcv2Encoder.Stats stats = encoder.getStats();
       assertNotNull(stats);
       assertEquals(data.length, stats.bytes());
@@ -332,23 +337,23 @@ final class LiveEncoderTest {
 
   /** The live profile's search with another split threshold, shortcuts and lambda. */
   private static LiveSearch live(final double splitAbove, final int shortcuts, final boolean motionLambda) {
-    final LiveSearch l = LiveSearch.LIVE;
+    final LiveSearch base = LiveSearch.LIVE;
     return new LiveSearch(
-      l.smallestBlock(),
-      l.skipThreshold(),
-      l.splitThreshold(),
-      l.steadySplitThreshold(),
-      l.fineThreshold(),
-      l.goodThreshold(),
-      l.childGate(),
-      l.modes(),
-      l.smallModes(),
-      l.keyModes(),
-      l.compactClasses(),
-      l.quantizers(),
-      l.seededMotion(),
-      l.searchBlock(),
-      l.coarseEndpoints(),
+      base.smallestBlock(),
+      base.skipThreshold(),
+      base.splitThreshold(),
+      base.steadySplitThreshold(),
+      base.fineThreshold(),
+      base.goodThreshold(),
+      base.childGate(),
+      base.modes(),
+      base.smallModes(),
+      base.keyModes(),
+      base.compactClasses(),
+      base.quantizers(),
+      base.seededMotion(),
+      base.searchBlock(),
+      base.coarseEndpoints(),
       shortcuts,
       splitAbove,
       motionLambda
@@ -386,10 +391,10 @@ final class LiveEncoderTest {
   /** A flat picture whose colour moves by a step every frame, which neither SKIP nor motion codes. */
   private static byte[] flat(final int width, final int height, final int frame) {
     final byte[] rgb = new byte[width * height * 3];
-    for (int i = 0; i < rgb.length; i += 3) {
-      rgb[i] = (byte) (60 + 12 * frame);
-      rgb[i + 1] = (byte) (90 + 12 * frame);
-      rgb[i + 2] = (byte) (40 + 12 * frame);
+    for (int offset = 0; offset < rgb.length; offset += 3) {
+      rgb[offset] = (byte) (60 + 12 * frame);
+      rgb[offset + 1] = (byte) (90 + 12 * frame);
+      rgb[offset + 2] = (byte) (40 + 12 * frame);
     }
     return rgb;
   }
@@ -399,12 +404,12 @@ final class LiveEncoderTest {
     final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE.withLive(live), POOL, 2, true);
     final Client client = new Client();
     int whole = 0;
-    for (int i = 0; i < 5; i++) {
-      final byte[] data = encoder.encode(flat(64, 64, i), 64, 64, i);
+    for (int frameNumber = 0; frameNumber < 5; frameNumber++) {
+      final byte[] data = encoder.encode(flat(64, 64, frameNumber), 64, 64, frameNumber);
       assertArrayEquals(client.decode(data), encoder.getReference());
       final Mcv2Frame frame = FrameParser.parse(data);
-      for (int k = 0; k < frame.getLeafCount() && !frame.isKeyframe(); k++) {
-        final Mcv2Frame.Leaf leaf = frame.getLeaf(k);
+      for (int leafIndex = 0; leafIndex < frame.getLeafCount() && !frame.isKeyframe(); leafIndex++) {
+        final Mcv2Frame.Leaf leaf = frame.getLeaf(leafIndex);
         if (leaf.size() == 32 && leaf.mode() != MODE_SKIP && leaf.mode() != MODE_MOTION) {
           whole++;
         }
@@ -439,8 +444,8 @@ final class LiveEncoderTest {
     assertTrue(pan.getStats().lambda() > 72);
     // the frame after a scene cut is back at the profile's lambda
     final byte[] inverted = scene(100, 70, 6, 9);
-    for (int i = 0; i < inverted.length; i++) {
-      inverted[i] = (byte) (255 - (inverted[i] & 0xFF));
+    for (int index = 0; index < inverted.length; index++) {
+      inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
     }
     pan.encode(inverted, 100, 70, 6);
     assertTrue(pan.getStats().keyframe());
@@ -483,8 +488,8 @@ final class LiveEncoderTest {
     final Client client = new Client();
     encoder.encode(scene(64, 64, 0, 0), 64, 64, 0);
     final byte[] inverted = scene(64, 64, 0, 0);
-    for (int i = 0; i < inverted.length; i++) {
-      inverted[i] = (byte) (255 - (inverted[i] & 0xFF));
+    for (int index = 0; index < inverted.length; index++) {
+      inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
     }
     client.decode(encoder.encode(inverted, 64, 64, 1));
     assertTrue(encoder.getStats().keyframe());
@@ -502,24 +507,36 @@ final class LiveEncoderTest {
 
   @Test
   void findsEachLeafsVector() {
-    final int gx = 6;
-    final int gy = -2;
-    assertEquals((gx << 16) | (gy & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.skip(), gx, gy));
-    assertEquals((gx << 16) | (gy & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_SOLID, 0, new byte[3]), gx, gy));
+    final int globalX = 6;
+    final int globalY = -2;
+    assertEquals((globalX << 16) | (globalY & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.skip(), globalX, globalY));
+    assertEquals((globalX << 16) | (globalY & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_SOLID, 0, new byte[3]), globalX, globalY));
     assertEquals(
-      ((gx + 3) << 16) | ((gy - 4) & 0xFFFF),
-      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_MOTION, 0, new byte[] { 3, -4 }), gx, gy)
+      ((globalX + 3) << 16) | ((globalY - 4) & 0xFFFF),
+      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_MOTION, 0, new byte[] { 3, -4 }), globalX, globalY)
     );
     final byte[] residual = new byte[2 + 3];
     residual[0] = -5;
     residual[1] = 7;
-    assertEquals(((gx - 5) << 16) | ((gy + 7) & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_RESIDUAL, 1, residual), gx, gy));
+    assertEquals(
+      ((globalX - 5) << 16) | ((globalY + 7) & 0xFFFF),
+      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_RESIDUAL, 1, residual), globalX, globalY)
+    );
     // compact records: form 0 at the global vector, form 1 with nibbles, form 2 with bytes
-    assertEquals((gx << 16) | (gy & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, new byte[] { 0, 1 }), gx, gy));
+    assertEquals(
+      (globalX << 16) | (globalY & 0xFFFF),
+      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, new byte[] { 0, 1 }), globalX, globalY)
+    );
     final byte[] nibbles = { 0x13, (byte) 0xE2, 0, 0, 0, 0, 0, 0, 0, 0 };
-    assertEquals(((gx + 2) << 16) | ((gy - 2) & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, nibbles), gx, gy));
+    assertEquals(
+      ((globalX + 2) << 16) | ((globalY - 2) & 0xFFFF),
+      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, nibbles), globalX, globalY)
+    );
     final byte[] bytes = { 0x23, 20, -30, 0, 0, 0, 0, 0, 0, 0, 0 };
-    assertEquals(((gx + 20) << 16) | ((gy - 30) & 0xFFFF), Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, bytes), gx, gy));
+    assertEquals(
+      ((globalX + 20) << 16) | ((globalY - 30) & 0xFFFF),
+      Mcv2Encoder.leafVector(TreeNode.leaf(MODE_COMPACT, 0, bytes), globalX, globalY)
+    );
   }
 
   @Test
@@ -534,8 +551,8 @@ final class LiveEncoderTest {
     // each superblock's task fills its own cells
     final List<TreeNode> roots = List.of(split, TreeNode.leaf(MODE_SOLID, 0, new byte[3]));
     final int[] field = new int[5 * 3];
-    for (int i = 0; i < roots.size(); i++) {
-      Mcv2Encoder.fillMotion(field, 40, 20, roots.get(i), i, 2, 0);
+    for (int rootIndex = 0; rootIndex < roots.size(); rootIndex++) {
+      Mcv2Encoder.fillMotion(field, 40, 20, roots.get(rootIndex), rootIndex, 2, 0);
     }
     assertEquals(6 << 16, field[0]);
     assertEquals(6 << 16, field[1]);
@@ -554,20 +571,20 @@ final class LiveEncoderTest {
   private static byte[] noisy(final byte[] picture, final int amplitude, final long seed) {
     final Random random = new Random(seed);
     final byte[] out = picture.clone();
-    for (int i = 0; i < out.length; i++) {
-      out[i] = (byte) Math.min(255, Math.max(0, (out[i] & 0xFF) + random.nextInt(2 * amplitude + 1) - amplitude));
+    for (int index = 0; index < out.length; index++) {
+      out[index] = (byte) Math.min(255, Math.max(0, (out[index] & 0xFF) + random.nextInt(2 * amplitude + 1) - amplitude));
     }
     return out;
   }
 
   private static long skipDistortion(final byte[] source, final byte[] reference) {
-    final int[] s = new int[source.length];
-    final int[] r = new int[source.length];
-    for (int i = 0; i < s.length; i++) {
-      s[i] = source[i] & 0xFF;
-      r[i] = reference[i] & 0xFF;
+    final int[] sourceChannels = new int[source.length];
+    final int[] referenceChannels = new int[source.length];
+    for (int index = 0; index < sourceChannels.length; index++) {
+      sourceChannels[index] = source[index] & 0xFF;
+      referenceChannels[index] = reference[index] & 0xFF;
     }
-    return BlockCoder.distortion(s, r);
+    return BlockCoder.distortion(sourceChannels, referenceChannels);
   }
 
   /**
@@ -580,13 +597,13 @@ final class LiveEncoderTest {
     final LiveSearch live = search(32, 40, 52.5, 52.5, 0, ALL, ALL, 1, true, 32, false, 0);
     for (int amplitude = 0; amplitude <= 12; amplitude += 2) {
       final byte[] source = noisy(reference, amplitude, amplitude);
-      final long d = skipDistortion(source, reference);
+      final long distortion = skipDistortion(source, reference);
       boolean skippedBefore = false;
       for (final double lambda : new double[] { 10, 30, 65.255994022, 150, 400, 1200 }) {
         final FrameJob job = job(live, lambda, source, reference);
         final BlockCoder coder = new BlockCoder(job, 32);
         coder.code(0, 0, 0, 0);
-        final boolean expected = d / 96.0 + lambda <= 40 * lambda;
+        final boolean expected = distortion / 96.0 + lambda <= 40 * lambda;
         assertEquals(expected, coder.isSkipped(), "amplitude " + amplitude + " lambda " + lambda);
         assertTrue(!skippedBefore || coder.isSkipped(), "monotonic in lambda");
         skippedBefore = coder.isSkipped();
@@ -631,8 +648,8 @@ final class LiveEncoderTest {
     final Mcv2Frame keyframe = FrameParser.parse(hurried.encode(scene(96, 64, 0, 3), 96, 64, 0));
     assertTrue(keyframe.isKeyframe());
     assertEquals(6, keyframe.getLeafCount());
-    for (int i = 0; i < keyframe.getLeafCount(); i++) {
-      final Mcv2Frame.Leaf leaf = keyframe.getLeaf(i);
+    for (int leafIndex = 0; leafIndex < keyframe.getLeafCount(); leafIndex++) {
+      final Mcv2Frame.Leaf leaf = keyframe.getLeaf(leafIndex);
       assertEquals(32, leaf.size());
       assertTrue(leaf.mode() == MODE_SOLID || leaf.mode() == MODE_SKIP, "mode " + leaf.mode());
     }
@@ -640,17 +657,17 @@ final class LiveEncoderTest {
     final byte[] next = hurried.encode(scene(96, 64, 1, 3), 96, 64, 1);
     final Mcv2Frame frame = FrameParser.parse(next);
     assertEquals(6, frame.getLeafCount());
-    for (int i = 0; i < frame.getLeafCount(); i++) {
-      assertEquals(MODE_SKIP, frame.getLeaf(i).mode());
+    for (int leafIndex = 0; leafIndex < frame.getLeafCount(); leafIndex++) {
+      assertEquals(MODE_SKIP, frame.getLeaf(leafIndex).mode());
     }
     assertArrayEquals(hurried.getReference(), client.decode(next));
     // a budget no frame reaches changes nothing, and none is the default
     final Mcv2Encoder patient = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
     patient.setFrameBudget(TimeUnit.HOURS.toNanos(1));
     final Mcv2Encoder unbounded = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
-    for (int i = 0; i < 4; i++) {
-      final byte[] picture = scene(96, 64, i, 3);
-      assertArrayEquals(unbounded.encode(picture, 96, 64, i), patient.encode(picture, 96, 64, i));
+    for (int frameNumber = 0; frameNumber < 4; frameNumber++) {
+      final byte[] picture = scene(96, 64, frameNumber, 3);
+      assertArrayEquals(unbounded.encode(picture, 96, 64, frameNumber), patient.encode(picture, 96, 64, frameNumber));
     }
     patient.setFrameBudget(0);
     assertArrayEquals(unbounded.encode(scene(96, 64, 4, 3), 96, 64, 4), patient.encode(scene(96, 64, 4, 3), 96, 64, 4));
@@ -682,38 +699,38 @@ final class LiveEncoderTest {
   void switchesLiveProfilesWithoutAKeyframe() throws Mcv2Exception {
     final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
     final Client client = new Client();
-    for (int i = 0; i < 8; i++) {
-      if (i == 3) {
+    for (int frameNumber = 0; frameNumber < 8; frameNumber++) {
+      if (frameNumber == 3) {
         encoder.switchTo(EncoderSettings.LIVE_FAST);
         assertEquals(EncoderSettings.LIVE_FAST, encoder.getSettings());
-      } else if (i == 6) {
+      } else if (frameNumber == 6) {
         encoder.switchTo(EncoderSettings.LIVE);
       }
-      final byte[] data = encoder.encode(scene(96, 64, i, 3), 96, 64, i);
-      assertEquals(i == 0, Objects.requireNonNull(encoder.getStats()).keyframe(), "frame " + i);
-      assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + i);
+      final byte[] data = encoder.encode(scene(96, 64, frameNumber, 3), 96, 64, frameNumber);
+      assertEquals(frameNumber == 0, Objects.requireNonNull(encoder.getStats()).keyframe(), "frame " + frameNumber);
+      assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + frameNumber);
     }
     // a search that does not measure the motion codes at the profile's own lambda
-    final LiveSearch f = LiveSearch.LIVE_FAST;
+    final LiveSearch fast = LiveSearch.LIVE_FAST;
     final EncoderSettings still = EncoderSettings.LIVE_FAST.withLive(
       new LiveSearch(
-        f.smallestBlock(),
-        f.skipThreshold(),
-        f.splitThreshold(),
-        f.steadySplitThreshold(),
-        f.fineThreshold(),
-        f.goodThreshold(),
-        f.childGate(),
-        f.modes(),
-        f.smallModes(),
-        f.keyModes(),
-        f.compactClasses(),
-        f.quantizers(),
-        f.seededMotion(),
-        f.searchBlock(),
-        f.coarseEndpoints(),
-        f.shortcuts(),
-        f.splitAbove(),
+        fast.smallestBlock(),
+        fast.skipThreshold(),
+        fast.splitThreshold(),
+        fast.steadySplitThreshold(),
+        fast.fineThreshold(),
+        fast.goodThreshold(),
+        fast.childGate(),
+        fast.modes(),
+        fast.smallModes(),
+        fast.keyModes(),
+        fast.compactClasses(),
+        fast.quantizers(),
+        fast.seededMotion(),
+        fast.searchBlock(),
+        fast.coarseEndpoints(),
+        fast.shortcuts(),
+        fast.splitAbove(),
         false
       )
     );
@@ -739,8 +756,8 @@ final class LiveEncoderTest {
   void searchesAFrameOverItsByteBoundAgainAtAHigherLambda() throws Mcv2Exception {
     final byte[] picture = noise(96, 64, 5);
     final byte[][] keyframes = new byte[LIMIT_TRIES][];
-    for (int i = 0; i < LIMIT_TRIES; i++) {
-      keyframes[i] = new Mcv2Encoder(EncoderSettings.LIVE.withLambda(72 << i), POOL, 2, false).encode(picture, 96, 64, 0);
+    for (int attempt = 0; attempt < LIMIT_TRIES; attempt++) {
+      keyframes[attempt] = new Mcv2Encoder(EncoderSettings.LIVE.withLambda(72 << attempt), POOL, 2, false).encode(picture, 96, 64, 0);
     }
     for (int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, 1 }) {
       int expected = 0;
@@ -787,13 +804,13 @@ final class LiveEncoderTest {
     final Mcv2Encoder live = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
     final Mcv2Encoder moving = new Mcv2Encoder(always, POOL, 2, true);
     final Mcv2Encoder switched = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true);
-    for (int i = 0; i < 6; i++) {
-      final byte[] picture = scene(96, 64, i, 5);
-      assertArrayEquals(live.encode(picture, 96, 64, i), calm.encode(picture, 96, 64, i), "frame " + i);
-      if (i == 2) {
+    for (int frameNumber = 0; frameNumber < 6; frameNumber++) {
+      final byte[] picture = scene(96, 64, frameNumber, 5);
+      assertArrayEquals(live.encode(picture, 96, 64, frameNumber), calm.encode(picture, 96, 64, frameNumber), "frame " + frameNumber);
+      if (frameNumber == 2) {
         switched.switchTo(EncoderSettings.LIVE_FAST);
       }
-      assertArrayEquals(switched.encode(picture, 96, 64, i), moving.encode(picture, 96, 64, i), "frame " + i);
+      assertArrayEquals(switched.encode(picture, 96, 64, frameNumber), moving.encode(picture, 96, 64, frameNumber), "frame " + frameNumber);
     }
   }
 
@@ -810,15 +827,15 @@ final class LiveEncoderTest {
   /**
    * Encodes frames of a small crop of a synthetic scene panning at a speed.
    *
-   * @param encoder a new encoder of a profile
-   * @param dx      the pan, in pixels a frame
-   * @param frames  how many frames
+   * @param encoder     a new encoder of a profile
+   * @param panPerFrame the pan, in pixels a frame
+   * @param frames      how many frames
    * @return the SHA-256 of the frames, in hex
    */
-  static String digest(final Mcv2Encoder encoder, final int dx, final int frames) throws NoSuchAlgorithmException {
+  static String digest(final Mcv2Encoder encoder, final int panPerFrame, final int frames) throws NoSuchAlgorithmException {
     final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    for (int i = 0; i < frames; i++) {
-      digest.update(encoder.encode(scene(96, 64, i, dx), 96, 64, i));
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+      digest.update(encoder.encode(scene(96, 64, frameNumber, panPerFrame), 96, 64, frameNumber));
     }
     return HexFormat.of().formatHex(digest.digest());
   }

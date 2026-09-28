@@ -38,30 +38,30 @@ final class FftTest {
 
   @ParameterizedTest
   @ValueSource(ints = { 1, 2, 3, 4, 7, 9, 12, 45, 49, 64, 97, 270 })
-  void matchesTheDirectTransform(final int n) {
-    final Random random = new Random(n);
-    final double[] re = new double[n];
-    final double[] im = new double[n];
-    for (int i = 0; i < n; i++) {
-      re[i] = random.nextDouble() - 0.5;
-      im[i] = random.nextDouble() - 0.5;
+  void matchesTheDirectTransform(final int length) {
+    final Random random = new Random(length);
+    final double[] real = new double[length];
+    final double[] imaginary = new double[length];
+    for (int index = 0; index < length; index++) {
+      real[index] = random.nextDouble() - 0.5;
+      imaginary[index] = random.nextDouble() - 0.5;
     }
     for (final boolean inverse : new boolean[] { false, true }) {
-      final double[] expectedRe = new double[n];
-      final double[] expectedIm = new double[n];
+      final double[] expectedReal = new double[length];
+      final double[] expectedImaginary = new double[length];
       final double sign = inverse ? 1 : -1;
-      for (int k = 0; k < n; k++) {
-        for (int t = 0; t < n; t++) {
-          final double angle = (sign * 2 * Math.PI * (((long) k * t) % n)) / n;
-          expectedRe[k] += re[t] * Math.cos(angle) - im[t] * Math.sin(angle);
-          expectedIm[k] += re[t] * Math.sin(angle) + im[t] * Math.cos(angle);
+      for (int frequency = 0; frequency < length; frequency++) {
+        for (int sample = 0; sample < length; sample++) {
+          final double angle = (sign * 2 * Math.PI * (((long) frequency * sample) % length)) / length;
+          expectedReal[frequency] += real[sample] * Math.cos(angle) - imaginary[sample] * Math.sin(angle);
+          expectedImaginary[frequency] += real[sample] * Math.sin(angle) + imaginary[sample] * Math.cos(angle);
         }
       }
-      final double[] actualRe = re.clone();
-      final double[] actualIm = im.clone();
-      Fft.transform(actualRe, actualIm, inverse);
-      assertArrayEquals(expectedRe, actualRe, 1e-9);
-      assertArrayEquals(expectedIm, actualIm, 1e-9);
+      final double[] actualReal = real.clone();
+      final double[] actualImaginary = imaginary.clone();
+      Fft.transform(actualReal, actualImaginary, inverse);
+      assertArrayEquals(expectedReal, actualReal, 1e-9);
+      assertArrayEquals(expectedImaginary, actualImaginary, 1e-9);
     }
   }
 
@@ -71,8 +71,8 @@ final class FftTest {
     final int columns = 10;
     final double[] plane = new double[rows * columns];
     final Random random = new Random(7);
-    for (int i = 0; i < plane.length; i++) {
-      plane[i] = random.nextInt(256);
+    for (int index = 0; index < plane.length; index++) {
+      plane[index] = random.nextInt(256);
     }
     final double[][] spectrum = Fft.forward2d(plane, rows, columns);
     final double[] sum = { 0 };
@@ -82,8 +82,8 @@ final class FftTest {
     // the DC term is the plane's sum, and the inputs are not modified
     assertEquals(sum[0], spectrum[0][0], 1e-9);
     final double[] restored = Fft.inverse2dReal(spectrum[0], spectrum[1], rows, columns);
-    for (int i = 0; i < plane.length; i++) {
-      assertEquals(plane[i] * plane.length, restored[i], 1e-6);
+    for (int index = 0; index < plane.length; index++) {
+      assertEquals(plane[index] * plane.length, restored[index], 1e-6);
     }
     assertEquals(sum[0], spectrum[0][0], 1e-9);
   }
@@ -94,8 +94,8 @@ final class FftTest {
     final int columns = 64;
     final double[] plane = new double[rows * columns];
     final Random random = new Random(11);
-    for (int i = 0; i < plane.length; i++) {
-      plane[i] = random.nextInt(256);
+    for (int index = 0; index < plane.length; index++) {
+      plane[index] = random.nextInt(256);
     }
     final ForkJoinPool pool = new ForkJoinPool(4);
     try {

@@ -211,8 +211,8 @@ public final class MapLayout {
    *
    * @param image  the image as map palette indices, laid out row by row
    * @param index  the index of the map
-   * @param x      the x coordinate of the rectangle inside the map
-   * @param y      the y coordinate of the rectangle inside the map
+   * @param left   the x coordinate of the rectangle inside the map
+   * @param top    the y coordinate of the rectangle inside the map
    * @param width  the width of the rectangle
    * @param height the height of the rectangle
    * @return the patch containing the colors of the rectangle
@@ -220,17 +220,17 @@ public final class MapLayout {
    * @throws IllegalArgumentException  if the image size does not match the layout, or the rectangle is empty or
    *                                   not inside the region of the map
    */
-  public MapTilePatch extractPatch(final byte[] image, final int index, final int x, final int y, final int width, final int height) {
+  public MapTilePatch extractPatch(final byte[] image, final int index, final int left, final int top, final int width, final int height) {
     Preconditions.checkNotNull(image, "Image must not be null");
     Preconditions.checkElementIndex(index, this.regions.length, "Map index");
     final int expectedLength = this.imageWidth * this.imageHeight;
     Preconditions.checkArgument(image.length == expectedLength, "Image size does not match layout");
 
     final MapRegion region = this.regions[index];
-    checkInsideRegion(region, index, x, y, width, height);
+    checkInsideRegion(region, index, left, top, width, height);
 
-    final int sourceX = region.getSourceX() + (x - region.getLocalX());
-    final int sourceY = region.getSourceY() + (y - region.getLocalY());
+    final int sourceX = region.getSourceX() + (left - region.getLocalX());
+    final int sourceY = region.getSourceY() + (top - region.getLocalY());
     final byte[] colors = new byte[width * height];
     for (int row = 0; row < height; row++) {
       final int sourceIndex = (sourceY + row) * this.imageWidth + sourceX;
@@ -239,14 +239,14 @@ public final class MapLayout {
     }
 
     final int mapId = this.getMapId(index);
-    return new MapTilePatch(mapId, x, y, width, height, colors);
+    return new MapTilePatch(mapId, left, top, width, height, colors);
   }
 
   private static void checkInsideRegion(
     final MapRegion region,
     final int index,
-    final int x,
-    final int y,
+    final int left,
+    final int top,
     final int width,
     final int height
   ) {
@@ -256,15 +256,15 @@ public final class MapLayout {
     final int regionHeight = region.getHeight();
 
     // the region lies inside the map, so none of these sums can overflow
-    final boolean insideHorizontally = x >= regionX && width > 0 && width <= regionX + regionWidth - x;
-    final boolean insideVertically = y >= regionY && height > 0 && height <= regionY + regionHeight - y;
+    final boolean insideHorizontally = left >= regionX && width > 0 && width <= regionX + regionWidth - left;
+    final boolean insideVertically = top >= regionY && height > 0 && height <= regionY + regionHeight - top;
     Preconditions.checkArgument(
       insideHorizontally && insideVertically,
       "Rectangle of %sx%s pixels at (%s, %s) is not inside the region of map %s",
       width,
       height,
-      x,
-      y,
+      left,
+      top,
       index
     );
   }
@@ -288,11 +288,11 @@ public final class MapLayout {
         continue;
       }
 
-      final int x = region.getLocalX();
-      final int y = region.getLocalY();
+      final int localX = region.getLocalX();
+      final int localY = region.getLocalY();
       final int width = region.getWidth();
       final int height = region.getHeight();
-      final MapTilePatch patch = this.extractPatch(image, index, x, y, width, height);
+      final MapTilePatch patch = this.extractPatch(image, index, localX, localY, width, height);
       patches.add(patch);
     }
     return patches;

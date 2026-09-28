@@ -71,18 +71,18 @@ public final class ChatUtils {
    * @param data      the pixels in ARGB format, laid out row by row; the alpha channel is ignored
    * @param character the text drawn for every pixel
    * @param width     the width of the image in pixels
-   * @param y         the row to convert
+   * @param row       the row to convert
    * @return the row as text with legacy section sign color codes
    */
-  public static String createRawLine(final int[] data, final String character, final int width, final int y) {
+  public static String createRawLine(final int[] data, final String character, final int width, final int row) {
     Preconditions.checkNotNull(data, "Pixels must not be null");
     Preconditions.checkNotNull(character, "Character must not be null");
     Preconditions.checkArgument(width > 0, "Width must be positive");
-    Preconditions.checkArgument(y >= 0 && (y + 1L) * width <= data.length, "Row is outside of the image");
+    Preconditions.checkArgument(row >= 0 && (row + 1L) * width <= data.length, "Row is outside of the image");
     final int characterLength = character.length();
     final int capacity = width * (HEX_COLOR_LENGTH + characterLength);
     final StringBuilder builder = new StringBuilder(capacity);
-    appendRow(builder, data, character, width, y);
+    appendRow(builder, data, character, width, row);
     return builder.toString();
   }
 
@@ -103,11 +103,11 @@ public final class ChatUtils {
     final int characterLength = character.length();
     final int capacity = width * height * (HEX_COLOR_LENGTH + characterLength) + height;
     final StringBuilder builder = new StringBuilder(capacity);
-    for (int y = 0; y < height; y++) {
-      if (y > 0) {
+    for (int row = 0; row < height; row++) {
+      if (row > 0) {
         builder.append('\n');
       }
-      appendRow(builder, data, character, width, y);
+      appendRow(builder, data, character, width, row);
     }
     final String text = builder.toString();
     // the text always holds at least one color code, and only null or empty text converts to null
@@ -115,11 +115,11 @@ public final class ChatUtils {
     return Objects.requireNonNull(component, "Text with color codes always converts to a component");
   }
 
-  private static void appendRow(final StringBuilder builder, final int[] data, final String character, final int width, final int y) {
-    final int offset = width * y;
+  private static void appendRow(final StringBuilder builder, final int[] data, final String character, final int width, final int row) {
+    final int offset = width * row;
     int previousColor = -1;
-    for (int x = 0; x < width; x++) {
-      final int color = data[offset + x] & RGB_MASK;
+    for (int column = 0; column < width; column++) {
+      final int color = data[offset + column] & RGB_MASK;
       if (color != previousColor) {
         appendHexColor(builder, color);
         previousColor = color;

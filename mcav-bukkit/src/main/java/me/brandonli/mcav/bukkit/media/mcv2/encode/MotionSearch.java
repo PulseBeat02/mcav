@@ -42,14 +42,14 @@ final class MotionSearch {
   /** The first directions: the four whole-pixel neighbours along the axes. */
   private static final int AXES = 4;
 
-  /** The four sampled rows and columns of blocks of 8, 16 and 32 pixels: {@code min(k size / 4 + size / 8, size - 1)}. */
+  /** The four sampled rows and columns of blocks of 8, 16 and 32 pixels: {@code min(sampleIndex size / 4 + size / 8, size - 1)}. */
   private static final int[][] SAMPLES = new int[BLOCK_SIZES][SAMPLED];
 
   static {
-    for (int s = 0; s < BLOCK_SIZES; s++) {
-      final int size = SMALLEST_BLOCK << s;
-      for (int k = 0; k < SAMPLED; k++) {
-        SAMPLES[s][k] = Math.min((k * size) / SAMPLED + size / (2 * SAMPLED), size - 1);
+    for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+      final int size = SMALLEST_BLOCK << sizeIndex;
+      for (int sampleIndex = 0; sampleIndex < SAMPLED; sampleIndex++) {
+        SAMPLES[sizeIndex][sampleIndex] = Math.min((sampleIndex * size) / SAMPLED + size / (2 * SAMPLED), size - 1);
       }
     }
   }
@@ -61,12 +61,12 @@ final class MotionSearch {
   /**
    * Packs a vector into one int, {@code x << 16 | (y & 0xFFFF)}.
    *
-   * @param x the horizontal part, in half pixels
-   * @param y the vertical part, in half pixels
+   * @param vectorX the horizontal part, in half pixels
+   * @param vectorY the vertical part, in half pixels
    * @return the packed vector
    */
-  static int pack(final int x, final int y) {
-    return (x << Short.SIZE) | (y & 0xFFFF);
+  static int pack(final int vectorX, final int vectorY) {
+    return (vectorX << Short.SIZE) | (vectorY & 0xFFFF);
   }
 
   /**
@@ -103,13 +103,13 @@ final class MotionSearch {
     int step = Integer.highestOneBit(Math.max(1, range));
     final int count = Integer.numberOfTrailingZeros(step) + 1 + (halfPixel ? 1 : 0);
     final int[] steps = new int[count];
-    int i = 0;
+    int next = 0;
     while (step > 0) {
-      steps[i++] = step * 2;
+      steps[next++] = step * 2;
       step /= 2;
     }
     if (halfPixel) {
-      steps[i] = 1;
+      steps[next] = 1;
     }
     return steps;
   }
@@ -121,8 +121,8 @@ final class MotionSearch {
    * @param width     the picture width
    * @param height    the picture height
    * @param source    the block's source channels, edge-padded, {@code size * size * 3} values
-   * @param x         the block's left edge
-   * @param y         the block's top edge
+   * @param blockLeft the block's left edge
+   * @param blockTop  the block's top edge
    * @param size      the block size
    * @param globalX   the global horizontal vector in half pixels
    * @param globalY   the global vertical vector in half pixels
@@ -135,8 +135,8 @@ final class MotionSearch {
     final int width,
     final int height,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int globalX,
     final int globalY,
@@ -144,28 +144,28 @@ final class MotionSearch {
     final int[] steps
   ) {
     final int[] samples = SAMPLES[sizeIndex(size)];
-    int vx = globalX;
-    int vy = globalY;
-    long best = cost(reference, width, height, source, x, y, size, samples, vx, vy);
+    int bestX = globalX;
+    int bestY = globalY;
+    long best = cost(reference, width, height, source, blockLeft, blockTop, size, samples, bestX, bestY);
     final int lowX = globalX - range * 2;
     final int highX = globalX + range * 2;
     final int lowY = globalY - range * 2;
     final int highY = globalY + range * 2;
     for (final int step : steps) {
-      final int cx = vx;
-      final int cy = vy;
+      final int centreX = bestX;
+      final int centreY = bestY;
       for (final int[] direction : DIRECTIONS) {
-        final int hx = Math.min(Math.max(cx + direction[0] * step, lowX), highX);
-        final int hy = Math.min(Math.max(cy + direction[1] * step, lowY), highY);
-        final long error = cost(reference, width, height, source, x, y, size, samples, hx, hy);
+        final int candidateX = Math.min(Math.max(centreX + direction[0] * step, lowX), highX);
+        final int candidateY = Math.min(Math.max(centreY + direction[1] * step, lowY), highY);
+        final long error = cost(reference, width, height, source, blockLeft, blockTop, size, samples, candidateX, candidateY);
         if (error < best) {
           best = error;
-          vx = hx;
-          vy = hy;
+          bestX = candidateX;
+          bestY = candidateY;
         }
       }
     }
-    return pack(vx, vy);
+    return pack(bestX, bestY);
   }
 
   /**
@@ -178,8 +178,8 @@ final class MotionSearch {
    * @param width     the picture width
    * @param height    the picture height
    * @param source    the block's source channels, edge-padded, {@code size * size * 3} values
-   * @param x         the block's left edge
-   * @param y         the block's top edge
+   * @param blockLeft the block's left edge
+   * @param blockTop  the block's top edge
    * @param size      the block size
    * @param globalX   the global horizontal vector in half pixels
    * @param globalY   the global vertical vector in half pixels
@@ -193,8 +193,8 @@ final class MotionSearch {
     final int width,
     final int height,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int globalX,
     final int globalY,
@@ -207,59 +207,61 @@ final class MotionSearch {
     final int highX = globalX + range * 2;
     final int lowY = globalY - range * 2;
     final int highY = globalY + range * 2;
-    int vx = globalX;
-    int vy = globalY;
-    long best = cost(reference, width, height, source, x, y, size, samples, vx, vy);
-    for (int k = 0; k < seeds.length; k++) {
-      final int sx = Math.min(Math.max(unpackX(seeds[k]), lowX), highX);
-      final int sy = Math.min(Math.max(unpackY(seeds[k]), lowY), highY);
+    int bestX = globalX;
+    int bestY = globalY;
+    long best = cost(reference, width, height, source, blockLeft, blockTop, size, samples, bestX, bestY);
+    for (int seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
+      final int seedX = Math.min(Math.max(unpackX(seeds[seedIndex]), lowX), highX);
+      final int seedY = Math.min(Math.max(unpackY(seeds[seedIndex]), lowY), highY);
       // a vector already measured, the global one or an earlier seed, cannot be strictly better than itself
-      boolean seen = sx == globalX && sy == globalY;
-      for (int e = 0; e < k && !seen; e++) {
-        seen = sx == Math.min(Math.max(unpackX(seeds[e]), lowX), highX) && sy == Math.min(Math.max(unpackY(seeds[e]), lowY), highY);
+      boolean seen = seedX == globalX && seedY == globalY;
+      for (int earlierIndex = 0; earlierIndex < seedIndex && !seen; earlierIndex++) {
+        seen =
+          seedX == Math.min(Math.max(unpackX(seeds[earlierIndex]), lowX), highX) &&
+          seedY == Math.min(Math.max(unpackY(seeds[earlierIndex]), lowY), highY);
       }
       if (!seen) {
-        final long error = cost(reference, width, height, source, x, y, size, samples, sx, sy);
+        final long error = cost(reference, width, height, source, blockLeft, blockTop, size, samples, seedX, seedY);
         if (error < best) {
           best = error;
-          vx = sx;
-          vy = sy;
+          bestX = seedX;
+          bestY = seedY;
         }
       }
     }
     // whole pixels: at most one step per pixel of range, so the walk ends even on a pathological surface
     for (int steps = 0; steps < 2 * range; steps++) {
-      final int cx = vx;
-      final int cy = vy;
-      for (int d = 0; d < AXES; d++) {
-        final int hx = Math.min(Math.max(cx + DIRECTIONS[d][0] * 2, lowX), highX);
-        final int hy = Math.min(Math.max(cy + DIRECTIONS[d][1] * 2, lowY), highY);
-        final long error = cost(reference, width, height, source, x, y, size, samples, hx, hy);
+      final int centreX = bestX;
+      final int centreY = bestY;
+      for (int directionIndex = 0; directionIndex < AXES; directionIndex++) {
+        final int candidateX = Math.min(Math.max(centreX + DIRECTIONS[directionIndex][0] * 2, lowX), highX);
+        final int candidateY = Math.min(Math.max(centreY + DIRECTIONS[directionIndex][1] * 2, lowY), highY);
+        final long error = cost(reference, width, height, source, blockLeft, blockTop, size, samples, candidateX, candidateY);
         if (error < best) {
           best = error;
-          vx = hx;
-          vy = hy;
+          bestX = candidateX;
+          bestY = candidateY;
         }
       }
-      if (vx == cx && vy == cy) {
+      if (bestX == centreX && bestY == centreY) {
         break;
       }
     }
     if (halfPixel) {
-      final int cx = vx;
-      final int cy = vy;
+      final int centreX = bestX;
+      final int centreY = bestY;
       for (final int[] direction : DIRECTIONS) {
-        final int hx = Math.min(Math.max(cx + direction[0], lowX), highX);
-        final int hy = Math.min(Math.max(cy + direction[1], lowY), highY);
-        final long error = cost(reference, width, height, source, x, y, size, samples, hx, hy);
+        final int candidateX = Math.min(Math.max(centreX + direction[0], lowX), highX);
+        final int candidateY = Math.min(Math.max(centreY + direction[1], lowY), highY);
+        final long error = cost(reference, width, height, source, blockLeft, blockTop, size, samples, candidateX, candidateY);
         if (error < best) {
           best = error;
-          vx = hx;
-          vy = hy;
+          bestX = candidateX;
+          bestY = candidateY;
         }
       }
     }
-    return pack(vx, vy);
+    return pack(bestX, bestY);
   }
 
   /** Four times the sum of absolute differences on the sixteen samples, all three channels. */
@@ -268,52 +270,52 @@ final class MotionSearch {
     final int width,
     final int height,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int[] samples,
-    final int mx,
-    final int my
+    final int motionX,
+    final int motionY
   ) {
     // every sample and the neighbours a half pixel averages inside the picture: no clamping, one sampling case
-    final int left = x + samples[0] + (mx >> 1);
-    final int right = x + samples[SAMPLED - 1] + (mx >> 1) + (mx & 1);
-    final int top = y + samples[0] + (my >> 1);
-    final int bottom = y + samples[SAMPLED - 1] + (my >> 1) + (my & 1);
+    final int left = blockLeft + samples[0] + (motionX >> 1);
+    final int right = blockLeft + samples[SAMPLED - 1] + (motionX >> 1) + (motionX & 1);
+    final int top = blockTop + samples[0] + (motionY >> 1);
+    final int bottom = blockTop + samples[SAMPLED - 1] + (motionY >> 1) + (motionY & 1);
     if (left >= 0 && top >= 0 && right < width && bottom < height) {
-      return inside(reference, width, source, x, y, size, samples, mx, my);
+      return inside(reference, width, source, blockLeft, blockTop, size, samples, motionX, motionY);
     }
     long sum = 0;
-    for (int j = 0; j < SAMPLED; j++) {
-      final int py = y + samples[j];
-      final int hy = Math.min(Math.max(2 * py + my, 0), 2 * (height - 1));
-      final int y0 = hy >> 1;
-      final int y1 = Math.min(y0 + 1, height - 1);
-      final boolean halfY = (hy & 1) != 0;
-      for (int i = 0; i < SAMPLED; i++) {
-        final int px = x + samples[i];
-        final int hx = Math.min(Math.max(2 * px + mx, 0), 2 * (width - 1));
-        final int x0 = hx >> 1;
-        final int x1 = Math.min(x0 + 1, width - 1);
-        final boolean halfX = (hx & 1) != 0;
-        final int target = (samples[j] * size + samples[i]) * CHANNELS;
-        for (int c = 0; c < CHANNELS; c++) {
-          final int a = reference[(y0 * width + x0) * CHANNELS + c] & 0xFF;
+    for (int sampleRow = 0; sampleRow < SAMPLED; sampleRow++) {
+      final int pixelRow = blockTop + samples[sampleRow];
+      final int halfPixelY = Math.min(Math.max(2 * pixelRow + motionY, 0), 2 * (height - 1));
+      final int topRow = halfPixelY >> 1;
+      final int bottomRow = Math.min(topRow + 1, height - 1);
+      final boolean halfY = (halfPixelY & 1) != 0;
+      for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
+        final int pixelColumn = blockLeft + samples[sampleColumn];
+        final int halfPixelX = Math.min(Math.max(2 * pixelColumn + motionX, 0), 2 * (width - 1));
+        final int leftColumn = halfPixelX >> 1;
+        final int rightColumn = Math.min(leftColumn + 1, width - 1);
+        final boolean halfX = (halfPixelX & 1) != 0;
+        final int target = (samples[sampleRow] * size + samples[sampleColumn]) * CHANNELS;
+        for (int channel = 0; channel < CHANNELS; channel++) {
+          final int topLeftSample = reference[(topRow * width + leftColumn) * CHANNELS + channel] & 0xFF;
           final int value4;
           if (!halfX && !halfY) {
-            value4 = 4 * a;
+            value4 = 4 * topLeftSample;
           } else if (!halfY) {
-            value4 = 2 * (a + (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF));
+            value4 = 2 * (topLeftSample + (reference[(topRow * width + rightColumn) * CHANNELS + channel] & 0xFF));
           } else if (!halfX) {
-            value4 = 2 * (a + (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF));
+            value4 = 2 * (topLeftSample + (reference[(bottomRow * width + leftColumn) * CHANNELS + channel] & 0xFF));
           } else {
             value4 =
-              a +
-              (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
-              (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
-              (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF);
+              topLeftSample +
+              (reference[(topRow * width + rightColumn) * CHANNELS + channel] & 0xFF) +
+              (reference[(bottomRow * width + leftColumn) * CHANNELS + channel] & 0xFF) +
+              (reference[(bottomRow * width + rightColumn) * CHANNELS + channel] & 0xFF);
           }
-          sum += Math.abs(value4 - 4 * source[target + c]);
+          sum += Math.abs(value4 - 4 * source[target + channel]);
         }
       }
     }
@@ -325,43 +327,46 @@ final class MotionSearch {
     final byte[] reference,
     final int width,
     final int[] source,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
     final int[] samples,
-    final int mx,
-    final int my
+    final int motionX,
+    final int motionY
   ) {
-    final int right = (mx & 1) * CHANNELS;
-    final int below = (my & 1) * width * CHANNELS;
-    final int kind = (mx & 1) | ((my & 1) << 1);
+    final int right = (motionX & 1) * CHANNELS;
+    final int below = (motionY & 1) * width * CHANNELS;
+    final int kind = (motionX & 1) | ((motionY & 1) << 1);
     long sum = 0;
-    for (int j = 0; j < SAMPLED; j++) {
-      final int row = (y + samples[j] + (my >> 1)) * width + x + (mx >> 1);
-      final int line = samples[j] * size;
-      for (int i = 0; i < SAMPLED; i++) {
-        final int a = (row + samples[i]) * CHANNELS;
-        final int t = (line + samples[i]) * CHANNELS;
+    for (int sampleRow = 0; sampleRow < SAMPLED; sampleRow++) {
+      final int row = (blockTop + samples[sampleRow] + (motionY >> 1)) * width + blockLeft + (motionX >> 1);
+      final int line = samples[sampleRow] * size;
+      for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
+        final int topLeft = (row + samples[sampleColumn]) * CHANNELS;
+        final int target = (line + samples[sampleColumn]) * CHANNELS;
         switch (kind) {
           case 0 -> {
-            sum += Math.abs(4 * (reference[a] & 0xFF) - 4 * source[t]);
-            sum += Math.abs(4 * (reference[a + 1] & 0xFF) - 4 * source[t + 1]);
-            sum += Math.abs(4 * (reference[a + 2] & 0xFF) - 4 * source[t + 2]);
+            sum += Math.abs(4 * (reference[topLeft] & 0xFF) - 4 * source[target]);
+            sum += Math.abs(4 * (reference[topLeft + 1] & 0xFF) - 4 * source[target + 1]);
+            sum += Math.abs(4 * (reference[topLeft + 2] & 0xFF) - 4 * source[target + 2]);
           }
           case 1, 2 -> {
-            final int b = a + right + below;
-            sum += Math.abs(2 * ((reference[a] & 0xFF) + (reference[b] & 0xFF)) - 4 * source[t]);
-            sum += Math.abs(2 * ((reference[a + 1] & 0xFF) + (reference[b + 1] & 0xFF)) - 4 * source[t + 1]);
-            sum += Math.abs(2 * ((reference[a + 2] & 0xFF) + (reference[b + 2] & 0xFF)) - 4 * source[t + 2]);
+            final int neighbour = topLeft + right + below;
+            sum += Math.abs(2 * ((reference[topLeft] & 0xFF) + (reference[neighbour] & 0xFF)) - 4 * source[target]);
+            sum += Math.abs(2 * ((reference[topLeft + 1] & 0xFF) + (reference[neighbour + 1] & 0xFF)) - 4 * source[target + 1]);
+            sum += Math.abs(2 * ((reference[topLeft + 2] & 0xFF) + (reference[neighbour + 2] & 0xFF)) - 4 * source[target + 2]);
           }
           default -> {
-            final int b = a + right;
-            final int d = a + below;
-            final int e = d + right;
-            for (int c = 0; c < CHANNELS; c++) {
+            final int topRight = topLeft + right;
+            final int bottomLeft = topLeft + below;
+            final int bottomRight = bottomLeft + right;
+            for (int channel = 0; channel < CHANNELS; channel++) {
               final int value4 =
-                (reference[a + c] & 0xFF) + (reference[b + c] & 0xFF) + (reference[d + c] & 0xFF) + (reference[e + c] & 0xFF);
-              sum += Math.abs(value4 - 4 * source[t + c]);
+                (reference[topLeft + channel] & 0xFF) +
+                (reference[topRight + channel] & 0xFF) +
+                (reference[bottomLeft + channel] & 0xFF) +
+                (reference[bottomRight + channel] & 0xFF);
+              sum += Math.abs(value4 - 4 * source[target + channel]);
             }
           }
         }

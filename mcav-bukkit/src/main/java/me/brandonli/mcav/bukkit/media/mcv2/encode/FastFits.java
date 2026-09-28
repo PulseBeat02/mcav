@@ -67,11 +67,11 @@ final class FastFits {
   static void cellSums(final int[] source, final int size, final int[] sums) {
     Arrays.fill(sums, 0, CELL_SUMS, 0);
     final int cell = size / CELL_GRID;
-    for (int y = 0; y < size; y++) {
-      final int row = (y / cell) * CELL_GRID;
-      for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * CHANNELS;
-        final int to = (row + x / cell) * CHANNELS;
+    for (int row = 0; row < size; row++) {
+      final int cellRowStart = (row / cell) * CELL_GRID;
+      for (int column = 0; column < size; column++) {
+        final int at = (row * size + column) * CHANNELS;
+        final int to = (cellRowStart + column / cell) * CHANNELS;
         sums[to] += source[at];
         sums[to + 1] += source[at + 1];
         sums[to + 2] += source[at + 2];
@@ -92,16 +92,16 @@ final class FastFits {
     // the grid divides the block exactly
     final int side = size / grid;
     final float pixels = side * side;
-    for (int j = 0; j < grid; j++) {
-      for (int i = 0; i < grid; i++) {
-        for (int c = 0; c < CHANNELS; c++) {
+    for (int nodeRow = 0; nodeRow < grid; nodeRow++) {
+      for (int nodeColumn = 0; nodeColumn < grid; nodeColumn++) {
+        for (int channel = 0; channel < CHANNELS; channel++) {
           int sum = 0;
-          for (int cy = j * span; cy < (j + 1) * span; cy++) {
-            for (int cx = i * span; cx < (i + 1) * span; cx++) {
-              sum += sums[(cy * CELL_GRID + cx) * CHANNELS + c];
+          for (int cellRow = nodeRow * span; cellRow < (nodeRow + 1) * span; cellRow++) {
+            for (int cellColumn = nodeColumn * span; cellColumn < (nodeColumn + 1) * span; cellColumn++) {
+              sum += sums[(cellRow * CELL_GRID + cellColumn) * CHANNELS + channel];
             }
           }
-          nodes[(j * grid + i) * CHANNELS + c] = sum / pixels;
+          nodes[(nodeRow * grid + nodeColumn) * CHANNELS + channel] = sum / pixels;
         }
       }
     }
@@ -121,17 +121,17 @@ final class FastFits {
     final int cell = size / CELL_GRID;
     final int cells = CELL_GRID * CELL_GRID;
     Arrays.fill(sums, 0, cells, 0);
-    for (int y = 0; y < size; y++) {
-      final int row = (y / cell) * CELL_GRID;
-      for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * CHANNELS;
-        sums[row + x / cell] +=
+    for (int row = 0; row < size; row++) {
+      final int cellRowStart = (row / cell) * CELL_GRID;
+      for (int column = 0; column < size; column++) {
+        final int at = (row * size + column) * CHANNELS;
+        sums[cellRowStart + column / cell] +=
           4 * (source[at] + 2 * source[at + 1] + source[at + 2]) - (prediction[at] + 2 * prediction[at + 1] + prediction[at + 2]);
       }
     }
     final float scale = LUMA_SCALE * cell * cell;
-    for (int i = 0; i < cells; i++) {
-      nodes[i] = sums[i] / scale;
+    for (int cellIndex = 0; cellIndex < cells; cellIndex++) {
+      nodes[cellIndex] = sums[cellIndex] / scale;
     }
   }
 
@@ -151,9 +151,9 @@ final class FastFits {
     int high = 0;
     int lowLuma = Integer.MAX_VALUE;
     int highLuma = Integer.MIN_VALUE;
-    for (int y = 0; y < size; y += step) {
-      for (int x = 0; x < size; x += step) {
-        final int at = (y * size + x) * CHANNELS;
+    for (int row = 0; row < size; row += step) {
+      for (int column = 0; column < size; column += step) {
+        final int at = (row * size + column) * CHANNELS;
         final int luma = source[at] + 2 * source[at + 1] + source[at + 2];
         if (luma < lowLuma) {
           lowLuma = luma;
@@ -165,40 +165,44 @@ final class FastFits {
         }
       }
     }
-    for (int c = 0; c < CHANNELS; c++) {
-      endpoints[c] = source[low + c];
-      endpoints[CHANNELS + c] = source[high + c];
+    for (int channel = 0; channel < CHANNELS; channel++) {
+      endpoints[channel] = source[low + channel];
+      endpoints[CHANNELS + channel] = source[high + channel];
     }
     for (int iteration = 0; iteration < ITERATIONS; iteration++) {
-      final int r0 = (int) endpoints[0];
-      final int g0 = (int) endpoints[1];
-      final int b0 = (int) endpoints[2];
-      final int r1 = (int) endpoints[3];
-      final int g1 = (int) endpoints[4];
-      final int b1 = (int) endpoints[5];
+      final int firstRed = (int) endpoints[0];
+      final int firstGreen = (int) endpoints[1];
+      final int firstBlue = (int) endpoints[2];
+      final int secondRed = (int) endpoints[3];
+      final int secondGreen = (int) endpoints[4];
+      final int secondBlue = (int) endpoints[5];
       Arrays.fill(sums, 0, CLUSTER_SUMS, 0);
-      for (int y = 0; y < size; y += step) {
-        for (int x = 0; x < size; x += step) {
-          final int at = (y * size + x) * CHANNELS;
-          final int r = source[at];
-          final int g = source[at + 1];
-          final int b = source[at + 2];
-          final int e0 = (r - r0) * (r - r0) + (g - g0) * (g - g0) + (b - b0) * (b - b0);
-          final int e1 = (r - r1) * (r - r1) + (g - g1) * (g - g1) + (b - b1) * (b - b1);
-          final int k = e1 < e0 ? 1 : 0;
-          sums[k * CHANNELS] += r;
-          sums[k * CHANNELS + 1] += g;
-          sums[k * CHANNELS + 2] += b;
-          sums[COUNTS + k]++;
+      for (int row = 0; row < size; row += step) {
+        for (int column = 0; column < size; column += step) {
+          final int at = (row * size + column) * CHANNELS;
+          final int red = source[at];
+          final int green = source[at + 1];
+          final int blue = source[at + 2];
+          final int firstDistance =
+            (red - firstRed) * (red - firstRed) + (green - firstGreen) * (green - firstGreen) + (blue - firstBlue) * (blue - firstBlue);
+          final int secondDistance =
+            (red - secondRed) * (red - secondRed) +
+            (green - secondGreen) * (green - secondGreen) +
+            (blue - secondBlue) * (blue - secondBlue);
+          final int nearest = secondDistance < firstDistance ? 1 : 0;
+          sums[nearest * CHANNELS] += red;
+          sums[nearest * CHANNELS + 1] += green;
+          sums[nearest * CHANNELS + 2] += blue;
+          sums[COUNTS + nearest]++;
         }
       }
-      for (int k = 0; k < PALETTE_COLORS; k++) {
-        final long n = sums[COUNTS + k];
-        if (n > 0) {
-          for (int c = 0; c < CHANNELS; c++) {
+      for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
+        final long members = sums[COUNTS + endpoint];
+        if (members > 0) {
+          for (int channel = 0; channel < CHANNELS; channel++) {
             // the rounded integer mean: the endpoints stay whole colours
-            final long mean = (sums[k * CHANNELS + c] + n / 2) / n;
-            endpoints[k * CHANNELS + c] = mean;
+            final long mean = (sums[endpoint * CHANNELS + channel] + members / 2) / members;
+            endpoints[endpoint * CHANNELS + channel] = mean;
           }
         }
       }

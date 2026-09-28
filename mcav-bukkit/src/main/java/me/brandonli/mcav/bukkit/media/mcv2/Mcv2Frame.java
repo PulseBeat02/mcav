@@ -287,8 +287,15 @@ public final class Mcv2Frame {
   public Leaf getLeaf(final int index) {
     Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
     final int base = index * LEAF_INTS;
-    final int[] l = this.leaves;
-    return new Leaf(l[base + LEAF_X], l[base + LEAF_Y], l[base + LEAF_SIZE], l[base + LEAF_MODE], l[base + LEAF_Q], l[base + LEAF_OFFSET]);
+    final int[] leaves = this.leaves;
+    return new Leaf(
+      leaves[base + LEAF_X],
+      leaves[base + LEAF_Y],
+      leaves[base + LEAF_SIZE],
+      leaves[base + LEAF_MODE],
+      leaves[base + LEAF_Q],
+      leaves[base + LEAF_OFFSET]
+    );
   }
 
   /**

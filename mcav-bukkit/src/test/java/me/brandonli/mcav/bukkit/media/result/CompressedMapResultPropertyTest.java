@@ -376,13 +376,13 @@ final class CompressedMapResultPropertyTest {
         for (int index = 0; index < viewer.maps.length; index++) {
           final MapRegion region = layout.getRegion(index);
           final short[] map = viewer.maps[index];
-          for (int y = 0; y < MAP_SIZE; y++) {
-            for (int x = 0; x < MAP_SIZE; x++) {
-              final short shown = map[y * MAP_SIZE + x];
-              final int regionX = x - region.getLocalX();
-              final int regionY = y - region.getLocalY();
+          for (int row = 0; row < MAP_SIZE; row++) {
+            for (int column = 0; column < MAP_SIZE; column++) {
+              final short shown = map[row * MAP_SIZE + column];
+              final int regionX = column - region.getLocalX();
+              final int regionY = row - region.getLocalY();
               final boolean covered = regionX >= 0 && regionY >= 0 && regionX < region.getWidth() && regionY < region.getHeight();
-              final String where = "viewer " + viewer.uuid + ", map " + index + " at " + x + "," + y;
+              final String where = "viewer " + viewer.uuid + ", map " + index + " at " + column + "," + row;
               if (covered) {
                 final short expected = picture[(region.getSourceY() + regionY) * imageWidth + region.getSourceX() + regionX];
                 assertEquals(expected, shown, () -> where + " shows the current frame");

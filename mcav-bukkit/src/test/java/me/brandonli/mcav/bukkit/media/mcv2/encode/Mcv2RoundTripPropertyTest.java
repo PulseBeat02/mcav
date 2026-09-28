@@ -54,25 +54,25 @@ final class Mcv2RoundTripPropertyTest {
   /** A picture of flat rectangles, noise and ramps, the kinds of content different leaf modes win on. */
   private static byte[] picture(final Random random, final int width, final int height) {
     final byte[] rgb = new byte[width * height * 3];
-    for (int i = 0; i < rgb.length; i++) {
-      rgb[i] = (byte) random.nextInt(256);
+    for (int index = 0; index < rgb.length; index++) {
+      rgb[index] = (byte) random.nextInt(256);
     }
     for (int shapes = random.nextInt(6); shapes > 0; shapes--) {
-      final int x0 = random.nextInt(width);
-      final int y0 = random.nextInt(height);
-      final int x1 = x0 + 1 + random.nextInt(width - x0);
-      final int y1 = y0 + 1 + random.nextInt(height - y0);
+      final int left = random.nextInt(width);
+      final int top = random.nextInt(height);
+      final int right = left + 1 + random.nextInt(width - left);
+      final int bottom = top + 1 + random.nextInt(height - top);
       final int kind = random.nextInt(3);
       final int color = random.nextInt(0x1000000);
-      for (int y = y0; y < y1; y++) {
-        for (int x = x0; x < x1; x++) {
-          final int at = (y * width + x) * 3;
+      for (int row = top; row < bottom; row++) {
+        for (int column = left; column < right; column++) {
+          final int at = (row * width + column) * 3;
           for (int channel = 0; channel < 3; channel++) {
             final int base = (color >> (8 * channel)) & 0xFF;
             rgb[at + channel] = (byte) switch (kind) {
               case 0 -> base;
-              case 1 -> (base + (x - x0) * 3 + (y - y0)) & 0xFF;
-              default -> ((x + y) & 1) == 0 ? base : 255 - base;
+              case 1 -> (base + (column - left) * 3 + (row - top)) & 0xFF;
+              default -> ((column + row) & 1) == 0 ? base : 255 - base;
             };
           }
         }
@@ -89,13 +89,13 @@ final class Mcv2RoundTripPropertyTest {
     }
     final byte[] rgb = previous.clone();
     if (kind == 1) {
-      final int dx = random.nextInt(9) - 4;
-      final int dy = random.nextInt(9) - 4;
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          final int sx = Math.min(width - 1, Math.max(0, x + dx));
-          final int sy = Math.min(height - 1, Math.max(0, y + dy));
-          System.arraycopy(previous, (sy * width + sx) * 3, rgb, (y * width + x) * 3, 3);
+      final int deltaX = random.nextInt(9) - 4;
+      final int deltaY = random.nextInt(9) - 4;
+      for (int row = 0; row < height; row++) {
+        for (int column = 0; column < width; column++) {
+          final int sourceColumn = Math.min(width - 1, Math.max(0, column + deltaX));
+          final int sourceRow = Math.min(height - 1, Math.max(0, row + deltaY));
+          System.arraycopy(previous, (sourceRow * width + sourceColumn) * 3, rgb, (row * width + column) * 3, 3);
         }
       }
     } else if (kind == 2) {
@@ -134,10 +134,10 @@ final class Mcv2RoundTripPropertyTest {
     @ForAll @IntRange(min = 0, max = 0xFFFFFF) final int color
   ) throws Mcv2Exception {
     final byte[] rgb = new byte[width * height * 3];
-    for (int i = 0; i < rgb.length; i += 3) {
-      rgb[i] = (byte) (color >> 16);
-      rgb[i + 1] = (byte) (color >> 8);
-      rgb[i + 2] = (byte) color;
+    for (int offset = 0; offset < rgb.length; offset += 3) {
+      rgb[offset] = (byte) (color >> 16);
+      rgb[offset + 1] = (byte) (color >> 8);
+      rgb[offset + 2] = (byte) color;
     }
     final Mcv2Encoder encoder = new Mcv2Encoder(PROFILES.get(profile).withLambda(lambda), POOL, 2, false);
     assertArrayEquals(rgb, new Mcv2Receiver().accept(encoder.encode(rgb, width, height, 0)));

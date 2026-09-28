@@ -42,28 +42,28 @@ public final class ReconstructionOracle {
   private static final float[][] LOW2_AXIS = new float[3][];
 
   static {
-    for (int s = 0; s < 3; s++) {
-      final int size = 8 << s;
-      for (int g = 0; g < 4; g++) {
-        final int grid = 1 << g;
+    for (int sizeIndex = 0; sizeIndex < 3; sizeIndex++) {
+      final int size = 8 << sizeIndex;
+      for (int gridIndex = 0; gridIndex < 4; gridIndex++) {
+        final int grid = 1 << gridIndex;
         final int[] lower = new int[size];
         final int[] upper = new int[size];
         final double[] fraction = new double[size];
-        for (int p = 0; p < size; p++) {
-          final double position = Math.min(Math.max(((p + 0.5) * grid) / size - 0.5, 0.0), grid - 1);
-          lower[p] = (int) Math.floor(position);
-          upper[p] = Math.min(lower[p] + 1, grid - 1);
-          fraction[p] = position - lower[p];
+        for (int pixel = 0; pixel < size; pixel++) {
+          final double position = Math.min(Math.max(((pixel + 0.5) * grid) / size - 0.5, 0.0), grid - 1);
+          lower[pixel] = (int) Math.floor(position);
+          upper[pixel] = Math.min(lower[pixel] + 1, grid - 1);
+          fraction[pixel] = position - lower[pixel];
         }
-        LOWER[s][g] = lower;
-        UPPER[s][g] = upper;
-        FRACTION[s][g] = fraction;
+        LOWER[sizeIndex][gridIndex] = lower;
+        UPPER[sizeIndex][gridIndex] = upper;
+        FRACTION[sizeIndex][gridIndex] = fraction;
       }
       final float[] axis = new float[size];
-      for (int i = 0; i < size; i++) {
-        axis[i] = ((i + 0.5f) / size) * 2.0f - 1.0f;
+      for (int axisIndex = 0; axisIndex < size; axisIndex++) {
+        axis[axisIndex] = ((axisIndex + 0.5f) / size) * 2.0f - 1.0f;
       }
-      LOW2_AXIS[s] = axis;
+      LOW2_AXIS[sizeIndex] = axis;
     }
   }
 
@@ -95,8 +95,8 @@ public final class ReconstructionOracle {
    * @param stride the distance between consecutive nodes
    * @param grid   the grid width, 1, 2, 4 or 8
    * @param size   the block size, 8, 16 or 32
-   * @param x      the column inside the block
-   * @param y      the row inside the block
+   * @param column the column inside the block
+   * @param row    the row inside the block
    * @return the interpolated value
    */
   public static double interpolate(
@@ -105,20 +105,24 @@ public final class ReconstructionOracle {
     final int stride,
     final int grid,
     final int size,
-    final int x,
-    final int y
+    final int column,
+    final int row
   ) {
-    final int s = sizeIndex(size);
-    final int g = Integer.numberOfTrailingZeros(grid);
-    final int x0 = LOWER[s][g][x];
-    final int x1 = UPPER[s][g][x];
-    final double fx = FRACTION[s][g][x];
-    final int y0 = LOWER[s][g][y];
-    final int y1 = UPPER[s][g][y];
-    final double fy = FRACTION[s][g][y];
-    final double top = nodes[offset + (y0 * grid + x0) * stride] * (1 - fx) + nodes[offset + (y0 * grid + x1) * stride] * fx;
-    final double bottom = nodes[offset + (y1 * grid + x0) * stride] * (1 - fx) + nodes[offset + (y1 * grid + x1) * stride] * fx;
-    return top * (1 - fy) + bottom * fy;
+    final int sizeIndex = sizeIndex(size);
+    final int gridIndex = Integer.numberOfTrailingZeros(grid);
+    final int leftNode = LOWER[sizeIndex][gridIndex][column];
+    final int rightNode = UPPER[sizeIndex][gridIndex][column];
+    final double fractionX = FRACTION[sizeIndex][gridIndex][column];
+    final int topNode = LOWER[sizeIndex][gridIndex][row];
+    final int bottomNode = UPPER[sizeIndex][gridIndex][row];
+    final double fractionY = FRACTION[sizeIndex][gridIndex][row];
+    final double top =
+      nodes[offset + (topNode * grid + leftNode) * stride] * (1 - fractionX) +
+      nodes[offset + (topNode * grid + rightNode) * stride] * fractionX;
+    final double bottom =
+      nodes[offset + (bottomNode * grid + leftNode) * stride] * (1 - fractionX) +
+      nodes[offset + (bottomNode * grid + rightNode) * stride] * fractionX;
+    return top * (1 - fractionY) + bottom * fractionY;
   }
 
   /**
@@ -128,56 +132,60 @@ public final class ReconstructionOracle {
    * @param reference the reference picture, row-major RGB
    * @param width     the picture width
    * @param height    the picture height
-   * @param x         the block's left edge
-   * @param y         the block's top edge
+   * @param blockLeft the block's left edge
+   * @param blockTop  the block's top edge
    * @param size      the block size; pixels outside the picture are predicted too, from clamped coordinates
-   * @param mx        the horizontal displacement in half pixels
-   * @param my        the vertical displacement in half pixels
+   * @param motionX   the horizontal displacement in half pixels
+   * @param motionY   the vertical displacement in half pixels
    * @param out       receives four times each predicted channel, {@code size * size * 3} values
    */
   public static void predict(
     final byte[] reference,
     final int width,
     final int height,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
-    final int mx,
-    final int my,
+    final int motionX,
+    final int motionY,
     final int[] out
   ) {
-    for (int py = 0; py < size; py++) {
-      final int hy = Math.min(Math.max(2 * (y + py) + my, 0), 2 * (height - 1));
-      final int y0 = hy >> 1;
-      final int y1 = Math.min(y0 + 1, height - 1);
-      final boolean halfY = (hy & 1) != 0;
-      for (int px = 0; px < size; px++) {
-        final int hx = Math.min(Math.max(2 * (x + px) + mx, 0), 2 * (width - 1));
-        final int x0 = hx >> 1;
-        final int x1 = Math.min(x0 + 1, width - 1);
-        final boolean halfX = (hx & 1) != 0;
-        final int a = (y0 * width + x0) * 3;
-        final int at = (py * size + px) * 3;
+    for (int row = 0; row < size; row++) {
+      final int halfPixelY = Math.min(Math.max(2 * (blockTop + row) + motionY, 0), 2 * (height - 1));
+      final int topRow = halfPixelY >> 1;
+      final int bottomRow = Math.min(topRow + 1, height - 1);
+      final boolean halfY = (halfPixelY & 1) != 0;
+      for (int column = 0; column < size; column++) {
+        final int halfPixelX = Math.min(Math.max(2 * (blockLeft + column) + motionX, 0), 2 * (width - 1));
+        final int leftColumn = halfPixelX >> 1;
+        final int rightColumn = Math.min(leftColumn + 1, width - 1);
+        final boolean halfX = (halfPixelX & 1) != 0;
+        final int topLeft = (topRow * width + leftColumn) * 3;
+        final int at = (row * size + column) * 3;
         if (!halfX && !halfY) {
-          for (int c = 0; c < 3; c++) {
-            out[at + c] = 4 * (reference[a + c] & 0xFF);
+          for (int channel = 0; channel < 3; channel++) {
+            out[at + channel] = 4 * (reference[topLeft + channel] & 0xFF);
           }
         } else if (!halfY) {
-          final int b = (y0 * width + x1) * 3;
-          for (int c = 0; c < 3; c++) {
-            out[at + c] = 2 * ((reference[a + c] & 0xFF) + (reference[b + c] & 0xFF));
+          final int topRight = (topRow * width + rightColumn) * 3;
+          for (int channel = 0; channel < 3; channel++) {
+            out[at + channel] = 2 * ((reference[topLeft + channel] & 0xFF) + (reference[topRight + channel] & 0xFF));
           }
         } else if (!halfX) {
-          final int b = (y1 * width + x0) * 3;
-          for (int c = 0; c < 3; c++) {
-            out[at + c] = 2 * ((reference[a + c] & 0xFF) + (reference[b + c] & 0xFF));
+          final int bottomLeft = (bottomRow * width + leftColumn) * 3;
+          for (int channel = 0; channel < 3; channel++) {
+            out[at + channel] = 2 * ((reference[topLeft + channel] & 0xFF) + (reference[bottomLeft + channel] & 0xFF));
           }
         } else {
-          final int b = (y0 * width + x1) * 3;
-          final int d = (y1 * width + x0) * 3;
-          final int e = (y1 * width + x1) * 3;
-          for (int c = 0; c < 3; c++) {
-            out[at + c] = (reference[a + c] & 0xFF) + (reference[b + c] & 0xFF) + (reference[d + c] & 0xFF) + (reference[e + c] & 0xFF);
+          final int topRight = (topRow * width + rightColumn) * 3;
+          final int bottomLeft = (bottomRow * width + leftColumn) * 3;
+          final int bottomRight = (bottomRow * width + rightColumn) * 3;
+          for (int channel = 0; channel < 3; channel++) {
+            out[at + channel] =
+              (reference[topLeft + channel] & 0xFF) +
+              (reference[topRight + channel] & 0xFF) +
+              (reference[bottomLeft + channel] & 0xFF) +
+              (reference[bottomRight + channel] & 0xFF);
           }
         }
       }
@@ -192,9 +200,9 @@ public final class ReconstructionOracle {
    * @param out        the reconstructed channels
    */
   public static void predicted(final int[] prediction, final int size, final int[] out) {
-    final int n = size * size * 3;
-    for (int i = 0; i < n; i++) {
-      out[i] = rgb8(prediction[i] * 0.25f);
+    final int sampleCount = size * size * 3;
+    for (int sample = 0; sample < sampleCount; sample++) {
+      out[sample] = rgb8(prediction[sample] * 0.25f);
     }
   }
 
@@ -206,11 +214,11 @@ public final class ReconstructionOracle {
    * @param out   the reconstructed channels
    */
   public static void solid(final int color, final int size, final int[] out) {
-    final int n = size * size;
-    for (int i = 0; i < n; i++) {
-      out[i * 3] = (color >> 16) & 0xFF;
-      out[i * 3 + 1] = (color >> 8) & 0xFF;
-      out[i * 3 + 2] = color & 0xFF;
+    final int pixelCount = size * size;
+    for (int pixel = 0; pixel < pixelCount; pixel++) {
+      out[pixel * 3] = (color >> 16) & 0xFF;
+      out[pixel * 3 + 1] = (color >> 8) & 0xFF;
+      out[pixel * 3 + 2] = color & 0xFF;
     }
   }
 
@@ -223,13 +231,13 @@ public final class ReconstructionOracle {
    * @param out    the reconstructed channels
    */
   public static void palette(final byte[] record, final int offset, final int size, final int[] out) {
-    final int n = size * size;
-    for (int i = 0; i < n; i++) {
-      final int bit = (record[offset + 6 + i / 8] >> (i & 7)) & 1;
+    final int pixelCount = size * size;
+    for (int pixel = 0; pixel < pixelCount; pixel++) {
+      final int bit = (record[offset + 6 + pixel / 8] >> (pixel & 7)) & 1;
       final int at = offset + bit * 3;
-      out[i * 3] = record[at] & 0xFF;
-      out[i * 3 + 1] = record[at + 1] & 0xFF;
-      out[i * 3 + 2] = record[at + 2] & 0xFF;
+      out[pixel * 3] = record[at] & 0xFF;
+      out[pixel * 3 + 1] = record[at + 1] & 0xFF;
+      out[pixel * 3 + 2] = record[at + 2] & 0xFF;
     }
   }
 
@@ -241,10 +249,10 @@ public final class ReconstructionOracle {
    * @param out     the reconstructed channels
    */
   public static void pattern(final PatternRecord pattern, final int size, final int[] out) {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int color = pattern.colorAt(x, y);
-        final int at = (y * size + x) * 3;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int color = pattern.colorAt(column, row);
+        final int at = (row * size + column) * 3;
         out[at] = (color >> 16) & 0xFF;
         out[at + 1] = (color >> 8) & 0xFF;
         out[at + 2] = color & 0xFF;
@@ -270,28 +278,28 @@ public final class ReconstructionOracle {
     final float[] nodes,
     final int[] out
   ) {
-    for (int i = 0; i < 3 * grid * grid; i++) {
-      nodes[i] = record[offset + i] & 0xFF;
+    for (int nodeIndex = 0; nodeIndex < 3 * grid * grid; nodeIndex++) {
+      nodes[nodeIndex] = record[offset + nodeIndex] & 0xFF;
     }
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * 3;
-        for (int c = 0; c < 3; c++) {
-          out[at + c] = rgb8((float) interpolate(nodes, c, 3, grid, size, x, y));
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int at = (row * size + column) * 3;
+        for (int channel = 0; channel < 3; channel++) {
+          out[at + channel] = rgb8((float) interpolate(nodes, channel, 3, grid, size, column, row));
         }
       }
     }
   }
 
   /**
-   * Reconstructs a YCoCg residual grid block (modes 8 to 11): signed nodes scaled by {@code 2^q} before
+   * Reconstructs a YCoCg residual grid block (modes 8 to 11): signed nodes scaled by {@code 2^quantizer} before
    * interpolation, converted and added to the prediction in float32.
    *
    * @param prediction four times the predicted channels
    * @param record     the bytes holding the nodes
    * @param offset     the offset of the first node, after the motion bytes
    * @param grid       the grid width
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param nodes      scratch space for {@code 3 * grid * grid} floats
    * @param out        the reconstructed channels
@@ -301,23 +309,23 @@ public final class ReconstructionOracle {
     final byte[] record,
     final int offset,
     final int grid,
-    final int q,
+    final int quantizer,
     final int size,
     final float[] nodes,
     final int[] out
   ) {
-    for (int i = 0; i < 3 * grid * grid; i++) {
-      nodes[i] = (float) (record[offset + i] * (1 << q));
+    for (int nodeIndex = 0; nodeIndex < 3 * grid * grid; nodeIndex++) {
+      nodes[nodeIndex] = (float) (record[offset + nodeIndex] * (1 << quantizer));
     }
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final float c0 = (float) interpolate(nodes, 0, 3, grid, size, x, y);
-        final float c1 = (float) interpolate(nodes, 1, 3, grid, size, x, y);
-        final float c2 = (float) interpolate(nodes, 2, 3, grid, size, x, y);
-        final int at = (y * size + x) * 3;
-        out[at] = rgb8(prediction[at] * 0.25f + (c0 + c1 - c2));
-        out[at + 1] = rgb8(prediction[at + 1] * 0.25f + (c0 + c2));
-        out[at + 2] = rgb8(prediction[at + 2] * 0.25f + (c0 - c1 - c2));
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final float pixelLuma = (float) interpolate(nodes, 0, 3, grid, size, column, row);
+        final float pixelChromaOrange = (float) interpolate(nodes, 1, 3, grid, size, column, row);
+        final float pixelChromaGreen = (float) interpolate(nodes, 2, 3, grid, size, column, row);
+        final int at = (row * size + column) * 3;
+        out[at] = rgb8(prediction[at] * 0.25f + (pixelLuma + pixelChromaOrange - pixelChromaGreen));
+        out[at + 1] = rgb8(prediction[at + 1] * 0.25f + (pixelLuma + pixelChromaGreen));
+        out[at + 2] = rgb8(prediction[at + 2] * 0.25f + (pixelLuma - pixelChromaOrange - pixelChromaGreen));
       }
     }
   }
@@ -332,7 +340,7 @@ public final class ReconstructionOracle {
    * @param offset     the offset of the first luma node, after any motion bytes
    * @param luma       the luma grid width
    * @param chroma     the chroma grid width
-   * @param q          the quantizer, zero for an intra record
+   * @param quantizer  the quantizer, zero for an intra record
    * @param size       the block size
    * @param nodes      scratch space for at least 72 floats
    * @param out        the reconstructed channels
@@ -343,38 +351,38 @@ public final class ReconstructionOracle {
     final int offset,
     final int luma,
     final int chroma,
-    final int q,
+    final int quantizer,
     final int size,
     final float[] nodes,
     final int[] out
   ) {
     final boolean residual = prediction != null;
-    for (int i = 0; i < luma * luma; i++) {
-      nodes[i] = residual ? (float) record[offset + i] : (float) (record[offset + i] & 0xFF);
+    for (int nodeIndex = 0; nodeIndex < luma * luma; nodeIndex++) {
+      nodes[nodeIndex] = residual ? (float) record[offset + nodeIndex] : (float) (record[offset + nodeIndex] & 0xFF);
     }
     final int chromaAt = offset + luma * luma;
-    for (int i = 0; i < 2 * chroma * chroma; i++) {
-      nodes[64 + i] = record[chromaAt + i];
+    for (int nodeIndex = 0; nodeIndex < 2 * chroma * chroma; nodeIndex++) {
+      nodes[64 + nodeIndex] = record[chromaAt + nodeIndex];
     }
-    final double scale = 1 << q;
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final float yv = (float) interpolate(nodes, 0, 1, luma, size, x, y);
-        final float co = (float) interpolate(nodes, 64, 2, chroma, size, x, y);
-        final float cg = (float) interpolate(nodes, 65, 2, chroma, size, x, y);
-        final int at = (y * size + x) * 3;
+    final double scale = 1 << quantizer;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final float pixelLuma = (float) interpolate(nodes, 0, 1, luma, size, column, row);
+        final float pixelChromaOrange = (float) interpolate(nodes, 64, 2, chroma, size, column, row);
+        final float pixelChromaGreen = (float) interpolate(nodes, 65, 2, chroma, size, column, row);
+        final int at = (row * size + column) * 3;
         if (prediction == null) {
-          out[at] = rgb8(yv + co - cg);
-          out[at + 1] = rgb8(yv + cg);
-          out[at + 2] = rgb8(yv - co - cg);
+          out[at] = rgb8(pixelLuma + pixelChromaOrange - pixelChromaGreen);
+          out[at + 1] = rgb8(pixelLuma + pixelChromaGreen);
+          out[at + 2] = rgb8(pixelLuma - pixelChromaOrange - pixelChromaGreen);
           continue;
         }
-        final double ys = yv * scale;
-        final double cos = co * scale;
-        final double cgs = cg * scale;
-        out[at] = rgb8((float) (prediction[at] * 0.25 + (ys + cos - cgs)));
-        out[at + 1] = rgb8((float) (prediction[at + 1] * 0.25 + (ys + cgs)));
-        out[at + 2] = rgb8((float) (prediction[at + 2] * 0.25 + (ys - cos - cgs)));
+        final double scaledLuma = pixelLuma * scale;
+        final double scaledChromaOrange = pixelChromaOrange * scale;
+        final double scaledChromaGreen = pixelChromaGreen * scale;
+        out[at] = rgb8((float) (prediction[at] * 0.25 + (scaledLuma + scaledChromaOrange - scaledChromaGreen)));
+        out[at + 1] = rgb8((float) (prediction[at + 1] * 0.25 + (scaledLuma + scaledChromaGreen)));
+        out[at + 2] = rgb8((float) (prediction[at + 2] * 0.25 + (scaledLuma - scaledChromaOrange - scaledChromaGreen)));
       }
     }
   }
@@ -386,7 +394,7 @@ public final class ReconstructionOracle {
    * @param record     the bytes holding the record
    * @param body       the offset of the first body byte
    * @param kind       the class, 0 to 8
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param nodes      scratch space for at least 16 floats
    * @param out        the reconstructed channels
@@ -396,107 +404,107 @@ public final class ReconstructionOracle {
     final byte[] record,
     final int body,
     final int kind,
-    final int q,
+    final int quantizer,
     final int size,
     final float[] nodes,
     final int[] out
   ) {
-    final float step = 1 << q;
+    final float step = 1 << quantizer;
     int grid = 0;
-    float co = 0.0f;
-    float cg = 0.0f;
+    float chromaOrange = 0.0f;
+    float chromaGreen = 0.0f;
     switch (kind) {
       case CompactRecord.GRID2_YC -> {
         grid = 2;
-        for (int i = 0; i < 4; i++) {
-          nodes[i] = record[body + i];
+        for (int nodeIndex = 0; nodeIndex < 4; nodeIndex++) {
+          nodes[nodeIndex] = record[body + nodeIndex];
         }
-        co = record[body + 4];
-        cg = record[body + 5];
+        chromaOrange = record[body + 4];
+        chromaGreen = record[body + 5];
       }
       case CompactRecord.GRID4_N4_YC, CompactRecord.GRID4_N4_Y -> {
         grid = 4;
-        for (int i = 0; i < 16; i++) {
-          final int value = ((record[body + i / 2] & 0xFF) >> ((i & 1) * 4)) & 15;
-          nodes[i] = (value ^ 8) - 8;
+        for (int nodeIndex = 0; nodeIndex < 16; nodeIndex++) {
+          final int value = ((record[body + nodeIndex / 2] & 0xFF) >> ((nodeIndex & 1) * 4)) & 15;
+          nodes[nodeIndex] = (value ^ 8) - 8;
         }
         if (kind == CompactRecord.GRID4_N4_YC) {
-          co = record[body + 8];
-          cg = record[body + 9];
+          chromaOrange = record[body + 8];
+          chromaGreen = record[body + 9];
         }
       }
       case CompactRecord.GRID4_YC -> {
         grid = 4;
-        for (int i = 0; i < 16; i++) {
-          nodes[i] = record[body + i];
+        for (int nodeIndex = 0; nodeIndex < 16; nodeIndex++) {
+          nodes[nodeIndex] = record[body + nodeIndex];
         }
-        co = record[body + 16];
-        cg = record[body + 17];
+        chromaOrange = record[body + 16];
+        chromaGreen = record[body + 17];
       }
       case CompactRecord.VQ64, CompactRecord.PQ64 -> {
         grid = 4;
         final float dc = record[body];
         final int ids = (record[body + 3] & 0xFF) | (kind == CompactRecord.PQ64 ? (record[body + 4] & 0xFF) << 8 : 0);
-        for (int i = 0; i < 16; i++) {
-          final int row = i / 4;
-          final int column = i % 4;
+        for (int nodeIndex = 0; nodeIndex < 16; nodeIndex++) {
+          final int nodeRow = nodeIndex / 4;
+          final int nodeColumn = nodeIndex % 4;
           final int book;
           if (kind == CompactRecord.VQ64) {
-            book = ResidualBooks.vq(ids, i);
-          } else if (column < 2) {
-            book = ResidualBooks.pq(0, ids & 63, row * 2 + column);
+            book = ResidualBooks.vq(ids, nodeIndex);
+          } else if (nodeColumn < 2) {
+            book = ResidualBooks.pq(0, ids & 63, nodeRow * 2 + nodeColumn);
           } else {
-            book = ResidualBooks.pq(1, ids >> 6, row * 2 + column - 2);
+            book = ResidualBooks.pq(1, ids >> 6, nodeRow * 2 + nodeColumn - 2);
           }
-          nodes[i] = (float) book + dc;
+          nodes[nodeIndex] = (float) book + dc;
         }
-        co = record[body + 1];
-        cg = record[body + 2];
+        chromaOrange = record[body + 1];
+        chromaGreen = record[body + 2];
       }
       default -> {
         // DC_Y, GAIN_BIAS and LOW2 need no node grid
       }
     }
     final float[] axis = LOW2_AXIS[sizeIndex(size)];
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int at = (y * size + x) * 3;
-        final float p0 = prediction[at] * 0.25f;
-        final float p1 = prediction[at + 1] * 0.25f;
-        final float p2 = prediction[at + 2] * 0.25f;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int at = (row * size + column) * 3;
+        final float predictedRed = prediction[at] * 0.25f;
+        final float predictedGreen = prediction[at + 1] * 0.25f;
+        final float predictedBlue = prediction[at + 2] * 0.25f;
         if (kind == CompactRecord.GAIN_BIAS) {
           final float gain = 1.0f + (float) record[body] / 64.0f;
-          final float by = record[body + 1];
-          final float bco = record[body + 2];
-          final float bcg = record[body + 3];
-          out[at] = rgb8(p0 * gain + (by + bco - bcg));
-          out[at + 1] = rgb8(p1 * gain + (by + bcg));
-          out[at + 2] = rgb8(p2 * gain + (by - bco - bcg));
+          final float biasLuma = record[body + 1];
+          final float biasChromaOrange = record[body + 2];
+          final float biasChromaGreen = record[body + 3];
+          out[at] = rgb8(predictedRed * gain + (biasLuma + biasChromaOrange - biasChromaGreen));
+          out[at + 1] = rgb8(predictedGreen * gain + (biasLuma + biasChromaGreen));
+          out[at + 2] = rgb8(predictedBlue * gain + (biasLuma - biasChromaOrange - biasChromaGreen));
           continue;
         }
         if (kind == CompactRecord.DC_Y) {
           final float dc = (float) record[body] * step;
-          out[at] = rgb8(p0 + dc);
-          out[at + 1] = rgb8(p1 + dc);
-          out[at + 2] = rgb8(p2 + dc);
+          out[at] = rgb8(predictedRed + dc);
+          out[at + 1] = rgb8(predictedGreen + dc);
+          out[at + 2] = rgb8(predictedBlue + dc);
           continue;
         }
-        final float yv;
-        float cov = co;
-        float cgv = cg;
+        final float pixelLuma;
+        float pixelChromaOrange = chromaOrange;
+        float pixelChromaGreen = chromaGreen;
         if (kind == CompactRecord.LOW2) {
-          yv = (float) record[body] + (float) record[body + 1] * axis[x] + (float) record[body + 2] * axis[y];
-          cov = record[body + 3];
-          cgv = record[body + 4];
+          pixelLuma = (float) record[body] + (float) record[body + 1] * axis[column] + (float) record[body + 2] * axis[row];
+          pixelChromaOrange = record[body + 3];
+          pixelChromaGreen = record[body + 4];
         } else {
-          yv = (float) interpolate(nodes, 0, 1, grid, size, x, y);
+          pixelLuma = (float) interpolate(nodes, 0, 1, grid, size, column, row);
         }
-        final float ys = yv * step;
-        final float cos = cov * step;
-        final float cgs = cgv * step;
-        out[at] = rgb8(p0 + (ys + cos - cgs));
-        out[at + 1] = rgb8(p1 + (ys + cgs));
-        out[at + 2] = rgb8(p2 + (ys - cos - cgs));
+        final float scaledLuma = pixelLuma * step;
+        final float scaledChromaOrange = pixelChromaOrange * step;
+        final float scaledChromaGreen = pixelChromaGreen * step;
+        out[at] = rgb8(predictedRed + (scaledLuma + scaledChromaOrange - scaledChromaGreen));
+        out[at + 1] = rgb8(predictedGreen + (scaledLuma + scaledChromaGreen));
+        out[at + 2] = rgb8(predictedBlue + (scaledLuma - scaledChromaOrange - scaledChromaGreen));
       }
     }
   }

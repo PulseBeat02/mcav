@@ -174,8 +174,8 @@ final class Mcv2PacerPropertyTest {
     final Simulation simulation = new Simulation(sizes, presets, fps, noise, seed);
     simulation.play(180, fullMs);
     final List<Stretch> stretches = simulation.finish();
-    for (int i = 0; i < stretches.size(); i++) {
-      final Stretch stretch = stretches.get(i);
+    for (int stretchIndex = 0; stretchIndex < stretches.size(); stretchIndex++) {
+      final Stretch stretch = stretches.get(stretchIndex);
       if (stretch.rung().isDithered()) {
         continue;
       }
@@ -185,7 +185,8 @@ final class Mcv2PacerPropertyTest {
       final boolean over = rungMs * (1 - noise) > frameMs(stretch.rung(), fps);
       // it waits for the rung's first samples (and, on the first rung, for the encoder to warm up), then a second
       final double frame = Math.max(rungMs * (1 + noise), frameMs(stretch.rung(), fps)) / 1000;
-      final double allowed = Mcv2Pacer.DOWN_SECONDS + (Mcv2Pacer.MIN_SAMPLES + 2) * frame + 1 + (i == 0 ? Mcv2Pacer.STARTUP_SECONDS : 0);
+      final double allowed =
+        Mcv2Pacer.DOWN_SECONDS + (Mcv2Pacer.MIN_SAMPLES + 2) * frame + 1 + (stretchIndex == 0 ? Mcv2Pacer.STARTUP_SECONDS : 0);
       if (over && seconds > allowed) {
         return false;
       }

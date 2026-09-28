@@ -266,23 +266,23 @@ final class DeltaMapEncoderPropertyTest {
    */
   private static final class FrameEdit {
 
-    private final int x;
-    private final int y;
+    private final int left;
+    private final int top;
     private final int width;
     private final int height;
     private final int color;
 
-    FrameEdit(final int x, final int y, final int width, final int height, final int color) {
-      this.x = x;
-      this.y = y;
+    FrameEdit(final int left, final int top, final int width, final int height, final int color) {
+      this.left = left;
+      this.top = top;
       this.width = width;
       this.height = height;
       this.color = color;
     }
 
     private void applyTo(final byte[] frame, final int imageWidth, final int imageHeight) {
-      final int left = (this.x * imageWidth) / 1000;
-      final int top = (this.y * imageHeight) / 1000;
+      final int left = (this.left * imageWidth) / 1000;
+      final int top = (this.top * imageHeight) / 1000;
       final int right = Math.min(imageWidth, left + scale(this.width, imageWidth));
       final int bottom = Math.min(imageHeight, top + scale(this.height, imageHeight));
       for (int row = top; row < bottom; row++) {
@@ -300,7 +300,7 @@ final class DeltaMapEncoderPropertyTest {
 
     @Override
     public String toString() {
-      return "(" + this.x + "," + this.y + " " + this.width + "x" + this.height + " color " + this.color + ")";
+      return "(" + this.left + "," + this.top + " " + this.width + "x" + this.height + " color " + this.color + ")";
     }
   }
 
@@ -334,11 +334,11 @@ final class DeltaMapEncoderPropertyTest {
       final byte[] colors = patch.getColors();
       final int width = patch.getWidth();
       final int height = patch.getHeight();
-      final int x = patch.getX();
-      final int y = patch.getY();
+      final int left = patch.getX();
+      final int top = patch.getY();
       for (int row = 0; row < height; row++) {
         for (int column = 0; column < width; column++) {
-          map[(y + row) * MAP_SIZE + x + column] = colors[row * width + column];
+          map[(top + row) * MAP_SIZE + left + column] = colors[row * width + column];
         }
       }
     }
@@ -359,20 +359,20 @@ final class DeltaMapEncoderPropertyTest {
     private void assertCarriesFramePixels(final MapTilePatch patch, final byte[] frame) {
       final int index = this.indexOf(patch);
       final MapRegion region = this.layout.getRegion(index);
-      final int x = patch.getX();
-      final int y = patch.getY();
+      final int left = patch.getX();
+      final int top = patch.getY();
       final int width = patch.getWidth();
       final int height = patch.getHeight();
       final int regionX = region.getLocalX();
       final int regionY = region.getLocalY();
       final boolean inside =
-        x >= regionX && y >= regionY && x + width <= regionX + region.getWidth() && y + height <= regionY + region.getHeight();
+        left >= regionX && top >= regionY && left + width <= regionX + region.getWidth() && top + height <= regionY + region.getHeight();
       assertTrue(inside, "patch inside the covered region of its map");
 
       final byte[] colors = patch.getColors();
       final int imageWidth = this.layout.getImageWidth();
-      final int sourceX = region.getSourceX() + x - regionX;
-      final int sourceY = region.getSourceY() + y - regionY;
+      final int sourceX = region.getSourceX() + left - regionX;
+      final int sourceY = region.getSourceY() + top - regionY;
       for (int row = 0; row < height; row++) {
         for (int column = 0; column < width; column++) {
           final byte expected = frame[(sourceY + row) * imageWidth + sourceX + column];
@@ -436,18 +436,18 @@ final class DeltaMapEncoderPropertyTest {
       for (int index = 0; index < this.maps.length; index++) {
         final MapRegion region = this.layout.getRegion(index);
         final short[] map = this.maps[index];
-        for (int y = 0; y < MAP_SIZE; y++) {
-          for (int x = 0; x < MAP_SIZE; x++) {
-            final short shown = map[y * MAP_SIZE + x];
-            final int regionX = x - region.getLocalX();
-            final int regionY = y - region.getLocalY();
+        for (int row = 0; row < MAP_SIZE; row++) {
+          for (int column = 0; column < MAP_SIZE; column++) {
+            final short shown = map[row * MAP_SIZE + column];
+            final int regionX = column - region.getLocalX();
+            final int regionY = row - region.getLocalY();
             final boolean covered = regionX >= 0 && regionY >= 0 && regionX < region.getWidth() && regionY < region.getHeight();
             if (covered) {
               final int sourceIndex = (region.getSourceY() + regionY) * imageWidth + region.getSourceX() + regionX;
               final short expected = frame[sourceIndex];
-              assertEquals(expected, shown, "map " + index + " shows the last frame at " + x + "," + y);
+              assertEquals(expected, shown, "map " + index + " shows the last frame at " + column + "," + row);
             } else {
-              assertEquals(NEVER_SENT, shown, "map " + index + " was sent nothing outside the image at " + x + "," + y);
+              assertEquals(NEVER_SENT, shown, "map " + index + " was sent nothing outside the image at " + column + "," + row);
             }
           }
         }

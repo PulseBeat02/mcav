@@ -234,11 +234,11 @@ public final class DeltaMapEncoder {
   }
 
   private MapCandidate createFullCandidate(final byte[] image, final int map, final MapRegion region) {
-    final int x = region.getLocalX();
-    final int y = region.getLocalY();
+    final int localX = region.getLocalX();
+    final int localY = region.getLocalY();
     final int width = region.getWidth();
     final int height = region.getHeight();
-    final MapTilePatch patch = this.layout.extractPatch(image, map, x, y, width, height);
+    final MapTilePatch patch = this.layout.extractPatch(image, map, localX, localY, width, height);
     final List<MapTilePatch> patches = List.of(patch);
     final int size = patch.getEncodedSize();
     return new MapCandidate(map, patches, size, INITIAL_PRIORITY);
@@ -327,11 +327,11 @@ public final class DeltaMapEncoder {
   private List<MapTilePatch> extractPatches(final byte[] image, final int map, final List<PatchRectangle> rectangles) {
     final List<MapTilePatch> patches = new ArrayList<>(rectangles.size());
     for (final PatchRectangle rectangle : rectangles) {
-      final int x = rectangle.getX();
-      final int y = rectangle.getY();
+      final int left = rectangle.getX();
+      final int top = rectangle.getY();
       final int width = rectangle.getWidth();
       final int height = rectangle.getHeight();
-      final MapTilePatch patch = this.layout.extractPatch(image, map, x, y, width, height);
+      final MapTilePatch patch = this.layout.extractPatch(image, map, left, top, width, height);
       patches.add(patch);
     }
     return patches;
@@ -467,11 +467,11 @@ public final class DeltaMapEncoder {
     final int runHeight = measureRunHeight(pending, tileX, tileY, runWidth);
     clearRun(pending, tileX, tileY, runWidth, runHeight);
 
-    final int x = tileX * TILE_SIZE;
-    final int y = tileY * TILE_SIZE;
+    final int left = tileX * TILE_SIZE;
+    final int top = tileY * TILE_SIZE;
     final int width = runWidth * TILE_SIZE;
     final int height = runHeight * TILE_SIZE;
-    return PatchRectangle.clip(x, y, width, height, region);
+    return PatchRectangle.clip(left, top, width, height, region);
   }
 
   private static int measureRunWidth(final boolean[] pending, final int tileX, final int tileY) {
@@ -499,8 +499,8 @@ public final class DeltaMapEncoder {
   }
 
   private static boolean isRowPending(final boolean[] pending, final int tileX, final int tileY, final int runWidth) {
-    for (int x = tileX; x < tileX + runWidth; x++) {
-      final int tile = tileY * TILES_PER_ROW + x;
+    for (int tileColumn = tileX; tileColumn < tileX + runWidth; tileColumn++) {
+      final int tile = tileY * TILES_PER_ROW + tileColumn;
       if (!pending[tile]) {
         return false;
       }
@@ -509,9 +509,9 @@ public final class DeltaMapEncoder {
   }
 
   private static void clearRun(final boolean[] pending, final int tileX, final int tileY, final int runWidth, final int runHeight) {
-    for (int y = tileY; y < tileY + runHeight; y++) {
-      for (int x = tileX; x < tileX + runWidth; x++) {
-        final int tile = y * TILES_PER_ROW + x;
+    for (int tileRow = tileY; tileRow < tileY + runHeight; tileRow++) {
+      for (int tileColumn = tileX; tileColumn < tileX + runWidth; tileColumn++) {
+        final int tile = tileRow * TILES_PER_ROW + tileColumn;
         pending[tile] = false;
       }
     }
@@ -520,13 +520,13 @@ public final class DeltaMapEncoder {
   private void applyToClientState(final int map, final MapTilePatch patch) {
     final byte[] state = this.clientState[map];
     final byte[] colors = patch.getColors();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     for (int row = 0; row < height; row++) {
       final int sourceIndex = row * width;
-      final int targetIndex = (y + row) * MAP_SIZE + x;
+      final int targetIndex = (top + row) * MAP_SIZE + left;
       System.arraycopy(colors, sourceIndex, state, targetIndex, width);
     }
   }
@@ -536,14 +536,14 @@ public final class DeltaMapEncoder {
    */
   private static final class PatchRectangle {
 
-    private final int x;
-    private final int y;
+    private final int left;
+    private final int top;
     private final int width;
     private final int height;
 
-    PatchRectangle(final int x, final int y, final int width, final int height) {
-      this.x = x;
-      this.y = y;
+    PatchRectangle(final int left, final int top, final int width, final int height) {
+      this.left = left;
+      this.top = top;
       this.width = width;
       this.height = height;
     }
@@ -552,17 +552,17 @@ public final class DeltaMapEncoder {
      * Clips a rectangle of tiles to the region. The rectangle always overlaps the region, because it only consists
      * of dirty tiles, and a tile only becomes dirty when a pixel inside the region changed.
      */
-    static PatchRectangle clip(final int x, final int y, final int width, final int height, final MapRegion region) {
+    static PatchRectangle clip(final int left, final int top, final int width, final int height, final MapRegion region) {
       final int regionX = region.getLocalX();
       final int regionY = region.getLocalY();
       final int regionRight = regionX + region.getWidth();
       final int regionBottom = regionY + region.getHeight();
 
-      final int left = Math.max(x, regionX);
-      final int top = Math.max(y, regionY);
-      final int right = Math.min(x + width, regionRight);
-      final int bottom = Math.min(y + height, regionBottom);
-      return new PatchRectangle(left, top, right - left, bottom - top);
+      final int clippedLeft = Math.max(left, regionX);
+      final int clippedTop = Math.max(top, regionY);
+      final int clippedRight = Math.min(left + width, regionRight);
+      final int clippedBottom = Math.min(top + height, regionBottom);
+      return new PatchRectangle(clippedLeft, clippedTop, clippedRight - clippedLeft, clippedBottom - clippedTop);
     }
 
     private static PatchRectangle boundingBox(final List<PatchRectangle> rectangles) {
@@ -571,20 +571,20 @@ public final class DeltaMapEncoder {
       int right = Integer.MIN_VALUE;
       int bottom = Integer.MIN_VALUE;
       for (final PatchRectangle rectangle : rectangles) {
-        left = Math.min(left, rectangle.x);
-        top = Math.min(top, rectangle.y);
-        right = Math.max(right, rectangle.x + rectangle.width);
-        bottom = Math.max(bottom, rectangle.y + rectangle.height);
+        left = Math.min(left, rectangle.left);
+        top = Math.min(top, rectangle.top);
+        right = Math.max(right, rectangle.left + rectangle.width);
+        bottom = Math.max(bottom, rectangle.top + rectangle.height);
       }
       return new PatchRectangle(left, top, right - left, bottom - top);
     }
 
     private int getX() {
-      return this.x;
+      return this.left;
     }
 
     private int getY() {
-      return this.y;
+      return this.top;
     }
 
     int getWidth() {

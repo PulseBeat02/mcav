@@ -150,12 +150,12 @@ public final class PatternRecord {
   /**
    * The colour of a pixel of the leaf.
    *
-   * @param x the column inside the leaf
-   * @param y the row inside the leaf
+   * @param column the column inside the leaf
+   * @param row    the row inside the leaf
    * @return the colour as {@code 0xRRGGBB}
    */
-  public int colorAt(final int x, final int y) {
-    final int index = this.orientation == 0 ? x : y;
+  public int colorAt(final int column, final int row) {
+    final int index = this.orientation == 0 ? column : row;
     return this.getSelector(index) == 0 ? this.color0 : this.color1;
   }
 }

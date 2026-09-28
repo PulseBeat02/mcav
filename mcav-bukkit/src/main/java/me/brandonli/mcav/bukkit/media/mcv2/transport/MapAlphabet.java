@@ -51,10 +51,10 @@ public final class MapAlphabet {
     Preconditions.checkNotNull(symbols, "Symbols must not be null");
     Preconditions.checkArgument(symbols.length <= TransportPages.PAGE_SYMBOLS, "A map holds at most 16384 symbols");
     final byte[] colors = new byte[Math.ceilDiv(symbols.length, TransportPages.MAP_SIDE) * TransportPages.MAP_SIDE];
-    for (int i = 0; i < colors.length; i++) {
-      final int symbol = i < symbols.length ? Byte.toUnsignedInt(symbols[i]) : 0;
+    for (int index = 0; index < colors.length; index++) {
+      final int symbol = index < symbols.length ? Byte.toUnsignedInt(symbols[index]) : 0;
       Preconditions.checkArgument(symbol < SIZE, "Symbol %s is outside the six-bit alphabet", symbol);
-      colors[i] = (byte) (symbol + FIRST_COLOR);
+      colors[index] = (byte) (symbol + FIRST_COLOR);
     }
     return colors;
   }
@@ -69,12 +69,12 @@ public final class MapAlphabet {
   public static byte[] fromMapColors(final byte[] colors) throws Mcv2Exception {
     Preconditions.checkNotNull(colors, "Colors must not be null");
     final byte[] symbols = new byte[colors.length];
-    for (int i = 0; i < colors.length; i++) {
-      final int symbol = Byte.toUnsignedInt(colors[i]) - FIRST_COLOR;
+    for (int index = 0; index < colors.length; index++) {
+      final int symbol = Byte.toUnsignedInt(colors[index]) - FIRST_COLOR;
       if (symbol < 0 || symbol >= SIZE) {
         throw new Mcv2Exception("Map colour outside the alphabet");
       }
-      symbols[i] = (byte) symbol;
+      symbols[index] = (byte) symbol;
     }
     return symbols;
   }

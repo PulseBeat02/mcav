@@ -40,7 +40,7 @@ final class Mcv2LinkPropertyTest {
     final Arbitrary<Step> step = Combinators.combine(
       Arbitraries.integers()
         .between(0, 9)
-        .map(i -> i == 0),
+        .map(index -> index == 0),
       Arbitraries.integers().between(0, 400),
       Arbitraries.integers().between(0, 500)
     ).as(Step::new);

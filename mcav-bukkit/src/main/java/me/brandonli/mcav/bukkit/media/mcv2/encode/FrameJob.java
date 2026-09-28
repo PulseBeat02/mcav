@@ -125,13 +125,13 @@ final class FrameJob {
       for (int level = 0; level < BLOCK_SIZES; level++) {
         final int size = ROOT_SIZE >> level;
         final int blocks = ((width + size - 1) / size) * ((height + size - 1) / size);
-        for (int t = 0; t < trials; t++) {
-          this.costs[t][level] = new double[blocks];
-          this.modes[t][level] = new byte[blocks];
-          this.quantizers[t][level] = new byte[blocks];
-          this.records[t][level] = new byte[blocks * MAX_RECORD];
-          this.lengths[t][level] = new byte[blocks];
-          this.distortions[t][level] = new long[blocks];
+        for (int trial = 0; trial < trials; trial++) {
+          this.costs[trial][level] = new double[blocks];
+          this.modes[trial][level] = new byte[blocks];
+          this.quantizers[trial][level] = new byte[blocks];
+          this.records[trial][level] = new byte[blocks * MAX_RECORD];
+          this.lengths[trial][level] = new byte[blocks];
+          this.distortions[trial][level] = new long[blocks];
         }
       }
     }
@@ -139,13 +139,13 @@ final class FrameJob {
     /**
      * Checks whether these arrays serve a frame.
      *
-     * @param w the frame's width
-     * @param h the frame's height
-     * @param t the frame's number of trials
+     * @param width  the frame's width
+     * @param height the frame's height
+     * @param trials the frame's number of trials
      * @return true if they do
      */
-    boolean fits(final int w, final int h, final int t) {
-      return this.width == w && this.height == h && this.trials == t;
+    boolean fits(final int width, final int height, final int trials) {
+      return this.width == width && this.height == height && this.trials == trials;
     }
   }
 
@@ -209,9 +209,9 @@ final class FrameJob {
     for (int level = 0; level < BLOCK_SIZES; level++) {
       final int size = ROOT_SIZE >> level;
       this.columns[level] = (width + size - 1) / size;
-      for (int t = 0; t < this.trials; t++) {
+      for (int trial = 0; trial < this.trials; trial++) {
         // no block is evaluated yet; the other arrays are only read at blocks that were
-        Arrays.fill(this.buffers.costs[t][level], Double.POSITIVE_INFINITY);
+        Arrays.fill(this.buffers.costs[trial][level], Double.POSITIVE_INFINITY);
       }
     }
   }
@@ -257,12 +257,12 @@ final class FrameJob {
     return this.vectorsX.length;
   }
 
-  int vectorX(final int v) {
-    return this.vectorsX[v];
+  int vectorX(final int vectorIndex) {
+    return this.vectorsX[vectorIndex];
   }
 
-  int vectorY(final int v) {
-    return this.vectorsY[v];
+  int vectorY(final int vectorIndex) {
+    return this.vectorsY[vectorIndex];
   }
 
   int trialCount() {
@@ -281,17 +281,20 @@ final class FrameJob {
     return pictures == null ? null : pictures[level];
   }
 
-  /** The trials of vector v: 2v and 2v+1 in the reference search, v in a live one. */
-  int vectorMask(final int v) {
-    return ((1 << this.precisions) - 1) << (this.precisions * v);
+  /**
+   * The trials of the global vector at {@code vectorIndex}: {@code 2 * vectorIndex} and {@code 2 * vectorIndex + 1} in
+   * the reference search, {@code vectorIndex} in a live one.
+   */
+  int vectorMask(final int vectorIndex) {
+    return ((1 << this.precisions) - 1) << (this.precisions * vectorIndex);
   }
 
   /** The trials with RGB565 endpoints, or with full ones. */
   int coarseMask(final boolean coarse) {
     int mask = 0;
-    for (int t = 0; t < this.trials; t++) {
-      if (this.isCoarse(t) == coarse) {
-        mask |= 1 << t;
+    for (int trial = 0; trial < this.trials; trial++) {
+      if (this.isCoarse(trial) == coarse) {
+        mask |= 1 << trial;
       }
     }
     return mask;
@@ -321,18 +324,18 @@ final class FrameJob {
   /**
    * The motion of the previous frame at a pixel, as {@code x << 16 | (y & 0xFFFF)} in half pixels.
    *
-   * @param x the column, clamped to the picture
-   * @param y the row, clamped to the picture
+   * @param column the column, clamped to the picture
+   * @param row    the row, clamped to the picture
    * @return the vector, or the first global vector when the previous frame's motion is unknown
    */
-  int previousMotion(final int x, final int y) {
+  int previousMotion(final int column, final int row) {
     final int[] field = this.previousMotion;
     if (field == null) {
       return MotionSearch.pack(this.vectorsX[0], this.vectorsY[0]);
     }
-    final int cx = Math.min(Math.max(x, 0), this.width - 1) / MOTION_CELL;
-    final int cy = Math.min(Math.max(y, 0), this.height - 1) / MOTION_CELL;
-    return field[cy * motionColumns(this.width) + cx];
+    final int cellColumn = Math.min(Math.max(column, 0), this.width - 1) / MOTION_CELL;
+    final int cellRow = Math.min(Math.max(row, 0), this.height - 1) / MOTION_CELL;
+    return field[cellRow * motionColumns(this.width) + cellColumn];
   }
 
   /**
@@ -404,15 +407,15 @@ final class FrameJob {
   /**
    * Records a block's new best candidate.
    *
-   * @param trial  the trial
-   * @param level  the level
-   * @param block  the block
-   * @param cost   the candidate's cost
-   * @param mode   its mode
-   * @param q      its quantizer
-   * @param record its record, copied
-   * @param length the record's length
-   * @param d16    its distortion
+   * @param trial      the trial
+   * @param level      the level
+   * @param block      the block
+   * @param cost       the candidate's cost
+   * @param mode       its mode
+   * @param quantizer  its quantizer
+   * @param record     its record, copied
+   * @param length     the record's length
+   * @param distortion its distortion
    */
   void set(
     final int trial,
@@ -420,17 +423,17 @@ final class FrameJob {
     final int block,
     final double cost,
     final int mode,
-    final int q,
+    final int quantizer,
     final byte[] record,
     final int length,
-    final long d16
+    final long distortion
   ) {
-    final Buffers b = this.buffers;
-    b.costs[trial][level][block] = cost;
-    b.modes[trial][level][block] = (byte) mode;
-    b.quantizers[trial][level][block] = (byte) q;
-    System.arraycopy(record, 0, b.records[trial][level], block * MAX_RECORD, length);
-    b.lengths[trial][level][block] = (byte) length;
-    b.distortions[trial][level][block] = d16;
+    final Buffers buffers = this.buffers;
+    buffers.costs[trial][level][block] = cost;
+    buffers.modes[trial][level][block] = (byte) mode;
+    buffers.quantizers[trial][level][block] = (byte) quantizer;
+    System.arraycopy(record, 0, buffers.records[trial][level], block * MAX_RECORD, length);
+    buffers.lengths[trial][level][block] = (byte) length;
+    buffers.distortions[trial][level][block] = distortion;
   }
 }

@@ -33,8 +33,8 @@ import com.google.common.base.Preconditions;
 public final class MapTilePatch {
 
   private final int mapId;
-  private final int x;
-  private final int y;
+  private final int left;
+  private final int top;
   private final int width;
   private final int height;
   private final byte[] colors;
@@ -43,20 +43,20 @@ public final class MapTilePatch {
    * Constructs a new patch.
    *
    * @param mapId  the id of the map to update
-   * @param x      the x coordinate of the top left corner of the rectangle, from 0 to 127
-   * @param y      the y coordinate of the top left corner of the rectangle, from 0 to 127
+   * @param left   the x coordinate of the top left corner of the rectangle, from 0 to 127
+   * @param top    the y coordinate of the top left corner of the rectangle, from 0 to 127
    * @param width  the width of the rectangle in pixels
    * @param height the height of the rectangle in pixels
    * @param colors the map palette indices of the rectangle, exactly {@code width * height} bytes long
    * @throws IllegalArgumentException if the rectangle is not inside the map, or the color array has the wrong size
    */
-  public MapTilePatch(final int mapId, final int x, final int y, final int width, final int height, final byte[] colors) {
+  public MapTilePatch(final int mapId, final int left, final int top, final int width, final int height, final byte[] colors) {
     Preconditions.checkNotNull(colors, "Colors must not be null");
     Preconditions.checkArgument(mapId >= 0, "Map id must be non-negative");
 
-    final boolean negativeOrigin = x < 0 || y < 0;
+    final boolean negativeOrigin = left < 0 || top < 0;
     final boolean emptySize = width <= 0 || height <= 0;
-    final boolean exceedsMap = (long) x + width > MapLayout.MAP_SIZE || (long) y + height > MapLayout.MAP_SIZE;
+    final boolean exceedsMap = (long) left + width > MapLayout.MAP_SIZE || (long) top + height > MapLayout.MAP_SIZE;
     final boolean insideMap = !negativeOrigin && !emptySize && !exceedsMap;
     Preconditions.checkArgument(insideMap, "Patch is outside of the map bounds");
 
@@ -64,8 +64,8 @@ public final class MapTilePatch {
     Preconditions.checkArgument(colors.length == expectedLength, "Patch colors must contain exactly width * height bytes");
 
     this.mapId = mapId;
-    this.x = x;
-    this.y = y;
+    this.left = left;
+    this.top = top;
     this.width = width;
     this.height = height;
     this.colors = colors;
@@ -86,7 +86,7 @@ public final class MapTilePatch {
    * @return the x coordinate, from 0 to 127
    */
   public int getX() {
-    return this.x;
+    return this.left;
   }
 
   /**
@@ -95,7 +95,7 @@ public final class MapTilePatch {
    * @return the y coordinate, from 0 to 127
    */
   public int getY() {
-    return this.y;
+    return this.top;
   }
 
   /**

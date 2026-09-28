@@ -230,18 +230,18 @@ public final class FrameParser {
 
     private int size;
 
-    void add(final int x, final int y, final int size, final int mode, final int q, final int offset) {
+    void add(final int left, final int top, final int size, final int mode, final int quantizer, final int offset) {
       if (this.size + Mcv2Frame.LEAF_INTS > this.values.length) {
         this.values = Arrays.copyOf(this.values, this.values.length * 2);
       }
-      final int[] v = this.values;
+      final int[] values = this.values;
       final int at = this.size;
-      v[at + Mcv2Frame.LEAF_X] = x;
-      v[at + Mcv2Frame.LEAF_Y] = y;
-      v[at + Mcv2Frame.LEAF_SIZE] = size;
-      v[at + Mcv2Frame.LEAF_MODE] = mode;
-      v[at + Mcv2Frame.LEAF_Q] = q;
-      v[at + Mcv2Frame.LEAF_OFFSET] = offset;
+      values[at + Mcv2Frame.LEAF_X] = left;
+      values[at + Mcv2Frame.LEAF_Y] = top;
+      values[at + Mcv2Frame.LEAF_SIZE] = size;
+      values[at + Mcv2Frame.LEAF_MODE] = mode;
+      values[at + Mcv2Frame.LEAF_Q] = quantizer;
+      values[at + Mcv2Frame.LEAF_OFFSET] = offset;
       this.size += Mcv2Frame.LEAF_INTS;
     }
 
@@ -315,12 +315,12 @@ public final class FrameParser {
         if (this.cursor > this.start) {
           throw new Mcv2Exception("Short root index");
         }
-        for (int i = 0; i < this.roots; i++) {
-          words[i] = this.word(HEADER_BYTES + i * this.stride);
+        for (int root = 0; root < this.roots; root++) {
+          words[root] = this.word(HEADER_BYTES + root * this.stride);
         }
       }
-      for (int i = 0; i < this.roots; i++) {
-        this.walk(words[i], (i % this.columns) * ROOT_SIZE, (i / this.columns) * ROOT_SIZE, ROOT_SIZE);
+      for (int root = 0; root < this.roots; root++) {
+        this.walk(words[root], (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE);
       }
       if (this.cursor != this.start) {
         throw new Mcv2Exception("Noncanonical node table");
@@ -369,12 +369,12 @@ public final class FrameParser {
       }
     }
 
-    private void walk(final int word, final int x, final int y, final int size) throws Mcv2Exception {
+    private void walk(final int word, final int left, final int top, final int size) throws Mcv2Exception {
       final int mode = (word >>> MODE_SHIFT) & MODE_MASK;
-      final int q = word >>> QUANTIZER_SHIFT;
+      final int quantizer = word >>> QUANTIZER_SHIFT;
       final int offset = word & OFFSET_MASK;
       if (mode == MODE_SPLIT || mode == MODE_SPARSE_SPLIT) {
-        if (size == SMALLEST_BLOCK || q != 0 || offset != this.cursor) {
+        if (size == SMALLEST_BLOCK || quantizer != 0 || offset != this.cursor) {
           throw new Mcv2Exception("Invalid split address or depth");
         }
         final int[] children = new int[QUARTERS];
@@ -388,10 +388,10 @@ public final class FrameParser {
           if (this.cursor + Integer.bitCount(mask) * this.stride > this.start) {
             throw new Mcv2Exception("Truncated sparse children");
           }
-          for (int i = 0; i < QUARTERS; i++) {
-            if (((mask >> i) & 1) != 0) {
-              children[i] = this.word(this.cursor);
-              if (children[i] == 0) {
+          for (int quarter = 0; quarter < QUARTERS; quarter++) {
+            if (((mask >> quarter) & 1) != 0) {
+              children[quarter] = this.word(this.cursor);
+              if (children[quarter] == 0) {
                 throw new Mcv2Exception("Explicit sparse child skip");
               }
               this.cursor += this.stride;
@@ -401,20 +401,20 @@ public final class FrameParser {
           if (this.cursor + QUARTERS * this.stride > this.start) {
             throw new Mcv2Exception("Truncated children");
           }
-          for (int i = 0; i < QUARTERS; i++) {
-            children[i] = this.word(this.cursor + i * this.stride);
+          for (int quarter = 0; quarter < QUARTERS; quarter++) {
+            children[quarter] = this.word(this.cursor + quarter * this.stride);
           }
           this.cursor += QUARTERS * this.stride;
         }
         final int half = size / 2;
-        for (int i = 0; i < QUARTERS; i++) {
-          this.walk(children[i], x + (i % 2) * half, y + (i / 2) * half, half);
+        for (int quarter = 0; quarter < QUARTERS; quarter++) {
+          this.walk(children[quarter], left + (quarter % 2) * half, top + (quarter / 2) * half, half);
         }
         return;
       }
       checkUnsupportedLeaf(mode);
       final boolean leafMode = mode <= MODE_PATTERN || mode == MODE_IMMEDIATE_MOTION;
-      if (!leafMode || (q != 0 && !isResidual(mode) && mode != MODE_COMPACT) || (mode == MODE_SKIP && word != 0)) {
+      if (!leafMode || (quantizer != 0 && !isResidual(mode) && mode != MODE_COMPACT) || (mode == MODE_SKIP && word != 0)) {
         throw new Mcv2Exception("Invalid leaf descriptor");
       }
       if (mode == MODE_IMMEDIATE_MOTION && offset >> HALF_WORD_BITS != 0) {
@@ -423,14 +423,14 @@ public final class FrameParser {
       if ((this.flags & KEYFRAME) != 0 && isTemporalInKeyframe(mode, this.flags)) {
         throw new Mcv2Exception("Temporal keyframe leaf");
       }
-      this.leaves.add(x, y, size, mode, q, offset);
+      this.leaves.add(left, top, size, mode, quantizer, offset);
     }
 
     private void checkPayload() throws Mcv2Exception {
       final int count = this.leaves.count();
       int immediates = 0;
-      for (int i = 0; i < count; i++) {
-        if (this.leaves.get(i, Mcv2Frame.LEAF_MODE) == MODE_IMMEDIATE_MOTION) {
+      for (int leaf = 0; leaf < count; leaf++) {
+        if (this.leaves.get(leaf, Mcv2Frame.LEAF_MODE) == MODE_IMMEDIATE_MOTION) {
           immediates++;
         }
       }
@@ -439,20 +439,20 @@ public final class FrameParser {
       if ((long) this.data.length + (long) IMMEDIATE_RECORD_BYTES * immediates > MAX_FRAME_BYTES) {
         throw new Mcv2Exception("Immediate records exceed the frame address range");
       }
-      for (int i = 0; i < count; i++) {
-        final int mode = this.leaves.get(i, Mcv2Frame.LEAF_MODE);
+      for (int leaf = 0; leaf < count; leaf++) {
+        final int mode = this.leaves.get(leaf, Mcv2Frame.LEAF_MODE);
         if (mode == MODE_IMMEDIATE_MOTION) {
           continue;
         }
-        final int size = this.leaves.get(i, Mcv2Frame.LEAF_SIZE);
-        final int q = this.leaves.get(i, Mcv2Frame.LEAF_Q);
-        final int offset = this.leaves.get(i, Mcv2Frame.LEAF_OFFSET);
+        final int size = this.leaves.get(leaf, Mcv2Frame.LEAF_SIZE);
+        final int quantizer = this.leaves.get(leaf, Mcv2Frame.LEAF_Q);
+        final int offset = this.leaves.get(leaf, Mcv2Frame.LEAF_OFFSET);
         final int length;
         if (mode == MODE_PATTERN) {
           length = patternSize(size, false, false);
           PatternRecord.expand(this.data, offset, size, null, null);
         } else if (mode == MODE_COMPACT) {
-          length = CompactRecord.parse(this.data, offset, q).length();
+          length = CompactRecord.parse(this.data, offset, quantizer).length();
         } else {
           length = recordSize(mode, size);
         }
@@ -538,10 +538,10 @@ public final class FrameParser {
       final int[] present = this.readDirectory(groups, levels[0]);
       final byte[] modes = new byte[descriptors];
       final byte[] quantizers = new byte[descriptors];
-      for (int i = 0; i < descriptors; i++) {
-        final int symbol = this.descriptor(i);
-        modes[i] = (byte) (symbol & MODE_MASK);
-        quantizers[i] = (byte) (symbol >> SYMBOL_QUANTIZER_SHIFT);
+      for (int descriptorIndex = 0; descriptorIndex < descriptors; descriptorIndex++) {
+        final int symbol = this.descriptor(descriptorIndex);
+        modes[descriptorIndex] = (byte) (symbol & MODE_MASK);
+        quantizers[descriptorIndex] = (byte) (symbol >> SYMBOL_QUANTIZER_SHIFT);
       }
       final int split = levels[0] + levels[1];
       if (QUARTERS * countSplits(modes, 0, levels[0]) != levels[1] || QUARTERS * countSplits(modes, levels[0], split) != levels[2]) {
@@ -577,8 +577,8 @@ public final class FrameParser {
 
       private int wordBytes() {
         int bytes = 0;
-        for (int i = 0; i < BLOCK_SIZES; i++) {
-          bytes += this.wordCounts[i] * selectorEntry(i);
+        for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+          bytes += this.wordCounts[sizeIndex] * selectorEntry(sizeIndex);
         }
         return bytes;
       }
@@ -622,10 +622,10 @@ public final class FrameParser {
         if (at + BLOCK_SIZES > this.start) {
           throw new Mcv2Exception("Short selector table sizes");
         }
-        for (int i = 0; i < BLOCK_SIZES; i++) {
-          wordCounts[i] = this.data[at + i] & 0xFF;
-          final boolean flagged = (this.flags & (SELECTOR_TABLE_8 << i)) != 0;
-          if ((wordCounts[i] != 0) != flagged) {
+        for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+          wordCounts[sizeIndex] = this.data[at + sizeIndex] & 0xFF;
+          final boolean flagged = (this.flags & (SELECTOR_TABLE_8 << sizeIndex)) != 0;
+          if ((wordCounts[sizeIndex] != 0) != flagged) {
             throw new Mcv2Exception("Selector table size contradicts its flag");
           }
         }
@@ -658,19 +658,19 @@ public final class FrameParser {
         if (modes[index] != MODE_SPLIT) {
           continue;
         }
-        final int x = positions[index * POSITION_INTS];
-        final int y = positions[index * POSITION_INTS + 1];
+        final int left = positions[index * POSITION_INTS];
+        final int top = positions[index * POSITION_INTS + 1];
         final int half = positions[index * POSITION_INTS + 2] / 2;
         for (int corner = 0; corner < QUARTERS; corner++) {
-          position(positions, child++, x + (corner % 2) * half, y + (corner / 2) * half, half);
+          position(positions, child++, left + (corner % 2) * half, top + (corner / 2) * half, half);
         }
       }
       return positions;
     }
 
-    private static void position(final int[] positions, final int index, final int x, final int y, final int size) {
-      positions[index * POSITION_INTS] = x;
-      positions[index * POSITION_INTS + 1] = y;
+    private static void position(final int[] positions, final int index, final int left, final int top, final int size) {
+      positions[index * POSITION_INTS] = left;
+      positions[index * POSITION_INTS + 1] = top;
       positions[index * POSITION_INTS + 2] = size;
     }
 
@@ -710,9 +710,9 @@ public final class FrameParser {
         final byte[] words = books == null ? null : books[sizeIndex(size)];
         final int offset = this.start + cursor;
         final int length = this.validateLeaf(mode, quantizers[index], size, offset, book, words);
-        final int x = positions[index * POSITION_INTS];
-        final int y = positions[index * POSITION_INTS + 1];
-        leaves.add(x, y, size, mode, quantizers[index], mode == MODE_SKIP ? 0 : offset);
+        final int left = positions[index * POSITION_INTS];
+        final int top = positions[index * POSITION_INTS + 1];
+        leaves.add(left, top, size, mode, quantizers[index], mode == MODE_SKIP ? 0 : offset);
         cursor += length;
         if (this.start + (long) cursor > this.total) {
           throw new Mcv2Exception("Invalid leaf payload");
@@ -729,8 +729,8 @@ public final class FrameParser {
     /** Adds the roots the directory leaves out, which SKIP, or a keyframe's default colour fills. */
     private void addUnlistedRoots(final int[] present, final int listedCount, final Leaves leaves) throws Mcv2Exception {
       final boolean[] listed = new boolean[this.roots];
-      for (int i = 0; i < listedCount; i++) {
-        listed[present[i]] = true;
+      for (int index = 0; index < listedCount; index++) {
+        listed[present[index]] = true;
       }
       for (int root = 0; root < this.roots; root++) {
         if (!listed[root]) {
@@ -751,8 +751,8 @@ public final class FrameParser {
         throw new Mcv2Exception("Invalid symbol table size");
       }
       final byte[] table = Arrays.copyOfRange(this.data, this.base + 1, this.base + 1 + size);
-      for (int i = 1; i < size; i++) {
-        if ((table[i] & 0xFF) <= (table[i - 1] & 0xFF)) {
+      for (int index = 1; index < size; index++) {
+        if ((table[index] & 0xFF) <= (table[index - 1] & 0xFF)) {
           throw new Mcv2Exception("Noncanonical symbol table");
         }
       }
@@ -779,8 +779,8 @@ public final class FrameParser {
 
     private static int countSplits(final byte[] modes, final int from, final int to) {
       int splits = 0;
-      for (int i = from; i < to; i++) {
-        if (modes[i] == MODE_SPLIT) {
+      for (int index = from; index < to; index++) {
+        if (modes[index] == MODE_SPLIT) {
           splits++;
         }
       }
@@ -794,13 +794,13 @@ public final class FrameParser {
         throw new Mcv2Exception("Truncated endpoint table");
       }
       final byte[] book = new byte[pairCount * ENDPOINT_PAIR_BYTES];
-      for (int i = 0; i < pairCount; i++) {
+      for (int pair = 0; pair < pairCount; pair++) {
         if (pairEntry == ENDPOINT_565_PAIR_BYTES) {
-          final int at = pairsAt + i * ENDPOINT_565_PAIR_BYTES;
-          putRgb(book, i * ENDPOINT_PAIR_BYTES, unpack565(this.data[at], this.data[at + 1]));
-          putRgb(book, i * ENDPOINT_PAIR_BYTES + CHANNELS, unpack565(this.data[at + RGB565_BYTES], this.data[at + RGB565_BYTES + 1]));
+          final int at = pairsAt + pair * ENDPOINT_565_PAIR_BYTES;
+          putRgb(book, pair * ENDPOINT_PAIR_BYTES, unpack565(this.data[at], this.data[at + 1]));
+          putRgb(book, pair * ENDPOINT_PAIR_BYTES + CHANNELS, unpack565(this.data[at + RGB565_BYTES], this.data[at + RGB565_BYTES + 1]));
         } else {
-          System.arraycopy(this.data, pairsAt + i * ENDPOINT_PAIR_BYTES, book, i * ENDPOINT_PAIR_BYTES, ENDPOINT_PAIR_BYTES);
+          System.arraycopy(this.data, pairsAt + pair * ENDPOINT_PAIR_BYTES, book, pair * ENDPOINT_PAIR_BYTES, ENDPOINT_PAIR_BYTES);
         }
       }
       if (distinctEntries(book, ENDPOINT_PAIR_BYTES) != pairCount) {
@@ -817,8 +817,8 @@ public final class FrameParser {
 
     private static int distinctEntries(final byte[] table, final int entry) {
       final Set<String> seen = new HashSet<>();
-      for (int i = 0; i + entry <= table.length; i += entry) {
-        seen.add(Arrays.toString(Arrays.copyOfRange(table, i, i + entry)));
+      for (int offset = 0; offset + entry <= table.length; offset += entry) {
+        seen.add(Arrays.toString(Arrays.copyOfRange(table, offset, offset + entry)));
       }
       return seen.size();
     }
@@ -829,22 +829,22 @@ public final class FrameParser {
         throw new Mcv2Exception("Truncated selector table");
       }
       final byte[][] books = new byte[BLOCK_SIZES][];
-      for (int i = 0; i < BLOCK_SIZES; i++) {
-        final int entry = selectorEntry(i);
-        final int n = wordCounts[i];
-        if (n != 0) {
-          final byte[] chunk = Arrays.copyOfRange(this.data, at, at + n * entry);
-          if (distinctEntries(chunk, entry) != n) {
+      for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+        final int entry = selectorEntry(sizeIndex);
+        final int wordCount = wordCounts[sizeIndex];
+        if (wordCount != 0) {
+          final byte[] chunk = Arrays.copyOfRange(this.data, at, at + wordCount * entry);
+          if (distinctEntries(chunk, entry) != wordCount) {
             throw new Mcv2Exception("Noncanonical selector table");
           }
-          books[i] = chunk;
+          books[sizeIndex] = chunk;
         }
-        at += n * entry;
+        at += wordCount * entry;
       }
       return books;
     }
 
-    private int[] readDirectory(final int groups, final int n0) throws Mcv2Exception {
+    private int[] readDirectory(final int groups, final int levelZeroCount) throws Mcv2Exception {
       final int[] present = new int[this.roots];
       int seen = 0;
       for (int group = 0; group < groups; group++) {
@@ -865,7 +865,7 @@ public final class FrameParser {
           }
         }
       }
-      if (seen != n0) {
+      if (seen != levelZeroCount) {
         throw new Mcv2Exception("Root count differs from the level-0 count");
       }
       return present;
@@ -916,7 +916,7 @@ public final class FrameParser {
     /** Validates one leaf of the derived form and returns the length of its record. */
     private int validateLeaf(
       final int mode,
-      final int q,
+      final int quantizer,
       final int size,
       final int offset,
       final byte @Nullable [] book,
@@ -924,7 +924,7 @@ public final class FrameParser {
     ) throws Mcv2Exception {
       checkUnsupportedLeaf(mode);
       // splits never get here: the walk counts them before it validates a leaf
-      if (mode > MODE_PATTERN || (q != 0 && !isResidual(mode) && mode != MODE_COMPACT)) {
+      if (mode > MODE_PATTERN || (quantizer != 0 && !isResidual(mode) && mode != MODE_COMPACT)) {
         throw new Mcv2Exception("Invalid leaf descriptor");
       }
       if ((this.flags & KEYFRAME) != 0 && isTemporalInKeyframe(mode, this.flags)) {
@@ -935,7 +935,7 @@ public final class FrameParser {
         return patternSize(size, book != null, words != null);
       }
       if (mode == MODE_COMPACT) {
-        return CompactRecord.parse(this.data, offset, q).length();
+        return CompactRecord.parse(this.data, offset, quantizer).length();
       }
       return recordSize(mode, size);
     }

@@ -86,31 +86,32 @@ final class GlobalMotion {
     final int columns = (width + DECIMATION - 1) / DECIMATION;
     final double[] luma = quarterLuma(source, width, rows, columns);
     final double[] previous = quarterLuma(reference, width, rows, columns);
-    final double[][] a = Fft.forward2d(previous, rows, columns, workers);
-    final double[][] b = Fft.forward2d(luma, rows, columns, workers);
-    final double[] re = new double[rows * columns];
-    final double[] im = new double[rows * columns];
-    final int chunks = (re.length + CHUNK - 1) / CHUNK;
+    final double[][] previousSpectrum = Fft.forward2d(previous, rows, columns, workers);
+    final double[][] currentSpectrum = Fft.forward2d(luma, rows, columns, workers);
+    final double[] real = new double[rows * columns];
+    final double[] imaginary = new double[rows * columns];
+    final int chunks = (real.length + CHUNK - 1) / CHUNK;
     workers.forEach(
       chunks,
-      () -> re,
+      () -> real,
       (_, chunk) -> {
-        final int end = Math.min(re.length, (chunk + 1) * CHUNK);
-        for (int i = chunk * CHUNK; i < end; i++) {
+        final int end = Math.min(real.length, (chunk + 1) * CHUNK);
+        for (int bin = chunk * CHUNK; bin < end; bin++) {
           // previous times the conjugate of the current frame, normalized to unit magnitude
-          final double r = a[0][i] * b[0][i] + a[1][i] * b[1][i];
-          final double m = a[1][i] * b[0][i] - a[0][i] * b[1][i];
-          final double magnitude = Math.max(Math.hypot(r, m), MIN_MAGNITUDE);
-          re[i] = r / magnitude;
-          im[i] = m / magnitude;
+          final double crossReal = previousSpectrum[0][bin] * currentSpectrum[0][bin] + previousSpectrum[1][bin] * currentSpectrum[1][bin];
+          final double crossImaginary =
+            previousSpectrum[1][bin] * currentSpectrum[0][bin] - previousSpectrum[0][bin] * currentSpectrum[1][bin];
+          final double magnitude = Math.max(Math.hypot(crossReal, crossImaginary), MIN_MAGNITUDE);
+          real[bin] = crossReal / magnitude;
+          imaginary[bin] = crossImaginary / magnitude;
         }
       }
     );
-    final double[] correlation = Fft.inverse2dReal(re, im, rows, columns, workers);
+    final double[] correlation = Fft.inverse2dReal(real, imaginary, rows, columns, workers);
     int peak = 0;
-    for (int i = 1; i < correlation.length; i++) {
-      if (correlation[i] > correlation[peak]) {
-        peak = i;
+    for (int position = 1; position < correlation.length; position++) {
+      if (correlation[position] > correlation[peak]) {
+        peak = position;
       }
     }
     final int peakY = peak / columns;
@@ -123,10 +124,12 @@ final class GlobalMotion {
       errors.length,
       () -> errors,
       (_, candidate) -> {
-        final int dx = windowX(candidate, coarseX, PHASE_WINDOW);
-        final int dy = windowY(candidate, coarseY, PHASE_WINDOW);
+        final int deltaX = windowX(candidate, coarseX, PHASE_WINDOW);
+        final int deltaY = windowY(candidate, coarseY, PHASE_WINDOW);
         errors[candidate] =
-          Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE ? Long.MAX_VALUE : sampledError(source, reference, width, height, dx, dy);
+          Math.abs(deltaX) > MAX_RANGE || Math.abs(deltaY) > MAX_RANGE
+            ? Long.MAX_VALUE
+            : sampledError(source, reference, width, height, deltaX, deltaY);
       }
     );
     long best = Long.MAX_VALUE;
@@ -161,24 +164,24 @@ final class GlobalMotion {
       bands,
       () -> sums,
       (_, band) -> {
-        final long[] column = new long[columns];
-        for (int r = band * BAND; r < Math.min(rows, (band + 1) * BAND); r++) {
-          final int line = 2 * r * width;
-          long row = 0;
-          for (int c = 0; c < columns; c++) {
-            final int at = (line + 2 * c) * CHANNELS;
+        final long[] columnSums = new long[columns];
+        for (int row = band * BAND; row < Math.min(rows, (band + 1) * BAND); row++) {
+          final int line = 2 * row * width;
+          long rowSum = 0;
+          for (int column = 0; column < columns; column++) {
+            final int at = (line + 2 * column) * CHANNELS;
             final int luma = (source[at] & 0xFF) + 2 * (source[at + 1] & 0xFF) + (source[at + 2] & 0xFF);
-            column[c] += luma;
-            row += luma;
+            columnSums[column] += luma;
+            rowSum += luma;
           }
-          sums[columns + r] = row;
+          sums[columns + row] = rowSum;
         }
-        partial[band] = column;
+        partial[band] = columnSums;
       }
     );
-    for (final long[] column : partial) {
-      for (int c = 0; c < columns; c++) {
-        sums[c] += column[c];
+    for (final long[] columnSums : partial) {
+      for (int column = 0; column < columns; column++) {
+        sums[column] += columnSums[column];
       }
     }
     return sums;
@@ -215,10 +218,12 @@ final class GlobalMotion {
       errors.length,
       () -> errors,
       (_, candidate) -> {
-        final int dx = windowX(candidate, coarseX, PROJECTION_WINDOW);
-        final int dy = windowY(candidate, coarseY, PROJECTION_WINDOW);
+        final int deltaX = windowX(candidate, coarseX, PROJECTION_WINDOW);
+        final int deltaY = windowY(candidate, coarseY, PROJECTION_WINDOW);
         errors[candidate] =
-          Math.abs(dx) > MAX_RANGE || Math.abs(dy) > MAX_RANGE ? Long.MAX_VALUE : sampledError(source, reference, width, height, dx, dy);
+          Math.abs(deltaX) > MAX_RANGE || Math.abs(deltaY) > MAX_RANGE
+            ? Long.MAX_VALUE
+            : sampledError(source, reference, width, height, deltaX, deltaY);
       }
     );
     long best = Long.MAX_VALUE;
@@ -233,8 +238,9 @@ final class GlobalMotion {
   }
 
   /**
-   * The shift d, in projection samples within half the largest displacement, that minimizes the mean absolute difference between
-   * {@code current[i]} and {@code previous[i + d]} where both exist and at least half the axis overlaps; zero first.
+   * The shift, in projection samples within half the largest displacement, that minimizes the mean absolute difference
+   * between {@code current[index]} and {@code previous[index + shift]} where both exist and at least half the axis
+   * overlaps; zero first.
    */
   static int align(final long[] previous, final long[] current, final int offset, final int length) {
     final int range = Math.min(MAX_RANGE / 2, length / 2);
@@ -242,17 +248,17 @@ final class GlobalMotion {
     double bestError = Double.POSITIVE_INFINITY;
     for (int step = 0; step <= 2 * range; step++) {
       // 0, 1, -1, 2, -2, ...: nearer shifts first, so a tie keeps the smaller motion
-      final int d = ((step + 1) / 2) * ((step & 1) == 0 ? -1 : 1);
-      final int from = Math.max(0, -d);
-      final int to = Math.min(length, length - d);
+      final int shift = ((step + 1) / 2) * ((step & 1) == 0 ? -1 : 1);
+      final int from = Math.max(0, -shift);
+      final int to = Math.min(length, length - shift);
       long sum = 0;
-      for (int i = from; i < to; i++) {
-        sum += Math.abs(current[offset + i] - previous[offset + i + d]);
+      for (int index = from; index < to; index++) {
+        sum += Math.abs(current[offset + index] - previous[offset + index + shift]);
       }
       final double error = sum / (double) (to - from);
       if (error < bestError) {
         bestError = error;
-        best = d;
+        best = shift;
       }
     }
     return best;
@@ -270,10 +276,10 @@ final class GlobalMotion {
 
   private static double[] quarterLuma(final byte[] image, final int width, final int rows, final int columns) {
     final double[] plane = new double[rows * columns];
-    for (int y = 0; y < rows; y++) {
-      for (int x = 0; x < columns; x++) {
-        final int at = (y * DECIMATION * width + x * DECIMATION) * CHANNELS;
-        plane[y * columns + x] = ((image[at] & 0xFF) + 2 * (image[at + 1] & 0xFF) + (image[at + 2] & 0xFF)) * 0.25;
+    for (int row = 0; row < rows; row++) {
+      for (int column = 0; column < columns; column++) {
+        final int at = (row * DECIMATION * width + column * DECIMATION) * CHANNELS;
+        plane[row * columns + column] = ((image[at] & 0xFF) + 2 * (image[at + 1] & 0xFF) + (image[at + 2] & 0xFF)) * 0.25;
       }
     }
     return plane;
@@ -285,18 +291,18 @@ final class GlobalMotion {
     final byte[] reference,
     final int width,
     final int height,
-    final int dx,
-    final int dy
+    final int deltaX,
+    final int deltaY
   ) {
     long sum = 0;
-    for (int y = 0; y < height; y += SAMPLE_STEP) {
-      final int ry = Math.min(Math.max(y + dy, 0), height - 1);
-      for (int x = 0; x < width; x += SAMPLE_STEP) {
-        final int rx = Math.min(Math.max(x + dx, 0), width - 1);
-        final int s = (y * width + x) * CHANNELS;
-        final int r = (ry * width + rx) * CHANNELS;
-        for (int c = 0; c < CHANNELS; c++) {
-          sum += Math.abs((reference[r + c] & 0xFF) - (source[s + c] & 0xFF));
+    for (int row = 0; row < height; row += SAMPLE_STEP) {
+      final int referenceRow = Math.min(Math.max(row + deltaY, 0), height - 1);
+      for (int column = 0; column < width; column += SAMPLE_STEP) {
+        final int referenceColumn = Math.min(Math.max(column + deltaX, 0), width - 1);
+        final int sourceOffset = (row * width + column) * CHANNELS;
+        final int referenceOffset = (referenceRow * width + referenceColumn) * CHANNELS;
+        for (int channel = 0; channel < CHANNELS; channel++) {
+          sum += Math.abs((reference[referenceOffset + channel] & 0xFF) - (source[sourceOffset + channel] & 0xFF));
         }
       }
     }

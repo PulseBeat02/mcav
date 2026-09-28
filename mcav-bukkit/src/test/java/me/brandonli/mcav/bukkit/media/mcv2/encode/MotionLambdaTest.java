@@ -39,13 +39,13 @@ final class MotionLambdaTest {
   private static final int SAMPLES = 100 * 75;
 
   /** A 5x5 grey picture whose four sampled pixels, at the corners, hold the given grey values. */
-  private static byte[] corners(final int a, final int b, final int c, final int d) {
+  private static byte[] corners(final int topLeft, final int topRight, final int bottomLeft, final int bottomRight) {
     final byte[] rgb = new byte[5 * 5 * 3];
-    final int[] values = { a, b, c, d };
+    final int[] values = { topLeft, topRight, bottomLeft, bottomRight };
     final int[] pixels = { 0, 4, 20, 24 };
-    for (int k = 0; k < 4; k++) {
-      for (int ch = 0; ch < 3; ch++) {
-        rgb[pixels[k] * 3 + ch] = (byte) values[k];
+    for (int corner = 0; corner < 4; corner++) {
+      for (int channel = 0; channel < 3; channel++) {
+        rgb[pixels[corner] * 3 + channel] = (byte) values[corner];
       }
     }
     return rgb;

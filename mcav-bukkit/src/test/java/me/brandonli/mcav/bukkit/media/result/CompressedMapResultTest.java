@@ -276,14 +276,14 @@ final class CompressedMapResultTest {
   private static void placeRectangle(
     final byte[] canvas,
     final int canvasWidth,
-    final int x,
-    final int y,
+    final int left,
+    final int top,
     final int width,
     final int height,
     final byte[] colors
   ) {
     for (int row = 0; row < height; row++) {
-      final int destination = (y + row) * canvasWidth + x;
+      final int destination = (top + row) * canvasWidth + left;
       System.arraycopy(colors, row * width, canvas, destination, width);
     }
   }

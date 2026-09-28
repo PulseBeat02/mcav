@@ -39,10 +39,10 @@ final class MapLayoutTest {
     return image;
   }
 
-  static byte[] copyRectangle(final byte[] image, final int imageWidth, final int x, final int y, final int width, final int height) {
+  static byte[] copyRectangle(final byte[] image, final int imageWidth, final int left, final int top, final int width, final int height) {
     final byte[] colors = new byte[width * height];
     for (int row = 0; row < height; row++) {
-      System.arraycopy(image, (y + row) * imageWidth + x, colors, row * width, width);
+      System.arraycopy(image, (top + row) * imageWidth + left, colors, row * width, width);
     }
     return colors;
   }
@@ -274,15 +274,15 @@ final class MapLayoutTest {
     final byte[] expected = copyRectangle(image, 100, 6, 1, 3, 2);
     final byte[] colors = patch.getColors();
     final int mapId = patch.getMapId();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
 
     assertArrayEquals(expected, colors);
     assertEquals(3, mapId);
-    assertEquals(20, x);
-    assertEquals(40, y);
+    assertEquals(20, left);
+    assertEquals(40, top);
     assertEquals(3, width);
     assertEquals(2, height);
     assertThrows(NullPointerException.class, () -> layout.extractPatch(null, 0, 20, 40, 3, 2));
@@ -296,16 +296,16 @@ final class MapLayoutTest {
     final int patchCount = patches.size();
     final MapTilePatch patch = patches.getFirst();
     final int mapId = patch.getMapId();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     final byte[] colors = patch.getColors();
 
     assertEquals(1, patchCount);
     assertEquals(8, mapId);
-    assertEquals(0, x);
-    assertEquals(32, y);
+    assertEquals(0, left);
+    assertEquals(32, top);
     assertEquals(128, width);
     assertEquals(64, height);
     assertArrayEquals(image, colors);

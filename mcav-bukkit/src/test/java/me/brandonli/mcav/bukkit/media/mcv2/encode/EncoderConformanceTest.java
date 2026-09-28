@@ -53,9 +53,9 @@ final class EncoderConformanceTest {
       final Mcv2Encoder encoder = new Mcv2Encoder(settings, pool, threads, verify);
       final int frameBytes = WIDTH * HEIGHT * 3;
       assertEquals(expected.size() * frameBytes, source.length);
-      for (int i = 0; i < expected.size(); i++) {
-        final byte[] rgb = Arrays.copyOfRange(source, i * frameBytes, (i + 1) * frameBytes);
-        assertArrayEquals(expected.get(i), encoder.encode(rgb, WIDTH, HEIGHT, i), stream + " frame " + i);
+      for (int frameIndex = 0; frameIndex < expected.size(); frameIndex++) {
+        final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
+        assertArrayEquals(expected.get(frameIndex), encoder.encode(rgb, WIDTH, HEIGHT, frameIndex), stream + " frame " + frameIndex);
       }
     } finally {
       pool.shutdown();

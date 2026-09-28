@@ -56,15 +56,15 @@ final class Fits {
   private static float[][][] parse(final byte[] bytes) {
     final ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
     final float[][][] matrices = new float[BLOCK_SIZES][GRID_WIDTHS][];
-    for (int s = 0; s < BLOCK_SIZES; s++) {
-      final int size = SMALLEST_BLOCK << s;
-      for (int g = 0; g < GRID_WIDTHS; g++) {
-        final int grid = 1 << g;
+    for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+      final int size = SMALLEST_BLOCK << sizeIndex;
+      for (int gridIndex = 0; gridIndex < GRID_WIDTHS; gridIndex++) {
+        final int grid = 1 << gridIndex;
         final float[] matrix = new float[grid * size];
-        for (int i = 0; i < matrix.length; i++) {
-          matrix[i] = buffer.getFloat();
+        for (int index = 0; index < matrix.length; index++) {
+          matrix[index] = buffer.getFloat();
         }
-        matrices[s][g] = matrix;
+        matrices[sizeIndex][gridIndex] = matrix;
       }
     }
     return matrices;
@@ -106,22 +106,22 @@ final class Fits {
     final int outStride
   ) {
     final float[] matrix = matrix(size, grid);
-    for (int y = 0; y < size; y++) {
-      for (int j = 0; j < grid; j++) {
+    for (int row = 0; row < size; row++) {
+      for (int nodeColumn = 0; nodeColumn < grid; nodeColumn++) {
         double sum = 0;
-        for (int x = 0; x < size; x++) {
-          sum += (double) values[offset + (y * size + x) * stride] * matrix[j * size + x];
+        for (int column = 0; column < size; column++) {
+          sum += (double) values[offset + (row * size + column) * stride] * matrix[nodeColumn * size + column];
         }
-        scratch[y * grid + j] = sum;
+        scratch[row * grid + nodeColumn] = sum;
       }
     }
-    for (int i = 0; i < grid; i++) {
-      for (int j = 0; j < grid; j++) {
+    for (int nodeRow = 0; nodeRow < grid; nodeRow++) {
+      for (int nodeColumn = 0; nodeColumn < grid; nodeColumn++) {
         double sum = 0;
-        for (int y = 0; y < size; y++) {
-          sum += matrix[i * size + y] * scratch[y * grid + j];
+        for (int row = 0; row < size; row++) {
+          sum += matrix[nodeRow * size + row] * scratch[row * grid + nodeColumn];
         }
-        out[outOffset + (i * grid + j) * outStride] = (float) sum;
+        out[outOffset + (nodeRow * grid + nodeColumn) * outStride] = (float) sum;
       }
     }
   }

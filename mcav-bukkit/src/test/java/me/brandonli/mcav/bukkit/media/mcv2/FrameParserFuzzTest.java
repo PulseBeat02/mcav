@@ -43,8 +43,8 @@ final class FrameParserFuzzTest {
     final int size = frame.getWidth() * frame.getHeight() * 3;
     // a reference that is not flat, so motion and residuals read values that differ from pixel to pixel
     final byte[] reference = new byte[size];
-    for (int i = 0; i < size; i++) {
-      reference[i] = (byte) (i * 37);
+    for (int index = 0; index < size; index++) {
+      reference[index] = (byte) (index * 37);
     }
     final byte[] picture;
     try {

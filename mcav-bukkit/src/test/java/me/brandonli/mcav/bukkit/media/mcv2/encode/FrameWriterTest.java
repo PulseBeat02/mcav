@@ -139,9 +139,9 @@ final class FrameWriterTest {
       final TreeNode[] quarters = new TreeNode[4];
       for (int quarter = 0; quarter < 4; quarter++) {
         final TreeNode[] leaves = new TreeNode[4];
-        for (int i = 0; i < 4; i++) {
-          final int n = root * 16 + quarter * 4 + i;
-          leaves[i] = leaf(modes[n % 6], n / 6, 8, n);
+        for (int index = 0; index < 4; index++) {
+          final int descriptor = root * 16 + quarter * 4 + index;
+          leaves[index] = leaf(modes[descriptor % 6], descriptor / 6, 8, descriptor);
         }
         quarters[quarter] = TreeNode.split(leaves[0], leaves[1], leaves[2], leaves[3]);
       }
@@ -158,9 +158,9 @@ final class FrameWriterTest {
     final List<TreeNode> roots = new ArrayList<>();
     for (int root = 0; root < 32; root++) {
       final TreeNode[] leaves = new TreeNode[16];
-      for (int i = 0; i < 16; i++) {
-        final int n = root * 16 + i;
-        leaves[i] = pattern(8, EXACT_ENDPOINTS, n % 2, n / 2);
+      for (int index = 0; index < 16; index++) {
+        final int descriptor = root * 16 + index;
+        leaves[index] = pattern(8, EXACT_ENDPOINTS, descriptor % 2, descriptor / 2);
       }
       final TreeNode[] quarters = new TreeNode[4];
       for (int quarter = 0; quarter < 4; quarter++) {
@@ -216,8 +216,8 @@ final class FrameWriterTest {
   void retriesTheWideFormWithTheDefaultColourRestored() throws Mcv2Exception {
     // 128 intra roots of 768 bytes overflow sixteen-bit addresses; the 128 solid roots are the default colour
     final List<TreeNode> roots = new ArrayList<>();
-    for (int i = 0; i < 256; i++) {
-      roots.add(i % 2 == 0 ? solid(9, 9, 9) : split(leaf(Mcv2Format.MODE_INTRA + 3, 0, 16, i)));
+    for (int index = 0; index < 256; index++) {
+      roots.add(index % 2 == 0 ? solid(9, 9, 9) : split(leaf(Mcv2Format.MODE_INTRA + 3, 0, 16, index)));
     }
     final byte[] frame = FrameWriter.write(512, 512, 0, 0, true, 0, 0, roots, SHORT);
     final int flags = flags(frame);

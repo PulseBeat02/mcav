@@ -64,26 +64,26 @@ final class NativeKernelsPropertyTest {
 
   /** The live searches the encoder test: the profile, every shortcut and threshold, and the exact search. */
   private static List<LiveSearch> liveSearches() {
-    final LiveSearch l = LiveSearch.LIVE;
+    final LiveSearch base = LiveSearch.LIVE;
     final int all = LiveSearch.LIVE.shortcuts() | LiveSearch.QUARTER_MOTION | LiveSearch.CELL_FITS | LiveSearch.FAST_COMPACT;
     return List.of(
-      l,
+      base,
       new LiveSearch(
-        l.smallestBlock(),
-        l.skipThreshold(),
-        l.splitThreshold(),
-        l.steadySplitThreshold(),
-        l.fineThreshold(),
-        l.goodThreshold(),
-        l.childGate(),
-        l.modes(),
-        l.smallModes(),
-        l.keyModes(),
+        base.smallestBlock(),
+        base.skipThreshold(),
+        base.splitThreshold(),
+        base.steadySplitThreshold(),
+        base.fineThreshold(),
+        base.goodThreshold(),
+        base.childGate(),
+        base.modes(),
+        base.smallModes(),
+        base.keyModes(),
         LiveSearch.ALL_CLASSES,
-        l.quantizers(),
-        l.seededMotion(),
-        l.searchBlock(),
-        l.coarseEndpoints(),
+        base.quantizers(),
+        base.seededMotion(),
+        base.searchBlock(),
+        base.coarseEndpoints(),
         all,
         3200,
         true
@@ -104,14 +104,14 @@ final class NativeKernelsPropertyTest {
     final Random random = new Random(seed);
     final int width = 40 + random.nextInt(60);
     final int height = 30 + random.nextInt(50);
-    final int dx = random.nextInt(7) - 3;
+    final int panPerFrame = random.nextInt(7) - 3;
     final EncoderSettings settings = EncoderSettings.LIVE.withKeyInterval(3).withLive(search);
     final Mcv2Encoder java = new Mcv2Encoder(settings, POOL, 2, true, JavaKernels.FACTORY);
     final Mcv2Encoder other = new Mcv2Encoder(settings, POOL, 2, true, NativeTesting.factory(level));
-    for (int i = 0; i < 4; i++) {
-      final byte[] picture = LiveEncoderTest.scene(width, height, i + random.nextInt(3), dx);
-      if (!Arrays.equals(java.encode(picture, width, height, i), other.encode(picture, width, height, i))) {
-        throw new AssertionError("frame " + i + " differs at " + level);
+    for (int frameNumber = 0; frameNumber < 4; frameNumber++) {
+      final byte[] picture = LiveEncoderTest.scene(width, height, frameNumber + random.nextInt(3), panPerFrame);
+      if (!Arrays.equals(java.encode(picture, width, height, frameNumber), other.encode(picture, width, height, frameNumber))) {
+        throw new AssertionError("frame " + frameNumber + " differs at " + level);
       }
     }
     return true;

@@ -109,14 +109,14 @@ public final class Mcv2Decoder {
     Preconditions.checkNotNull(workers, "Workers must not be null");
     final int width = frame.getWidth();
     final int height = frame.getHeight();
-    final byte[] ref;
+    final byte[] referencePicture;
     if (frame.isKeyframe()) {
-      ref = new byte[0];
+      referencePicture = new byte[0];
     } else {
       if (reference == null || referenceId != frame.getReferenceId() || reference.length != width * height * CHANNELS) {
         throw new Mcv2Exception("Reference frame mismatch");
       }
-      ref = reference;
+      referencePicture = reference;
     }
     final byte[] output = into != null && into.length == width * height * CHANNELS ? into : new byte[width * height * CHANNELS];
     final int[] leaves = frame.leafArray();
@@ -125,18 +125,18 @@ public final class Mcv2Decoder {
     final AtomicReferenceArray<@Nullable Mcv2Exception> failures = new AtomicReferenceArray<>(groups);
     workers.forEach(
       groups,
-      () -> new Context(frame, ref, output),
+      () -> new Context(frame, referencePicture, output),
       (context, group) -> {
         final int end = Math.min(count, (group + 1) * GROUP) * Mcv2Frame.LEAF_INTS;
         try {
-          for (int i = group * GROUP * Mcv2Frame.LEAF_INTS; i < end; i += Mcv2Frame.LEAF_INTS) {
+          for (int leafOffset = group * GROUP * Mcv2Frame.LEAF_INTS; leafOffset < end; leafOffset += Mcv2Frame.LEAF_INTS) {
             context.leaf(
-              leaves[i + Mcv2Frame.LEAF_X],
-              leaves[i + Mcv2Frame.LEAF_Y],
-              leaves[i + Mcv2Frame.LEAF_SIZE],
-              leaves[i + Mcv2Frame.LEAF_MODE],
-              leaves[i + Mcv2Frame.LEAF_Q],
-              leaves[i + Mcv2Frame.LEAF_OFFSET]
+              leaves[leafOffset + Mcv2Frame.LEAF_X],
+              leaves[leafOffset + Mcv2Frame.LEAF_Y],
+              leaves[leafOffset + Mcv2Frame.LEAF_SIZE],
+              leaves[leafOffset + Mcv2Frame.LEAF_MODE],
+              leaves[leafOffset + Mcv2Frame.LEAF_Q],
+              leaves[leafOffset + Mcv2Frame.LEAF_OFFSET]
             );
           }
         } catch (final Mcv2Exception exception) {
@@ -197,82 +197,82 @@ public final class Mcv2Decoder {
       this.height = frame.getHeight();
     }
 
-    private void predict(final int x, final int y, final int size, final int mx, final int my) {
-      Reconstruction.predict(this.reference, this.width, this.height, x, y, size, mx, my, this.prediction);
+    private void predict(final int blockLeft, final int blockTop, final int size, final int motionX, final int motionY) {
+      Reconstruction.predict(this.reference, this.width, this.height, blockLeft, blockTop, size, motionX, motionY, this.prediction);
     }
 
-    void leaf(final int x, final int y, final int size, final int mode, final int q, final int offset) throws Mcv2Exception {
-      if (x >= this.width || y >= this.height) {
+    void leaf(final int left, final int top, final int size, final int mode, final int quantizer, final int offset) throws Mcv2Exception {
+      if (left >= this.width || top >= this.height) {
         return;
       }
-      final int gx = this.frame.getGlobalX();
-      final int gy = this.frame.getGlobalY();
-      final byte[] d = this.data;
+      final int globalX = this.frame.getGlobalX();
+      final int globalY = this.frame.getGlobalY();
+      final byte[] data = this.data;
       final int[] out = this.block;
       switch (mode) {
         case MODE_SKIP -> {
           if (this.frame.isKeyframe()) {
             Reconstruction.solid(this.frame.getDefaultColor(), size, out);
           } else {
-            this.predict(x, y, size, gx, gy);
+            this.predict(left, top, size, globalX, globalY);
             Reconstruction.predicted(this.prediction, size, out);
           }
         }
         case MODE_MOTION -> {
-          this.predict(x, y, size, gx + d[offset], gy + d[offset + 1]);
+          this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
           Reconstruction.predicted(this.prediction, size, out);
         }
         case MODE_IMMEDIATE_MOTION -> {
-          this.predict(x, y, size, gx + (byte) offset, gy + (byte) (offset >> Byte.SIZE));
+          this.predict(left, top, size, globalX + (byte) offset, globalY + (byte) (offset >> Byte.SIZE));
           Reconstruction.predicted(this.prediction, size, out);
         }
         case MODE_SOLID -> Reconstruction.solid(
-          ((d[offset] & 0xFF) << 16) | ((d[offset + 1] & 0xFF) << 8) | (d[offset + 2] & 0xFF),
+          ((data[offset] & 0xFF) << 16) | ((data[offset + 1] & 0xFF) << 8) | (data[offset + 2] & 0xFF),
           size,
           out
         );
-        case MODE_PALETTE -> Reconstruction.palette(d, offset, size, out);
+        case MODE_PALETTE -> Reconstruction.palette(data, offset, size, out);
         case MODE_PATTERN -> Reconstruction.pattern(
-          PatternRecord.expand(d, offset, size, this.frame.endpointTable(), this.frame.selectorTable(size)),
+          PatternRecord.expand(data, offset, size, this.frame.endpointTable(), this.frame.selectorTable(size)),
           size,
           out
         );
         case MODE_COMPACT -> {
-          final CompactRecord record = CompactRecord.parse(d, offset, q);
-          this.predict(x, y, size, gx + record.dx(), gy + record.dy());
-          Reconstruction.compact(this.prediction, d, record.bodyOffset(), record.kind(), q, size, this.scratch, out);
+          final CompactRecord record = CompactRecord.parse(data, offset, quantizer);
+          this.predict(left, top, size, globalX + record.dx(), globalY + record.dy());
+          Reconstruction.compact(this.prediction, data, record.bodyOffset(), record.kind(), quantizer, size, this.scratch, out);
         }
         default -> {
           if (mode >= MODE_INTRA_Y4C1) {
             final boolean residual = isResidual(mode);
             if (residual) {
-              this.predict(x, y, size, gx + d[offset], gy + d[offset + 1]);
+              this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
             }
             Reconstruction.reduced(
               residual ? this.prediction : null,
-              d,
+              data,
               offset + (residual ? 2 : 0),
               lumaGrid(mode),
               chromaGrid(mode),
-              q,
+              quantizer,
               size,
               this.scratch,
               out
             );
           } else if (mode >= MODE_RESIDUAL) {
-            this.predict(x, y, size, gx + d[offset], gy + d[offset + 1]);
-            Reconstruction.residualGrid(this.prediction, d, offset + 2, 1 << (mode - MODE_RESIDUAL), q, size, this.scratch, out);
+            this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
+            Reconstruction.residualGrid(this.prediction, data, offset + 2, 1 << (mode - MODE_RESIDUAL), quantizer, size, this.scratch, out);
           } else {
-            Reconstruction.intraGrid(d, offset, 1 << (mode - MODE_INTRA), size, this.scratch, out);
+            Reconstruction.intraGrid(data, offset, 1 << (mode - MODE_INTRA), size, this.scratch, out);
           }
         }
       }
-      final int right = Math.min(x + size, this.width);
-      final int bottom = Math.min(y + size, this.height);
-      for (int py = y; py < bottom; py++) {
-        for (int px = x; px < right; px++) {
-          final int from = ((py - y) * size + (px - x)) * CHANNELS;
-          final int to = (py * this.width + px) * CHANNELS;
+      final int right = Math.min(left + size, this.width);
+      final int bottom = Math.min(top + size, this.height);
+      for (int row = top; row < bottom; row++) {
+        for (int column = left; column < right; column++) {
+          final int from = ((row - top) * size + (column - left)) * CHANNELS;
+          final int to = (row * this.width + column) * CHANNELS;
           this.output[to] = (byte) out[from];
           this.output[to + 1] = (byte) out[from + 1];
           this.output[to + 2] = (byte) out[from + 2];

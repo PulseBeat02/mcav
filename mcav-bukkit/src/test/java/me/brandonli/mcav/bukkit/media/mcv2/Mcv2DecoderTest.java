@@ -71,8 +71,8 @@ final class Mcv2DecoderTest {
   @Test
   void predictsAPFrameFromItsReference() throws Mcv2Exception {
     final byte[] reference = new byte[2 * 1 * 3];
-    for (int i = 0; i < reference.length; i++) {
-      reference[i] = (byte) (i * 10);
+    for (int index = 0; index < reference.length; index++) {
+      reference[index] = (byte) (index * 10);
     }
     // global motion of one whole pixel to the right: pixel 0 samples pixel 1, pixel 1 is clamped to itself
     final byte[] frame = predicted(2, 1, 2, 0, SHORT, TreeNode.skip());
@@ -110,14 +110,14 @@ final class Mcv2DecoderTest {
     // 0x0F is class 15, which does not exist; the last byte starts a record the frame has no room for
     data[10] = 0x0F;
     final int[] array = new int[leaves * Mcv2Frame.LEAF_INTS];
-    for (int i = 0; i < leaves; i++) {
-      final int at = i * Mcv2Frame.LEAF_INTS;
-      array[at] = i * 8;
+    for (int leafIndex = 0; leafIndex < leaves; leafIndex++) {
+      final int at = leafIndex * Mcv2Frame.LEAF_INTS;
+      array[at] = leafIndex * 8;
       array[at + 1] = 0;
       array[at + 2] = 8;
-      array[at + 3] = i == 1 || i == 290 ? Mcv2Format.MODE_COMPACT : Mcv2Format.MODE_SOLID;
+      array[at + 3] = leafIndex == 1 || leafIndex == 290 ? Mcv2Format.MODE_COMPACT : Mcv2Format.MODE_SOLID;
       array[at + 4] = 0;
-      array[at + 5] = i == 1 ? 10 : i == 290 ? data.length - 1 : 0;
+      array[at + 5] = leafIndex == 1 ? 10 : leafIndex == 290 ? data.length - 1 : 0;
     }
     data[data.length - 1] = 0x03;
     final Mcv2Frame frame = new Mcv2Frame(

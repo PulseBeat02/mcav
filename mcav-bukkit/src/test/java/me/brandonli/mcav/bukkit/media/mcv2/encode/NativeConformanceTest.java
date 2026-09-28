@@ -75,9 +75,9 @@ final class NativeConformanceTest {
       final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
       final Mcv2Encoder encoder = new Mcv2Encoder(settings, POOL, 3, true, NativeTesting.factory(level));
       final int frameBytes = WIDTH * HEIGHT * 3;
-      for (int i = 0; i < expected.size(); i++) {
-        final byte[] rgb = Arrays.copyOfRange(source, i * frameBytes, (i + 1) * frameBytes);
-        assertArrayEquals(expected.get(i), encoder.encode(rgb, WIDTH, HEIGHT, i), stream + " frame " + i);
+      for (int frameIndex = 0; frameIndex < expected.size(); frameIndex++) {
+        final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
+        assertArrayEquals(expected.get(frameIndex), encoder.encode(rgb, WIDTH, HEIGHT, frameIndex), stream + " frame " + frameIndex);
       }
     }
   }
@@ -94,11 +94,11 @@ final class NativeConformanceTest {
     });
     final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
     final int frameBytes = WIDTH * HEIGHT * 3;
-    for (int i = 0; i < 2; i++) {
-      final byte[] rgb = Arrays.copyOfRange(source, i * frameBytes, (i + 1) * frameBytes);
-      encoder.encode(rgb, WIDTH, HEIGHT, i);
+    for (int frameIndex = 0; frameIndex < 2; frameIndex++) {
+      final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
+      encoder.encode(rgb, WIDTH, HEIGHT, frameIndex);
       assertFalse(made.isEmpty());
-      assertTrue(made.stream().noneMatch(kernels -> kernels.keeps(rgb)), "frame " + i);
+      assertTrue(made.stream().noneMatch(kernels -> kernels.keeps(rgb)), "frame " + frameIndex);
     }
   }
 
@@ -120,12 +120,16 @@ final class NativeConformanceTest {
     final Mcv2Encoder java = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true, JavaKernels.FACTORY);
     final Mcv2Encoder other = new Mcv2Encoder(EncoderSettings.LIVE, POOL, 2, true, NativeTesting.factory(level));
     final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/" + stream));
-    for (int i = 0; i < frames.size(); i++) {
-      final Mcv2Frame frame = FrameParser.parse(frames.get(i));
-      final byte[] picture = receiver.accept(frames.get(i));
+    for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
+      final Mcv2Frame frame = FrameParser.parse(frames.get(frameIndex));
+      final byte[] picture = receiver.accept(frames.get(frameIndex));
       final int width = frame.getWidth();
       final int height = frame.getHeight();
-      assertArrayEquals(java.encode(picture, width, height, i), other.encode(picture, width, height, i), stream + " frame " + i);
+      assertArrayEquals(
+        java.encode(picture, width, height, frameIndex),
+        other.encode(picture, width, height, frameIndex),
+        stream + " frame " + frameIndex
+      );
     }
   }
 }

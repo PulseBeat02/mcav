@@ -78,8 +78,8 @@ final class FrameParserTest {
     assertNotSame(parsed.getData(), parsed.getData());
     assertEquals(5, parsed.getLeafCount());
     final List<Mcv2Frame.Leaf> leaves = new ArrayList<>();
-    for (int i = 0; i < parsed.getLeafCount(); i++) {
-      leaves.add(parsed.getLeaf(i));
+    for (int leafIndex = 0; leafIndex < parsed.getLeafCount(); leafIndex++) {
+      leaves.add(parsed.getLeaf(leafIndex));
     }
     // level order: the second root's four palettes first; the default-coloured first root is left out of the index
     assertEquals(new Mcv2Frame.Leaf(32, 0, 16, Mcv2Format.MODE_PALETTE, 0, parsed.getPayloadStart()), leaves.get(0));

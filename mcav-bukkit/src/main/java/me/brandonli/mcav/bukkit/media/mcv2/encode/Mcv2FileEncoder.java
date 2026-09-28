@@ -240,10 +240,10 @@ public final class Mcv2FileEncoder {
   static void copy(final Frame frame, final byte[] rgb, final int width, final int height) {
     Preconditions.checkState(frame.imageWidth == width && frame.imageHeight == height, "The frame is not %sx%s", width, height);
     final ByteBuffer pixels = ((ByteBuffer) frame.image[0]).duplicate();
-    final int row = width * Mcv2Format.CHANNELS;
-    for (int y = 0; y < height; y++) {
-      pixels.position(y * frame.imageStride);
-      pixels.get(rgb, y * row, row);
+    final int rowBytes = width * Mcv2Format.CHANNELS;
+    for (int row = 0; row < height; row++) {
+      pixels.position(row * frame.imageStride);
+      pixels.get(rgb, row * rowBytes, rowBytes);
     }
   }
 }

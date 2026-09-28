@@ -74,8 +74,8 @@ public final class Workers {
     final int workers = Math.min(this.threads(), count);
     if (target == null || workers <= 1) {
       final T state = scratch.get();
-      for (int i = 0; i < count; i++) {
-        body.accept(state, i);
+      for (int index = 0; index < count; index++) {
+        body.accept(state, index);
       }
       return;
     }
@@ -86,8 +86,8 @@ public final class Workers {
           .parallel()
           .forEach(_ -> {
             final T state = scratch.get();
-            for (int i = next.getAndIncrement(); i < count; i = next.getAndIncrement()) {
-              body.accept(state, i);
+            for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
+              body.accept(state, index);
             }
           })
       )

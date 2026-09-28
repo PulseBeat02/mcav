@@ -101,41 +101,41 @@ public final class Mcv2Frames {
   /**
    * A solid leaf.
    *
-   * @param r red
-   * @param g green
-   * @param b blue
+   * @param red   red
+   * @param green green
+   * @param blue  blue
    * @return the leaf
    */
-  public static TreeNode solid(final int r, final int g, final int b) {
-    return TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { (byte) r, (byte) g, (byte) b });
+  public static TreeNode solid(final int red, final int green, final int blue) {
+    return TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { (byte) red, (byte) green, (byte) blue });
   }
 
   /**
    * A local motion leaf.
    *
-   * @param dx the horizontal delta in half pixels
-   * @param dy the vertical delta in half pixels
+   * @param deltaX the horizontal delta in half pixels
+   * @param deltaY the vertical delta in half pixels
    * @return the leaf
    */
-  public static TreeNode motion(final int dx, final int dy) {
-    return TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { (byte) dx, (byte) dy });
+  public static TreeNode motion(final int deltaX, final int deltaY) {
+    return TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { (byte) deltaX, (byte) deltaY });
   }
 
   /**
    * A leaf with a record of the right length whose bytes are {@code seed, seed + 1, ...}.
    *
-   * @param mode the mode, 0 to 15
-   * @param q    the quantizer
-   * @param size the leaf size
-   * @param seed the first byte
+   * @param mode      the mode, 0 to 15
+   * @param quantizer the quantizer
+   * @param size      the leaf size
+   * @param seed      the first byte
    * @return the leaf
    */
-  public static TreeNode leaf(final int mode, final int q, final int size, final int seed) {
+  public static TreeNode leaf(final int mode, final int quantizer, final int size, final int seed) {
     final byte[] record = new byte[Mcv2Format.recordSize(mode, size)];
-    for (int i = 0; i < record.length; i++) {
-      record[i] = (byte) (seed + i);
+    for (int index = 0; index < record.length; index++) {
+      record[index] = (byte) (seed + index);
     }
-    return TreeNode.leaf(mode, q, record);
+    return TreeNode.leaf(mode, quantizer, record);
   }
 
   /**
@@ -209,7 +209,7 @@ public final class Mcv2Frames {
    */
   public static TreeNode[] repeat(final TreeNode root, final int count) {
     final List<TreeNode> roots = new ArrayList<>();
-    for (int i = 0; i < count; i++) {
+    for (int index = 0; index < count; index++) {
       roots.add(root);
     }
     return roots.toArray(new TreeNode[0]);

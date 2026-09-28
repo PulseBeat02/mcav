@@ -33,15 +33,15 @@ final class MapTilePatchTest {
     final byte[] colors = { 1, 2, 3, 4, 5, 6 };
     final MapTilePatch patch = new MapTilePatch(7, 1, 2, 3, 2, colors);
     final int mapId = patch.getMapId();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     final byte[] storedColors = patch.getColors();
 
     assertEquals(7, mapId);
-    assertEquals(1, x);
-    assertEquals(2, y);
+    assertEquals(1, left);
+    assertEquals(2, top);
     assertEquals(3, width);
     assertEquals(2, height);
     assertSame(colors, storedColors);

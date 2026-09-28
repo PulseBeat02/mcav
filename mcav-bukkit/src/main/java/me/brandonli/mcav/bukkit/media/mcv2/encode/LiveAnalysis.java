@@ -83,35 +83,39 @@ final class LiveAnalysis {
       superblocks,
       () -> changes,
       (_, index) -> {
-        final int x = (index % columns) * ROOT_SIZE;
-        final int y = (index / columns) * ROOT_SIZE;
-        for (int v = 0; v < vectors.length; v++) {
-          final int mx = MotionSearch.unpackX(vectors[v]);
-          final int my = MotionSearch.unpackY(vectors[v]);
+        final int left = (index % columns) * ROOT_SIZE;
+        final int top = (index / columns) * ROOT_SIZE;
+        for (int vectorIndex = 0; vectorIndex < vectors.length; vectorIndex++) {
+          final int motionX = MotionSearch.unpackX(vectors[vectorIndex]);
+          final int motionY = MotionSearch.unpackY(vectors[vectorIndex]);
           long distortion = 0;
           long change = 0;
-          for (int py = STEP / 2; py < ROOT_SIZE; py += STEP) {
-            final int sy = Math.min(y + py, height - 1);
-            final int hy = Math.min(Math.max(2 * (y + py) + my, 0), 2 * (height - 1));
-            for (int px = STEP / 2; px < ROOT_SIZE; px += STEP) {
-              final int sx = Math.min(x + px, width - 1);
-              final int hx = Math.min(Math.max(2 * (x + px) + mx, 0), 2 * (width - 1));
-              final int at = (sy * width + sx) * CHANNELS;
-              final int r = source[at] & 0xFF;
-              final int g = source[at + 1] & 0xFF;
-              final int b = source[at + 2] & 0xFF;
-              final int pr = sample(reference, width, height, hx, hy, 0);
-              final int pg = sample(reference, width, height, hx, hy, 1);
-              final int pb = sample(reference, width, height, hx, hy, 2);
-              if (v == estimate) {
-                change += Math.abs(4 * (r + 2 * g + b) - (pr + 2 * pg + pb));
+          for (int row = STEP / 2; row < ROOT_SIZE; row += STEP) {
+            final int sourceRow = Math.min(top + row, height - 1);
+            final int halfPixelY = Math.min(Math.max(2 * (top + row) + motionY, 0), 2 * (height - 1));
+            for (int column = STEP / 2; column < ROOT_SIZE; column += STEP) {
+              final int sourceColumn = Math.min(left + column, width - 1);
+              final int halfPixelX = Math.min(Math.max(2 * (left + column) + motionX, 0), 2 * (width - 1));
+              final int at = (sourceRow * width + sourceColumn) * CHANNELS;
+              final int red = source[at] & 0xFF;
+              final int green = source[at + 1] & 0xFF;
+              final int blue = source[at + 2] & 0xFF;
+              final int predictedRed = sample(reference, width, height, halfPixelX, halfPixelY, 0);
+              final int predictedGreen = sample(reference, width, height, halfPixelX, halfPixelY, 1);
+              final int predictedBlue = sample(reference, width, height, halfPixelX, halfPixelY, 2);
+              if (vectorIndex == estimate) {
+                change += Math.abs(4 * (red + 2 * green + blue) - (predictedRed + 2 * predictedGreen + predictedBlue));
               }
-              distortion += Reconstruction.pixelError(r - ((pr + 2) >> 2), g - ((pg + 2) >> 2), b - ((pb + 2) >> 2));
+              distortion += Reconstruction.pixelError(
+                red - ((predictedRed + 2) >> 2),
+                green - ((predictedGreen + 2) >> 2),
+                blue - ((predictedBlue + 2) >> 2)
+              );
             }
           }
           // every sample stands for STEP * STEP pixels
-          costs[v][index] = Math.min((distortion * (STEP * STEP)) / Reconstruction.DISTORTION_SCALE + lambda, CLIP * lambda);
-          if (v == estimate) {
+          costs[vectorIndex][index] = Math.min((distortion * (STEP * STEP)) / Reconstruction.DISTORTION_SCALE + lambda, CLIP * lambda);
+          if (vectorIndex == estimate) {
             changes[index] = change * (STEP * STEP);
           }
         }
@@ -124,40 +128,47 @@ final class LiveAnalysis {
     final double pixels = (double) superblocks * ROOT_SIZE * ROOT_SIZE;
     int best = 0;
     double bestSum = Double.POSITIVE_INFINITY;
-    for (int v = 0; v < vectors.length; v++) {
+    for (int vectorIndex = 0; vectorIndex < vectors.length; vectorIndex++) {
       double sum = 0;
-      for (final double cost : costs[v]) {
+      for (final double cost : costs[vectorIndex]) {
         sum += cost;
       }
       if (sum < bestSum) {
         bestSum = sum;
-        best = v;
+        best = vectorIndex;
       }
     }
     return new Result(best, change / Mcv2Encoder.SCENE_LUMA_SCALE / pixels > threshold);
   }
 
   /** Four times the reference's channel at a position in half pixels, sampled as {@link Reconstruction#predict} does. */
-  private static int sample(final byte[] reference, final int width, final int height, final int hx, final int hy, final int c) {
-    final int x0 = hx >> 1;
-    final int y0 = hy >> 1;
-    final int x1 = Math.min(x0 + 1, width - 1);
-    final int y1 = Math.min(y0 + 1, height - 1);
-    final int a = reference[(y0 * width + x0) * CHANNELS + c] & 0xFF;
-    if ((hx & 1) == 0 && (hy & 1) == 0) {
-      return 4 * a;
+  private static int sample(
+    final byte[] reference,
+    final int width,
+    final int height,
+    final int halfPixelX,
+    final int halfPixelY,
+    final int channel
+  ) {
+    final int leftColumn = halfPixelX >> 1;
+    final int topRow = halfPixelY >> 1;
+    final int rightColumn = Math.min(leftColumn + 1, width - 1);
+    final int bottomRow = Math.min(topRow + 1, height - 1);
+    final int topLeftSample = reference[(topRow * width + leftColumn) * CHANNELS + channel] & 0xFF;
+    if ((halfPixelX & 1) == 0 && (halfPixelY & 1) == 0) {
+      return 4 * topLeftSample;
     }
-    if ((hy & 1) == 0) {
-      return 2 * (a + (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF));
+    if ((halfPixelY & 1) == 0) {
+      return 2 * (topLeftSample + (reference[(topRow * width + rightColumn) * CHANNELS + channel] & 0xFF));
     }
-    if ((hx & 1) == 0) {
-      return 2 * (a + (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF));
+    if ((halfPixelX & 1) == 0) {
+      return 2 * (topLeftSample + (reference[(bottomRow * width + leftColumn) * CHANNELS + channel] & 0xFF));
     }
     return (
-      a +
-      (reference[(y0 * width + x1) * CHANNELS + c] & 0xFF) +
-      (reference[(y1 * width + x0) * CHANNELS + c] & 0xFF) +
-      (reference[(y1 * width + x1) * CHANNELS + c] & 0xFF)
+      topLeftSample +
+      (reference[(topRow * width + rightColumn) * CHANNELS + channel] & 0xFF) +
+      (reference[(bottomRow * width + leftColumn) * CHANNELS + channel] & 0xFF) +
+      (reference[(bottomRow * width + rightColumn) * CHANNELS + channel] & 0xFF)
     );
   }
 }

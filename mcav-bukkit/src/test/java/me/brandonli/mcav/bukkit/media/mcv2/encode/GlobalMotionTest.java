@@ -40,48 +40,48 @@ final class GlobalMotionTest {
   private static byte[] texture(final int width, final int height) {
     final Random random = new Random(width * 31L + height);
     final byte[] rgb = new byte[width * height * 3];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int at = (y * width + x) * 3;
-        final double wave = 50 * Math.sin(x / 7.0) * Math.cos(y / 5.0) + 30 * Math.sin((x - 2 * y) / 11.0);
-        for (int c = 0; c < 3; c++) {
-          rgb[at + c] = (byte) Math.min(255, Math.max(0, (int) (128 + wave + 20 * c + random.nextInt(24))));
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int at = (row * width + column) * 3;
+        final double wave = 50 * Math.sin(column / 7.0) * Math.cos(row / 5.0) + 30 * Math.sin((column - 2 * row) / 11.0);
+        for (int channel = 0; channel < 3; channel++) {
+          rgb[at + channel] = (byte) Math.min(255, Math.max(0, (int) (128 + wave + 20 * channel + random.nextInt(24))));
         }
       }
     }
     return rgb;
   }
 
-  /** The picture whose pixel (x, y) is the reference's (x + dx, y + dy), wrapping around. */
-  private static byte[] shifted(final byte[] reference, final int width, final int height, final int dx, final int dy) {
+  /** The picture whose pixel (column, row) is the reference's (column + deltaX, row + deltaY), wrapping around. */
+  private static byte[] shifted(final byte[] reference, final int width, final int height, final int deltaX, final int deltaY) {
     final byte[] rgb = new byte[reference.length];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int from = (Math.floorMod(y + dy, height) * width + Math.floorMod(x + dx, width)) * 3;
-        System.arraycopy(reference, from, rgb, (y * width + x) * 3, 3);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int from = (Math.floorMod(row + deltaY, height) * width + Math.floorMod(column + deltaX, width)) * 3;
+        System.arraycopy(reference, from, rgb, (row * width + column) * 3, 3);
       }
     }
     return rgb;
   }
 
-  private static int estimate(final int width, final int height, final int dx, final int dy) {
+  private static int estimate(final int width, final int height, final int deltaX, final int deltaY) {
     final byte[] reference = texture(width, height);
-    return GlobalMotion.estimate(shifted(reference, width, height, dx, dy), reference, width, height);
+    return GlobalMotion.estimate(shifted(reference, width, height, deltaX, deltaY), reference, width, height);
   }
 
   @ParameterizedTest(name = "({0}, {1})")
   @CsvSource({ "0, 0", "8, -12", "-8, 12", "13, 2", "-21, -30" })
-  void findsAPan(final int dx, final int dy) {
-    assertEquals(((2 * dx) << 16) | ((2 * dy) & 0xFFFF), estimate(256, 160, dx, dy));
+  void findsAPan(final int deltaX, final int deltaY) {
+    assertEquals(((2 * deltaX) << 16) | ((2 * deltaY) & 0xFFFF), estimate(256, 160, deltaX, deltaY));
   }
 
   @Test
   void staysInsideTheLargestDisplacement() {
     final int vector = estimate(512, 512, 132, 132);
-    final int x = vector >> 16;
-    final int y = (short) vector;
-    assertTrue(x <= 2 * GlobalMotion.MAX_RANGE && x >= 2 * (GlobalMotion.MAX_RANGE - 3), "x " + x);
-    assertTrue(y <= 2 * GlobalMotion.MAX_RANGE && y >= 2 * (GlobalMotion.MAX_RANGE - 3), "y " + y);
+    final int vectorX = vector >> 16;
+    final int vectorY = (short) vector;
+    assertTrue(vectorX <= 2 * GlobalMotion.MAX_RANGE && vectorX >= 2 * (GlobalMotion.MAX_RANGE - 3), "x " + vectorX);
+    assertTrue(vectorY <= 2 * GlobalMotion.MAX_RANGE && vectorY >= 2 * (GlobalMotion.MAX_RANGE - 3), "y " + vectorY);
   }
 
   @Test
@@ -108,10 +108,10 @@ final class GlobalMotionTest {
   void projectsHalfResolutionLuma() {
     // a 3x3 picture: the samples at even columns and rows, (0, 0), (2, 0), (0, 2) and (2, 2), each 4 times its luma
     final byte[] rgb = new byte[3 * 3 * 3];
-    for (int i = 0; i < 9; i++) {
-      rgb[i * 3] = (byte) i;
-      rgb[i * 3 + 1] = (byte) i;
-      rgb[i * 3 + 2] = (byte) i;
+    for (int index = 0; index < 9; index++) {
+      rgb[index * 3] = (byte) index;
+      rgb[index * 3 + 1] = (byte) index;
+      rgb[index * 3 + 2] = (byte) index;
     }
     final long[] sums = GlobalMotion.projections(rgb, 3, 3, Workers.SEQUENTIAL);
     // columns 0 and 2 over rows 0 and 2, then rows 0 and 2 over columns 0 and 2
@@ -125,8 +125,8 @@ final class GlobalMotionTest {
   void alignsProjectionsPreferringTheSmallerShift() {
     final long[] previous = { 5, 1, 9, 4, 7, 3, 8, 2 };
     final long[] current = new long[8];
-    for (int i = 0; i < 8; i++) {
-      current[i] = previous[Math.min(i + 2, 7)];
+    for (int index = 0; index < 8; index++) {
+      current[index] = previous[Math.min(index + 2, 7)];
     }
     assertEquals(2, GlobalMotion.align(previous, current, 0, 8));
     // a flat axis matches every shift equally: no motion
@@ -177,11 +177,11 @@ final class GlobalMotionTest {
     final long[] before = new long[256 + 256];
     final long[] after = new long[256 + 256];
     final Random random = new Random(3);
-    for (int i = 0; i < 256; i++) {
-      before[256 + i] = random.nextInt(1_000_000);
+    for (int index = 0; index < 256; index++) {
+      before[256 + index] = random.nextInt(1_000_000);
     }
-    for (int i = 0; i < 192; i++) {
-      after[256 + i] = before[256 + i + 64];
+    for (int index = 0; index < 192; index++) {
+      after[256 + index] = before[256 + index + 64];
     }
     final int vertical = GlobalMotion.estimateLive(
       new byte[512 * 512 * 3],

@@ -40,11 +40,11 @@ final class LiveSearchPropertyTest {
 
   @Property(seed = SEED, tries = 300)
   boolean derivesAQuantizerThatGrowsWithLambda(
-    @ForAll @DoubleRange(min = 0, max = 1e7) final double a,
-    @ForAll @DoubleRange(min = 0, max = 1e7) final double b
+    @ForAll @DoubleRange(min = 0, max = 1e7) final double oneLambda,
+    @ForAll @DoubleRange(min = 0, max = 1e7) final double otherLambda
   ) {
-    final int low = LiveSearch.quantizer(Math.min(a, b));
-    final int high = LiveSearch.quantizer(Math.max(a, b));
+    final int low = LiveSearch.quantizer(Math.min(oneLambda, otherLambda));
+    final int high = LiveSearch.quantizer(Math.max(oneLambda, otherLambda));
     return low >= 0 && low <= high && high <= 4;
   }
 
@@ -53,10 +53,10 @@ final class LiveSearchPropertyTest {
     final Random random = new Random(seed);
     final byte[] reference = new byte[SIZE * SIZE * 3];
     final byte[] source = new byte[reference.length];
-    for (int i = 0; i < reference.length; i++) {
+    for (int index = 0; index < reference.length; index++) {
       final int value = 40 + random.nextInt(176);
-      reference[i] = (byte) value;
-      source[i] = (byte) Math.clamp(value + random.nextInt(2 * amplitude + 1) - amplitude, 0, 255);
+      reference[index] = (byte) value;
+      source[index] = (byte) Math.clamp(value + random.nextInt(2 * amplitude + 1) - amplitude, 0, 255);
     }
     return new byte[][] { source, reference };
   }
@@ -106,14 +106,14 @@ final class LiveSearchPropertyTest {
   boolean keepsABlockSkippedAsLambdaGrows(
     @ForAll final long seed,
     @ForAll @IntRange(min = 0, max = 30) final int amplitude,
-    @ForAll @DoubleRange(min = 1, max = 2000) final double a,
-    @ForAll @DoubleRange(min = 1, max = 2000) final double b,
+    @ForAll @DoubleRange(min = 1, max = 2000) final double oneLambda,
+    @ForAll @DoubleRange(min = 1, max = 2000) final double otherLambda,
     @ForAll @DoubleRange(min = 1.5, max = 300) final double skip
   ) {
     final byte[][] frames = frames(seed, amplitude);
     final FrameJob[] job = new FrameJob[1];
-    final boolean low = code(frames, Math.min(a, b), skip, job).isSkipped();
-    final boolean high = code(frames, Math.max(a, b), skip, job).isSkipped();
+    final boolean low = code(frames, Math.min(oneLambda, otherLambda), skip, job).isSkipped();
+    final boolean high = code(frames, Math.max(oneLambda, otherLambda), skip, job).isSkipped();
     return !low || high;
   }
 

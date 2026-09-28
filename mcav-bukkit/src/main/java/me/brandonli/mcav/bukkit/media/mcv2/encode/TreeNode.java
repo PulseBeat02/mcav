@@ -37,15 +37,15 @@ public final class TreeNode {
 
   private final int mode;
 
-  private final int q;
+  private final int quantizer;
 
   private final byte[] record;
 
   private final TreeNode @Nullable [] children;
 
-  private TreeNode(final int mode, final int q, final byte[] record, final TreeNode @Nullable [] children) {
+  private TreeNode(final int mode, final int quantizer, final byte[] record, final TreeNode @Nullable [] children) {
     this.mode = mode;
-    this.q = q;
+    this.quantizer = quantizer;
     this.record = record;
     this.children = children;
   }
@@ -62,16 +62,16 @@ public final class TreeNode {
   /**
    * Creates a leaf.
    *
-   * @param mode   the leaf mode
-   * @param q      the quantizer, 0 to 7
-   * @param record the record bytes, which are copied
+   * @param mode      the leaf mode
+   * @param quantizer the quantizer, 0 to 7
+   * @param record    the record bytes, which are copied
    * @return the leaf
    */
-  public static TreeNode leaf(final int mode, final int q, final byte[] record) {
+  public static TreeNode leaf(final int mode, final int quantizer, final byte[] record) {
     Preconditions.checkNotNull(record, "Record must not be null");
     Preconditions.checkArgument(mode != Mcv2Format.MODE_SPLIT && mode >= 0 && mode <= Mcv2Format.MODE_MASK, "Invalid leaf mode %s", mode);
-    Preconditions.checkArgument(q >= 0 && q <= Mcv2Format.MAX_QUANTIZER, "Invalid quantizer %s", q);
-    return new TreeNode(mode, q, record.clone(), null);
+    Preconditions.checkArgument(quantizer >= 0 && quantizer <= Mcv2Format.MAX_QUANTIZER, "Invalid quantizer %s", quantizer);
+    return new TreeNode(mode, quantizer, record.clone(), null);
   }
 
   /**
@@ -106,7 +106,7 @@ public final class TreeNode {
    * @return the quantizer, 0 to 7
    */
   public int getQ() {
-    return this.q;
+    return this.quantizer;
   }
 
   /**
@@ -152,17 +152,22 @@ public final class TreeNode {
       return false;
     }
     return (
-      this.mode == node.mode && this.q == node.q && Arrays.equals(this.record, node.record) && Arrays.equals(this.children, node.children)
+      this.mode == node.mode &&
+      this.quantizer == node.quantizer &&
+      Arrays.equals(this.record, node.record) &&
+      Arrays.equals(this.children, node.children)
     );
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.mode, this.q, Arrays.hashCode(this.record), Arrays.hashCode(this.children));
+    return Objects.hash(this.mode, this.quantizer, Arrays.hashCode(this.record), Arrays.hashCode(this.children));
   }
 
   @Override
   public String toString() {
-    return this.isSplit() ? "split" + Arrays.toString(this.children) : "leaf(" + this.mode + "," + this.q + "," + this.record.length + "B)";
+    return this.isSplit()
+      ? "split" + Arrays.toString(this.children)
+      : "leaf(" + this.mode + "," + this.quantizer + "," + this.record.length + "B)";
   }
 }

@@ -167,8 +167,8 @@ final class FrameParserRulesTest {
   @Test
   void refusesATruncatedSelectorTable() {
     final List<TreeNode> leaves = new ArrayList<>();
-    for (int i = 0; i < 16; i++) {
-      leaves.add(pattern(8, new byte[] { (byte) i, 1, 2, 3, 4, 5 }, 0, 0x0F));
+    for (int index = 0; index < 16; index++) {
+      leaves.add(pattern(8, new byte[] { (byte) index, 1, 2, 3, 4, 5 }, 0, 0x0F));
     }
     final TreeNode quarter1 = TreeNode.split(leaves.get(0), leaves.get(1), leaves.get(2), leaves.get(3));
     final TreeNode quarter2 = TreeNode.split(leaves.get(4), leaves.get(5), leaves.get(6), leaves.get(7));
@@ -239,8 +239,8 @@ final class FrameParserRulesTest {
   @Test
   void readsEveryStoredCheckpointOfALongDirectory() throws Mcv2Exception {
     final List<TreeNode> roots = new ArrayList<>();
-    for (int i = 0; i < 33 * 9; i++) {
-      roots.add(i % 7 == 0 ? motion(1, 1) : TreeNode.skip());
+    for (int index = 0; index < 33 * 9; index++) {
+      roots.add(index % 7 == 0 ? motion(1, 1) : TreeNode.skip());
     }
     final byte[] frame = FrameWriter.write(32 * 33, 32 * 9, 1, 0, false, 0, 0, roots, WIDE_DIRECTORY);
     assertEquals(Mcv2Format.SPARSE | Mcv2Format.DERIVED_DIRECTORY, flagsOf(frame) & (Mcv2Format.SPARSE | Mcv2Format.DERIVED_DIRECTORY));
@@ -292,7 +292,7 @@ final class FrameParserRulesTest {
   private static List<TreeNode> fullFrame(final TreeNode last) {
     final List<TreeNode> roots = new ArrayList<>();
     final TreeNode heavy = split(split(leaf(11, 0, 8, 3)));
-    for (int i = 0; i < 5262; i++) {
+    for (int index = 0; index < 5262; index++) {
       roots.add(heavy);
     }
     // a split of four splits: 80 index bytes, then 7 x 194 + 5 + 4 x 3 = 1,375 payload bytes, and four skipped leaves

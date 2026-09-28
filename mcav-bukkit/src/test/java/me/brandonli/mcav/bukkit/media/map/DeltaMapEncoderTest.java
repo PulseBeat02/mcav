@@ -37,10 +37,10 @@ final class DeltaMapEncoderTest {
   /**
    * Changes every pixel inside a rectangle of the image to a different color.
    */
-  private static byte[] change(final byte[] image, final int imageWidth, final int x, final int y, final int width, final int height) {
+  private static byte[] change(final byte[] image, final int imageWidth, final int left, final int top, final int width, final int height) {
     final byte[] changed = image.clone();
-    for (int row = y; row < y + height; row++) {
-      for (int column = x; column < x + width; column++) {
+    for (int row = top; row < top + height; row++) {
+      for (int column = left; column < left + width; column++) {
         final int index = row * imageWidth + column;
         changed[index] = (byte) (changed[index] + 1);
       }
@@ -51,8 +51,8 @@ final class DeltaMapEncoderTest {
   private static void assertPatch(
     final MapTilePatch patch,
     final int mapId,
-    final int x,
-    final int y,
+    final int left,
+    final int top,
     final int width,
     final int height,
     final byte[] expectedColors
@@ -65,8 +65,8 @@ final class DeltaMapEncoderTest {
     final byte[] colors = patch.getColors();
 
     assertEquals(mapId, actualMapId, "map id");
-    assertEquals(x, actualX, "x");
-    assertEquals(y, actualY, "y");
+    assertEquals(left, actualX, "x");
+    assertEquals(top, actualY, "y");
     assertEquals(width, actualWidth, "width");
     assertEquals(height, actualHeight, "height");
     assertArrayEquals(expectedColors, colors, "colors");

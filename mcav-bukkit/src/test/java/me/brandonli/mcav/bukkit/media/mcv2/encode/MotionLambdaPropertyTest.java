@@ -61,7 +61,7 @@ final class MotionLambdaPropertyTest {
     @ForAll @IntRange(min = 1, max = 60) final int frames
   ) {
     final MotionLambda motion = new MotionLambda();
-    for (int i = 0; i < frames; i++) {
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       motion.add(information);
       if (motion.lambda(BASE) != BASE * MotionLambda.raise(information)) {
         return false;
@@ -81,7 +81,7 @@ final class MotionLambdaPropertyTest {
     final double target = BASE * MotionLambda.raise(after);
     double previous = motion.lambda(BASE);
     final double sign = Math.signum(target - previous);
-    for (int i = 0; i < frames; i++) {
+    for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       motion.add(after);
       final double lambda = motion.lambda(BASE);
       // every step goes the way of the new value, and none passes it
@@ -95,10 +95,10 @@ final class MotionLambdaPropertyTest {
 
   @Property(seed = SEED, tries = 300)
   boolean neverGivesMoreMotionALowerLambda(
-    @ForAll @DoubleRange(min = 0, max = 200) final double a,
-    @ForAll @DoubleRange(min = 0, max = 200) final double b
+    @ForAll @DoubleRange(min = 0, max = 200) final double oneLambda,
+    @ForAll @DoubleRange(min = 0, max = 200) final double otherLambda
   ) {
-    return MotionLambda.raise(Math.min(a, b)) <= MotionLambda.raise(Math.max(a, b));
+    return MotionLambda.raise(Math.min(oneLambda, otherLambda)) <= MotionLambda.raise(Math.max(oneLambda, otherLambda));
   }
 
   @Property(seed = SEED, tries = 200)

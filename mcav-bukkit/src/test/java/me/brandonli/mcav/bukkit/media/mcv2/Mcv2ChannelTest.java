@@ -135,9 +135,9 @@ final class Mcv2ChannelTest {
   /** A keyframe of two pages: 64 roots of 192-byte intra grids. */
   static byte[] large() {
     final List<TreeNode> roots = new ArrayList<>();
-    for (int i = 0; i < 64; i++) {
+    for (int index = 0; index < 64; index++) {
       final byte[] grid = new byte[192];
-      grid[0] = (byte) i;
+      grid[0] = (byte) index;
       roots.add(TreeNode.leaf(Mcv2Format.MODE_INTRA + 3, 0, grid));
     }
     return FrameWriter.write(256, 256, 0, 0, true, 0, 0, roots, FrameWriter.Options.production(false));

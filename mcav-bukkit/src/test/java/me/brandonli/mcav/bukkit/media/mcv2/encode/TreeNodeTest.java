@@ -66,8 +66,8 @@ final class TreeNodeTest {
 
   @ParameterizedTest
   @ValueSource(ints = { -1, 8 })
-  void refusesQuantizersOutsideThreeBits(final int q) {
-    assertThrows(IllegalArgumentException.class, () -> TreeNode.leaf(Mcv2Format.MODE_SOLID, q, new byte[3]));
+  void refusesQuantizersOutsideThreeBits(final int quantizer) {
+    assertThrows(IllegalArgumentException.class, () -> TreeNode.leaf(Mcv2Format.MODE_SOLID, quantizer, new byte[3]));
   }
 
   @Test

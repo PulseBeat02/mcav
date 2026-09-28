@@ -99,24 +99,24 @@ public final class Reconstruction {
   private static final int BOOK_INDEX_BITS = Integer.numberOfTrailingZeros(ResidualBooks.VECTORS);
 
   static {
-    for (int s = 0; s < BLOCK_SIZES; s++) {
-      final int size = SMALLEST_BLOCK << s;
+    for (int sizeIndex = 0; sizeIndex < BLOCK_SIZES; sizeIndex++) {
+      final int size = SMALLEST_BLOCK << sizeIndex;
       final int span = 2 * size;
-      for (int g = 0; g < GRID_WIDTHS; g++) {
-        final int grid = 1 << g;
+      for (int gridIndex = 0; gridIndex < GRID_WIDTHS; gridIndex++) {
+        final int grid = 1 << gridIndex;
         final int[] lower = new int[size];
         final int[] upper = new int[size];
         final int[] weight = new int[size];
-        for (int p = 0; p < size; p++) {
-          // the node position ((p + 0.5) * grid) / size - 0.5, clamped to the grid, times 2 * size
-          final int position = Math.min(Math.max((2 * p + 1) * grid - size, 0), (grid - 1) * span);
-          lower[p] = position / span;
-          upper[p] = Math.min(lower[p] + 1, grid - 1);
-          weight[p] = position - lower[p] * span;
+        for (int pixel = 0; pixel < size; pixel++) {
+          // the node position ((pixel + 0.5) * grid) / size - 0.5, clamped to the grid, times 2 * size
+          final int position = Math.min(Math.max((2 * pixel + 1) * grid - size, 0), (grid - 1) * span);
+          lower[pixel] = position / span;
+          upper[pixel] = Math.min(lower[pixel] + 1, grid - 1);
+          weight[pixel] = position - lower[pixel] * span;
         }
-        LOWER[s][g] = lower;
-        UPPER[s][g] = upper;
-        WEIGHT[s][g] = weight;
+        LOWER[sizeIndex][gridIndex] = lower;
+        UPPER[sizeIndex][gridIndex] = upper;
+        WEIGHT[sizeIndex][gridIndex] = weight;
       }
     }
   }
@@ -194,12 +194,12 @@ public final class Reconstruction {
 
     /** Adds the error of one row of pixels; false once the candidate can no longer be cheaper than the cost. */
     boolean row(final int[] out, final int from, final int pixels) {
-      final int[] s = this.source;
+      final int[] source = this.source;
       // a pixel's error is at most 4 * 1020^2 + 4 * 510^2 + 1020^2, about 6.2 million, so a row of 32 fits an int
       int sum = 0;
       final int end = from + pixels * CHANNELS;
-      for (int i = from; i < end; i += CHANNELS) {
-        sum += pixelError(s[i] - out[i], s[i + 1] - out[i + 1], s[i + 2] - out[i + 2]);
+      for (int offset = from; offset < end; offset += CHANNELS) {
+        sum += pixelError(source[offset] - out[offset], source[offset + 1] - out[offset + 1], source[offset + 2] - out[offset + 2]);
       }
       this.distortion += sum;
       return this.distortion / DISTORTION_SCALE + this.rate < this.limit;
@@ -214,17 +214,18 @@ public final class Reconstruction {
    * The error of one pixel in the units of {@link #DISTORTION_SCALE}: 96 times the reference's weighted squared YCoCg
    * error of the channel differences.
    *
-   * @param dr the red difference
-   * @param dg the green difference
-   * @param db the blue difference
+   * @param redDifference   the red difference
+   * @param greenDifference the green difference
+   * @param blueDifference  the blue difference
    * @return the error, at most about 6.2 million for differences of 8-bit channels
    */
-  public static int pixelError(final int dr, final int dg, final int db) {
-    final int luma = dr + 2 * dg + db;
-    final int co = dr - db;
-    final int cg = 2 * dg - dr - db;
-    // luma, co and cg are 4 Y, 2 Co and 4 Cg, so this is 16 times the reference's 4 Y^2 + Co^2 + Cg^2
-    return LUMA_WEIGHT * (luma * luma + co * co) + cg * cg;
+  public static int pixelError(final int redDifference, final int greenDifference, final int blueDifference) {
+    final int luma = redDifference + 2 * greenDifference + blueDifference;
+    final int chromaOrange = redDifference - blueDifference;
+    final int chromaGreen = 2 * greenDifference - redDifference - blueDifference;
+    // luma, chromaOrange and chromaGreen are 4 Y, 2 Co and 4 Cg, so this is 16 times the reference's
+    // 4 Y^2 + Co^2 + Cg^2
+    return LUMA_WEIGHT * (luma * luma + chromaOrange * chromaOrange) + chromaGreen * chromaGreen;
   }
 
   /**
@@ -260,41 +261,41 @@ public final class Reconstruction {
    * @param rows   receives {@code grid * size} values
    */
   private static void horizontal(final int[] nodes, final int offset, final int stride, final int grid, final int size, final int[] rows) {
-    final int s = sizeIndex(size);
-    final int g = Integer.numberOfTrailingZeros(grid);
-    final int[] lower = LOWER[s][g];
-    final int[] upper = UPPER[s][g];
-    final int[] weight = WEIGHT[s][g];
+    final int sizeIndex = sizeIndex(size);
+    final int gridIndex = Integer.numberOfTrailingZeros(grid);
+    final int[] lower = LOWER[sizeIndex][gridIndex];
+    final int[] upper = UPPER[sizeIndex][gridIndex];
+    final int[] weight = WEIGHT[sizeIndex][gridIndex];
     final int span = 2 * size;
-    for (int j = 0; j < grid; j++) {
-      final int row = offset + j * grid * stride;
-      final int at = j * size;
-      for (int x = 0; x < size; x++) {
-        final int w = weight[x];
-        rows[at + x] = nodes[row + lower[x] * stride] * (span - w) + nodes[row + upper[x] * stride] * w;
+    for (int nodeRow = 0; nodeRow < grid; nodeRow++) {
+      final int row = offset + nodeRow * grid * stride;
+      final int at = nodeRow * size;
+      for (int column = 0; column < size; column++) {
+        final int upperWeight = weight[column];
+        rows[at + column] = nodes[row + lower[column] * stride] * (span - upperWeight) + nodes[row + upper[column] * stride] * upperWeight;
       }
     }
   }
 
   /**
-   * One row of an interpolated plane: {@code line[x]} is the bilinear value at pixel (x, y) times {@code (2 size)^2},
-   * exactly.
+   * One row of an interpolated plane: {@code line[column]} is the bilinear value at pixel (column, row) times
+   * {@code (2 size)^2}, exactly.
    *
    * @param rows the first pass, from {@link #horizontal}
    * @param grid the grid width
    * @param size the block size
-   * @param y    the row
+   * @param row  the row
    * @param line receives {@code size} values
    */
-  private static void vertical(final int[] rows, final int grid, final int size, final int y, final int[] line) {
-    final int s = sizeIndex(size);
-    final int g = Integer.numberOfTrailingZeros(grid);
-    final int top = LOWER[s][g][y] * size;
-    final int bottom = UPPER[s][g][y] * size;
-    final int w = WEIGHT[s][g][y];
-    final int v = 2 * size - w;
-    for (int x = 0; x < size; x++) {
-      line[x] = rows[top + x] * v + rows[bottom + x] * w;
+  private static void vertical(final int[] rows, final int grid, final int size, final int row, final int[] line) {
+    final int sizeIndex = sizeIndex(size);
+    final int gridIndex = Integer.numberOfTrailingZeros(grid);
+    final int top = LOWER[sizeIndex][gridIndex][row] * size;
+    final int bottom = UPPER[sizeIndex][gridIndex][row] * size;
+    final int bottomWeight = WEIGHT[sizeIndex][gridIndex][row];
+    final int topWeight = 2 * size - bottomWeight;
+    for (int column = 0; column < size; column++) {
+      line[column] = rows[top + column] * topWeight + rows[bottom + column] * bottomWeight;
     }
   }
 
@@ -305,63 +306,67 @@ public final class Reconstruction {
    * @param reference the reference picture, row-major RGB
    * @param width     the picture width
    * @param height    the picture height
-   * @param x         the block's left edge
-   * @param y         the block's top edge
+   * @param blockLeft the block's left edge
+   * @param blockTop  the block's top edge
    * @param size      the block size; pixels outside the picture are predicted too, from clamped coordinates
-   * @param mx        the horizontal displacement in half pixels
-   * @param my        the vertical displacement in half pixels
+   * @param motionX   the horizontal displacement in half pixels
+   * @param motionY   the vertical displacement in half pixels
    * @param out       receives four times each predicted channel, {@code size * size * 3} values
    */
   public static void predict(
     final byte[] reference,
     final int width,
     final int height,
-    final int x,
-    final int y,
+    final int blockLeft,
+    final int blockTop,
     final int size,
-    final int mx,
-    final int my,
+    final int motionX,
+    final int motionY,
     final int[] out
   ) {
     // whole and half pixels inside the picture need no clamping, and their parity is the same for every pixel
-    final int left = x + (mx >> 1);
-    final int top = y + (my >> 1);
-    if (left >= 0 && top >= 0 && left + size + (mx & 1) <= width && top + size + (my & 1) <= height) {
-      predictInside(reference, width, left, top, size, mx & 1, my & 1, out);
+    final int left = blockLeft + (motionX >> 1);
+    final int top = blockTop + (motionY >> 1);
+    if (left >= 0 && top >= 0 && left + size + (motionX & 1) <= width && top + size + (motionY & 1) <= height) {
+      predictInside(reference, width, left, top, size, motionX & 1, motionY & 1, out);
       return;
     }
-    for (int py = 0; py < size; py++) {
-      final int hy = Math.min(Math.max(2 * (y + py) + my, 0), 2 * (height - 1));
-      final int y0 = hy >> 1;
-      final int y1 = Math.min(y0 + 1, height - 1);
-      final boolean halfY = (hy & 1) != 0;
-      for (int px = 0; px < size; px++) {
-        final int hx = Math.min(Math.max(2 * (x + px) + mx, 0), 2 * (width - 1));
-        final int x0 = hx >> 1;
-        final int x1 = Math.min(x0 + 1, width - 1);
-        final boolean halfX = (hx & 1) != 0;
-        final int a = (y0 * width + x0) * CHANNELS;
-        final int at = (py * size + px) * CHANNELS;
+    for (int row = 0; row < size; row++) {
+      final int halfPixelY = Math.min(Math.max(2 * (blockTop + row) + motionY, 0), 2 * (height - 1));
+      final int topRow = halfPixelY >> 1;
+      final int bottomRow = Math.min(topRow + 1, height - 1);
+      final boolean halfY = (halfPixelY & 1) != 0;
+      for (int column = 0; column < size; column++) {
+        final int halfPixelX = Math.min(Math.max(2 * (blockLeft + column) + motionX, 0), 2 * (width - 1));
+        final int leftColumn = halfPixelX >> 1;
+        final int rightColumn = Math.min(leftColumn + 1, width - 1);
+        final boolean halfX = (halfPixelX & 1) != 0;
+        final int topLeft = (topRow * width + leftColumn) * CHANNELS;
+        final int at = (row * size + column) * CHANNELS;
         if (!halfX && !halfY) {
-          for (int c = 0; c < CHANNELS; c++) {
-            out[at + c] = 4 * (reference[a + c] & 0xFF);
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            out[at + channel] = 4 * (reference[topLeft + channel] & 0xFF);
           }
         } else if (!halfY) {
-          final int b = (y0 * width + x1) * CHANNELS;
-          for (int c = 0; c < CHANNELS; c++) {
-            out[at + c] = 2 * ((reference[a + c] & 0xFF) + (reference[b + c] & 0xFF));
+          final int topRight = (topRow * width + rightColumn) * CHANNELS;
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            out[at + channel] = 2 * ((reference[topLeft + channel] & 0xFF) + (reference[topRight + channel] & 0xFF));
           }
         } else if (!halfX) {
-          final int b = (y1 * width + x0) * CHANNELS;
-          for (int c = 0; c < CHANNELS; c++) {
-            out[at + c] = 2 * ((reference[a + c] & 0xFF) + (reference[b + c] & 0xFF));
+          final int bottomLeft = (bottomRow * width + leftColumn) * CHANNELS;
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            out[at + channel] = 2 * ((reference[topLeft + channel] & 0xFF) + (reference[bottomLeft + channel] & 0xFF));
           }
         } else {
-          final int b = (y0 * width + x1) * CHANNELS;
-          final int d = (y1 * width + x0) * CHANNELS;
-          final int e = (y1 * width + x1) * CHANNELS;
-          for (int c = 0; c < CHANNELS; c++) {
-            out[at + c] = (reference[a + c] & 0xFF) + (reference[b + c] & 0xFF) + (reference[d + c] & 0xFF) + (reference[e + c] & 0xFF);
+          final int topRight = (topRow * width + rightColumn) * CHANNELS;
+          final int bottomLeft = (bottomRow * width + leftColumn) * CHANNELS;
+          final int bottomRight = (bottomRow * width + rightColumn) * CHANNELS;
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            out[at + channel] =
+              (reference[topLeft + channel] & 0xFF) +
+              (reference[topRight + channel] & 0xFF) +
+              (reference[bottomLeft + channel] & 0xFF) +
+              (reference[bottomRight + channel] & 0xFF);
           }
         }
       }
@@ -379,27 +384,31 @@ public final class Reconstruction {
     final int halfY,
     final int[] out
   ) {
-    final int n = size * CHANNELS;
+    final int rowLength = size * CHANNELS;
     final int right = halfX * CHANNELS;
     final int below = halfY * width * CHANNELS;
-    for (int py = 0; py < size; py++) {
-      final int a = ((top + py) * width + left) * CHANNELS;
-      final int at = py * n;
+    for (int row = 0; row < size; row++) {
+      final int topLeft = ((top + row) * width + left) * CHANNELS;
+      final int at = row * rowLength;
       if (halfX == 0 && halfY == 0) {
-        for (int i = 0; i < n; i++) {
-          out[at + i] = 4 * (reference[a + i] & 0xFF);
+        for (int offset = 0; offset < rowLength; offset++) {
+          out[at + offset] = 4 * (reference[topLeft + offset] & 0xFF);
         }
       } else if (halfY == 0 || halfX == 0) {
-        final int b = a + right + below;
-        for (int i = 0; i < n; i++) {
-          out[at + i] = 2 * ((reference[a + i] & 0xFF) + (reference[b + i] & 0xFF));
+        final int neighbour = topLeft + right + below;
+        for (int offset = 0; offset < rowLength; offset++) {
+          out[at + offset] = 2 * ((reference[topLeft + offset] & 0xFF) + (reference[neighbour + offset] & 0xFF));
         }
       } else {
-        final int b = a + right;
-        final int d = a + below;
-        final int e = d + right;
-        for (int i = 0; i < n; i++) {
-          out[at + i] = (reference[a + i] & 0xFF) + (reference[b + i] & 0xFF) + (reference[d + i] & 0xFF) + (reference[e + i] & 0xFF);
+        final int topRight = topLeft + right;
+        final int bottomLeft = topLeft + below;
+        final int bottomRight = bottomLeft + right;
+        for (int offset = 0; offset < rowLength; offset++) {
+          out[at + offset] =
+            (reference[topLeft + offset] & 0xFF) +
+            (reference[topRight + offset] & 0xFF) +
+            (reference[bottomLeft + offset] & 0xFF) +
+            (reference[bottomRight + offset] & 0xFF);
         }
       }
     }
@@ -426,12 +435,12 @@ public final class Reconstruction {
    * @return whether the block was finished: false when the measure stopped it
    */
   public static boolean predicted(final int[] prediction, final int size, final int[] out, final @Nullable Score score) {
-    final int n = size * CHANNELS;
-    for (int y = 0; y < size; y++) {
-      final int from = y * n;
-      for (int i = from; i < from + n; i++) {
+    final int rowLength = size * CHANNELS;
+    for (int row = 0; row < size; row++) {
+      final int from = row * rowLength;
+      for (int offset = from; offset < from + rowLength; offset++) {
         // four times a byte, so rounding needs no clamp
-        out[i] = (prediction[i] + 2) >> 2;
+        out[offset] = (prediction[offset] + 2) >> 2;
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -461,15 +470,15 @@ public final class Reconstruction {
    * @return whether the block was finished: false when the measure stopped it
    */
   public static boolean solid(final int color, final int size, final int[] out, final @Nullable Score score) {
-    final int r = (color >> 16) & 0xFF;
-    final int g = (color >> 8) & 0xFF;
-    final int b = color & 0xFF;
-    for (int y = 0; y < size; y++) {
-      final int from = y * size * CHANNELS;
-      for (int x = 0; x < size; x++) {
-        out[from + x * CHANNELS] = r;
-        out[from + x * CHANNELS + 1] = g;
-        out[from + x * CHANNELS + 2] = b;
+    final int red = (color >> 16) & 0xFF;
+    final int green = (color >> 8) & 0xFF;
+    final int blue = color & 0xFF;
+    for (int row = 0; row < size; row++) {
+      final int from = row * size * CHANNELS;
+      for (int column = 0; column < size; column++) {
+        out[from + column * CHANNELS] = red;
+        out[from + column * CHANNELS + 1] = green;
+        out[from + column * CHANNELS + 2] = blue;
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -501,16 +510,16 @@ public final class Reconstruction {
    * @return whether the block was finished: false when the measure stopped it
    */
   public static boolean palette(final byte[] record, final int offset, final int size, final int[] out, final @Nullable Score score) {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int i = y * size + x;
-        final int bit = (record[offset + PALETTE_COLORS * CHANNELS + i / Byte.SIZE] >> (i % Byte.SIZE)) & 1;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int pixel = row * size + column;
+        final int bit = (record[offset + PALETTE_COLORS * CHANNELS + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
         final int at = offset + bit * CHANNELS;
-        out[i * CHANNELS] = record[at] & 0xFF;
-        out[i * CHANNELS + 1] = record[at + 1] & 0xFF;
-        out[i * CHANNELS + 2] = record[at + 2] & 0xFF;
+        out[pixel * CHANNELS] = record[at] & 0xFF;
+        out[pixel * CHANNELS + 1] = record[at + 1] & 0xFF;
+        out[pixel * CHANNELS + 2] = record[at + 2] & 0xFF;
       }
-      if (score != null && !score.row(out, y * size * CHANNELS, size)) {
+      if (score != null && !score.row(out, row * size * CHANNELS, size)) {
         return false;
       }
     }
@@ -525,10 +534,10 @@ public final class Reconstruction {
    * @param out     the reconstructed channels
    */
   public static void pattern(final PatternRecord pattern, final int size, final int[] out) {
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int color = pattern.colorAt(x, y);
-        final int at = (y * size + x) * CHANNELS;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int color = pattern.colorAt(column, row);
+        final int at = (row * size + column) * CHANNELS;
         out[at] = (color >> 16) & 0xFF;
         out[at + 1] = (color >> 8) & 0xFF;
         out[at + 2] = color & 0xFF;
@@ -579,26 +588,26 @@ public final class Reconstruction {
     final @Nullable Score score
   ) {
     final int[] nodes = scratch.nodes;
-    for (int i = 0; i < CHANNELS * grid * grid; i++) {
-      nodes[i] = record[offset + i] & 0xFF;
+    for (int nodeIndex = 0; nodeIndex < CHANNELS * grid * grid; nodeIndex++) {
+      nodes[nodeIndex] = record[offset + nodeIndex] & 0xFF;
     }
     horizontal(nodes, 0, CHANNELS, grid, size, scratch.rows0);
     horizontal(nodes, 1, CHANNELS, grid, size, scratch.rows1);
     horizontal(nodes, 2, CHANNELS, grid, size, scratch.rows2);
-    final int[] r = scratch.line0;
-    final int[] g = scratch.line1;
-    final int[] b = scratch.line2;
+    final int[] redLine = scratch.line0;
+    final int[] greenLine = scratch.line1;
+    final int[] blueLine = scratch.line2;
     final int shift = shift(size);
-    for (int y = 0; y < size; y++) {
-      vertical(scratch.rows0, grid, size, y, r);
-      vertical(scratch.rows1, grid, size, y, g);
-      vertical(scratch.rows2, grid, size, y, b);
-      final int from = y * size * CHANNELS;
-      for (int x = 0; x < size; x++) {
-        final int at = from + x * CHANNELS;
-        out[at] = round(r[x], shift);
-        out[at + 1] = round(g[x], shift);
-        out[at + 2] = round(b[x], shift);
+    for (int row = 0; row < size; row++) {
+      vertical(scratch.rows0, grid, size, row, redLine);
+      vertical(scratch.rows1, grid, size, row, greenLine);
+      vertical(scratch.rows2, grid, size, row, blueLine);
+      final int from = row * size * CHANNELS;
+      for (int column = 0; column < size; column++) {
+        final int at = from + column * CHANNELS;
+        out[at] = round(redLine[column], shift);
+        out[at + 1] = round(greenLine[column], shift);
+        out[at + 2] = round(blueLine[column], shift);
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -608,14 +617,14 @@ public final class Reconstruction {
   }
 
   /**
-   * Reconstructs a YCoCg residual grid block (modes 8 to 11): signed nodes scaled by {@code 2^q} before
+   * Reconstructs a YCoCg residual grid block (modes 8 to 11): signed nodes scaled by {@code 2^quantizer} before
    * interpolation, converted and added to the prediction.
    *
    * @param prediction four times the predicted channels
    * @param record     the bytes holding the nodes
    * @param offset     the offset of the first node, after the motion bytes
    * @param grid       the grid width
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -625,12 +634,12 @@ public final class Reconstruction {
     final byte[] record,
     final int offset,
     final int grid,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out
   ) {
-    residualGrid(prediction, record, offset, grid, q, size, scratch, out, null);
+    residualGrid(prediction, record, offset, grid, quantizer, size, scratch, out, null);
   }
 
   /**
@@ -640,7 +649,7 @@ public final class Reconstruction {
    * @param record     the bytes holding the nodes
    * @param offset     the offset of the first node, after the motion bytes
    * @param grid       the grid width
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -652,34 +661,34 @@ public final class Reconstruction {
     final byte[] record,
     final int offset,
     final int grid,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out,
     final @Nullable Score score
   ) {
     final int[] nodes = scratch.nodes;
-    for (int i = 0; i < CHANNELS * grid * grid; i++) {
-      nodes[i] = record[offset + i] << q;
+    for (int nodeIndex = 0; nodeIndex < CHANNELS * grid * grid; nodeIndex++) {
+      nodes[nodeIndex] = record[offset + nodeIndex] << quantizer;
     }
     horizontal(nodes, 0, CHANNELS, grid, size, scratch.rows0);
     horizontal(nodes, 1, CHANNELS, grid, size, scratch.rows1);
     horizontal(nodes, 2, CHANNELS, grid, size, scratch.rows2);
-    final int[] c0 = scratch.line0;
-    final int[] c1 = scratch.line1;
-    final int[] c2 = scratch.line2;
+    final int[] lumaLine = scratch.line0;
+    final int[] chromaOrangeLine = scratch.line1;
+    final int[] chromaGreenLine = scratch.line2;
     final int shift = shift(size);
     final int quarter = size * size;
-    for (int y = 0; y < size; y++) {
-      vertical(scratch.rows0, grid, size, y, c0);
-      vertical(scratch.rows1, grid, size, y, c1);
-      vertical(scratch.rows2, grid, size, y, c2);
-      final int from = y * size * CHANNELS;
-      for (int x = 0; x < size; x++) {
-        final int at = from + x * CHANNELS;
-        out[at] = round(prediction[at] * quarter + (c0[x] + c1[x] - c2[x]), shift);
-        out[at + 1] = round(prediction[at + 1] * quarter + (c0[x] + c2[x]), shift);
-        out[at + 2] = round(prediction[at + 2] * quarter + (c0[x] - c1[x] - c2[x]), shift);
+    for (int row = 0; row < size; row++) {
+      vertical(scratch.rows0, grid, size, row, lumaLine);
+      vertical(scratch.rows1, grid, size, row, chromaOrangeLine);
+      vertical(scratch.rows2, grid, size, row, chromaGreenLine);
+      final int from = row * size * CHANNELS;
+      for (int column = 0; column < size; column++) {
+        final int at = from + column * CHANNELS;
+        out[at] = round(prediction[at] * quarter + (lumaLine[column] + chromaOrangeLine[column] - chromaGreenLine[column]), shift);
+        out[at + 1] = round(prediction[at + 1] * quarter + (lumaLine[column] + chromaGreenLine[column]), shift);
+        out[at + 2] = round(prediction[at + 2] * quarter + (lumaLine[column] - chromaOrangeLine[column] - chromaGreenLine[column]), shift);
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -690,15 +699,15 @@ public final class Reconstruction {
 
   /**
    * Reconstructs a reduced-chroma block (modes 12 to 15): a luma grid and a coarser interleaved chroma grid, luma
-   * unsigned in an intra record and signed in a residual one, a residual record scaled by {@code 2^q} and added to the
-   * prediction.
+   * unsigned in an intra record and signed in a residual one, a residual record scaled by {@code 2^quantizer} and added
+   * to the prediction.
    *
    * @param prediction four times the predicted channels, or null for an intra record
    * @param record     the bytes holding the record
    * @param offset     the offset of the first luma node, after any motion bytes
    * @param luma       the luma grid width
    * @param chroma     the chroma grid width
-   * @param q          the quantizer, zero for an intra record
+   * @param quantizer  the quantizer, zero for an intra record
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -709,12 +718,12 @@ public final class Reconstruction {
     final int offset,
     final int luma,
     final int chroma,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out
   ) {
-    reduced(prediction, record, offset, luma, chroma, q, size, scratch, out, null);
+    reduced(prediction, record, offset, luma, chroma, quantizer, size, scratch, out, null);
   }
 
   /**
@@ -725,7 +734,7 @@ public final class Reconstruction {
    * @param offset     the offset of the first luma node, after any motion bytes
    * @param luma       the luma grid width
    * @param chroma     the chroma grid width
-   * @param q          the quantizer, zero for an intra record
+   * @param quantizer  the quantizer, zero for an intra record
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -738,43 +747,49 @@ public final class Reconstruction {
     final int offset,
     final int luma,
     final int chroma,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out,
     final @Nullable Score score
   ) {
     final int[] nodes = scratch.nodes;
-    for (int i = 0; i < luma * luma; i++) {
-      nodes[i] = prediction != null ? record[offset + i] : record[offset + i] & 0xFF;
+    for (int nodeIndex = 0; nodeIndex < luma * luma; nodeIndex++) {
+      nodes[nodeIndex] = prediction != null ? record[offset + nodeIndex] : record[offset + nodeIndex] & 0xFF;
     }
     final int chromaAt = offset + luma * luma;
-    for (int i = 0; i < CHROMA_PLANES * chroma * chroma; i++) {
-      nodes[CHROMA_NODES + i] = record[chromaAt + i];
+    for (int nodeIndex = 0; nodeIndex < CHROMA_PLANES * chroma * chroma; nodeIndex++) {
+      nodes[CHROMA_NODES + nodeIndex] = record[chromaAt + nodeIndex];
     }
     horizontal(nodes, 0, 1, luma, size, scratch.rows0);
     horizontal(nodes, CHROMA_NODES, CHROMA_PLANES, chroma, size, scratch.rows1);
     horizontal(nodes, CHROMA_NODES + 1, CHROMA_PLANES, chroma, size, scratch.rows2);
-    final int[] yv = scratch.line0;
-    final int[] co = scratch.line1;
-    final int[] cg = scratch.line2;
+    final int[] lumaLine = scratch.line0;
+    final int[] chromaOrangeLine = scratch.line1;
+    final int[] chromaGreenLine = scratch.line2;
     final int shift = shift(size);
     final int quarter = size * size;
-    for (int y = 0; y < size; y++) {
-      vertical(scratch.rows0, luma, size, y, yv);
-      vertical(scratch.rows1, chroma, size, y, co);
-      vertical(scratch.rows2, chroma, size, y, cg);
-      final int from = y * size * CHANNELS;
-      for (int x = 0; x < size; x++) {
-        final int at = from + x * CHANNELS;
+    for (int row = 0; row < size; row++) {
+      vertical(scratch.rows0, luma, size, row, lumaLine);
+      vertical(scratch.rows1, chroma, size, row, chromaOrangeLine);
+      vertical(scratch.rows2, chroma, size, row, chromaGreenLine);
+      final int from = row * size * CHANNELS;
+      for (int column = 0; column < size; column++) {
+        final int at = from + column * CHANNELS;
         if (prediction == null) {
-          out[at] = round(yv[x] + co[x] - cg[x], shift);
-          out[at + 1] = round(yv[x] + cg[x], shift);
-          out[at + 2] = round(yv[x] - co[x] - cg[x], shift);
+          out[at] = round(lumaLine[column] + chromaOrangeLine[column] - chromaGreenLine[column], shift);
+          out[at + 1] = round(lumaLine[column] + chromaGreenLine[column], shift);
+          out[at + 2] = round(lumaLine[column] - chromaOrangeLine[column] - chromaGreenLine[column], shift);
         } else {
-          out[at] = round(prediction[at] * quarter + ((yv[x] + co[x] - cg[x]) << q), shift);
-          out[at + 1] = round(prediction[at + 1] * quarter + ((yv[x] + cg[x]) << q), shift);
-          out[at + 2] = round(prediction[at + 2] * quarter + ((yv[x] - co[x] - cg[x]) << q), shift);
+          out[at] = round(
+            prediction[at] * quarter + ((lumaLine[column] + chromaOrangeLine[column] - chromaGreenLine[column]) << quantizer),
+            shift
+          );
+          out[at + 1] = round(prediction[at + 1] * quarter + ((lumaLine[column] + chromaGreenLine[column]) << quantizer), shift);
+          out[at + 2] = round(
+            prediction[at + 2] * quarter + ((lumaLine[column] - chromaOrangeLine[column] - chromaGreenLine[column]) << quantizer),
+            shift
+          );
         }
       }
       if (score != null && !score.row(out, from, size)) {
@@ -791,7 +806,7 @@ public final class Reconstruction {
    * @param record     the bytes holding the record
    * @param body       the offset of the first body byte
    * @param kind       the class, 0 to 8
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -801,12 +816,12 @@ public final class Reconstruction {
     final byte[] record,
     final int body,
     final int kind,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out
   ) {
-    compact(prediction, record, body, kind, q, size, scratch, out, null);
+    compact(prediction, record, body, kind, quantizer, size, scratch, out, null);
   }
 
   /**
@@ -816,7 +831,7 @@ public final class Reconstruction {
    * @param record     the bytes holding the record
    * @param body       the offset of the first body byte
    * @param kind       the class, 0 to 8
-   * @param q          the quantizer
+   * @param quantizer  the quantizer
    * @param size       the block size
    * @param scratch    the scratch space
    * @param out        the reconstructed channels
@@ -828,7 +843,7 @@ public final class Reconstruction {
     final byte[] record,
     final int body,
     final int kind,
-    final int q,
+    final int quantizer,
     final int size,
     final Scratch scratch,
     final int[] out,
@@ -837,14 +852,14 @@ public final class Reconstruction {
     if (kind == CompactRecord.GAIN_BIAS) {
       // p * (1 + gain / 64) + bias, scaled by 256: four times the prediction times (64 + gain), plus 256 times the bias
       final int gain = GAIN_UNIT + record[body];
-      final int by = record[body + 1];
-      final int bco = record[body + 2];
-      final int bcg = record[body + 3];
-      final int red = (by + bco - bcg) << GAIN_SHIFT;
-      final int green = (by + bcg) << GAIN_SHIFT;
-      final int blue = (by - bco - bcg) << GAIN_SHIFT;
-      for (int y = 0; y < size; y++) {
-        final int from = y * size * CHANNELS;
+      final int biasLuma = record[body + 1];
+      final int biasChromaOrange = record[body + 2];
+      final int biasChromaGreen = record[body + 3];
+      final int red = (biasLuma + biasChromaOrange - biasChromaGreen) << GAIN_SHIFT;
+      final int green = (biasLuma + biasChromaGreen) << GAIN_SHIFT;
+      final int blue = (biasLuma - biasChromaOrange - biasChromaGreen) << GAIN_SHIFT;
+      for (int row = 0; row < size; row++) {
+        final int from = row * size * CHANNELS;
         for (int at = from; at < from + size * CHANNELS; at += CHANNELS) {
           out[at] = round(prediction[at] * gain + red, GAIN_SHIFT);
           out[at + 1] = round(prediction[at + 1] * gain + green, GAIN_SHIFT);
@@ -858,11 +873,11 @@ public final class Reconstruction {
     }
     if (kind == CompactRecord.DC_Y) {
       // four times the prediction plus four times the offset
-      final int dc = (record[body] << q) * PREDICTION_SCALE;
-      for (int y = 0; y < size; y++) {
-        final int from = y * size * CHANNELS;
-        for (int i = from; i < from + size * CHANNELS; i++) {
-          out[i] = round(prediction[i] + dc, PREDICTION_SHIFT);
+      final int dc = (record[body] << quantizer) * PREDICTION_SCALE;
+      for (int row = 0; row < size; row++) {
+        final int from = row * size * CHANNELS;
+        for (int offset = from; offset < from + size * CHANNELS; offset++) {
+          out[offset] = round(prediction[offset] + dc, PREDICTION_SHIFT);
         }
         if (score != null && !score.row(out, from, size)) {
           return false;
@@ -872,37 +887,37 @@ public final class Reconstruction {
     }
     final int[] luma = scratch.line0;
     final boolean low2 = kind == CompactRecord.LOW2;
-    final int co;
-    final int cg;
+    final int chromaOrange;
+    final int chromaGreen;
     final int grid;
     if (low2) {
-      co = record[body + 3];
-      cg = record[body + 4];
+      chromaOrange = record[body + 3];
+      chromaGreen = record[body + 4];
       grid = 0;
     } else {
-      co = chromaOffset(record, body, kind, 0);
-      cg = chromaOffset(record, body, kind, 1);
+      chromaOrange = chromaOffset(record, body, kind, 0);
+      chromaGreen = chromaOffset(record, body, kind, 1);
       grid = nodes(record, body, kind, scratch.nodes);
       horizontal(scratch.nodes, 0, 1, grid, size, scratch.rows0);
     }
     final int shift = shift(size);
     final int quarter = size * size;
     final int scale = PREDICTION_SCALE * size * size;
-    final int red = ((co - cg) * scale) << q;
-    final int green = (cg * scale) << q;
-    final int blue = (-(co + cg) * scale) << q;
-    if (!low2 && co == 0 && cg == 0) {
+    final int red = ((chromaOrange - chromaGreen) * scale) << quantizer;
+    final int green = (chromaGreen * scale) << quantizer;
+    final int blue = (-(chromaOrange + chromaGreen) * scale) << quantizer;
+    if (!low2 && chromaOrange == 0 && chromaGreen == 0) {
       // no chroma, the luma-only class among them: every channel adds the same interpolated luma
       final int half = 1 << (shift - 1);
-      for (int y = 0; y < size; y++) {
-        vertical(scratch.rows0, grid, size, y, luma);
-        final int from = y * size * CHANNELS;
-        for (int x = 0; x < size; x++) {
-          final int at = from + x * CHANNELS;
-          final int ys = (luma[x] << q) + half;
-          out[at] = Math.min(Math.max((prediction[at] * quarter + ys) >> shift, 0), MAX_CHANNEL);
-          out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + ys) >> shift, 0), MAX_CHANNEL);
-          out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + ys) >> shift, 0), MAX_CHANNEL);
+      for (int row = 0; row < size; row++) {
+        vertical(scratch.rows0, grid, size, row, luma);
+        final int from = row * size * CHANNELS;
+        for (int column = 0; column < size; column++) {
+          final int at = from + column * CHANNELS;
+          final int scaledLuma = (luma[column] << quantizer) + half;
+          out[at] = Math.min(Math.max((prediction[at] * quarter + scaledLuma) >> shift, 0), MAX_CHANNEL);
+          out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaledLuma) >> shift, 0), MAX_CHANNEL);
+          out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaledLuma) >> shift, 0), MAX_CHANNEL);
         }
         if (score != null && !score.row(out, from, size)) {
           return false;
@@ -910,25 +925,26 @@ public final class Reconstruction {
       }
       return true;
     }
-    for (int y = 0; y < size; y++) {
+    for (int row = 0; row < size; row++) {
       if (low2) {
-        // (dc + gx * axis[x] + gy * axis[y]) * size, with axis[i] = (2 i + 1 - size) / size, times 4 size
+        // (dc + gradientX * axis[column] + gradientY * axis[row]) * size, with axis[i] = (2 i + 1 - size) / size,
+        // times 4 size
         final int dc = record[body] * size;
-        final int gx = record[body + 1];
-        final int gy = record[body + 2];
-        for (int x = 0; x < size; x++) {
-          luma[x] = (dc + gx * (2 * x + 1 - size) + gy * (2 * y + 1 - size)) * PREDICTION_SCALE * size;
+        final int gradientX = record[body + 1];
+        final int gradientY = record[body + 2];
+        for (int column = 0; column < size; column++) {
+          luma[column] = (dc + gradientX * (2 * column + 1 - size) + gradientY * (2 * row + 1 - size)) * PREDICTION_SCALE * size;
         }
       } else {
-        vertical(scratch.rows0, grid, size, y, luma);
+        vertical(scratch.rows0, grid, size, row, luma);
       }
-      final int from = y * size * CHANNELS;
-      for (int x = 0; x < size; x++) {
-        final int at = from + x * CHANNELS;
-        final int ys = luma[x] << q;
-        out[at] = round(prediction[at] * quarter + ys + red, shift);
-        out[at + 1] = round(prediction[at + 1] * quarter + ys + green, shift);
-        out[at + 2] = round(prediction[at + 2] * quarter + ys + blue, shift);
+      final int from = row * size * CHANNELS;
+      for (int column = 0; column < size; column++) {
+        final int at = from + column * CHANNELS;
+        final int scaledLuma = luma[column] << quantizer;
+        out[at] = round(prediction[at] * quarter + scaledLuma + red, shift);
+        out[at + 1] = round(prediction[at + 1] * quarter + scaledLuma + green, shift);
+        out[at + 2] = round(prediction[at + 2] * quarter + scaledLuma + blue, shift);
       }
       if (score != null && !score.row(out, from, size)) {
         return false;
@@ -955,21 +971,21 @@ public final class Reconstruction {
   private static int nodes(final byte[] record, final int body, final int kind, final int[] nodes) {
     return switch (kind) {
       case CompactRecord.GRID2_YC -> {
-        for (int i = 0; i < SMALL_GRID * SMALL_GRID; i++) {
-          nodes[i] = record[body + i];
+        for (int nodeIndex = 0; nodeIndex < SMALL_GRID * SMALL_GRID; nodeIndex++) {
+          nodes[nodeIndex] = record[body + nodeIndex];
         }
         yield SMALL_GRID;
       }
       case CompactRecord.GRID4_N4_YC, CompactRecord.GRID4_N4_Y -> {
-        for (int i = 0; i < COMPACT_GRID * COMPACT_GRID; i++) {
-          final int packed = Byte.toUnsignedInt(record[body + i / NIBBLES_PER_BYTE]);
-          nodes[i] = signed((packed >> ((i % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK, NIBBLE_BITS);
+        for (int nodeIndex = 0; nodeIndex < COMPACT_GRID * COMPACT_GRID; nodeIndex++) {
+          final int packed = Byte.toUnsignedInt(record[body + nodeIndex / NIBBLES_PER_BYTE]);
+          nodes[nodeIndex] = signed((packed >> ((nodeIndex % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK, NIBBLE_BITS);
         }
         yield COMPACT_GRID;
       }
       case CompactRecord.GRID4_YC -> {
-        for (int i = 0; i < COMPACT_GRID * COMPACT_GRID; i++) {
-          nodes[i] = record[body + i];
+        for (int nodeIndex = 0; nodeIndex < COMPACT_GRID * COMPACT_GRID; nodeIndex++) {
+          nodes[nodeIndex] = record[body + nodeIndex];
         }
         yield COMPACT_GRID;
       }
@@ -978,18 +994,18 @@ public final class Reconstruction {
         final int dc = record[body];
         final int low = Byte.toUnsignedInt(record[body + 3]);
         final int ids = kind == CompactRecord.PQ64 ? low | (Byte.toUnsignedInt(record[body + 4]) << Byte.SIZE) : low;
-        for (int i = 0; i < COMPACT_GRID * COMPACT_GRID; i++) {
-          final int row = i / COMPACT_GRID;
-          final int column = i % COMPACT_GRID;
+        for (int nodeIndex = 0; nodeIndex < COMPACT_GRID * COMPACT_GRID; nodeIndex++) {
+          final int row = nodeIndex / COMPACT_GRID;
+          final int column = nodeIndex % COMPACT_GRID;
           final int book;
           if (kind == CompactRecord.VQ64) {
-            book = ResidualBooks.vq(ids, i);
+            book = ResidualBooks.vq(ids, nodeIndex);
           } else if (column < HALF_COLUMNS) {
             book = ResidualBooks.pq(0, ids & (ResidualBooks.VECTORS - 1), row * HALF_COLUMNS + column);
           } else {
             book = ResidualBooks.pq(1, ids >> BOOK_INDEX_BITS, row * HALF_COLUMNS + column - HALF_COLUMNS);
           }
-          nodes[i] = book + dc;
+          nodes[nodeIndex] = book + dc;
         }
         yield COMPACT_GRID;
       }

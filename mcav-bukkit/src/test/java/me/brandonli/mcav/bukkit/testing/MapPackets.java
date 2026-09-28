@@ -67,8 +67,8 @@ public final class MapPackets {
    *
    * @param packet the packet
    * @param mapId  the expected map id
-   * @param x      the expected x coordinate of the patch
-   * @param y      the expected y coordinate of the patch
+   * @param left   the expected x coordinate of the patch
+   * @param top    the expected y coordinate of the patch
    * @param width  the expected width of the patch
    * @param height the expected height of the patch
    * @param colors the expected colors of the patch
@@ -76,8 +76,8 @@ public final class MapPackets {
   public static void assertMapPacket(
     final ClientboundMapItemDataPacket packet,
     final int mapId,
-    final int x,
-    final int y,
+    final int left,
+    final int top,
     final int width,
     final int height,
     final byte[] colors
@@ -99,8 +99,8 @@ public final class MapPackets {
     assertEquals(0, scale, "scale");
     assertFalse(locked, "locked");
     assertFalse(hasDecorations, "decorations");
-    assertEquals(x, actualX, "x");
-    assertEquals(y, actualY, "y");
+    assertEquals(left, actualX, "x");
+    assertEquals(top, actualY, "y");
     assertEquals(width, actualWidth, "width");
     assertEquals(height, actualHeight, "height");
     assertArrayEquals(colors, actualColors, "colors");
@@ -115,12 +115,12 @@ public final class MapPackets {
    */
   public static void assertMapPacket(final ClientboundMapItemDataPacket packet, final MapTilePatch patch) {
     final int mapId = patch.getMapId();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     final byte[] colors = patch.getColors();
-    assertMapPacket(packet, mapId, x, y, width, height, colors);
+    assertMapPacket(packet, mapId, left, top, width, height, colors);
   }
 
   /**

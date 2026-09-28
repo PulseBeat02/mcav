@@ -34,8 +34,8 @@ final class PaletteFitTest {
 
   private static int[] block(final int[]... pixels) {
     final int[] source = new int[pixels.length * 3];
-    for (int i = 0; i < pixels.length; i++) {
-      System.arraycopy(pixels[i], 0, source, i * 3, 3);
+    for (int index = 0; index < pixels.length; index++) {
+      System.arraycopy(pixels[index], 0, source, index * 3, 3);
     }
     return source;
   }
@@ -89,12 +89,15 @@ final class PaletteFitTest {
     final int[] colors = new int[6];
     final byte[] selectors = new byte[4];
     PaletteFit.fit(source, 4, true, colors, selectors);
-    for (int e = 0; e < 2; e++) {
-      final int r = colors[e * 3] >> 3;
-      final int g = colors[e * 3 + 1] >> 2;
-      final int b = colors[e * 3 + 2] >> 3;
-      final int packed = (r << 11) | (g << 5) | b;
-      assertEquals((colors[e * 3] << 16) | (colors[e * 3 + 1] << 8) | colors[e * 3 + 2], Mcv2Format.unpack565(packed & 0xFF, packed >> 8));
+    for (int endpoint = 0; endpoint < 2; endpoint++) {
+      final int redBits = colors[endpoint * 3] >> 3;
+      final int greenBits = colors[endpoint * 3 + 1] >> 2;
+      final int blueBits = colors[endpoint * 3 + 2] >> 3;
+      final int packed = (redBits << 11) | (greenBits << 5) | blueBits;
+      assertEquals(
+        (colors[endpoint * 3] << 16) | (colors[endpoint * 3 + 1] << 8) | colors[endpoint * 3 + 2],
+        Mcv2Format.unpack565(packed & 0xFF, packed >> 8)
+      );
     }
     assertArrayEquals(new int[] { 8, 130, 74, 206, 4, 255 }, colors);
     assertArrayEquals(new byte[] { 0, 0, 1, 1 }, selectors);
@@ -109,14 +112,14 @@ final class PaletteFitTest {
     // columns: every row the same, alternating light and dark; rows: every row one colour
     for (int kind = 0; kind < 3; kind++) {
       final int[] source = new int[size * size * 3];
-      for (int y = 0; y < size; y++) {
-        for (int x = 0; x < size; x++) {
+      for (int row = 0; row < size; row++) {
+        for (int column = 0; column < size; column++) {
           final boolean bright = switch (kind) {
-            case 0 -> (x & 1) == 0;
-            case 1 -> (y & 2) == 0;
-            default -> ((x ^ y) & 1) == 0;
+            case 0 -> (column & 1) == 0;
+            case 1 -> (row & 2) == 0;
+            default -> ((column ^ row) & 1) == 0;
           };
-          System.arraycopy(bright ? light : dark, 0, source, (y * size + x) * 3, 3);
+          System.arraycopy(bright ? light : dark, 0, source, (row * size + column) * 3, 3);
         }
       }
       final float[] endpoints = new float[6];

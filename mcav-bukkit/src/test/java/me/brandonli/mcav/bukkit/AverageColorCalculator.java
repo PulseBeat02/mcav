@@ -106,9 +106,9 @@ public final class AverageColorCalculator {
     final long[] sums = new long[4];
     final int width = image.getWidth();
     final int height = image.getHeight();
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int argb = image.getRGB(x, y);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int argb = image.getRGB(column, row);
         final int alpha = (argb >>> 24) & 0xFF;
         if (alpha == 0) {
           continue;

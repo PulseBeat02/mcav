@@ -53,13 +53,13 @@ final class TreeReaderTest {
     UtilityClassAssertions.assertNotInstantiable(TreeReader.class);
   }
 
-  /** A full palette record of an 8x8 block whose selector at (x, y) is {@code bit(x, y)}. */
+  /** A full palette record of an 8x8 block whose selector at (column, row) is {@code bit(column, row)}. */
   private static byte[] palette(final IntBinaryOperator bit) {
     final byte[] record = new byte[6 + 8];
     System.arraycopy(ENDPOINTS, 0, record, 0, 6);
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
-        record[6 + y] |= (byte) (bit.applyAsInt(x, y) << x);
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        record[6 + row] |= (byte) (bit.applyAsInt(column, row) << column);
       }
     }
     return record;
@@ -86,8 +86,8 @@ final class TreeReaderTest {
     // a live stream of a picture whose width leaves a partial superblock column: a keyframe, then P frames
     final Mcv2Encoder encoder = new Mcv2Encoder(EncoderSettings.LIVE, ForkJoinPool.commonPool(), 2, false);
     final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
-    for (int i = 0; i < 4; i++) {
-      final Mcv2Frame frame = FrameParser.parse(encoder.encode(LiveEncoderTest.scene(100, 70, i, 3), 100, 70, i));
+    for (int index = 0; index < 4; index++) {
+      final Mcv2Frame frame = FrameParser.parse(encoder.encode(LiveEncoderTest.scene(100, 70, index, 3), 100, 70, index));
       assertEquals(TreeReader.roots(frame), TreeReader.roots(frame, workers));
     }
   }
@@ -112,20 +112,23 @@ final class TreeReaderTest {
   @Test
   void expandsPatternsAlongEitherAxis() throws Mcv2Exception {
     final PatternRecord columns = PatternRecord.expand(pattern(8, ENDPOINTS, 0, 0x0F).getRecord(), 0, 8, null, null);
-    assertArrayEquals(palette((x, y) -> x < 4 ? 1 : 0), TreeReader.fullPalette(columns, 8));
+    assertArrayEquals(palette((column, row) -> column < 4 ? 1 : 0), TreeReader.fullPalette(columns, 8));
     final PatternRecord rows = PatternRecord.expand(pattern(8, ENDPOINTS, 1, 0x0F).getRecord(), 0, 8, null, null);
-    assertArrayEquals(palette((x, y) -> y < 4 ? 1 : 0), TreeReader.fullPalette(rows, 8));
+    assertArrayEquals(palette((column, row) -> row < 4 ? 1 : 0), TreeReader.fullPalette(rows, 8));
   }
 
   @Test
   void findsTheRepeatingAxisRowsFirst() {
-    assertArrayEquals(pattern(8, ENDPOINTS, 0, 0x0F).getRecord(), TreeReader.patternRecord(palette((x, y) -> x < 4 ? 1 : 0), 8));
-    assertArrayEquals(pattern(8, ENDPOINTS, 1, 0x0F).getRecord(), TreeReader.patternRecord(palette((x, y) -> y < 4 ? 1 : 0), 8));
+    assertArrayEquals(
+      pattern(8, ENDPOINTS, 0, 0x0F).getRecord(),
+      TreeReader.patternRecord(palette((column, row) -> column < 4 ? 1 : 0), 8)
+    );
+    assertArrayEquals(pattern(8, ENDPOINTS, 1, 0x0F).getRecord(), TreeReader.patternRecord(palette((column, row) -> row < 4 ? 1 : 0), 8));
     // a uniform block repeats along both axes and is written as rows
-    assertArrayEquals(pattern(8, ENDPOINTS, 0, 0).getRecord(), TreeReader.patternRecord(palette((x, y) -> 0), 8));
-    assertNull(TreeReader.patternRecord(palette((x, y) -> (x + y) & 1), 8));
+    assertArrayEquals(pattern(8, ENDPOINTS, 0, 0).getRecord(), TreeReader.patternRecord(palette((column, row) -> 0), 8));
+    assertNull(TreeReader.patternRecord(palette((column, row) -> (column + row) & 1), 8));
     // the last row alone breaks the columns' repetition
-    assertNull(TreeReader.patternRecord(palette((x, y) -> y == 7 && x == 7 ? 1 : 0), 8));
+    assertNull(TreeReader.patternRecord(palette((column, row) -> row == 7 && column == 7 ? 1 : 0), 8));
   }
 
   @Test
@@ -157,13 +160,13 @@ final class TreeReaderTest {
 
   @Test
   void rewritesOnlyRepeatingPalettes() {
-    final TreeNode checker = TreeNode.leaf(Mcv2Format.MODE_PALETTE, 0, palette((x, y) -> (x + y) & 1));
+    final TreeNode checker = TreeNode.leaf(Mcv2Format.MODE_PALETTE, 0, palette((column, row) -> (column + row) & 1));
     assertSame(checker, TreeReader.withPatterns(checker, 8));
     final TreeNode solid = solid(1, 1, 1);
     assertSame(solid, TreeReader.withPatterns(solid, 8));
-    final TreeNode stripes = TreeNode.leaf(Mcv2Format.MODE_PALETTE, 0, palette((x, y) -> y & 1));
+    final TreeNode stripes = TreeNode.leaf(Mcv2Format.MODE_PALETTE, 0, palette((column, row) -> row & 1));
     assertEquals(
-      TreeNode.leaf(Mcv2Format.MODE_PATTERN, 0, TreeReader.patternRecord(palette((x, y) -> y & 1), 8)),
+      TreeNode.leaf(Mcv2Format.MODE_PATTERN, 0, TreeReader.patternRecord(palette((column, row) -> row & 1), 8)),
       TreeReader.withPatterns(stripes, 8)
     );
   }

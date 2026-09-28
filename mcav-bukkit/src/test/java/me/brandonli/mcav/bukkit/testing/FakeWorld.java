@@ -53,10 +53,10 @@ public final class FakeWorld {
     this.spawnLocations = new CopyOnWriteArrayList<>();
     this.blocks = new ConcurrentHashMap<>();
     when(this.world.getBlockData(anyInt(), anyInt(), anyInt())).thenAnswer(invocation -> {
-      final int x = invocation.getArgument(0);
-      final int y = invocation.getArgument(1);
-      final int z = invocation.getArgument(2);
-      return this.getOriginalBlock(x, y, z);
+      final int blockX = invocation.getArgument(0);
+      final int blockY = invocation.getArgument(1);
+      final int blockZ = invocation.getArgument(2);
+      return this.getOriginalBlock(blockX, blockY, blockZ);
     });
     when(this.world.spawn(any(Location.class), eq(TextDisplay.class), ArgumentMatchers.<Consumer<? super TextDisplay>>any())).thenAnswer(
       invocation -> {
@@ -95,13 +95,13 @@ public final class FakeWorld {
   /**
    * Gets the block data mock of a block, which is the same for every call with the same coordinates.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
+   * @param blockX the x coordinate
+   * @param blockY the y coordinate
+   * @param blockZ the z coordinate
    * @return the block data
    */
-  public BlockData getOriginalBlock(final int x, final int y, final int z) {
-    final String key = x + "," + y + "," + z;
+  public BlockData getOriginalBlock(final int blockX, final int blockY, final int blockZ) {
+    final String key = blockX + "," + blockY + "," + blockZ;
     return this.blocks.computeIfAbsent(key, name -> mock(BlockData.class, "block " + name));
   }
 

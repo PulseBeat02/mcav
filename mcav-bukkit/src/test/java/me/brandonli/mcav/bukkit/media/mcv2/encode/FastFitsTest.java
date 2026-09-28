@@ -38,11 +38,11 @@ final class FastFitsTest {
   private static int[] cells(final int size) {
     final int[] source = new int[size * size * 3];
     final int cell = size / 4;
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final int index = (y / cell) * 4 + x / cell;
-        for (int c = 0; c < 3; c++) {
-          source[(y * size + x) * 3 + c] = index * (c + 1);
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int index = (row / cell) * 4 + column / cell;
+        for (int channel = 0; channel < 3; channel++) {
+          source[(row * size + column) * 3 + channel] = index * (channel + 1);
         }
       }
     }
@@ -55,9 +55,9 @@ final class FastFitsTest {
     final int[] sums = new int[48];
     FastFits.cellSums(cells(size), size, sums);
     final int area = (size / 4) * (size / 4);
-    for (int i = 0; i < 16; i++) {
-      assertEquals(i * area, sums[i * 3]);
-      assertEquals(3 * i * area, sums[i * 3 + 2]);
+    for (int node = 0; node < 16; node++) {
+      assertEquals(node * area, sums[node * 3]);
+      assertEquals(3 * node * area, sums[node * 3 + 2]);
     }
     final float[] four = new float[48];
     FastFits.grid(sums, size, 4, four);
@@ -79,14 +79,14 @@ final class FastFitsTest {
     // the source is the prediction plus the cell index on every channel: luma (r + 2 g + b) / 4 rises by the index
     final int[] prediction = new int[size * size * 3];
     final int[] source = cells(size);
-    for (int i = 0; i < source.length; i++) {
-      source[i] = 100 + source[i] / ((i % 3) + 1);
-      prediction[i] = 400;
+    for (int index = 0; index < source.length; index++) {
+      source[index] = 100 + source[index] / ((index % 3) + 1);
+      prediction[index] = 400;
     }
     final float[] nodes = new float[16];
     FastFits.lumaResidual(source, prediction, size, new int[48], nodes);
-    for (int i = 0; i < 16; i++) {
-      assertEquals(i, nodes[i], 1e-6);
+    for (int node = 0; node < 16; node++) {
+      assertEquals(node, nodes[node], 1e-6);
     }
   }
 
@@ -94,11 +94,11 @@ final class FastFitsTest {
   @ValueSource(ints = { 8, 16, 32 })
   void clustersTwoColours(final int size) {
     final int[] source = new int[size * size * 3];
-    for (int i = 0; i < size * size; i++) {
-      final boolean bright = i % size >= size / 2;
-      source[i * 3] = bright ? 200 : 10;
-      source[i * 3 + 1] = bright ? 210 : 20;
-      source[i * 3 + 2] = bright ? 220 : 30;
+    for (int pixel = 0; pixel < size * size; pixel++) {
+      final boolean bright = pixel % size >= size / 2;
+      source[pixel * 3] = bright ? 200 : 10;
+      source[pixel * 3 + 1] = bright ? 210 : 20;
+      source[pixel * 3 + 2] = bright ? 220 : 30;
     }
     final float[] endpoints = new float[6];
     FastFits.cluster(source, size, new long[8], endpoints);

@@ -261,9 +261,9 @@ public final class TransportPages {
     int held = 0;
     int out = 0;
     // the header symbols carry fewer than HEADER_BYTES * 8 + symbolBits bits, so exactly HEADER_BYTES bytes fill
-    for (int i = 0; i < headerSymbols; i++) {
+    for (int symbolIndex = 0; symbolIndex < headerSymbols; symbolIndex++) {
       // the reference keeps only the low symbolBits bits of every header symbol
-      buffer |= (long) (symbols[i] & ((1 << symbolBits) - 1)) << held;
+      buffer |= (long) (symbols[symbolIndex] & ((1 << symbolBits) - 1)) << held;
       held += symbolBits;
       while (held >= Byte.SIZE) {
         header[out++] = (byte) buffer;

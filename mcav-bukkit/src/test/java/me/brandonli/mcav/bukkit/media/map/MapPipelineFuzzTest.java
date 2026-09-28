@@ -72,9 +72,9 @@ final class MapPipelineFuzzTest {
       final int right = data.consumeInt(left, width - 1);
       final int bottom = data.consumeInt(top, height - 1);
       final byte color = data.consumeByte();
-      for (int y = top; y <= bottom; y++) {
-        for (int x = left; x <= right; x++) {
-          frame[y * width + x] = color;
+      for (int row = top; row <= bottom; row++) {
+        for (int column = left; column <= right; column++) {
+          frame[row * width + column] = color;
         }
       }
     }
@@ -92,18 +92,21 @@ final class MapPipelineFuzzTest {
       final boolean inWall = index >= 0 && index < mapCount;
       assertTrue(inWall, () -> "a patch for map " + mapId + ", outside of the wall");
       final MapRegion region = layout.getRegion((int) index);
-      final int x = patch.getX();
-      final int y = patch.getY();
+      final int left = patch.getX();
+      final int top = patch.getY();
       final int patchWidth = patch.getWidth();
       final int patchHeight = patch.getHeight();
       final int regionX = region.getLocalX();
       final int regionY = region.getLocalY();
       final boolean inside =
-        x >= regionX && y >= regionY && x + patchWidth <= regionX + region.getWidth() && y + patchHeight <= regionY + region.getHeight();
+        left >= regionX &&
+        top >= regionY &&
+        left + patchWidth <= regionX + region.getWidth() &&
+        top + patchHeight <= regionY + region.getHeight();
       assertTrue(inside, "a patch outside of the part of its map the picture covers");
       final byte[] colors = patch.getColors();
-      final int sourceX = region.getSourceX() + x - regionX;
-      final int sourceY = region.getSourceY() + y - regionY;
+      final int sourceX = region.getSourceX() + left - regionX;
+      final int sourceY = region.getSourceY() + top - regionY;
       for (int row = 0; row < patchHeight; row++) {
         for (int column = 0; column < patchWidth; column++) {
           final byte expected = frame[(sourceY + row) * imageWidth + sourceX + column];

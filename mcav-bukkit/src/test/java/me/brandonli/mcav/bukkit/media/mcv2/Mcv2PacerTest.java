@@ -125,7 +125,7 @@ final class Mcv2PacerTest {
 
     /** Frames until one causes a change, which it returns; the clock is then at that frame. */
     Mcv2Pacer.Change until(final double milliseconds, final int limit) {
-      for (int i = 0; i < limit; i++) {
+      for (int frameNumber = 0; frameNumber < limit; frameNumber++) {
         final Mcv2Pacer.Change change = this.frame(milliseconds);
         if (change != null) {
           return change;
@@ -221,8 +221,8 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
-    for (int i = 0; i < 200; i++) {
-      assertNull(pacer.encoded(1000, true, driver.now + (i * SECOND) / 60));
+    for (int frameNumber = 0; frameNumber < 200; frameNumber++) {
+      assertNull(pacer.encoded(1000, true, driver.now + (frameNumber * SECOND) / 60));
     }
     assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
   }
@@ -245,8 +245,8 @@ final class Mcv2PacerTest {
     );
     // every other frame is encoded now
     int encoded = 0;
-    for (int i = 1; i <= 10; i++) {
-      pacer.arrive(driver.now + (i * SECOND) / 60);
+    for (int frameNumber = 1; frameNumber <= 10; frameNumber++) {
+      pacer.arrive(driver.now + (frameNumber * SECOND) / 60);
       encoded += pacer.isEncoded() ? 1 : 0;
     }
     assertEquals(5, encoded);
@@ -517,7 +517,7 @@ final class Mcv2PacerTest {
     // 20 ms per frame at 50 fps is not over the 20 ms a frame has
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 0);
-    for (int i = 0; i < 500; i++) {
+    for (int frameNumber = 0; frameNumber < 500; frameNumber++) {
       assertNull(clock.frame(20));
     }
     assertEquals(pacer.getLadder().getFirst(), pacer.getRung());
@@ -538,10 +538,10 @@ final class Mcv2PacerTest {
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 3), clock.until(40, 1000).to());
     final boolean[] encoded = new boolean[6];
-    for (int i = 0; i < encoded.length; i++) {
+    for (int frameNumber = 0; frameNumber < encoded.length; frameNumber++) {
       clock.now += FRAME_50;
       pacer.arrive(clock.now);
-      encoded[i] = pacer.isEncoded();
+      encoded[frameNumber] = pacer.isEncoded();
     }
     assertArrayEquals(new boolean[] { true, false, false, true, false, false }, encoded);
   }
@@ -552,7 +552,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL), false);
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 4), clock.until(2000, 1000).to());
-    for (int i = 0; i < 500; i++) {
+    for (int frameNumber = 0; frameNumber < 500; frameNumber++) {
       assertNull(clock.frame(2000));
     }
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 4), pacer.getRung());
@@ -608,7 +608,7 @@ final class Mcv2PacerTest {
     clock.until(30, 1000);
     assertEquals(pacer.getLadder().getFirst(), clock.until(10, 2000).to());
     // the top's first encoded frame starts its hold; 250 frames later is exactly five seconds
-    for (int i = 0; i < 251; i++) {
+    for (int frameNumber = 0; frameNumber < 251; frameNumber++) {
       assertNull(clock.frame(10));
     }
     final Mcv2Pacer.Change left = clock.until(61, 1000);

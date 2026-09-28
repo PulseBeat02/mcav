@@ -214,12 +214,12 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   private static void setCoverage(final BitSet pixels, final MapTilePatch patch, final boolean covered) {
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     for (int row = 0; row < height; row++) {
-      final int start = (y + row) * MapLayout.MAP_SIZE + x;
+      final int start = (top + row) * MapLayout.MAP_SIZE + left;
       pixels.set(start, start + width, covered);
     }
   }
@@ -232,14 +232,14 @@ public class CompressedMapResult implements DitherResultStep {
     final int size = MapLayout.MAP_SIZE;
     int first = pixels.nextSetBit(0);
     while (first >= 0) {
-      final int x = first % size;
-      final int y = first / size;
+      final int left = first % size;
+      final int top = first / size;
       final int nextClear = pixels.nextClearBit(first);
-      final int right = Math.min(nextClear, (y + 1) * size);
+      final int right = Math.min(nextClear, (top + 1) * size);
       final int width = right - first;
       int height = 1;
-      while (y + height < size) {
-        final int nextRowStart = (y + height) * size + x;
+      while (top + height < size) {
+        final int nextRowStart = (top + height) * size + left;
         final int nextRowClear = pixels.nextClearBit(nextRowStart);
         if (nextRowClear < nextRowStart + width) {
           break;
@@ -247,7 +247,7 @@ public class CompressedMapResult implements DitherResultStep {
         height++;
       }
       final byte[] transparent = new byte[width * height];
-      final MapTilePatch clear = new MapTilePatch(mapId, x, y, width, height, transparent);
+      final MapTilePatch clear = new MapTilePatch(mapId, left, top, width, height, transparent);
       clears.add(clear);
       setCoverage(pixels, clear, false);
       first = pixels.nextSetBit(0);

@@ -499,10 +499,10 @@ public final class Mcv2Format {
    */
   public static int unpack565(final int low, final int high) {
     final int value = (low & 0xFF) | ((high & 0xFF) << 8);
-    final int r = (value >> 11) & 31;
-    final int g = (value >> 5) & 63;
-    final int b = value & 31;
-    return (((r << 3) | (r >> 2)) << 16) | (((g << 2) | (g >> 4)) << 8) | ((b << 3) | (b >> 2));
+    final int redBits = (value >> 11) & 31;
+    final int greenBits = (value >> 5) & 63;
+    final int blueBits = value & 31;
+    return (((redBits << 3) | (redBits >> 2)) << 16) | (((greenBits << 2) | (greenBits >> 4)) << 8) | ((blueBits << 3) | (blueBits >> 2));
   }
 
   /**

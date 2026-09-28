@@ -51,8 +51,8 @@ final class ReconstructionPropertyTest {
 
   private static byte[] record(final Random random, final int length) {
     final byte[] record = new byte[length];
-    for (int i = 0; i < length; i++) {
-      record[i] = extremeByte(random);
+    for (int index = 0; index < length; index++) {
+      record[index] = extremeByte(random);
     }
     return record;
   }
@@ -60,8 +60,8 @@ final class ReconstructionPropertyTest {
   /** Four times a predicted channel: a multiple of a quarter from 0 to 255, biased to the ends. */
   private static int[] prediction(final Random random, final int size) {
     final int[] prediction = new int[size * size * 3];
-    for (int i = 0; i < prediction.length; i++) {
-      prediction[i] = switch (random.nextInt(3)) {
+    for (int index = 0; index < prediction.length; index++) {
+      prediction[index] = switch (random.nextInt(3)) {
         case 0 -> 0;
         case 1 -> 1020;
         default -> random.nextInt(1021);
@@ -90,7 +90,7 @@ final class ReconstructionPropertyTest {
   void residualGridsMatchTheOracle(
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
     @ForAll @IntRange(min = 0, max = 3) final int gridIndex,
-    @ForAll @IntRange(min = 0, max = 7) final int q,
+    @ForAll @IntRange(min = 0, max = 7) final int quantizer,
     @ForAll final long seed
   ) {
     final int size = SIZES[sizeIndex];
@@ -100,8 +100,8 @@ final class ReconstructionPropertyTest {
     final int[] prediction = prediction(random, size);
     final int[] expected = new int[size * size * 3];
     final int[] actual = new int[size * size * 3];
-    ReconstructionOracle.residualGrid(prediction, record, 2, grid, q, size, new float[3 * 64], expected);
-    Reconstruction.residualGrid(prediction, record, 2, grid, q, size, new Reconstruction.Scratch(), actual);
+    ReconstructionOracle.residualGrid(prediction, record, 2, grid, quantizer, size, new float[3 * 64], expected);
+    Reconstruction.residualGrid(prediction, record, 2, grid, quantizer, size, new Reconstruction.Scratch(), actual);
     assertArrayEquals(expected, actual);
   }
 
@@ -110,7 +110,7 @@ final class ReconstructionPropertyTest {
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
     @ForAll final boolean fine,
     @ForAll final boolean residual,
-    @ForAll @IntRange(min = 0, max = 7) final int q,
+    @ForAll @IntRange(min = 0, max = 7) final int residualQuantizer,
     @ForAll final long seed
   ) {
     final int size = SIZES[sizeIndex];
@@ -120,7 +120,7 @@ final class ReconstructionPropertyTest {
     final byte[] record = record(random, 2 + luma * luma + 2 * chroma * chroma);
     final int[] prediction = residual ? prediction(random, size) : null;
     final int offset = residual ? 2 : 0;
-    final int quantizer = residual ? q : 0;
+    final int quantizer = residual ? residualQuantizer : 0;
     final int[] expected = new int[size * size * 3];
     final int[] actual = new int[size * size * 3];
     ReconstructionOracle.reduced(prediction, record, offset, luma, chroma, quantizer, size, new float[3 * 64], expected);
@@ -132,7 +132,7 @@ final class ReconstructionPropertyTest {
   void compactRecordsMatchTheOracle(
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
     @ForAll @IntRange(min = 0, max = 8) final int kind,
-    @ForAll @IntRange(min = 0, max = 7) final int q,
+    @ForAll @IntRange(min = 0, max = 7) final int quantizer,
     @ForAll final long seed
   ) {
     final int size = SIZES[sizeIndex];
@@ -148,8 +148,8 @@ final class ReconstructionPropertyTest {
     final int[] prediction = prediction(random, size);
     final int[] expected = new int[size * size * 3];
     final int[] actual = new int[size * size * 3];
-    ReconstructionOracle.compact(prediction, record, 0, kind, q, size, new float[3 * 64], expected);
-    Reconstruction.compact(prediction, record, 0, kind, q, size, new Reconstruction.Scratch(), actual);
+    ReconstructionOracle.compact(prediction, record, 0, kind, quantizer, size, new float[3 * 64], expected);
+    Reconstruction.compact(prediction, record, 0, kind, quantizer, size, new Reconstruction.Scratch(), actual);
     assertArrayEquals(expected, actual);
   }
 
@@ -173,14 +173,14 @@ final class ReconstructionPropertyTest {
   /** The source a measure compares with, and the same measure's plain distortion of a reconstruction. */
   private static long distortion(final int[] source, final int[] out) {
     long sum = 0;
-    for (int i = 0; i < source.length; i += 3) {
-      final int dr = source[i] - out[i];
-      final int dg = source[i + 1] - out[i + 1];
-      final int db = source[i + 2] - out[i + 2];
-      final int luma = dr + 2 * dg + db;
-      final int co = dr - db;
-      final int cg = 2 * dg - dr - db;
-      sum += 4L * luma * luma + 4L * co * co + (long) cg * cg;
+    for (int offset = 0; offset < source.length; offset += 3) {
+      final int redDifference = source[offset] - out[offset];
+      final int greenDifference = source[offset + 1] - out[offset + 1];
+      final int blueDifference = source[offset + 2] - out[offset + 2];
+      final int luma = redDifference + 2 * greenDifference + blueDifference;
+      final int chromaOrange = redDifference - blueDifference;
+      final int chromaGreen = 2 * greenDifference - redDifference - blueDifference;
+      sum += 4L * luma * luma + 4L * chromaOrange * chromaOrange + (long) chromaGreen * chromaGreen;
     }
     return sum;
   }
@@ -191,8 +191,8 @@ final class ReconstructionPropertyTest {
    */
   private static void assertMeasured(final Random random, final int size, final Kernel kernel) {
     final int[] source = new int[size * size * 3];
-    for (int i = 0; i < source.length; i++) {
-      source[i] = random.nextInt(256);
+    for (int index = 0; index < source.length; index++) {
+      source[index] = random.nextInt(256);
     }
     final double rate = random.nextInt(4000) / 7.0;
     final Reconstruction.Score score = new Reconstruction.Score();
@@ -216,7 +216,7 @@ final class ReconstructionPropertyTest {
   void measuredKernelsStopOnlyWhenTheyCannotWin(
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
     @ForAll @IntRange(min = 0, max = 8) final int kernel,
-    @ForAll @IntRange(min = 0, max = 3) final int q,
+    @ForAll @IntRange(min = 0, max = 3) final int quantizer,
     @ForAll final long seed
   ) {
     final int size = SIZES[sizeIndex];
@@ -224,7 +224,7 @@ final class ReconstructionPropertyTest {
     final byte[] record = record(random, 2 + 3 * 64);
     final int[] prediction = prediction(random, size);
     final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
-    final int grid = 1 << (q & 3);
+    final int grid = 1 << (quantizer & 3);
     final int compact = new int[] { 0, 1, 2, 3, 4, 7, 8, 5, 6 }[random.nextInt(9)];
     final int color = random.nextInt(1 << 24);
     if (compact == CompactRecord.VQ64) {
@@ -237,11 +237,21 @@ final class ReconstructionPropertyTest {
       case 1 -> (out, score) -> Reconstruction.solid(color, size, out, score);
       case 2 -> (out, score) -> Reconstruction.palette(record, 0, size, out, score);
       case 3 -> (out, score) -> Reconstruction.intraGrid(record, 0, grid, size, scratch, out, score);
-      case 4 -> (out, score) -> Reconstruction.residualGrid(prediction, record, 2, grid, q, size, scratch, out, score);
+      case 4 -> (out, score) -> Reconstruction.residualGrid(prediction, record, 2, grid, quantizer, size, scratch, out, score);
       case 5 -> (out, score) -> Reconstruction.reduced(null, record, 0, 4, 1, 0, size, scratch, out, score);
-      case 6 -> (out, score) -> Reconstruction.reduced(prediction, record, 2, 8, 2, q, size, scratch, out, score);
+      case 6 -> (out, score) -> Reconstruction.reduced(prediction, record, 2, 8, 2, quantizer, size, scratch, out, score);
       default -> (out, score) ->
-        Reconstruction.compact(prediction, record, 0, compact, compact == CompactRecord.GAIN_BIAS ? 0 : q, size, scratch, out, score);
+        Reconstruction.compact(
+          prediction,
+          record,
+          0,
+          compact,
+          compact == CompactRecord.GAIN_BIAS ? 0 : quantizer,
+          size,
+          scratch,
+          out,
+          score
+        );
     };
     assertMeasured(random, size, run);
   }

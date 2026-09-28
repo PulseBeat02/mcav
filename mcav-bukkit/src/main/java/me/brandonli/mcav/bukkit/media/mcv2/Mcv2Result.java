@@ -685,9 +685,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   static byte[] rgb(final int[] argb, final int pixels) {
     final byte[] rgb = new byte[pixels * Mcv2Format.CHANNELS];
-    for (int i = 0; i < pixels; i++) {
-      final int pixel = argb[i];
-      final int at = i * Mcv2Format.CHANNELS;
+    for (int pixelIndex = 0; pixelIndex < pixels; pixelIndex++) {
+      final int pixel = argb[pixelIndex];
+      final int at = pixelIndex * Mcv2Format.CHANNELS;
       rgb[at] = (byte) (pixel >> 16);
       rgb[at + 1] = (byte) (pixel >> 8);
       rgb[at + 2] = (byte) pixel;

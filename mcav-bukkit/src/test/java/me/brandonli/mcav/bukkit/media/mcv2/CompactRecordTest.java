@@ -64,9 +64,9 @@ final class CompactRecordTest {
     "0500000040, 0, 0, vector index 64",
     "060000000010, 0, 0, product padding",
   })
-  void rejectsBrokenRecords(final String hex, final int offset, final int q, final String name) {
+  void rejectsBrokenRecords(final String hex, final int offset, final int quantizer, final String name) {
     final byte[] data = HexFormat.of().parseHex(hex);
-    assertThrows(Mcv2Exception.class, () -> CompactRecord.parse(data, offset, q), name);
+    assertThrows(Mcv2Exception.class, () -> CompactRecord.parse(data, offset, quantizer), name);
   }
 
   @Test

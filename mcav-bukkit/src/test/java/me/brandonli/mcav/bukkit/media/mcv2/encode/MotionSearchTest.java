@@ -58,31 +58,38 @@ final class MotionSearchTest {
   /** A smooth picture whose values are all even, so every half-pixel average is an integer. */
   private static byte[] picture() {
     final byte[] rgb = new byte[WIDTH * HEIGHT * 3];
-    for (int y = 0; y < HEIGHT; y++) {
-      for (int x = 0; x < WIDTH; x++) {
-        final int at = (y * WIDTH + x) * 3;
-        rgb[at] = (byte) (2 * (int) (60 + 50 * Math.sin(x / 9.0) + 10 * Math.cos(y / 13.0)));
-        rgb[at + 1] = (byte) (2 * (int) (60 + 40 * Math.cos(y / 8.0) + 15 * Math.sin(x / 11.0)));
-        rgb[at + 2] = (byte) (2 * (int) (60 + 30 * Math.sin((x + y) / 10.0)));
+    for (int row = 0; row < HEIGHT; row++) {
+      for (int column = 0; column < WIDTH; column++) {
+        final int at = (row * WIDTH + column) * 3;
+        rgb[at] = (byte) (2 * (int) (60 + 50 * Math.sin(column / 9.0) + 10 * Math.cos(row / 13.0)));
+        rgb[at + 1] = (byte) (2 * (int) (60 + 40 * Math.cos(row / 8.0) + 15 * Math.sin(column / 11.0)));
+        rgb[at + 2] = (byte) (2 * (int) (60 + 30 * Math.sin((column + row) / 10.0)));
       }
     }
     return rgb;
   }
 
-  /** The block at (x, y) of the picture displaced by a vector in half pixels, averaging like the decoder. */
-  private static int[] block(final byte[] rgb, final int x, final int y, final int size, final int mx, final int my) {
+  /** The block at (blockLeft, blockTop) of the picture displaced by a vector in half pixels, averaging like the decoder. */
+  private static int[] block(
+    final byte[] rgb,
+    final int blockLeft,
+    final int blockTop,
+    final int size,
+    final int motionX,
+    final int motionY
+  ) {
     final int[] source = new int[size * size * 3];
-    for (int py = 0; py < size; py++) {
-      for (int px = 0; px < size; px++) {
-        final int hx = 2 * (x + px) + mx;
-        final int hy = 2 * (y + py) + my;
-        for (int c = 0; c < 3; c++) {
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final int halfPixelX = 2 * (blockLeft + column) + motionX;
+        final int halfPixelY = 2 * (blockTop + row) + motionY;
+        for (int channel = 0; channel < 3; channel++) {
           final int sum =
-            (rgb[((hy >> 1) * WIDTH + (hx >> 1)) * 3 + c] & 0xFF) +
-            (rgb[((hy >> 1) * WIDTH + ((hx + 1) >> 1)) * 3 + c] & 0xFF) +
-            (rgb[(((hy + 1) >> 1) * WIDTH + (hx >> 1)) * 3 + c] & 0xFF) +
-            (rgb[(((hy + 1) >> 1) * WIDTH + ((hx + 1) >> 1)) * 3 + c] & 0xFF);
-          source[(py * size + px) * 3 + c] = sum / 4;
+            (rgb[((halfPixelY >> 1) * WIDTH + (halfPixelX >> 1)) * 3 + channel] & 0xFF) +
+            (rgb[((halfPixelY >> 1) * WIDTH + ((halfPixelX + 1) >> 1)) * 3 + channel] & 0xFF) +
+            (rgb[(((halfPixelY + 1) >> 1) * WIDTH + (halfPixelX >> 1)) * 3 + channel] & 0xFF) +
+            (rgb[(((halfPixelY + 1) >> 1) * WIDTH + ((halfPixelX + 1) >> 1)) * 3 + channel] & 0xFF);
+          source[(row * size + column) * 3 + channel] = sum / 4;
         }
       }
     }
@@ -120,8 +127,8 @@ final class MotionSearchTest {
     return MotionSearch.seeded(picture(), WIDTH, HEIGHT, source, 32, 32, 16, 0, 0, range, halfPixel, seeds);
   }
 
-  private static int vector(final int x, final int y) {
-    return (x << 16) | (y & 0xFFFF);
+  private static int vector(final int vectorX, final int vectorY) {
+    return (vectorX << 16) | (vectorY & 0xFFFF);
   }
 
   @Test
@@ -153,8 +160,8 @@ final class MotionSearchTest {
     // a block in the corner, displaced so its samples clamp: the general sampling path
     final byte[] rgb = picture();
     final int[] source = new int[8 * 8 * 3];
-    for (int i = 0; i < 64; i++) {
-      System.arraycopy(new int[] { rgb[0] & 0xFF, rgb[1] & 0xFF, rgb[2] & 0xFF }, 0, source, i * 3, 3);
+    for (int index = 0; index < 64; index++) {
+      System.arraycopy(new int[] { rgb[0] & 0xFF, rgb[1] & 0xFF, rgb[2] & 0xFF }, 0, source, index * 3, 3);
     }
     final int found = MotionSearch.seeded(rgb, WIDTH, HEIGHT, source, 0, 0, 8, 0, 0, 4, true, new int[] { vector(-8, -8) });
     // whatever the clamped samples measure, the vector stays within the four pixels of range

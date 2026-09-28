@@ -36,20 +36,20 @@ final class FitsTest {
     for (int size = 8; size <= 32; size *= 2) {
       for (int grid = 1; grid <= 8; grid *= 2) {
         final float[] nodes = new float[grid * grid];
-        for (int i = 0; i < nodes.length; i++) {
-          nodes[i] = ((i * 37) % 11) - 5;
+        for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          nodes[nodeIndex] = ((nodeIndex * 37) % 11) - 5;
         }
         // the field sits in the second of three interleaved channels
         final float[] values = new float[size * size * 3];
-        for (int y = 0; y < size; y++) {
-          for (int x = 0; x < size; x++) {
-            values[(y * size + x) * 3 + 1] = (float) ReconstructionOracle.interpolate(nodes, 0, 1, grid, size, x, y);
+        for (int row = 0; row < size; row++) {
+          for (int column = 0; column < size; column++) {
+            values[(row * size + column) * 3 + 1] = (float) ReconstructionOracle.interpolate(nodes, 0, 1, grid, size, column, row);
           }
         }
         final float[] fitted = new float[grid * grid * 2];
         Fits.fit(values, 1, 3, size, grid, new double[size * grid], fitted, 1, 2);
-        for (int i = 0; i < nodes.length; i++) {
-          assertEquals(nodes[i], fitted[i * 2 + 1], 1e-3, "size " + size + " grid " + grid + " node " + i);
+        for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          assertEquals(nodes[nodeIndex], fitted[nodeIndex * 2 + 1], 1e-3, "size " + size + " grid " + grid + " node " + nodeIndex);
         }
       }
     }

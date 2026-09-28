@@ -337,12 +337,12 @@ public record LiveSearch(
   /**
    * Checks whether a quantizer is tried at a lambda.
    *
-   * @param q      the quantizer
-   * @param lambda the rate-distortion trade
+   * @param quantizer the quantizer
+   * @param lambda    the rate-distortion trade
    * @return true if the search tries it
    */
-  public boolean triesQuantizer(final int q, final double lambda) {
-    return this.quantizers == FROM_LAMBDA ? q == quantizer(lambda) : ((this.quantizers >> q) & 1) != 0;
+  public boolean triesQuantizer(final int quantizer, final double lambda) {
+    return this.quantizers == FROM_LAMBDA ? quantizer == quantizer(lambda) : ((this.quantizers >> quantizer) & 1) != 0;
   }
 
   /**
@@ -354,7 +354,7 @@ public record LiveSearch(
    * @return the quantizer, 0 to 4
    */
   public static int quantizer(final double lambda) {
-    final long q = Math.round((0.5 * Math.log(Math.max(lambda, 1.0))) / Math.log(2) - 2);
-    return (int) Math.min(Math.max(q, 0), COARSEST_QUANTIZER);
+    final long quantizer = Math.round((0.5 * Math.log(Math.max(lambda, 1.0))) / Math.log(2) - 2);
+    return (int) Math.min(Math.max(quantizer, 0), COARSEST_QUANTIZER);
   }
 }

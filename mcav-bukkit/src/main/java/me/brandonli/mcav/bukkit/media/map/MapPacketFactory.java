@@ -145,14 +145,14 @@ public final class MapPacketFactory {
 
   private static ClientboundMapItemDataPacket createPacket(final MapTilePatch patch) {
     final int mapId = patch.getMapId();
-    final int x = patch.getX();
-    final int y = patch.getY();
+    final int left = patch.getX();
+    final int top = patch.getY();
     final int width = patch.getWidth();
     final int height = patch.getHeight();
     final byte[] colors = patch.getColors();
 
     final MapId id = new MapId(mapId);
-    final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(x, y, width, height, colors);
+    final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(left, top, width, height, colors);
     final Optional<List<MapDecoration>> decorations = Optional.empty();
     final Optional<MapItemSavedData.MapPatch> colorPatch = Optional.of(mapPatch);
     return new ClientboundMapItemDataPacket(id, DEFAULT_SCALE, false, decorations, colorPatch);

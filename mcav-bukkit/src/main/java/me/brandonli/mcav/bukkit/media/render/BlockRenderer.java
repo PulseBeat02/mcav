@@ -153,10 +153,10 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final int originY = origin.getBlockY();
     final int originZ = origin.getBlockZ();
     for (int index = 0; index < blockCount; index++) {
-      final int x = this.getBlockX(originX, index);
-      final int y = this.getBlockY(originY, index);
-      capturedPositions[index] = Position.block(x, y, originZ);
-      capturedBlocks[index] = world.getBlockData(x, y, originZ);
+      final int blockX = this.getBlockX(originX, index);
+      final int blockY = this.getBlockY(originY, index);
+      capturedPositions[index] = Position.block(blockX, blockY, originZ);
+      capturedBlocks[index] = world.getBlockData(blockX, blockY, originZ);
     }
 
     this.positions = capturedPositions;

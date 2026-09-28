@@ -203,13 +203,13 @@ final class MotionLambda {
       bands,
       () -> across,
       (sums, band) -> {
-        for (int j = band * BAND_ROWS; j < Math.min(rows, (band + 1) * BAND_ROWS); j++) {
-          final int line = j * SAMPLING * width;
+        for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
+          final int line = row * SAMPLING * width;
           int left = luma(rgb, line);
           int middle = left;
-          for (int i = 0; i < columns; i++) {
-            final int right = i + 1 < columns ? luma(rgb, line + (i + 1) * SAMPLING) : middle;
-            sums[j * columns + i] = left + middle + right;
+          for (int column = 0; column < columns; column++) {
+            final int right = column + 1 < columns ? luma(rgb, line + (column + 1) * SAMPLING) : middle;
+            sums[row * columns + column] = left + middle + right;
             left = middle;
             middle = right;
           }
@@ -220,12 +220,12 @@ final class MotionLambda {
       bands,
       () -> blurred,
       (out, band) -> {
-        for (int j = band * BAND_ROWS; j < Math.min(rows, (band + 1) * BAND_ROWS); j++) {
-          final int above = Math.max(j - 1, 0) * columns;
-          final int at = j * columns;
-          final int below = Math.min(j + 1, rows - 1) * columns;
-          for (int i = 0; i < columns; i++) {
-            out[at + i] = across[above + i] + across[at + i] + across[below + i];
+        for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
+          final int above = Math.max(row - 1, 0) * columns;
+          final int at = row * columns;
+          final int below = Math.min(row + 1, rows - 1) * columns;
+          for (int column = 0; column < columns; column++) {
+            out[at + column] = across[above + column] + across[at + column] + across[below + column];
           }
         }
       }
@@ -255,8 +255,8 @@ final class MotionLambda {
       () -> sums,
       (partial, band) -> {
         long sum = 0;
-        for (int i = band * BAND_SAMPLES; i < Math.min(current.length, (band + 1) * BAND_SAMPLES); i++) {
-          sum += Math.abs(current[i] - previous[i]);
+        for (int sample = band * BAND_SAMPLES; sample < Math.min(current.length, (band + 1) * BAND_SAMPLES); sample++) {
+          sum += Math.abs(current[sample] - previous[sample]);
         }
         partial[band] = sum;
       }

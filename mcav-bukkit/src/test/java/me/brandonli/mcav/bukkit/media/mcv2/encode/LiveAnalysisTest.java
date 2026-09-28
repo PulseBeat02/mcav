@@ -36,18 +36,18 @@ final class LiveAnalysisTest {
     UtilityClassAssertions.assertNotInstantiable(LiveAnalysis.class);
   }
 
-  private static int vector(final int x, final int y) {
-    return (x << 16) | (y & 0xFFFF);
+  private static int vector(final int vectorX, final int vectorY) {
+    return (vectorX << 16) | (vectorY & 0xFFFF);
   }
 
-  /** The picture whose pixel (x, y) is the given one's (x + dx, y + dy), clamped at the edges. */
-  private static byte[] shifted(final byte[] rgb, final int width, final int height, final int dx, final int dy) {
+  /** The picture whose pixel (column, row) is the given one's (column + deltaX, row + deltaY), clamped at the edges. */
+  private static byte[] shifted(final byte[] rgb, final int width, final int height, final int deltaX, final int deltaY) {
     final byte[] out = new byte[rgb.length];
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int sx = Math.min(Math.max(x + dx, 0), width - 1);
-        final int sy = Math.min(Math.max(y + dy, 0), height - 1);
-        System.arraycopy(rgb, (sy * width + sx) * 3, out, (y * width + x) * 3, 3);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int sourceColumn = Math.min(Math.max(column + deltaX, 0), width - 1);
+        final int sourceRow = Math.min(Math.max(row + deltaY, 0), height - 1);
+        System.arraycopy(rgb, (sourceRow * width + sourceColumn) * 3, out, (row * width + column) * 3, 3);
       }
     }
     return out;
@@ -97,7 +97,7 @@ final class LiveAnalysisTest {
     final int height = 64;
     final byte[] reference = Mcv2EncoderTest.texture(width, height, 6);
     // every half-pixel case of the sampling, near the edges too
-    for (final int v : new int[] { vector(1, 0), vector(0, 1), vector(1, 1), vector(-7, 9), vector(9, -7) }) {
+    for (final int vector : new int[] { vector(1, 0), vector(0, 1), vector(1, 1), vector(-7, 9), vector(9, -7) }) {
       final LiveAnalysis.Result result = LiveAnalysis.analyze(
         reference,
         reference,
@@ -105,15 +105,15 @@ final class LiveAnalysisTest {
         height,
         LAMBDA,
         45,
-        new int[] { v },
+        new int[] { vector },
         Workers.SEQUENTIAL
       );
       assertEquals(0, result.vector());
       assertFalse(result.sceneCut());
     }
     final byte[] inverted = reference.clone();
-    for (int i = 0; i < inverted.length; i++) {
-      inverted[i] = (byte) (255 - (inverted[i] & 0xFF));
+    for (int index = 0; index < inverted.length; index++) {
+      inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
     }
     assertTrue(LiveAnalysis.analyze(inverted, reference, width, height, LAMBDA, 45, new int[] { 0 }, Workers.SEQUENTIAL).sceneCut());
     // the threshold decides
