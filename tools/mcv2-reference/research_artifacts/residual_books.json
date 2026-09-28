@@ -1,0 +1,22 @@
+{
+  "seed": 19781,
+  "sources": [
+    "minecraft_proxy",
+    "natural_proxy",
+    "animation",
+    "foliage",
+    "dark"
+  ],
+  "source_frames": [
+    137,
+    138
+  ],
+  "width": 640,
+  "height": 384,
+  "samples": 18000,
+  "iterations": 16,
+  "bytes": 2048,
+  "sha256": "1737842f5fbaa3e23777a04b6869a2bbd7d088c40efd1a8d237d756458c3e788",
+  "layout": "64x16 signed8 VQ, then two 64x8 signed8 horizontal-half product books",
+  "limitation": "Procedural training and evaluation; disjoint seed/time is not captured-video validation."
+}
