@@ -213,7 +213,7 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 
 | **Command**                                  | `/mcav video map`                                                                                                                          |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl> [--codec dither\|mcv2]` |
+| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.video.map`                                                                                                                   |
 | **Description**                              | Displays a video on a map screen.                                                                                                          |
 | **Arguments**                                |                                                                                                                                            |
@@ -224,7 +224,7 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`       | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it           |
 
