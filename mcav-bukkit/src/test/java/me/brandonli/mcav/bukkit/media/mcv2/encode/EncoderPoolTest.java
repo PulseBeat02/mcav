@@ -78,7 +78,8 @@ final class EncoderPoolTest {
     try (EncoderPool pool = new EncoderPool(2)) {
       final Set<Thread> seen = ConcurrentHashMap.newKeySet();
       final AtomicLong total = new AtomicLong();
-      // three encodes at once, each with parallel loops it waits for, the way an encoder's workers do
+      // three encodes at once, each waiting for the parallel loops of its steps, whose items run no loop of their own,
+      // the way an encoder's workers do
       final List<Thread> callers = new ArrayList<>();
       for (int caller = 0; caller < 3; caller++) {
         callers.add(
@@ -93,7 +94,7 @@ final class EncoderPoolTest {
                     () -> seen,
                     (threads, item) -> {
                       threads.add(Thread.currentThread());
-                      total.addAndGet(IntStream.range(0, 20_000).parallel().sum());
+                      total.addAndGet(IntStream.range(0, 20_000).sum());
                     }
                   );
                 }

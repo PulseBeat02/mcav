@@ -85,7 +85,9 @@ public final class EncoderPool implements AutoCloseable {
       return thread;
     };
     // at most `threads` threads ever exist: a thread that waits for a loop helps with it or waits, and the pool
-    // carries on with the others instead of starting a spare
+    // carries on with the others instead of starting a spare. A pool that never adds a spare does not ensure progress
+    // for every shape of work: an encode step's one parallel loop never stalled it in thousands of runs of several
+    // encodes at once, but a parallel loop inside every item of that loop did, so work run here must not nest deeper
     this.pool = new ForkJoinPool(
       threads,
       factory,
