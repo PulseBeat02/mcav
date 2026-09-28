@@ -284,6 +284,14 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
+  void takesASeekPositionWithColonsUnquoted() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final StringParser<?> position = assertInstanceOf(StringParser.class, this.parserOf("mcav video seek position", "position"));
+    assertEquals(StringParser.StringMode.GREEDY, position.stringMode(), "a single word cannot hold the colon of 1:30");
+  }
+
+  @Test
   void everyVideoAndImageCommandTakesQuotedFilters() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();

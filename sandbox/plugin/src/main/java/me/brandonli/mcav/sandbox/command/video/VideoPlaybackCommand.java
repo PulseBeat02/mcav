@@ -30,6 +30,7 @@ import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -70,7 +71,8 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * Handles {@code /mcav video seek <position>}: jumps to a time from the start of the video, such as {@code 1:30}, or
    * from where it plays, such as {@code +10} or {@code -1:00}; a jump before the start goes to the start.
    *
-   * <p>Requires the permission {@code mcav.command.video.seek}; players and the console can run it. The media is
+   * <p>The position takes the rest of the command, because Minecraft's command parser does not accept a colon in a
+   * single word. Requires the permission {@code mcav.command.video.seek}; players and the console can run it. The media is
    * opened again at the new time on the video worker thread, and the sender is told where the video jumped, or why it
    * could not.
    *
@@ -80,7 +82,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @Command("mcav video seek <position>")
   @Permission("mcav.command.video.seek")
   @CommandDescription("mcav.command.video.seek.info")
-  public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") final String position) {
+  public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") @Greedy final String position) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(position, "Position must not be null");
     final SeekPosition parsed = SeekPosition.parse(position);
