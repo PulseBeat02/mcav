@@ -8,7 +8,7 @@ plugin up.
 **Step 1: Install the Plugin**
 
 If you haven't already, follow the installation instructions in the [Installation Guide](./plugin.md#installing-the-plugin) to
-install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (26.2).
+install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (26.3).
 
 
 ---
@@ -46,7 +46,7 @@ Paste that ID into the `channel-id` field under the `discord-bot` section in you
 
 **Option 3**: Simple Voice Chat
 1) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin on your server. Make sure that
-it's the correct version for your Minecraft server; version 2.6.23 supports Minecraft 26.2.
+it's the correct version for your Minecraft server; version 2.6.24 supports Minecraft 26.3.
 2) Open the `config.yml` file, and set the `enabled` option under the `simple-voice-chat` section to `true`.
 3) (User Side) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) mod on your client.
 4) Restart your server to apply the changes.

@@ -3,7 +3,7 @@
 This is the checklist for seeing mcav play media with your own eyes, with a real Minecraft client, rather than
 trusting the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
 
-You need a Minecraft **26.2** client. The sandbox plugin is built against Paper 26.2, and a 26.2 server refuses
+You need a Minecraft **26.3** client. The sandbox plugin is built against Paper 26.3, and a 26.3 server refuses
 older clients unless you add ViaBackwards, so a client of any other version will simply be rejected at login.
 
 ## 1. Forward the server port to your PC

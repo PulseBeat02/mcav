@@ -12,10 +12,11 @@ designed to be a fun and experimental plugin that showcases the capabilities of 
 
 ```{warning}
 The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit** servers. It requires Minecraft
-**26.2** and Java 25; it will not load on any other version of Minecraft.
+**26.3** and Java 25; it will not load on any other version of Minecraft. Paper 26.3 has only alpha builds as of
+2026-09-27; the plugin is built and tested against build 49.
 ```
 
-1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v26.2-all.jar).
+1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v26.3-all.jar).
 2) Place the JAR file into the `plugins` folder of your server.
 3) Start the server.
 
@@ -41,10 +42,10 @@ answer that yt-dlp is still being prepared. The console logs `VLC ready in <n> m
 if it cannot be installed, after which VLC commands answer that VLC is not supported. Later starts find the downloaded
 copies at once.
 
-If the server does not run Minecraft 26.2, the plugin logs one error line and disables itself, for example:
+If the server does not run Minecraft 26.3, the plugin logs one error line and disables itself, for example:
 
 ```text
-MCAV cannot be enabled: MCAV only supports Minecraft 26.2, but the server is running 26.1! (run MCAV on a Minecraft 26.2 server)
+MCAV cannot be enabled: MCAV only supports Minecraft 26.3, but the server is running 26.1! (run MCAV on a Minecraft 26.3 server)
 ```
 
 The same happens when Simple Voice Chat audio is enabled but the Simple Voice Chat plugin is missing (see the

@@ -1,8 +1,8 @@
 # Bukkit Platform Module
 
 ```{note}
-The Bukkit module supports Paper servers running Minecraft 26.2. It follows the latest version of Minecraft and does
-not support older versions.
+The Bukkit module supports Paper servers running Minecraft 26.3. It follows the latest version of Minecraft and does
+not support older versions. Paper 26.3 has only alpha builds as of 2026-09-27; MCAV is built against build 49.
 ```
 
 The Bukkit platform module provides Minecraft-specific playback: it shows video and images on maps, blocks, text
@@ -42,5 +42,5 @@ work on the server and registers listeners in the name of your plugin.
   bukkitModule.inject(this);
 ```
 
-`inject` throws an `UnsupportedServerVersionException` when the server does not run Minecraft 26.2. It is an
+`inject` throws an `UnsupportedServerVersionException` when the server does not run Minecraft 26.3. It is an
 `IllegalStateException`, so catch it to log a clear message and disable your plugin, as the sandbox plugin does.

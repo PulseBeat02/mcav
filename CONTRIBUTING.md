@@ -46,7 +46,7 @@ same JVM options as the tests of the module and honors `-Pmcav.testJavaHome`.
 ## End-to-End Test
 
 `./gradlew :sandbox:plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs the sandbox plugin on a real,
-headless Paper 26.2 server together with Simple Voice Chat, exactly as on a production server:
+headless Paper 26.3 server together with Simple Voice Chat, exactly as on a production server:
 
 - The modules of this build are published into `build/e2e-repository`, and the server downloads them from there
   instead of the published snapshots, together with every other library of the plugin, the JavaCV natives, VLC and

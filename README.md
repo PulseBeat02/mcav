@@ -33,7 +33,8 @@ YouTube, Twitch, SoundCloud, CNN, you name it. You're also able to play local fi
 using an OBS virtual camera, and much more. All of this combined with audio playback, which you can use a website to
 stream audio to, [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or a Discord bot to play audio in voice channels.
 
-MCAV requires Java 25, and the plugin runs on Paper 26.2 only. MCAV bundles native libraries for Windows (x86-64), macOS
+MCAV requires Java 25, and the plugin runs on Paper 26.3 only (Paper 26.3 has only alpha builds as of 2026-09-27; the
+plugin is built and tested against build 49). MCAV bundles native libraries for Windows (x86-64), macOS
 (x86-64 and Apple silicon), and Linux (x86-64 and ARM64). Core file playback works on headless servers without a display
 or sound device. Optional features can require system libraries, a browser, QEMU, or a display; MCAV does not run an
 administrative package installer. FFmpeg and OpenCV are bundled and their
@@ -57,7 +58,7 @@ Here is a list of all the modules that are included in MCAV
 
 | Module           | Description                                                                                                                                                  |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox:plugin` | A Paper 26.2 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
+| `sandbox:plugin` | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
 | `mcav-common`    | The core library for multimedia functionality.                                                                                                               |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins.                                                                                                              |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
