@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +63,8 @@ import org.mockito.Mockito;
  * desktop is streamed, driven and released like the browser.
  */
 final class VncCommandTest {
+
+  private static final long RELEASE_MILLIS = 5000;
 
   private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("127.0.0.1", 5901, "secret");
 
@@ -196,7 +199,8 @@ final class VncCommandTest {
 
     this.command.releaseVnc(this.sender);
 
-    verify(this.desktop).release();
+    verify(this.callback).detach();
+    verify(this.desktop, timeout(RELEASE_MILLIS)).release();
     assertNull(this.command.player);
     this.assertReceived(Message.VNC_RELEASE.build());
   }

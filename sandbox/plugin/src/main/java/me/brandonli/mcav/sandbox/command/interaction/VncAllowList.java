@@ -52,7 +52,8 @@ public record VncAllowList(List<Entry> entries) {
   /**
    * An allowed VNC server.
    *
-   * @param host     its host name or address, compared without regard to case
+   * @param host     its host name or address, compared without regard to case; an IPv6 address may be written in
+   *                 brackets, as in a command, which the entry leaves out
    * @param port     its port
    * @param password its password, or null if it has none
    */
@@ -64,6 +65,7 @@ public record VncAllowList(List<Entry> entries) {
      */
     public Entry {
       Preconditions.checkNotNull(host, "Host must not be null");
+      host = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
       Preconditions.checkArgument(!host.isBlank(), "Host must not be blank");
       Preconditions.checkArgument(port >= 1 && port <= MAX_PORT, "Port must be from 1 to 65535");
     }

@@ -25,6 +25,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -127,7 +128,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
   @Override
   protected void releasePlayer(final VNCPlayer current) {
     Preconditions.checkNotNull(current, "Desktop must not be null");
-    current.release();
+    // closing the connection waits for the client's threads, which a stalled server can hold up
+    CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
   }
 
   /**

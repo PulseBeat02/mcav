@@ -103,8 +103,17 @@ final class VncAllowListTest {
   }
 
   @Test
+  void findsAnIpv6AddressListedInBrackets() {
+    final VncAllowList.Entry bracketed = new VncAllowList.Entry("[::1]", 5902, null);
+    assertEquals("::1", bracketed.host());
+    assertSame(bracketed, new VncAllowList(List.of(bracketed)).find("[::1]:5902"));
+    assertEquals("[::1]:5902", bracketed.toString());
+  }
+
+  @Test
   void refusesAnEntryWithoutAHostOrWithoutATcpPort() {
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(" ", 5901, null));
+    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("[]", 5901, null));
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("desktop", 0, null));
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("desktop", 65_536, null));
   }
