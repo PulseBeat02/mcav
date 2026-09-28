@@ -33,24 +33,24 @@ import org.bytedeco.opencv.opencv_core.Rect;
  */
 public class CropFilter extends MatVideoFilter {
 
-  private final int x;
-  private final int y;
+  private final int left;
+  private final int top;
   private final int width;
   private final int height;
 
   /**
    * Constructs a new crop filter.
    *
-   * @param x      the x coordinate of the top left corner of the rectangle
-   * @param y      the y coordinate of the top left corner of the rectangle
+   * @param left   the x coordinate of the top left corner of the rectangle
+   * @param top    the y coordinate of the top left corner of the rectangle
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
    */
-  public CropFilter(final int x, final int y, final int width, final int height) {
-    Preconditions.checkArgument(x >= 0 && y >= 0, "Crop origin must not be negative");
+  public CropFilter(final int left, final int top, final int width, final int height) {
+    Preconditions.checkArgument(left >= 0 && top >= 0, "Crop origin must not be negative");
     Preconditions.checkArgument(width > 0 && height > 0, "Crop size must be positive");
-    this.x = x;
-    this.y = y;
+    this.left = left;
+    this.top = top;
     this.width = width;
     this.height = height;
   }
@@ -67,16 +67,16 @@ public class CropFilter extends MatVideoFilter {
   protected boolean modifyImage(final MatImageBuffer image) {
     final int frameWidth = image.getWidth();
     final int frameHeight = image.getHeight();
-    final int clampedWidth = Math.min(this.width, frameWidth - this.x);
-    final int clampedHeight = Math.min(this.height, frameHeight - this.y);
+    final int clampedWidth = Math.min(this.width, frameWidth - this.left);
+    final int clampedHeight = Math.min(this.height, frameHeight - this.top);
     if (clampedWidth <= 0 || clampedHeight <= 0) {
       return false;
     }
-    final boolean wholeFrame = this.x == 0 && this.y == 0 && clampedWidth == frameWidth && clampedHeight == frameHeight;
+    final boolean wholeFrame = this.left == 0 && this.top == 0 && clampedWidth == frameWidth && clampedHeight == frameHeight;
     if (wholeFrame) {
       return false;
     }
-    try (final Rect bounds = new Rect(this.x, this.y, clampedWidth, clampedHeight)) {
+    try (final Rect bounds = new Rect(this.left, this.top, clampedWidth, clampedHeight)) {
       image.transformMat((source, cropped) -> copyRegion(source, bounds, cropped));
     }
     return true;

@@ -30,10 +30,10 @@ final class PointTest {
   @Test
   void storesCoordinates() {
     final Point point = Point.point(1.5, -2.25);
-    final double x = point.getX();
-    final double y = point.getY();
-    assertEquals(1.5, x);
-    assertEquals(-2.25, y);
+    final double xCoordinate = point.getX();
+    final double yCoordinate = point.getY();
+    assertEquals(1.5, xCoordinate);
+    assertEquals(-2.25, yCoordinate);
   }
 
   @Test

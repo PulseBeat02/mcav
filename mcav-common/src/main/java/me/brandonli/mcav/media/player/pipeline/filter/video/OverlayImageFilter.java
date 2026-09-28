@@ -29,22 +29,22 @@ import org.bytedeco.opencv.opencv_core.Rect;
 public class OverlayImageFilter extends MatVideoFilter {
 
   private final Mat overlay;
-  private final int x;
-  private final int y;
+  private final int left;
+  private final int top;
 
   /**
    * Constructs a new overlay filter.
    *
    * @param overlay the image to draw
-   * @param x       the x coordinate of the top left corner of the image inside the frame
-   * @param y       the y coordinate of the top left corner of the image inside the frame
+   * @param left    the x coordinate of the top left corner of the image inside the frame
+   * @param top     the y coordinate of the top left corner of the image inside the frame
    */
-  public OverlayImageFilter(final ImageBuffer overlay, final int x, final int y) {
+  public OverlayImageFilter(final ImageBuffer overlay, final int left, final int top) {
     Preconditions.checkNotNull(overlay, "Overlay must not be null");
-    Preconditions.checkArgument(x >= 0 && y >= 0, "Overlay position must not be negative");
+    Preconditions.checkArgument(left >= 0 && top >= 0, "Overlay position must not be negative");
     this.overlay = copyToMat(overlay);
-    this.x = x;
-    this.y = y;
+    this.left = left;
+    this.top = top;
   }
 
   /**
@@ -60,13 +60,13 @@ public class OverlayImageFilter extends MatVideoFilter {
     final int overlayHeight = this.overlay.rows();
     final int frameWidth = mat.cols();
     final int frameHeight = mat.rows();
-    final int width = Math.min(overlayWidth, frameWidth - this.x);
-    final int height = Math.min(overlayHeight, frameHeight - this.y);
+    final int width = Math.min(overlayWidth, frameWidth - this.left);
+    final int height = Math.min(overlayHeight, frameHeight - this.top);
     if (width <= 0 || height <= 0) {
       return false;
     }
     try (
-      final Rect targetRect = new Rect(this.x, this.y, width, height);
+      final Rect targetRect = new Rect(this.left, this.top, width, height);
       final Rect sourceRect = new Rect(0, 0, width, height);
       final Mat target = new Mat(mat, targetRect);
       final Mat source = new Mat(this.overlay, sourceRect)

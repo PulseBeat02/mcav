@@ -75,10 +75,10 @@ final class TemporalDitherTest {
   private static int countRowsWithoutWhite(final byte[] indices, final int width) {
     final int height = indices.length / width;
     int rowsWithoutWhite = 0;
-    for (int y = 0; y < height; y++) {
+    for (int row = 0; row < height; row++) {
       boolean white = false;
-      for (int x = 0; x < width; x++) {
-        final int index = indices[y * width + x];
+      for (int column = 0; column < width; column++) {
+        final int index = indices[row * width + column];
         white = white || index == 1;
       }
       if (!white) {

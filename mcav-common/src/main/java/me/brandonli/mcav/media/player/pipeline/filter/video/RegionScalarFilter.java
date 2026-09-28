@@ -29,8 +29,8 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  */
 public class RegionScalarFilter extends MatVideoFilter {
 
-  private final int x;
-  private final int y;
+  private final int left;
+  private final int top;
   private final int width;
   private final int height;
   private final Scalar color;
@@ -38,17 +38,17 @@ public class RegionScalarFilter extends MatVideoFilter {
   /**
    * Constructs a new region fill filter.
    *
-   * @param x      the x coordinate of the top left corner
-   * @param y      the y coordinate of the top left corner
+   * @param left   the x coordinate of the top left corner
+   * @param top    the y coordinate of the top left corner
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
    * @param color  the blue, green, and red components of the color, from 0 to 255
    */
-  public RegionScalarFilter(final int x, final int y, final int width, final int height, final double[] color) {
-    Preconditions.checkArgument(x >= 0 && y >= 0, "Region origin must not be negative");
+  public RegionScalarFilter(final int left, final int top, final int width, final int height, final double[] color) {
+    Preconditions.checkArgument(left >= 0 && top >= 0, "Region origin must not be negative");
     Preconditions.checkArgument(width > 0 && height > 0, "Region size must be positive");
-    this.x = x;
-    this.y = y;
+    this.left = left;
+    this.top = top;
     this.width = width;
     this.height = height;
     this.color = ImageUtils.toScalar(color);
@@ -65,12 +65,12 @@ public class RegionScalarFilter extends MatVideoFilter {
   protected boolean modifyMat(final Mat mat) {
     final int frameWidth = mat.cols();
     final int frameHeight = mat.rows();
-    final int clampedWidth = Math.min(this.width, frameWidth - this.x);
-    final int clampedHeight = Math.min(this.height, frameHeight - this.y);
+    final int clampedWidth = Math.min(this.width, frameWidth - this.left);
+    final int clampedHeight = Math.min(this.height, frameHeight - this.top);
     if (clampedWidth <= 0 || clampedHeight <= 0) {
       return false;
     }
-    try (final Rect bounds = new Rect(this.x, this.y, clampedWidth, clampedHeight); final Mat region = new Mat(mat, bounds)) {
+    try (final Rect bounds = new Rect(this.left, this.top, clampedWidth, clampedHeight); final Mat region = new Mat(mat, bounds)) {
       region.put(this.color);
     }
     return true;

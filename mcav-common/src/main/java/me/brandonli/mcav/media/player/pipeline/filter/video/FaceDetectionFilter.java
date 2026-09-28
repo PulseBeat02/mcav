@@ -135,8 +135,8 @@ public class FaceDetectionFilter extends MatVideoFilter {
     opencv_imgproc.cvtColor(mat, this.gray, opencv_imgproc.COLOR_BGR2GRAY);
     this.classifier.detectMultiScale(this.gray, this.faces);
     final long count = this.faces.size();
-    for (long i = 0; i < count; i++) {
-      final Rect face = this.faces.get(i);
+    for (long faceIndex = 0; faceIndex < count; faceIndex++) {
+      final Rect face = this.faces.get(faceIndex);
       opencv_imgproc.rectangle(mat, face, this.color);
     }
     return count > 0;

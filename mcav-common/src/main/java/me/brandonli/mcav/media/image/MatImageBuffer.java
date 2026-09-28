@@ -541,13 +541,13 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   @Override
-  public void setPixel(final int x, final int y, final double[] value) {
+  public void setPixel(final int column, final int row, final double[] value) {
     Preconditions.checkNotNull(value, "Value must not be null");
     this.checkNotReleased();
-    this.checkCoordinates(x, y);
+    this.checkCoordinates(column, row);
     final ByteBuffer bytes = this.mat.createBuffer();
     final int width = this.mat.cols();
-    final int base = (y * width + x) * CHANNELS;
+    final int base = (row * width + column) * CHANNELS;
     final int count = Math.min(value.length, CHANNELS);
     for (int channel = 0; channel < count; channel++) {
       final long rounded = Math.round(value[channel]);
@@ -558,12 +558,12 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   @Override
-  public double[] getPixel(final int x, final int y) {
+  public double[] getPixel(final int column, final int row) {
     this.checkNotReleased();
-    this.checkCoordinates(x, y);
+    this.checkCoordinates(column, row);
     final ByteBuffer bytes = this.mat.createBuffer();
     final int width = this.mat.cols();
-    final int base = (y * width + x) * CHANNELS;
+    final int base = (row * width + column) * CHANNELS;
     final double[] values = new double[CHANNELS];
     for (int channel = 0; channel < CHANNELS; channel++) {
       values[channel] = bytes.get(base + channel) & 0xFF;
@@ -571,11 +571,11 @@ public final class MatImageBuffer implements ImageBuffer {
     return values;
   }
 
-  private void checkCoordinates(final int x, final int y) {
+  private void checkCoordinates(final int column, final int row) {
     final int width = this.mat.cols();
     final int height = this.mat.rows();
-    Preconditions.checkArgument(x >= 0 && x < width, "x must be between 0 and %s but was %s", width - 1, x);
-    Preconditions.checkArgument(y >= 0 && y < height, "y must be between 0 and %s but was %s", height - 1, y);
+    Preconditions.checkArgument(column >= 0 && column < width, "x must be between 0 and %s but was %s", width - 1, column);
+    Preconditions.checkArgument(row >= 0 && row < height, "y must be between 0 and %s but was %s", height - 1, row);
   }
 
   @Override

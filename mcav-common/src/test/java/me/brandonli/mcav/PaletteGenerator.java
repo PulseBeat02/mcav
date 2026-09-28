@@ -37,10 +37,10 @@ public final class PaletteGenerator {
     final int count = Math.min(colors.length, 256);
     final BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
     for (int index = 0; index < count; index++) {
-      final int x = index & 15;
-      final int y = index >> 4;
+      final int column = index & 15;
+      final int row = index >> 4;
       final int color = colors[index];
-      image.setRGB(x, y, color);
+      image.setRGB(column, row, color);
     }
     final File file = new File(OUTPUT);
     ImageIO.write(image, "png", file);

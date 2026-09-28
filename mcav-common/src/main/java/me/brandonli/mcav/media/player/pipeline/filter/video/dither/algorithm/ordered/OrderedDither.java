@@ -61,9 +61,9 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     this.patternHeight = matrix.length;
     this.patternWidth = matrix[0].length;
     this.offsets = new int[this.patternHeight][this.patternWidth];
-    for (int y = 0; y < this.patternHeight; y++) {
-      for (int x = 0; x < this.patternWidth; x++) {
-        this.offsets[y][x] = Math.round(matrix[y][x] * spread);
+    for (int row = 0; row < this.patternHeight; row++) {
+      for (int column = 0; column < this.patternWidth; column++) {
+        this.offsets[row][column] = Math.round(matrix[row][column] * spread);
       }
     }
   }
@@ -136,12 +136,12 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   private void ditherRows(final int[] pixels, final int width, final int startY, final int endY, final byte[] indices) {
     final DitherPalette palette = this.getPalette();
     final byte[] colorMap = palette.getColorMap();
-    for (int y = startY; y < endY; y++) {
-      final int[] patternRow = this.offsets[y % this.patternHeight];
-      final int rowStart = y * width;
-      for (int x = 0; x < width; x++) {
-        final int index = rowStart + x;
-        final int offset = patternRow[x % this.patternWidth];
+    for (int row = startY; row < endY; row++) {
+      final int[] patternRow = this.offsets[row % this.patternHeight];
+      final int rowStart = row * width;
+      for (int column = 0; column < width; column++) {
+        final int index = rowStart + column;
+        final int offset = patternRow[column % this.patternWidth];
         final int argb = pixels[index];
         final int red = DitherUtils.clamp(((argb >> 16) & 0xFF) + offset);
         final int green = DitherUtils.clamp(((argb >> 8) & 0xFF) + offset);
@@ -166,12 +166,12 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     final DitherPalette palette = this.getPalette();
     final int[] fullColorMap = palette.getFullColorMap();
     final int height = buffer.length / width;
-    for (int y = 0; y < height; y++) {
-      final int[] patternRow = this.offsets[y % this.patternHeight];
-      final int rowStart = y * width;
-      for (int x = 0; x < width; x++) {
-        final int index = rowStart + x;
-        final int offset = patternRow[x % this.patternWidth];
+    for (int row = 0; row < height; row++) {
+      final int[] patternRow = this.offsets[row % this.patternHeight];
+      final int rowStart = row * width;
+      for (int column = 0; column < width; column++) {
+        final int index = rowStart + column;
+        final int offset = patternRow[column % this.patternWidth];
         final int argb = buffer[index];
         final int red = DitherUtils.clamp(((argb >> 16) & 0xFF) + offset);
         final int green = DitherUtils.clamp(((argb >> 8) & 0xFF) + offset);

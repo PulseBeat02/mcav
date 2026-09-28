@@ -24,23 +24,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Point {
 
-  private final double x;
-  private final double y;
+  private final double xCoordinate;
+  private final double yCoordinate;
 
-  Point(final double x, final double y) {
-    this.x = x;
-    this.y = y;
+  Point(final double xCoordinate, final double yCoordinate) {
+    this.xCoordinate = xCoordinate;
+    this.yCoordinate = yCoordinate;
   }
 
   /**
    * Creates a point.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
+   * @param xCoordinate the x coordinate
+   * @param yCoordinate the y coordinate
    * @return the point
    */
-  public static Point point(final double x, final double y) {
-    return new Point(x, y);
+  public static Point point(final double xCoordinate, final double yCoordinate) {
+    return new Point(xCoordinate, yCoordinate);
   }
 
   /**
@@ -49,7 +49,7 @@ public final class Point {
    * @return the x coordinate
    */
   public double getX() {
-    return this.x;
+    return this.xCoordinate;
   }
 
   /**
@@ -58,7 +58,7 @@ public final class Point {
    * @return the y coordinate
    */
   public double getY() {
-    return this.y;
+    return this.yCoordinate;
   }
 
   @Override
@@ -69,20 +69,20 @@ public final class Point {
     if (!(other instanceof final Point point)) {
       return false;
     }
-    final int xComparison = Double.compare(this.x, point.x);
-    final int yComparison = Double.compare(this.y, point.y);
+    final int xComparison = Double.compare(this.xCoordinate, point.xCoordinate);
+    final int yComparison = Double.compare(this.yCoordinate, point.yCoordinate);
     return xComparison == 0 && yComparison == 0;
   }
 
   @Override
   public int hashCode() {
-    final long xBits = Double.doubleToLongBits(this.x);
-    final long yBits = Double.doubleToLongBits(this.y);
+    final long xBits = Double.doubleToLongBits(this.xCoordinate);
+    final long yBits = Double.doubleToLongBits(this.yCoordinate);
     return Long.hashCode(xBits) * 31 + Long.hashCode(yBits);
   }
 
   @Override
   public String toString() {
-    return "Point[" + this.x + ", " + this.y + "]";
+    return "Point[" + this.xCoordinate + ", " + this.yCoordinate + "]";
   }
 }

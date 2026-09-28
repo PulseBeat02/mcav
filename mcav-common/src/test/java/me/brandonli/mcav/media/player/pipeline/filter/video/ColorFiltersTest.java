@@ -41,10 +41,10 @@ final class ColorFiltersTest {
 
   private static final double[] BLUE = { 255.0, 0.0, 0.0 };
 
-  private static int pixelAt(final ImageBuffer image, final int x, final int y) {
+  private static int pixelAt(final ImageBuffer image, final int column, final int row) {
     final int[] pixels = image.getPixels();
     final int width = image.getWidth();
-    return pixels[y * width + x];
+    return pixels[row * width + column];
   }
 
   private static int applyToSolid(final VideoFilter filter, final int argb) {

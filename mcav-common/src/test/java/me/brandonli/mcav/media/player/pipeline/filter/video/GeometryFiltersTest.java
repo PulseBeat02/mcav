@@ -45,9 +45,9 @@ final class GeometryFiltersTest {
     return indices;
   }
 
-  private static boolean crop(final int x, final int y, final int width, final int height) {
+  private static boolean crop(final int left, final int top, final int width, final int height) {
     try (final ImageBuffer image = Images.indexed(4, 4)) {
-      final CropFilter filter = new CropFilter(x, y, width, height);
+      final CropFilter filter = new CropFilter(left, top, width, height);
       return filter.applyFilter(image);
     }
   }

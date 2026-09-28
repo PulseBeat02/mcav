@@ -89,9 +89,9 @@ final class ErrorDiffusionDitherTest {
         final double ratio = DitherTestImages.whiteRatio(indices);
         int leftWhite = 0;
         int rightWhite = 0;
-        for (int y = 0; y < HEIGHT; y++) {
-          leftWhite += indices[y * WIDTH];
-          rightWhite += indices[y * WIDTH + WIDTH - 1];
+        for (int row = 0; row < HEIGHT; row++) {
+          leftWhite += indices[row * WIDTH];
+          rightWhite += indices[row * WIDTH + WIDTH - 1];
         }
         assertEquals(pixels.length, indices.length);
         assertTrue(ratio > 0.45 && ratio < 0.55, algorithm + " ratio " + ratio);

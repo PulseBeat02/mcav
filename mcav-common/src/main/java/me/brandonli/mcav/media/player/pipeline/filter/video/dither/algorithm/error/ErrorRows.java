@@ -91,37 +91,37 @@ final class ErrorRows {
   /**
    * Gets the first column of a row in scan order.
    *
-   * @param y     the row
+   * @param row   the row
    * @param width the width of the image
    * @return the column the scan of the row starts at
    */
-  static int getScanStart(final int y, final int width) {
-    return isForward(y) ? 0 : width - 1;
+  static int getScanStart(final int row, final int width) {
+    return isForward(row) ? 0 : width - 1;
   }
 
   /**
    * Gets the column just past the last column of a row in scan order.
    *
-   * @param y     the row
+   * @param row   the row
    * @param width the width of the image
    * @return the column the scan of the row stops at, exclusive
    */
-  static int getScanEnd(final int y, final int width) {
-    return isForward(y) ? width : -1;
+  static int getScanEnd(final int row, final int width) {
+    return isForward(row) ? width : -1;
   }
 
   /**
    * Gets the direction a row is scanned in.
    *
-   * @param y the row
+   * @param row the row
    * @return {@code 1} for left to right, {@code -1} for right to left
    */
-  static int getScanStep(final int y) {
-    return isForward(y) ? 1 : -1;
+  static int getScanStep(final int row) {
+    return isForward(row) ? 1 : -1;
   }
 
-  private static boolean isForward(final int y) {
-    return (y & 1) == 0;
+  private static boolean isForward(final int row) {
+    return (row & 1) == 0;
   }
 
   /**
@@ -170,17 +170,17 @@ final class ErrorRows {
   /**
    * Adds the error pending at a pixel to its color.
    *
-   * @param argb the original color of the pixel
-   * @param x    the column of the pixel
-   * @param y    the row of the pixel
+   * @param argb   the original color of the pixel
+   * @param column the column of the pixel
+   * @param row    the row of the pixel
    * @return the wanted color of the pixel as a packed color, clamped to the valid range
    */
-  int applyPendingError(final int argb, final int x, final int y) {
-    final int[] row = this.rows[y % this.rowCount];
-    final int index = (x + this.padding) * CHANNELS;
-    final int wantedRed = red(argb) + row[index];
-    final int wantedGreen = green(argb) + row[index + 1];
-    final int wantedBlue = blue(argb) + row[index + 2];
+  int applyPendingError(final int argb, final int column, final int row) {
+    final int[] errorRow = this.rows[row % this.rowCount];
+    final int index = (column + this.padding) * CHANNELS;
+    final int wantedRed = red(argb) + errorRow[index];
+    final int wantedGreen = green(argb) + errorRow[index + 1];
+    final int wantedBlue = blue(argb) + errorRow[index + 2];
     final int red = DitherUtils.clamp(wantedRed);
     final int green = DitherUtils.clamp(wantedGreen);
     final int blue = DitherUtils.clamp(wantedBlue);
@@ -192,14 +192,14 @@ final class ErrorRows {
    * the error times the sum of the weights divided by the divisor, rounded toward zero, so no error is lost to
    * rounding.
    *
-   * @param x          the column of the pixel
-   * @param y          the row of the pixel
+   * @param column     the column of the pixel
+   * @param row        the row of the pixel
    * @param step       the scan direction of the row, which mirrors the kernel on odd rows
    * @param errorRed   the error of the red channel
    * @param errorGreen the error of the green channel
    * @param errorBlue  the error of the blue channel
    */
-  void diffuse(final int x, final int y, final int step, final int errorRed, final int errorGreen, final int errorBlue) {
+  void diffuse(final int column, final int row, final int step, final int errorRed, final int errorGreen, final int errorBlue) {
     if (errorRed == 0 && errorGreen == 0 && errorBlue == 0) {
       return;
     }
@@ -213,7 +213,7 @@ final class ErrorRows {
       final int shareRed = (int) (((long) errorRed * weight) / divisor);
       final int shareGreen = (int) (((long) errorGreen * weight) / divisor);
       final int shareBlue = (int) (((long) errorBlue * weight) / divisor);
-      this.addError(tap, x, y, step, shareRed, shareGreen, shareBlue);
+      this.addError(tap, column, row, step, shareRed, shareGreen, shareBlue);
       spreadRed += shareRed;
       spreadGreen += shareGreen;
       spreadBlue += shareBlue;
@@ -221,14 +221,14 @@ final class ErrorRows {
     final int remainderRed = (int) ((errorRed * this.weightSum) / divisor - spreadRed);
     final int remainderGreen = (int) ((errorGreen * this.weightSum) / divisor - spreadGreen);
     final int remainderBlue = (int) ((errorBlue * this.weightSum) / divisor - spreadBlue);
-    this.addError(this.largestTap, x, y, step, remainderRed, remainderGreen, remainderBlue);
+    this.addError(this.largestTap, column, row, step, remainderRed, remainderGreen, remainderBlue);
   }
 
-  private void addError(final int tap, final int x, final int y, final int step, final int red, final int green, final int blue) {
+  private void addError(final int tap, final int column, final int row, final int step, final int red, final int green, final int blue) {
     final int offsetX = this.kernel.getOffsetX(tap) * step;
     final int offsetY = this.kernel.getOffsetY(tap);
-    final int[] targetRow = this.rows[(y + offsetY) % this.rowCount];
-    final int targetIndex = (x + offsetX + this.padding) * CHANNELS;
+    final int[] targetRow = this.rows[(row + offsetY) % this.rowCount];
+    final int targetIndex = (column + offsetX + this.padding) * CHANNELS;
     targetRow[targetIndex] += red;
     targetRow[targetIndex + 1] += green;
     targetRow[targetIndex + 2] += blue;
@@ -238,10 +238,10 @@ final class ErrorRows {
    * Clears a finished row, so its slot can be reused for the row {@link DiffusionKernel#getMaxOffsetY()} rows
    * further down.
    *
-   * @param y the row that was finished
+   * @param row the row that was finished
    */
-  void finishRow(final int y) {
-    final int[] row = this.rows[y % this.rowCount];
-    Arrays.fill(row, 0);
+  void finishRow(final int row) {
+    final int[] errorRow = this.rows[row % this.rowCount];
+    Arrays.fill(errorRow, 0);
   }
 }

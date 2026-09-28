@@ -74,10 +74,10 @@ final class MatImageBufferTest {
   @TempDir
   private Path directory;
 
-  private static int argbAt(final ImageBuffer image, final int x, final int y) {
+  private static int argbAt(final ImageBuffer image, final int column, final int row) {
     final int[] pixels = image.getPixels();
     final int width = image.getWidth();
-    return pixels[y * width + x];
+    return pixels[row * width + column];
   }
 
   @Test

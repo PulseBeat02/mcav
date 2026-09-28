@@ -178,9 +178,9 @@ public final class Images {
 
   private static BufferedImage createSolidFrame(final int width, final int height, final int color) {
     final BufferedImage frame = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        frame.setRGB(x, y, color);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        frame.setRGB(column, row, color);
       }
     }
     return frame;

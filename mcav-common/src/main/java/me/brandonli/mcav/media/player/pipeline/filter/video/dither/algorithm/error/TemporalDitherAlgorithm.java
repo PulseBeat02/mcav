@@ -320,37 +320,37 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     void run(final int startY, final int endY) {
       this.firstWrittenRow = startY;
       final int firstRow = Math.max(0, startY - WARMUP_ROWS);
-      for (int y = firstRow; y < endY; y++) {
-        this.ditherRow(y);
-        this.errors.finishRow(y);
+      for (int row = firstRow; row < endY; row++) {
+        this.ditherRow(row);
+        this.errors.finishRow(row);
       }
     }
 
-    private void ditherRow(final int y) {
-      final int step = ErrorRows.getScanStep(y);
-      final int start = ErrorRows.getScanStart(y, this.width);
-      final int end = ErrorRows.getScanEnd(y, this.width);
-      for (int x = start; x != end; x += step) {
-        this.ditherPixel(x, y, step);
+    private void ditherRow(final int row) {
+      final int step = ErrorRows.getScanStep(row);
+      final int start = ErrorRows.getScanStart(row, this.width);
+      final int end = ErrorRows.getScanEnd(row, this.width);
+      for (int column = start; column != end; column += step) {
+        this.ditherPixel(column, row, step);
       }
     }
 
-    private void ditherPixel(final int x, final int y, final int step) {
-      final int pixelIndex = y * this.width + x;
+    private void ditherPixel(final int column, final int row, final int step) {
+      final int pixelIndex = row * this.width + column;
       final int argb = this.pixels[pixelIndex];
-      final int wanted = this.errors.applyPendingError(argb, x, y);
+      final int wanted = this.errors.applyPendingError(argb, column, row);
       final int reusedIndex = this.findReusableIndex(pixelIndex, wanted);
       if (reusedIndex >= 0) {
         final int reusedColor = this.paletteColors[reusedIndex];
-        this.store(pixelIndex, y, (byte) reusedIndex);
-        this.diffuseError(wanted, reusedColor, x, y, step, false);
+        this.store(pixelIndex, row, (byte) reusedIndex);
+        this.diffuseError(wanted, reusedColor, column, row, step, false);
         return;
       }
       final int lookup = ErrorRows.getLookupIndex(wanted);
       final byte chosenIndex = this.colorMap[lookup];
       final int chosenColor = this.fullColorMap[lookup];
-      this.store(pixelIndex, y, chosenIndex);
-      this.diffuseError(wanted, chosenColor, x, y, step, true);
+      this.store(pixelIndex, row, chosenIndex);
+      this.diffuseError(wanted, chosenColor, column, row, step, true);
     }
 
     /**
@@ -369,14 +369,14 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
       return close ? previousIndex : -1;
     }
 
-    private void store(final int pixelIndex, final int y, final byte paletteIndex) {
+    private void store(final int pixelIndex, final int row, final byte paletteIndex) {
       // the warm-up rows above the strip belong to the neighboring strip, so only their errors are kept
-      if (y >= this.firstWrittenRow) {
+      if (row >= this.firstWrittenRow) {
         this.indices[pixelIndex] = paletteIndex;
       }
     }
 
-    private void diffuseError(final int wanted, final int chosen, final int x, final int y, final int step, final boolean scaled) {
+    private void diffuseError(final int wanted, final int chosen, final int column, final int row, final int step, final boolean scaled) {
       final int errorRed = ErrorRows.red(wanted) - ErrorRows.red(chosen);
       final int errorGreen = ErrorRows.green(wanted) - ErrorRows.green(chosen);
       final int errorBlue = ErrorRows.blue(wanted) - ErrorRows.blue(chosen);
@@ -385,14 +385,14 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
         return;
       }
       if (!scaled) {
-        this.errors.diffuse(x, y, step, errorRed, errorGreen, errorBlue);
+        this.errors.diffuse(column, row, step, errorRed, errorGreen, errorBlue);
         return;
       }
       final TemporalDitherAlgorithm algorithm = TemporalDitherAlgorithm.this;
       final int scaledRed = algorithm.scale(errorRed);
       final int scaledGreen = algorithm.scale(errorGreen);
       final int scaledBlue = algorithm.scale(errorBlue);
-      this.errors.diffuse(x, y, step, scaledRed, scaledGreen, scaledBlue);
+      this.errors.diffuse(column, row, step, scaledRed, scaledGreen, scaledBlue);
     }
   }
 }

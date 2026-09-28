@@ -43,8 +43,8 @@ final class VolumeFilterTest {
   private static short[] read(final ByteBuffer buffer) {
     final ByteBuffer view = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN);
     final short[] values = new short[view.remaining() / Short.BYTES];
-    for (int i = 0; i < values.length; i++) {
-      values[i] = view.getShort();
+    for (int sampleIndex = 0; sampleIndex < values.length; sampleIndex++) {
+      values[sampleIndex] = view.getShort();
     }
     return values;
   }

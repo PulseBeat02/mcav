@@ -30,9 +30,9 @@ final class SpeedResamplerTest {
   /** Frames of two channels: the left samples count up by 10, the right ones down. */
   private static ByteBuffer frames(final int first, final int count) {
     final ByteBuffer buffer = ByteBuffer.allocate(count * 4).order(ByteOrder.LITTLE_ENDIAN);
-    for (int i = 0; i < count; i++) {
-      buffer.putShort((short) ((first + i) * 10));
-      buffer.putShort((short) (-(first + i) * 10));
+    for (int frameIndex = 0; frameIndex < count; frameIndex++) {
+      buffer.putShort((short) ((first + frameIndex) * 10));
+      buffer.putShort((short) (-(first + frameIndex) * 10));
     }
     return buffer.flip();
   }
@@ -40,9 +40,9 @@ final class SpeedResamplerTest {
   private static short[] left(final ByteBuffer buffer) {
     final ByteBuffer view = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN);
     final short[] samples = new short[view.remaining() / 4];
-    for (int i = 0; i < samples.length; i++) {
-      samples[i] = view.getShort(view.position() + i * 4);
-      assertEquals(-samples[i], view.getShort(view.position() + i * 4 + 2), "the channels are resampled alike");
+    for (int sampleIndex = 0; sampleIndex < samples.length; sampleIndex++) {
+      samples[sampleIndex] = view.getShort(view.position() + sampleIndex * 4);
+      assertEquals(-samples[sampleIndex], view.getShort(view.position() + sampleIndex * 4 + 2), "the channels are resampled alike");
     }
     return samples;
   }

@@ -57,9 +57,9 @@ final class BufferedImageConversionFuzzTest {
     final int width = data.consumeInt(1, MAX_SIDE);
     final int height = data.consumeInt(1, MAX_SIDE);
     final BufferedImage whole = new BufferedImage(width, height, type);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        whole.setRGB(x, y, data.consumeInt());
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        whole.setRGB(column, row, data.consumeInt());
       }
     }
     final int viewX = data.consumeInt(0, width - 1);
@@ -72,9 +72,9 @@ final class BufferedImageConversionFuzzTest {
     try (final ImageBuffer created = ImageBuffer.image(frame)) {
       assertSamePixels(frame, created);
       final BufferedImage replacement = new BufferedImage(frame.getWidth(), frame.getHeight(), type);
-      for (int y = 0; y < replacement.getHeight(); y++) {
-        for (int x = 0; x < replacement.getWidth(); x++) {
-          replacement.setRGB(x, y, ~frame.getRGB(x, y));
+      for (int row = 0; row < replacement.getHeight(); row++) {
+        for (int column = 0; column < replacement.getWidth(); column++) {
+          replacement.setRGB(column, row, ~frame.getRGB(column, row));
         }
       }
       created.setAsBufferedImage(replacement);
@@ -90,16 +90,16 @@ final class BufferedImageConversionFuzzTest {
     assertEquals(width, bufferWidth, "width");
     assertEquals(height, bufferHeight, "height");
     final int[] pixels = buffer.getPixels();
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int expected = image.getRGB(x, y) | 0xFF000000;
-        final int actual = pixels[y * width + x];
-        final int column = x;
-        final int row = y;
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int expected = image.getRGB(column, row) | 0xFF000000;
+        final int actual = pixels[row * width + column];
+        final int pixelColumn = column;
+        final int pixelRow = row;
         assertEquals(
           expected,
           actual,
-          () -> "pixel " + column + "," + row + " of a " + width + "x" + height + " image of type " + image.getType()
+          () -> "pixel " + pixelColumn + "," + pixelRow + " of a " + width + "x" + height + " image of type " + image.getType()
         );
       }
     }

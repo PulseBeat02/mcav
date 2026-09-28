@@ -43,10 +43,10 @@ public final class DitherTestImages {
   public static int[] gradient(final int width, final int height) {
     final int[] pixels = new int[width * height];
     final int steps = Math.max(1, width - 1);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final int value = (x * 255) / steps;
-        pixels[y * width + x] = 0xFF000000 | (value << 16) | (value << 8) | value;
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final int value = (column * 255) / steps;
+        pixels[row * width + column] = 0xFF000000 | (value << 16) | (value << 8) | value;
       }
     }
     return pixels;

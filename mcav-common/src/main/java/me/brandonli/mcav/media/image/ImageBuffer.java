@@ -188,20 +188,20 @@ public interface ImageBuffer extends Image {
   /**
    * Sets the color of one pixel.
    *
-   * @param x     the column of the pixel
-   * @param y     the row of the pixel
-   * @param value the blue, green, and red components in that order, from 0 to 255
+   * @param column the column of the pixel
+   * @param row    the row of the pixel
+   * @param value  the blue, green, and red components in that order, from 0 to 255
    */
-  void setPixel(final int x, final int y, final double[] value);
+  void setPixel(final int column, final int row, final double[] value);
 
   /**
    * Gets the color of one pixel.
    *
-   * @param x the column of the pixel
-   * @param y the row of the pixel
+   * @param column the column of the pixel
+   * @param row    the row of the pixel
    * @return the blue, green, and red components in that order, from 0 to 255
    */
-  double[] getPixel(final int x, final int y);
+  double[] getPixel(final int column, final int row);
 
   /**
    * Gets every pixel as packed ARGB integers, laid out row by row, without copying them.

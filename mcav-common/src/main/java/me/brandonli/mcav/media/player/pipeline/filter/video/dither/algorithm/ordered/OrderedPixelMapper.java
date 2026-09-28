@@ -47,11 +47,11 @@ public final class OrderedPixelMapper implements PixelMapper {
     final long levels = (long) maximum - minimum + 1;
 
     final float[][] normalized = new float[thresholds.length][columns];
-    for (int y = 0; y < thresholds.length; y++) {
-      for (int x = 0; x < columns; x++) {
-        final long rank = (long) thresholds[y][x] - minimum;
+    for (int row = 0; row < thresholds.length; row++) {
+      for (int column = 0; column < columns; column++) {
+        final long rank = (long) thresholds[row][column] - minimum;
         final float centered = (float) ((rank + 0.5) / levels - 0.5);
-        normalized[y][x] = centered * strength;
+        normalized[row][column] = centered * strength;
       }
     }
     return normalized;

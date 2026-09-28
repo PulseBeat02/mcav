@@ -38,10 +38,10 @@ final class DrawingFiltersTest {
   private static final int BLACK_ARGB = 0xFF000000;
   private static final int WHITE_ARGB = 0xFFFFFFFF;
 
-  private static int pixelAt(final ImageBuffer image, final int x, final int y) {
+  private static int pixelAt(final ImageBuffer image, final int column, final int row) {
     final int[] pixels = image.getPixels();
     final int width = image.getWidth();
-    return pixels[y * width + x];
+    return pixels[row * width + column];
   }
 
   private static int countNonBlack(final ImageBuffer image) {

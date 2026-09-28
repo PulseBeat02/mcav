@@ -148,11 +148,11 @@ final class OrderedDitherTest {
     final OrderedDitherBuilderImpl blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
     final BayerDither dither = blackWhite.build();
     final byte[] indices = ditherMidGray(dither, 8, 8);
-    for (int y = 0; y < 6; y++) {
-      for (int x = 0; x < 6; x++) {
-        final int index = indices[y * 8 + x];
-        final int right = indices[y * 8 + x + 2];
-        final int below = indices[(y + 2) * 8 + x];
+    for (int row = 0; row < 6; row++) {
+      for (int column = 0; column < 6; column++) {
+        final int index = indices[row * 8 + column];
+        final int right = indices[row * 8 + column + 2];
+        final int below = indices[(row + 2) * 8 + column];
         assertEquals(index, right, "the default pattern repeats every two columns");
         assertEquals(index, below, "and every two rows");
       }

@@ -425,13 +425,13 @@ public interface BayerDither extends DitherAlgorithm {
     final int current = matrix.length;
     final int next = current * 2;
     final int[][] expanded = new int[next][next];
-    for (int y = 0; y < current; y++) {
-      for (int x = 0; x < current; x++) {
-        final int base = matrix[y][x] * 4;
-        expanded[y][x] = base;
-        expanded[y][x + current] = base + 2;
-        expanded[y + current][x] = base + 3;
-        expanded[y + current][x + current] = base + 1;
+    for (int row = 0; row < current; row++) {
+      for (int column = 0; column < current; column++) {
+        final int base = matrix[row][column] * 4;
+        expanded[row][column] = base;
+        expanded[row][column + current] = base + 2;
+        expanded[row + current][column] = base + 3;
+        expanded[row + current][column + current] = base + 1;
       }
     }
     return expanded;

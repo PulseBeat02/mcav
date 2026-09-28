@@ -129,32 +129,32 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
 
     void run() {
       final int height = this.pixels.length / this.width;
-      for (int y = 0; y < height; y++) {
-        this.ditherRow(y);
-        this.errors.finishRow(y);
+      for (int row = 0; row < height; row++) {
+        this.ditherRow(row);
+        this.errors.finishRow(row);
       }
     }
 
-    private void ditherRow(final int y) {
-      final int step = ErrorRows.getScanStep(y);
-      final int start = ErrorRows.getScanStart(y, this.width);
-      final int end = ErrorRows.getScanEnd(y, this.width);
-      for (int x = start; x != end; x += step) {
-        this.ditherPixel(x, y, step);
+    private void ditherRow(final int row) {
+      final int step = ErrorRows.getScanStep(row);
+      final int start = ErrorRows.getScanStart(row, this.width);
+      final int end = ErrorRows.getScanEnd(row, this.width);
+      for (int column = start; column != end; column += step) {
+        this.ditherPixel(column, row, step);
       }
     }
 
-    private void ditherPixel(final int x, final int y, final int step) {
-      final int pixelIndex = y * this.width + x;
+    private void ditherPixel(final int column, final int row, final int step) {
+      final int pixelIndex = row * this.width + column;
       final int argb = this.pixels[pixelIndex];
-      final int wanted = this.errors.applyPendingError(argb, x, y);
+      final int wanted = this.errors.applyPendingError(argb, column, row);
       final int lookup = ErrorRows.getLookupIndex(wanted);
       final int chosen = this.fullColorMap[lookup];
       this.store(pixelIndex, lookup, chosen);
       final int errorRed = ErrorRows.red(wanted) - ErrorRows.red(chosen);
       final int errorGreen = ErrorRows.green(wanted) - ErrorRows.green(chosen);
       final int errorBlue = ErrorRows.blue(wanted) - ErrorRows.blue(chosen);
-      this.errors.diffuse(x, y, step, errorRed, errorGreen, errorBlue);
+      this.errors.diffuse(column, row, step, errorRed, errorGreen, errorBlue);
     }
 
     private void store(final int pixelIndex, final int lookup, final int chosen) {

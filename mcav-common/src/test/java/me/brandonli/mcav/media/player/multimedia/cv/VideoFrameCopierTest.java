@@ -60,9 +60,9 @@ final class VideoFrameCopierTest {
     final Frame frame = new Frame(width, FRAME_HEIGHT, Frame.DEPTH_UBYTE, 3);
     final ByteBuffer pixels = (ByteBuffer) frame.image[0];
     final int stride = frame.imageStride;
-    for (int y = 0; y < FRAME_HEIGHT; y++) {
-      for (int x = 0; x < width; x++) {
-        final int index = y * stride + x * 3;
+    for (int row = 0; row < FRAME_HEIGHT; row++) {
+      for (int column = 0; column < width; column++) {
+        final int index = row * stride + column * 3;
         pixels.put(index, blue);
         pixels.put(index + 1, green);
         pixels.put(index + 2, red);

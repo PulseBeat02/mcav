@@ -43,18 +43,18 @@ public class TextFilter extends MatVideoFilter {
   /**
    * Constructs a new text filter.
    *
-   * @param text  the text to draw
-   * @param x     the x coordinate of the left end of the text baseline
-   * @param y     the y coordinate of the text baseline
-   * @param font  the font, one of the {@code FONT_HERSHEY_} constants of {@link opencv_imgproc}
-   * @param scale the size of the text relative to the base size of the font, which must be positive
-   * @param color the blue, green, and red components of the color, from 0 to 255
+   * @param text     the text to draw
+   * @param left     the x coordinate of the left end of the text baseline
+   * @param baseline the y coordinate of the text baseline
+   * @param font     the font, one of the {@code FONT_HERSHEY_} constants of {@link opencv_imgproc}
+   * @param scale    the size of the text relative to the base size of the font, which must be positive
+   * @param color    the blue, green, and red components of the color, from 0 to 255
    */
-  public TextFilter(final String text, final int x, final int y, final int font, final double scale, final double[] color) {
+  public TextFilter(final String text, final int left, final int baseline, final int font, final double scale, final double[] color) {
     Preconditions.checkNotNull(text, "Text must not be null");
     Preconditions.checkArgument(scale > 0, "Scale must be positive");
     this.text = text;
-    this.position = new Point(x, y);
+    this.position = new Point(left, baseline);
     this.font = font;
     this.scale = scale;
     this.color = ImageUtils.toScalar(color);
