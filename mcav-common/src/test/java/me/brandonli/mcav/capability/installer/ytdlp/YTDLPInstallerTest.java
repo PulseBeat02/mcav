@@ -182,9 +182,9 @@ final class YTDLPInstallerTest {
   @Test
   void unpacksAZipAndMarksItsExecutable() throws IOException {
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER, "_internal/library.so", LIBRARY);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
       final Path installed = installer.download(true);
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
       final Path expected = unpacked.resolve(EXECUTABLE);
@@ -220,9 +220,9 @@ final class YTDLPInstallerTest {
   @Test
   void reusesAnUnpackedZipWithoutDownloadingItAgain() throws IOException {
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller first = this.serveZip(server, ZIP_PATH, isArchive);
+      final YTDLPInstaller first = this.serveZip(server, ZIP_PATH, archive);
       final Path installed = first.download(true);
       final URI uri = server.uri(ZIP_PATH);
       final String url = uri.toString();
@@ -245,9 +245,9 @@ final class YTDLPInstallerTest {
     Files.writeString(stale, "stale");
     Files.writeString(leftover, "leftover");
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
       final Path installed = installer.download(true);
       final boolean staleLeft = Files.exists(stale);
       final Path relocatedLeftover = unpacked.resolve("leftover.txt");
@@ -263,9 +263,9 @@ final class YTDLPInstallerTest {
   @Test
   void rejectsAZipWithoutTheExecutableAtItsTopLevel() throws IOException {
     final Map<String, byte[]> entries = Map.of("_internal/yt-dlp_test", LAUNCHER);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
       final IOException exception = assertThrows(IOException.class, () -> installer.download(true));
       final String message = exception.getMessage();
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
@@ -295,9 +295,9 @@ final class YTDLPInstallerTest {
   @Test
   void rejectsAZipWhoseEntriesEscapeTheFolder() throws IOException {
     final Map<String, byte[]> entries = Map.of("../escaped", LAUNCHER);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
       final IOException exception = assertThrows(IOException.class, () -> installer.download(true));
       final Throwable cause = exception.getCause();
       final Path escaped = this.folder.resolve("escaped");
@@ -310,9 +310,9 @@ final class YTDLPInstallerTest {
   @Test
   void namesTheExecutableAfterTheProgramWhenTheZipHasNoName() throws IOException {
     final Map<String, byte[]> entries = Map.of("yt-dlp", LAUNCHER);
-    final byte[] isArchive = zip(entries);
+    final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, "/.zip", isArchive);
+      final YTDLPInstaller installer = this.serveZip(server, "/.zip", archive);
       final Path installed = installer.download(true);
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
       final Path expected = unpacked.resolve("yt-dlp");

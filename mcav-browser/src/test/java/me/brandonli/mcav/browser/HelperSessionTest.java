@@ -862,8 +862,8 @@ class HelperSessionTest {
 
   @Test
   void theFolderOfASessionIsCreatedOnEveryFileSystem() throws IOException {
-    final Path isUsable = HelperSession.createFolder(this.directory);
-    assertTrue(Files.isDirectory(isUsable));
+    final Path folder = HelperSession.createFolder(this.directory);
+    assertTrue(Files.isDirectory(folder));
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");

@@ -629,8 +629,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>();
-    for (final String isFlagOption : FLAG_OPTIONS) {
-      names.add("-" + isFlagOption);
+    for (final String flag : FLAG_OPTIONS) {
+      names.add("-" + flag);
     }
     for (final String hardware : HARDWARE_OPTIONS) {
       names.add("-" + hardware);

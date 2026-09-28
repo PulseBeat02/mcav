@@ -67,8 +67,8 @@ final class HelpNavigationTest {
     for (int index = 0; index < 9; index++) {
       final Command.Builder<CommandSender> root = this.manager.commandBuilder("mcav");
       final Command.Builder<CommandSender> topic = root.literal("topic" + index);
-      final Description showsDescription = Description.of("Description for topic" + index);
-      final Command.Builder<CommandSender> described = topic.commandDescription(showsDescription);
+      final Description description = Description.of("Description for topic" + index);
+      final Command.Builder<CommandSender> described = topic.commandDescription(description);
       this.manager.command(described);
 
       final Command.Builder<CommandSender> video = root.literal("video");
@@ -79,8 +79,8 @@ final class HelpNavigationTest {
     }
     final Command.Builder<CommandSender> root = this.manager.commandBuilder("mcav");
     final Command.Builder<CommandSender> similar = root.literal("mcavity");
-    final Description showsDescription = Description.of("Description for mcavity");
-    final Command.Builder<CommandSender> described = similar.commandDescription(showsDescription);
+    final Description description = Description.of("Description for mcavity");
+    final Command.Builder<CommandSender> described = similar.commandDescription(description);
     this.manager.command(described);
     this.sender = mock(CommandSender.class);
     when(this.sender.hasPermission(anyString())).thenReturn(true);

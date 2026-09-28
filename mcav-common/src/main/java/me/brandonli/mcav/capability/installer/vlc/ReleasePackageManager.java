@@ -201,12 +201,12 @@ public final class ReleasePackageManager {
     final JsonElement urlElement = asset.get("browser_download_url");
     final String url = urlElement.getAsString();
     final JsonElement digestElement = asset.get("digest");
-    final Optional<String> isSha256Digest = readSha256(digestElement);
-    if (isSha256Digest.isEmpty()) {
+    final Optional<String> sha256 = readSha256(digestElement);
+    if (sha256.isEmpty()) {
       LOGGER.warn(APPIMAGE_UNVERIFIED, url);
       return Optional.empty();
     }
-    final String hash = isSha256Digest.get();
+    final String hash = sha256.get();
     final Download download = new Download(platform, url, hash);
     return Optional.of(download);
   }

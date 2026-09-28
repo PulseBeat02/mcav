@@ -69,8 +69,8 @@ final class HelpCommandTest {
     parser.descriptionMapper(AnnotationParserHandler::describe);
     this.help = new HelpCommand(manager);
     parser.parse(this.help);
-    final DumpCommand listsDump = new DumpCommand(() -> "unused");
-    parser.parse(listsDump);
+    final DumpCommand dump = new DumpCommand(() -> "unused");
+    parser.parse(dump);
     this.sender = mock(CommandSender.class);
     when(this.sender.hasPermission(anyString())).thenReturn(true);
     // the help sends some lines as builders; the real default method turns them into components

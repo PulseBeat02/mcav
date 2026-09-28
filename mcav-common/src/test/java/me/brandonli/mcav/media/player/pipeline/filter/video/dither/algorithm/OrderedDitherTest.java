@@ -59,9 +59,9 @@ final class OrderedDitherTest {
     final Map<Integer, Integer> counts = new HashMap<>();
     for (final int[] row : matrix) {
       assertEquals(columns, row.length, name + " columns");
-      for (final int wasSeen : row) {
-        minimum = Math.min(minimum, wasSeen);
-        counts.merge(wasSeen, 1, Integer::sum);
+      for (final int value : row) {
+        minimum = Math.min(minimum, value);
+        counts.merge(value, 1, Integer::sum);
       }
     }
 
@@ -69,9 +69,9 @@ final class OrderedDitherTest {
     final int distinct = counts.size();
     assertEquals(levels, distinct, name + " levels");
     for (int level = 0; level < levels; level++) {
-      final int wasSeen = minimum + level;
-      final int count = counts.getOrDefault(wasSeen, 0);
-      assertEquals(repetitions, count, name + " occurrences of " + wasSeen);
+      final int value = minimum + level;
+      final int count = counts.getOrDefault(value, 0);
+      assertEquals(repetitions, count, name + " occurrences of " + value);
     }
   }
 
@@ -253,8 +253,8 @@ final class OrderedDitherTest {
     final int[][] eight = BayerDither.createBayerMatrix(8);
     final boolean[] seen = new boolean[64];
     for (final int[] row : eight) {
-      for (final int wasSeen : row) {
-        seen[wasSeen] = true;
+      for (final int value : row) {
+        seen[value] = true;
       }
     }
 

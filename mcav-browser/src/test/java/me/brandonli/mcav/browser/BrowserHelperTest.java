@@ -116,9 +116,9 @@ class BrowserHelperTest {
     helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
     reporter.onAudio(chunk);
     assertEquals(message, sent.size(), "a key lets the sound pass");
-    final BrowserHelper allowsAutoplay = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
+    final BrowserHelper autoplayHelper = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
     final ByteArrayOutputStream played = new ByteArrayOutputStream();
-    allowsAutoplay.new Reporter(new DataOutputStream(played)).onAudio(chunk);
+    autoplayHelper.new Reporter(new DataOutputStream(played)).onAudio(chunk);
     assertEquals(message, played.size(), "with autoplay the sound passes at once");
   }
 

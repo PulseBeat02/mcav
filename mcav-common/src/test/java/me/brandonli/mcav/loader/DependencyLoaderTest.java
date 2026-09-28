@@ -407,20 +407,20 @@ final class DependencyLoaderTest {
     throws Exception {
     final DependencyLoader loader = new DependencyLoader();
     final CyclicBarrier barrier = new CyclicBarrier(2);
-    final Future<?> hasVlc = executor.submit(() -> {
+    final Future<?> vlcInstallation = executor.submit(() -> {
       barrier.await();
       loader.installVLC(() -> {
         throw new IOException("offline");
       });
       return null;
     });
-    final Future<?> hasYtdlp = executor.submit(() -> {
+    final Future<?> ytdlpInstallation = executor.submit(() -> {
       barrier.await();
       loader.installYTDLP(unsupported);
       return null;
     });
-    hasVlc.get(10, TimeUnit.SECONDS);
-    hasYtdlp.get(10, TimeUnit.SECONDS);
+    vlcInstallation.get(10, TimeUnit.SECONDS);
+    ytdlpInstallation.get(10, TimeUnit.SECONDS);
     return loader;
   }
 

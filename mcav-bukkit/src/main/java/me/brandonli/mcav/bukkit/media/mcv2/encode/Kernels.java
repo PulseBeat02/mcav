@@ -77,7 +77,7 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
     byte[] record,
     int offset,
     int luma,
-    int convertsChroma,
+    int chroma,
     int quantizer,
     int size,
     int[] out

@@ -624,15 +624,15 @@ final class NativeKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int luma,
-    final int convertsChroma,
+    final int chroma,
     final int quantizer,
     final int size,
     final int[] out
   ) {
     this.checkScored(size, out);
     checkGrid(luma);
-    checkGrid(convertsChroma);
-    checkRange(record.length, offset, luma * luma + CHROMA_PLANES * convertsChroma * convertsChroma);
+    checkGrid(chroma);
+    checkRange(record.length, offset, luma * luma + CHROMA_PLANES * chroma * chroma);
     final MemorySegment predicted;
     if (prediction == null) {
       predicted = MemorySegment.NULL;
@@ -648,7 +648,7 @@ final class NativeKernels extends Kernels {
           of(record),
           offset,
           luma,
-          convertsChroma,
+          chroma,
           quantizer,
           size,
           of(out),

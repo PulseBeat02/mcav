@@ -561,10 +561,10 @@ final class MCAVTest {
    * Waits until VLC and yt-dlp have been prepared in the background.
    */
   private void awaitBackgroundInstallation() throws Exception {
-    final CompletableFuture<Boolean> hasVlc = this.mcav.whenCapabilityReady(Capability.VLC);
-    final CompletableFuture<Boolean> hasYtdlp = this.mcav.whenCapabilityReady(Capability.YT_DLP);
-    hasVlc.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    hasYtdlp.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    final CompletableFuture<Boolean> vlcReady = this.mcav.whenCapabilityReady(Capability.VLC);
+    final CompletableFuture<Boolean> ytdlpReady = this.mcav.whenCapabilityReady(Capability.YT_DLP);
+    vlcReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    ytdlpReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
   }
 
   private void verifyEveryInstallationStep() {

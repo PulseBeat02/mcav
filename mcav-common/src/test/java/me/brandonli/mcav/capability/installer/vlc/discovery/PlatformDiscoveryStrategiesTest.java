@@ -78,11 +78,11 @@ final class PlatformDiscoveryStrategiesTest {
   void exactlyTheStrategyOfTheRunningSystemIsSupported() {
     final LinuxNativeDiscoveryStrategy linux = new LinuxNativeDiscoveryStrategy();
     final OsxNativeDiscoveryStrategy osx = new OsxNativeDiscoveryStrategy();
-    final WindowsNativeDiscoveryStrategy isWindows = new WindowsNativeDiscoveryStrategy();
+    final WindowsNativeDiscoveryStrategy windowsStrategy = new WindowsNativeDiscoveryStrategy();
     final OS operatingSystem = OSUtils.getOS();
     final boolean linuxSupported = linux.supported();
     final boolean osxSupported = osx.supported();
-    final boolean windowsSupported = isWindows.supported();
+    final boolean windowsSupported = windowsStrategy.supported();
     assertEquals(operatingSystem == OS.LINUX || operatingSystem == OS.FREEBSD || operatingSystem == OS.OTHER, linuxSupported);
     assertEquals(operatingSystem == OS.MAC, osxSupported);
     assertEquals(operatingSystem == OS.WINDOWS, windowsSupported);

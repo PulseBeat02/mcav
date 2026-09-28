@@ -56,7 +56,7 @@ final class FrameParserRulesTest {
   private static final byte[] OTHER_ENDPOINTS = { 24, 40, 56, (byte) 232, (byte) 216, (byte) 200 };
 
   /** Where the parts of a derived-form frame are, computed like the parser does. */
-  private record Layout(int counts, int table, int plane, int walk, int isTwoLevel, int head, int start, int total) {
+  private record Layout(int counts, int table, int plane, int walk, int twoLevelPlaneOffset, int head, int start, int total) {
     static Layout of(final byte[] frame) {
       final int flags = flagsOf(frame);
       final int roots = (int) Mcv2Format.u32(frame, 24);
@@ -124,7 +124,7 @@ final class FrameParserRulesTest {
   void refusesBrokenWalkWidths() {
     final byte[] frame = tabled();
     final Layout layout = Layout.of(frame);
-    final int walk = layout.isTwoLevel();
+    final int walk = layout.twoLevelPlaneOffset();
     assertEquals("Short walk widths", message(withWord(frame, 28, walk + 1)));
     assertEquals("Invalid walk delta widths", message(withByte(frame, walk, 0)));
     assertEquals("Invalid walk delta widths", message(withByte(frame, walk, 17)));
@@ -136,7 +136,7 @@ final class FrameParserRulesTest {
   @Test
   void refusesWalkWidthsWiderThanNeeded() {
     final byte[] frame = tabled();
-    final int walk = Layout.of(frame).isTwoLevel();
+    final int walk = Layout.of(frame).twoLevelPlaneOffset();
     // a wider split field decodes every entry the same way, so only the minimality rule catches it
     assertEquals("Walk delta widths are not minimal", message(withByte(frame, walk + 1, frame[walk + 1] + 1)));
   }
@@ -145,7 +145,7 @@ final class FrameParserRulesTest {
   void refusesAWiderCursorFieldEvenWhenItDecodesTheSame() {
     // twenty palette roots and no split: every split delta is zero, so a wider cursor field reads the same entries
     final byte[] frame = keyframe(160, 128, DERIVED, repeat(leaf(Mcv2Format.MODE_PALETTE, 0, 32, 3), 20));
-    final int walk = Layout.of(frame).isTwoLevel();
+    final int walk = Layout.of(frame).twoLevelPlaneOffset();
     assertTrue(walk > 0);
     assertEquals(12, frame[walk]);
     assertEquals(1, frame[walk + 1]);

@@ -537,9 +537,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return true if the player started, false if it refused to start
    */
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
-    final Source isVideo = selection.getVideo();
+    final Source video = selection.getVideo();
     final Source audio = selection.getAudio();
-    return this.manager.startNative(() -> audio == null ? player.start(isVideo) : player.start(isVideo, audio));
+    return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
   }
 
   /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
@@ -620,8 +620,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String format = ffmpegSource.getFormat();
       return createDump(input, "FFmpeg input " + format);
     }
-    if (source instanceof final DeviceSource isDevice) {
-      final int deviceId = isDevice.getDeviceId();
+    if (source instanceof final DeviceSource device) {
+      final int deviceId = device.getDeviceId();
       return createDump("Device " + deviceId, "Video from a capture device");
     }
     if (source instanceof final FileSource file) {
@@ -654,9 +654,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final Format videoFormat = selector.getVideoSource(dump);
     final Format audioFormat = selector.getAudioSource(dump);
-    final UriSource isVideo = videoFormat.toUriSource();
+    final UriSource video = videoFormat.toUriSource();
     final UriSource audio = audioFormat.toUriSource();
-    return new SourceSelection(isVideo, audio, dump);
+    return new SourceSelection(video, audio, dump);
   }
 
   /**
@@ -664,18 +664,18 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    */
   private static final class SourceSelection {
 
-    private final Source isVideo;
+    private final Source video;
     private final @Nullable Source audio;
     private final URLParseDump dump;
 
-    SourceSelection(final Source isVideo, final @Nullable Source audio, final URLParseDump dump) {
-      this.isVideo = isVideo;
+    SourceSelection(final Source video, final @Nullable Source audio, final URLParseDump dump) {
+      this.video = video;
       this.audio = audio;
       this.dump = dump;
     }
 
     private Source getVideo() {
-      return this.isVideo;
+      return this.video;
     }
 
     private @Nullable Source getAudio() {

@@ -89,9 +89,9 @@ class CefEngineTest {
     );
     // a page plays sound once a player clicked it, as in a desktop browser; CEF's own default lets it play at once
     assertTrue(switches.contains("--autoplay-policy=document-user-activation-required"));
-    final List<String> allowsAutoplay = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
-    assertTrue(allowsAutoplay.contains("--autoplay-policy=no-user-gesture-required"));
-    assertFalse(allowsAutoplay.contains("--autoplay-policy=document-user-activation-required"));
+    final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
+    assertTrue(autoplaySwitches.contains("--autoplay-policy=no-user-gesture-required"));
+    assertFalse(autoplaySwitches.contains("--autoplay-policy=document-user-activation-required"));
     assertTrue(switches.contains("--js-flags=--jitless"));
     assertFalse(switches.contains("--ozone-platform=headless"));
     assertFalse(switches.contains("--use-mock-keychain"));

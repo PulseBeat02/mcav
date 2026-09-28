@@ -129,7 +129,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   private final Set<Player> activePlayers;
   private final Object lock;
-  private volatile @Nullable Screen isScreen;
+  private volatile @Nullable Screen screen;
   private boolean closed;
 
   /**
@@ -215,10 +215,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     synchronized (this.lock) {
       current = this.player;
       maps = this.result;
-      oldScreen = this.isScreen;
+      oldScreen = this.screen;
       this.player = null;
       this.result = null;
-      this.isScreen = null;
+      this.screen = null;
     }
     final boolean workerOwnsCleanup = oldScreen != null && oldScreen.cancel();
     CleanupUtils.runAll(
@@ -294,17 +294,17 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Sends the viewers the link of the audio output once the player started.
    *
    * @param start the start of the player
-   * @param isScreen the screen of the player
+   * @param screen the screen of the player
    * @param sound the output and the players who hear it
    */
-  final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen isScreen, final ScreenSound sound) {
+  final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
     TaskUtils.whenComplete(start, (started, error) -> {
       // releasing the player while it starts cancels the start, and a release before the main thread sends the links
       // cancels the screen, which the main thread sees, as releases happen there too
       if (error == null && Boolean.TRUE.equals(started)) {
         final AudioProvider provider = this.plugin.getAudioProvider();
         TaskUtils.runOnMainThread(this.plugin, () -> {
-          if (!isScreen.isCancelled()) {
+          if (!screen.isCancelled()) {
             AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
           }
         });
@@ -395,7 +395,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       final Screen created = new Screen(output, pipeline, mapId, mapCount);
       synchronized (this.lock) {
         this.result = output;
-        this.isScreen = created;
+        this.screen = created;
       }
       return created;
     } catch (final RuntimeException | Error exception) {
@@ -506,7 +506,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * BrowserPlayer and VMPlayer submit their CompletableFuture startup through execute. Screen creation,
    * reportStartWhenDone, release commands and shutdown are main-thread operations; startup runs on the worker.
    */
-  final ExecutorService startExecutor(final T started, final Screen isScreen) {
+  final ExecutorService startExecutor(final T started, final Screen screen) {
     return new ForwardingExecutorService() {
       @Override
       protected ExecutorService delegate() {
@@ -516,13 +516,13 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       @Override
       public void execute(final Runnable task) {
         final ExecutorService executor = this.delegate();
-        executor.execute(() -> AbstractInteractiveCommand.this.runStartTask(started, isScreen, task));
+        executor.execute(() -> AbstractInteractiveCommand.this.runStartTask(started, screen, task));
       }
     };
   }
 
-  private void runStartTask(final T started, final Screen isScreen, final Runnable task) {
-    if (!isScreen.beginStart()) {
+  private void runStartTask(final T started, final Screen screen, final Runnable task) {
+    if (!screen.beginStart()) {
       return;
     }
     try {
@@ -530,7 +530,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       try {
-        this.finishStartTask(started, isScreen);
+        this.finishStartTask(started, screen);
       } catch (final RuntimeException | Error cleanup) {
         ThrowableUtils.throwIfFatal(cleanup);
         final boolean same = IDENTITY.equivalent(exception, cleanup);
@@ -540,11 +540,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       }
       throw exception;
     }
-    this.finishStartTask(started, isScreen);
+    this.finishStartTask(started, screen);
   }
 
-  private void finishStartTask(final T started, final Screen isScreen) {
-    final boolean cancelled = isScreen.finishStart();
+  private void finishStartTask(final T started, final Screen screen) {
+    final boolean cancelled = screen.finishStart();
     if (cancelled) {
       this.releasePlayer(started);
     }
@@ -558,32 +558,32 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    *
    * @param sender      who ran the command
    * @param started     the player that is starting
-   * @param isScreen    the screen created for it with {@link #createScreen(ScreenSettings)}
+   * @param screen      the screen created for it with {@link #createScreen(ScreenSettings)}
    * @param start       completes with whether the player started
    * @param description what was started, for the log
    */
   final void reportStartWhenDone(
     final CommandSender sender,
     final T started,
-    final Screen isScreen,
+    final Screen screen,
     final CompletableFuture<Boolean> start,
     final String description
   ) {
     synchronized (this.lock) {
-      final boolean current = IDENTITY.equivalent(this.isScreen, isScreen);
+      final boolean current = IDENTITY.equivalent(this.screen, screen);
       if (!this.closed && current) {
         this.player = started;
       }
     }
-    isScreen.bindStart(start);
-    final FunctionalVideoFilter maps = isScreen.getOutput();
-    final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, isScreen, description);
+    screen.bindStart(start);
+    final FunctionalVideoFilter maps = screen.getOutput();
+    final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, screen, description);
     TaskUtils.whenComplete(start, (succeeded, error) -> this.onStartCompleted(attempt, succeeded, error));
   }
 
   private void onStartCompleted(final StartAttempt<T> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
-    final Screen isScreen = attempt.getScreen();
-    if (isScreen.isCancelled()) {
+    final Screen screen = attempt.getScreen();
+    if (screen.isCancelled()) {
       return;
     }
     final boolean succeeded = error == null && Boolean.TRUE.equals(started);
@@ -598,7 +598,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final Component message = this.createStartMessage(succeeded, error);
     final CommandSender sender = attempt.getSender();
     TaskUtils.runOnMainThread(this.plugin, () -> {
-      if (!isScreen.isCancelled()) {
+      if (!screen.isCancelled()) {
         sender.sendMessage(message);
       }
     });
@@ -620,7 +620,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       mapsCurrent = IDENTITY.equivalent(maps, this.result);
       if (mapsCurrent) {
         this.result = null;
-        this.isScreen = null;
+        this.screen = null;
       }
     }
 
@@ -647,7 +647,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   private boolean ownsScreen(final ItemFrame frame) {
-    final Screen current = this.isScreen;
+    final Screen current = this.screen;
     if (current == null) {
       return false;
     }
@@ -976,20 +976,20 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     private final CommandSender sender;
     private final T player;
     private final FunctionalVideoFilter maps;
-    private final Screen isScreen;
+    private final Screen screen;
     private final String description;
 
     StartAttempt(
       final CommandSender sender,
       final T player,
       final FunctionalVideoFilter maps,
-      final Screen isScreen,
+      final Screen screen,
       final String description
     ) {
       this.sender = sender;
       this.player = player;
       this.maps = maps;
-      this.isScreen = isScreen;
+      this.screen = screen;
       this.description = description;
     }
 
@@ -1006,7 +1006,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     }
 
     private Screen getScreen() {
-      return this.isScreen;
+      return this.screen;
     }
 
     private String getDescription() {

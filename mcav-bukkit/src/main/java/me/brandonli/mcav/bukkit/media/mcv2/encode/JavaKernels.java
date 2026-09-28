@@ -92,12 +92,12 @@ final class JavaKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int luma,
-    final int convertsChroma,
+    final int chroma,
     final int quantizer,
     final int size,
     final int[] out
   ) {
-    return Reconstruction.reduced(prediction, record, offset, luma, convertsChroma, quantizer, size, this.scratch, out, this.score);
+    return Reconstruction.reduced(prediction, record, offset, luma, chroma, quantizer, size, this.scratch, out, this.score);
   }
 
   @Override

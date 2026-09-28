@@ -223,13 +223,13 @@ final class KernelDifferential {
       case 5 -> {
         name = "reduced";
         final int luma = 1 << random.next(0, 3);
-        final int convertsChroma = 1 << random.next(0, 2);
+        final int chroma = 1 << random.next(0, 2);
         final int quantizer = random.next(0, 4);
         final int offset = random.next(0, 2);
-        final byte[] record = random.bytes(offset + luma * luma + 2 * convertsChroma * convertsChroma);
+        final byte[] record = random.bytes(offset + luma * luma + 2 * chroma * chroma);
         final int @Nullable [] predicted = random.next(0, 1) == 0 ? null : prediction;
-        finishedJava = java.reduced(predicted, record, offset, luma, convertsChroma, quantizer, size, expected);
-        finishedOther = other.reduced(predicted, record, offset, luma, convertsChroma, quantizer, size, actual);
+        finishedJava = java.reduced(predicted, record, offset, luma, chroma, quantizer, size, expected);
+        finishedOther = other.reduced(predicted, record, offset, luma, chroma, quantizer, size, actual);
       }
       default -> {
         final int kind = COMPACT_CLASSES[random.next(0, COMPACT_CLASSES.length - 1)];
