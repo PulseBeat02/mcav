@@ -71,7 +71,33 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
 ```
 
 `start`, `pause`, `resume`, and `seek` return whether they did anything. Once the media has played to its end,
-`resume()` returns `false` and does not restart it; call `start` with the source again to play it once more.
+`resume()` returns `false` and does not restart it; call `start` with the source again to play it once more, which is
+also how to loop a video.
+
+## Speed, Position and Volume
+
+The FFmpeg, OpenCV and device players extend `AbstractVideoPlayerCV`, which adds a playback speed and the position:
+
+- `setSpeed(double)` plays media of a known length faster or slower, from `AbstractVideoPlayerCV.MIN_SPEED` (0.5) to
+  `MAX_SPEED` (2), with its sound resampled to match, so faster sound is higher. It returns `false` for a live stream
+  or a camera, which cannot be played ahead of itself, and when nothing plays. A seek keeps the speed; new media starts
+  at normal speed. `getSpeed()` returns it.
+- `getPositionMillis()` returns the timestamp of the last rendered frame, which is where a relative seek starts from.
+
+The VLC player keeps its own rate, which it uses to keep picture and sound together, so it does not change speed. The
+volume is a filter of the audio pipeline, `VolumeFilter` (see [filters](filters.md#audio-filters)), so it applies to
+every player and every audio output behind it.
+
+```java
+  public static boolean playFaster(final VideoPlayerMultiplexer player) {
+    if (player instanceof final AbstractVideoPlayerCV decoded) {
+      final long position = decoded.getPositionMillis();
+      System.out.println("Speeding up at " + position + " ms");
+      return decoded.setSpeed(1.5); // false for a live stream or a camera
+    }
+    return false; // VLC plays at its own rate
+  }
+```
 
 The FFmpeg and VLC players can play video and audio from two different sources and keep them in sync. This is how
 the separate streams yt-dlp resolves for high-quality YouTube videos are played. The OpenCV and device backends

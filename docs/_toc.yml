@@ -8,6 +8,10 @@ parts:
     chapters:
       - file: plugin/plugin.md
       - file: plugin/tutorial.md
+      - file: plugin/video.md
+      - file: plugin/browser.md
+      - file: plugin/vm.md
+      - file: plugin/vnc.md
       - file: plugin/commands.md
       - file: plugin/config.md
       - file: plugin/faq.md
@@ -19,6 +23,7 @@ parts:
       - file: library/instance.md
       - file: library/source.md
       - file: library/pipeline.md
+      - file: library/filters.md
       - file: library/player.md
       - file: library/browser.md
       - file: library/vnc.md
