@@ -1,7 +1,3 @@
----
-orphan: true
----
-
 (mcv2-conformance)=
 # MCV2 conformance
 

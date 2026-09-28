@@ -1,7 +1,3 @@
----
-orphan: true
----
-
 (mcv2-encoder)=
 # MCV2 encoder
 
@@ -90,9 +86,9 @@ vectors and searched at half resolution first, and palettes and grids use cheape
 
 | preset | `EncoderSettings` | search | lambda | key interval |
 |---|---|---|---:|---:|
-| `live` (default) | `LIVE` | `LiveSearch.LIVE` | 72, raised with the motion | 120 |
+| `live` (default) | `LIVE` | `LiveSearch.LIVE`, with a quarter-resolution level of the motion search before the half-resolution one | 72, raised with the motion | 120 |
 | `adaptive` | `LIVE_ADAPTIVE` | `LIVE` on calm pictures, `LIVE_FAST` in motion (average temporal information above 8, until below 6) | 72 / 55 | 120 |
-| `live-fast` | `LIVE_FAST` | `LiveSearch.LIVE_FAST`: SKIP without a search up to 60 lambda, split thresholds doubled, motion searched at a quarter resolution first | 55, raised with the motion | 120 |
+| `live-fast` | `LIVE_FAST` | `LiveSearch.LIVE_FAST`: SKIP without a search up to 60 lambda, the splits of blocks the previous frame coded whole at 900 and 600 lambda, the motion search from half resolution only | 55, raised with the motion | 120 |
 
 **Lambda rises with motion** (`MotionLambda`): `lambda = base * min(4, max(1, (TI / 4.6) ^ 0.79))`, where TI is the mean
 absolute change of the 3x3-blurred luma of every fourth pixel from the previous frame, smoothed over 16 frames and

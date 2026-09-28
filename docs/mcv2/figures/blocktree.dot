@@ -1,0 +1,62 @@
+// Figure: how one 32x32 superblock arrives at its tree, and how each block of it arrives at one leaf mode.
+// BlockCoder.evaluate (the candidates, in the reference's order) and Mcv2Encoder.select (the tree, bottom up).
+digraph blocktree {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.2;
+  nodesep=0.3;
+  ranksep=0.28;
+  newrank=true;
+  node [shape=box, style=filled, fillcolor="#f5f5f5", color="#666666", fontname="Arial", fontsize=11, fontcolor="#333333", margin="0.12,0.07"];
+  edge [color="#666666", arrowsize=0.7, fontname="Arial", fontsize=10, fontcolor="#555555"];
+
+  superblock [label="32x32 superblock of the source", fillcolor="#fff2cc", color="#d6b656"];
+  levels [label="Evaluate every block on its own: the 32x32,\nits four 16x16 and their sixteen 8x8 blocks\n(no block depends on a neighbour of the same frame)"];
+
+  subgraph cluster_block {
+    label="One block (s = 32, 16 or 8 pixels)";
+    fontname="Arial"; fontsize=11; fontcolor="#333333";
+    style="rounded"; color="#999999";
+    pframe [shape=diamond, label="P frame?", margin="0.02,0.02"];
+    skip [label="SKIP (mode 0)\nthe reference at the global vector, no record"];
+    earlyskip [shape=diamond, label="Live presets only:\nSKIP cost at most\n26.5 x lambda?", margin="0.02,0.02", style="filled,dashed"];
+    local [label="Local motion search\neight-neighbour diamond around the global vector on\n16 sampled pixels, steps from 24 pixels to half a pixel"];
+    motion [label="MOTION (1): that vector, 2 bytes"];
+    intra [label="Intra candidates\nSOLID (2), 3 bytes; PALETTE (3), two colours and a bit a pixel;\nbilinear RGB grids 2x2, 4x4, 8x8 (5 to 7);\nreduced chroma: luma 4x4 + one chroma pair (12),\nluma 8x8 + 2x2 chroma (14); PATTERN (18): a two-colour\npalette repeating along one axis, full and RGB565 endpoints"];
+    residual [label="Residual candidates (P frames)\nYCoCg grids 1x1 to 8x8 on a prediction (8 to 11), q 0 to 3;\nreduced-chroma residuals (13, 15); COMPACT (17):\nclasses 0, 1, 2, 3, 4 and 8 with their quantizers,\non the global and on the local prediction"];
+    score [label="Each candidate: reconstruct as the decoder will,\ncost = weighted squared error + lambda x (8 x record bytes + 10.5);\na measurement stops as soon as the candidate cannot win"];
+    best [shape=diamond, label="Strictly cheaper than\nthe best so far\n(per trial)?", margin="0.02,0.02"];
+    leaf [label="Best leaf of the block:\nmode, quantizer, record"];
+  }
+
+  split16 [shape=diamond, label="Four 8x8 leaves\n+ lambda x 10.5 cheaper\nthan the best 16x16 leaf?", margin="0.02,0.02"];
+  split32 [shape=diamond, label="Four 16x16 choices\n+ lambda x 10.5 cheaper\nthan the best 32x32 leaf?", margin="0.02,0.02"];
+  node16s [label="16x16 is a split\n(mode 16)"];
+  leaf16 [label="16x16 is a leaf"];
+  node32s [label="32x32 is a split"];
+  leaf32 [label="32x32 is a leaf"];
+  result [label="The superblock's tree:\n32x32 leaf, or four 16x16 nodes,\neach a leaf or four 8x8 leaves", fillcolor="#fff2cc", color="#d6b656"];
+
+  superblock -> levels -> pframe;
+  pframe -> skip [label="yes"];
+  pframe -> intra [label="no (keyframe)"];
+  skip -> earlyskip;
+  earlyskip -> leaf [label="yes", style=dashed];
+  earlyskip -> local [label="no, or the\nreference search"];
+  local -> motion -> intra;
+  intra -> residual [label="P frames"];
+  residual -> score;
+  intra -> score [label="keyframes"];
+  score -> best;
+  best -> leaf [label="yes: replaces it"];
+  best -> score [label="no: next candidate"];
+  leaf -> split16 [label="8x8 and 16x16\nblocks"];
+  split16 -> node16s [label="yes"];
+  split16 -> leaf16 [label="no"];
+  node16s -> split32;
+  leaf16 -> split32;
+  split32 -> node32s [label="yes"];
+  split32 -> leaf32 [label="no"];
+  node32s -> result;
+  leaf32 -> result;
+}

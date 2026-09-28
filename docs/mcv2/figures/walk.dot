@@ -1,0 +1,33 @@
+// Figure: how one fragment finds the leaf that covers its pixel in a derived-offsets frame, without a neighbour and
+// without a sequential scan of the frame (mcvideoDerivedBlock in mcv2_codec.glsl; format.md, section 3.3).
+digraph walk {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.2;
+  nodesep=0.3;
+  ranksep=0.26;
+  node [shape=box, style=filled, fillcolor="#f5f5f5", color="#666666", fontname="Arial", fontsize=11, fontcolor="#333333", margin="0.12,0.07"];
+  edge [color="#666666", arrowsize=0.7, fontname="Arial", fontsize=10, fontcolor="#555555"];
+
+  pixel [label="Pixel (x, y) of the video", fillcolor="#fff2cc", color="#d6b656"];
+  root [label="Root r = (y / 32) x columns + x / 32\ngroup g = r / 32, bit b = r mod 32"];
+  present [shape=diamond, label="Bit b of the\npresence mask of\ngroup g set?", margin="0.02,0.02"];
+  skip [label="SKIP: the reference at the\nglobal vector (or the default\ncolour on a keyframe)"];
+  index [label="Descriptor index i of the root\n= checkpoint of groups 8k (one u32 per 8 groups)\n+ popcount of the masks from 8k to g - 1 (at most 7)\n+ popcount of mask g below bit b"];
+  read [label="Read descriptor i: a w-bit index into the frame's\nsymbol table (flag 64), which holds mode | q << 5"];
+  split [shape=diamond, label="A split (mode 16)?\n(at most twice:\n32 to 16 to 8)", margin="0.02,0.02"];
+  child [label="Splits before i = walk checkpoint i / 8 (splits)\n+ the splits among the at most 7 descriptors before i;\nthe child covering the pixel is descriptor\nn0 + 4 x (splits before i) + quadrant (0 to 3)"];
+  cursor [label="Record offset = payload start + walk checkpoint i / 8 (cursor)\n+ the record lengths of the at most 7 descriptors before i;\na length follows from the mode, the size, the flags\nand a compact record's own control byte"];
+  record [label="Reconstruct the pixel from the record,\nthe tables it names, and the reference\nat the global vector plus its motion", fillcolor="#fff2cc", color="#d6b656"];
+  bound [shape=note, label="Bounded work for any frame: at most 7 mask popcounts,\n2 x 7 descriptors for the splits and 7 record lengths.\nThe two-level walk (flag 128) stores the checkpoints\nas anchors plus 16-bit deltas. mcav's resolve pass does\nthis once per 8x8 cell; every pixel of a cell shares it.", fillcolor="#ffffff", color="#999999", fontsize=10];
+
+  pixel -> root -> present;
+  present -> skip [label="no"];
+  present -> index [label="yes"];
+  index -> read -> split;
+  split -> child [label="yes"];
+  child -> read [label="descend"];
+  split -> cursor [label="no: a leaf"];
+  cursor -> record;
+  bound -> cursor [style=dotted, arrowhead=none];
+}

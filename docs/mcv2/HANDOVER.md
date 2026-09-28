@@ -1,7 +1,3 @@
----
-orphan: true
----
-
 (mcv2-handover)=
 # MCV2 handover
 
