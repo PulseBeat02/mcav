@@ -22,15 +22,20 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Natives;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +77,8 @@ public final class PluginDataConfigurationMapper {
 
   private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
 
+  private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
+
   private static final int DEFAULT_HTTP_PORT = 3000;
 
   private static final int MAX_PORT = 65535;
@@ -81,6 +88,9 @@ public final class PluginDataConfigurationMapper {
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
   private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
+
+  // names the host and the port of the entry, never its password
+  private static final String INVALID_VNC_HOST = "Ignoring an entry of {} that is not a host and a port from 1 to 65535: {}:{}";
 
   private final MCAVSandbox plugin;
 
@@ -111,6 +121,8 @@ public final class PluginDataConfigurationMapper {
   private int mcv2EncoderThreads;
 
   private String mcv2Native = Mcv2Natives.AUTO;
+
+  private VncAllowList vncAllowList = VncAllowList.NONE;
 
   /**
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -150,6 +162,7 @@ public final class PluginDataConfigurationMapper {
     this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
     this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
+    this.vncAllowList = readVncAllowList(config);
   }
 
   private FileConfiguration loadConfiguration() {
@@ -207,6 +220,35 @@ public final class PluginDataConfigurationMapper {
       return Mcv2Natives.AUTO;
     }
     return mode;
+  }
+
+  private static VncAllowList readVncAllowList(final FileConfiguration config) {
+    final List<VncAllowList.Entry> entries = new ArrayList<>();
+    for (final Map<?, ?> map : config.getMapList(VNC_ALLOWED_HOSTS)) {
+      final VncAllowList.Entry entry = readVncHost(map);
+      if (entry != null) {
+        entries.add(entry);
+      }
+    }
+    return new VncAllowList(entries);
+  }
+
+  private static VncAllowList.@Nullable Entry readVncHost(final Map<?, ?> map) {
+    final Object hostValue = map.get("host");
+    final Object portValue = map.get("port");
+    if (
+      !(hostValue instanceof final String host) ||
+      host.isBlank() ||
+      !(portValue instanceof final Integer port) ||
+      port < 1 ||
+      port > MAX_PORT
+    ) {
+      LOGGER.warn(INVALID_VNC_HOST, VNC_ALLOWED_HOSTS, hostValue, portValue);
+      return null;
+    }
+    final Object password = map.get("password");
+    final String secret = password == null ? "" : password.toString();
+    return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
   }
 
   /**
@@ -333,6 +375,15 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized int getMcv2EncoderThreads() {
     return this.mcv2EncoderThreads;
+  }
+
+  /**
+   * Gets the VNC servers {@code /mcav vnc create} may connect to.
+   *
+   * @return the entries of {@code vnc.allowed-hosts}, which may be none
+   */
+  public synchronized VncAllowList getVncAllowList() {
+    return this.vncAllowList;
   }
 
   /**

@@ -83,6 +83,23 @@ mcv2:
   native: auto
 
 # ======================================================================
+# VNC CONFIGURATION
+# ======================================================================
+
+# The VNC servers /mcav vnc create may show. The Minecraft server connects to them, not the players, so a command can
+# only name a host and port listed here, and none is listed by default. Write a server's password here, never in the
+# command, where the server log would keep it, and leave it out for a server without one; MCAV never logs it. For
+# example:
+#   allowed-hosts:
+#     - host: 127.0.0.1
+#       port: 5901
+#       password: secret
+vnc:
+
+  # Default is none
+  allowed-hosts: []
+
+# ======================================================================
 # WEB BROWSER CONFIGURATION
 # ======================================================================
 

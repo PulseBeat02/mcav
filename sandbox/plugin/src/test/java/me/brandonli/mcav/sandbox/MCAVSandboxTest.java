@@ -251,7 +251,7 @@ final class MCAVSandboxTest {
   private void assertCommandsAndListenerRegistered() {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
-    assertEquals(31, count);
+    assertEquals(34, count);
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(JukeBoxListener.class), eq(this.sandbox));
   }

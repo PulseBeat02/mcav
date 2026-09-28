@@ -44,6 +44,7 @@ import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.image.ImageManager;
 import me.brandonli.mcav.sandbox.command.interaction.BrowserCommand;
 import me.brandonli.mcav.sandbox.command.interaction.VirtualizeCommand;
+import me.brandonli.mcav.sandbox.command.interaction.VncCommand;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
@@ -105,7 +106,10 @@ final class AnnotationParserHandlerTest {
     "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url",
     "mcav vm interact",
     "mcav vm release",
-    "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags"
+    "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags",
+    "mcav vnc interact",
+    "mcav vnc release",
+    "mcav vnc create playerSelector vncResolution targetFps blockDimensions mapId ditheringAlgorithm server"
   );
 
   private MCAVSandbox plugin;
@@ -163,7 +167,7 @@ final class AnnotationParserHandlerTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(31, count, registeredSyntaxes);
+    assertEquals(34, count, registeredSyntaxes);
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
       assertTrue(registered, syntax + " in " + syntaxes);
@@ -172,6 +176,7 @@ final class AnnotationParserHandlerTest {
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
+    verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
   }
 
   /**

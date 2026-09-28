@@ -189,6 +189,34 @@ public interface Message extends LocaleTools {
   NullComponent VM_RELEASE = direct("mcav.command.vm.release");
 
   /**
+   * Key {@code mcav.command.vnc.loading}: {@code /mcav vnc create} accepted its arguments and connects to the VNC
+   * server in the background.
+   */
+  NullComponent VNC_LOADING = direct("mcav.command.vnc.loading");
+
+  /**
+   * Key {@code mcav.command.vnc.create}: the desktop of {@code /mcav vnc create} now shows on the maps.
+   */
+  NullComponent VNC_CREATE = direct("mcav.command.vnc.create");
+
+  /**
+   * Key {@code mcav.command.vnc.release}: {@code /mcav vnc release} disconnected from the desktop.
+   */
+  NullComponent VNC_RELEASE = direct("mcav.command.vnc.release");
+
+  /**
+   * Key {@code mcav.command.vnc.error}: {@code /mcav vnc create} could not connect to the VNC server, or it refused
+   * the password; the console has the error.
+   */
+  NullComponent VNC_ERROR = direct("mcav.command.vnc.error");
+
+  /**
+   * Key {@code mcav.command.vnc.server.error}: the server named in {@code /mcav vnc create}, the argument, is not a
+   * {@code host:port} listed in {@code vnc.allowed-hosts} of {@code config.yml}.
+   */
+  UniComponent<String> VNC_NOT_ALLOWED = direct("mcav.command.vnc.server.error", null);
+
+  /**
    * Key {@code mcav.command.audio.http}: sent to every viewer of a video played with the {@code HTTP_SERVER} audio
    * output. The argument is the address of the audio web page, inserted at {@code $URL$}.
    */

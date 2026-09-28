@@ -220,6 +220,9 @@ paperPluginYaml {
         register("mcav.command.vm.create") { description = "Boots a QEMU virtual machine on a wall of maps, with its sound in an audio output" }
         register("mcav.vm.release") { description = "Powers off the virtual machine" }
         register("mcav.vm.interact") { description = "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact" }
+        register("mcav.command.vnc.create") { description = "Shows the desktop of a VNC server listed in vnc.allowed-hosts on a wall of maps" }
+        register("mcav.vnc.release") { description = "Disconnects from the VNC desktop" }
+        register("mcav.vnc.interact") { description = "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact" }
     }
 }
 

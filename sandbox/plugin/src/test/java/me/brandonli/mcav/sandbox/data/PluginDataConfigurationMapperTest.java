@@ -39,7 +39,9 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -116,6 +118,78 @@ final class PluginDataConfigurationMapperTest {
     })
       .when(this.plugin)
       .saveResource(anyString(), anyBoolean());
+  }
+
+  @Test
+  void readsTheAllowedVncServersWithTheirPasswords() throws IOException {
+    this.writeConfiguration(
+      """
+      vnc:
+        allowed-hosts:
+          - host: 127.0.0.1
+            port: 5901
+            password: secret
+          - host: desktop.example
+            port: 5902
+            password: 1234
+          - host: open.example
+            port: 5903
+      """
+    );
+    this.mapper.deserialize();
+    final VncAllowList list = this.mapper.getVncAllowList();
+    final List<VncAllowList.Entry> expected = List.of(
+      new VncAllowList.Entry("127.0.0.1", 5901, "secret"),
+      new VncAllowList.Entry("desktop.example", 5902, "1234"),
+      new VncAllowList.Entry("open.example", 5903, null)
+    );
+    assertEquals(expected, list.entries());
+  }
+
+  @Test
+  void allowsNoVncServerByDefault() {
+    this.saveBundledResources();
+    this.mapper.deserialize();
+    assertEquals(List.of(), this.mapper.getVncAllowList().entries());
+  }
+
+  @Test
+  void skipsInvalidVncEntriesAndNeverLogsAPassword() throws IOException {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration(
+        """
+        vnc:
+          allowed-hosts:
+            - port: 5901
+              password: hunter2
+            - host: " "
+              port: 5901
+              password: hunter2
+            - host: desktop.example
+              port: 70000
+              password: hunter2
+            - host: desktop.example
+              port: 0
+              password: hunter2
+            - host: desktop.example
+              port: "5901"
+              password: hunter2
+            - host: kept.example
+              port: 5904
+              password: ""
+        """
+      );
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    assertEquals(List.of(new VncAllowList.Entry("kept.example", 5904, null)), this.mapper.getVncAllowList().entries());
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertEquals(5, text.split("Ignoring an entry of vnc.allowed-hosts", -1).length - 1, text);
+    assertFalse(text.contains("hunter2"), text);
   }
 
   private void writeConfiguration(final String yaml) throws IOException {
