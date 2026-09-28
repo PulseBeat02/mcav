@@ -31,7 +31,6 @@ import java.util.function.IntPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.bytedeco.javacv.FrameGrabber;
@@ -78,7 +77,19 @@ public final class CaptureDevices {
    * @return the devices, by number
    */
   public static List<Device> list() {
-    return OSUtils.getOS() == OS.LINUX ? listSysfs(SYSFS) : probe(PROBED, CaptureDevices::opens);
+    return list(OSUtils.getOS(), SYSFS, CaptureDevices::opens);
+  }
+
+  /**
+   * Lists the capture devices: on Linux those sysfs names, elsewhere the first numbers that open.
+   *
+   * @param os    the operating system
+   * @param sysfs the folder in which Linux names its video devices
+   * @param opens whether the device of a number opens
+   * @return the devices, by number
+   */
+  static List<Device> list(final OS os, final Path sysfs, final IntPredicate opens) {
+    return os == OS.LINUX ? listSysfs(sysfs) : probe(PROBED, opens);
   }
 
   /**
@@ -157,7 +168,6 @@ public final class CaptureDevices {
       grabber.start();
       return true;
     } catch (final IOException | RuntimeException | LinkageError exception) {
-      ThrowableUtils.throwIfFatal(exception);
       return false;
     }
   }

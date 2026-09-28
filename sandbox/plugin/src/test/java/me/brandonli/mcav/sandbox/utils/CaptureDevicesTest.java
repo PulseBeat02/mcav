@@ -57,6 +57,14 @@ final class CaptureDevicesTest {
   }
 
   @Test
+  void listsWhatLinuxNamesOnLinuxAndTriesNumbersElsewhere() throws IOException {
+    Files.writeString(Files.createDirectory(this.folder.resolve("video3")).resolve("name"), "Capture Card");
+    assertEquals(List.of(new CaptureDevices.Device(3, "Capture Card")), CaptureDevices.list(OS.LINUX, this.folder, _ -> true));
+    final List<CaptureDevices.Device> tried = CaptureDevices.list(OS.WINDOWS, this.folder, index -> index == 1);
+    assertEquals(List.of(new CaptureDevices.Device(1, "device 1")), tried);
+  }
+
+  @Test
   void listsTheVideoDevicesLinuxDescribesByNumber() throws IOException {
     Files.writeString(Files.createDirectory(this.folder.resolve("video2")).resolve("name"), "OBS Virtual Camera\n");
     Files.writeString(Files.createDirectory(this.folder.resolve("video0")).resolve("name"), "Integrated Camera");
