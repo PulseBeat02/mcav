@@ -88,7 +88,7 @@ def main():
                 pages[slot] = False
                 invalid[slot, str(error)] += 1
         descriptor_row = total_slots * rows + arguments.screen
-        if [tuple(int(v) for v in screen[descriptor_row, x]) for x in range(2)] == DESCRIPTOR:
+        if [tuple(int(channel) for channel in screen[descriptor_row, column]) for column in range(2)] == DESCRIPTOR:
             descriptors += 1
         else:
             failures.append((capture.name, "descriptor"))
@@ -102,7 +102,7 @@ def main():
             region = screen[top : top + SQUARE, left : left + SQUARE].reshape(-1, 3)
             if np.any(region != region[0]):
                 failures.append((capture.name, "square %d is not one colour" % square))
-            colours.append(tuple(int(v) for v in region[0]))
+            colours.append(tuple(int(channel) for channel in region[0]))
         for slot in range(arguments.slots):
             if colours[slot] != (GREEN if pages[slot] else RED):
                 failures.append((capture.name, "slot %d square %s, page valid %s" % (slot, colours[slot], pages[slot])))

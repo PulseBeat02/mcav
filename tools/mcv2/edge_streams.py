@@ -34,14 +34,14 @@ SEED = int(sys.argv[2]) if len(sys.argv) > 2 else 20260925
 RANDOM = random.Random(SEED)
 
 
-def rbytes(n, low=0, high=255):
-    return bytes(RANDOM.randint(low, high) for _ in range(n))
+def rbytes(count, low=0, high=255):
+    return bytes(RANDOM.randint(low, high) for _ in range(count))
 
 
-def compact_record(q):
+def compact_record(quantizer):
     kind = RANDOM.choice(range(9))
     if kind == 7:
-        q = 0
+        quantizer = 0
     form = RANDOM.choice((0, 1, 2))
     prefix = b"" if form == 0 else (rbytes(1) if form == 1 else bytes([RANDOM.randint(0, 255), RANDOM.randint(0, 255)]))
     body = bytearray(rbytes(BODY_BYTES[kind]))
@@ -51,12 +51,12 @@ def compact_record(q):
         body[-1] &= 15
     if kind == 7:
         body[0] = RANDOM.randint(0, 64) - 32 & 255
-    return q, bytes([kind | form << 4]) + prefix + bytes(body)
+    return quantizer, bytes([kind | form << 4]) + prefix + bytes(body)
 
 
 def safe565(pair):
     """Endpoints whose low bits replicate their high bits, so they survive the RGB565 round trip exactly."""
-    return bytes(c & 0xF8 | c >> 5 if i % 3 != 1 else c & 0xFC | c >> 6 for i, c in enumerate(pair))
+    return bytes(value & 0xF8 | value >> 5 if index % 3 != 1 else value & 0xFC | value >> 6 for index, value in enumerate(pair))
 
 
 WORDS = {size: [bytes([RANDOM.randint(0, 1)]) + rbytes(size // 8) for _ in range(3)] for size in (8, 16, 32)}
@@ -80,10 +80,10 @@ def leaf(size, key, pattern_endpoints=None, coarse=False):
     if not key:
         modes += [0, 1, 8, 9, 10, 11, 13, 15, COMPACT, COMPACT, COMPACT]
     mode = RANDOM.choice(modes)
-    q = RANDOM.randint(0, 7) if fmt.is_residual(mode) else 0
+    quantizer = RANDOM.randint(0, 7) if fmt.is_residual(mode) else 0
     if mode == COMPACT:
-        q, record = compact_record(RANDOM.randint(0, 7))
-        return Node(mode, q, record)
+        quantizer, record = compact_record(RANDOM.randint(0, 7))
+        return Node(mode, quantizer, record)
     if mode == PATTERN_PALETTE:
         record = pattern_record(size)
         if pattern_endpoints and RANDOM.random() < 0.7:
@@ -93,7 +93,7 @@ def leaf(size, key, pattern_endpoints=None, coarse=False):
         return Node(mode, 0, record)
     if mode == 0:
         return Node(0)
-    return Node(mode, q, rbytes(fmt.record_size(mode, size)))
+    return Node(mode, quantizer, rbytes(fmt.record_size(mode, size)))
 
 
 def tree(size, key, split_chance, endpoints, coarse):
@@ -147,7 +147,7 @@ STREAMS = {
 
 
 def write_archive(path, frames):
-    path.write_bytes(b"".join(struct.pack("<I", len(f)) + f for f in frames))
+    path.write_bytes(b"".join(struct.pack("<I", len(frame)) + frame for frame in frames))
 
 
 def main():
@@ -161,7 +161,7 @@ def main():
             reference = frame_id if key else frame_id - 1
             frames.append(frame(width, height, frame_id, reference, key, split, options))
         decoder = Decoder()
-        digests[name] = [hashlib.sha256(decoder.accept(f).tobytes()).hexdigest() for f in frames]
+        digests[name] = [hashlib.sha256(decoder.accept(frame_data).tobytes()).hexdigest() for frame_data in frames]
         write_archive(OUT / name, frames)
     # a frame too large for the derived form and the short index: the reference falls back to wide descriptors
     grid8 = Node(SPLIT, children=tuple(Node(SPLIT, children=tuple(Node(7, 0, rbytes(192)) for _ in range(4))) for _ in range(4)))
@@ -187,7 +187,7 @@ def main():
     for name, value in rejected.items():
         fmt.parse_frame(bytes.fromhex(value))  # the reference accepts every one of them
     (OUT / "rejected.json").write_text(json.dumps(rejected, indent=1) + "\n")
-    print(json.dumps({k: len(v) for k, v in digests.items()}))
+    print(json.dumps({stream_name: len(frame_digests) for stream_name, frame_digests in digests.items()}))
     print("reference serializer failures (redrawn):", sorted(set(FAILURES)), len(FAILURES))
 
 

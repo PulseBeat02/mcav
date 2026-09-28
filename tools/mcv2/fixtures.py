@@ -142,7 +142,7 @@ def encoder():
             two_level_walk=True, endpoint_table=True, selector_table=True, endpoint_565=True,
         )
         coder = TreeEncoder(settings, tree)
-        (out / f"crop-{name}.mcs").write_bytes(archive(coder.encode(frame, i) for i, frame in enumerate(crop)))
+        (out / f"crop-{name}.mcs").write_bytes(archive(coder.encode(frame, frame_number) for frame_number, frame in enumerate(crop)))
 
 
 # the reference reads its residual books from its own folder; mcav's decoder reads the resource, and both must agree

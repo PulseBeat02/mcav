@@ -19,24 +19,24 @@ import numpy as np
 
 def bd_rate(reference, test):
     """The BD rate of test against reference, each a list of (rate, quality); returns (percent, low, high)."""
-    r1 = np.log([p[0] for p in reference])
-    q1 = np.array([p[1] for p in reference])
-    r2 = np.log([p[0] for p in test])
-    q2 = np.array([p[1] for p in test])
-    low = max(q1.min(), q2.min())
-    high = min(q1.max(), q2.max())
+    reference_rates = np.log([point[0] for point in reference])
+    reference_qualities = np.array([point[1] for point in reference])
+    test_rates = np.log([point[0] for point in test])
+    test_qualities = np.array([point[1] for point in test])
+    low = max(reference_qualities.min(), test_qualities.min())
+    high = min(reference_qualities.max(), test_qualities.max())
     if high <= low:
         raise ValueError("the curves share no quality range")
-    p1 = np.polyfit(q1, r1, 3)
-    p2 = np.polyfit(q2, r2, 3)
-    i1 = np.polyval(np.polyint(p1), high) - np.polyval(np.polyint(p1), low)
-    i2 = np.polyval(np.polyint(p2), high) - np.polyval(np.polyint(p2), low)
-    return (math.exp((i2 - i1) / (high - low)) - 1) * 100, low, high
+    reference_fit = np.polyfit(reference_qualities, reference_rates, 3)
+    test_fit = np.polyfit(test_qualities, test_rates, 3)
+    reference_area = np.polyval(np.polyint(reference_fit), high) - np.polyval(np.polyint(reference_fit), low)
+    test_area = np.polyval(np.polyint(test_fit), high) - np.polyval(np.polyint(test_fit), low)
+    return (math.exp((test_area - reference_area) / (high - low)) - 1) * 100, low, high
 
 
 def points(path, rate, metric):
     data = json.load(open(path))
-    return sorted((float(p[rate]), float(p[metric])) for p in data)
+    return sorted((float(point[rate]), float(point[metric])) for point in data)
 
 
 def main():

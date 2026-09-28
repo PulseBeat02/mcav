@@ -53,7 +53,7 @@ def sends(path, jfr, span):
                           colors=values["colors"], arrived=sent, sent=sent, sent_to=values["sentTo"],
                           behind=values["behind"], waiting=values["waiting"], backlog=values["backlog"],
                           number=values["frameId"] % span))
-    return sorted(found, key=lambda e: e["frame"])
+    return sorted(found, key=lambda event: event["frame"])
 
 
 def events(path, jfr):
@@ -64,12 +64,12 @@ def events(path, jfr):
     for event in json.loads(output)["recording"]["events"]:
         values = event["values"]
         fingerprint = values.get("fingerprint") or ""
-        luma = [int(fingerprint[i:i + 2], 16) for i in range(0, len(fingerprint), 2)]
+        luma = [int(fingerprint[offset:offset + 2], 16) for offset in range(0, len(fingerprint), 2)]
         found.append(dict(frame=values["frameId"], keyframe=values["keyframe"], bytes=values["bytes"],
                           colors=values["colors"], arrived=millis(values["arrived"]), sent=millis(values["sent"]),
                           sent_to=values["sentTo"], behind=values["behind"], waiting=values["waiting"],
                           backlog=values["backlog"], number=read(luma)))
-    return sorted(found, key=lambda e: e["frame"])
+    return sorted(found, key=lambda event: event["frame"])
 
 
 def captures(path):
@@ -82,7 +82,7 @@ def captures(path):
     width, height = info["streams"][0]["width"], info["streams"][0]["height"]
     times = [float(frame["pts_time"]) * 1000.0 for frame in info["frames"]]
     row = min(BLOCK // 2, height - 1)
-    xs = [BLOCK // 2 + BLOCK * i for i in range(SAMPLES) if BLOCK // 2 + BLOCK * i < width]
+    xs = [BLOCK // 2 + BLOCK * block for block in range(SAMPLES) if BLOCK // 2 + BLOCK * block < width]
     size = width * height * 3
     result = []
     with subprocess.Popen(["ffmpeg", "-nostdin", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24",
@@ -99,8 +99,8 @@ def captures(path):
     return result
 
 
-def percentile(values, p):
-    return float(np.percentile(values, p)) if values else float("nan")
+def percentile(values, percent):
+    return float(np.percentile(values, percent)) if values else float("nan")
 
 
 def main():
@@ -113,35 +113,35 @@ def main():
     arguments = parser.parse_args()
     frames = sends(arguments.recording, arguments.jfr, arguments.stream) if arguments.stream else events(arguments.recording, arguments.jfr)
     shots = captures(arguments.capture)
-    numbered = [e for e in frames if e["number"] is not None and e["arrived"] == e["arrived"]]
+    numbered = [event for event in frames if event["number"] is not None and event["arrived"] == event["arrived"]]
     # a displayed picture is matched with the latest frame of its number that left before it was seen, since a
     # stream's numbers repeat every loop; its first capture is its display time
     by_number = {}
-    for e in numbered:
-        by_number.setdefault(e["number"], []).append(e["arrived"])
+    for event in numbered:
+        by_number.setdefault(event["number"], []).append(event["arrived"])
     first_seen = {}
     previous = None
     for time, number in shots:
         if number is not None and number != previous:
-            candidates = [t for t in by_number.get(number, []) if t <= time]
+            candidates = [timestamp for timestamp in by_number.get(number, []) if timestamp <= time]
             if candidates:
                 first_seen[(number, max(candidates))] = time
         previous = number if number is not None else previous
     latencies = [time - arrival for (number, arrival), time in first_seen.items()]
-    arrived = {e["number"]: e for e in numbered}
-    server = [e["sent"] - e["arrived"] for e in frames]
+    arrived = {event["number"]: event for event in numbered}
+    server = [event["sent"] - event["arrived"] for event in frames]
     duration = (shots[-1][0] - shots[0][0]) / 1000.0 if len(shots) > 1 else float("nan")
     source = (max(arrived) - min(arrived) + 1) if arrived else 0
     report = dict(
         source_frames=source,
         encoded=len(frames),
-        keyframes=sum(1 for e in frames if e["keyframe"]),
-        sent_to_viewers=sum(e["sent_to"] for e in frames),
-        held_back_for_backlog=sum(e["behind"] for e in frames),
-        held_back_for_reference=sum(e["waiting"] for e in frames),
-        not_sent_too_large=sum(1 for e in frames if e["colors"] < 0),
-        backlog_max=max((e["backlog"] for e in frames), default=0),
-        backlog_p95=percentile([e["backlog"] for e in frames], 95),
+        keyframes=sum(1 for event in frames if event["keyframe"]),
+        sent_to_viewers=sum(event["sent_to"] for event in frames),
+        held_back_for_backlog=sum(event["behind"] for event in frames),
+        held_back_for_reference=sum(event["waiting"] for event in frames),
+        not_sent_too_large=sum(1 for event in frames if event["colors"] < 0),
+        backlog_max=max((event["backlog"] for event in frames), default=0),
+        backlog_p95=percentile([event["backlog"] for event in frames], 95),
         captured=len(shots),
         capture_seconds=duration,
         displayed=len(first_seen),

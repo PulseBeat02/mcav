@@ -90,8 +90,8 @@ public final class Mcv2Digests {
 
   private static long length(final byte[] archive, final int offset) {
     long length = 0;
-    for (int i = 0; i < LENGTH_BYTES; i++) {
-      length |= (archive[offset + i] & 0xFFL) << (8 * i);
+    for (int byteIndex = 0; byteIndex < LENGTH_BYTES; byteIndex++) {
+      length |= (archive[offset + byteIndex] & 0xFFL) << (8 * byteIndex);
     }
     return length;
   }

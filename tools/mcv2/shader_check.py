@@ -136,8 +136,8 @@ def screens_config(slots):
 def generated(width, height, slots):
     """The generated includes, as the pack builder writes them."""
     books = BOOKS.read_bytes()
-    words = [struct.unpack_from("<I", books, i)[0] for i in range(0, len(books), 4)]
-    rows = ",\n".join("    " + ", ".join("0x%08Xu" % w for w in words[i : i + 8]) for i in range(0, len(words), 8))
+    words = [struct.unpack_from("<I", books, offset)[0] for offset in range(0, len(books), 4)]
+    rows = ",\n".join("    " + ", ".join("0x%08Xu" % word for word in words[start : start + 8]) for start in range(0, len(words), 8))
     return {
         "mcav:mcv2_config.glsl": "\n".join(screens_config(slots) + [
             "const bool MCV2_DEBUG_VIEW = false;",
@@ -199,7 +199,7 @@ class Chain:
         self.arrays = {}
         chain = post_chain(width, height, slots)
         self.passes = chain["passes"]
-        make = lambda w, h: context.texture((w, h), 4, dtype="f1")
+        make = lambda width, height: context.texture((width, height), 4, dtype="f1")
         self.main = make(*SCREEN)
         self.depth = context.depth_texture(SCREEN)
         # the client's depth sampler reads depths, it does not compare them
@@ -292,8 +292,8 @@ class Chain:
             strip = np.zeros((rows * SCREEN[0], 4), np.uint8)
             strip[:4096] = packed
             slot = FIRST_SLOT + page_number(page)
-            for r in range(rows):
-                screen[SCREEN[1] - 1 - (slot * rows + r)] = strip[r * SCREEN[0] : (r + 1) * SCREEN[0]]
+            for row in range(rows):
+                screen[SCREEN[1] - 1 - (slot * rows + row)] = strip[row * SCREEN[0] : (row + 1) * SCREEN[0]]
         self.main.write(screen.tobytes())
 
     def frame(self):
@@ -321,9 +321,9 @@ def compile_via_spirv(includes, classpath):
 def page_number(page):
     """The page number from a page's six-bit symbols: header bytes 16 and 17, bits 128 to 143."""
     value = 0
-    for i in range(16):
-        b = 128 + i
-        value |= (page[b // 6] >> (b % 6) & 1) << i
+    for bit in range(16):
+        symbol_bit = 128 + bit
+        value |= (page[symbol_bit // 6] >> (symbol_bit % 6) & 1) << bit
     return value
 
 

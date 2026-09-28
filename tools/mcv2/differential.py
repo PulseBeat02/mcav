@@ -55,14 +55,14 @@ from mcvideo.v2 import SPLIT, Node, TreeEncoder, TreeSettings, pack_frame  # noq
 RANDOM = random.Random(ARGS.seed)
 
 
-def rbytes(n):
-    return bytes(RANDOM.randrange(256) for _ in range(n))
+def rbytes(count):
+    return bytes(RANDOM.randrange(256) for _ in range(count))
 
 
-def compact_record(q):
+def compact_record(quantizer):
     kind = RANDOM.randrange(9)
     if kind == 7:
-        q = 0
+        quantizer = 0
     form = RANDOM.choice((0, 1, 2))
     prefix = rbytes(form)
     body = bytearray(rbytes(BODY_BYTES[kind]))
@@ -72,12 +72,12 @@ def compact_record(q):
         body[-1] &= 15
     if kind == 7:
         body[0] = RANDOM.randint(0, 64) - 32 & 255
-    return q, bytes([kind | form << 4]) + prefix + bytes(body)
+    return quantizer, bytes([kind | form << 4]) + prefix + bytes(body)
 
 
 def safe565(pair):
     """Endpoints whose low bits replicate their high bits, so they survive the RGB565 round trip exactly."""
-    return bytes(c & 0xF8 | c >> 5 if i % 3 != 1 else c & 0xFC | c >> 6 for i, c in enumerate(pair))
+    return bytes(value & 0xF8 | value >> 5 if index % 3 != 1 else value & 0xFC | value >> 6 for index, value in enumerate(pair))
 
 
 def leaf(size, key, words, endpoints, coarse, skip):
@@ -90,14 +90,14 @@ def leaf(size, key, words, endpoints, coarse, skip):
     if mode == 0:
         return Node(0)
     if mode == COMPACT:
-        q, record = compact_record(RANDOM.randint(0, 7))
-        return Node(mode, q, record)
+        quantizer, record = compact_record(RANDOM.randint(0, 7))
+        return Node(mode, quantizer, record)
     if mode == PATTERN_PALETTE:
         word = RANDOM.choice(words[size]) if RANDOM.random() < 0.7 else bytes([RANDOM.randint(0, 1)]) + rbytes(size // 8)
         pair = RANDOM.choice(endpoints) if RANDOM.random() < 0.7 else rbytes(6)
         return Node(mode, 0, (safe565(pair) if coarse else pair) + word)
-    q = RANDOM.randint(0, 7) if fmt.is_residual(mode) else 0
-    return Node(mode, q, rbytes(fmt.record_size(mode, size)))
+    quantizer = RANDOM.randint(0, 7) if fmt.is_residual(mode) else 0
+    return Node(mode, quantizer, rbytes(fmt.record_size(mode, size)))
 
 
 def tree(size, key, split, words, endpoints, coarse, skip):
@@ -130,10 +130,10 @@ def tree_archive():
         options.pop("packed_symbols", None)
     split, skip = RANDOM.uniform(0, 0.9), RANDOM.choice((0.0, 0.3, 0.7))
     coarse = bool(options.get("endpoint_565"))
-    frames, key_at = [], {0} | {i for i in range(1, 6) if RANDOM.random() < 0.2}
+    frames, key_at = [], {0} | {candidate for candidate in range(1, 6) if RANDOM.random() < 0.2}
     for frame_id in range(6):
         key = frame_id in key_at
-        words = {s: [bytes([RANDOM.randint(0, 1)]) + rbytes(s // 8) for _ in range(3)] for s in (8, 16, 32)}
+        words = {size: [bytes([RANDOM.randint(0, 1)]) + rbytes(size // 8) for _ in range(3)] for size in (8, 16, 32)}
         endpoints = [rbytes(6) for _ in range(3)]
         for _ in range(100):
             roots = [tree(32, key, split, words, endpoints, coarse, skip)
@@ -154,17 +154,17 @@ def moving_pictures(width, height, count):
     rng = np.random.default_rng(RANDOM.randrange(1 << 30))
     base = rng.integers(0, 256, (height + 64, width + 64, 3), dtype=np.uint8)
     base = ((base.astype(np.int32) + np.roll(base, 1, 0) + np.roll(base, 1, 1)) // 3).astype(np.uint8)
-    vx, vy = RANDOM.randint(-3, 3), RANDOM.randint(-3, 3)
+    pan_x, pan_y = RANDOM.randint(-3, 3), RANDOM.randint(-3, 3)
     shapes = [(RANDOM.randrange(width), RANDOM.randrange(height), RANDOM.randint(4, 40), RANDOM.randint(4, 30),
                rng.integers(0, 256, 3), RANDOM.randint(-4, 4), RANDOM.randint(-4, 4), RANDOM.random() < 0.5)
               for _ in range(RANDOM.randint(0, 4))]
     pictures = []
-    for t in range(count):
-        ox, oy = 32 + max(-32, min(32, vx * t)), 32 + max(-32, min(32, vy * t))
-        picture = base[oy:oy + height, ox:ox + width].copy()
-        for x, y, w, h, color, dx, dy, striped in shapes:
-            x0, y0 = (x + dx * t) % width, (y + dy * t) % height
-            region = picture[y0:y0 + h, x0:x0 + w]
+    for frame_number in range(count):
+        offset_x, offset_y = 32 + max(-32, min(32, pan_x * frame_number)), 32 + max(-32, min(32, pan_y * frame_number))
+        picture = base[offset_y:offset_y + height, offset_x:offset_x + width].copy()
+        for start_left, start_top, shape_width, shape_height, color, step_x, step_y, striped in shapes:
+            shape_left, shape_top = (start_left + step_x * frame_number) % width, (start_top + step_y * frame_number) % height
+            region = picture[shape_top:shape_top + shape_height, shape_left:shape_left + shape_width]
             region[:] = color
             if striped:
                 region[::2] = 255 - color
@@ -191,11 +191,11 @@ def encoded_archive():
         endpoint_table=patterns, selector_table=patterns, endpoint_565=patterns and RANDOM.random() < 0.8,
     )
     coder = TreeEncoder(settings, tree_settings)
-    return [coder.encode(picture, i) for i, picture in enumerate(moving_pictures(width, height, 4))]
+    return [coder.encode(picture, frame_number) for frame_number, picture in enumerate(moving_pictures(width, height, 4))]
 
 
 def mutant(frames):
-    frames = [bytearray(f) for f in frames]
+    frames = [bytearray(frame) for frame in frames]
     if RANDOM.random() < 0.15:
         victim = RANDOM.randrange(len(frames))
         frames[victim] = frames[victim][:RANDOM.randrange(len(frames[victim]))]
@@ -205,11 +205,11 @@ def mutant(frames):
             # most flips land in the header and index, where the checks are
             at = RANDOM.randrange(min(len(victim), 256)) if RANDOM.random() < 0.7 else RANDOM.randrange(len(victim))
             victim[at] ^= RANDOM.randint(1, 255)
-    return [bytes(f) for f in frames]
+    return [bytes(frame) for frame in frames]
 
 
 def write_archive(path, frames):
-    path.write_bytes(b"".join(struct.pack("<I", len(f)) + f for f in frames))
+    path.write_bytes(b"".join(struct.pack("<I", len(frame)) + frame for frame in frames))
 
 
 def reference_tokens(frames):
@@ -226,20 +226,21 @@ def main():
     out = ARGS.out
     (out / "archives").mkdir(parents=True, exist_ok=True)
     archives = {}
-    for i in range(ARGS.streams):
-        archives[f"tree-{i:04d}"] = tree_archive()
-    for i in range(ARGS.encoded):
-        archives[f"encoded-{i:04d}"] = encoded_archive()
+    for archive_index in range(ARGS.streams):
+        archives[f"tree-{archive_index:04d}"] = tree_archive()
+    for archive_index in range(ARGS.encoded):
+        archives[f"encoded-{archive_index:04d}"] = encoded_archive()
     for name in list(archives):
-        for j in range(ARGS.mutants):
-            archives[f"{name}-mutant-{j}"] = mutant(archives[name])
+        for mutant_index in range(ARGS.mutants):
+            archives[f"{name}-mutant-{mutant_index}"] = mutant(archives[name])
     paths = {}
     for name, frames in archives.items():
         paths[name] = out / "archives" / f"{name}.mcs"
         write_archive(paths[name], frames)
     expected = {name: reference_tokens(frames) for name, frames in archives.items()}
     java = subprocess.run(
-        [ARGS.java, "-cp", ARGS.classpath, str(Path(__file__).with_name("Mcv2Digests.java"))] + [str(p) for p in paths.values()],
+        [ARGS.java, "-cp", ARGS.classpath, str(Path(__file__).with_name("Mcv2Digests.java"))]
+        + [str(archive_path) for archive_path in paths.values()],
         capture_output=True, text=True,
     )
     if java.returncode != 0:
@@ -257,16 +258,16 @@ def main():
         if len(mine) != len(theirs):
             disagreements.append(dict(archive=name, reason="frame count", mcav=len(mine), reference=len(theirs)))
             continue
-        for index, (a, b) in enumerate(zip(mine, theirs)):
+        for index, (mcav_token, reference_token) in enumerate(zip(mine, theirs)):
             counts["frames"] += 1
-            if a == "unsupported":
+            if mcav_token == "unsupported":
                 # the reference may accept syntax mcav refuses; the two decoders hold different pictures from here on
                 counts["unsupported_skipped"] += len(mine) - index
                 break
-            if a != b:
-                disagreements.append(dict(archive=name, frame=index, mcav=a, reference=b))
+            if mcav_token != reference_token:
+                disagreements.append(dict(archive=name, frame=index, mcav=mcav_token, reference=reference_token))
                 break
-            counts["decoded" if a != "reject" else "refused"] += 1
+            counts["decoded" if mcav_token != "reject" else "refused"] += 1
     counts["disagreements"] = len(disagreements)
     summary = dict(seed=ARGS.seed, counts=counts, disagreements=disagreements[:50])
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")

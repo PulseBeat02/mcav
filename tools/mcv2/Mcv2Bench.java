@@ -118,23 +118,23 @@ public final class Mcv2Bench {
   }
 
   public static void main(final String[] args) throws Exception {
-    final Map<String, String> a = arguments(args);
-    final int w = Integer.parseInt(a.getOrDefault("width", "1920"));
-    final int h = Integer.parseInt(a.getOrDefault("height", "1080"));
-    final int frames = Integer.parseInt(a.getOrDefault("frames", "60"));
-    final int threads = Integer.parseInt(a.getOrDefault("threads", "12"));
-    final int warm = Integer.parseInt(a.getOrDefault("warm", "0"));
-    final double fps = Double.parseDouble(a.getOrDefault("fps", "60"));
-    final Path source = Path.of(a.get("source"));
+    final Map<String, String> options = arguments(args);
+    final int width = Integer.parseInt(options.getOrDefault("width", "1920"));
+    final int height = Integer.parseInt(options.getOrDefault("height", "1080"));
+    final int frames = Integer.parseInt(options.getOrDefault("frames", "60"));
+    final int threads = Integer.parseInt(options.getOrDefault("threads", "12"));
+    final int warm = Integer.parseInt(options.getOrDefault("warm", "0"));
+    final double fps = Double.parseDouble(options.getOrDefault("fps", "60"));
+    final Path source = Path.of(options.get("source"));
     // the heap an encoder keeps: used heap after a full collection with the encoder alive, less before it existed
     System.gc();
     final long heapBefore = usedHeap();
     final EncoderPool budget = new EncoderPool(threads);
-    final Mcv2Encoder encoder = budget.encoder(settings(a), Boolean.parseBoolean(a.getOrDefault("verify", "false")));
-    if (a.containsKey("framebudget")) {
-      encoder.setFrameBudget((long) (Double.parseDouble(a.get("framebudget")) * NANOS_PER_MILLISECOND));
+    final Mcv2Encoder encoder = budget.encoder(settings(options), Boolean.parseBoolean(options.getOrDefault("verify", "false")));
+    if (options.containsKey("framebudget")) {
+      encoder.setFrameBudget((long) (Double.parseDouble(options.get("framebudget")) * NANOS_PER_MILLISECOND));
     }
-    final Measurement measured = encode(a, source, w, h, frames, budget, encoder);
+    final Measurement measured = encode(options, source, width, height, frames, budget, encoder);
     System.gc();
     final long heapAfter = usedHeap();
     Reference.reachabilityFence(encoder);
@@ -143,100 +143,100 @@ public final class Mcv2Bench {
   }
 
   private static Map<String, String> arguments(final String[] args) {
-    final Map<String, String> a = new HashMap<>();
+    final Map<String, String> options = new HashMap<>();
     for (final String arg : args) {
-      final int i = arg.indexOf('=');
-      a.put(arg.substring(0, i), arg.substring(i + 1));
+      final int separator = arg.indexOf('=');
+      options.put(arg.substring(0, separator), arg.substring(separator + 1));
     }
-    return a;
+    return options;
   }
 
   private static long usedHeap() {
     return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
   }
 
-  private static EncoderSettings settings(final Map<String, String> a) {
-    EncoderSettings s = switch (a.getOrDefault("profile", "ship")) {
+  private static EncoderSettings settings(final Map<String, String> options) {
+    EncoderSettings settings = switch (options.getOrDefault("profile", "ship")) {
       case "low" -> EncoderSettings.LOW_BANDWIDTH;
       case "live" -> EncoderSettings.LIVE;
       case "live-fast" -> EncoderSettings.LIVE_FAST;
       default -> EncoderSettings.SHIP;
     };
-    if (a.containsKey("lambda")) {
-      s = s.withLambda(Double.parseDouble(a.get("lambda")));
+    if (options.containsKey("lambda")) {
+      settings = settings.withLambda(Double.parseDouble(options.get("lambda")));
     }
-    if (a.containsKey("key")) {
-      s = s.withKeyInterval(Integer.parseInt(a.get("key")));
+    if (options.containsKey("key")) {
+      settings = settings.withKeyInterval(Integer.parseInt(options.get("key")));
     }
-    if (a.getOrDefault("reference", "previous").equals("keyframe")) {
-      s = s.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
+    if (options.getOrDefault("reference", "previous").equals("keyframe")) {
+      settings = settings.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
     }
-    if (a.getOrDefault("search", "profile").equals("custom")) {
-      s = s.withLive(customSearch(a));
+    if (options.getOrDefault("search", "profile").equals("custom")) {
+      settings = settings.withLive(customSearch(options));
     }
-    return s;
+    return settings;
   }
 
-  private static LiveSearch customSearch(final Map<String, String> a) {
-    final int modes = parseSet(a.getOrDefault("modes", "all"), LiveSearch.ALL_MODES);
+  private static LiveSearch customSearch(final Map<String, String> options) {
+    final int modes = parseSet(options.getOrDefault("modes", "all"), LiveSearch.ALL_MODES);
     return new LiveSearch(
-      Integer.parseInt(a.getOrDefault("smallest", "8")),
-      Double.parseDouble(a.getOrDefault("skip", "26.5")),
-      Double.parseDouble(a.getOrDefault("split", "52.5")),
-      Double.parseDouble(a.getOrDefault("steady", a.getOrDefault("split", "52.5"))),
-      Double.parseDouble(a.getOrDefault("fine", a.getOrDefault("split", "52.5"))),
-      Double.parseDouble(a.getOrDefault("good", "0")),
-      Double.parseDouble(a.getOrDefault("gate", "0")),
+      Integer.parseInt(options.getOrDefault("smallest", "8")),
+      Double.parseDouble(options.getOrDefault("skip", "26.5")),
+      Double.parseDouble(options.getOrDefault("split", "52.5")),
+      Double.parseDouble(options.getOrDefault("steady", options.getOrDefault("split", "52.5"))),
+      Double.parseDouble(options.getOrDefault("fine", options.getOrDefault("split", "52.5"))),
+      Double.parseDouble(options.getOrDefault("good", "0")),
+      Double.parseDouble(options.getOrDefault("gate", "0")),
       modes,
-      a.containsKey("smallmodes") ? parseSet(a.get("smallmodes"), LiveSearch.ALL_MODES) : modes,
-      parseSet(a.getOrDefault("keymodes", "all"), LiveSearch.ALL_MODES),
-      parseSet(a.getOrDefault("classes", "all"), LiveSearch.ALL_CLASSES),
-      parseSet(a.getOrDefault("q", "all"), LiveSearch.ALL_QUANTIZERS),
-      Boolean.parseBoolean(a.getOrDefault("seeded", "false")),
-      Integer.parseInt(a.getOrDefault("searchblock", "8")),
-      Boolean.parseBoolean(a.getOrDefault("coarse", "false")),
-      Integer.parseInt(a.getOrDefault("fast", "0")),
-      Double.parseDouble(a.getOrDefault("splitabove", "0")),
-      Boolean.parseBoolean(a.getOrDefault("motionlambda", "false"))
+      options.containsKey("smallmodes") ? parseSet(options.get("smallmodes"), LiveSearch.ALL_MODES) : modes,
+      parseSet(options.getOrDefault("keymodes", "all"), LiveSearch.ALL_MODES),
+      parseSet(options.getOrDefault("classes", "all"), LiveSearch.ALL_CLASSES),
+      parseSet(options.getOrDefault("q", "all"), LiveSearch.ALL_QUANTIZERS),
+      Boolean.parseBoolean(options.getOrDefault("seeded", "false")),
+      Integer.parseInt(options.getOrDefault("searchblock", "8")),
+      Boolean.parseBoolean(options.getOrDefault("coarse", "false")),
+      Integer.parseInt(options.getOrDefault("fast", "0")),
+      Double.parseDouble(options.getOrDefault("splitabove", "0")),
+      Boolean.parseBoolean(options.getOrDefault("motionlambda", "false"))
     );
   }
 
   /** Encodes the frames, writing the archive and the pictures when asked, and measures every frame. */
   private static Measurement encode(
-    final Map<String, String> a,
+    final Map<String, String> options,
     final Path source,
-    final int w,
-    final int h,
+    final int width,
+    final int height,
     final int frames,
     final EncoderPool budget,
     final Mcv2Encoder encoder
   ) throws Exception {
-    final long frameBytes = (long) w * h * 3;
+    final long frameBytes = (long) width * height * 3;
     final int sourceFrames = (int) (Files.size(source) / frameBytes);
-    final String loop = a.getOrDefault("loop", "none");
-    final boolean inBudget = Boolean.parseBoolean(a.getOrDefault("budget", "true"));
-    final OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+    final String loop = options.getOrDefault("loop", "none");
+    final boolean inBudget = Boolean.parseBoolean(options.getOrDefault("budget", "true"));
+    final OperatingSystemMXBean system = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
     final ThreadMXBean threadBean = (ThreadMXBean) ManagementFactory.getThreadMXBean();
     final Measurement measured = new Measurement(frames);
     final Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION);
     final byte[] buffer = new byte[DEFLATE_BUFFER];
     try (
-      RandomAccessFile in = new RandomAccessFile(source.toFile(), "r");
-      DataOutputStream out = a.containsKey("out") ? new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("out"))))) : null;
-      OutputStream decoded = a.containsKey("decoded") ? new BufferedOutputStream(Files.newOutputStream(Path.of(a.get("decoded")))) : null
+      RandomAccessFile input = new RandomAccessFile(source.toFile(), "r");
+      DataOutputStream out = options.containsKey("out") ? new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(options.get("out"))))) : null;
+      OutputStream decoded = options.containsKey("decoded") ? new BufferedOutputStream(Files.newOutputStream(Path.of(options.get("decoded")))) : null
     ) {
       final byte[] rgb = new byte[(int) frameBytes];
-      for (int i = 0; i < frames; i++) {
-        in.seek(sourceIndex(i, loop, sourceFrames) * frameBytes);
-        in.readFully(rgb);
-        final long c0 = os.getProcessCpuTime();
-        final long a0 = threadBean.getTotalThreadAllocatedBytes();
-        final long t0 = System.nanoTime();
-        final long frameId = i;
-        final byte[] data = inBudget ? budget.run(() -> encoder.encode(rgb, w, h, frameId)) : encoder.encode(rgb, w, h, frameId);
-        measured.times[i] = System.nanoTime() - t0;
-        measured.cpu[i] = os.getProcessCpuTime() - c0;
-        measured.allocated[i] = threadBean.getTotalThreadAllocatedBytes() - a0;
+      for (int frameIndex = 0; frameIndex < frames; frameIndex++) {
+        input.seek(sourceIndex(frameIndex, loop, sourceFrames) * frameBytes);
+        input.readFully(rgb);
+        final long cpuBefore = system.getProcessCpuTime();
+        final long allocatedBefore = threadBean.getTotalThreadAllocatedBytes();
+        final long startNanos = System.nanoTime();
+        final long frameId = frameIndex;
+        final byte[] data = inBudget ? budget.run(() -> encoder.encode(rgb, width, height, frameId)) : encoder.encode(rgb, width, height, frameId);
+        measured.times[frameIndex] = System.nanoTime() - startNanos;
+        measured.cpu[frameIndex] = system.getProcessCpuTime() - cpuBefore;
+        measured.allocated[frameIndex] = threadBean.getTotalThreadAllocatedBytes() - allocatedBefore;
         if (encoder.getStats().keyframe()) {
           measured.keyframes++;
         }
@@ -277,22 +277,22 @@ public final class Mcv2Bench {
       deflater.reset();
       deflater.setInput(MapAlphabet.toMapColors(page));
       deflater.finish();
-      int n = 0;
+      int compressed = 0;
       while (!deflater.finished()) {
-        n += deflater.deflate(buffer);
+        compressed += deflater.deflate(buffer);
       }
-      bytes += n + TransportPages.PACKET_OVERHEAD;
+      bytes += compressed + TransportPages.PACKET_OVERHEAD;
     }
     return bytes;
   }
 
   private static long squaredError(final byte[] rgb, final byte[] picture) {
-    long se = 0;
-    for (int k = 0; k < rgb.length; k++) {
-      final int d = (rgb[k] & 0xFF) - (picture[k] & 0xFF);
-      se += (long) d * d;
+    long sum = 0;
+    for (int index = 0; index < rgb.length; index++) {
+      final int difference = (rgb[index] & 0xFF) - (picture[index] & 0xFF);
+      sum += (long) difference * difference;
     }
-    return se;
+    return sum;
   }
 
   private static double psnr(final double mse) {

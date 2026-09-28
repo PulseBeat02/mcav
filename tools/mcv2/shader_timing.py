@@ -30,14 +30,14 @@ import shader_check  # noqa: E402
 
 def perspective(fov_y, aspect, near, far):
     """An OpenGL projection matrix, column-major like GLSL's mat4 constructor order."""
-    f = 1.0 / np.tan(np.radians(fov_y) / 2)
-    m = np.zeros((4, 4), np.float32)
-    m[0, 0] = f / aspect
-    m[1, 1] = f
-    m[2, 2] = (far + near) / (near - far)
-    m[2, 3] = -1.0
-    m[3, 2] = 2 * far * near / (near - far)
-    return m
+    focal_length = 1.0 / np.tan(np.radians(fov_y) / 2)
+    matrix = np.zeros((4, 4), np.float32)
+    matrix[0, 0] = focal_length / aspect
+    matrix[1, 1] = focal_length
+    matrix[2, 2] = (far + near) / (near - far)
+    matrix[2, 3] = -1.0
+    matrix[3, 2] = 2 * far * near / (near - far)
+    return matrix
 
 
 def descriptor_row(width):
@@ -49,10 +49,10 @@ def descriptor_row(width):
     row[:, 3] = 255
     row[0, :3] = (0x4D, 0x43, 0x56)
     row[1, 0] = 0xA1
-    for i, value in enumerate(floats):
-        b = struct.pack("<f", value)
-        row[2 + i * 2, :3] = (b[0], b[1], b[2])
-        row[3 + i * 2, 0] = b[3]
+    for index, value in enumerate(floats):
+        packed = struct.pack("<f", value)
+        row[2 + index * 2, :3] = (packed[0], packed[1], packed[2])
+        row[3 + index * 2, 0] = packed[3]
     return row
 
 
@@ -94,7 +94,7 @@ def summarize(samples, names):
     """Mean, and 95th percentile, of each pass over a list of per-frame dicts."""
     out = {}
     for name in names + ("total",):
-        values = np.array([s[name] for s in samples]) if samples else np.zeros(1)
+        values = np.array([sample[name] for sample in samples]) if samples else np.zeros(1)
         out[name] = dict(mean=float(values.mean()), p95=float(np.percentile(values, 95)), n=len(samples))
     return out
 
@@ -153,7 +153,7 @@ def main():
             if first_pictures is None:
                 first_pictures = pictures
             else:
-                mismatches += sum(1 for a, b in zip(first_pictures, pictures) if a != b)
+                mismatches += sum(1 for first_picture, picture in zip(first_pictures, pictures) if first_picture != picture)
         result = dict(width=width, height=height, frames=len(frames), mismatches=mismatches,
                       new_keyframe=summarize(new_key, names), new_p=summarize(new_p, names), idle=summarize(idle, names))
         report["streams"][Path(stream).name] = result
@@ -162,7 +162,7 @@ def main():
         print("  %-24s %22s %22s %22s" % ("pass (ms)", "new P frame mean/p95", "new keyframe mean/p95", "no new video mean/p95"))
         for name in names + ("total",):
             cells = [result[kind][name] for kind in ("new_p", "new_keyframe", "idle")]
-            print("  %-24s %22s %22s %22s" % (name, *("%9.3f / %9.3f" % (c["mean"], c["p95"]) for c in cells)))
+            print("  %-24s %22s %22s %22s" % (name, *("%9.3f / %9.3f" % (cell["mean"], cell["p95"]) for cell in cells)))
     if arguments.json:
         arguments.json.write_text(json.dumps(report, indent=2))
 

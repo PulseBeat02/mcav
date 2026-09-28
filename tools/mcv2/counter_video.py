@@ -26,8 +26,8 @@ SYNC = (1, 0, 1, 0)
 def stamp(frame, number):
     """Writes a frame's number into the blocks of its top row."""
     values = [(number >> bit) & 1 for bit in range(BITS)] + list(SYNC)
-    for i, value in enumerate(values):
-        frame[0:BLOCK, i * BLOCK:(i + 1) * BLOCK] = 255 if value else 0
+    for position, value in enumerate(values):
+        frame[0:BLOCK, position * BLOCK:(position + 1) * BLOCK] = 255 if value else 0
 
 
 def read(luma):
@@ -35,7 +35,7 @@ def read(luma):
     bits = [1 if value >= 128 else 0 for value in luma]
     if len(bits) < BITS + len(SYNC) or tuple(bits[BITS:BITS + len(SYNC)]) != SYNC:
         return None
-    return sum(bit << i for i, bit in enumerate(bits[:BITS]))
+    return sum(bit << position for position, bit in enumerate(bits[:BITS]))
 
 
 def main():
@@ -65,8 +65,8 @@ def main():
     sink = open(arguments.out, "wb") if raw else encoder.stdin
     period = max(1, 2 * (count - 1))
     for number in range(frames):
-        m = number % period
-        index = m if m < count else period - m
+        phase = number % period
+        index = phase if phase < count else period - phase
         frame = np.array(clip[index * size:(index + 1) * size]).reshape(height, width, 3)
         stamp(frame, number)
         sink.write(frame.tobytes())

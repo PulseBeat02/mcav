@@ -27,37 +27,45 @@ import numpy as np
 from PIL import Image
 
 
-def psnr(a, b):
-    mse = np.mean((a.astype(np.float64) - b.astype(np.float64)) ** 2)
+def psnr(captured, expected):
+    mse = np.mean((captured.astype(np.float64) - expected.astype(np.float64)) ** 2)
     return float("inf") if mse == 0 else float(10 * np.log10(255.0**2 / mse))
 
 
-def ssim(a, b):
+def ssim(captured, expected):
     """Mean SSIM of the luma planes, 8x8 windows, the usual constants."""
-    def luma(x):
-        x = x.astype(np.float64)
-        return 0.299 * x[..., 0] + 0.587 * x[..., 1] + 0.114 * x[..., 2]
-    x, y = luma(a), luma(b)
-    h, w = (x.shape[0] // 8) * 8, (x.shape[1] // 8) * 8
-    x = x[:h, :w].reshape(h // 8, 8, w // 8, 8).swapaxes(1, 2)
-    y = y[:h, :w].reshape(h // 8, 8, w // 8, 8).swapaxes(1, 2)
-    mx, my = x.mean(axis=(2, 3)), y.mean(axis=(2, 3))
-    vx, vy = x.var(axis=(2, 3)), y.var(axis=(2, 3))
-    cov = ((x - mx[..., None, None]) * (y - my[..., None, None])).mean(axis=(2, 3))
-    c1, c2 = (0.01 * 255) ** 2, (0.03 * 255) ** 2
-    return float(np.mean((2 * mx * my + c1) * (2 * cov + c2) / ((mx**2 + my**2 + c1) * (vx + vy + c2))))
+    def luma(picture):
+        picture = picture.astype(np.float64)
+        return 0.299 * picture[..., 0] + 0.587 * picture[..., 1] + 0.114 * picture[..., 2]
+    captured_luma, expected_luma = luma(captured), luma(expected)
+    height, width = (captured_luma.shape[0] // 8) * 8, (captured_luma.shape[1] // 8) * 8
+    captured_luma = captured_luma[:height, :width].reshape(height // 8, 8, width // 8, 8).swapaxes(1, 2)
+    expected_luma = expected_luma[:height, :width].reshape(height // 8, 8, width // 8, 8).swapaxes(1, 2)
+    captured_mean, expected_mean = captured_luma.mean(axis=(2, 3)), expected_luma.mean(axis=(2, 3))
+    captured_variance, expected_variance = captured_luma.var(axis=(2, 3)), expected_luma.var(axis=(2, 3))
+    covariance = ((captured_luma - captured_mean[..., None, None]) * (expected_luma - expected_mean[..., None, None])).mean(axis=(2, 3))
+    luminance_constant, contrast_constant = (0.01 * 255) ** 2, (0.03 * 255) ** 2
+    return float(
+        np.mean(
+            (2 * captured_mean * expected_mean + luminance_constant)
+            * (2 * covariance + contrast_constant)
+            / ((captured_mean**2 + expected_mean**2 + luminance_constant) * (captured_variance + expected_variance + contrast_constant))
+        )
+    )
 
 
 def vmaf(ffmpeg, reference, captured, width, height):
     with tempfile.TemporaryDirectory() as folder:
         ref, dis, log = Path(folder, "ref.rgb"), Path(folder, "dis.rgb"), Path(folder, "vmaf.json")
-        ref.write_bytes(b"".join(r.tobytes() for r in reference))
-        dis.write_bytes(b"".join(c.tobytes() for c in captured))
-        raw = lambda p: ["-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", f"{width}x{height}", "-framerate", "30", "-i", str(p)]
+        ref.write_bytes(b"".join(frame.tobytes() for frame in reference))
+        dis.write_bytes(b"".join(frame.tobytes() for frame in captured))
+        raw = lambda path: [
+            "-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", f"{width}x{height}", "-framerate", "30", "-i", str(path)
+        ]
         graph = "[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];[dis][ref]libvmaf=n_threads=8:log_fmt=json:log_path=" + str(log)
         subprocess.run([ffmpeg, "-nostdin", "-v", "error", "-y", *raw(ref), *raw(dis), "-lavfi", graph, "-f", "null", "-"], check=True)
         frames = json.loads(log.read_text())["frames"]
-        scores = [f["metrics"]["vmaf"] for f in frames]
+        scores = [frame["metrics"]["vmaf"] for frame in frames]
         return float(np.mean(scores)), float(np.min(scores))
 
 
@@ -70,23 +78,23 @@ def main():
     parser.add_argument("--top", type=int, default=13)
     parser.add_argument("--vmaf")
     arguments = parser.parse_args()
-    w, h = arguments.width, arguments.height
-    reference = np.fromfile(arguments.reference, np.uint8).reshape(-1, h, w, 3)
+    width, height = arguments.width, arguments.height
+    reference = np.fromfile(arguments.reference, np.uint8).reshape(-1, height, width, 3)
     paths = sorted(Path(arguments.captures).glob("*.png"))
     # a picture as tall as the screen does not fit below the strip: its rows that do are compared
     screen_height, screen_width = np.asarray(Image.open(paths[0]).convert("RGB")).shape[:2]
-    visible = min(h, screen_height - arguments.top)
-    shown = min(w, screen_width)
-    if visible < h or shown < w:
-        print("the screen shows %dx%d of the %dx%d picture; the rest is not compared" % (shown, visible, w, h))
+    visible = min(height, screen_height - arguments.top)
+    shown = min(width, screen_width)
+    if visible < height or shown < width:
+        print("the screen shows %dx%d of the %dx%d picture; the rest is not compared" % (shown, visible, width, height))
         reference = np.ascontiguousarray(reference[:, :visible, :shown])
-        h, w = visible, shown
-    index = {hashlib.sha256(frame.tobytes()).hexdigest(): i for i, frame in enumerate(reference)}
+        height, width = visible, shown
+    index = {hashlib.sha256(frame.tobytes()).hexdigest(): frame_index for frame_index, frame in enumerate(reference)}
     exact, near = {}, []
     pairs = []
     for path in paths:
         screen = np.asarray(Image.open(path).convert("RGB"))
-        crop = np.ascontiguousarray(screen[arguments.top : arguments.top + h, :w])
+        crop = np.ascontiguousarray(screen[arguments.top : arguments.top + height, :width])
         key = hashlib.sha256(crop.tobytes()).hexdigest()
         if key in index:
             exact.setdefault(index[key], path.name)
@@ -103,19 +111,19 @@ def main():
     if missing:
         print("  frames never seen exactly:", missing)
     captured = [crop for _, crop in pairs]
-    matched = [reference[i] for i, _ in pairs]
-    psnrs = [psnr(c, r) for c, r in zip(captured, matched)]
-    finite = [p for p in psnrs if p != float("inf")]
+    matched = [reference[frame_index] for frame_index, _ in pairs]
+    psnrs = [psnr(capture, expected) for capture, expected in zip(captured, matched)]
+    finite = [value for value in psnrs if value != float("inf")]
     summary = {
         "captures": len(pairs),
         "exact_captures": len(pairs) - len(near),
         "frames_seen_exactly": len(exact),
         "frames": len(reference),
         "psnr_min_db": min(finite) if finite else "inf",
-        "ssim_mean": float(np.mean([ssim(c, r) for c, r in zip(captured, matched)])),
+        "ssim_mean": float(np.mean([ssim(capture, expected) for capture, expected in zip(captured, matched)])),
     }
     if arguments.vmaf:
-        summary["vmaf_mean"], summary["vmaf_min"] = vmaf(arguments.vmaf, matched, captured, w, h)
+        summary["vmaf_mean"], summary["vmaf_min"] = vmaf(arguments.vmaf, matched, captured, width, height)
     print(json.dumps(summary))
     sys.exit(0 if not near and not missing else 1)
 
