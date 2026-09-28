@@ -128,10 +128,11 @@ final class ServerProcess implements AutoCloseable {
    * @param fromLine the index of the first line to look at, see {@link #getLineCount()}
    * @param matcher  decides which line is wanted
    * @param timeout  how long to wait
+   * @return the first line that matches
    * @throws InterruptedException if the waiting thread is interrupted
    * @throws AssertionError       if no line matches in time or the server exits first
    */
-  void awaitLine(final int fromLine, final Predicate<String> matcher, final Duration timeout) throws InterruptedException {
+  String awaitLine(final int fromLine, final Predicate<String> matcher, final Duration timeout) throws InterruptedException {
     final long startNanos = System.nanoTime();
     final long timeoutNanos = timeout.toNanos();
     final long deadline = startNanos + timeoutNanos;
@@ -141,7 +142,7 @@ final class ServerProcess implements AutoCloseable {
         final int lineCount = this.lines.size();
         final Optional<String> match = this.findMatch(nextLine, lineCount, matcher);
         if (match.isPresent()) {
-          return;
+          return match.get();
         }
         nextLine = lineCount;
         this.waitForMoreOutput(deadline, timeout);

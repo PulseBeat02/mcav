@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.DatagramSocket;
@@ -46,11 +47,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -96,6 +101,9 @@ final class PaperServerEndToEndTest {
   private static final Duration SOUND_TIMEOUT = Duration.ofMinutes(1);
   private static final Duration RELEASE_TIMEOUT = Duration.ofSeconds(30);
   private static final String TONE_IMAGE = "beep.img";
+  private static final String CLIP = "clip.mp4";
+  private static final String PICTURE = "picture.png";
+  private static final Pattern PACK_SERVED = Pattern.compile("Serving the MCV2 pack ([0-9a-f-]{36}) with .* at (http://\\S+)");
   private static final int HTTP_OK = 200;
   private static final String FLAT_WORLD_SETTINGS =
     "{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2}," +
@@ -110,12 +118,15 @@ final class PaperServerEndToEndTest {
     final Path voiceChatJar = download(cache, VOICE_CHAT);
     final Path pluginJar = requirePath("mcav.e2e.pluginJar");
     final int httpPort = findFreePort();
-    prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort);
+    final FakeVncServer vnc = FakeVncServer.start();
+    final int gamePort = prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort, vnc);
+    final Path media = serverDirectory.resolve("media");
 
     final List<String> command = createCommand(paperJar);
     final LibraryCache libraryCache = lendLibraries(cache, serverDirectory);
     // closed in reverse order: the server stops first, then the repository, then the libraries go back to the cache
     try (
+      vnc;
       libraryCache;
       final LocalMavenRepositoryServer repository = startRepository();
       final ServerProcess server = ServerProcess.start(serverDirectory, command)
@@ -138,11 +149,17 @@ final class PaperServerEndToEndTest {
         } else {
           System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
         }
+        showAVncDesktop(server, vnc);
+        playThroughMcv2(server, page, gamePort);
       }
+      controlAVideo(server, media);
+      filterAnImage(server, media);
       server.command("stop");
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
       assertRanCleanly(exitCode, mediaInfo, output);
+      final boolean passwordLogged = output.stream().anyMatch(line -> line.contains(vnc.getPassword()));
+      assertFalse(passwordLogged, "the VNC password is never logged");
     }
   }
 
@@ -258,6 +275,101 @@ final class PaperServerEndToEndTest {
     awaitNoneLeft(server, "virtual machine", machine, running);
   }
 
+  /**
+   * Shows the desktop of the test's VNC server, listed with its password, on six maps, and releases it.
+   */
+  private static void showAVncDesktop(final ServerProcess server, final FakeVncServer vnc) throws InterruptedException {
+    final int firstLine = server.getLineCount();
+    runCommand(server, "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:" + vnc.getPort(), "Connected to the VNC desktop!");
+    server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
+    runCommand(server, "mcav vnc release", "VNC desktop released!");
+    System.out.printf(Locale.ROOT, "The VNC desktop logged in %d time(s) and sent %d updates%n", vnc.getLogins(), vnc.getUpdates());
+    assertEquals(1, vnc.getLogins(), "the plugin logs in with the listed password");
+    assertEquals(0, vnc.getRefused(), "and never with another");
+    assertTrue(vnc.getUpdates() > 1, "the desktop's pictures reach the maps");
+  }
+
+  /**
+   * Streams the tone page through MCV2 onto a wall in two chunks the test force-loads, since no player keeps them
+   * loaded and 26.3 keeps no spawn chunks, and checks the pack the server hosts on its game port: its hash names the
+   * pack.
+   */
+  private static void playThroughMcv2(final ServerProcess server, final TonePage page, final int gamePort) throws Exception {
+    // a wall the console builds faces north, so this one stands at z 2 and 3 within two blocks of x 0
+    runCommand(server, "forceload add -16 0 15 15", "to be force loaded");
+    runCommand(server, "mcav screen \"3x2\" 20 STONE 0 -60 3", "Built a new map screen!");
+    final int firstLine = server.getLineCount();
+    runCommand(
+      server,
+      "mcav browser create @a 320x240 1 3x2 20 NEAREST_COLOR NONE " + page.getUri() + " --codec mcv2",
+      "Browser started!",
+      BROWSER_TIMEOUT
+    );
+    final String served = server.awaitLine(firstLine, line -> PACK_SERVED.matcher(line).find(), COMMAND_TIMEOUT);
+    final Matcher matcher = PACK_SERVED.matcher(served);
+    assertTrue(matcher.find(), served);
+    final URI pack = URI.create(matcher.group(2));
+    assertEquals(gamePort, pack.getPort(), "the pack is hosted on the game port");
+    final byte[] zip = fetchBytes(pack);
+    final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
+    final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
+    assertEquals(matcher.group(1), id.toString(), "the pack's id is derived from its hash");
+    final Set<String> entries = new HashSet<>();
+    try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
+      for (ZipEntry entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
+        entries.add(entry.getName());
+      }
+    }
+    assertTrue(
+      entries.contains("pack.mcmeta") && entries.contains("assets/minecraft/post_effect/entity_outline.json"),
+      String.valueOf(entries)
+    );
+    System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
+    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
+    assertLogged(server.getLines(), "MCV2 kernels: ");
+  }
+
+  /**
+   * Plays the test clip on a map with two filters, and seeks, speeds up, loops and turns down the video.
+   */
+  private static void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {
+    final String clip = media.resolve(CLIP).toString();
+    runCommand(
+      server,
+      "mcav video map @a FFMPEG NONE \"64x64\" \"1x1\" 30 NEAREST_COLOR \"\" \"" + clip + "\" --filters \"grayscale,invert\"",
+      "Video metadata loaded and playing now!"
+    );
+    runCommand(server, "mcav video loop true", "Videos play again from their start whenever they end.");
+    runCommand(server, "mcav video seek 0:01", "Jumped to 0:01");
+    runCommand(server, "mcav video speed 2", "Playing at a speed of 2.0");
+    runCommand(server, "mcav video volume 50", "Volume in percent: 50");
+    // past the end of the clip, which plays again from its start
+    TimeUnit.SECONDS.sleep(4);
+    runCommand(server, "mcav video seek -0:01", "Jumped to ");
+    runCommand(server, "mcav video loop false", "Videos stop at their end.");
+    runCommand(server, "mcav video release", "Video player released!");
+    final int firstLine = server.getLineCount();
+    server.command("mcav video devices");
+    server.awaitLine(
+      firstLine,
+      line -> line.contains("Capture devices of the server") || line.contains("The server has no capture device."),
+      COMMAND_TIMEOUT
+    );
+  }
+
+  /**
+   * Shows the test picture on a map through a blur and a text.
+   */
+  private static void filterAnImage(final ServerProcess server, final Path media) throws InterruptedException {
+    final String picture = media.resolve(PICTURE).toString();
+    runCommand(
+      server,
+      "mcav image map @a \"64x64\" \"1x1\" 31 NEAREST_COLOR " + picture + " --filters \"blur=2,text=e2e\"",
+      "Image loaded!"
+    );
+    runCommand(server, "mcav image release", "Image released!");
+  }
+
   private static boolean isJava(final String command) {
     return command.endsWith("/java") || command.endsWith("\\java.exe");
   }
@@ -327,6 +439,15 @@ final class PaperServerEndToEndTest {
     }
   }
 
+  private static byte[] fetchBytes(final URI uri) throws IOException, InterruptedException {
+    final HttpRequest request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).build();
+    try (final HttpClient client = HttpClient.newHttpClient()) {
+      final HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+      assertEquals(HTTP_OK, response.statusCode(), "the server hosts " + uri);
+      return response.body();
+    }
+  }
+
   private static void assertLogged(final List<String> output, final String text) {
     for (final String line : output) {
       if (line.contains(text)) {
@@ -356,9 +477,14 @@ final class PaperServerEndToEndTest {
     return List.of(java, "-Xms1G", "-Xmx3G", "-Djava.awt.headless=true", "-jar", jar, "--nogui");
   }
 
-  private static void prepareServer(final Path serverDirectory, final Path pluginJar, final Path voiceChatJar, final int httpPort)
-    throws IOException {
-    writeServerProperties(serverDirectory);
+  private static int prepareServer(
+    final Path serverDirectory,
+    final Path pluginJar,
+    final Path voiceChatJar,
+    final int httpPort,
+    final FakeVncServer vnc
+  ) throws IOException {
+    final int gamePort = writeServerProperties(serverDirectory);
     final Path eula = serverDirectory.resolve("eula.txt");
     Files.writeString(eula, "eula=true\n", StandardCharsets.UTF_8);
 
@@ -369,25 +495,35 @@ final class PaperServerEndToEndTest {
     final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName);
     Files.copy(voiceChatJar, installedVoiceChat);
 
-    writePluginConfiguration(pluginsDirectory, httpPort);
+    writePluginConfiguration(pluginsDirectory, httpPort, vnc);
     writeVoiceChatConfiguration(pluginsDirectory);
     // the boot sector of mcav-vm's sound test (beep.asm there): it plays a 1000 Hz tone on the PC speaker
     final Path images = pluginsDirectory.resolve("MCAV").resolve("iso");
     Files.createDirectories(images);
-    try (InputStream image = PaperServerEndToEndTest.class.getResourceAsStream(TONE_IMAGE)) {
-      Files.copy(Objects.requireNonNull(image, TONE_IMAGE), images.resolve(TONE_IMAGE));
+    copyResource(TONE_IMAGE, images);
+    final Path media = Files.createDirectories(serverDirectory.resolve("media"));
+    copyResource(CLIP, media);
+    copyResource(PICTURE, media);
+    return gamePort;
+  }
+
+  private static void copyResource(final String name, final Path folder) throws IOException {
+    try (InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(name)) {
+      Files.copy(Objects.requireNonNull(resource, name), folder.resolve(name));
     }
   }
 
   /**
    * Writes the server settings: a small flat world, whose layers must be given, since Paper logs an error for a flat
-   * world without them, and no network services beyond the game port.
+   * world without them, and no network services beyond the game port, on the loopback address, which the URL of the
+   * MCV2 pack the game port serves then names instead of the public address of the machine.
    */
-  private static void writeServerProperties(final Path serverDirectory) throws IOException {
+  private static int writeServerProperties(final Path serverDirectory) throws IOException {
     final int port = findFreePort();
     final String properties = String.join(
       "\n",
       "online-mode=false",
+      "server-ip=127.0.0.1",
       "server-port=" + port,
       "level-type=minecraft\\:flat",
       "generator-settings=" + FLAT_WORLD_SETTINGS,
@@ -403,13 +539,16 @@ final class PaperServerEndToEndTest {
     );
     final Path file = serverDirectory.resolve("server.properties");
     Files.writeString(file, properties, StandardCharsets.UTF_8);
+    return port;
   }
 
   /**
    * Turns on the audio web server and Simple Voice Chat audio; the Discord bot needs a real token, so it stays off.
-   * The browser may open the page of this machine, and plays its sound without a click, as no player is there.
+   * The browser may open the page of this machine, and plays its sound without a click, as no player is there. The
+   * VNC server of the test is the one listed server, with its password.
    */
-  private static void writePluginConfiguration(final Path pluginsDirectory, final int httpPort) throws IOException {
+  private static void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc)
+    throws IOException {
     final Path dataFolder = pluginsDirectory.resolve("MCAV");
     Files.createDirectories(dataFolder);
     final String configuration = String.join(
@@ -429,6 +568,11 @@ final class PaperServerEndToEndTest {
       "browser:",
       "  allow-private-networks: true",
       "  autoplay-sound: true",
+      "vnc:",
+      "  allowed-hosts:",
+      "    - host: 127.0.0.1",
+      "      port: " + vnc.getPort(),
+      "      password: " + vnc.getPassword(),
       ""
     );
     final Path file = dataFolder.resolve("config.yml");
