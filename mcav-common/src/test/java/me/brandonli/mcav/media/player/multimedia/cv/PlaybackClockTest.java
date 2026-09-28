@@ -172,6 +172,19 @@ final class PlaybackClockTest {
   }
 
   @Test
+  void keepsTheMediaDueNowWhenTheSpeedChangesWhilePlaying() {
+    final AtomicLong now = new AtomicLong(100_000_000L);
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    clock.setSpeed(2);
+    assertEquals(100_000_000L, clock.dueAt(0L));
+    now.set(350_000_000L);
+    clock.setSpeed(0.5);
+    // 0.25 s at double speed was 0.5 s of media, and 0.1 s of media more takes 0.2 s at half speed; both stay within
+    // the two seconds past which the clock would anchor anew
+    assertEquals(550_000_000L, clock.dueAt(600_000L));
+  }
+
+  @Test
   void changesSpeedWhilePausedFromWhereThePauseBegan() {
     final AtomicLong now = new AtomicLong(0L);
     final PlaybackClock clock = new PlaybackClock(now::get);

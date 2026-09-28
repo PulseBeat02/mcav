@@ -218,6 +218,67 @@ final class FilterChainTest {
     assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, true));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = { "bilateral", "colormap", "dilate", "erode", "flip", "overlay", "rotate", "text", "threshold" })
+  void refusesASecondArgumentToAFilterThatTakesOne(final String name) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(name + "=1:1"));
+    assertEquals(name + " takes 1 argument", refused.getMessage());
+  }
+
+  @Test
+  void countsTheArgumentsOfAFilterThatTakesSeveral() {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse("crop=1:1:1"));
+    assertEquals("crop takes 4 arguments", refused.getMessage());
+  }
+
+  @Test
+  void takesTheLongestChainAndTheLargestOverlayAllowed() throws IOException {
+    final String longest = String.join(",", Collections.nCopies(6, "text=" + "a".repeat(FilterChain.MAX_TEXT))) + ",text=" + "a".repeat(23);
+    assertEquals(FilterChain.MAX_LENGTH, longest.length());
+    assertEquals(7, this.parse(longest).create().size());
+    Files.write(this.overlays.resolve("largest.png"), new byte[(int) FilterChain.MAX_OVERLAY_BYTES]);
+    // its size is checked when the option is read; it is decoded where the pictures are filtered
+    assertTrue(!this.parse("overlay=largest").isEmpty());
+    assertTrue(FilterChain.NONE.isEmpty());
+    assertTrue(!this.parse("grayscale").isEmpty());
+  }
+
+  @Test
+  void appliesTheExactValuesTyped() {
+    final ImageBuffer brighter = picture(2, 2, 0x102030);
+    this.parse("luminance=3:0").apply(brighter);
+    assertEquals(0x306090, brighter.getPixels()[0] & 0xffffff, "the largest contrast");
+    final ImageBuffer outlined = picture(4, 4, 0);
+    this.parse("rectangle=0:0:100:100:123456").apply(outlined);
+    assertEquals(0x123456, outlined.getPixels()[0] & 0xffffff);
+    final int[] dot = new int[5 * 5];
+    Arrays.fill(dot, OPAQUE);
+    dot[2 + 5 * 2] = OPAQUE | 0xffffff;
+    final ImageBuffer blurred = ImageBuffer.buffer(dot, 5, 5);
+    this.parse("blur=1").apply(blurred);
+    assertTrue((blurred.getPixels()[1 + 5 * 2] & 0xff) > 0, "a blur of radius 1 reaches the next pixel");
+  }
+
+  @Test
+  void placesARegionAtThePercentsTyped() {
+    final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").create().getFirst();
+    final ImageBuffer framed = picture(40, 40, 0);
+    assertTrue(inside.applyFilter(framed));
+    // the outline of x 10 to 29 and y 20 to 29
+    for (final int[] white : new int[][] { { 10, 25 }, { 29, 25 }, { 20, 20 }, { 20, 29 } }) {
+      assertEquals(0xffffff, framed.getPixels()[white[0] + 40 * white[1]] & 0xffffff, Arrays.toString(white));
+    }
+    for (final int[] black : new int[][] { { 9, 25 }, { 30, 25 }, { 20, 19 }, { 20, 30 } }) {
+      assertEquals(0, framed.getPixels()[black[0] + 40 * black[1]] & 0xffffff, Arrays.toString(black));
+    }
+    assertTrue(
+      this.parse("crop=0:0:50:50")
+        .create()
+        .getFirst()
+        .applyFilter(picture(10, 10, 0))
+    );
+  }
+
   @Test
   void readsOverlaysOnlyAsSmallPngFilesOfTheOverlayFolder() throws IOException {
     Files.write(this.overlays.resolve("big.png"), new byte[(int) FilterChain.MAX_OVERLAY_BYTES + 1]);
@@ -267,6 +328,7 @@ final class FilterChainTest {
     overlay.applyFilter(large);
     assertEquals(0xff0000, large.getPixels()[1_023] & 0xffffff);
     assertEquals(0x0000ff, large.getPixels()[1_024 + 1_100 * 8] & 0xffffff, "scaled to 1024 by 8");
+    assertEquals(0xff0000, large.getPixels()[1_023 + 1_100 * 7] & 0xffffff, "eight rows high");
     final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").create().getFirst();
     final ImageBuffer small = picture(10, 10, 0);
     rectangle.applyFilter(small);
@@ -279,5 +341,8 @@ final class FilterChainTest {
     rectangle.applyFilter(taller);
     assertEquals(0xffffff, taller.getPixels()[10 + 20 * 15] & 0xffffff, "the region is remade for the taller picture");
     assertEquals(0, taller.getPixels()[10 + 20 * 30] & 0xffffff);
+    final ImageBuffer wider = picture(40, 40, 0);
+    rectangle.applyFilter(wider);
+    assertEquals(0xffffff, wider.getPixels()[20 + 40 * 5] & 0xffffff, "the region is remade for the wider picture");
   }
 }

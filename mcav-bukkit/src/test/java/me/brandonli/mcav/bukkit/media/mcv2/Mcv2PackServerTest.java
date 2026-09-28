@@ -354,6 +354,95 @@ final class Mcv2PackServerTest {
   }
 
   @Test
+  void aReshapedSlotKeepsItsNewSizeForTheNextScreenOfThatSize() {
+    final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
+    for (int slot = 0; slot < Mcv2Pack.MAX_SCREENS; slot++) {
+      leases.add(this.packs.open(screen(160 + 32 * slot, Set.of())));
+    }
+    this.settle();
+    leases.getFirst().close();
+    this.packs.open(screen(640, Set.of())).close();
+    this.settle();
+    assertEquals(2, this.hostings.size(), "the full pack changed the free slot to the new size");
+    this.packs.open(screen(640, Set.of())).close();
+    this.settle();
+    assertEquals(2, this.hostings.size(), "the slot kept its new size, so the pack stays");
+  }
+
+  @Test
+  void offersThePackToAViewerAddedInTheGameOnceTheyChangeWorld() throws EventException {
+    final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
+    this.packs.start();
+    final EventExecutor world = this.registered(PlayerChangedWorldEvent.class);
+    final Listener listener = this.listener(PlayerChangedWorldEvent.class);
+    this.packs.open(screen(320, viewers));
+    this.settle();
+    final CraftPlayer carol = this.online(CAROL);
+    viewers.add(CAROL);
+    world.execute(listener, new PlayerChangedWorldEvent(carol, mock(World.class)));
+    verify(carol, never()).sendResourcePacks(any(ResourcePackRequest.class));
+    this.server.runTasks();
+    requestSentTo(carol);
+  }
+
+  @Test
+  void measuresTheLoadOnlyOfThePackAPlayerWasOffered() {
+    final CraftPlayer alice = this.online(ALICE);
+    final Mcv2PackServer.Lease first = this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    requestSentTo(alice);
+    first.close();
+    // the next pack is for Bob's screen: Alice is not asked to load it
+    this.packs.open(screen(160, Set.of(BOB)));
+    this.settle();
+    final UUID pack = this.packs.getViewers().getPackId();
+    assertEquals(-1, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+  }
+
+  @Test
+  void listensToThePackStatusForItselfAndItsViewersUntilShutDown() {
+    try (MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
+      this.packs.start();
+      final ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
+      verify(this.server.getPluginManager(), Mockito.times(2)).registerEvent(
+        eq(PlayerResourcePackStatusEvent.class),
+        listeners.capture(),
+        eq(EventPriority.MONITOR),
+        any(EventExecutor.class),
+        any(Plugin.class)
+      );
+      this.packs.shutdown();
+      for (final Listener listener : listeners.getAllValues()) {
+        handlers.verify(() -> HandlerList.unregisterAll(listener));
+      }
+    }
+  }
+
+  @Test
+  void deletesThePackItServesWhenShutDown() {
+    this.packs.open(screen(320, Set.of()));
+    this.settle();
+    final Path zip = this.folder.resolve("mcav-mcv2-1.zip");
+    assertTrue(Files.isRegularFile(zip));
+    this.packs.shutdown();
+    verify(this.hostings.getFirst()).shutdown();
+    assertFalse(Files.exists(zip));
+  }
+
+  @Test
+  void retiresAPackANewerOneReplacedBeforeItWasServed() {
+    this.packs.open(screen(320, Set.of()));
+    this.server.runTasks();
+    this.writer.drain();
+    // the first pack is hosted and waits for the main thread, which asks for another first
+    this.packs.open(screen(160, Set.of()));
+    this.settle();
+    verify(this.hostings.getFirst()).shutdown();
+    assertFalse(Files.exists(this.folder.resolve("mcav-mcv2-1.zip")));
+    assertTrue(Files.isRegularFile(this.folder.resolve("mcav-mcv2-2.zip")));
+  }
+
+  @Test
   void refusesAScreenWhoseOutlineColourIsNotThePacks() {
     this.packs.open(screen(320, Set.of()));
     final Mcv2Configuration gold = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.GOLD).build();
@@ -622,6 +711,20 @@ final class Mcv2PackServerTest {
 
     assertTrue(this.hostings.isEmpty());
     assertEquals(0, this.server.getScheduledTaskCount());
+  }
+
+  @Test
+  void retiresAPackHostedTooLateWhenTheShutdownCouldNotWaitForTheWriter() {
+    this.packs.open(screen(320, Set.of()));
+    this.server.runTasks();
+    this.writer.drain();
+    // the pack is hosted; the shutdown is interrupted before the writer stops it, then the main thread serves it
+    this.writer.interrupt = true;
+    this.packs.shutdown();
+    assertTrue(Thread.interrupted());
+    this.server.runTasks();
+    verify(this.hostings.getFirst()).shutdown();
+    assertFalse(Files.exists(this.folder.resolve("mcav-mcv2-1.zip")));
   }
 
   @Test
