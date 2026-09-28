@@ -49,14 +49,14 @@ final class Mcv2PacerPropertyTest {
   );
 
   /** A rung the pacer was on, from when to when, whether a step up brought it there and a step down ended it. */
-  record Stretch(Mcv2Pacer.Rung rung, long from, long to, boolean climbed, boolean leftDown) {}
+  private record Stretch(Mcv2Pacer.Rung rung, long from, long to, boolean climbed, boolean leftDown) {}
 
   /**
    * A screen's encoder under a budget: frames arrive at the video's rate; an encode takes the time of a 1080p frame at
    * the budget's current speed, scaled by the rung's pixels, its preset's cost and a little noise; while the encoder
    * works, the newest frame it is asked for waits, as in the screen.
    */
-  static final class Simulation {
+  private static final class Simulation {
 
     private final Mcv2Pacer pacer;
 

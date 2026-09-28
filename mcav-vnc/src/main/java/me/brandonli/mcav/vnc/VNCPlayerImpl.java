@@ -463,11 +463,11 @@ public final class VNCPlayerImpl implements VNCPlayer {
     }
 
     LockSupport.unpark(renderWorker);
-    this.join(renderWorker);
+    join(renderWorker);
     this.renderThread = null;
   }
 
-  private void join(final Thread thread) {
+  private static void join(final Thread thread) {
     final Thread caller = Thread.currentThread();
     if (thread.equals(caller)) {
       // A filter can release or restart its player. Its old renderer exits when that callback returns.
@@ -631,7 +631,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
      * @param error the error
      * @return true if the error belongs to the handshake
      */
-    synchronized boolean recordStartupError(final VncException error) {
+    private synchronized boolean recordStartupError(final VncException error) {
       if (!this.starting) {
         return false;
       }
@@ -646,7 +646,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
      *
      * @return the first error of the handshake, or null if it succeeded
      */
-    synchronized @Nullable VncException finishStartup() {
+    private synchronized @Nullable VncException finishStartup() {
       this.starting = false;
       final VncException failure = this.startupError;
       if (failure == null) {
@@ -660,7 +660,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
      *
      * @return true while the session can still produce frames
      */
-    synchronized boolean acceptsFrames() {
+    private synchronized boolean acceptsFrames() {
       return this.starting || this.alive.get();
     }
 
@@ -669,7 +669,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
      *
      * @return true if the handshake succeeded and the session has not ended
      */
-    boolean isAlive() {
+    private boolean isAlive() {
       return this.alive.get();
     }
 

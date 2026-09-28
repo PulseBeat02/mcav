@@ -52,7 +52,7 @@ public final class CaptureDevices {
   static final Path SYSFS = Path.of("/sys/class/video4linux");
 
   /** How many numbers are tried where the system does not list its devices. */
-  static final int PROBED = 8;
+  private static final int PROBED = 8;
 
   /** The longest name shown, which sysfs does not bound. */
   static final int MAX_NAME = 64;

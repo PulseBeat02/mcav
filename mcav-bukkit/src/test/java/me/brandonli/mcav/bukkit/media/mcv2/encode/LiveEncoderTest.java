@@ -17,7 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.encode;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COMPACT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PALETTE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PATTERN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SKIP;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -827,5 +833,5 @@ final class LiveEncoderTest {
   static final String LIVE_FAST_DIGEST = "f5b514f9a30ebe998717b066f6b8518534acfde641c1de2e3802b0a4b4ad903b";
 
   /** The SHA-256 of sixteen frames of the fast pan {@link EncoderSettings#LIVE_ADAPTIVE} encodes. */
-  static final String ADAPTIVE_MOVING_DIGEST = "d479705d8744472c22ff2cead78009c1fdde57dceaaa5aaaff63e9a1b065538e";
+  private static final String ADAPTIVE_MOVING_DIGEST = "d479705d8744472c22ff2cead78009c1fdde57dceaaa5aaaff63e9a1b065538e";
 }

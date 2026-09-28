@@ -135,7 +135,7 @@ final class AudioQueuePropertyTest {
     try {
       final boolean changed = result.applyFilter(buffer, metadata);
       // the pipeline may reuse its buffer as soon as the call returns
-      samples.overwrite(buffer);
+      Samples.overwrite(buffer);
 
       assertFalse(changed, "the samples are only read");
       final int positionAfter = buffer.position();
@@ -222,7 +222,7 @@ final class AudioQueuePropertyTest {
       return this.sent.poll(WAIT_SECONDS, TimeUnit.SECONDS);
     }
 
-    byte[] poll() throws InterruptedException {
+    private byte[] poll() throws InterruptedException {
       return this.sent.poll(50, TimeUnit.MILLISECONDS);
     }
   }
@@ -230,7 +230,7 @@ final class AudioQueuePropertyTest {
   /**
    * Samples in a buffer with other bytes around them, in heap or native memory.
    */
-  static final class Samples {
+  private static final class Samples {
 
     private final byte[] content;
     private final int margin;
@@ -247,7 +247,7 @@ final class AudioQueuePropertyTest {
       this.sliced = sliced;
     }
 
-    byte[] getContent() {
+    private byte[] getContent() {
       return this.content.clone();
     }
 
@@ -260,7 +260,7 @@ final class AudioQueuePropertyTest {
       return this.sliced ? whole.slice() : whole;
     }
 
-    void overwrite(final ByteBuffer buffer) {
+    private static void overwrite(final ByteBuffer buffer) {
       for (int index = buffer.position(); index < buffer.limit(); index++) {
         final byte current = buffer.get(index);
         buffer.put(index, (byte) ~current);

@@ -108,7 +108,7 @@ class NoFlagsServerTest {
    * @param path the {@code PATH}
    * @return the {@code PATH} without them
    */
-  static String withoutXServers(final String path) {
+  private static String withoutXServers(final String path) {
     return Arrays.stream(path.split(File.pathSeparator))
       .filter(entry -> !entry.isEmpty())
       .filter(entry -> X_SERVERS.stream().noneMatch(name -> Files.isExecutable(Path.of(entry, name))))

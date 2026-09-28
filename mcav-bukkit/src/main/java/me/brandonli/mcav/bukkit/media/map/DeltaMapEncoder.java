@@ -565,7 +565,7 @@ public final class DeltaMapEncoder {
       return new PatchRectangle(left, top, right - left, bottom - top);
     }
 
-    static PatchRectangle boundingBox(final List<PatchRectangle> rectangles) {
+    private static PatchRectangle boundingBox(final List<PatchRectangle> rectangles) {
       int left = Integer.MAX_VALUE;
       int top = Integer.MAX_VALUE;
       int right = Integer.MIN_VALUE;
@@ -579,11 +579,11 @@ public final class DeltaMapEncoder {
       return new PatchRectangle(left, top, right - left, bottom - top);
     }
 
-    int getX() {
+    private int getX() {
       return this.x;
     }
 
-    int getY() {
+    private int getY() {
       return this.y;
     }
 
@@ -595,7 +595,7 @@ public final class DeltaMapEncoder {
       return this.height;
     }
 
-    int getEncodedSize() {
+    private int getEncodedSize() {
       return this.width * this.height + MapLayout.PATCH_OVERHEAD;
     }
   }
@@ -617,19 +617,19 @@ public final class DeltaMapEncoder {
       this.priority = priority;
     }
 
-    int getMap() {
+    private int getMap() {
       return this.map;
     }
 
-    List<MapTilePatch> getPatches() {
+    private List<MapTilePatch> getPatches() {
       return this.patches;
     }
 
-    int getSize() {
+    private int getSize() {
       return this.size;
     }
 
-    long getPriority() {
+    private long getPriority() {
       return this.priority;
     }
   }

@@ -153,6 +153,53 @@ final class JcefNatives {
   }
 
   /**
+   * Installs the natives of a platform unless they are installed already.
+   *
+   * @param platform the platform
+   * @return the folder of the installation
+   * @throws IOException if the download, the verification or the extraction fails
+   */
+  Path install(final NativePlatform platform) throws IOException {
+    final String identifier = platform.getIdentifier();
+    final String sha256 = platform.getSha256();
+    return this.install(identifier, sha256, platform.getSize());
+  }
+
+  /**
+   * Installs the natives of a platform identifier with a pinned hash unless they are installed already.
+   *
+   * @param identifier the jcefmaven identifier of the platform, such as {@code linux-amd64}
+   * @param sha256     the pinned SHA-256 hash of the natives jar
+   * @param size       the pinned size of the natives jar
+   * @return the folder of the installation
+   * @throws IOException if the download, the verification or the extraction fails
+   */
+  @VisibleForTesting
+  Path install(final String identifier, final String sha256, final long size) throws IOException {
+    final String name = "jcef-" + JCEFMAVEN_VERSION + "-" + identifier;
+    final Path installation = this.folder.resolve(name);
+    final Path marker = installation.resolve(INSTALL_MARKER);
+    if (Files.isRegularFile(marker)) {
+      return installation;
+    }
+    ArchiveExtractor.createFolders(this.folder);
+    final Path lockFile = this.folder.resolve(name + ".lock");
+    synchronized (INSTALL_LOCK) {
+      try (
+        final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+        final FileLock lock = lock(channel)
+      ) {
+        // another process may have installed the natives while this one waited for the lock
+        if (!Files.isRegularFile(marker)) {
+          this.installLocked(identifier, sha256, size, installation);
+        }
+        LOGGER.debug("Released the installation lock {} of {}", lock, name);
+      }
+    }
+    return installation;
+  }
+
+  /**
    * Checks whether jcefmaven has a CEF build for this machine.
    *
    * @return true if the natives of this machine exist
@@ -206,53 +253,6 @@ final class JcefNatives {
       throw new IOException("jcefmaven has no CEF build for " + os + " " + arch + " " + bits + "; the browser cannot run here");
     }
     return platform.get();
-  }
-
-  /**
-   * Installs the natives of a platform unless they are installed already.
-   *
-   * @param platform the platform
-   * @return the folder of the installation
-   * @throws IOException if the download, the verification or the extraction fails
-   */
-  Path install(final NativePlatform platform) throws IOException {
-    final String identifier = platform.getIdentifier();
-    final String sha256 = platform.getSha256();
-    return this.install(identifier, sha256, platform.getSize());
-  }
-
-  /**
-   * Installs the natives of a platform identifier with a pinned hash unless they are installed already.
-   *
-   * @param identifier the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @param sha256     the pinned SHA-256 hash of the natives jar
-   * @param size       the pinned size of the natives jar
-   * @return the folder of the installation
-   * @throws IOException if the download, the verification or the extraction fails
-   */
-  @VisibleForTesting
-  Path install(final String identifier, final String sha256, final long size) throws IOException {
-    final String name = "jcef-" + JCEFMAVEN_VERSION + "-" + identifier;
-    final Path installation = this.folder.resolve(name);
-    final Path marker = installation.resolve(INSTALL_MARKER);
-    if (Files.isRegularFile(marker)) {
-      return installation;
-    }
-    ArchiveExtractor.createFolders(this.folder);
-    final Path lockFile = this.folder.resolve(name + ".lock");
-    synchronized (INSTALL_LOCK) {
-      try (
-        final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
-        final FileLock lock = lock(channel)
-      ) {
-        // another process may have installed the natives while this one waited for the lock
-        if (!Files.isRegularFile(marker)) {
-          this.installLocked(identifier, sha256, size, installation);
-        }
-        LOGGER.debug("Released the installation lock {} of {}", lock, name);
-      }
-    }
-    return installation;
   }
 
   /**
@@ -380,11 +380,11 @@ final class JcefNatives {
       return this.identifier;
     }
 
-    OS getOs() {
+    private OS getOs() {
       return this.os;
     }
 
-    Arch getArch() {
+    private Arch getArch() {
       return this.arch;
     }
 

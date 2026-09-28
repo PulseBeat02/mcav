@@ -197,7 +197,7 @@ final class ImageBufferPropertyTest {
   /**
    * The size of an image, its pixels, and how the buffer they arrive in is laid out.
    */
-  static final class ImageCase {
+  private static final class ImageCase {
 
     private final int width;
     private final int height;
@@ -233,7 +233,7 @@ final class ImageBufferPropertyTest {
       return this.height;
     }
 
-    int[] createArgb() {
+    private int[] createArgb() {
       final int[] argb = new int[this.width * this.height];
       for (int pixel = 0; pixel < argb.length; pixel++) {
         argb[pixel] = this.colors.get(pixel);
@@ -241,7 +241,7 @@ final class ImageBufferPropertyTest {
       return argb;
     }
 
-    byte[] createBgr() {
+    private byte[] createBgr() {
       final int[] argb = this.createArgb();
       final byte[] bgr = new byte[argb.length * CHANNELS];
       for (int pixel = 0; pixel < argb.length; pixel++) {

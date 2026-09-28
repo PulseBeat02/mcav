@@ -59,7 +59,7 @@ final class ServerAddressTest {
   }
 
   private static void clearCachedAddress() throws ReflectiveOperationException {
-    final Field field = ServerAddress.class.getDeclaredField("PUBLIC_ADDRESS");
+    final Field field = ServerAddress.class.getDeclaredField("publicAddress");
     field.setAccessible(true);
     field.set(null, null);
   }

@@ -35,7 +35,7 @@ public final class ServerAddress {
 
   private static final String FALLBACK_ADDRESS = "localhost";
 
-  private static volatile @Nullable String PUBLIC_ADDRESS;
+  private static volatile @Nullable String publicAddress;
 
   private ServerAddress() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -71,7 +71,7 @@ public final class ServerAddress {
       return configuredAddress;
     }
 
-    final String cachedAddress = PUBLIC_ADDRESS;
+    final String cachedAddress = publicAddress;
     if (cachedAddress != null) {
       return cachedAddress;
     }
@@ -81,7 +81,7 @@ public final class ServerAddress {
       return FALLBACK_ADDRESS;
     }
     final String address = lookedUpAddress.get();
-    PUBLIC_ADDRESS = address;
+    publicAddress = address;
     return address;
   }
 

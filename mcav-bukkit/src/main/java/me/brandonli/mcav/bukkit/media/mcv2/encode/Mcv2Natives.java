@@ -72,13 +72,13 @@ public final class Mcv2Natives {
    * The system property naming the highest level to use, for measurements: scalar, sse2, sse41, avx2, avx512, neon,
    * sve256 or sve512.
    */
-  static final String LEVEL_PROPERTY = "mcv2.native.level";
+  private static final String LEVEL_PROPERTY = "mcv2.native.level";
 
   /** The library interface these bindings are written for, {@code MCV2_ABI}. */
   static final int ABI = 2;
 
   /** Where Linux gives a process its auxiliary vector, which holds the processor's features. */
-  static final Path AUXV = Path.of("/proc/self/auxv");
+  private static final Path AUXV = Path.of("/proc/self/auxv");
 
   /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
   static final Map<String, String> DIGESTS = Map.of(

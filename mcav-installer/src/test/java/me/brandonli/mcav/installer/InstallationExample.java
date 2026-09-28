@@ -27,6 +27,8 @@ import java.nio.file.Path;
  */
 public final class InstallationExample {
 
+  private InstallationExample() {}
+
   /**
    * Runs the example.
    *

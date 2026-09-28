@@ -47,7 +47,7 @@ final class ModuleLoaderTest {
   /**
    * A module that records when it was started and stopped.
    */
-  static class RecordingModule implements MCAVModule {
+  private static class RecordingModule implements MCAVModule {
 
     final AtomicInteger starts = new AtomicInteger();
     final AtomicInteger stops = new AtomicInteger();
@@ -104,7 +104,7 @@ final class ModuleLoaderTest {
 
   static final class FatalStopModule extends RecordingModule {
 
-    static final StackOverflowError FAILURE = new StackOverflowError("stop recursed");
+    private static final StackOverflowError FAILURE = new StackOverflowError("stop recursed");
 
     @Override
     public void stop() {
@@ -115,7 +115,7 @@ final class ModuleLoaderTest {
 
   static final class FailingStartAndFatalStopModule extends RecordingModule {
 
-    static final StackOverflowError FAILURE = new StackOverflowError("stop recursed");
+    private static final StackOverflowError FAILURE = new StackOverflowError("stop recursed");
 
     @Override
     public void start() {
@@ -130,7 +130,7 @@ final class ModuleLoaderTest {
 
   static final class FatalConstructorModule extends RecordingModule {
 
-    static final OutOfMemoryError FAILURE = new OutOfMemoryError("heap is full");
+    private static final OutOfMemoryError FAILURE = new OutOfMemoryError("heap is full");
 
     FatalConstructorModule() {
       throw FAILURE;
@@ -148,8 +148,8 @@ final class ModuleLoaderTest {
 
   static final class LinkageStartModule extends RecordingModule {
 
-    static final UnsatisfiedLinkError FAILURE = new UnsatisfiedLinkError("native module missing");
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final UnsatisfiedLinkError FAILURE = new UnsatisfiedLinkError("native module missing");
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {
@@ -166,9 +166,9 @@ final class ModuleLoaderTest {
 
   static final class AssertionStartAndStopModule extends RecordingModule {
 
-    static final AssertionError START_FAILURE = new AssertionError("startup invariant failed");
-    static final LinkageError STOP_FAILURE = new LinkageError("cleanup native missing");
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final AssertionError START_FAILURE = new AssertionError("startup invariant failed");
+    private static final LinkageError STOP_FAILURE = new LinkageError("cleanup native missing");
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {
@@ -194,8 +194,8 @@ final class ModuleLoaderTest {
 
   static final class FatalStartModule extends RecordingModule {
 
-    static final OutOfMemoryError FAILURE = new OutOfMemoryError("start exhausted memory");
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final OutOfMemoryError FAILURE = new OutOfMemoryError("start exhausted memory");
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {
@@ -210,8 +210,8 @@ final class ModuleLoaderTest {
 
   static final class SameStartAndStopFailureModule extends RecordingModule {
 
-    static final ModuleException FAILURE = new ModuleException("module failed");
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final ModuleException FAILURE = new ModuleException("module failed");
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {
@@ -236,7 +236,7 @@ final class ModuleLoaderTest {
 
   static final class TrackedFailingStartModule extends RecordingModule {
 
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {
@@ -253,7 +253,7 @@ final class ModuleLoaderTest {
 
   static final class TrackedModuleExceptionStartModule extends RecordingModule {
 
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {

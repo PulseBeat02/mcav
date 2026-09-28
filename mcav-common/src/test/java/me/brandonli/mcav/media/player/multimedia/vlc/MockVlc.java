@@ -333,7 +333,7 @@ final class MockVlc {
       };
     }
 
-    void firePlaying() {
+    private void firePlaying() {
       this.playing.set(true);
       this.state.set(State.PLAYING);
       for (final MediaPlayerEventListener listener : this.listeners) {

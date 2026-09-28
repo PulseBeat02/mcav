@@ -226,7 +226,7 @@ final class DitherPropertyTest {
   /**
    * An algorithm with a name for the report.
    */
-  static final class NamedAlgorithm {
+  private static final class NamedAlgorithm {
 
     private final String name;
     private final Function<DitherPalette, DitherAlgorithm> factory;
@@ -249,7 +249,7 @@ final class DitherPropertyTest {
   /**
    * An algorithm, a palette and an image of random pixels.
    */
-  static final class DitherCase {
+  private static final class DitherCase {
 
     private final NamedAlgorithm algorithm;
     private final DitherPalette palette;
@@ -265,11 +265,11 @@ final class DitherPropertyTest {
       this.pixels = pixels;
     }
 
-    DitherAlgorithm createAlgorithm() {
+    private DitherAlgorithm createAlgorithm() {
       return this.algorithm.create(this.palette);
     }
 
-    DitherPalette getPalette() {
+    private DitherPalette getPalette() {
       return this.palette;
     }
 
@@ -277,7 +277,7 @@ final class DitherPropertyTest {
       return this.width;
     }
 
-    int[] createImage() {
+    private int[] createImage() {
       final int[] image = new int[this.width * this.height];
       for (int pixel = 0; pixel < image.length; pixel++) {
         image[pixel] = this.pixels.get(pixel);

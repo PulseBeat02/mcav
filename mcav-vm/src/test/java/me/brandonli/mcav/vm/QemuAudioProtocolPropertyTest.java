@@ -101,7 +101,7 @@ final class QemuAudioProtocolPropertyTest {
   /**
    * A message and its samples.
    */
-  static final class Sent {
+  private static final class Sent {
 
     private final QemuAudioProtocol.Kind kind;
     private final byte[] samples;

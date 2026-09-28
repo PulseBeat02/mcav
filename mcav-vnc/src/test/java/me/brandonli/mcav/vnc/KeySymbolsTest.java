@@ -126,7 +126,7 @@ final class KeySymbolsTest {
       this.failOnClose = failOnClose;
     }
 
-    boolean isClosed() {
+    private boolean isClosed() {
       return this.closed;
     }
 

@@ -259,14 +259,14 @@ final class PlaybackSession {
     }
     final GrabberFactory audioFactory = this.audioGrabberFactory;
     final boolean separateAudio = audioFactory != null;
-    final Thread videoDecoder = this.createThread("mcav-decode-video", () -> this.decode(grabber, true, !separateAudio));
+    final Thread videoDecoder = createThread("mcav-decode-video", () -> this.decode(grabber, true, !separateAudio));
     this.threads.add(videoDecoder);
     if (audioFactory != null) {
-      final Thread audioDecoder = this.createThread("mcav-decode-audio", () -> this.decodeSeparateAudio(audioFactory));
+      final Thread audioDecoder = createThread("mcav-decode-audio", () -> this.decodeSeparateAudio(audioFactory));
       this.threads.add(audioDecoder);
     }
-    final Thread videoRenderer = this.createThread("mcav-render-video", this::renderVideo);
-    final Thread audioRenderer = this.createThread("mcav-render-audio", this::renderAudio);
+    final Thread videoRenderer = createThread("mcav-render-video", this::renderVideo);
+    final Thread audioRenderer = createThread("mcav-render-audio", this::renderAudio);
     this.threads.add(videoRenderer);
     this.threads.add(audioRenderer);
     for (final Thread thread : this.threads) {
@@ -274,7 +274,7 @@ final class PlaybackSession {
     }
   }
 
-  private Thread createThread(final String name, final Runnable task) {
+  private static Thread createThread(final String name, final Runnable task) {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     return thread;

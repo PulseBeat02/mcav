@@ -99,7 +99,7 @@ class CefBrowserPlayerTest {
   /**
    * A session that records what the player sends it.
    */
-  static final class FakeSession implements BrowserSession {
+  private static final class FakeSession implements BrowserSession {
 
     final List<String> sent = new ArrayList<>();
     boolean accepting = true;
@@ -540,7 +540,7 @@ class CefBrowserPlayerTest {
       );
     }
 
-    boolean isClosed() {
+    private boolean isClosed() {
       return this.closed.get();
     }
   }

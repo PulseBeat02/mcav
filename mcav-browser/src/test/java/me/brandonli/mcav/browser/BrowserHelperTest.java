@@ -162,7 +162,7 @@ class BrowserHelperTest {
       return HelperProtocol.read(this.in, NEW_BUFFER);
     }
 
-    HelperMessage readUntil(final int type) throws IOException {
+    private HelperMessage readUntil(final int type) throws IOException {
       HelperMessage message = this.read();
       while (message.getType() != type) {
         message = this.read();
@@ -170,7 +170,7 @@ class BrowserHelperTest {
       return message;
     }
 
-    HelperMessage readFrameWithBlue(final int blue) throws IOException {
+    private HelperMessage readFrameWithBlue(final int blue) throws IOException {
       while (true) {
         final HelperMessage message = this.readUntil(HelperProtocol.FRAME);
         final byte[] pixels = message.getRegion().getPixels();

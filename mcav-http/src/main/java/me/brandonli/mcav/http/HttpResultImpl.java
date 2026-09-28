@@ -59,7 +59,7 @@ import org.springframework.web.socket.WebSocketSession;
  */
 public final class HttpResultImpl implements HttpResult {
 
-  static final String RESULT_BEAN_NAME = "mcavHttpResult";
+  private static final String RESULT_BEAN_NAME = "mcavHttpResult";
 
   /**
    * The system property that selects the logging system of Spring Boot.

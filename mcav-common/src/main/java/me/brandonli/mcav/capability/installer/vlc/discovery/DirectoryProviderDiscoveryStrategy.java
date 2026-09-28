@@ -407,7 +407,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
       return this.maxDepth;
     }
 
-    int getPriority() {
+    private int getPriority() {
       return this.directoryProvider.priority();
     }
   }
@@ -425,11 +425,11 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
       this.depth = depth;
     }
 
-    File getDirectory() {
+    private File getDirectory() {
       return this.directory;
     }
 
-    int getDepth() {
+    private int getDepth() {
       return this.depth;
     }
   }

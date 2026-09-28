@@ -73,7 +73,7 @@ final class MCAVInstallerTest {
       this.loaders.add(loader);
     }
 
-    boolean isEmpty() {
+    private boolean isEmpty() {
       final boolean noJars = this.jars.isEmpty();
       final boolean noLoaders = this.loaders.isEmpty();
       return noJars && noLoaders;

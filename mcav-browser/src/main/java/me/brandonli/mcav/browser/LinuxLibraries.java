@@ -77,7 +77,7 @@ final class LinuxLibraries {
   /**
    * The resource that pins the packages.
    */
-  static final String RESOURCE = "linux-libraries.txt";
+  private static final String RESOURCE = "linux-libraries.txt";
 
   /**
    * The marker file of a complete installation.
@@ -667,7 +667,7 @@ final class LinuxLibraries {
      * @return the pin
      * @throws IllegalArgumentException if a field is invalid
      */
-    static Pin parse(final List<String> fields, final String line) {
+    private static Pin parse(final List<String> fields, final String line) {
       if (fields.size() < 7) {
         throw new IllegalArgumentException("The pin " + line + " has " + fields.size() + " fields instead of at least 7");
       }

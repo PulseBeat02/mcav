@@ -59,7 +59,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
    * How long a helper may take until its page shows. The first start after a download can be slow, for example while a
    * virus scanner checks the new files.
    */
-  static final long START_TIMEOUT_MILLIS = 180_000L;
+  private static final long START_TIMEOUT_MILLIS = 180_000L;
 
   /**
    * How long the sound of the page is held before the audio pipeline gets it, in milliseconds: not at all. The page
@@ -68,7 +68,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
    * arrives, it reaches the pipeline about 20 ms before its picture ({@code BrowserSoundTest}); but an output starts to
    * play a chunk only when it arrives, 43 ms later than that, so a hold would only make the sound late.
    */
-  static final int AUDIO_DELAY_MILLIS = 0;
+  private static final int AUDIO_DELAY_MILLIS = 0;
 
   /**
    * The most sound of the page that waits for the audio pipeline, the delay included, in milliseconds.
@@ -361,8 +361,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
    * @param reason why it ended
    * @param cause  the failure
    */
-  @VisibleForTesting
-  void onEnded(final BrowserSession from, final String reason, final Throwable cause) {
+  private void onEnded(final BrowserSession from, final String reason, final Throwable cause) {
     if (!this.isCurrent(from)) {
       return;
     }
@@ -548,7 +547,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.metadata = metadata;
     }
 
-    void setSession(final BrowserSession session) {
+    private void setSession(final BrowserSession session) {
       final Consumer<BrowserSession> end;
       synchronized (this) {
         this.owner = session;

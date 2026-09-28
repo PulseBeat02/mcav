@@ -648,15 +648,15 @@ final class AbstractInstallerTest {
       super(name, downloads);
     }
 
-    void setFallbacks(final List<Platform> fallbacks) {
+    private void setFallbacks(final List<Platform> fallbacks) {
       this.fallbacks = fallbacks;
     }
 
-    void markAsArchive() {
+    private void markAsArchive() {
       this.archive = true;
     }
 
-    List<Path> getInstalledArchives() {
+    private List<Path> getInstalledArchives() {
       return this.installedArchives;
     }
 

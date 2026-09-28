@@ -17,7 +17,17 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHROMA_PLANES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.GRID_WIDTHS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_CHANNEL;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_GRID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.PALETTE_COLORS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.signed;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.sizeIndex;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 

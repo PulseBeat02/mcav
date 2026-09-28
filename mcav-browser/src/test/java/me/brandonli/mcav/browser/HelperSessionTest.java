@@ -942,10 +942,10 @@ class HelperSessionTest {
 
     final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();
     final List<byte[]> sound = new CopyOnWriteArrayList<>();
-    final List<Long> frameNanos = new CopyOnWriteArrayList<>();
+    private final List<Long> frameNanos = new CopyOnWriteArrayList<>();
     final List<String> ended = new CopyOnWriteArrayList<>();
 
-    List<Integer> blues() {
+    private List<Integer> blues() {
       final List<Integer> blues = new ArrayList<>();
       for (final ImageBuffer frame : this.frames) {
         blues.add(blue(frame));

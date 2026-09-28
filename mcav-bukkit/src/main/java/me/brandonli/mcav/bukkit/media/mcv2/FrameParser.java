@@ -17,7 +17,83 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ALL_FLAGS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ALL_QUARTERS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHECKPOINT_GROUPS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CONFIGURATION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CONFIGURATION_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DEFAULT_COLOR_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DEFAULT_SOLID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DELTA_BITS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DERIVED_DIRECTORY;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DERIVED_OFFSETS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.DIMENSIONS_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ENDPOINT_565;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ENDPOINT_565_PAIR_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ENDPOINT_PAIR_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ENDPOINT_TABLE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.FRAME_ID_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.GROUP_ROOTS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.HALF_WORD;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.HALF_WORD_BITS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.HEADER_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.KEYFRAME;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAGIC;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_DIMENSION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_FRAME_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_SYMBOLS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MCV1_MAGIC;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COARSE_PALETTE_2;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COARSE_PALETTE_4;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COMPACT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_IMMEDIATE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INDEXED_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MASK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PATTERN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SHIFT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SKIP;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SPARSE_SPLIT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SPLIT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MOTION_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MOTION_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MOTION_TABLE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.OFFSET_MASK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.PACKED_SYMBOLS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.PAYLOAD_START_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.QUANTIZER_SHIFT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.QUARTERS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.REFERENCE_ID_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.RESERVED_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.RGB565_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_COUNT_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SELECTOR_TABLE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SELECTOR_TABLE_8;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SHORT_DESCRIPTOR_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SHORT_INDEX;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SPARSE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.STORED_GROUP_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SYMBOL_QUANTIZER_SHIFT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.TOTAL_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.TWO_LEVEL_WALK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.WALK_PAIR_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.WALK_SPAN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.WALK_STRIDE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.WORD_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.patternSize;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.recordSize;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.signed;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.sizeIndex;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.symbolWidth;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.u16;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.u32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.unpack565;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.walkBytes;
 
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
@@ -177,7 +253,7 @@ public final class FrameParser {
       return this.values[leaf * Mcv2Frame.LEAF_INTS + field];
     }
 
-    int[] toArray() {
+    private int[] toArray() {
       return Arrays.copyOf(this.values, this.size);
     }
   }
@@ -227,7 +303,7 @@ public final class FrameParser {
       return (int) u32(this.data, offset);
     }
 
-    Mcv2Frame parse() throws Mcv2Exception {
+    private Mcv2Frame parse() throws Mcv2Exception {
       final int[] words = new int[this.roots];
       if ((this.flags & DERIVED_DIRECTORY) != 0 && (this.flags & SPARSE) == 0) {
         throw new Mcv2Exception("Derived directory requires the sparse root form");
@@ -436,7 +512,7 @@ public final class FrameParser {
       this.width = Byte.SIZE;
     }
 
-    Mcv2Frame parse() throws Mcv2Exception {
+    private Mcv2Frame parse() throws Mcv2Exception {
       final int groups = (this.roots + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final int stored = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
       final int head = HEADER_BYTES + (groups + stored) * WORD_BYTES;
@@ -575,7 +651,7 @@ public final class FrameParser {
       final int[] positions = new int[descriptors * POSITION_INTS];
       for (int index = 0; index < roots; index++) {
         final int root = present[index];
-        this.position(positions, index, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE);
+        position(positions, index, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE);
       }
       int child = roots;
       for (int index = 0; index < splittable; index++) {
@@ -586,13 +662,13 @@ public final class FrameParser {
         final int y = positions[index * POSITION_INTS + 1];
         final int half = positions[index * POSITION_INTS + 2] / 2;
         for (int corner = 0; corner < QUARTERS; corner++) {
-          this.position(positions, child++, x + (corner % 2) * half, y + (corner / 2) * half, half);
+          position(positions, child++, x + (corner % 2) * half, y + (corner / 2) * half, half);
         }
       }
       return positions;
     }
 
-    private void position(final int[] positions, final int index, final int x, final int y, final int size) {
+    private static void position(final int[] positions, final int index, final int x, final int y, final int size) {
       positions[index * POSITION_INTS] = x;
       positions[index * POSITION_INTS + 1] = y;
       positions[index * POSITION_INTS + 2] = size;

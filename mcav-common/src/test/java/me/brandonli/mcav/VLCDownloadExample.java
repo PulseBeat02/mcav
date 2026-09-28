@@ -26,6 +26,8 @@ import me.brandonli.mcav.utils.os.Platform;
  */
 public final class VLCDownloadExample {
 
+  private VLCDownloadExample() {}
+
   static void main() {
     final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");
     for (final Download download : downloads) {

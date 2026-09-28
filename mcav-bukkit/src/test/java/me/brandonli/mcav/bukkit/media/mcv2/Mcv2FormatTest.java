@@ -17,7 +17,23 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PALETTE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SKIP;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.chromaGrid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.lumaGrid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.patternSize;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.putU16;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.putU32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.recordSize;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.signed;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.symbolWidth;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.u16;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.u32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.unpack565;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.walkBytes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

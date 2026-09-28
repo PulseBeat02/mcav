@@ -56,8 +56,8 @@ import org.mockito.ArgumentCaptor;
  */
 final class BlockRendererTest {
 
-  static final int BROWN = (102 << 16) | (76 << 8) | 51;
-  static final int MAGENTA = (149 << 16) | (88 << 8) | 108;
+  private static final int BROWN = (102 << 16) | (76 << 8) | 51;
+  private static final int MAGENTA = (149 << 16) | (88 << 8) | 108;
 
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final UUID OFFLINE = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -107,7 +107,7 @@ final class BlockRendererTest {
     return ImageBuffer.buffer(pixels, 3, 2);
   }
 
-  private Map<Position, BlockData> expectAll(final BlockData block) {
+  private static Map<Position, BlockData> expectAll(final BlockData block) {
     final Map<Position, BlockData> expected = new HashMap<>();
     for (int x = 9; x <= 11; x++) {
       for (int y = 64; y <= 65; y++) {
@@ -154,7 +154,7 @@ final class BlockRendererTest {
 
     final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 1);
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
-    final Map<Position, BlockData> expected = this.expectAll(brown);
+    final Map<Position, BlockData> expected = expectAll(brown);
     final Map<? extends Position, BlockData> sent = changes.getFirst();
     assertEquals(expected, sent);
   }
@@ -252,7 +252,7 @@ final class BlockRendererTest {
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
     final Position changedPosition = Position.block(10, 64, -6);
-    final Map<Position, BlockData> expectedWall = this.expectAll(brown);
+    final Map<Position, BlockData> expectedWall = expectAll(brown);
     expectedWall.put(changedPosition, magenta);
     final Map<Position, BlockData> expectedDelta = Map.of(changedPosition, magenta);
     assertEquals(expectedWall, lateWall, "the new viewer sees the whole current picture, not only the delta");
@@ -274,7 +274,7 @@ final class BlockRendererTest {
     final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 2);
     final Map<? extends Position, BlockData> resent = changes.get(1);
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
-    final Map<Position, BlockData> expected = this.expectAll(brown);
+    final Map<Position, BlockData> expected = expectAll(brown);
     assertEquals(20, BlockRenderer.FULL_RESEND_INTERVAL_TICKS);
     assertEquals(expected, resent, "a static picture is sent again, so reloaded chunks show the wall again");
   }
@@ -300,7 +300,7 @@ final class BlockRendererTest {
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
     final Position changedPosition = Position.block(10, 64, -6);
-    final Map<Position, BlockData> expectedWall = this.expectAll(brown);
+    final Map<Position, BlockData> expectedWall = expectAll(brown);
     expectedWall.put(changedPosition, magenta);
     verify(this.viewer, times(1)).sendMultiBlockChange(anyMap());
     assertEquals(expectedWall, wall);
@@ -411,7 +411,7 @@ final class BlockRendererTest {
     final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 3);
     final Map<? extends Position, BlockData> wall = changes.get(2);
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
-    final Map<Position, BlockData> expected = this.expectAll(brown);
+    final Map<Position, BlockData> expected = expectAll(brown);
     assertEquals(expected, wall);
   }
 

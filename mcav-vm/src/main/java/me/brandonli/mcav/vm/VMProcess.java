@@ -69,7 +69,7 @@ final class VMProcess {
   /**
    * The id of the audio backend of the machine, which the sound cards and the VNC display name.
    */
-  static final String AUDIO_ID = "mcav-audio";
+  private static final String AUDIO_ID = "mcav-audio";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VMProcess.class);
   private static final String LOCALHOST = "127.0.0.1";
@@ -707,7 +707,7 @@ final class VMProcess {
       }
       if (!exited) {
         current.destroyForcibly();
-        this.awaitForcedExit(current);
+        awaitForcedExit(current);
       }
       this.awaitOutput();
       final boolean alive = current.isAlive();
@@ -729,7 +729,7 @@ final class VMProcess {
    *
    * @param current the process whose termination was requested
    */
-  private void awaitForcedExit(final Process current) {
+  private static void awaitForcedExit(final Process current) {
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(STOP_TIMEOUT_SECONDS);
     final long deadline = System.nanoTime() + timeoutNanos;
     boolean interrupted = Thread.interrupted();

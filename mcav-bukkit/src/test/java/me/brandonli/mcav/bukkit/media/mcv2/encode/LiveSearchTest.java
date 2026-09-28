@@ -17,7 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.encode;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA_Y4C1;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PALETTE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PATTERN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;

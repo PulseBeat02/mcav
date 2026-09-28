@@ -47,6 +47,8 @@ public final class VLCPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VLCPlayerExample.class);
 
+  private VLCPlayerExample() {}
+
   static void main() throws InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
       final MCAVApi api = MCAV.api();

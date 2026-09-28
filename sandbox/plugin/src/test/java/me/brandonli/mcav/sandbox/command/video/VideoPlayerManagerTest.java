@@ -809,7 +809,7 @@ final class VideoPlayerManagerTest {
     verify(start, never()).getAsBoolean();
   }
 
-  private BukkitTask stubLoopWatcher() {
+  private static BukkitTask stubLoopWatcher() {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final BukkitTask task = mock(BukkitTask.class);
     when(scheduler.runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(task);
@@ -825,7 +825,7 @@ final class VideoPlayerManagerTest {
 
   @Test
   void watchesForTheEndOnlyWhileLooping() {
-    final BukkitTask task = this.stubLoopWatcher();
+    final BukkitTask task = stubLoopWatcher();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     assertFalse(this.manager.isLooping());
     this.manager.setLooping(true);
@@ -843,7 +843,7 @@ final class VideoPlayerManagerTest {
 
   @Test
   void playsAgainOnlyADecodedVideoThatEndedWhileLooping() {
-    this.stubLoopWatcher();
+    stubLoopWatcher();
     final AbstractVideoPlayerCV decoded = mock(AbstractVideoPlayerCV.class);
     this.manager.setPlayer(decoded);
     this.manager.restartEnded();

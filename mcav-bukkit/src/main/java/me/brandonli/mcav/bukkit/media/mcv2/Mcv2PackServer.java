@@ -486,7 +486,7 @@ public final class Mcv2PackServer {
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.offerIfWatching(player));
   }
 
-  synchronized void offerIfWatching(final Player player) {
+  private synchronized void offerIfWatching(final Player player) {
     final Published pack = this.current;
     if (pack != null && player.isOnline() && this.isWatching(player.getUniqueId())) {
       this.offer(player, pack);

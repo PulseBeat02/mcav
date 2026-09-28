@@ -51,7 +51,7 @@ public final class SVCFilterImpl implements SVCFilter {
   /**
    * The number of mono samples in one 20 millisecond frame at 48 kHz.
    */
-  static final int FRAME_SAMPLES = 960;
+  private static final int FRAME_SAMPLES = 960;
 
   private static final int MAX_QUEUED_FRAMES = 25; // half a second
   private static final short[] SILENCE = new short[FRAME_SAMPLES];
@@ -274,11 +274,11 @@ public final class SVCFilterImpl implements SVCFilter {
       this.frames = new ArrayDeque<>(MAX_QUEUED_FRAMES);
     }
 
-    void setPlayer(final AudioPlayer player) {
+    private void setPlayer(final AudioPlayer player) {
       this.player = player;
     }
 
-    void enqueue(final short[] frame) {
+    private void enqueue(final short[] frame) {
       synchronized (this.frames) {
         if (this.frames.size() >= MAX_QUEUED_FRAMES) {
           this.frames.pollFirst();
@@ -288,7 +288,7 @@ public final class SVCFilterImpl implements SVCFilter {
     }
 
     // called by voice chat every 20 ms; returning null would end playback, so silence is returned instead
-    short[] nextFrame() {
+    private short[] nextFrame() {
       synchronized (this.frames) {
         final short[] frame = this.frames.pollFirst();
         if (frame == null) {
@@ -298,7 +298,7 @@ public final class SVCFilterImpl implements SVCFilter {
       }
     }
 
-    int getQueuedFrames() {
+    private int getQueuedFrames() {
       synchronized (this.frames) {
         return this.frames.size();
       }

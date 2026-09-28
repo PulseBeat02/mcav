@@ -47,7 +47,7 @@ final class QemuAudioProtocol {
   /**
    * The sample format QEMU is asked for: signed 16 bits.
    */
-  static final int FORMAT_S16 = 3;
+  private static final int FORMAT_S16 = 3;
 
   /**
    * The longest audio message accepted, in bytes; QEMU sends about 10 ms at a time.
@@ -75,8 +75,8 @@ final class QemuAudioProtocol {
   static final int SERVER_CUT_TEXT = 3;
   static final int SERVER_QEMU = 255;
   static final int QEMU_AUDIO = 1;
-  static final int AUDIO_END = 0;
-  static final int AUDIO_BEGIN = 1;
+  private static final int AUDIO_END = 0;
+  private static final int AUDIO_BEGIN = 1;
   static final int AUDIO_DATA = 2;
 
   private static final String VERSION = "RFB 003.008\n";

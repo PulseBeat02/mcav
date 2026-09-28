@@ -339,7 +339,7 @@ public final class FakeServer implements AutoCloseable {
    */
   public static void clearInjectedPlugin() {
     try {
-      final Field field = BukkitModule.class.getDeclaredField("PLUGIN");
+      final Field field = BukkitModule.class.getDeclaredField("injectedPlugin");
       field.setAccessible(true);
       field.set(null, null);
     } catch (final ReflectiveOperationException exception) {

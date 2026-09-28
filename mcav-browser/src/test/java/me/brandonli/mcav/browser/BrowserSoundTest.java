@@ -397,7 +397,7 @@ class BrowserSoundTest {
    * @param length the number of samples
    * @return the share of the energy at the tone, from 0 to 1, or 0 for silence
    */
-  static double toneShare(final short[] left, final int start, final int length) {
+  private static double toneShare(final short[] left, final int start, final int length) {
     final double omega = (2 * Math.PI * TestPages.TONE_HERTZ) / AudioFilter.SAMPLE_RATE;
     final double coefficient = 2 * Math.cos(omega);
     double previous = 0;
@@ -440,7 +440,7 @@ class BrowserSoundTest {
    * @param samples pairs of a time in nanoseconds and a state, 1 for on
    * @return the times the signal switched on
    */
-  static List<Long> onsets(final List<long[]> samples) {
+  private static List<Long> onsets(final List<long[]> samples) {
     final List<long[]> ordered = new ArrayList<>(samples);
     ordered.sort((first, second) -> Long.compare(first[0], second[0]));
     final long gap = TimeUnit.MILLISECONDS.toNanos(60);

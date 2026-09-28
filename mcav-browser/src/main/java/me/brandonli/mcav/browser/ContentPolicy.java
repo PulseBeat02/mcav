@@ -448,7 +448,7 @@ final class ContentPolicy
   /**
    * The policy of every request: only the web schemes, and never an external program.
    */
-  static final class ResourcePolicy extends CefResourceRequestHandlerAdapter {
+  private static final class ResourcePolicy extends CefResourceRequestHandlerAdapter {
 
     private final HelperEvents events;
 

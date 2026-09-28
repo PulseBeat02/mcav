@@ -87,7 +87,7 @@ final class LoaderUtilsTest {
       super(null);
     }
 
-    Class<?> defineKnot(final byte[] bytes) {
+    private Class<?> defineKnot(final byte[] bytes) {
       return this.defineClass(KNOT, bytes, 0, bytes.length);
     }
   }

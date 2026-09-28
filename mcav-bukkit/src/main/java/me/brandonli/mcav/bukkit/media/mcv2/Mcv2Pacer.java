@@ -74,7 +74,7 @@ public final class Mcv2Pacer {
   static final int MIN_SAMPLES = 10;
 
   /** How long the rung above must fit with room before the pacer steps up. */
-  static final double UP_SECONDS = 5.0;
+  private static final double UP_SECONDS = 5.0;
 
   /** How long the pacer waits on the dithered maps before it tries encoding again. */
   private static final double RETRY_SECONDS = 30.0;

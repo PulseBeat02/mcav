@@ -33,7 +33,7 @@ final class Mcv2LinkPropertyTest {
   private static final String SEED = "20260926";
 
   /** One step of a stream: a frame (its size, and whether it is a keyframe) and how much the connection wrote before. */
-  record Step(boolean keyframe, int bytes, int drained) {}
+  private record Step(boolean keyframe, int bytes, int drained) {}
 
   @Provide
   Arbitrary<List<Step>> streams() {

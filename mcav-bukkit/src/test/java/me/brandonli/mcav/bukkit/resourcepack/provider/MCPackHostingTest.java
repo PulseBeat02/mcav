@@ -615,33 +615,33 @@ final class MCPackHostingTest {
       return address.getPort();
     }
 
-    URI uploadUri() {
+    private URI uploadUri() {
       final int port = this.port();
       return URI.create("http://127.0.0.1:" + port + "/upload");
     }
 
-    String downloadFormat() {
+    private String downloadFormat() {
       final int port = this.port();
       return "http://127.0.0.1:" + port + "/pack/%s.zip";
     }
 
-    List<Upload> getUploads() {
+    private List<Upload> getUploads() {
       return List.copyOf(this.uploads);
     }
 
-    List<String> getDownloadMethods() {
+    private List<String> getDownloadMethods() {
       return List.copyOf(this.downloadMethods);
     }
 
-    void rejectUploads() {
+    private void rejectUploads() {
       this.uploadStatus = REJECTED_STATUS;
     }
 
-    void removeDownloads() {
+    private void removeDownloads() {
       this.downloadsAvailable = false;
     }
 
-    void setUploadHook(final Runnable hook) {
+    private void setUploadHook(final Runnable hook) {
       this.uploadHook = hook;
     }
 

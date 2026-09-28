@@ -37,6 +37,8 @@ import me.brandonli.mcav.utils.runtime.CommandTask;
  */
 public final class FFmpegExtractorExample {
 
+  private FFmpegExtractorExample() {}
+
   static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     try {

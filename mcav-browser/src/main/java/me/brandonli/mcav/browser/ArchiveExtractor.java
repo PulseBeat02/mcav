@@ -59,12 +59,12 @@ final class ArchiveExtractor {
   /**
    * The most entries an archive may have.
    */
-  static final int MAX_ENTRIES = 10_000;
+  private static final int MAX_ENTRIES = 10_000;
 
   /**
    * The most bytes an archive may extract to.
    */
-  static final long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
+  private static final long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
 
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
@@ -155,8 +155,7 @@ final class ArchiveExtractor {
    * @param entry the entry
    * @return true for symbolic and hard links, devices and named pipes
    */
-  @VisibleForTesting
-  static boolean isLinkOrSpecial(final TarArchiveEntry entry) {
+  private static boolean isLinkOrSpecial(final TarArchiveEntry entry) {
     final boolean link = entry.isSymbolicLink() || entry.isLink();
     final boolean device = entry.isCharacterDevice() || entry.isBlockDevice();
     return link || device || entry.isFIFO();

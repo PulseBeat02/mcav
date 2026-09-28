@@ -49,12 +49,12 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
   /**
    * The activity shown for media without a title.
    */
-  static final String UNKNOWN_TITLE = "Unknown title";
+  private static final String UNKNOWN_TITLE = "Unknown title";
 
   /**
    * The character that ends a title cut to the length limit of Discord.
    */
-  static final String ELLIPSIS = "…";
+  private static final String ELLIPSIS = "…";
 
   private static final int MAX_QUEUED_FRAMES = 150; // three seconds
   private static final int FRAME_MILLIS = 20;

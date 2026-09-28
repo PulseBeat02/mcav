@@ -217,7 +217,7 @@ final class HelperLauncher {
    * @param folder the folder of the session
    * @return the file
    */
-  static Path authorityOf(final Path folder) {
+  private static Path authorityOf(final Path folder) {
     return folder.resolve(NullDisplay.AUTHORITY_FILE);
   }
 

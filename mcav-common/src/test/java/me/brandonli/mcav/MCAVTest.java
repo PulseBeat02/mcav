@@ -93,8 +93,8 @@ final class MCAVTest {
    */
   static final class TrackedModule implements MCAVModule {
 
-    static final AtomicInteger STARTS = new AtomicInteger();
-    static final AtomicInteger STOPS = new AtomicInteger();
+    private static final AtomicInteger STARTS = new AtomicInteger();
+    private static final AtomicInteger STOPS = new AtomicInteger();
 
     @Override
     public void start() {

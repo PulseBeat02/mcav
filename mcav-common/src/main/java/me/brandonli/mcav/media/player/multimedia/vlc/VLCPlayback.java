@@ -484,7 +484,7 @@ final class VLCPlayback {
       }
     }
 
-    void rethrow() {
+    private void rethrow() {
       final Throwable failure = this.first;
       if (failure instanceof final RuntimeException exception) {
         throw exception;

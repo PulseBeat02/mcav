@@ -992,23 +992,23 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       this.description = description;
     }
 
-    CommandSender getSender() {
+    private CommandSender getSender() {
       return this.sender;
     }
 
-    T getPlayer() {
+    private T getPlayer() {
       return this.player;
     }
 
-    FunctionalVideoFilter getMaps() {
+    private FunctionalVideoFilter getMaps() {
       return this.maps;
     }
 
-    Screen getScreen() {
+    private Screen getScreen() {
       return this.screen;
     }
 
-    String getDescription() {
+    private String getDescription() {
       return this.description;
     }
   }

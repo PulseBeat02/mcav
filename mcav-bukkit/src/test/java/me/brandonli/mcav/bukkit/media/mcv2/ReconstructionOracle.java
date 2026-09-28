@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

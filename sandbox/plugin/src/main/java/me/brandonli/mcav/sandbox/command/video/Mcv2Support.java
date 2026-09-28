@@ -66,7 +66,7 @@ public final class Mcv2Support {
   public static final String RECORD_PROPERTY = "mcav.sandbox.mcv2.record";
 
   /** The folder of the pack, inside the plugin's {@code mcv2} folder of streams. */
-  static final String PACK_FOLDER = "pack";
+  private static final String PACK_FOLDER = "pack";
 
   /** The smaller sizes offered, as fractions of the screen's: two thirds, then a half. */
   private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
@@ -96,6 +96,11 @@ public final class Mcv2Support {
     );
   }
 
+  Mcv2Support(final Mcv2PackServer packs) {
+    Preconditions.checkNotNull(packs, "Pack server must not be null");
+    this.packs = packs;
+  }
+
   /** Tells a viewer why their client is about to ask them to load a pack. */
   static void tellOffered(final Player player) {
     player.sendMessage(Message.MCV2_PACK.build());
@@ -104,11 +109,6 @@ public final class Mcv2Support {
   /** Tells a viewer whose client declined the pack, or could not load it, why they see the dithered maps. */
   static void tellRefused(final Player player) {
     player.sendMessage(Message.MCV2_REFUSED.build());
-  }
-
-  Mcv2Support(final Mcv2PackServer packs) {
-    Preconditions.checkNotNull(packs, "Pack server must not be null");
-    this.packs = packs;
   }
 
   /**

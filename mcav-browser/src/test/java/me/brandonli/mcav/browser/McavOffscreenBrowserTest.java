@@ -145,7 +145,7 @@ class McavOffscreenBrowserTest {
   /**
    * Records what the browser hands to its listener.
    */
-  static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
+  private static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
 
     final List<String> log = new ArrayList<>();
 

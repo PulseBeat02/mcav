@@ -47,6 +47,8 @@ public final class MultiplexerInputExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
 
+  private MultiplexerInputExample() {}
+
   static void main() throws IOException, InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
       final MCAVApi api = MCAV.api();

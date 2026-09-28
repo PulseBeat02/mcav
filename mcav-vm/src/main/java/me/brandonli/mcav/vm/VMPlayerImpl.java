@@ -54,12 +54,12 @@ public final class VMPlayerImpl implements VMPlayer {
    * guest about every 10 ms, but it refreshes the picture of its VNC display 30 ms after a change at the earliest, and
    * later when the screen was idle, so without the delay the sound would run ahead of the picture.
    */
-  static final int AUDIO_DELAY_MILLIS = 70;
+  private static final int AUDIO_DELAY_MILLIS = 70;
 
   /**
    * The most sound of the guest that waits for the pipeline, the delay included, in milliseconds.
    */
-  static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 60;
+  private static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 60;
 
   private final VNCPlayer vncPlayer;
   private final ExecutableFinder finder;

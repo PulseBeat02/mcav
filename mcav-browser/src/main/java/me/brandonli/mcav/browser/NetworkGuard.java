@@ -68,8 +68,8 @@ final class NetworkGuard implements Closeable {
 
   static final int MAX_CONNECTIONS = 256;
   static final int MAX_REPORTED_HOSTS = 64;
-  static final int HANDSHAKE_TIMEOUT_MILLIS = 10_000;
-  static final int CONNECT_TIMEOUT_MILLIS = 10_000;
+  private static final int HANDSHAKE_TIMEOUT_MILLIS = 10_000;
+  private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
   private static final int BACKLOG = 64;
   private static final int BUFFER_BYTES = 16 * 1024;
 

@@ -535,7 +535,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
    * A directory provider that creates a file just before it names its directories, as if a library appeared between
    * two providers.
    */
-  static final class CompletingDirectoryProvider implements DiscoveryDirectoryProvider {
+  private static final class CompletingDirectoryProvider implements DiscoveryDirectoryProvider {
 
     private final Path fileToCreate;
     private final String[] directories;

@@ -17,7 +17,18 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.encode;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.BLOCK_SIZES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_DIMENSION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MAX_U32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COMPACT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.QUARTERS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.follows;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayDeque;

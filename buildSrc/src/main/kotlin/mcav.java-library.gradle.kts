@@ -14,6 +14,36 @@ plugins {
 
 val javaRelease = libs.versionOf("java").toInt()
 
+// The code-quality rules of mcav that Error Prone can check, as errors: the most restrictive modifiers, no dead code,
+// named constants, one declaration per line, overloads side by side and imports without wildcards.
+val enforcedChecks = listOf(
+    "FieldCanBeFinal",
+    "FieldCanBeStatic",
+    "FieldCanBeLocal",
+    "MethodCanBeStatic",
+    "ClassCanBeStatic",
+    "PrivateConstructorForUtilityClass",
+    "ConstantField",
+    "ConstantPatternCompile",
+    "UnusedVariable",
+    "UnusedMethod",
+    "UnusedNestedClass",
+    "UnusedLabel",
+    "RedundantOverride",
+    "MultiVariableDeclaration",
+    "UngroupedOverloads",
+    "WildcardImport",
+    "RemoveUnusedImports",
+    "MissingOverride",
+    "UnnecessaryAnonymousClass",
+    "UnnecessaryBoxedVariable",
+    "UnnecessaryBoxedAssignment",
+    "StaticQualifiedUsingExpression",
+    "LongLiteralLowerCaseSuffix",
+    "MultipleTopLevelClasses",
+    "PackageLocation"
+)
+
 repositories {
     mavenCentral()
     google()
@@ -51,6 +81,7 @@ tasks.withType<JavaCompile>().configureEach {
     })
     options.errorprone {
         disableWarningsInGeneratedCode = true
+        error(*enforcedChecks.toTypedArray())
     }
 }
 

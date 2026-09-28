@@ -1098,7 +1098,7 @@ final class PlaybackSessionTest {
      * The wall clock and the audio lead of the players, with a lag no frame can exceed, so frames are never dropped
      * as late however loaded the machine is.
      */
-    static final Timing NEVER_DROPPING = new Timing(PlaybackSession.AUDIO_LEAD_NANOS, Long.MAX_VALUE, System::nanoTime);
+    private static final Timing NEVER_DROPPING = new Timing(PlaybackSession.AUDIO_LEAD_NANOS, Long.MAX_VALUE, System::nanoTime);
 
     private final long audioLeadNanos;
     private final long maxVideoLagNanos;

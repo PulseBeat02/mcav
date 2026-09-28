@@ -169,7 +169,7 @@ final class AddressPolicy {
    * @param prefixLength the length of the prefix in bits, one of 32, 40, 48, 56, 64 and 96
    * @return the IPv4 address as a big-endian number
    */
-  static int embeddedIpv4(final byte[] bytes, final int prefixLength) {
+  private static int embeddedIpv4(final byte[] bytes, final int prefixLength) {
     int address = 0;
     int index = prefixLength / Byte.SIZE;
     for (int taken = 0; taken < Integer.BYTES; taken++) {
@@ -223,7 +223,7 @@ final class AddressPolicy {
    * @param bytes the sixteen bytes of the address
    * @return true if a NAT64 prefix may begin with it
    */
-  static boolean isTranslationNetwork(final byte[] bytes) {
+  private static boolean isTranslationNetwork(final byte[] bytes) {
     final int first = toInt(bytes, 0);
     return first == WELL_KNOWN_NAT64 || isGlobalUnicast(first);
   }
@@ -294,7 +294,7 @@ final class AddressPolicy {
      * @param other the other prefix
      * @return true if both are the same prefix
      */
-    boolean isSameAs(final TranslationPrefix other) {
+    private boolean isSameAs(final TranslationPrefix other) {
       return this.length == other.length && Arrays.equals(this.bytes, other.bytes);
     }
   }

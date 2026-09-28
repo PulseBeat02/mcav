@@ -128,7 +128,7 @@ final class FakeVncServer implements AutoCloseable {
       }
       in.readUnsignedByte();
       final PixelFormat format = new PixelFormat();
-      this.writeServerInit(out);
+      writeServerInit(out);
       this.serveMessages(in, out, format);
     } catch (final IOException | GeneralSecurityException disconnected) {
       // the client left, or sent what this server does not speak
@@ -168,7 +168,7 @@ final class FakeVncServer implements AutoCloseable {
     return cipher.doFinal(challenge);
   }
 
-  private void writeServerInit(final DataOutputStream out) throws IOException {
+  private static void writeServerInit(final DataOutputStream out) throws IOException {
     out.writeShort(WIDTH);
     out.writeShort(HEIGHT);
     // 32 bits a pixel, depth 24, little-endian, true colour, 255 a channel, red, green and blue from bit 16 down

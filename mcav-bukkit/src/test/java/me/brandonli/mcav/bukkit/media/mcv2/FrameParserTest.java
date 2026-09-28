@@ -17,7 +17,18 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.DERIVED;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.DERIVED_PLAIN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.SHORT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.keyframe;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.leaf;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.motion;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.pattern;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.predicted;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.solid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.split;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.withFlags;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.withWord;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

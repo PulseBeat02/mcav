@@ -221,16 +221,16 @@ final class AudioListenerFuzzTest {
       this.finished.acquireUninterruptibly();
     }
 
-    void awaitWrite() throws InterruptedException {
+    private void awaitWrite() throws InterruptedException {
       final boolean started = this.writing.tryAcquire(WAIT_SECONDS, TimeUnit.SECONDS);
       assertTrue(started, "the sender did not start writing the chunk it had to take");
     }
 
-    void finishWrite() {
+    private void finishWrite() {
       this.finished.release();
     }
 
-    void finishAll() {
+    private void finishAll() {
       this.finished.release(1_000);
     }
 

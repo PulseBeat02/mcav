@@ -217,11 +217,11 @@ final class CompressedMapResultPropertyTest {
   /**
    * One step of a scenario.
    */
-  static final class Step {
+  private static final class Step {
 
-    static final int FRAME = 0;
-    static final int JOIN = 1;
-    static final int LEAVE = 2;
+    private static final int FRAME = 0;
+    private static final int JOIN = 1;
+    private static final int LEAVE = 2;
 
     private final int kind;
     private final int widthShare;
@@ -235,7 +235,7 @@ final class CompressedMapResultPropertyTest {
       this.color = color;
     }
 
-    int getKind() {
+    private int getKind() {
       return this.kind;
     }
 
@@ -252,7 +252,7 @@ final class CompressedMapResultPropertyTest {
   /**
    * A grid, a byte budget and the steps played on it.
    */
-  static final class ResizeScenario {
+  private static final class ResizeScenario {
 
     private final int columns;
     private final int rows;
@@ -266,7 +266,7 @@ final class CompressedMapResultPropertyTest {
       this.steps = steps;
     }
 
-    MapConfiguration createConfiguration(final List<UUID> viewers) {
+    private MapConfiguration createConfiguration(final List<UUID> viewers) {
       final MapConfiguration.Builder<?> builder = MapConfiguration.builder();
       builder.viewers(viewers);
       builder.map(START_MAP_ID);
@@ -276,29 +276,29 @@ final class CompressedMapResultPropertyTest {
       return builder.build();
     }
 
-    int getBudget() {
+    private int getBudget() {
       return this.budget;
     }
 
-    List<Step> getSteps() {
+    private List<Step> getSteps() {
       return this.steps;
     }
 
-    int getMapCount() {
+    private int getMapCount() {
       return this.columns * this.rows;
     }
 
-    int widthOf(final Step step) {
+    private int widthOf(final Step step) {
       final int maximum = this.columns * MAP_SIZE + 60;
       return Math.max(1, (step.widthShare * maximum) / 1000);
     }
 
-    int heightOf(final Step step) {
+    private int heightOf(final Step step) {
       final int maximum = this.rows * MAP_SIZE + 60;
       return Math.max(1, (step.heightShare * maximum) / 1000);
     }
 
-    MapLayout createLayout(final Step step) {
+    private MapLayout createLayout(final Step step) {
       final int width = this.widthOf(step);
       final int height = this.heightOf(step);
       return new MapLayout(START_MAP_ID, this.columns, this.rows, width, height);
@@ -308,7 +308,7 @@ final class CompressedMapResultPropertyTest {
      * Creates the palette indices of a frame: the color of the step, with a stripe every eight rows, never 0, the
      * transparent index, so a pixel that was cleared can always be told from a pixel of a picture.
      */
-    byte[] createPicture(final Step step) {
+    private byte[] createPicture(final Step step) {
       final int width = this.widthOf(step);
       final int height = this.heightOf(step);
       final byte[] picture = new byte[width * height];
@@ -370,7 +370,7 @@ final class CompressedMapResultPropertyTest {
       return received;
     }
 
-    void assertShow(final MapLayout layout, final byte[] picture) {
+    private void assertShow(final MapLayout layout, final byte[] picture) {
       final int imageWidth = layout.getImageWidth();
       for (final Viewer viewer : this.viewers) {
         for (int index = 0; index < viewer.maps.length; index++) {
@@ -396,7 +396,7 @@ final class CompressedMapResultPropertyTest {
       }
     }
 
-    void assertTransparent() {
+    private void assertTransparent() {
       for (final Viewer viewer : this.viewers) {
         for (int index = 0; index < viewer.maps.length; index++) {
           final short[] map = viewer.maps[index];

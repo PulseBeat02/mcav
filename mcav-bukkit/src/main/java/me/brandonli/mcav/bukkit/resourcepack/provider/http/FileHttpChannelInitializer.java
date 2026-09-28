@@ -58,7 +58,7 @@ final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel>
    * How many downloads may run at once. Players download a pack as they join, so a real server stays far below this,
    * while a client that opens connections without finishing them can tie up no more than this many.
    */
-  static final int MAX_CONNECTIONS = 256;
+  private static final int MAX_CONNECTIONS = 256;
 
   private static final String BUSY_RESPONSE = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 

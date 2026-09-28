@@ -94,7 +94,7 @@ final class NullDisplay implements AutoCloseable {
    * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
    * of the {@value #MAX_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
    */
-  static final int SETUP_TIMEOUT_MILLIS = 10_000;
+  private static final int SETUP_TIMEOUT_MILLIS = 10_000;
 
   /**
    * The most atoms a display names, the predefined ones included.

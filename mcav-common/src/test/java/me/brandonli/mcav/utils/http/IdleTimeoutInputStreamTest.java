@@ -224,7 +224,7 @@ final class IdleTimeoutInputStreamTest {
       this.closed.countDown();
     }
 
-    boolean isClosed() {
+    private boolean isClosed() {
       return this.closed.getCount() == 0;
     }
   }

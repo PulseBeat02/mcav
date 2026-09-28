@@ -44,7 +44,7 @@ public final class BukkitModule implements MCAVModule {
 
   private static final String MODULE_NAME = "bukkit";
 
-  private static volatile @Nullable Plugin PLUGIN;
+  private static volatile @Nullable Plugin injectedPlugin;
 
   BukkitModule() {
     // created through MCAVApi#install
@@ -61,7 +61,7 @@ public final class BukkitModule implements MCAVModule {
     Preconditions.checkNotNull(plugin, "Plugin must not be null");
     ServerEnvironment.checkSupported();
 
-    PLUGIN = plugin;
+    injectedPlugin = plugin;
     BlockPaletteLookup.init();
     PacketUtils.init();
   }
@@ -73,7 +73,7 @@ public final class BukkitModule implements MCAVModule {
    * @throws IllegalStateException if no plugin has been injected yet
    */
   public static Plugin getPlugin() {
-    final Plugin plugin = PLUGIN;
+    final Plugin plugin = injectedPlugin;
     if (plugin == null) {
       throw new IllegalStateException("No plugin has been injected, call BukkitModule#inject(Plugin) first");
     }
@@ -88,7 +88,7 @@ public final class BukkitModule implements MCAVModule {
    */
   @Override
   public void start() {
-    final Plugin plugin = PLUGIN;
+    final Plugin plugin = injectedPlugin;
     if (plugin == null || !plugin.isEnabled()) {
       return;
     }
@@ -100,7 +100,7 @@ public final class BukkitModule implements MCAVModule {
    */
   @Override
   public void stop() {
-    if (PLUGIN == null) {
+    if (injectedPlugin == null) {
       return;
     }
     PacketUtils.shutdown();

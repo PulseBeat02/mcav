@@ -90,7 +90,7 @@ public class ConfigureGrabberResizeRace {
    */
   private static final class ConfiguringPlayer extends AbstractVideoPlayerCV {
 
-    void configure(final FrameGrabber grabber, final Source source) {
+    private void configure(final FrameGrabber grabber, final Source source) {
       this.configureGrabber(grabber, source);
     }
 

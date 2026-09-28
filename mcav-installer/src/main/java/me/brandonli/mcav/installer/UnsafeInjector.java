@@ -168,7 +168,7 @@ final class UnsafeInjector extends URLClassLoaderInjector {
      * @param collection the collection to add to
      * @return the sink
      */
-    UrlSink createSink(final Collection<?> collection) {
+    private UrlSink createSink(final Collection<?> collection) {
       final MethodHandle boundAdd = this.collectionAdd.bindTo(collection);
       return MethodHandleProxies.asInterfaceInstance(UrlSink.class, boundAdd);
     }

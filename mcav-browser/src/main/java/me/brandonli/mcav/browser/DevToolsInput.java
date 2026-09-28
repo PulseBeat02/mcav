@@ -429,15 +429,15 @@ final class DevToolsInput {
       this.text = text;
     }
 
-    String getCode() {
+    private String getCode() {
       return this.code;
     }
 
-    int getKeyCode() {
+    private int getKeyCode() {
       return this.keyCode;
     }
 
-    String getText() {
+    private String getText() {
       return this.text;
     }
   }

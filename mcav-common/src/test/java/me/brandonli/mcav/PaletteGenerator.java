@@ -30,6 +30,8 @@ public final class PaletteGenerator {
 
   private static final String OUTPUT = "palette.png";
 
+  private PaletteGenerator() {}
+
   static void main() throws IOException {
     final int[] colors = MapPaletteLoader.getColors();
     final int count = Math.min(colors.length, 256);

@@ -39,6 +39,8 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  */
 public final class FFmpegPlayerExample {
 
+  private FFmpegPlayerExample() {}
+
   static void main() throws InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
       final MCAVApi api = MCAV.api();

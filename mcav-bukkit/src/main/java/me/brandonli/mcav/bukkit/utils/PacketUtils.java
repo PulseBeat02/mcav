@@ -60,7 +60,7 @@ public final class PacketUtils {
 
   private static final Map<UUID, ServerGamePacketListenerImpl> PLAYER_CONNECTIONS = new ConcurrentHashMap<>();
 
-  private static volatile @Nullable Listener LISTENER;
+  private static volatile @Nullable Listener connectionListener;
 
   private PacketUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -80,7 +80,7 @@ public final class PacketUtils {
     final EventExecutor quitExecutor = (_, event) -> handleQuit(event);
     pluginManager.registerEvent(PlayerJoinEvent.class, listener, EventPriority.LOWEST, joinExecutor, plugin);
     pluginManager.registerEvent(PlayerQuitEvent.class, listener, EventPriority.MONITOR, quitExecutor, plugin);
-    LISTENER = listener;
+    connectionListener = listener;
 
     final Collection<? extends Player> onlinePlayers = Bukkit.getOnlinePlayers();
     for (final Player player : onlinePlayers) {
@@ -93,10 +93,10 @@ public final class PacketUtils {
    * {@link BukkitModule}.
    */
   public static synchronized void shutdown() {
-    final Listener listener = LISTENER;
+    final Listener listener = connectionListener;
     if (listener != null) {
       HandlerList.unregisterAll(listener);
-      LISTENER = null;
+      connectionListener = null;
     }
     PLAYER_CONNECTIONS.clear();
   }

@@ -57,16 +57,6 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
   }
 
   /**
-   * Creates the setter that publishes variables with {@code _putenv} of the C runtime of this process.
-   *
-   * @return the setter
-   */
-  static EnvironmentSetter nativeSetter() {
-    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
-    return variables::setWindowsVariable;
-  }
-
-  /**
    * Constructs a strategy with custom directories and a custom way of publishing the plugin path.
    *
    * @param searchProviders   the providers of the directories to search
@@ -74,6 +64,16 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
    */
   WindowsNativeDiscoveryStrategy(final List<SearchProvider> searchProviders, final EnvironmentSetter environmentSetter) {
     super(FILENAME_PATTERNS, PLUGIN_PATH_FORMATS, searchProviders, environmentSetter);
+  }
+
+  /**
+   * Creates the setter that publishes variables with {@code _putenv} of the C runtime of this process.
+   *
+   * @return the setter
+   */
+  static EnvironmentSetter nativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+    return variables::setWindowsVariable;
   }
 
   /**

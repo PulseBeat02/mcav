@@ -471,15 +471,15 @@ public final class AudioProvider {
       this.player = player;
     }
 
-    VoiceChannel getChannel() {
+    private VoiceChannel getChannel() {
       return this.channel;
     }
 
-    AudioManager getAudioManager() {
+    private AudioManager getAudioManager() {
       return this.audioManager;
     }
 
-    DiscordPlayer getPlayer() {
+    private DiscordPlayer getPlayer() {
       return this.player;
     }
   }

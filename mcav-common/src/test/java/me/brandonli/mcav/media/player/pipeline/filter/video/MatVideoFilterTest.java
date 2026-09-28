@@ -160,7 +160,7 @@ final class MatVideoFilterTest {
       return invocation;
     }
 
-    byte[] getBytes() {
+    private byte[] getBytes() {
       return Arrays.copyOf(this.bytes, this.bytes.length);
     }
   }

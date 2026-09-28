@@ -670,15 +670,15 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       this.dump = dump;
     }
 
-    Source getVideo() {
+    private Source getVideo() {
       return this.video;
     }
 
-    @Nullable Source getAudio() {
+    private @Nullable Source getAudio() {
       return this.audio;
     }
 
-    URLParseDump getDump() {
+    private URLParseDump getDump() {
       return this.dump;
     }
   }
@@ -731,35 +731,35 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       this.filters = filters;
     }
 
-    PlayerArgument getPlayerType() {
+    private PlayerArgument getPlayerType() {
       return this.playerType;
     }
 
-    AudioArgument getAudioType() {
+    private AudioArgument getAudioType() {
       return this.audioType;
     }
 
-    String getMrl() {
+    private String getMrl() {
       return this.mrl;
     }
 
-    String[] getYtdlpArguments() {
+    private String[] getYtdlpArguments() {
       return this.ytdlpArguments;
     }
 
-    Pair<Integer, Integer> getResolution() {
+    private Pair<Integer, Integer> getResolution() {
       return this.resolution;
     }
 
-    VideoConfigurationProvider getConfigurationProvider() {
+    private VideoConfigurationProvider getConfigurationProvider() {
       return this.configurationProvider;
     }
 
-    Player[] getViewers() {
+    private Player[] getViewers() {
       return this.viewers;
     }
 
-    FilterChain getFilters() {
+    private FilterChain getFilters() {
       return this.filters;
     }
   }

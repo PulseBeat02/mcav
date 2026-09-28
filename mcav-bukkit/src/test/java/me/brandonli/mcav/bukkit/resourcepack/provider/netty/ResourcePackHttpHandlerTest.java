@@ -73,7 +73,7 @@ final class ResourcePackHttpHandlerTest {
     Files.write(this.packPath, PACK);
   }
 
-  private EmbeddedChannel createChannel(final Path pack) {
+  private static EmbeddedChannel createChannel(final Path pack) {
     final ResourcePackFile file = new ResourcePackFile(pack);
     final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(file, "/");
     final EmbeddedChannel channel = new EmbeddedChannel();
@@ -147,7 +147,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void servesThePackToGetRequestsAndClosesTheConnection() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final ByteBuf request = ascii("GET / HTTP/1.1\r\nHost: example\r\n\r\n");
 
     channel.writeInbound(request);
@@ -166,7 +166,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void waitsForTheWholeTargetAndPassesAnUnmatchedRequestUnchanged() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     writeText(channel, "HEAD /");
     final Object premature = channel.readOutbound();
     assertNull(premature);
@@ -182,7 +182,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void answersHeadRequestsWithTheHeadersOnly() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
 
     writeText(channel, "HEAD / HTTP/1.1\r\n\r\n");
     final String responseHeaders = readOutboundText(channel);
@@ -196,7 +196,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void waitsUntilEnoughBytesArrivedToDecide() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final ByteBuf firstPart = ascii("GE");
 
     channel.writeInbound(firstPart);
@@ -218,7 +218,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void handsMinecraftConnectionsBackUntouchedAndRemovesItself() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
 
     writeBytes(channel, HANDSHAKE);
     final byte[] passedOn = readInboundBytes(channel);
@@ -234,7 +234,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void handsBackEveryBufferedByteWhenAPartialPrefixTurnsOutToBeMinecraft() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
 
     writeText(channel, "HE");
     writeText(channel, "X!");
@@ -248,7 +248,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void handsShortMinecraftPacketsBackImmediately() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final byte[] ping = { 0x01, 0x00 };
 
     writeBytes(channel, ping);
@@ -259,7 +259,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void passesMessagesThatAreNotBytesOn() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final Object message = "not a byte buffer";
 
     channel.writeInbound(message);
@@ -273,7 +273,7 @@ final class ResourcePackHttpHandlerTest {
   @Test
   void answersWithAnErrorAndLogsItWhenThePackCannotBeRead() {
     final Path missing = this.directory.resolve("missing.zip");
-    final EmbeddedChannel channel = this.createChannel(missing);
+    final EmbeddedChannel channel = createChannel(missing);
     final List<LogCapture.RecordedEvent> events;
     try (final LogCapture logs = LogCapture.capture(ResourcePackHttpHandler.class)) {
       writeText(channel, "GET / HTTP/1.1\r\n\r\n");
@@ -297,7 +297,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void releasesBufferedBytesWhenTheConnectionClosesEarly() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final ByteBuf partial = ascii("GE");
 
     channel.writeInbound(partial);
@@ -311,7 +311,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void releasesBufferedBytesWhenTheHandlerIsRemoved() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final ChannelPipeline pipeline = channel.pipeline();
     final ByteBuf partial = ascii("HEA");
 
@@ -356,7 +356,7 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void releasesBufferedBytesWhenTheConnectionCloses() {
-    final EmbeddedChannel channel = this.createChannel(this.packPath);
+    final EmbeddedChannel channel = createChannel(this.packPath);
     final ChannelPipeline pipeline = channel.pipeline();
     final ByteBuf partial = ascii("GE");
 

@@ -67,7 +67,7 @@ public final class BrowserHelper {
    * How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then,
    * and CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
    */
-  static final long STOP_DEADLINE_MILLIS = 20_000L;
+  private static final long STOP_DEADLINE_MILLIS = 20_000L;
 
   private final HelperConfiguration configuration;
   private final HelperEngine engine;
@@ -409,7 +409,7 @@ public final class BrowserHelper {
       this.output = output;
     }
 
-    boolean hasFailed() {
+    private boolean hasFailed() {
       return this.failed;
     }
 

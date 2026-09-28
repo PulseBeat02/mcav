@@ -151,13 +151,13 @@ public final class ImagePlayerImpl implements ImagePlayer {
       final boolean self = caller.equals(worker);
       if (!self) {
         worker.interrupt();
-        this.join(worker);
+        join(worker);
       }
     }
     return true;
   }
 
-  private void join(final Thread worker) {
+  private static void join(final Thread worker) {
     try {
       worker.join(STOP_TIMEOUT_MILLIS);
     } catch (final InterruptedException exception) {

@@ -682,27 +682,27 @@ final class ScriptedPlayerTest {
       return super.resume();
     }
 
-    void failNextOpen(final Throwable failure) {
+    private void failNextOpen(final Throwable failure) {
       this.nextOpenFailure = failure;
     }
 
-    void failConfiguration() {
+    private void failConfiguration() {
       this.configurationFails = true;
     }
 
-    List<String> getOpenedResources() {
+    private List<String> getOpenedResources() {
       return this.openedResources;
     }
 
-    List<String> getCallingThreads() {
+    private List<String> getCallingThreads() {
       return this.callingThreads;
     }
 
-    void clearCallingThreads() {
+    private void clearCallingThreads() {
       this.callingThreads.clear();
     }
 
-    ScriptedFrameGrabber getLatestGrabber() {
+    private ScriptedFrameGrabber getLatestGrabber() {
       synchronized (this.created) {
         return this.created.getLast();
       }

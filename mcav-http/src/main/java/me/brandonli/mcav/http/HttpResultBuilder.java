@@ -54,12 +54,12 @@ public final class HttpResultBuilder {
   /**
    * The host name used when none is set.
    */
-  static final String DEFAULT_DOMAIN = "localhost";
+  private static final String DEFAULT_DOMAIN = "localhost";
 
   /**
    * The port used when none is set.
    */
-  static final int DEFAULT_PORT = 80;
+  private static final int DEFAULT_PORT = 80;
 
   private String domain;
   private int port;

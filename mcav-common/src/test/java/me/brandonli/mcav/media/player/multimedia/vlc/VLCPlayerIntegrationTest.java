@@ -390,7 +390,7 @@ final class VLCPlayerIntegrationTest {
       this.lastChangeNanos = System.nanoTime();
     }
 
-    boolean hasElapsed() {
+    private boolean hasElapsed() {
       final long current = this.activity.getAsLong();
       final long now = System.nanoTime();
       if (current != this.lastActivity) {
@@ -400,7 +400,7 @@ final class VLCPlayerIntegrationTest {
       return now - this.lastChangeNanos >= this.quietNanos;
     }
 
-    long getLastChangeNanos() {
+    private long getLastChangeNanos() {
       return this.lastChangeNanos;
     }
   }

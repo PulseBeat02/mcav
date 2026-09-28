@@ -275,7 +275,7 @@ final class AbstractInteractiveCommandTest {
     }
   }
 
-  private EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
+  private static EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
     final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
     when(event.getEntity()).thenReturn(target);
     when(event.getDamager()).thenReturn(damager);
@@ -725,7 +725,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame otherScreen = this.addScreenFrame(0.5, 64.5, 0.0);
     setMapId(otherScreen, 19); // this command owns7..18, so19 belongs to another screen
     final PlayerInteractEntityEvent right = this.rightClick(otherScreen);
-    final EntityDamageByEntityEvent left = this.damage(otherScreen, this.player);
+    final EntityDamageByEntityEvent left = damage(otherScreen, this.player);
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, otherScreen)).thenReturn(new int[] { 3, 4 });
     this.command.onPlayerInteractEntity(right);
     this.command.onScreenDamage(left);
@@ -863,7 +863,7 @@ final class AbstractInteractiveCommandTest {
     this.command.player = "browser";
     final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 3, 4 });
-    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
+    final EntityDamageByEntityEvent event = damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
@@ -874,7 +874,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void protectsTheScreenWithoutClickingWhenNoPlayerRuns() {
     final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
+    final EntityDamageByEntityEvent event = damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
@@ -889,7 +889,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
     final Arrow arrow = mock(Arrow.class);
     when(arrow.getShooter()).thenReturn(this.player);
-    final EntityDamageByEntityEvent event = this.damage(frame, arrow);
+    final EntityDamageByEntityEvent event = damage(frame, arrow);
 
     this.command.onScreenDamage(event);
 
@@ -905,9 +905,9 @@ final class AbstractInteractiveCommandTest {
     final Arrow arrow = mock(Arrow.class);
     final Skeleton skeleton = mock(Skeleton.class);
     when(arrow.getShooter()).thenReturn(skeleton);
-    final EntityDamageByEntityEvent byArrow = this.damage(frame, arrow);
+    final EntityDamageByEntityEvent byArrow = damage(frame, arrow);
     final Zombie zombie = mock(Zombie.class);
-    final EntityDamageByEntityEvent byZombie = this.damage(frame, zombie);
+    final EntityDamageByEntityEvent byZombie = damage(frame, zombie);
 
     this.command.onScreenDamage(byArrow);
     this.command.onScreenDamage(byZombie);
@@ -922,8 +922,8 @@ final class AbstractInteractiveCommandTest {
     this.command.player = "browser";
     final ItemFrame plainFrame = this.addPlainFrame(0.5, 0.0);
     final Zombie zombie = mock(Zombie.class);
-    final EntityDamageByEntityEvent frameEvent = this.damage(plainFrame, this.player);
-    final EntityDamageByEntityEvent zombieEvent = this.damage(zombie, this.player);
+    final EntityDamageByEntityEvent frameEvent = damage(plainFrame, this.player);
+    final EntityDamageByEntityEvent zombieEvent = damage(zombie, this.player);
 
     this.command.onScreenDamage(frameEvent);
     this.command.onScreenDamage(zombieEvent);
@@ -938,7 +938,7 @@ final class AbstractInteractiveCommandTest {
     this.command.player = "browser";
     final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
-    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
+    final EntityDamageByEntityEvent event = damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
@@ -1019,7 +1019,7 @@ final class AbstractInteractiveCommandTest {
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 10, 20 });
     final BlockBreakEvent broken = this.blockBreak();
     final PlayerInteractEntityEvent right = this.rightClick(frame);
-    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
+    final EntityDamageByEntityEvent punch = damage(frame, this.player);
 
     this.command.onBlockBreak(broken);
     this.command.onPlayerInteractEntity(right);
@@ -1038,7 +1038,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 1, 2 });
     final PlayerInteractEntityEvent right = this.rightClick(frame);
-    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
+    final EntityDamageByEntityEvent punch = damage(frame, this.player);
 
     this.command.onPlayerInteractEntity(right);
     this.command.onScreenDamage(punch);

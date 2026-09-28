@@ -88,7 +88,7 @@ final class Mcv2ParserPropertyTest {
   }
 
   /** One change to a frame: its kind, where and with what, each reduced to the frame at hand when applied. */
-  record Mutation(int kind, int position, int value) {}
+  private record Mutation(int kind, int position, int value) {}
 
   @Provide
   Arbitrary<List<Mutation>> mutations() {
@@ -100,7 +100,7 @@ final class Mcv2ParserPropertyTest {
     return mutation.list().ofMinSize(1).ofMaxSize(8);
   }
 
-  static byte[] mutate(final byte[] frame, final List<Mutation> mutations) {
+  private static byte[] mutate(final byte[] frame, final List<Mutation> mutations) {
     byte[] bytes = frame.clone();
     for (final Mutation mutation : mutations) {
       final int length = bytes.length;
@@ -148,7 +148,7 @@ final class Mcv2ParserPropertyTest {
   }
 
   /** Parses and decodes, accepting only a picture of the frame's size or the declared exception. */
-  static void parseAndDecode(final byte[] bytes) {
+  private static void parseAndDecode(final byte[] bytes) {
     final Mcv2Frame frame;
     try {
       frame = FrameParser.parse(bytes);

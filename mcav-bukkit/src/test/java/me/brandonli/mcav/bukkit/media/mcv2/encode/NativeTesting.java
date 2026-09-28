@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class NativeTesting {
 
   /** The system property that records a platform whose library does not load, so its tests expect Java. */
-  static final String EXPECT = "mcv2.native.expect";
+  private static final String EXPECT = "mcv2.native.expect";
 
   /** Where the tests extract the library: the module's build folder. */
   static final Path FOLDER = Path.of("build", "mcv2-natives");

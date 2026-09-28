@@ -27,6 +27,8 @@ import me.brandonli.mcav.media.source.SourceDetectionHelper;
  */
 public final class SourceExamples {
 
+  private SourceExamples() {}
+
   static void main() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final List<String> inputs = List.of(

@@ -582,7 +582,7 @@ public final class RfbTestServer implements AutoCloseable {
    */
   private static final class PixelLayout {
 
-    static final PixelLayout SERVER = new PixelLayout(4, true, 255, 255, 255, 16, 8, 0);
+    private static final PixelLayout SERVER = new PixelLayout(4, true, 255, 255, 255, 16, 8, 0);
 
     private final int bytesPerPixel;
     private final boolean bigEndian;

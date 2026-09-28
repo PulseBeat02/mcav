@@ -209,7 +209,7 @@ final class MapScreenRebuildPropertyTest {
   /**
    * One thing in or next to a block of the wall.
    */
-  static final class Obstacle {
+  private static final class Obstacle {
 
     private final int cell;
     private final ObstacleKind kind;
@@ -230,7 +230,7 @@ final class MapScreenRebuildPropertyTest {
   /**
    * A wall built a number of times by a player facing one way, with things already standing where it goes.
    */
-  static final class Rebuild {
+  private static final class Rebuild {
 
     private final int width;
     private final int height;
@@ -246,7 +246,7 @@ final class MapScreenRebuildPropertyTest {
       this.obstacles = obstacles;
     }
 
-    Player createPlayer() {
+    private Player createPlayer() {
       final Player player = mock(Player.class);
       when(player.getFacing()).thenReturn(this.facing);
       return player;
@@ -255,7 +255,7 @@ final class MapScreenRebuildPropertyTest {
     /**
      * Builds the wall once in an empty world to learn which blocks its frames hang in.
      */
-    List<List<Integer>> findCells() {
+    private List<List<Integer>> findCells() {
       final FakeWorld empty = new FakeWorld();
       final Player player = this.createPlayer();
       final Location location = empty.location(0.5, 64.0, 0.5);
@@ -267,7 +267,12 @@ final class MapScreenRebuildPropertyTest {
       return cells;
     }
 
-    void placeObstacles(final FakeWorld world, final List<List<Integer>> cells, final List<Entity> keep, final List<ItemFrame> doomed) {
+    private void placeObstacles(
+      final FakeWorld world,
+      final List<List<Integer>> cells,
+      final List<Entity> keep,
+      final List<ItemFrame> doomed
+    ) {
       for (final Obstacle obstacle : this.obstacles) {
         final List<Integer> cell = cells.get(obstacle.cell % cells.size());
         final int x = cell.get(0);

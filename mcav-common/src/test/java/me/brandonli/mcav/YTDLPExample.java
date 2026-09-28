@@ -33,6 +33,8 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  */
 public final class YTDLPExample {
 
+  private YTDLPExample() {}
+
   static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     try {

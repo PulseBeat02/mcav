@@ -157,7 +157,7 @@ final class VLCPlayerTest {
     videoCallback.attach(step);
   }
 
-  private void assertReleased(final MockVlc.Player mocked) {
+  private static void assertReleased(final MockVlc.Player mocked) {
     final EmbeddedMediaPlayer mediaPlayer = mocked.getPlayer();
     final ControlsApi controls = mocked.getControls();
     verify(controls).stop();
@@ -249,7 +249,7 @@ final class VLCPlayerTest {
     assertFalse(started, "a missing file must not count as started");
     assertEquals(expectedMessages, this.messages);
     assertInstanceOf(PlayerException.class, error);
-    this.assertReleased(only);
+    assertReleased(only);
     this.assertEverythingReleased();
   }
 
@@ -295,8 +295,8 @@ final class VLCPlayerTest {
     final int reported = this.errors.size();
     assertFalse(started);
     assertEquals(1, reported, "the failure is reported once: " + this.messages);
-    this.assertReleased(videoPlayer);
-    this.assertReleased(audioPlayer);
+    assertReleased(videoPlayer);
+    assertReleased(audioPlayer);
     this.assertEverythingReleased();
     final ControlsApi videoControls = videoPlayer.getControls();
     verify(videoControls, after(400L).never()).setRate(anyFloat());
@@ -609,7 +609,7 @@ final class VLCPlayerTest {
     assertSame(failure, thrown);
     assertEquals(true, releaseResult);
     assertNull(resource, "a cancelled candidate never opens despite the old stop failure");
-    this.assertReleased(candidate);
+    assertReleased(candidate);
     this.assertEverythingReleased();
   }
 
@@ -641,7 +641,7 @@ final class VLCPlayerTest {
     final int creations = this.vlc.getCreations();
     final int references = this.references();
     assertTrue(restarted);
-    this.assertReleased(first);
+    assertReleased(first);
     verify(secondPlayer, never()).release();
     assertEquals("audio.ogg", secondResource);
     assertEquals(1, references);
@@ -742,7 +742,7 @@ final class VLCPlayerTest {
       final String unopened = candidate.getResource();
       assertNull(unopened, "the candidate cannot open before old cleanup finishes");
       if (cancel) {
-        this.assertReleased(candidate);
+        assertReleased(candidate);
       }
       finishStop.countDown();
       replacement.join(2_000L);

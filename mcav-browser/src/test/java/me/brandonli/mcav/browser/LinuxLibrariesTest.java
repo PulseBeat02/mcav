@@ -138,7 +138,7 @@ class LinuxLibrariesTest {
    * Builds the start of an ELF file: its magic, class (1 for 32 bits, 2 for 64), byte order (1 little-, 2 big-endian)
    * and machine (62 x86-64, 183 AArch64, 3 i386).
    */
-  static byte[] elf(final int elfClass, final int order, final int machine) {
+  private static byte[] elf(final int elfClass, final int order, final int machine) {
     final byte[] header = new byte[64];
     header[0] = 0x7F;
     header[1] = 'E';

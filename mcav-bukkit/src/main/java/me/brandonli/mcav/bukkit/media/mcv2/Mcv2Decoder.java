@@ -17,7 +17,21 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.CHANNELS;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COMPACT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_IMMEDIATE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA_Y4C1;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PALETTE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PATTERN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SKIP;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.chromaGrid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.lumaGrid;
 
 import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicReferenceArray;

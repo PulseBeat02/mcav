@@ -138,7 +138,7 @@ final class MapLayoutPropertyTest {
   /**
    * A grid of maps with an image on it; the image may be smaller than the grid, larger, or larger in one direction.
    */
-  static final class MapGrid {
+  private static final class MapGrid {
 
     private final int startMapId;
     private final int columns;
@@ -154,14 +154,14 @@ final class MapLayoutPropertyTest {
       this.imageHeight = imageHeight;
     }
 
-    MapLayout createLayout() {
+    private MapLayout createLayout() {
       return new MapLayout(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
     }
 
     /**
      * Fills an image so that neighboring pixels have different colors, cycling through the 256 a byte holds.
      */
-    byte[] createImage() {
+    private byte[] createImage() {
       final byte[] image = new byte[this.imageWidth * this.imageHeight];
       for (int index = 0; index < image.length; index++) {
         final int row = index / this.imageWidth;
@@ -170,31 +170,31 @@ final class MapLayoutPropertyTest {
       return image;
     }
 
-    int getStartMapId() {
+    private int getStartMapId() {
       return this.startMapId;
     }
 
-    int getColumns() {
+    private int getColumns() {
       return this.columns;
     }
 
-    int getRows() {
+    private int getRows() {
       return this.rows;
     }
 
-    int getImageWidth() {
+    private int getImageWidth() {
       return this.imageWidth;
     }
 
-    int getImageHeight() {
+    private int getImageHeight() {
       return this.imageHeight;
     }
 
-    int getGridWidth() {
+    private int getGridWidth() {
       return this.columns * MapLayout.MAP_SIZE;
     }
 
-    int getGridHeight() {
+    private int getGridHeight() {
       return this.rows * MapLayout.MAP_SIZE;
     }
 
@@ -270,7 +270,7 @@ final class MapLayoutPropertyTest {
       }
     }
 
-    int countCoveredOnce() {
+    private int countCoveredOnce() {
       int covered = 0;
       for (final int count : this.counts) {
         assertTrue(count <= 1, "no pixel of the image is shown twice");
@@ -283,7 +283,7 @@ final class MapLayoutPropertyTest {
      * Asserts that the image is centered: the grid pixels left over before and after it, or the image pixels cut off
      * before and after the grid, differ by at most one on each axis.
      */
-    void assertCentered() {
+    private void assertCentered() {
       if (!this.offsetKnown) {
         return;
       }

@@ -45,6 +45,7 @@ final class QemuHardwareValues {
   private static final Pattern SWITCH_OR_AUTO = Pattern.compile("on|off|auto");
   private static final Pattern BOOT_DEVICES = Pattern.compile("[a-p]{1,16}");
   private static final Pattern GUEST_NAME = Pattern.compile("[A-Za-z0-9 ._-]{0,64}");
+  private static final Pattern ACCELERATOR = Pattern.compile("[a-z]{3,4}");
 
   // properties of -machine that change the emulated hardware and never name a file
   private static final Map<String, Pattern> MACHINE_PROPERTIES = Map.ofEntries(
@@ -183,7 +184,7 @@ final class QemuHardwareValues {
       case "machine" -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
       case "m" -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
       case "smp" -> checkFirstAndProperties(name, value, first, NUMBER, rest, SMP_PROPERTIES);
-      case "accel" -> checkFirstAndProperties(name, value, first, Pattern.compile("[a-z]{3,4}"), rest, ACCEL_PROPERTIES);
+      case "accel" -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCEL_PROPERTIES);
       case "boot" -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
       case "name" -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
       case "rtc" -> checkProperties(name, value, parts, RTC_PROPERTIES);

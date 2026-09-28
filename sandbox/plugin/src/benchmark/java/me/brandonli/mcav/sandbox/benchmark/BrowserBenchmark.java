@@ -117,7 +117,7 @@ public final class BrowserBenchmark {
    * @param backend the name of the backend
    * @return the factory of its players
    */
-  static Supplier<BrowserPlayer> backends(final String backend) {
+  private static Supplier<BrowserPlayer> backends(final String backend) {
     // the benchmark pages are served on this machine, which the browser reaches only with private networks allowed
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
@@ -240,7 +240,7 @@ public final class BrowserBenchmark {
   /**
    * A browser size and the wall of maps it is shown on.
    */
-  static final class WallSize {
+  private static final class WallSize {
 
     private final int width;
     private final int height;

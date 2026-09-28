@@ -49,7 +49,7 @@ final class VLCInstallationValidationTest {
     MAC,
     LINUX;
 
-    String mainLibrary() {
+    private String mainLibrary() {
       return switch (this) {
         case WINDOWS -> "libvlc.dll";
         case MAC -> "libvlc.dylib";
@@ -57,7 +57,7 @@ final class VLCInstallationValidationTest {
       };
     }
 
-    String coreLibrary() {
+    private String coreLibrary() {
       return switch (this) {
         case WINDOWS -> "libvlccore.dll";
         case MAC -> "libvlccore.dylib";
@@ -65,7 +65,7 @@ final class VLCInstallationValidationTest {
       };
     }
 
-    Path relativeDirectory() {
+    private Path relativeDirectory() {
       return switch (this) {
         case WINDOWS -> Path.of("");
         case MAC -> Path.of("VLC.app", "Contents", "MacOS", "lib");

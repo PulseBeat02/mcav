@@ -69,7 +69,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   /**
    * The permission a player needs to send input to the running browser, by chat or by clicking the screen.
    */
-  static final String INTERACT_PERMISSION = "mcav.browser.interact";
+  private static final String INTERACT_PERMISSION = "mcav.browser.interact";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
 

@@ -290,7 +290,7 @@ final class MainThreadRendererTest {
       this.appliedFrames.add(frame);
     }
 
-    List<String> getAppliedFrames() {
+    private List<String> getAppliedFrames() {
       return List.copyOf(this.appliedFrames);
     }
   }
@@ -313,11 +313,11 @@ final class MainThreadRendererTest {
       this.ticks.incrementAndGet();
     }
 
-    List<String> getAppliedFrames() {
+    private List<String> getAppliedFrames() {
       return List.copyOf(this.appliedFrames);
     }
 
-    int getTicks() {
+    private int getTicks() {
       return this.ticks.get();
     }
   }

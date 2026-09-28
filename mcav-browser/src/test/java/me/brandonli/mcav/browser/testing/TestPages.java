@@ -290,37 +290,37 @@ public final class TestPages implements AutoCloseable {
       final InetSocketAddress address = new InetSocketAddress(loopback, 0);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final TestPages pages = new TestPages(httpServer);
-      httpServer.createContext("/main", exchange -> pages.page(exchange, "main", MAIN_COLOR));
-      httpServer.createContext("/popup", exchange -> pages.page(exchange, "popup", POPUP_COLOR));
-      httpServer.createContext("/second", exchange -> pages.page(exchange, "second", SECOND_COLOR));
-      httpServer.createContext("/tone", exchange -> pages.page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
-      httpServer.createContext("/tone-element", exchange -> pages.page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
-      httpServer.createContext("/tone-wrapped", exchange -> pages.page(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
-      httpServer.createContext("/av-sync", exchange -> pages.page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
+      httpServer.createContext("/main", exchange -> page(exchange, "main", MAIN_COLOR));
+      httpServer.createContext("/popup", exchange -> page(exchange, "popup", POPUP_COLOR));
+      httpServer.createContext("/second", exchange -> page(exchange, "second", SECOND_COLOR));
+      httpServer.createContext("/tone", exchange -> page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
+      httpServer.createContext("/tone-element", exchange -> page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext("/tone-wrapped", exchange -> page(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
+      httpServer.createContext("/av-sync", exchange -> page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
       httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
       httpServer.createContext("/dialog", exchange ->
-        pages.script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
+        script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
       );
-      httpServer.createContext("/to-file", exchange -> pages.script(exchange, "location.href = 'file:///etc/passwd';"));
-      httpServer.createContext("/to-download", exchange -> pages.script(exchange, "location.href = '/download';"));
-      httpServer.createContext("/to-popup", exchange -> pages.script(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext("/to-file", exchange -> script(exchange, "location.href = 'file:///etc/passwd';"));
+      httpServer.createContext("/to-download", exchange -> script(exchange, "location.href = '/download';"));
+      httpServer.createContext("/to-popup", exchange -> script(exchange, "window.open('/popup', '_blank');"));
       httpServer.createContext("/to-popup-link", exchange ->
-        pages.script(
+        script(
           exchange,
           "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
         )
       );
       httpServer.createContext("/to-popup-synthetic", exchange ->
-        pages.script(
+        script(
           exchange,
           "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
             " document.getElementById('link').click();"
         )
       );
       httpServer.createContext("/named-frame", exchange ->
-        pages.html(
+        html(
           exchange,
           "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
             FRAME_WIDTH +
@@ -329,7 +329,7 @@ public final class TestPages implements AutoCloseable {
         )
       );
       httpServer.createContext("/form-target", exchange ->
-        pages.html(
+        html(
           exchange,
           "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
             " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
@@ -376,15 +376,6 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Forgets the events the pages reported so far.
-   */
-  public void clearEvents() {
-    synchronized (this.events) {
-      this.events.clear();
-    }
-  }
-
-  /**
    * Gets the events of one type the pages reported so far.
    *
    * @param type the event type, such as {@code click}
@@ -400,6 +391,15 @@ public final class TestPages implements AutoCloseable {
       }
     }
     return matching;
+  }
+
+  /**
+   * Forgets the events the pages reported so far.
+   */
+  public void clearEvents() {
+    synchronized (this.events) {
+      this.events.clear();
+    }
   }
 
   /**
@@ -430,8 +430,30 @@ public final class TestPages implements AutoCloseable {
     return matching.size();
   }
 
-  private void page(final HttpExchange exchange, final String name, final int color) throws IOException {
-    this.page(exchange, name, color, "");
+  private static void page(final HttpExchange exchange, final String name, final int color) throws IOException {
+    page(exchange, name, color, "");
+  }
+
+  private static void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
+    final String hex = String.format("#%06x", color);
+    final String html =
+      "<!doctype html><html><head><title>" +
+      name +
+      "</title><style>html,body{margin:0;width:100%;height:100%;background:" +
+      hex +
+      ";}</style></head><body data-page=\"" +
+      name +
+      "\">" +
+      SCRIPT +
+      extra +
+      "</body></html>";
+    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
   }
 
   /**
@@ -470,28 +492,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
-    final String hex = String.format("#%06x", color);
-    final String html =
-      "<!doctype html><html><head><title>" +
-      name +
-      "</title><style>html,body{margin:0;width:100%;height:100%;background:" +
-      hex +
-      ";}</style></head><body data-page=\"" +
-      name +
-      "\">" +
-      SCRIPT +
-      extra +
-      "</body></html>";
-    final byte[] body = html.getBytes(StandardCharsets.UTF_8);
-    final Headers headers = exchange.getResponseHeaders();
-    headers.add("Content-Type", "text/html; charset=utf-8");
-    exchange.sendResponseHeaders(200, body.length);
-    try (final OutputStream output = exchange.getResponseBody()) {
-      output.write(body);
-    }
-  }
-
   /**
    * Serves a red page with more elements.
    *
@@ -499,7 +499,7 @@ public final class TestPages implements AutoCloseable {
    * @param elements the HTML of the elements
    * @throws IOException if the answer cannot be sent
    */
-  private void html(final HttpExchange exchange, final String elements) throws IOException {
+  private static void html(final HttpExchange exchange, final String elements) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
       elements +
@@ -520,7 +520,7 @@ public final class TestPages implements AutoCloseable {
    * @param script   the script
    * @throws IOException if the response fails
    */
-  private void script(final HttpExchange exchange, final String script) throws IOException {
+  private static void script(final HttpExchange exchange, final String script) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
       "<body><script>window.addEventListener('load', () => setTimeout(() => { " +
@@ -549,7 +549,7 @@ public final class TestPages implements AutoCloseable {
   private void hooked(final HttpExchange exchange) throws IOException {
     final Runnable hook = this.loadHook.get();
     hook.run();
-    this.page(exchange, "main", MAIN_COLOR);
+    page(exchange, "main", MAIN_COLOR);
   }
 
   private void event(final HttpExchange exchange) throws IOException {

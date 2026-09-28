@@ -572,7 +572,7 @@ final class DependencyLoaderTest {
    * A class whose initializer fails as FFmpeg's device class does without its library: the first use throws that
    * failure, and every later one a {@link NoClassDefFoundError} that names it as the cause.
    */
-  static final class FailingDeviceLibrary {
+  private static final class FailingDeviceLibrary {
 
     private static final int LOADED = fail();
 

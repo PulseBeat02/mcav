@@ -197,7 +197,7 @@ final class MapProbe implements DitherResultStep {
       this.done = new CountDownLatch(1);
     }
 
-    void inspect(final List<MapTilePatch> patches, final long now) {
+    private void inspect(final List<MapTilePatch> patches, final long now) {
       for (final MapTilePatch patch : patches) {
         final byte[] colors = patch.getColors();
         final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;

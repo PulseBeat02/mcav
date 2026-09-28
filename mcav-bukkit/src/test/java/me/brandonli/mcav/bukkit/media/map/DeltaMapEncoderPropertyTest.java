@@ -187,7 +187,7 @@ final class DeltaMapEncoderPropertyTest {
   /**
    * One frame of a scenario, a pure function of the scenario so that shrinking the scenario shrinks the frames.
    */
-  static final class EncodingScenario {
+  private static final class EncodingScenario {
 
     private final int columns;
     private final int rows;
@@ -212,11 +212,11 @@ final class DeltaMapEncoderPropertyTest {
       this.frameEdits = frameEdits;
     }
 
-    MapLayout createLayout() {
+    private MapLayout createLayout() {
       return new MapLayout(7, this.columns, this.rows, this.imageWidth, this.imageHeight);
     }
 
-    int getBudget() {
+    private int getBudget() {
       return this.budget;
     }
 
@@ -224,7 +224,7 @@ final class DeltaMapEncoderPropertyTest {
      * Builds the frames: the first starts from a picture with a different color in every row, and every frame applies
      * its edits to the previous one.
      */
-    List<byte[]> createFrames() {
+    private List<byte[]> createFrames() {
       final List<byte[]> frames = new ArrayList<>();
       byte[] frame = new byte[this.imageWidth * this.imageHeight];
       for (int index = 0; index < frame.length; index++) {
@@ -264,7 +264,7 @@ final class DeltaMapEncoderPropertyTest {
   /**
    * A rectangle painted in one color, given in thousandths of the image so it fits every image size.
    */
-  static final class FrameEdit {
+  private static final class FrameEdit {
 
     private final int x;
     private final int y;
@@ -280,7 +280,7 @@ final class DeltaMapEncoderPropertyTest {
       this.color = color;
     }
 
-    void applyTo(final byte[] frame, final int imageWidth, final int imageHeight) {
+    private void applyTo(final byte[] frame, final int imageWidth, final int imageHeight) {
       final int left = (this.x * imageWidth) / 1000;
       final int top = (this.y * imageHeight) / 1000;
       final int right = Math.min(imageWidth, left + scale(this.width, imageWidth));
@@ -322,7 +322,7 @@ final class DeltaMapEncoderPropertyTest {
       }
     }
 
-    void applyAll(final List<MapTilePatch> patches) {
+    private void applyAll(final List<MapTilePatch> patches) {
       for (final MapTilePatch patch : patches) {
         this.apply(patch);
       }
@@ -356,7 +356,7 @@ final class DeltaMapEncoderPropertyTest {
     /**
      * Asserts that a patch lies inside the covered region of its map and shows the pixels the frame has there.
      */
-    void assertCarriesFramePixels(final MapTilePatch patch, final byte[] frame) {
+    private void assertCarriesFramePixels(final MapTilePatch patch, final byte[] frame) {
       final int index = this.indexOf(patch);
       final MapRegion region = this.layout.getRegion(index);
       final int x = patch.getX();
@@ -385,7 +385,7 @@ final class DeltaMapEncoderPropertyTest {
     /**
      * Asserts that the snapshot is exactly what the clients display: every map that received anything, and nothing else.
      */
-    void assertMatchesSnapshot(final List<MapTilePatch> snapshot) {
+    private void assertMatchesSnapshot(final List<MapTilePatch> snapshot) {
       final Set<Integer> snapshotMaps = new HashSet<>();
       for (final MapTilePatch patch : snapshot) {
         final int index = this.indexOf(patch);
@@ -417,7 +417,7 @@ final class DeltaMapEncoderPropertyTest {
       return false;
     }
 
-    int countCoveredMaps() {
+    private int countCoveredMaps() {
       int covered = 0;
       for (int index = 0; index < this.maps.length; index++) {
         final MapRegion region = this.layout.getRegion(index);
@@ -431,7 +431,7 @@ final class DeltaMapEncoderPropertyTest {
     /**
      * Asserts that every map shows the frame where the image covers it and was never sent anything anywhere else.
      */
-    void assertShows(final byte[] frame) {
+    private void assertShows(final byte[] frame) {
       final int imageWidth = this.layout.getImageWidth();
       for (int index = 0; index < this.maps.length; index++) {
         final MapRegion region = this.layout.getRegion(index);

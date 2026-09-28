@@ -101,7 +101,7 @@ class NullDisplayTest {
     return request.array();
   }
 
-  static byte[] internAtom(final ByteOrder order, final String name) {
+  private static byte[] internAtom(final ByteOrder order, final String name) {
     final byte[] bytes = name.getBytes(StandardCharsets.ISO_8859_1);
     final ByteBuffer body = ByteBuffer.allocate(4 + bytes.length).order(order);
     body.putShort((short) bytes.length);

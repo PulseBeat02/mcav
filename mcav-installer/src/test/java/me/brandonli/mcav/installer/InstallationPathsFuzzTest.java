@@ -54,11 +54,11 @@ final class InstallationPathsFuzzTest {
     final String groupId = data.consumeString(30);
     final String artifact = data.consumeString(30);
     final String fileName = data.consumeRemainingAsString();
-    this.assertArtifactFolder(artifactId);
+    assertArtifactFolder(artifactId);
     assertJarDestination(groupId, artifact, fileName);
   }
 
-  private void assertArtifactFolder(final String artifactId) throws IOException {
+  private static void assertArtifactFolder(final String artifactId) throws IOException {
     final List<Path> before = WORKSPACE.list();
     boolean refused = false;
     try {

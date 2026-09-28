@@ -72,7 +72,7 @@ final class Mcv2Image implements DisplayableImage {
   }
 
   /** Gives the screen a copy of the image, which the encoder may resize in place. */
-  void feed(final int[] pixels, final int width, final int height) {
+  private void feed(final int[] pixels, final int width, final int height) {
     try (ImageBuffer frame = ImageBuffer.buffer(pixels.clone(), width, height)) {
       this.output.applyFilter(frame, OriginalVideoMetadata.of(width, height));
     }

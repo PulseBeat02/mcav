@@ -17,7 +17,20 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.encode;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.*;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_COMPACT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA_Y4C1;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_INTRA_Y8C2;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_MOTION;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PALETTE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_PATTERN;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL_Y4C1;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_RESIDUAL_Y8C2;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.MODE_SOLID;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.ROOT_SIZE;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isBlockSize;
 
 import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;

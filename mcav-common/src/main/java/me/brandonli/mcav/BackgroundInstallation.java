@@ -250,7 +250,7 @@ final class BackgroundInstallation {
       final long now = System.nanoTime();
       final long remainingNanos = Math.max(0L, deadline - now);
       final Duration remaining = Duration.ofNanos(remainingNanos);
-      final boolean ended = this.join(thread, remaining);
+      final boolean ended = join(thread, remaining);
       if (!ended) {
         final String threadName = thread.getName();
         final long timeoutMillis = this.cancelTimeout.toMillis();
@@ -259,7 +259,7 @@ final class BackgroundInstallation {
     }
   }
 
-  private boolean join(final Thread thread, final Duration timeout) {
+  private static boolean join(final Thread thread, final Duration timeout) {
     try {
       return thread.join(timeout);
     } catch (final InterruptedException exception) {

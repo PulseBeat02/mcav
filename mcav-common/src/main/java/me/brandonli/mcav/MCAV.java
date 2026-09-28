@@ -148,12 +148,12 @@ public final class MCAV implements MCAVApi {
 
   private void loadNatives() {
     this.dependencyLoader.loadModules();
-    this.loadPalette();
+    loadPalette();
     // the ImageIO disk cache only slows down the many small images the library decodes
     ImageIO.setUseCache(false);
   }
 
-  private void loadPalette() {
+  private static void loadPalette() {
     LOGGER.info("Building the map color lookup table...");
     final long start = System.currentTimeMillis();
     DitherPalette.init();

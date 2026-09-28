@@ -315,19 +315,19 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       this.configProvider = configProvider;
     }
 
-    CommandSender getSender() {
+    private CommandSender getSender() {
       return this.sender;
     }
 
-    String getMrl() {
+    private String getMrl() {
       return this.mrl;
     }
 
-    Pair<Integer, Integer> getResolution() {
+    private Pair<Integer, Integer> getResolution() {
       return this.resolution;
     }
 
-    ImageConfigurationProvider getConfigProvider() {
+    private ImageConfigurationProvider getConfigProvider() {
       return this.configProvider;
     }
   }

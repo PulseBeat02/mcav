@@ -230,7 +230,7 @@ public final class Mcv2Pack {
   }
 
   /** The include of a screen's constants. */
-  static String screenInclude(final int screen) {
+  private static String screenInclude(final int screen) {
     return "mcv2_screen_" + screen + ".glsl";
   }
 
@@ -246,7 +246,7 @@ public final class Mcv2Pack {
   }
 
   /** The post chain: every screen's decoding passes, then every screen's drawing passes, then the outline's. */
-  static String postChain(final List<Mcv2Configuration> screens) {
+  private static String postChain(final List<Mcv2Configuration> screens) {
     final String template = new String(read(Mcv2Pack.class.getResourceAsStream(CHAIN_TEMPLATE), CHAIN_TEMPLATE), StandardCharsets.UTF_8);
     final JsonObject targets = new JsonObject();
     final JsonArray decoding = new JsonArray();
@@ -344,7 +344,7 @@ public final class Mcv2Pack {
    * @param debugTop the row below the strip where the debug view draws this screen's picture, under the pictures of
    *                 the screens before it
    */
-  static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
+  private static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
     return guarded(
       "MCAV_MCV2_SCREEN_GLSL",
       String.join(
@@ -448,7 +448,7 @@ public final class Mcv2Pack {
    * What the pack decodes, for whoever inspects it: only what the pack depends on, so screens encoded with other
    * profiles share the same pack.
    */
-  static String manifest(final List<Mcv2Configuration> screens) {
+  private static String manifest(final List<Mcv2Configuration> screens) {
     final JsonObject manifest = new JsonObject();
     manifest.addProperty("codec", "MCV2");
     manifest.addProperty("gpu_codec_commit", CODEC_COMMIT);

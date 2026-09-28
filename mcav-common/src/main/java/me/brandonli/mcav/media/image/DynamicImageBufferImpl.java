@@ -183,11 +183,11 @@ final class DynamicImageBufferImpl implements DynamicImageBuffer {
       this.frameRate = frameRate;
     }
 
-    List<ImageBuffer> getFrames() {
+    private List<ImageBuffer> getFrames() {
       return this.frames;
     }
 
-    float getFrameRate() {
+    private float getFrameRate() {
       return this.frameRate;
     }
   }
@@ -213,11 +213,11 @@ final class DynamicImageBufferImpl implements DynamicImageBuffer {
       this.last = timestamp;
     }
 
-    long getFirst() {
+    private long getFirst() {
       return this.first;
     }
 
-    long getLast() {
+    private long getLast() {
       return this.last;
     }
   }

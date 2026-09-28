@@ -202,17 +202,17 @@ final class HttpServerTest {
       this.closeCode.completeExceptionally(error);
     }
 
-    byte[] nextMessage() throws InterruptedException {
+    private byte[] nextMessage() throws InterruptedException {
       final byte[] message = this.messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertNotNull(message, "no audio message arrived");
       return message;
     }
 
-    int awaitCloseCode() throws Exception {
+    private int awaitCloseCode() throws Exception {
       return this.closeCode.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
-    boolean isClosed() {
+    private boolean isClosed() {
       return this.closeCode.isDone();
     }
   }

@@ -577,8 +577,7 @@ final class HelperSession implements BrowserSession {
    * @param message the message
    * @throws ProtocolException if the message is not one a helper sends
    */
-  @VisibleForTesting
-  void handle(final HelperMessage message) throws ProtocolException {
+  private void handle(final HelperMessage message) throws ProtocolException {
     final int type = message.getType();
     switch (type) {
       case HelperProtocol.FRAME -> {
@@ -893,8 +892,7 @@ final class HelperSession implements BrowserSession {
    *
    * @param process the helper
    */
-  @VisibleForTesting
-  static void stopProcess(final Process process) {
+  private static void stopProcess(final Process process) {
     final List<ProcessHandle> descendants = new ArrayList<>();
     try (final Stream<ProcessHandle> started = process.descendants()) {
       started.forEach(descendants::add);

@@ -75,7 +75,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   /**
    * The permission a player needs to send input to the running virtual machine, by chat or by clicking the screen.
    */
-  static final String INTERACT_PERMISSION = "mcav.vm.interact";
+  private static final String INTERACT_PERMISSION = "mcav.vm.interact";
 
   /**
    * The options QEMU accepts more than once, of those the command supports.

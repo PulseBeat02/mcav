@@ -1380,7 +1380,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
 
     final BufferedImage waiting = image(4, 4, GREEN);
     pushScreen(config, waiting);
@@ -1407,7 +1407,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
 
     final BufferedImage waiting = image(4, 4, GREEN);
     pushScreen(config, waiting);
@@ -1435,7 +1435,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
 
     // the render thread is held inside the first frame, so it cannot take this update before the pause
     final BufferedImage waiting = image(4, 4, GREEN);
@@ -1462,7 +1462,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
     final Thread endingRenderThread = onlyRenderThread();
 
     final BufferedImage waiting = image(4, 4, GREEN);
@@ -1525,7 +1525,7 @@ final class VNCPlayerImplTest {
    * @param entered opens once the filter of the render thread runs
    * @throws InterruptedException if the test is interrupted
    */
-  private void pushAndAwaitBusyRenderThread(final AtomicReference<VernacularConfig> config, final CountDownLatch entered)
+  private static void pushAndAwaitBusyRenderThread(final AtomicReference<VernacularConfig> config, final CountDownLatch entered)
     throws InterruptedException {
     final BufferedImage first = image(4, 4, RED);
     pushScreen(config, first);
@@ -1613,7 +1613,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
     final Thread renderer = onlyRenderThread();
     try {
       final BufferedImage pending = image(4, 4, GREEN);
@@ -1644,7 +1644,7 @@ final class VNCPlayerImplTest {
     attach(player, busy);
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
-    this.pushAndAwaitBusyRenderThread(config, entered);
+    pushAndAwaitBusyRenderThread(config, entered);
     final Thread oldRenderer = onlyRenderThread();
     final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
     pushError(config, failure);

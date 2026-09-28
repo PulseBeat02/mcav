@@ -132,14 +132,6 @@ public final class MatImageBuffer implements ImageBuffer {
     this.mat = readFile(path);
   }
 
-  private static Mat readFile(final Path path) {
-    final String raw = path.toString();
-    final Mat decoded = opencv_imgcodecs.imread(raw, opencv_imgcodecs.IMREAD_COLOR);
-    final boolean empty = decoded.empty();
-    Preconditions.checkArgument(!empty, "File is not a supported image: %s", path);
-    return toContinuousBgr(decoded);
-  }
-
   MatImageBuffer(final int[] argb, final int width, final int height) {
     checkDimensions(width, height);
     final int expected = width * height;
@@ -156,6 +148,14 @@ public final class MatImageBuffer implements ImageBuffer {
     checkDimensions(width, height);
     this.mat = new Mat(height, width, opencv_core.CV_8UC3);
     writeBufferedImage(this.mat, image, byte[]::new);
+  }
+
+  private static Mat readFile(final Path path) {
+    final String raw = path.toString();
+    final Mat decoded = opencv_imgcodecs.imread(raw, opencv_imgcodecs.IMREAD_COLOR);
+    final boolean empty = decoded.empty();
+    Preconditions.checkArgument(!empty, "File is not a supported image: %s", path);
+    return toContinuousBgr(decoded);
   }
 
   private static FileSource downloadFile(final UriSource source) {

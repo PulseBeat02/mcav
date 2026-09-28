@@ -218,7 +218,7 @@ final class SampleBytesPropertyTest {
   /**
    * Samples in a buffer of some layout, with bytes that are not samples before and after them.
    */
-  static final class SampleBuffer {
+  private static final class SampleBuffer {
 
     private final byte[] content;
     private final int before;
@@ -237,7 +237,7 @@ final class SampleBytesPropertyTest {
       this.order = order;
     }
 
-    byte[] getContent() {
+    private byte[] getContent() {
       return this.content.clone();
     }
 
@@ -263,7 +263,7 @@ final class SampleBytesPropertyTest {
     /**
      * Asserts that a conversion left the position, the limit, the order and the bytes of the buffer as they were.
      */
-    void assertUnchanged(final ByteBuffer buffer) {
+    private void assertUnchanged(final ByteBuffer buffer) {
       final boolean sliced = this.layout == Layout.SLICED_HEAP || this.layout == Layout.SLICED_DIRECT;
       final int start = sliced ? 0 : this.before;
       final int position = buffer.position();

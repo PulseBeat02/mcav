@@ -245,11 +245,6 @@ public final class DependencyLoader {
     this.installVLC(DependencyLoader::startInstallationKit);
   }
 
-  private static Optional<Path> startInstallationKit() throws IOException {
-    final VLCInstallationKit kit = VLCInstallationKit.create();
-    return kit.start();
-  }
-
   /**
    * Prepares VLC with the specified starter and removes the VLC capability when that fails for any reason: a failed
    * download, an unsupported system, or natives that cannot be linked, such as an Intel VLC on Apple silicon or a
@@ -276,6 +271,11 @@ public final class DependencyLoader {
         this.logger.warn("VLC is not available, VLC players cannot be used: {}", reason);
       }
     }
+  }
+
+  private static Optional<Path> startInstallationKit() throws IOException {
+    final VLCInstallationKit kit = VLCInstallationKit.create();
+    return kit.start();
   }
 
   /**

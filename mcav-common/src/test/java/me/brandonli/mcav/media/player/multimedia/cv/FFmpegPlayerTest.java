@@ -172,7 +172,7 @@ final class FFmpegPlayerTest {
     /**
      * Records the errors of a player and attaches pipelines that record its frames and audio.
      */
-    void attachTo(final FFmpegPlayer player) {
+    private void attachTo(final FFmpegPlayer player) {
       player.setExceptionHandler((_, error) -> this.errors.add(error));
       final VideoFilter video = recordingFrames(this.frames, this.sizes, this.frameTimes);
       final AudioFilter audio = countingOutputSamples(this.audioBytes);
@@ -182,7 +182,7 @@ final class FFmpegPlayerTest {
     /**
      * Checks that the five seconds of the test video played completely, in real time, and with their audio.
      */
-    void assertPlayedTheWholeFileInRealTime(final boolean started, final double seconds) {
+    private void assertPlayedTheWholeFileInRealTime(final boolean started, final double seconds) {
       final int frameCount = this.frames.get();
       final long bytes = this.audioBytes.get();
       final long firstFrame = this.frameTimes.getFirst();
