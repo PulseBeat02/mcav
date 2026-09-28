@@ -67,6 +67,76 @@ simple-voice-chat:
   enabled: false
 
 # ======================================================================
+# MCV2 VIDEO CONFIGURATION
+# ======================================================================
+
+# The MCV2 encoder turns video into what the MCV2 resource pack decodes. Every MCV2 screen of the server encodes
+# on one shared set of threads, so the game keeps the rest of the processors.
+mcv2:
+
+  # How many threads the MCV2 encoders share, from 1 to 256, or 0 for half the processors the server may use (at
+  # least one). A screen whose frames take longer than the video gives them encodes fewer frames a second, and at
+  # worst shows the dithered maps, and the server log says what it chose and why.
+  # Default is 0
+  encoder-threads: 0
+
+  # Whether the live encoders run their pixel kernels in the native library MCAV ships for Linux, Windows and macOS
+  # on x86-64 and ARM64 (auto), which computes exactly what Java computes, about twice as fast, or always in Java
+  # (off). Anything that stops the library from loading, such as a JVM that refuses native access, runs Java. The
+  # system property mcv2.native, given to the server's JVM, wins over this setting, and the server log says at startup
+  # which kernels run and why.
+  # Default is auto
+  native: auto
+
+  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colours
+  # every client shows, or mcv2, the MCV2 resource pack's decoder at the resolution the command asks for, which the
+  # players are offered and may decline (those who do see the dithered maps). /mcav video map, /mcav image map,
+  # /mcav browser create, /mcav vm create and /mcav vnc create take the flag, for example --codec mcv2.
+  # Default is dither
+  default-codec: dither
+
+  # The MCV2 resource pack: one pack decodes every MCV2 screen of the server, and changes only when a screen of a
+  # video size it does not decode yet starts; accepting a changed pack reloads a player's resources, a hitch of a
+  # second or more.
+  pack:
+
+    # Where the players download the pack from:
+    #   injector - the Minecraft server's own port. Nothing to set up. It does NOT work behind a proxy such as
+    #              Velocity or BungeeCord: the players' connections reach the proxy's port, not this server's.
+    #   http     - a small HTTP server on http-port, which the players must be able to reach (open the port in the
+    #              firewall). The choice behind a proxy when a port can be opened.
+    #   website  - an upload to mc-packs.net: no port at all, for a server behind a proxy or a firewall that opens
+    #              none. The pack is public there.
+    # Default is injector
+    hosting: injector
+
+    # For http: the host name or address the players reach this server by. Empty means the address the server finds
+    # for itself.
+    # Default is empty
+    http-host: ""
+
+    # For http: the port of the HTTP server, from 1 to 65535.
+    # Default is 25580
+    http-port: 25580
+
+# ======================================================================
+# VNC CONFIGURATION
+# ======================================================================
+
+# The VNC servers /mcav vnc create may show. The Minecraft server connects to them, not the players, so a command can
+# only name a host and port listed here, and none is listed by default. Write a server's password here, never in the
+# command, where the server log would keep it, and leave it out for a server without one; MCAV never logs it. For
+# example:
+#   allowed-hosts:
+#     - host: 127.0.0.1
+#       port: 5901
+#       password: secret
+vnc:
+
+  # Default is none
+  allowed-hosts: []
+
+# ======================================================================
 # WEB BROWSER CONFIGURATION
 # ======================================================================
 
@@ -131,3 +201,33 @@ has no setting of its own; delete it to download everything again.
 
 Virtual machines have no settings in `config.yml`: where their sound plays is chosen with the audio type of
 `/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.
+
+## MCV2
+
+`mcv2.encoder-threads` is the one encoder budget every MCV2 screen of the server shares, a video, a browser, a virtual
+machine, a desktop or an image alike; no screen starts threads of its own, and the default, half of the processors the
+server may use, leaves the other half to the game. `mcv2.native` chooses the native encoder kernels MCAV ships, which
+compute exactly what the Java ones do, about twice as fast; the server log says at startup which kernels run and why.
+
+`mcv2.default-codec` is the codec of a wall of maps whose command has no `--codec` flag, see
+[the codec of a wall of maps](commands.md#the-codec-of-a-wall-of-maps). It is `dither` unless you choose `mcv2`.
+
+`mcv2.pack` is where the players download the MCV2 resource pack from, one pack for every MCV2 screen of the server:
+
+| `hosting` | Where the pack is served | Pick it when |
+|---|---|---|
+| `injector` (default) | On the Minecraft server's own port, next to the game | Players join this server directly. It does **not** work behind a proxy such as Velocity or BungeeCord: the players' connections reach the proxy's port, never this server's |
+| `http` | A small HTTP server on `http-port`, reached at `http-host` (empty: the address the server finds for itself) | The server is behind a proxy and the port can be opened in the firewall for the players |
+| `website` | Uploaded to mc-packs.net | No port can be opened. The pack is then public there; it holds only the decoder's shaders |
+
+Behind a proxy, pick `http` with the public host name of the machine this server runs on and a port the players can
+reach, or `website`. The pack is optional and additive: it is offered with `required: false` and replaces no pack of
+the server or the proxy.
+
+## VNC
+
+`vnc.allowed-hosts` lists the VNC servers `/mcav vnc create` may show, each with its `host`, `port` and, for a server
+that has one, its `password`. None is listed by default, so the command cannot reach anything until you list a server:
+the Minecraft server connects to it, not the players, so a player must never choose where it connects. The password is
+read from this file only, never from the command, since the server log keeps every command, and MCAV never writes it
+to the log.

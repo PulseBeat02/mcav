@@ -24,10 +24,16 @@ granted.
 | `mcav.command.vm.create` | `/mcav vm create` |
 | `mcav.vm.release` | `/mcav vm release` |
 | `mcav.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
+| `mcav.command.vnc.create` | `/mcav vnc create` |
+| `mcav.vnc.release` | `/mcav vnc release` |
+| `mcav.vnc.interact` | `/mcav vnc interact`, and clicking the screen of the desktop |
+| `mcav.command.video.mcv2` | `/mcav video mcv2` |
+| `mcav.command.mcv2.play` | `/mcav mcv2 play`, `stream` and `stop` |
+| `mcav.command.mcv2.encode` | `/mcav mcv2 encode` and `cancel` |
 
 ```{important}
-`mcav.browser.interact` and `mcav.vm.interact` do not only switch chat input on: they are also what lets a player
-click a browser or a virtual machine by clicking its map screen. The screen stands in the world, so anyone can reach
+`mcav.browser.interact`, `mcav.vm.interact` and `mcav.vnc.interact` do not only switch chat input on: they are also
+what lets a player click a browser, a virtual machine or a desktop by clicking its map screen. The screen stands in the world, so anyone can reach
 it; without the permission a click does nothing, while the frames of the screen stay protected for everyone.
 ```
 
@@ -68,6 +74,40 @@ plugins, secret-looking settings, and the user name and password, query and frag
 replaced with `<redacted>`; the host and path of an address stay, since they are what a bug report is about.
 
 ---
+
+## The codec of a wall of maps
+
+A wall of maps shows its picture in one of two ways, chosen per command with the `--codec` flag, or by
+`mcv2.default-codec` in `config.yml` when the command has none:
+
+| Codec | What the players see | What it needs |
+|---|---|---|
+| `dither` (the default) | The picture reduced to the map palette by the dithering algorithm, 128×128 pixels a map | Nothing: every client shows maps |
+| `mcv2` | The picture encoded with MCV2 and decoded by MCAV's resource pack at the resolution of the command, drawn over the wall | The MCV2 resource pack, which the viewers are asked to load |
+
+`/mcav video map`, `/mcav image map`, `/mcav browser create` and `/mcav vnc create` take the flag after their last
+argument, for example `/mcav browser create @a 1280x720 1 10x6 0 NEAREST_COLOR NONE https://example.com --codec mcv2`.
+`/mcav vm create` takes it at the very end of its QEMU options, since those start with a dash too:
+`... X86_64 NONE -m 2048M -cdrom "alpine linux.iso" --codec mcv2`. `/mcav video mcv2` always uses MCV2 and chooses its
+encoder profile. The block, chat, entity, scoreboard and hologram outputs draw no maps, so the codec does not apply to
+them.
+
+With `mcv2`:
+
+- The viewers are offered MCAV's MCV2 resource pack, one pack that decodes every MCV2 screen of the server. It is
+  optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
+  online. Until a player's client has loaded it, that player sees the dithered maps.
+- Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
+  a video size it does not decode yet starts; screens of the sizes it has start and stop without anyone reloading. It
+  decodes up to eight sizes; when eight screens play at once, the next one shows dithered maps and says so.
+- A wall shown to `@a` keeps following the players online: a player who joins while it plays is offered the pack and
+  watches too. Any other selector means the players it matches when the command runs, who are offered the pack again
+  when they join or change world.
+- The picture is encoded as it arrives, with the default live preset `live`, on the encoder threads every MCV2 screen
+  shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then a smaller
+  video, then fewer frames a second, and at worst the dithered maps; whoever started it is told every step and why.
+- A wall that no item frame holds (build it with `/mcav screen` first, with the same size and map id) shows the dithered
+  maps, and the command says so.
 
 ## Video Commands
 
@@ -173,7 +213,7 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 
 | **Command**                                  | `/mcav video map`                                                                                                                          |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl>` |
+| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.video.map`                                                                                                                   |
 | **Description**                              | Displays a video on a map screen.                                                                                                          |
 | **Arguments**                                |                                                                                                                                            |
@@ -186,6 +226,18 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it           |
+
+---
+
+| **Command**                                  | `/mcav video mcv2`                                                                                                                         |
+|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                                    | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <flags> <mrl>` |
+| **Permission**                               | `mcav.command.video.mcv2`                                                                                                                  |
+| **Description**                              | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder profile of your choice                  |
+| **Arguments**                                |                                                                                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`profile`            | The encoder profile: `LIVE` (the default of `--codec mcv2`), `LIVE_ADAPTIVE`, `LIVE_FAST` (faster, more bandwidth), `LIVE_KEYFRAME` (for viewers whose clients draw fewer frames than the video has), or the slower `SHIP`, `LOW`, `KEYFRAME` and `INTRA` meant for encoding ahead of time |
+|                                              | The other arguments are those of `/mcav video map`; the dithering algorithm is for the viewers without the pack                          |
 
 ---
 
@@ -227,7 +279,7 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 
 | **Command**                                  | `/mcav browser create`                                                                                                           |
 |----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>` |
+| **Usage**                                    | `/mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.browser.create`                                                                                                    |
 | **Description**                              | Opens a web page in an embedded Chromium, which runs in a process of its own, shows it on a wall of maps and plays its sound in the chosen audio output. Only one browser runs at a time, and it takes the audio output over from a video or virtual machine until it is released. The first browser on a server downloads Chromium once (136 to 165 MB), and on Linux the libraries it needs that the server lacks (about 13 MB); nothing has to be installed. As in a desktop browser, a page plays sound only once a player clicked its screen or typed into it, unless `browser.autoplay-sound` is on. A server Chromium does not exist for, a failed download, a size beyond the limits, an address that is not `http` or `https`, or an audio output that is off or not ready, are answered with an error message. |
 | **Arguments**                                |                                                                                                                                  |
@@ -238,7 +290,8 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the page plays, as for the video commands (`NONE` keeps the page silent)                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display. **Must be the full `http` or `https` URL**. Pages of the server's own network are refused unless `browser.allow-private-networks` is on. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display, the rest of the line up to `--codec`. **Must be the full `http` or `https` URL**. Pages of the server's own network are refused unless `browser.allow-private-networks` is on. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
 
 ---
 
@@ -268,7 +321,7 @@ You must have QEMU installed and configured to use these commands.
 
 | **Command**                                  | `/mcav vm create`                                                                                                                   |
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>` |
+| **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.vm.create`                                                                                                            |
 | **Description**                              | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
 | **Arguments**                                |                                                                                                                                     |
@@ -280,9 +333,98 @@ You must have QEMU installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the VM plays, as for the video commands (`NONE` keeps it silent); only `X86_64` PC and Q35 machines have sound, other architectures must choose `NONE`; a machine with sound takes the output over from a playing video    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory); see [which options are accepted](#qemu-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory); see [which options are accepted](#qemu-options). A `--codec dither` or `--codec mcv2` at the very end is not passed to QEMU: it chooses [the codec of the wall](#the-codec-of-a-wall-of-maps) |
 
 ---
+
+## VNC Commands
+
+`/mcav vnc create` connects the **server** to a VNC server and shows its desktop on a wall of maps. The server a player
+names is reached from the Minecraft server, so only the servers an operator lists in `vnc.allowed-hosts` of
+`config.yml` can be named, none by default, and the permissions are for operators until granted. A server's password is
+written in that list, never in the command, since the server log keeps every command; MCAV never logs it, and
+`/mcav dump` leaves it out. MCAV checks everything a VNC server sends before its VNC client reads it: sizes, lengths,
+message types and encodings outside what the client supports close the connection instead of allocating memory.
+
+| **Command**                                  | `/mcav vnc create`                                                                                                                  |
+|----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                                    | `/mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <server> [--codec dither\|mcv2]` |
+| **Permission**                               | `mcav.command.vnc.create`                                                                                                           |
+| **Description**                              | Connects to a listed VNC server and shows its desktop on a wall of maps; players click it and type into it like the browser         |
+| **Arguments**                                |                                                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the desktop                                                                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`vncResolution`      | The size the desktop is scaled to, in width×height format (example, 1280x720)                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`targetFps`          | Frames per second streamed from the desktop (1 to 240)                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the desktop. `NEAREST_COLOR` keeps text sharp                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`server`             | The VNC server as `host:port`, or `[address]:port` for an IPv6 address, exactly as listed in `vnc.allowed-hosts`                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it    |
+
+---
+
+| **Command**     | `/mcav vnc interact`                                                                                                   |
+|-----------------|------------------------------------------------------------------------------------------------------------------------|
+| **Usage**       | `/mcav vnc interact`                                                                                                   |
+| **Permission**  | `mcav.vnc.interact`                                                                                                    |
+| **Description** | Toggles typing into the desktop: while it is on, what you write in the chat is typed into the desktop and not sent    |
+| **Arguments**   | None                                                                                                                   |
+
+---
+
+| **Command**     | `/mcav vnc release`                                                              |
+|-----------------|----------------------------------------------------------------------------------|
+| **Usage**       | `/mcav vnc release`                                                              |
+| **Permission**  | `mcav.vnc.release`                                                               |
+| **Description** | Disconnects from the desktop and clears its maps for every viewer               |
+| **Arguments**   | None                                                                             |
+
+## MCV2 Commands
+
+These commands play streams that are already MCV2-encoded, without a video player or an encoder: streams encoded ahead of
+time with `/mcav mcv2 encode`, which a server too small to encode while a video plays can still show at full quality.
+They have no sound. Stream files live in the plugin's `mcv2` folder; a name that leads out of it is refused.
+
+| **Command**                               | `/mcav mcv2 encode`                                                                                    |
+|-------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav mcv2 encode <file> <output> <resolution> <profile>`                                            |
+| **Permission**                            | `mcav.command.mcv2.encode`                                                                             |
+| **Description**                           | Encodes a video file into a stream file ahead of time, on the encoder threads every MCV2 screen shares, telling you the progress every thirty seconds. One encode runs at a time |
+| **Arguments**                             |                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The video file on the server                                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`output`          | The stream file to write in the plugin's `mcv2` folder; an existing one is replaced when the encode ends |
+| &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in width×height format (example, 1280x720)                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`profile`         | The encoder profile, usually `SHIP`, the best quality for its bandwidth, which is far slower than real time |
+
+---
+
+| **Command**     | `/mcav mcv2 cancel`                   |
+|-----------------|---------------------------------------|
+| **Usage**       | `/mcav mcv2 cancel`                   |
+| **Permission**  | `mcav.command.mcv2.encode`            |
+| **Description** | Stops the encode that is running      |
+| **Arguments**   | None                                  |
+
+---
+
+| **Command**                               | `/mcav mcv2 play` and `/mcav mcv2 stream`                                                              |
+|-------------------------------------------|--------------------------------------------------------------------------------------------------------|
+| **Usage**                                 | `/mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>` or `/mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>` |
+| **Permission**                            | `mcav.command.mcv2.play`                                                                               |
+| **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before |
+| **Arguments**                             |                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ticks` / `fps`   | The server ticks between frames (1 or more), or the frames a second (1 to 240)                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The stream file in the plugin's `mcv2` folder                                                          |
+|                                           | The other arguments are those of `/mcav video map`                                                     |
+
+---
+
+| **Command**     | `/mcav mcv2 stop`                                        |
+|-----------------|----------------------------------------------------------|
+| **Usage**       | `/mcav mcv2 stop`                                        |
+| **Permission**  | `mcav.command.mcv2.play`                                 |
+| **Description** | Stops the stream and gives its slot of the pack back    |
+| **Arguments**   | None                                                     |
 
 ## yt-dlp options
 
@@ -379,7 +521,7 @@ network QEMU gives it by default.
 
 | **Command**                                  | `/mcav image map`                                                                                         |
 |----------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>` |
+| **Usage**                                    | `/mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.image.map`                                                                                  |
 | **Description**                              | Displays an image on a map screen.                                                                        |
 | **Arguments**                                |                                                                                                           |
@@ -388,7 +530,8 @@ network QEMU gives it by default.
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use FILTER_LITE for best results                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image; the rest of the line up to `--codec`                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
 
 ---
 

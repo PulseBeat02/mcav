@@ -125,5 +125,30 @@ MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio, and the PC
 option for it; machines of other architectures are silent and must choose `NONE`. Its sound plays about 70 ms late on
 purpose, so that it plays with the picture of QEMU's display.
 
+### If you would like a sharper picture with MCV2, here are the steps to take:
+1) Build the wall with `/mcav screen` as usual; MCV2 finds the wall by the item frame that holds its top-left map.
+2) Add `--codec mcv2` at the end of `/mcav video map`, `/mcav image map`, `/mcav browser create`, `/mcav vnc create`
+or `/mcav vm create`, for example
+`/mcav video map @a FFMPEG NONE 1280x720 10x6 0 NEAREST_COLOR "" https://www.youtube.com/watch?v=... --codec mcv2`.
+The resolution is what the players see: 1280x720 on a 10x6 wall is sharper than the 128 pixels a map shows. To use
+MCV2 whenever a command has no flag, set `mcv2.default-codec` to `mcv2` in the [configuration](./config).
+3) The players who watch are asked to load MCAV's MCV2 resource pack. Those who accept see the MCV2 picture once their
+client has loaded it; those who decline, or whose client cannot load it, keep seeing the dithered maps. The same pack
+serves every MCV2 screen of the server, so a player loads it once, and again only when a screen of a new video size
+starts.
+4) If players join through a proxy such as Velocity or BungeeCord, the pack cannot be served on the Minecraft port: set
+`mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the [configuration](./config#mcv2).
+5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a
+screen asks for more than they can give, it steps down to a faster encoder, a smaller video or fewer frames, and tells
+you. A video file you show often can be encoded ahead of time at the best quality with `/mcav mcv2 encode` and shown
+with `/mcav mcv2 play` (without sound).
+
+### If you would like to show a VNC desktop, here are the steps to take:
+1) List the VNC server in `vnc.allowed-hosts` of the [configuration](./config#vnc), with its password if it has one,
+and restart the server. Nothing can be reached until you do.
+2) Run `/mcav vnc create @a 1280x720 20 10x6 0 NEAREST_COLOR 127.0.0.1:5901`, naming the server exactly as listed.
+3) Players click the screen to click the desktop; `/mcav vnc interact` types their chat into it. `/mcav vnc release`
+disconnects.
+
 You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on your
 server!

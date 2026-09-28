@@ -44,6 +44,32 @@ machine plays through the audio outputs at a time: the newest one takes them ove
 
 ---
 
+## Why are players asked to load a resource pack?
+
+A wall of maps with `--codec mcv2` (or `mcv2.default-codec: mcv2`) is decoded by MCAV's MCV2 resource pack. The pack
+is optional: a player who declines it keeps the dithered maps and is not asked again until they rejoin. One pack serves
+every MCV2 screen of the server, so a player is asked once, and again only when a screen of a video size the pack does
+not decode yet starts; loading it reloads the client's resources, a hitch of a second or more.
+
+---
+
+## Why does a player see the dithered maps on an MCV2 screen?
+
+Until their client has loaded the MCV2 pack, and for good when they declined it or their client could not load it
+(the chat tells them). A screen is also dithered for everyone when no item frame holds its top-left map (build it with
+`/mcav screen`), when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads
+of `mcv2.encoder-threads`; the command that started it says which.
+
+---
+
+## The MCV2 pack does not download behind my proxy
+
+By default the pack is served on the Minecraft server's port, which players behind Velocity or BungeeCord never reach.
+Set `mcv2.pack.hosting` to `http` with a port the players can reach, or to `website` to upload it to mc-packs.net,
+in the [configuration](./config#mcv2).
+
+---
+
 ## Why do VLC commands say "VLC is still being prepared"?
 
 On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder
