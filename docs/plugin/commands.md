@@ -17,7 +17,8 @@ granted.
 | `mcav.command.screen` | `/mcav screen` |
 | `mcav.command.hologram.set`, `mcav.command.hologram.disable` | `/mcav video hologram set` and `disable` |
 | `mcav.command.image.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.release` | the `/mcav image` commands of those names |
-| `mcav.command.video.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.pause`, `.resume`, `.release` | the `/mcav video` commands of those names |
+| `mcav.command.video.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.pause`, `.resume`, `.release`, `.seek`, `.volume`, `.speed`, `.loop` | the `/mcav video` commands of those names |
+| `mcav.command.video.device` | `/mcav video devices`, the `DEVICE` player, and raw FFmpeg inputs (`format\|\|input`) in any video command |
 | `mcav.command.browser.create` | `/mcav browser create` |
 | `mcav.browser.release` | `/mcav browser release` |
 | `mcav.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
@@ -115,8 +116,16 @@ With `mcv2`:
 
 ```{note}
 If you set the video player to be `FFMPEG`, you can also specify directly a format and input to use. For example, you can
-stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual Camera` on Windows.
+stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual Camera` on Windows. Such a raw FFmpeg
+input can open the server's cameras, microphones and screen, so it needs the permission `mcav.command.video.device`, like
+the `DEVICE` player.
 ```
+
+A camera or capture card of the server plays with the `DEVICE` player and its number as the `mrl`. A device belongs
+to the server, so the `DEVICE` player needs the permission `mcav.command.video.device`, and it plays only a number that
+`/mcav video devices` listed: list the devices first. On Linux the number is that of `/dev/video<number>` and the list
+shows the name the system gives the device; on Windows and macOS the list tries the numbers 0 to 7, which briefly opens
+every device there is.
 
 | **Command**     | `/mcav video release`                                     |
 |-----------------|-----------------------------------------------------------|
@@ -142,6 +151,55 @@ stream OBS output by setting the `mrl` argument to be `dshow||video=OBS Virtual 
 | **Permission**  | `mcav.command.video.resume`         |
 | **Description** | Resumes the currently paused video. |
 | **Arguments**   | None                                |
+
+---
+
+| **Command**                        | `/mcav video seek`                                                                                                                                                                                    |
+|------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                          | `/mcav video seek <position>`                                                                                                                                                                         |
+| **Permission**                     | `mcav.command.video.seek`                                                                                                                                                                             |
+| **Description**                    | Jumps to a time of the video. A jump before the start goes to the start. A live stream or a camera cannot jump. The VLC player only jumps to a time from the start, because it does not tell where it is. |
+| **Arguments**                      |                                                                                                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`position` | A time from the start of the video, such as `90`, `1:30` or `1:02:03`, or with a sign a jump from where it plays, such as `+10` or `-1:00`; seconds may have up to three decimals, at most 99:59:59.999 |
+
+---
+
+| **Command**                       | `/mcav video volume`                                                                                                                         |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                         | `/mcav video volume <percent>`                                                                                                               |
+| **Permission**                    | `mcav.command.video.volume`                                                                                                                  |
+| **Description**                   | Sets the volume of the video that plays and of the videos started later, in every audio output. Above 100, loud videos clip.                 |
+| **Arguments**                     |                                                                                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`percent` | The volume in percent of the video's own loudness, from 0 to 200                                                                             |
+
+---
+
+| **Command**                      | `/mcav video speed`                                                                                                                                                                                                   |
+|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                        | `/mcav video speed <factor>`                                                                                                                                                                                          |
+| **Permission**                   | `mcav.command.video.speed`                                                                                                                                                                                            |
+| **Description**                  | Plays the video file faster or slower, with its sound higher or lower to match, so picture and sound stay together. A jump keeps the speed; a new video starts at normal speed. A live stream or a camera plays at its own pace, and the VLC player does not change speed: use `FFMPEG`. |
+| **Arguments**                    |                                                                                                                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`factor` | The factor of the normal speed, from 0.5 to 2                                                                                                                                                                         |
+
+---
+
+| **Command**                       | `/mcav video loop`                                                                                                                                                                                  |
+|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**                         | `/mcav video loop <enabled>`                                                                                                                                                                        |
+| **Permission**                    | `mcav.command.video.loop`                                                                                                                                                                           |
+| **Description**                   | Makes the videos play again from their start whenever they end (checked twice a second), for the video that plays and those started later, or stop at their end. A live stream or a camera has no end to start from again, and the VLC player does not loop: use `FFMPEG`. |
+| **Arguments**                     |                                                                                                                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`enabled` | `true` to loop, `false` to stop at the end                                                                                                                                                         |
+
+---
+
+| **Command**     | `/mcav video devices`                                                                                                                  |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| **Usage**       | `/mcav video devices`                                                                                                                  |
+| **Permission**  | `mcav.command.video.device`                                                                                                            |
+| **Description** | Lists the cameras and capture cards of the server by number and name. The `DEVICE` player then plays one of them by its number.        |
+| **Arguments**   | None                                                                                                                                   |
 
 ---
 

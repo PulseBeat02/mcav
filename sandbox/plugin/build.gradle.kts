@@ -212,6 +212,11 @@ paperPluginYaml {
         register("mcav.command.video.pause") { description = "Pauses the video" }
         register("mcav.command.video.resume") { description = "Resumes the video" }
         register("mcav.command.video.release") { description = "Stops the video" }
+        register("mcav.command.video.seek") { description = "Jumps to a time of the video" }
+        register("mcav.command.video.volume") { description = "Sets the volume of the videos" }
+        register("mcav.command.video.speed") { description = "Plays the video file faster or slower" }
+        register("mcav.command.video.loop") { description = "Makes the videos play again when they end" }
+        register("mcav.command.video.device") { description = "Lists the cameras and capture cards of the server, and plays them with the DEVICE player" }
         register("mcav.command.mcv2.play") { description = "Plays, streams and stops pre-encoded MCV2 streams from the plugin's mcv2 folder" }
         register("mcav.command.mcv2.encode") { description = "Pre-encodes a video file into an MCV2 stream in the plugin's mcv2 folder, and cancels that encode" }
         register("mcav.command.browser.create") { description = "Opens a web page on a wall of maps, with its sound in an audio output" }

@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +60,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -74,6 +76,7 @@ import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.StandardErrorCapture;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.CaptureDevices;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -112,6 +115,8 @@ final class AbstractVideoCommandTest {
   private final AtomicBoolean status = new AtomicBoolean();
 
   private VideoPlayerManager manager;
+
+  private final VolumeFilter volume = new VolumeFilter();
   private AudioProvider provider;
   private RecordingCommand command;
   private CommandSender sender;
@@ -172,6 +177,7 @@ final class AbstractVideoCommandTest {
       return start.getAsBoolean();
     });
     when(this.manager.isVLCSupported()).thenReturn(true);
+    when(this.manager.getVolume()).thenReturn(this.volume);
     when(this.provider.constructFilter(any(), any(), any())).thenReturn(AudioFilter.NO_OP);
     this.command = new RecordingCommand(plugin);
 
@@ -264,7 +270,9 @@ final class AbstractVideoCommandTest {
     final ArgumentCaptor<AudioPipelineStep> audioSteps = ArgumentCaptor.forClass(AudioPipelineStep.class);
     verify(this.audioCallback).attach(audioSteps.capture());
     final AudioPipelineStep audioStep = audioSteps.getValue();
-    final AudioFilter audioFilter = audioStep.getFilter();
+    assertSame(this.volume, audioStep.getFilter(), "the volume comes before the output");
+    final AudioPipelineStep output = Objects.requireNonNull(audioStep.next());
+    final AudioFilter audioFilter = output.getFilter();
     assertSame(AudioFilter.NO_OP, audioFilter);
     final Dimension dimension = new Dimension(640, 360);
     verify(this.dimensionCallback).attach(dimension);
@@ -368,6 +376,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void playsAnFFmpegInput() {
+    when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "dshow||video=Camera", "");
 
     final URLParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
@@ -380,7 +389,31 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void refusesAnFFmpegInputOrADeviceWithoutTheirPermission() {
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "x11grab||:0", "");
+    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
+
+    final Component refused = Message.DEVICE_PERMISSION.build();
+    this.assertSenderReceived(refused, refused);
+    this.assertNotStarting();
+    this.videoPlayers.verifyNoInteractions();
+  }
+
+  @Test
+  void playsOnlyACaptureDeviceTheServerListed() {
+    when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
+    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(0, "camera")));
+    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
+
+    this.assertSenderReceived(Message.DEVICE_UNLISTED.build("2"));
+    this.assertNotStarting();
+    this.videoPlayers.verifyNoInteractions();
+  }
+
+  @Test
   void playsACaptureDevice() {
+    when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
+    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(2, "camera")));
     this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
 
     final URLParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);

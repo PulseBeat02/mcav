@@ -48,6 +48,7 @@ import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.SourceDetectionHelper;
 import me.brandonli.mcav.media.source.device.DeviceSource;
 import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSource;
+import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSourceDetector;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -57,6 +58,7 @@ import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.CaptureDevices;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.IOUtils;
@@ -80,6 +82,9 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
+
+  /** Recognises a raw FFmpeg input, {@code format||input}, as the media argument. */
+  private static final FFmpegDirectSourceDetector RAW_INPUTS = new FFmpegDirectSourceDetector();
 
   /**
    * The plugin.
@@ -326,12 +331,31 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final String mrl
   ) {
-    final Component problem = this.findProblem(playerType, audioType, mrl);
+    final Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
+    final Component problem = deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
     if (problem == null) {
       return true;
     }
     sender.sendMessage(problem);
     return false;
+  }
+
+  /**
+   * Checks that a device of the server is one the sender may open. The DEVICE player and a raw FFmpeg input
+   * ({@code format||input}, which can open the server's cameras, microphones and screen) need their own permission,
+   * and the DEVICE player opens only a number {@code /mcav video devices} listed, never one guessed.
+   *
+   * @return the message that explains why the device cannot be played, or {@code null} if it can, or no device is asked
+   */
+  private @Nullable Component findDeviceProblem(final CommandSender sender, final PlayerArgument playerType, final String mrl) {
+    final boolean device = playerType == PlayerArgument.DEVICE;
+    if (!device && !RAW_INPUTS.isDetectedSource(mrl)) {
+      return null;
+    }
+    if (!sender.hasPermission(CaptureDevices.PERMISSION)) {
+      return Message.DEVICE_PERMISSION.build();
+    }
+    return device && CaptureDevices.find(this.manager.getDevices(), mrl) == null ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
   /**
@@ -439,7 +463,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     this.manager.checkStart();
     final AudioFilter audioFilter = this.provider.constructFilter(audioType, dump, viewers);
     this.manager.checkStart();
-    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(audioFilter);
+    final AudioPipelineStep output = AudioPipelineStep.of(audioFilter);
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(output, this.manager.getVolume());
 
     final PlayerArgument playerType = request.getPlayerType();
     final VideoPlayerMultiplexer player = playerType.createPlayer();

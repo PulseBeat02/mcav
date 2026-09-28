@@ -108,4 +108,35 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   public Stream<String> suggestTargetFps() {
     return Stream.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
   }
+
+  /**
+   * Suggests positions for {@code /mcav video seek}: a time from the start of the video, or with a sign a jump from
+   * the current position.
+   *
+   * @return the suggested positions
+   */
+  @Suggestions("positions")
+  public Stream<String> suggestPositions() {
+    return Stream.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+  }
+
+  /**
+   * Suggests volumes for {@code /mcav video volume}, in percent of the video's own loudness.
+   *
+   * @return the suggested volumes
+   */
+  @Suggestions("volumes")
+  public Stream<String> suggestVolumes() {
+    return Stream.of("0", "25", "50", "75", "100", "150", "200");
+  }
+
+  /**
+   * Suggests speeds for {@code /mcav video speed}, as factors of the normal speed.
+   *
+   * @return the suggested speeds
+   */
+  @Suggestions("speeds")
+  public Stream<String> suggestSpeeds() {
+    return Stream.of("0.5", "0.75", "1", "1.25", "1.5", "2");
+  }
 }

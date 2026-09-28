@@ -98,6 +98,11 @@ final class AnnotationParserHandlerTest {
     "mcav video pause",
     "mcav video resume",
     "mcav video release",
+    "mcav video seek position",
+    "mcav video volume percent",
+    "mcav video speed factor",
+    "mcav video loop enabled",
+    "mcav video devices",
     "mcav video hologram set location",
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytDlpOptions mrl flags",
@@ -171,7 +176,7 @@ final class AnnotationParserHandlerTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(34, count, registeredSyntaxes);
+    assertEquals(39, count, registeredSyntaxes);
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
       assertTrue(registered, syntax + " in " + syntaxes);

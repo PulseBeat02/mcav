@@ -298,6 +298,84 @@ public interface Message extends LocaleTools {
   NullComponent PAUSE_PLAYER = direct("mcav.command.video.pause");
 
   /**
+   * Key {@code mcav.command.video.seek}: {@code /mcav video seek} jumped to the time inserted, from the start of the
+   * video.
+   */
+  UniComponent<String> SEEK_PLAYER = direct("mcav.command.video.seek", null);
+
+  /**
+   * Key {@code mcav.command.video.seek.invalid}: the position given to {@code /mcav video seek}, which is inserted, is
+   * not a time.
+   */
+  UniComponent<String> SEEK_INVALID = direct("mcav.command.video.seek.invalid", null);
+
+  /**
+   * Key {@code mcav.command.video.seek.failed}: {@code /mcav video seek} could not jump, because nothing plays or the
+   * video is a live stream or a camera.
+   */
+  NullComponent SEEK_FAILED = direct("mcav.command.video.seek.failed");
+
+  /**
+   * Key {@code mcav.command.video.seek.relative}: the VLC player does not tell its position, so it only jumps to a time
+   * from the start.
+   */
+  NullComponent SEEK_RELATIVE_UNSUPPORTED = direct("mcav.command.video.seek.relative");
+
+  /**
+   * Key {@code mcav.command.video.volume}: {@code /mcav video volume} set the volume in percent, which is inserted.
+   */
+  UniComponent<Integer> VOLUME_SET = direct("mcav.command.video.volume", null);
+
+  /**
+   * Key {@code mcav.command.video.speed}: {@code /mcav video speed} set the speed, which is inserted.
+   */
+  UniComponent<String> SPEED_SET = direct("mcav.command.video.speed", null);
+
+  /**
+   * Key {@code mcav.command.video.speed.failed}: {@code /mcav video speed} could not change the speed, because
+   * nothing plays or the video is a live stream or a camera.
+   */
+  NullComponent SPEED_FAILED = direct("mcav.command.video.speed.failed");
+
+  /**
+   * Key {@code mcav.command.video.vlc}: the VLC player neither changes speed nor loops.
+   */
+  NullComponent VLC_UNSUPPORTED = direct("mcav.command.video.vlc");
+
+  /**
+   * Key {@code mcav.command.video.loop.on}: {@code /mcav video loop true} made videos play again when they end.
+   */
+  NullComponent LOOP_ON = direct("mcav.command.video.loop.on");
+
+  /**
+   * Key {@code mcav.command.video.loop.off}: {@code /mcav video loop false} made videos stop at their end.
+   */
+  NullComponent LOOP_OFF = direct("mcav.command.video.loop.off");
+
+  /**
+   * Key {@code mcav.command.video.devices}: {@code /mcav video devices} lists the capture devices, inserted as their
+   * numbers and names.
+   */
+  UniComponent<String> DEVICE_LIST = direct("mcav.command.video.devices", null);
+
+  /**
+   * Key {@code mcav.command.video.devices.none}: the server has no capture device.
+   */
+  NullComponent DEVICE_NONE = direct("mcav.command.video.devices.none");
+
+  /**
+   * Key {@code mcav.command.video.device.permission}: playing a capture device, or a raw FFmpeg input, needs its own
+   * permission.
+   */
+  NullComponent DEVICE_PERMISSION = direct("mcav.command.video.device.permission");
+
+  /**
+   * Key {@code mcav.command.video.device.unlisted}: the device number given to the DEVICE player, which is inserted, was
+   * not listed by {@code /mcav video devices}.
+   */
+  UniComponent<String> DEVICE_UNLISTED = direct("mcav.command.video.device.unlisted", null);
+
+  /**
    * Key {@code mcav.command.video.start}: tells the sender of a video command that the video is playing.
    */
   NullComponent START_VIDEO = direct("mcav.command.video.start");

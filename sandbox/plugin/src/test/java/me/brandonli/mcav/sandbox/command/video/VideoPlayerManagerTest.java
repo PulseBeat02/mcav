@@ -26,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -54,14 +57,19 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCV;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.CaptureDevices;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -799,5 +807,66 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
     assertEquals("The video startup was cancelled", thrown.getMessage());
     verify(start, never()).getAsBoolean();
+  }
+
+  private BukkitTask stubLoopWatcher() {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final BukkitTask task = mock(BukkitTask.class);
+    when(scheduler.runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(task);
+    return task;
+  }
+
+  @Test
+  void keepsOneVolumeForEveryVideo() {
+    final VolumeFilter volume = this.manager.getVolume();
+    assertSame(volume, this.manager.getVolume());
+    assertEquals(VolumeFilter.UNCHANGED, volume.getVolume());
+  }
+
+  @Test
+  void watchesForTheEndOnlyWhileLooping() {
+    final BukkitTask task = this.stubLoopWatcher();
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    assertFalse(this.manager.isLooping());
+    this.manager.setLooping(true);
+    this.manager.setLooping(true);
+    assertTrue(this.manager.isLooping());
+    verify(scheduler, times(1)).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), eq(10L), eq(10L));
+    this.manager.setLooping(false);
+    this.manager.setLooping(false);
+    assertFalse(this.manager.isLooping());
+    verify(task, times(1)).cancel();
+    this.manager.setLooping(true);
+    this.manager.shutdown();
+    verify(task, times(2)).cancel();
+  }
+
+  @Test
+  void playsAgainOnlyADecodedVideoThatEndedWhileLooping() {
+    this.stubLoopWatcher();
+    final AbstractVideoPlayerCV decoded = mock(AbstractVideoPlayerCV.class);
+    this.manager.setPlayer(decoded);
+    this.manager.restartEnded();
+    this.manager.setLooping(true);
+    when(decoded.isPlaying()).thenReturn(true);
+    this.manager.restartEnded();
+    verify(decoded, never()).seek(anyLong());
+    when(decoded.isPlaying()).thenReturn(false);
+    this.manager.restartEnded();
+    verify(decoded).seek(0L);
+    this.manager.setPlayer(this.player);
+    this.manager.restartEnded();
+    verify(this.player, never()).seek(anyLong());
+    this.manager.setPlayer(null);
+    this.manager.restartEnded();
+  }
+
+  @Test
+  void remembersTheDevicesListedLast() {
+    assertEquals(List.of(), this.manager.getDevices());
+    final List<CaptureDevices.Device> listed = new ArrayList<>(List.of(new CaptureDevices.Device(0, "camera")));
+    this.manager.setDevices(listed);
+    listed.clear();
+    assertEquals(List.of(new CaptureDevices.Device(0, "camera")), this.manager.getDevices());
   }
 }

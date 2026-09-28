@@ -36,9 +36,12 @@ import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
+import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCV;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
+import me.brandonli.mcav.sandbox.utils.CaptureDevices;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -46,6 +49,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,17 +59,23 @@ import org.slf4j.LoggerFactory;
  * title, together with the worker thread that starts videos.
  *
  * <p>Only one video plays at a time. {@link #getStatus()} is true while a video is starting, so a second command
- * cannot start one at the same time.
+ * cannot start one at the same time. The volume and whether videos loop are settings of the manager, which the
+ * videos started later keep.
  */
 public final class VideoPlayerManager {
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
 
+  /** How often a looping video is checked for its end, in ticks: twice a second. */
+  private static final long LOOP_CHECK_TICKS = 10L;
+
   private volatile @Nullable VideoPlayerMultiplexer player;
   private volatile @Nullable FunctionalVideoFilter filter;
   private volatile @Nullable Hologram hologram;
   private volatile @Nullable Location hologramLocation;
+  private volatile boolean looping;
+  private volatile List<CaptureDevices.Device> devices = List.of();
 
   private final MCAVSandbox plugin;
   private final MCAVApi api;
@@ -78,6 +88,8 @@ public final class VideoPlayerManager {
   private boolean closed;
   private @Nullable VideoPlayerMultiplexer startingPlayer;
   private final Set<WorldCleanup> pendingWorld = new HashSet<>();
+  private final VolumeFilter volume = new VolumeFilter();
+  private @Nullable BukkitTask loopWatcher;
 
   /**
    * Constructs the manager and its worker thread.
@@ -142,6 +154,7 @@ public final class VideoPlayerManager {
       this.closed = true;
     }
     CleanupUtils.runAll(
+      () -> this.setLooping(false),
       this::releaseVideoPlayer,
       this::drainWorldCleanup,
       () -> ExecutorUtils.shutdownExecutorGracefully(this.service),
@@ -517,5 +530,72 @@ public final class VideoPlayerManager {
    */
   public @Nullable FunctionalVideoFilter getFilter() {
     return this.filter;
+  }
+
+  /**
+   * Gets the volume every video plays at, which the audio pipeline of every video applies before its output.
+   *
+   * @return the volume filter, shared by the videos
+   */
+  public VolumeFilter getVolume() {
+    return this.volume;
+  }
+
+  /**
+   * Makes the videos play again from their start whenever they end, or stop at their end. A video is checked for its
+   * end twice a second, off the main thread. Only the players that decode with FFmpeg or OpenCV restart a video; a
+   * live stream or a camera has no end to restart from.
+   *
+   * @param looping true to loop
+   */
+  public synchronized void setLooping(final boolean looping) {
+    this.looping = looping;
+    final BukkitTask watcher = this.loopWatcher;
+    if (looping && watcher == null) {
+      this.loopWatcher = Bukkit.getScheduler().runTaskTimerAsynchronously(
+        this.plugin,
+        this::restartEnded,
+        LOOP_CHECK_TICKS,
+        LOOP_CHECK_TICKS
+      );
+    } else if (!looping && watcher != null) {
+      watcher.cancel();
+      this.loopWatcher = null;
+    }
+  }
+
+  /**
+   * Checks whether the videos loop.
+   *
+   * @return true if a video plays again from its start when it ends
+   */
+  public boolean isLooping() {
+    return this.looping;
+  }
+
+  /**
+   * Remembers the capture devices {@code /mcav video devices} listed last, the only ones the DEVICE player may open.
+   *
+   * @param listed the devices
+   */
+  public void setDevices(final List<CaptureDevices.Device> listed) {
+    this.devices = List.copyOf(listed);
+  }
+
+  /**
+   * Gets the capture devices listed last.
+   *
+   * @return the devices, none before the first listing
+   */
+  public List<CaptureDevices.Device> getDevices() {
+    return this.devices;
+  }
+
+  /** Plays a video that reached its end again from the start. A paused video still plays, so it is left alone. */
+  void restartEnded() {
+    final VideoPlayerMultiplexer current = this.player;
+    if (this.looping && current instanceof final AbstractVideoPlayerCV decoded && !decoded.isPlaying()) {
+      decoded.seek(0L);
+    }
   }
 }
