@@ -70,8 +70,8 @@ final class BackgroundInstallationTest {
     this.stubCapability(Capability.YT_DLP, true);
     final BackgroundInstallation installation = this.createInstallation();
     installation.start();
-    final Boolean vlc = await(installation, Capability.VLC);
-    final Boolean ytdlp = await(installation, Capability.YT_DLP);
+    final Boolean hasVlc = await(installation, Capability.VLC);
+    final Boolean hasYtdlp = await(installation, Capability.YT_DLP);
     final List<Thread> threads = installation.getThreads();
     final Thread vlcThread = threads.getFirst();
     final Thread ytdlpThread = threads.getLast();
@@ -79,8 +79,8 @@ final class BackgroundInstallationTest {
     final String ytdlpName = ytdlpThread.getName();
     final boolean vlcDaemon = vlcThread.isDaemon();
     final boolean vlcAvailable = installation.isAvailable(Capability.VLC);
-    assertTrue(vlc);
-    assertTrue(ytdlp);
+    assertTrue(hasVlc);
+    assertTrue(hasYtdlp);
     assertEquals(VLC_THREAD, vlcName);
     assertEquals(YTDLP_THREAD, ytdlpName);
     assertTrue(vlcDaemon, "an installation thread never keeps the JVM alive");
@@ -96,13 +96,13 @@ final class BackgroundInstallationTest {
     this.stubCapability(Capability.FFMPEG, true);
     this.stubCapability(Capability.FACE_DETECTION, false);
     final BackgroundInstallation installation = this.createInstallation();
-    final boolean ffmpeg = installation.isAvailable(Capability.FFMPEG);
-    final boolean faceDetection = installation.isAvailable(Capability.FACE_DETECTION);
+    final boolean hasFfmpeg = installation.isAvailable(Capability.FFMPEG);
+    final boolean hasFaceDetection = installation.isAvailable(Capability.FACE_DETECTION);
     final CompletableFuture<Boolean> ffmpegReady = installation.whenReady(Capability.FFMPEG);
     final boolean ffmpegDone = ffmpegReady.isDone();
     final Boolean ffmpegPrepared = ffmpegReady.join();
-    assertTrue(ffmpeg);
-    assertFalse(faceDetection);
+    assertTrue(hasFfmpeg);
+    assertFalse(hasFaceDetection);
     assertTrue(ffmpegDone);
     assertTrue(ffmpegPrepared);
   }
@@ -117,12 +117,12 @@ final class BackgroundInstallationTest {
     this.stubCapability(Capability.YT_DLP, true);
     final BackgroundInstallation installation = this.createInstallation();
     installation.start();
-    final Boolean vlc = await(installation, Capability.VLC);
-    final Boolean ytdlp = await(installation, Capability.YT_DLP);
+    final Boolean hasVlc = await(installation, Capability.VLC);
+    final Boolean hasYtdlp = await(installation, Capability.YT_DLP);
     final IllegalStateException refusal = assertThrows(IllegalStateException.class, () -> this.guard.checkUsable(Capability.VLC));
     final String refusalMessage = refusal.getMessage();
-    assertFalse(vlc, "a step that failed unexpectedly does not provide its program");
-    assertTrue(ytdlp);
+    assertFalse(hasVlc, "a step that failed unexpectedly does not provide its program");
+    assertTrue(hasYtdlp);
     assertEquals("VLC is not available on this system", refusalMessage);
     final Logger verifiedLogger = Mockito.verify(this.logger);
     verifiedLogger.warn(PREPARATION_FAILED, "VLC", failure);
@@ -137,9 +137,9 @@ final class BackgroundInstallationTest {
     this.stubCapability(Capability.YT_DLP, true);
     final BackgroundInstallation installation = this.createInstallation();
     installation.start();
-    final Boolean ytdlp = await(installation, Capability.YT_DLP);
+    final Boolean hasYtdlp = await(installation, Capability.YT_DLP);
     joinAll(installation);
-    assertFalse(ytdlp, "nobody waits forever for a preparation that ended with an error");
+    assertFalse(hasYtdlp, "nobody waits forever for a preparation that ended with an error");
     final Logger verifiedLogger = Mockito.verify(this.logger);
     verifiedLogger.error(THREAD_FAILED, YTDLP_THREAD, error);
   }
@@ -254,9 +254,9 @@ final class BackgroundInstallationTest {
     installation.cancel();
     final boolean interruptKept = Thread.interrupted();
 
-    final Boolean vlc = await(installation, Capability.VLC);
+    final Boolean hasVlc = await(installation, Capability.VLC);
     assertTrue(interruptKept, "the interrupt of the cancelling thread is restored");
-    assertFalse(vlc);
+    assertFalse(hasVlc);
     final Logger verifiedLogger = Mockito.verify(this.logger);
     verifiedLogger.warn(NOT_STOPPED, VLC_THREAD, 50L);
     finishVlc.countDown();
@@ -272,9 +272,9 @@ final class BackgroundInstallationTest {
     await(installation, Capability.VLC);
     await(installation, Capability.YT_DLP);
     installation.cancel();
-    final Boolean vlc = await(installation, Capability.VLC);
+    final Boolean hasVlc = await(installation, Capability.VLC);
     Mockito.verifyNoInteractions(this.logger);
-    assertTrue(vlc, "a program that was ready before the cancellation stays reported as ready");
+    assertTrue(hasVlc, "a program that was ready before the cancellation stays reported as ready");
   }
 
   /**

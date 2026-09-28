@@ -253,9 +253,9 @@ final class HttpResultImplTest {
   void acceptsSamplesWithoutListeners() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);
-    final boolean result = http.applyFilter(samples, this.metadata);
+    final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
-    assertFalse(result, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertEquals(0, count);
   }
 
@@ -282,9 +282,9 @@ final class HttpResultImplTest {
     final byte[] raw = { 9, 9, 1, 2, 3, 4 };
     final ByteBuffer samples = ByteBuffer.wrap(raw);
     samples.position(2);
-    final boolean result = http.applyFilter(samples, this.metadata);
+    final boolean changed = http.applyFilter(samples, this.metadata);
     final int position = samples.position();
-    assertFalse(result, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertEquals(2, position);
 
     final byte[] expected = { 1, 2, 3, 4 };
@@ -431,9 +431,9 @@ final class HttpResultImplTest {
     http.addListener(closed);
     Mockito.when(closed.isOpen()).thenReturn(false);
     final ByteBuffer samples = ByteBuffer.allocate(4);
-    final boolean result = http.applyFilter(samples, this.metadata);
+    final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
-    assertFalse(result, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertEquals(0, count);
     verifyClosed(closed, CloseStatus.SESSION_NOT_RELIABLE);
   }

@@ -422,8 +422,8 @@ final class ImagePlayerTest {
       final Thread worker = frameThread();
       assertTrue(started);
       assertNotNull(worker, "the player delivers its frames on a thread of its own");
-      final boolean daemon = worker.isDaemon();
-      assertTrue(daemon, "the frame thread never keeps the JVM alive");
+      final boolean isDaemon = worker.isDaemon();
+      assertTrue(isDaemon, "the frame thread never keeps the JVM alive");
     } finally {
       player.release();
     }

@@ -84,7 +84,7 @@ class BrowserHelperTest {
     return this.configuration(path, false);
   }
 
-  private HelperConfiguration configuration(final String path, final boolean autoplay) {
+  private HelperConfiguration configuration(final String path, final boolean allowsAutoplay) {
     return new HelperConfiguration(
       token(),
       this.folder.resolve("s"),
@@ -97,7 +97,7 @@ class BrowserHelperTest {
       30,
       false,
       false,
-      autoplay
+      allowsAutoplay
     );
   }
 
@@ -116,9 +116,9 @@ class BrowserHelperTest {
     helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
     reporter.onAudio(chunk);
     assertEquals(message, sent.size(), "a key lets the sound pass");
-    final BrowserHelper autoplay = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
+    final BrowserHelper allowsAutoplay = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
     final ByteArrayOutputStream played = new ByteArrayOutputStream();
-    autoplay.new Reporter(new DataOutputStream(played)).onAudio(chunk);
+    allowsAutoplay.new Reporter(new DataOutputStream(played)).onAudio(chunk);
     assertEquals(message, played.size(), "with autoplay the sound passes at once");
   }
 

@@ -85,10 +85,10 @@ final class DependencyLoaderTest {
     assertDoesNotThrow(() -> loader.loadModules());
     final String pathsFirst = System.getProperty(PATHS_FIRST);
     final String openBlas = System.getProperty(OPENBLAS_LOAD);
-    final boolean ffmpeg = loader.hasCapability(Capability.FFMPEG);
+    final boolean hasFfmpeg = loader.hasCapability(Capability.FFMPEG);
     assertEquals("false", pathsFirst);
     assertNull(openBlas, "OpenCV links OpenBLAS, so the library must not disable it");
-    assertTrue(ffmpeg);
+    assertTrue(hasFfmpeg);
   }
 
   @Test
@@ -227,8 +227,8 @@ final class DependencyLoaderTest {
   void keepsTheVlcCapabilityWhenVlcIsReady() {
     final Path libraryDirectory = Path.of("vlc");
     final Optional<Path> found = Optional.of(libraryDirectory);
-    final boolean vlc = vlcAvailableAfter(() -> found);
-    assertTrue(vlc);
+    final boolean hasVlc = vlcAvailableAfter(() -> found);
+    assertTrue(hasVlc);
   }
 
   @Test
@@ -237,12 +237,12 @@ final class DependencyLoaderTest {
     loader.installVLC(() -> {
       throw new IOException("offline");
     });
-    final boolean vlc = loader.hasCapability(Capability.VLC);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    final boolean ffmpeg = loader.hasCapability(Capability.FFMPEG);
-    assertFalse(vlc);
-    assertTrue(ytdlp);
-    assertTrue(ffmpeg);
+    final boolean hasVlc = loader.hasCapability(Capability.VLC);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    final boolean hasFfmpeg = loader.hasCapability(Capability.FFMPEG);
+    assertFalse(hasVlc);
+    assertTrue(hasYtdlp);
+    assertTrue(hasFfmpeg);
   }
 
   @Test
@@ -250,10 +250,10 @@ final class DependencyLoaderTest {
     final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(
       "VLC cannot be installed automatically on FREEBSD"
     );
-    final boolean vlc = vlcAvailableAfter(() -> {
+    final boolean hasVlc = vlcAvailableAfter(() -> {
       throw unsupported;
     });
-    assertFalse(vlc);
+    assertFalse(hasVlc);
   }
 
   @Test
@@ -276,8 +276,8 @@ final class DependencyLoaderTest {
     when(installer.download(true)).thenThrow(failure);
     final DependencyLoader loader = new DependencyLoader();
     loader.installYTDLP(installer);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    assertFalse(ytdlp);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    assertFalse(hasYtdlp);
   }
 
   @Test
@@ -297,10 +297,10 @@ final class DependencyLoaderTest {
   @Test
   void removesTheVlcCapabilityOnUnexpectedRuntimeFailures() {
     final IllegalStateException failure = new IllegalStateException("broken plugin cache");
-    final boolean vlc = vlcAvailableAfter(() -> {
+    final boolean hasVlc = vlcAvailableAfter(() -> {
       throw failure;
     });
-    assertFalse(vlc);
+    assertFalse(hasVlc);
   }
 
   @Test
@@ -311,8 +311,8 @@ final class DependencyLoaderTest {
       kits.when(VLCInstallationKit::create).thenReturn(kit);
       final DependencyLoader loader = new DependencyLoader();
       loader.installVLC();
-      final boolean vlc = loader.hasCapability(Capability.VLC);
-      assertTrue(vlc);
+      final boolean hasVlc = loader.hasCapability(Capability.VLC);
+      assertTrue(hasVlc);
     }
     verify(kit).start();
   }
@@ -325,8 +325,8 @@ final class DependencyLoaderTest {
     when(installer.download(true)).thenReturn(installed);
     final DependencyLoader loader = new DependencyLoader();
     loader.installYTDLP(installer);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    assertTrue(ytdlp);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    assertTrue(hasYtdlp);
     verify(installer).download(true);
   }
 
@@ -336,10 +336,10 @@ final class DependencyLoaderTest {
     when(installer.isSupported()).thenReturn(false);
     final DependencyLoader loader = new DependencyLoader();
     loader.installYTDLP(installer);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    final boolean vlc = loader.hasCapability(Capability.VLC);
-    assertFalse(ytdlp);
-    assertTrue(vlc);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    final boolean hasVlc = loader.hasCapability(Capability.VLC);
+    assertFalse(hasYtdlp);
+    assertTrue(hasVlc);
     verify(installer, never()).download(anyBoolean());
   }
 
@@ -351,8 +351,8 @@ final class DependencyLoaderTest {
     when(installer.download(true)).thenThrow(offline);
     final DependencyLoader loader = new DependencyLoader();
     loader.installYTDLP(installer);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    assertFalse(ytdlp);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    assertFalse(hasYtdlp);
   }
 
   @Test
@@ -364,10 +364,10 @@ final class DependencyLoaderTest {
     when(installer.download(true)).thenThrow(chmodFailure);
     final DependencyLoader loader = new DependencyLoader();
     loader.installYTDLP(installer);
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-    final boolean vlc = loader.hasCapability(Capability.VLC);
-    assertFalse(ytdlp);
-    assertTrue(vlc);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+    final boolean hasVlc = loader.hasCapability(Capability.VLC);
+    assertFalse(hasYtdlp);
+    assertTrue(hasVlc);
   }
 
   @Test
@@ -380,8 +380,8 @@ final class DependencyLoaderTest {
       installers.when(YTDLPInstaller::shared).thenReturn(installer);
       final DependencyLoader loader = new DependencyLoader();
       loader.installYTDLP();
-      final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
-      assertTrue(ytdlp);
+      final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
+      assertTrue(hasYtdlp);
     }
     verify(installer).download(true);
   }
@@ -407,20 +407,20 @@ final class DependencyLoaderTest {
     throws Exception {
     final DependencyLoader loader = new DependencyLoader();
     final CyclicBarrier barrier = new CyclicBarrier(2);
-    final Future<?> vlc = executor.submit(() -> {
+    final Future<?> hasVlc = executor.submit(() -> {
       barrier.await();
       loader.installVLC(() -> {
         throw new IOException("offline");
       });
       return null;
     });
-    final Future<?> ytdlp = executor.submit(() -> {
+    final Future<?> hasYtdlp = executor.submit(() -> {
       barrier.await();
       loader.installYTDLP(unsupported);
       return null;
     });
-    vlc.get(10, TimeUnit.SECONDS);
-    ytdlp.get(10, TimeUnit.SECONDS);
+    hasVlc.get(10, TimeUnit.SECONDS);
+    hasYtdlp.get(10, TimeUnit.SECONDS);
     return loader;
   }
 
@@ -503,9 +503,9 @@ final class DependencyLoaderTest {
       throw new IOException("Interrupted while downloading");
     });
     final boolean interrupted = Thread.interrupted();
-    final boolean vlc = loader.hasCapability(Capability.VLC);
+    final boolean hasVlc = loader.hasCapability(Capability.VLC);
     assertTrue(interrupted, "the interrupt is kept, so the installation thread ends");
-    assertFalse(vlc);
+    assertFalse(hasVlc);
     verify(logger).info("Preparing {} was cancelled", "VLC");
     verify(logger, never()).warn(anyString(), any(Object.class));
   }
@@ -547,9 +547,9 @@ final class DependencyLoaderTest {
     final DependencyLoader loader = new DependencyLoader(logger);
     loader.installYTDLP(installer);
     final boolean interrupted = Thread.interrupted();
-    final boolean ytdlp = loader.hasCapability(Capability.YT_DLP);
+    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
     assertTrue(interrupted, "the interrupt is kept, so the installation thread ends");
-    assertFalse(ytdlp);
+    assertFalse(hasYtdlp);
     verify(logger).info("Preparing {} was cancelled", "yt-dlp");
     verify(logger, never()).warn(anyString(), any(Object.class));
   }

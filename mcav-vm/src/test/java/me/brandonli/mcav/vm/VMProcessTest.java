@@ -1106,9 +1106,9 @@ final class VMProcessTest {
       process.start();
       final List<Thread> drains = awaitDrainThreads();
       for (final Thread thread : drains) {
-        final boolean daemon = thread.isDaemon();
+        final boolean isDaemon = thread.isDaemon();
         final String name = thread.getName();
-        assertTrue(daemon, name);
+        assertTrue(isDaemon, name);
       }
     } finally {
       finish.countDown();

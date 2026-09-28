@@ -61,9 +61,9 @@ final class VMModuleTest {
     final VMModule module = new VMModule(finder);
     final boolean beforeStart = module.isQemuInstalled();
     module.start();
-    final boolean afterStart = module.isQemuInstalled();
+    final boolean qemuFoundAfterStart = module.isQemuInstalled();
     assertFalse(beforeStart);
-    assertTrue(afterStart);
+    assertTrue(qemuFoundAfterStart);
   }
 
   @Test

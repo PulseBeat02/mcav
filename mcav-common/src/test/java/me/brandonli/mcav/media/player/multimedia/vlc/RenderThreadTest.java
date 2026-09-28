@@ -116,10 +116,10 @@ final class RenderThreadTest {
    */
   private static void assertWorkerExited(final Thread workerThread) {
     final boolean alive = workerThread.isAlive();
-    final boolean daemon = workerThread.isDaemon();
+    final boolean isDaemon = workerThread.isDaemon();
     final String name = workerThread.getName();
     assertFalse(alive);
-    assertTrue(daemon);
+    assertTrue(isDaemon);
     assertEquals(THREAD_NAME, name);
   }
 

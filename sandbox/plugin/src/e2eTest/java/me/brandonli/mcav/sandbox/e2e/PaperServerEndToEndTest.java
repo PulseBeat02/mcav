@@ -140,11 +140,11 @@ final class PaperServerEndToEndTest {
       final String mediaInfo = fetchMediaInfo(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
         streamABrowser(server, sound, page);
-        final boolean qemu = server
+        final boolean hasQemu = server
           .getLines()
           .stream()
           .noneMatch(line -> line.contains("QEMU is not installed"));
-        if (qemu) {
+        if (hasQemu) {
           runAMachine(server, sound);
         } else {
           System.out.println("QEMU is not installed on this machine, so no virtual machine runs");

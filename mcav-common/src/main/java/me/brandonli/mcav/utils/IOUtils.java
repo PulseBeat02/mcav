@@ -208,8 +208,8 @@ public final class IOUtils {
     Preconditions.checkNotNull(file, "File must not be null");
     final FileSystem fileSystem = file.getFileSystem();
     final Set<String> views = fileSystem.supportedFileAttributeViews();
-    final boolean posix = views.contains("posix");
-    if (!posix) {
+    final boolean supportsPosix = views.contains("posix");
+    if (!supportsPosix) {
       return;
     }
     try {

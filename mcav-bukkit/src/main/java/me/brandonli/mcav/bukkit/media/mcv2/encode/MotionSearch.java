@@ -92,23 +92,23 @@ final class MotionSearch {
   /**
    * The search steps in half pixels: powers of two from the range down to one pixel, then a half pixel.
    *
-   * @param range     the search range in pixels
-   * @param halfPixel whether to refine to half pixels
+   * @param range             the search range in pixels
+   * @param refinesHalfPixels whether to refine to half pixels
    * @return the steps
    */
-  static int[] steps(final int range, final boolean halfPixel) {
+  static int[] steps(final int range, final boolean refinesHalfPixels) {
     if (range == 0) {
       return new int[0];
     }
     int step = Integer.highestOneBit(Math.max(1, range));
-    final int count = Integer.numberOfTrailingZeros(step) + 1 + (halfPixel ? 1 : 0);
+    final int count = Integer.numberOfTrailingZeros(step) + 1 + (refinesHalfPixels ? 1 : 0);
     final int[] steps = new int[count];
     int next = 0;
     while (step > 0) {
       steps[next++] = step * 2;
       step /= 2;
     }
-    if (halfPixel) {
+    if (refinesHalfPixels) {
       steps[next] = 1;
     }
     return steps;
@@ -174,18 +174,18 @@ final class MotionSearch {
    * neighbours. Every vector stays within the range around the global vector, and a vector replaces the best only when
    * it is strictly better, so the result does not depend on the order of equal candidates after the first.
    *
-   * @param reference the reference picture, row-major RGB
-   * @param width     the picture width
-   * @param height    the picture height
-   * @param source    the block's source channels, edge-padded, {@code size * size * 3} values
-   * @param blockLeft the block's left edge
-   * @param blockTop  the block's top edge
-   * @param size      the block size
-   * @param globalX   the global horizontal vector in half pixels
-   * @param globalY   the global vertical vector in half pixels
-   * @param range     the search range in pixels
-   * @param halfPixel whether to refine to half pixels
-   * @param seeds     the seed vectors as {@code x << 16 | (y & 0xFFFF)}; the global vector is always tried first
+   * @param reference         the reference picture, row-major RGB
+   * @param width             the picture width
+   * @param height            the picture height
+   * @param source            the block's source channels, edge-padded, {@code size * size * 3} values
+   * @param blockLeft         the block's left edge
+   * @param blockTop          the block's top edge
+   * @param size              the block size
+   * @param globalX           the global horizontal vector in half pixels
+   * @param globalY           the global vertical vector in half pixels
+   * @param range             the search range in pixels
+   * @param refinesHalfPixels whether to refine to half pixels
+   * @param seeds             the seed vectors as {@code x << 16 | (y & 0xFFFF)}; the global vector is always tried first
    * @return the vector as {@code x << 16 | (y & 0xFFFF)}, in half pixels
    */
   static int seeded(
@@ -199,7 +199,7 @@ final class MotionSearch {
     final int globalX,
     final int globalY,
     final int range,
-    final boolean halfPixel,
+    final boolean refinesHalfPixels,
     final int[] seeds
   ) {
     final int[] samples = SAMPLES[sizeIndex(size)];
@@ -247,7 +247,7 @@ final class MotionSearch {
         break;
       }
     }
-    if (halfPixel) {
+    if (refinesHalfPixels) {
       final int centreX = bestX;
       final int centreY = bestY;
       for (final int[] direction : DIRECTIONS) {

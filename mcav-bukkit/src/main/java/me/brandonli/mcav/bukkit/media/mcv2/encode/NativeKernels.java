@@ -624,15 +624,15 @@ final class NativeKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int luma,
-    final int chroma,
+    final int convertsChroma,
     final int quantizer,
     final int size,
     final int[] out
   ) {
     this.checkScored(size, out);
     checkGrid(luma);
-    checkGrid(chroma);
-    checkRange(record.length, offset, luma * luma + CHROMA_PLANES * chroma * chroma);
+    checkGrid(convertsChroma);
+    checkRange(record.length, offset, luma * luma + CHROMA_PLANES * convertsChroma * convertsChroma);
     final MemorySegment predicted;
     if (prediction == null) {
       predicted = MemorySegment.NULL;
@@ -648,7 +648,7 @@ final class NativeKernels extends Kernels {
           of(record),
           offset,
           luma,
-          chroma,
+          convertsChroma,
           quantizer,
           size,
           of(out),
@@ -806,14 +806,14 @@ final class NativeKernels extends Kernels {
     final int[] source,
     final int count,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
     Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
     checkRange(source.length, 0, count * CHANNELS);
     checkRange(selectors.length, 0, count);
-    PaletteFit.round(endpoints, quantize, colors);
+    PaletteFit.round(endpoints, shouldQuantize, colors);
     try {
       this.binding.assign.invokeExact(of(source), count, of(colors), of(selectors));
     } catch (final Throwable failure) {
@@ -826,14 +826,14 @@ final class NativeKernels extends Kernels {
     final int[] source,
     final int size,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
     checkSize(size);
     checkBlock(source.length, size);
     checkRange(selectors.length, 0, size * size);
-    PaletteFit.round(endpoints, quantize, colors);
+    PaletteFit.round(endpoints, shouldQuantize, colors);
     try {
       return (int) this.binding.assignPattern.invokeExact(of(source), size, of(colors), of(selectors)) != 0;
     } catch (final Throwable failure) {
@@ -853,7 +853,7 @@ final class NativeKernels extends Kernels {
     final int globalX,
     final int globalY,
     final int range,
-    final boolean halfPixel,
+    final boolean refinesHalfPixels,
     final int[] seeds
   ) {
     checkPicture(reference.length, width, height);
@@ -876,7 +876,7 @@ final class NativeKernels extends Kernels {
         globalX,
         globalY,
         range,
-        halfPixel ? 1 : 0,
+        refinesHalfPixels ? 1 : 0,
         of(seeds),
         seeds.length
       );
@@ -919,25 +919,25 @@ final class NativeKernels extends Kernels {
   }
 
   @Override
-  void ycocg(final int[] source, final int count, final boolean chroma, final float[] out) {
+  void ycocg(final int[] source, final int count, final boolean convertsChroma, final float[] out) {
     Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
     checkRange(source.length, 0, count * CHANNELS);
     checkRange(out.length, 0, count * CHANNELS);
     try {
-      this.binding.ycocg.invokeExact(of(source), count, chroma ? 1 : 0, of(out));
+      this.binding.ycocg.invokeExact(of(source), count, convertsChroma ? 1 : 0, of(out));
     } catch (final Throwable failure) {
       throw new IllegalStateException(FAILED, failure);
     }
   }
 
   @Override
-  void residualTarget(final float[] ycocg, final int[] prediction, final int count, final boolean chroma, final float[] target) {
+  void residualTarget(final float[] ycocg, final int[] prediction, final int count, final boolean convertsChroma, final float[] target) {
     Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
     checkRange(ycocg.length, 0, count * CHANNELS);
     checkRange(prediction.length, 0, count * CHANNELS);
     checkRange(target.length, 0, count * CHANNELS);
     try {
-      this.binding.residualTarget.invokeExact(of(ycocg), of(prediction), count, chroma ? 1 : 0, of(target));
+      this.binding.residualTarget.invokeExact(of(ycocg), of(prediction), count, convertsChroma ? 1 : 0, of(target));
     } catch (final Throwable failure) {
       throw new IllegalStateException(FAILED, failure);
     }

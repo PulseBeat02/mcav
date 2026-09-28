@@ -66,7 +66,7 @@ final class MapResultTest {
     this.server.close();
   }
 
-  private static MapConfiguration createConfiguration(final boolean resize) {
+  private static MapConfiguration createConfiguration(final boolean shouldResize) {
     final MapConfiguration.Builder<?> builder = MapConfiguration.builder();
     builder.viewers(List.of(VIEWER));
     builder.map(5);
@@ -74,12 +74,12 @@ final class MapResultTest {
     builder.mapBlockHeight(1);
     builder.mapWidthResolution(64);
     builder.mapHeightResolution(64);
-    configureResize(builder, resize);
+    configureResize(builder, shouldResize);
     return builder.build();
   }
 
-  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean resize) {
-    builder.resize(resize);
+  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean shouldResize) {
+    builder.resize(shouldResize);
   }
 
   /**

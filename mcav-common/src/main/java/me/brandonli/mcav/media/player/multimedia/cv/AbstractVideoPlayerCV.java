@@ -326,8 +326,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
     // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
     // in between answer with the empty fallback, and a grabber told to scale to 0x0 cannot decode anything
     final Dimension dimension = this.dimensionCallback.retrieve();
-    final boolean scale = !dimension.isEmpty();
-    if (scale) {
+    final boolean shouldScale = !dimension.isEmpty();
+    if (shouldScale) {
       final int width = dimension.getWidth();
       final int height = dimension.getHeight();
       grabber.setImageWidth(width);

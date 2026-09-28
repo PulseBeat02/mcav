@@ -125,11 +125,11 @@ final class Mcv2ChannelTest {
   }
 
   /** A frame of the 32x32 test video: one solid root in a keyframe, one motion root in a P frame. */
-  static byte[] frame(final long id, final long reference, final boolean keyframe) {
-    final TreeNode root = keyframe
+  static byte[] frame(final long id, final long reference, final boolean isKeyframe) {
+    final TreeNode root = isKeyframe
       ? TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 })
       : TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
-    return FrameWriter.write(32, 32, id, reference, keyframe, 0, 0, List.of(root), FrameWriter.Options.production(false));
+    return FrameWriter.write(32, 32, id, reference, isKeyframe, 0, 0, List.of(root), FrameWriter.Options.production(false));
   }
 
   /** A keyframe of two pages: 64 roots of 192-byte intra grids. */

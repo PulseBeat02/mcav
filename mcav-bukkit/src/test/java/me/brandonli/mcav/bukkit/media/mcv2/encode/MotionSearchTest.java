@@ -123,8 +123,8 @@ final class MotionSearchTest {
     assertEquals((8 << 16) | (-2 & 0xFFFF), search(source, 8, -2, 0));
   }
 
-  private static int seeded(final int[] source, final int range, final boolean halfPixel, final int... seeds) {
-    return MotionSearch.seeded(picture(), WIDTH, HEIGHT, source, 32, 32, 16, 0, 0, range, halfPixel, seeds);
+  private static int seeded(final int[] source, final int range, final boolean refinesHalfPixels, final int... seeds) {
+    return MotionSearch.seeded(picture(), WIDTH, HEIGHT, source, 32, 32, 16, 0, 0, range, refinesHalfPixels, seeds);
   }
 
   private static int vector(final int vectorX, final int vectorY) {

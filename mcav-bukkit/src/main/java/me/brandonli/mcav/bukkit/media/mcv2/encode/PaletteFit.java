@@ -42,16 +42,16 @@ final class PaletteFit {
   /**
    * Fits a palette to a block.
    *
-   * @param source    the block's channels, 0..255, {@code count * 3} values
-   * @param count     the number of pixels
-   * @param quantize  whether the endpoints are rounded to RGB565 before the final assignment
-   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
-   * @param selectors receives one selector per pixel, 0 or 1
+   * @param source         the block's channels, 0..255, {@code count * 3} values
+   * @param count          the number of pixels
+   * @param shouldQuantize whether the endpoints are rounded to RGB565 before the final assignment
+   * @param colors         receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors      receives one selector per pixel, 0 or 1
    */
-  static void fit(final int[] source, final int count, final boolean quantize, final int[] colors, final byte[] selectors) {
+  static void fit(final int[] source, final int count, final boolean shouldQuantize, final int[] colors, final byte[] selectors) {
     final float[] endpoints = new float[PALETTE_COLORS * CHANNELS];
     cluster(source, count, endpoints);
-    finish(source, count, endpoints, quantize, colors, selectors);
+    finish(source, count, endpoints, shouldQuantize, colors, selectors);
   }
 
   /**
@@ -112,22 +112,22 @@ final class PaletteFit {
   /**
    * Rounds clustered endpoints to RGB8, optionally to RGB565, and gives every pixel the nearer one.
    *
-   * @param source    the block's channels, 0..255, {@code count * 3} values
-   * @param count     the number of pixels
-   * @param endpoints the endpoints from {@link #cluster}
-   * @param quantize  whether the endpoints are rounded to RGB565 before the final assignment
-   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
-   * @param selectors receives one selector per pixel, 0 or 1
+   * @param source         the block's channels, 0..255, {@code count * 3} values
+   * @param count          the number of pixels
+   * @param endpoints      the endpoints from {@link #cluster}
+   * @param shouldQuantize whether the endpoints are rounded to RGB565 before the final assignment
+   * @param colors         receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors      receives one selector per pixel, 0 or 1
    */
   static void finish(
     final int[] source,
     final int count,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    round(endpoints, quantize, colors);
+    round(endpoints, shouldQuantize, colors);
     for (int pixel = 0; pixel < count; pixel++) {
       selectors[pixel] = nearest(source, pixel, colors);
     }
@@ -136,15 +136,15 @@ final class PaletteFit {
   /**
    * Rounds clustered endpoints to RGB8, and optionally to RGB565.
    *
-   * @param endpoints the endpoints from {@link #cluster}
-   * @param quantize  whether to round them to RGB565 as well
-   * @param colors    receives the rounded endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param endpoints      the endpoints from {@link #cluster}
+   * @param shouldQuantize whether to round them to RGB565 as well
+   * @param colors         receives the rounded endpoints: R, G, B of endpoint 0, then of endpoint 1
    */
-  static void round(final float[] endpoints, final boolean quantize, final int[] colors) {
+  static void round(final float[] endpoints, final boolean shouldQuantize, final int[] colors) {
     for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
       colors[index] = Reconstruction.rgb8(endpoints[index]);
     }
-    if (quantize) {
+    if (shouldQuantize) {
       for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
         final int at = endpoint * CHANNELS;
         final int value = Mcv2Format.pack565(colors[at], colors[at + 1], colors[at + 2]);
@@ -175,23 +175,23 @@ final class PaletteFit {
    * first row, or every row a single selector. The pixels are assigned row by row, and the assignment stops at the first
    * row after which neither can hold, which is most blocks' first or second row.
    *
-   * @param source    the block's channels, 0..255, {@code size * size * 3} values
-   * @param size      the block size
-   * @param endpoints the endpoints from {@link #cluster}
-   * @param quantize  whether the endpoints are rounded to RGB565 before the assignment
-   * @param colors    receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
-   * @param selectors receives one selector per pixel, all of them when the selectors repeat along an axis
+   * @param source         the block's channels, 0..255, {@code size * size * 3} values
+   * @param size           the block size
+   * @param endpoints      the endpoints from {@link #cluster}
+   * @param shouldQuantize whether the endpoints are rounded to RGB565 before the assignment
+   * @param colors         receives the endpoints: R, G, B of endpoint 0, then of endpoint 1
+   * @param selectors      receives one selector per pixel, all of them when the selectors repeat along an axis
    * @return whether they do
    */
   static boolean finishPattern(
     final int[] source,
     final int size,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    round(endpoints, quantize, colors);
+    round(endpoints, shouldQuantize, colors);
     boolean columns = true;
     boolean rows = true;
     for (int row = 0; row < size && (columns || rows); row++) {

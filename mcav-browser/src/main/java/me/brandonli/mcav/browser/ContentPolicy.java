@@ -160,7 +160,7 @@ final class ContentPolicy
     final CefBrowser browser,
     final CefFrame frame,
     final CefRequest request,
-    final boolean userGesture,
+    final boolean isUserGesture,
     final boolean isRedirect
   ) {
     final String url = request.getURL();
@@ -178,9 +178,9 @@ final class ContentPolicy
    * @return true, so no tab opens
    */
   @Override
-  public boolean onOpenURLFromTab(final CefBrowser browser, final CefFrame frame, final String targetUrl, final boolean userGesture) {
+  public boolean onOpenURLFromTab(final CefBrowser browser, final CefFrame frame, final String targetUrl, final boolean isUserGesture) {
     // like a popup, a new tab needs a click or a key
-    if (userGesture) {
+    if (isUserGesture) {
       this.openInPlace(browser, targetUrl);
     }
     return true;
@@ -270,8 +270,8 @@ final class ContentPolicy
     final CefJSDialogCallback callback,
     final BoolRef suppressMessage
   ) {
-    final boolean alert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
-    callback.Continue(alert, "");
+    final boolean isAlert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
+    callback.Continue(isAlert, "");
     this.events.onNotice("Dismissed a JavaScript dialog of " + AddressText.describe(originUrl));
     return true;
   }

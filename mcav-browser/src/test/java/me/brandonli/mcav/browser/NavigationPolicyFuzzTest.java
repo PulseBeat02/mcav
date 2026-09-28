@@ -40,8 +40,8 @@ final class NavigationPolicyFuzzTest {
       assertTrue(address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:"), address);
     }
     if (NavigationPolicy.allowsNavigation(address, false)) {
-      final boolean aboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
-      assertTrue(aboutPage || hasScheme(lower, "http", "https", "data", "blob"), address);
+      final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
+      assertTrue(isAboutPage || hasScheme(lower, "http", "https", "data", "blob"), address);
     }
     if (NavigationPolicy.allowsRequest(address)) {
       assertTrue(hasScheme(lower, "http", "https", "ws", "wss", "data", "blob"), address);

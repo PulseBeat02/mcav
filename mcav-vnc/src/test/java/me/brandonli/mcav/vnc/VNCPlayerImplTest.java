@@ -1305,9 +1305,9 @@ final class VNCPlayerImplTest {
     Await.until("the render thread runs", () -> !renderThreads().isEmpty());
     final List<Thread> threads = renderThreads();
     for (final Thread thread : threads) {
-      final boolean daemon = thread.isDaemon();
+      final boolean isDaemon = thread.isDaemon();
       final String name = thread.getName();
-      assertTrue(daemon, name);
+      assertTrue(isDaemon, name);
     }
   }
 
@@ -1728,7 +1728,7 @@ final class VNCPlayerImplTest {
     this.assertControlFromRenderCallback(true);
   }
 
-  private void assertControlFromRenderCallback(final boolean restart) throws Exception {
+  private void assertControlFromRenderCallback(final boolean restarts) throws Exception {
     final ServerSocket listening = this.listeningSocket();
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> config = new AtomicReference<>();
@@ -1741,7 +1741,7 @@ final class VNCPlayerImplTest {
     final VideoFilter controller = (_, _) -> {
       worker.set(Thread.currentThread());
       entered.countDown();
-      if (restart) {
+      if (restarts) {
         final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
         pushError(config, failure);
         changed.set(player.start(source));
@@ -1766,7 +1766,7 @@ final class VNCPlayerImplTest {
       final boolean oldAlive = oldRenderer.isAlive();
       final boolean playing = player.isPlaying();
       assertFalse(oldAlive);
-      assertEquals(restart, playing);
+      assertEquals(restarts, playing);
     } finally {
       player.release();
     }

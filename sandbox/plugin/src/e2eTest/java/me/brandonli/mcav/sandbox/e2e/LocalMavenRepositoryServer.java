@@ -93,9 +93,9 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   private void handle(final HttpExchange exchange) throws IOException {
     try {
       final String method = exchange.getRequestMethod();
-      final boolean head = method.equals("HEAD");
-      final boolean get = method.equals("GET");
-      if (!head && !get) {
+      final boolean isHeadRequest = method.equals("HEAD");
+      final boolean isGetRequest = method.equals("GET");
+      if (!isHeadRequest && !isGetRequest) {
         exchange.sendResponseHeaders(HTTP_METHOD_NOT_ALLOWED, NO_BODY);
         return;
       }
@@ -106,7 +106,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
         return;
       }
       final Path existingFile = file.get();
-      this.sendFile(exchange, existingFile, head);
+      this.sendFile(exchange, existingFile, isHeadRequest);
     } finally {
       exchange.close();
     }
@@ -135,10 +135,10 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     return Optional.of(file);
   }
 
-  private void sendFile(final HttpExchange exchange, final Path file, final boolean head) throws IOException {
+  private void sendFile(final HttpExchange exchange, final Path file, final boolean isHeadRequest) throws IOException {
     final Headers responseHeaders = exchange.getResponseHeaders();
     responseHeaders.set("Content-Type", "application/octet-stream");
-    if (head) {
+    if (isHeadRequest) {
       exchange.sendResponseHeaders(HTTP_OK, NO_BODY);
       return;
     }

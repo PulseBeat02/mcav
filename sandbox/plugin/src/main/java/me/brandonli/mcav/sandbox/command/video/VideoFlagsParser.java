@@ -210,8 +210,8 @@ public final class VideoFlagsParser {
   }
 
   private static void requireFlagOption(final String name) {
-    final boolean flag = FLAG_OPTIONS.contains(name);
-    if (flag) {
+    final boolean isFlagOption = FLAG_OPTIONS.contains(name);
+    if (isFlagOption) {
       return;
     }
     final boolean needsValue = VALUE_OPTIONS.contains(name);
@@ -224,8 +224,8 @@ public final class VideoFlagsParser {
   private static void requireValueOption(final String name, final String value) {
     final boolean takesValue = VALUE_OPTIONS.contains(name);
     if (!takesValue) {
-      final boolean flag = FLAG_OPTIONS.contains(name);
-      if (flag) {
+      final boolean isFlagOption = FLAG_OPTIONS.contains(name);
+      if (isFlagOption) {
         throw new IllegalArgumentException("The yt-dlp option " + name + " takes no value");
       }
       throw unsupported(name);

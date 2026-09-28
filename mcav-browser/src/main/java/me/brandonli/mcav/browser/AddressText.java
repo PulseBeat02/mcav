@@ -84,8 +84,8 @@ final class AddressText {
     }
     for (int index = 1; index < colon; index++) {
       final char character = address.charAt(index);
-      final boolean digit = character >= '0' && character <= '9';
-      if (!isLetter(character) && !digit && character != '+' && character != '.' && character != '-') {
+      final boolean isDigit = character >= '0' && character <= '9';
+      if (!isLetter(character) && !isDigit && character != '+' && character != '.' && character != '-') {
         return false;
       }
     }

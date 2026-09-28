@@ -478,9 +478,9 @@ public final class HttpResultImpl implements HttpResult {
    */
   @VisibleForTesting
   static String urlHost(final String domain) {
-    final boolean ipv6 = domain.indexOf(':') >= 0;
+    final boolean isIpv6 = domain.indexOf(':') >= 0;
     final boolean bracketed = domain.startsWith("[");
-    if (!ipv6 || bracketed) {
+    if (!isIpv6 || bracketed) {
       return domain;
     }
     final String encoded = domain.replace("%", "%25");

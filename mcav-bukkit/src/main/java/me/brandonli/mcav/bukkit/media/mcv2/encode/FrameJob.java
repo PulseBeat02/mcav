@@ -50,7 +50,7 @@ final class FrameJob {
 
   private final int height;
 
-  private final boolean keyframe;
+  private final boolean isKeyframe;
 
   private final int[] vectorsX;
 
@@ -155,13 +155,13 @@ final class FrameJob {
     final byte[] reference,
     final int width,
     final int height,
-    final boolean keyframe,
+    final boolean isKeyframe,
     final int[] vectorsX,
     final int[] vectorsY,
     final int @Nullable [] previousMotion,
     final byte @Nullable [][] levelPictures
   ) {
-    this(settings, source, reference, width, height, keyframe, vectorsX, vectorsY, previousMotion, levelPictures, null);
+    this(settings, source, reference, width, height, isKeyframe, vectorsX, vectorsY, previousMotion, levelPictures, null);
   }
 
   /**
@@ -172,7 +172,7 @@ final class FrameJob {
    * @param reference      the picture P frames predict from, empty for a keyframe
    * @param width          the width
    * @param height         the height
-   * @param keyframe       whether the frame is a keyframe
+   * @param isKeyframe     whether the frame is a keyframe
    * @param vectorsX       the global vectors' horizontal parts
    * @param vectorsY       the global vectors' vertical parts
    * @param previousMotion the previous frame's motion, one vector per 8x8 cell, or null
@@ -185,7 +185,7 @@ final class FrameJob {
     final byte[] reference,
     final int width,
     final int height,
-    final boolean keyframe,
+    final boolean isKeyframe,
     final int[] vectorsX,
     final int[] vectorsY,
     final int @Nullable [] previousMotion,
@@ -197,7 +197,7 @@ final class FrameJob {
     this.reference = reference;
     this.width = width;
     this.height = height;
-    this.keyframe = keyframe;
+    this.isKeyframe = isKeyframe;
     this.vectorsX = vectorsX;
     this.vectorsY = vectorsY;
     this.steps = MotionSearch.steps(settings.motionRange(), settings.halfPixel());
@@ -246,7 +246,7 @@ final class FrameJob {
   }
 
   boolean isKeyframe() {
-    return this.keyframe;
+    return this.isKeyframe;
   }
 
   int[] steps() {

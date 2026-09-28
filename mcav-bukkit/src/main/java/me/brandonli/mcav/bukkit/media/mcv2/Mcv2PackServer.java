@@ -118,7 +118,7 @@ public final class Mcv2PackServer {
 
   private final Function<Path, PackHosting> hosting;
 
-  private final boolean debugView;
+  private final boolean showsDebugView;
 
   private final Consumer<Player> onOffered;
 
@@ -200,26 +200,26 @@ public final class Mcv2PackServer {
    * Constructs a server that writes the pack into a folder of its own and hosts it with the given strategy. Nothing is
    * written or served before {@link #start()} and the first {@link #open(Mcv2Configuration)}.
    *
-   * @param folder    where the pack is written; files of earlier runs left there are deleted
-   * @param hosting   hosts a written pack, for example {@code PackHosting::injector}; called off the main thread, once
-   *                  for every change of the pack
-   * @param debugView whether the pack also draws the first slot's decoded picture one to one in the top-left corner,
-   *                  for testing
-   * @param onOffered called with a player who is about to be asked to load the pack, for example to say why
-   * @param onRefused called with a player whose client declined the pack or failed to load it, who keeps the dithered
-   *                  maps
+   * @param folder         where the pack is written; files of earlier runs left there are deleted
+   * @param hosting        hosts a written pack, for example {@code PackHosting::injector}; called off the main thread, once
+   *                       for every change of the pack
+   * @param showsDebugView whether the pack also draws the first slot's decoded picture one to one in the top-left corner,
+   *                       for testing
+   * @param onOffered      called with a player who is about to be asked to load the pack, for example to say why
+   * @param onRefused      called with a player whose client declined the pack or failed to load it, who keeps the dithered
+   *                       maps
    */
   public Mcv2PackServer(
     final Path folder,
     final Function<Path, PackHosting> hosting,
-    final boolean debugView,
+    final boolean showsDebugView,
     final Consumer<Player> onOffered,
     final Consumer<Player> onRefused
   ) {
     this(
       folder,
       hosting,
-      debugView,
+      showsDebugView,
       onOffered,
       onRefused,
       Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-pack").factory()),
@@ -230,7 +230,7 @@ public final class Mcv2PackServer {
   Mcv2PackServer(
     final Path folder,
     final Function<Path, PackHosting> hosting,
-    final boolean debugView,
+    final boolean showsDebugView,
     final Consumer<Player> onOffered,
     final Consumer<Player> onRefused,
     final ExecutorService writer,
@@ -242,7 +242,7 @@ public final class Mcv2PackServer {
     Preconditions.checkNotNull(onRefused, "Refused callback must not be null");
     this.folder = folder;
     this.hosting = hosting;
-    this.debugView = debugView;
+    this.showsDebugView = showsDebugView;
     this.onOffered = onOffered;
     this.writer = writer;
     this.millis = millis;
@@ -407,7 +407,7 @@ public final class Mcv2PackServer {
     final Path zip = this.folder.resolve(FILE_PREFIX + wanted + FILE_SUFFIX);
     final Published published;
     try {
-      Mcv2Pack.write(screens, this.debugView, zip);
+      Mcv2Pack.write(screens, this.showsDebugView, zip);
       final String sha1 = hash(zip, "SHA-1");
       final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
       final PackHosting host = this.host(zip);

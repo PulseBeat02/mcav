@@ -49,15 +49,20 @@ public final class BrowserOptions {
   public static final BrowserOptions DEFAULT = builder().build();
 
   private final int frameRate;
-  private final boolean javaScriptJit;
-  private final boolean privateNetworks;
-  private final boolean autoplay;
+  private final boolean allowsJavaScriptJit;
+  private final boolean allowsPrivateNetworks;
+  private final boolean allowsAutoplay;
 
-  private BrowserOptions(final int frameRate, final boolean javaScriptJit, final boolean privateNetworks, final boolean autoplay) {
+  private BrowserOptions(
+    final int frameRate,
+    final boolean allowsJavaScriptJit,
+    final boolean allowsPrivateNetworks,
+    final boolean allowsAutoplay
+  ) {
     this.frameRate = frameRate;
-    this.javaScriptJit = javaScriptJit;
-    this.privateNetworks = privateNetworks;
-    this.autoplay = autoplay;
+    this.allowsJavaScriptJit = allowsJavaScriptJit;
+    this.allowsPrivateNetworks = allowsPrivateNetworks;
+    this.allowsAutoplay = allowsAutoplay;
   }
 
   /**
@@ -84,7 +89,7 @@ public final class BrowserOptions {
    * @return true if V8's just-in-time compiler runs
    */
   public boolean isJavaScriptJit() {
-    return this.javaScriptJit;
+    return this.allowsJavaScriptJit;
   }
 
   /**
@@ -93,7 +98,7 @@ public final class BrowserOptions {
    * @return true if the browser connects to any address
    */
   public boolean isPrivateNetworks() {
-    return this.privateNetworks;
+    return this.allowsPrivateNetworks;
   }
 
   /**
@@ -102,7 +107,7 @@ public final class BrowserOptions {
    * @return true if pages play sound right away
    */
   public boolean isAutoplay() {
-    return this.autoplay;
+    return this.allowsAutoplay;
   }
 
   /**
@@ -111,9 +116,9 @@ public final class BrowserOptions {
   public static final class Builder {
 
     private int frameRate = MAX_FRAME_RATE;
-    private boolean javaScriptJit;
-    private boolean privateNetworks;
-    private boolean autoplay;
+    private boolean allowsJavaScriptJit;
+    private boolean allowsPrivateNetworks;
+    private boolean allowsAutoplay;
 
     private Builder() {}
 
@@ -139,11 +144,11 @@ public final class BrowserOptions {
      * Turns V8's just-in-time compiler on or off. It is off by default, because the pages run without the Chromium
      * sandbox; turn it on only for pages you trust.
      *
-     * @param javaScriptJit true to compile JavaScript to machine code
+     * @param allowsJavaScriptJit true to compile JavaScript to machine code
      * @return this builder
      */
-    public Builder javaScriptJit(final boolean javaScriptJit) {
-      this.javaScriptJit = javaScriptJit;
+    public Builder javaScriptJit(final boolean allowsJavaScriptJit) {
+      this.allowsJavaScriptJit = allowsJavaScriptJit;
       return this;
     }
 
@@ -152,11 +157,11 @@ public final class BrowserOptions {
      * server's own network. Off by default: a page, or a player clicking on it, could otherwise read services the
      * server can reach but the players cannot.
      *
-     * @param privateNetworks true to let the browser connect to any address
+     * @param allowsPrivateNetworks true to let the browser connect to any address
      * @return this builder
      */
-    public Builder privateNetworks(final boolean privateNetworks) {
-      this.privateNetworks = privateNetworks;
+    public Builder privateNetworks(final boolean allowsPrivateNetworks) {
+      this.allowsPrivateNetworks = allowsPrivateNetworks;
       return this;
     }
 
@@ -164,11 +169,11 @@ public final class BrowserOptions {
      * Lets pages play sound right away. Off by default: as in a desktop browser, a page plays sound only once someone
      * clicked or typed into it, such as a player who clicks the screen of the browser.
      *
-     * @param autoplay true to let pages play sound before anyone clicked or typed into them
+     * @param allowsAutoplay true to let pages play sound before anyone clicked or typed into them
      * @return this builder
      */
-    public Builder autoplay(final boolean autoplay) {
-      this.autoplay = autoplay;
+    public Builder autoplay(final boolean allowsAutoplay) {
+      this.allowsAutoplay = allowsAutoplay;
       return this;
     }
 
@@ -178,7 +183,7 @@ public final class BrowserOptions {
      * @return the options
      */
     public BrowserOptions build() {
-      return new BrowserOptions(this.frameRate, this.javaScriptJit, this.privateNetworks, this.autoplay);
+      return new BrowserOptions(this.frameRate, this.allowsJavaScriptJit, this.allowsPrivateNetworks, this.allowsAutoplay);
     }
   }
 }

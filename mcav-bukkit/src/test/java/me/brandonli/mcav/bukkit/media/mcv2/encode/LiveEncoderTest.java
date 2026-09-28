@@ -336,7 +336,7 @@ final class LiveEncoderTest {
   }
 
   /** The live profile's search with another split threshold, shortcuts and lambda. */
-  private static LiveSearch live(final double splitAbove, final int shortcuts, final boolean motionLambda) {
+  private static LiveSearch live(final double splitAbove, final int shortcuts, final boolean usesMotionLambda) {
     final LiveSearch base = LiveSearch.LIVE;
     return new LiveSearch(
       base.smallestBlock(),
@@ -356,7 +356,7 @@ final class LiveEncoderTest {
       base.coarseEndpoints(),
       shortcuts,
       splitAbove,
-      motionLambda
+      usesMotionLambda
     );
   }
 

@@ -319,8 +319,8 @@ final class HelperSession implements BrowserSession {
   static Path createFolder(final Path temporary) {
     try {
       final FileSystem fileSystem = temporary.getFileSystem();
-      final boolean posix = fileSystem.supportedFileAttributeViews().contains("posix");
-      if (posix) {
+      final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+      if (supportsPosix) {
         return Files.createTempDirectory(
           temporary,
           "mcav-browser-",

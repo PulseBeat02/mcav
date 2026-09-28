@@ -171,12 +171,12 @@ public final class EncoderPool implements AutoCloseable {
    * Creates an encoder whose parallel loops run on the budget's threads. Call {@link Mcv2Encoder#encode} through
    * {@link #run(Callable)} so the rest of the encode does as well.
    *
-   * @param settings the encoder settings
-   * @param verify   whether every frame is decoded and compared, as the encoder's verify argument
+   * @param settings     the encoder settings
+   * @param shouldVerify whether every frame is decoded and compared, as the encoder's verify argument
    * @return the encoder
    */
-  public Mcv2Encoder encoder(final EncoderSettings settings, final boolean verify) {
-    return new Mcv2Encoder(settings, this.pool, this.threads, verify);
+  public Mcv2Encoder encoder(final EncoderSettings settings, final boolean shouldVerify) {
+    return new Mcv2Encoder(settings, this.pool, this.threads, shouldVerify);
   }
 
   /**

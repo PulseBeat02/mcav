@@ -205,10 +205,9 @@ public final class HeadlessProofMain {
     }
   }
 
-  private static void await(final String description, final long timeoutMillis, final BooleanSupplier condition)
-    throws InterruptedException {
+  private static void await(final String description, final long timeoutMillis, final BooleanSupplier holds) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-    while (!condition.getAsBoolean()) {
+    while (!holds.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
         throw new AssertionError("Timed out waiting for " + description);
       }
@@ -216,8 +215,8 @@ public final class HeadlessProofMain {
     }
   }
 
-  private static void check(final boolean condition, final String description) {
-    if (!condition) {
+  private static void check(final boolean holds, final String description) {
+    if (!holds) {
       throw new AssertionError("Failed: " + description);
     }
   }

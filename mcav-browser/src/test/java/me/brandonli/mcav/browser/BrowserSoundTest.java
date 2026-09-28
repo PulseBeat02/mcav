@@ -285,11 +285,11 @@ class BrowserSoundTest {
         final short[] left = leftChannel(copy);
         final int windows = left.length / WINDOW_FRAMES;
         for (int window = 0; window < windows; window++) {
-          final boolean tone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
+          final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
           // the samples of a chunk played before it arrived, the last one just now
           final long end = (long) (window + 1) * WINDOW_FRAMES;
           final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-          sound.add(new long[] { arrival - before, tone ? 1 : 0 });
+          sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
         }
         return true;
       })
@@ -451,9 +451,9 @@ class BrowserSoundTest {
         continue;
       }
       final boolean first = index == 0;
-      final boolean afterOff = !first && ordered.get(index - 1)[1] == 0;
-      final boolean afterGap = !first && current[0] - ordered.get(index - 1)[0] > gap;
-      if (first || afterOff || afterGap) {
+      final boolean followsSilence = !first && ordered.get(index - 1)[1] == 0;
+      final boolean followsGap = !first && current[0] - ordered.get(index - 1)[0] > gap;
+      if (first || followsSilence || followsGap) {
         onsets.add(current[0]);
       }
     }

@@ -110,8 +110,8 @@ class ArchiveExtractorTest {
 
   @Test
   void executableFilesStayExecutableAndNothingBecomesWritableForOthers() throws IOException {
-    final boolean posix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
-    assumeTrue(posix, "POSIX permissions");
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(supportsPosix, "POSIX permissions");
     final InputStream archive = new Archive().file("jcef_helper", 0777, "helper").file("resources.pak", 0666, "data").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> helper = Files.getPosixFilePermissions(this.target.resolve("jcef_helper"));
@@ -122,8 +122,8 @@ class ArchiveExtractorTest {
 
   @Test
   void foldersAreWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
-    final boolean posix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
-    assumeTrue(posix, "POSIX permissions");
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
+    assumeTrue(supportsPosix, "POSIX permissions");
     final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> owner = PosixFilePermissions.fromString("rwxr-xr-x");

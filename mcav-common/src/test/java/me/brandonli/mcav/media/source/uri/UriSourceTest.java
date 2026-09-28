@@ -73,14 +73,14 @@ final class UriSourceTest {
   @Test
   void detectsUrisWithSchemeAndHost() {
     final UriSourceDetector detector = new UriSourceDetector();
-    final boolean web = detector.isDetectedSource("rtsp://camera.local/stream");
-    final boolean drive = detector.isDetectedSource("c:/videos/clip.mp4");
+    final boolean isWebUri = detector.isDetectedSource("rtsp://camera.local/stream");
+    final boolean isDrivePath = detector.isDetectedSource("c:/videos/clip.mp4");
     final UriSource created = detector.createSource("https://example.com/a.mp4");
     final URI expectedUri = URI.create("https://example.com/a.mp4");
     final UriSource expected = UriSource.uri(expectedUri);
     final int priority = detector.getPriority();
-    assertTrue(web);
-    assertFalse(drive);
+    assertTrue(isWebUri);
+    assertFalse(isDrivePath);
     assertEquals(expected, created);
     assertEquals(SourceDetector.NORMAL_PRIORITY, priority);
   }

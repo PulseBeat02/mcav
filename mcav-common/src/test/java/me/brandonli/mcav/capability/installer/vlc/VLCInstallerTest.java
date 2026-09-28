@@ -83,12 +83,12 @@ final class VLCInstallerTest {
     final Path installDirectory = installer.getInstallDirectory();
     final Path path = installer.getPath();
     final String name = installer.getName();
-    final boolean archive = installer.isArchive();
+    final boolean isArchive = installer.isArchive();
     final Path expected = this.folder.resolve("vlc");
     assertEquals(expected, installDirectory);
     assertEquals(expected, path);
     assertEquals("vlc", name);
-    assertTrue(archive);
+    assertTrue(isArchive);
   }
 
   @Test
@@ -133,28 +133,28 @@ final class VLCInstallerTest {
   @Test
   void usesTheInstallationStrategyOfEachOperatingSystem() {
     final VLCInstaller installer = VLCInstaller.create(this.folder);
-    final InstallationStrategy windows = VLCInstaller.createStrategy(installer, OS.WINDOWS);
-    final InstallationStrategy mac = VLCInstaller.createStrategy(installer, OS.MAC);
-    final InstallationStrategy linux = VLCInstaller.createStrategy(installer, OS.LINUX);
-    assertInstanceOf(WinInstallationStrategy.class, windows);
-    assertInstanceOf(OSXInstallationStrategy.class, mac);
-    assertInstanceOf(LinuxInstallationStrategy.class, linux);
+    final InstallationStrategy isWindows = VLCInstaller.createStrategy(installer, OS.WINDOWS);
+    final InstallationStrategy isMac = VLCInstaller.createStrategy(installer, OS.MAC);
+    final InstallationStrategy isLinux = VLCInstaller.createStrategy(installer, OS.LINUX);
+    assertInstanceOf(WinInstallationStrategy.class, isWindows);
+    assertInstanceOf(OSXInstallationStrategy.class, isMac);
+    assertInstanceOf(LinuxInstallationStrategy.class, isLinux);
     assertThrows(UnsupportedOperatingSystemException.class, () -> VLCInstaller.createStrategy(installer, OS.FREEBSD));
     assertThrows(UnsupportedOperatingSystemException.class, () -> VLCInstaller.createStrategy(installer, OS.OTHER));
   }
 
   @Test
   void knowsWhichOperatingSystemsItCanInstallOn() {
-    final boolean mac = VLCInstaller.hasStrategy(OS.MAC);
-    final boolean windows = VLCInstaller.hasStrategy(OS.WINDOWS);
-    final boolean linux = VLCInstaller.hasStrategy(OS.LINUX);
+    final boolean installsOnMac = VLCInstaller.hasStrategy(OS.MAC);
+    final boolean installsOnWindows = VLCInstaller.hasStrategy(OS.WINDOWS);
+    final boolean installsOnLinux = VLCInstaller.hasStrategy(OS.LINUX);
     final boolean freeBsd = VLCInstaller.hasStrategy(OS.FREEBSD);
-    final boolean other = VLCInstaller.hasStrategy(OS.OTHER);
-    assertTrue(mac);
-    assertTrue(windows);
-    assertTrue(linux);
+    final boolean installsOnOther = VLCInstaller.hasStrategy(OS.OTHER);
+    assertTrue(installsOnMac);
+    assertTrue(installsOnWindows);
+    assertTrue(installsOnLinux);
     assertFalse(freeBsd);
-    assertFalse(other);
+    assertFalse(installsOnOther);
   }
 
   @Test
@@ -306,7 +306,7 @@ final class VLCInstallerTest {
   void installsALinuxArchiveThroughItsExecutableExtractionProtocol() throws IOException {
     final OS operatingSystem = OSUtils.getOS();
     Assumptions.assumeTrue(operatingSystem == OS.LINUX, "The executable fixture uses a POSIX shell");
-    final Path archive = this.folder.resolve("fixture.AppImage");
+    final Path isArchive = this.folder.resolve("fixture.AppImage");
     // Model the AppImage extraction protocol, not the VLC binary: the returned library must never be loaded.
     final String script = """
     #!/bin/sh
@@ -317,14 +317,14 @@ final class VLCInstallerTest {
     printf fixture-api > squashfs-root/usr/lib/libvlc.so.5
     printf fixture-plugin > squashfs-root/usr/lib/vlc/plugins/test.so
     """;
-    Files.writeString(archive, script);
+    Files.writeString(isArchive, script);
     final VLCInstaller installer = VLCInstaller.create(this.folder);
-    final Path installed = installer.install(archive);
+    final Path installed = installer.install(isArchive);
     final Path installDirectory = installer.getInstallDirectory();
     final Path expected = installDirectory.resolve("usr/lib");
     final Path core = installed.resolve("libvlccore.so.9");
     final String content = Files.readString(core);
-    final boolean archiveRemains = Files.exists(archive);
+    final boolean archiveRemains = Files.exists(isArchive);
     assertEquals(expected, installed);
     assertEquals("fixture-core", content);
     assertFalse(archiveRemains);
@@ -403,10 +403,10 @@ final class VLCInstallerTest {
 
   private void assertInstalledWithoutLeftovers(final Path installed, final Path leftover) {
     final Path library = installed.resolve("libvlc.dll");
-    final Path archive = this.folder.resolve(ZIP_NAME);
+    final Path isArchive = this.folder.resolve(ZIP_NAME);
     final boolean hasLibrary = Files.isRegularFile(library);
     final boolean leftoverExists = Files.exists(leftover);
-    final boolean archiveExists = Files.exists(archive);
+    final boolean archiveExists = Files.exists(isArchive);
     assertTrue(hasLibrary);
     assertFalse(leftoverExists);
     assertFalse(archiveExists);

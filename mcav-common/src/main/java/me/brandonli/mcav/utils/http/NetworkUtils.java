@@ -71,8 +71,8 @@ public final class NetworkUtils {
   public static String formatHostForUrl(final String address) {
     Preconditions.checkNotNull(address, "Address must not be null");
     final boolean ipAddress = InetAddresses.isInetAddress(address);
-    final boolean ipv6 = ipAddress && address.contains(":");
-    if (!ipv6) {
+    final boolean isIpv6 = ipAddress && address.contains(":");
+    if (!isIpv6) {
       return address;
     }
     final String escaped = address.replace("%", "%25");
@@ -138,8 +138,8 @@ public final class NetworkUtils {
    */
   public static boolean isReachable(final URI uri) {
     Preconditions.checkNotNull(uri, "URI must not be null");
-    final boolean httpScheme = isHttpScheme(uri);
-    if (!httpScheme) {
+    final boolean usesHttpScheme = isHttpScheme(uri);
+    if (!usesHttpScheme) {
       return false;
     }
 

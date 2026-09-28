@@ -471,8 +471,8 @@ final class HelperProtocol {
       final int size = utf8Length(codePoint);
       if (bytes + size > MAX_TEXT_BYTES) {
         // the part is far longer than a line break, so moving its \r into the next part leaves it not empty
-        final boolean lineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
-        final int end = lineBreak ? index - 1 : index;
+        final boolean isLineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
+        final int end = isLineBreak ? index - 1 : index;
         parts.add(text.substring(start, end));
         start = end;
         bytes = index - end;

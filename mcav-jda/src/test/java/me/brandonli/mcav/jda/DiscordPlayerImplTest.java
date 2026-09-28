@@ -152,10 +152,10 @@ final class DiscordPlayerImplTest {
     }
     samples.flip();
 
-    final boolean result = player.applyFilter(samples, this.metadata);
+    final boolean changed = player.applyFilter(samples, this.metadata);
     final int inputPosition = samples.position();
     final ByteBuffer frame = player.provide20MsAudio();
-    assertFalse(result, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertEquals(0, inputPosition);
     assertNotNull(frame);
     final int frameSize = frame.remaining();
@@ -270,15 +270,15 @@ final class DiscordPlayerImplTest {
     final DiscordPlayerImpl player = this.createPlayer();
     final ByteBuffer first = filledBuffer(1000, (byte) 1);
     player.applyFilter(first, this.metadata);
-    final boolean afterFirst = player.canProvide();
+    final boolean providesAfterFirst = player.canProvide();
     final long queuedAfterFirst = player.getQueuedMillis();
     final ByteBuffer second = filledBuffer(FRAME_BYTES - 1000 + 100, (byte) 2);
     player.applyFilter(second, this.metadata);
-    final boolean afterSecond = player.canProvide();
+    final boolean providesAfterSecond = player.canProvide();
     final long queuedAfterSecond = player.getQueuedMillis();
-    assertFalse(afterFirst);
+    assertFalse(providesAfterFirst);
     assertEquals(0L, queuedAfterFirst);
-    assertTrue(afterSecond);
+    assertTrue(providesAfterSecond);
     assertEquals(20L, queuedAfterSecond);
 
     final ByteBuffer firstFrame = player.provide20MsAudio();
@@ -355,9 +355,9 @@ final class DiscordPlayerImplTest {
   void acceptsEmptyInput() {
     final DiscordPlayerImpl player = this.createPlayer();
     final ByteBuffer empty = ByteBuffer.allocate(0);
-    final boolean result = player.applyFilter(empty, this.metadata);
+    final boolean changed = player.applyFilter(empty, this.metadata);
     final boolean canProvide = player.canProvide();
-    assertFalse(result, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertFalse(canProvide);
   }
 

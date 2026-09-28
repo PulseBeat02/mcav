@@ -153,10 +153,10 @@ final class PluginTranslatorTest {
   void resolvesOnlyTheArgumentTag() {
     final List<ComponentLike> arguments = List.of(Component.text("value"));
     final ArgumentTag tag = new ArgumentTag(arguments);
-    final boolean argument = tag.has("arg");
-    final boolean other = tag.has("argument");
-    assertTrue(argument);
-    assertFalse(other);
+    final boolean hasArg = tag.has("arg");
+    final boolean hasArgument = tag.has("argument");
+    assertTrue(hasArg);
+    assertFalse(hasArgument);
   }
 
   @Test

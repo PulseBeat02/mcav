@@ -148,8 +148,8 @@ public final class ImagePlayerImpl implements ImagePlayer {
     if (worker != null) {
       LockSupport.unpark(worker);
       final Thread caller = Thread.currentThread();
-      final boolean self = caller.equals(worker);
-      if (!self) {
+      final boolean isWorkerThread = caller.equals(worker);
+      if (!isWorkerThread) {
         worker.interrupt();
         join(worker);
       }

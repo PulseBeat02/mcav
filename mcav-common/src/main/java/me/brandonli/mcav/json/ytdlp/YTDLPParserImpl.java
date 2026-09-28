@@ -134,8 +134,8 @@ public final class YTDLPParserImpl implements YTDLPParser {
   private static void requireWebUri(final URI uri) {
     final String scheme = uri.getScheme();
     final String lowerScheme = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
-    final boolean web = uri.isAbsolute() && WEB_SCHEMES.contains(lowerScheme);
-    Preconditions.checkArgument(web, "yt-dlp only resolves absolute http and https URLs, but got %s", uri);
+    final boolean isWebUri = uri.isAbsolute() && WEB_SCHEMES.contains(lowerScheme);
+    Preconditions.checkArgument(isWebUri, "yt-dlp only resolves absolute http and https URLs, but got %s", uri);
   }
 
   /**

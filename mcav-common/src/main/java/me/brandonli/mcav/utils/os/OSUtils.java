@@ -77,13 +77,13 @@ public final class OSUtils {
   }
 
   static Arch detectArch(final String osArch) {
-    final boolean arm = osArch.contains("arm") || osArch.contains("aarch");
-    if (arm) {
+    final boolean isArm = osArch.contains("arm") || osArch.contains("aarch");
+    if (isArm) {
       return Arch.ARM;
     }
     // x86, i386 to i686, x86_64 and amd64
-    final boolean x86 = osArch.contains("86") || osArch.equals("amd64");
-    if (x86) {
+    final boolean isX86 = osArch.contains("86") || osArch.equals("amd64");
+    if (isX86) {
       return Arch.X86;
     }
     // riscv64, ppc64le, s390x, loongarch64 and the like: x86 binaries do not run there
@@ -97,8 +97,8 @@ public final class OSUtils {
     if (dataModel.equals("32")) {
       return Bits.BITS_32;
     }
-    final boolean sixtyFour = osArch.contains("64");
-    if (sixtyFour) {
+    final boolean isSixtyFourBit = osArch.contains("64");
+    if (isSixtyFourBit) {
       return Bits.BITS_64;
     }
     return Bits.BITS_32;

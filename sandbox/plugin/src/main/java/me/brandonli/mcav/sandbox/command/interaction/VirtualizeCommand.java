@@ -297,8 +297,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     Preconditions.checkNotNull(audioType, "Audio type must not be null");
     Preconditions.checkNotNull(flags, "Flags must not be null");
 
-    final boolean qemu = this.plugin.isQemuInstalled();
-    if (!qemu) {
+    final boolean hasQemu = this.plugin.isQemuInstalled();
+    if (!hasQemu) {
       final Component message = Message.QEMU_NOT_INSTALLED.build();
       sender.sendMessage(message);
       return;
@@ -370,13 +370,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * {@code PATH} gets its own message, also when wrapped in a {@link CompletionException}; other reasons are
    * logged, not shown.
    *
-   * @param success whether the virtual machine started
-   * @param error   why the virtual machine failed to start, if known
+   * @param succeeded whether the virtual machine started
+   * @param error     why the virtual machine failed to start, if known
    * @return the message
    */
   @Override
-  protected Component createStartMessage(final boolean success, final @Nullable Throwable error) {
-    if (success) {
+  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
+    if (succeeded) {
       return Message.VM_CREATE.build();
     }
 
@@ -544,8 +544,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   }
 
   private static void requireFlagOption(final String name) {
-    final boolean flag = FLAG_OPTIONS.contains(name);
-    if (flag) {
+    final boolean isFlagOption = FLAG_OPTIONS.contains(name);
+    if (isFlagOption) {
       return;
     }
     final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
@@ -570,12 +570,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       final Path resolved = DiskImages.require(imageFolder, value);
       return resolved.toString();
     }
-    final boolean drive = name.equals(DRIVE_OPTION);
-    if (drive) {
+    final boolean isDriveOption = name.equals(DRIVE_OPTION);
+    if (isDriveOption) {
       return checkedDrive(value, imageFolder);
     }
-    final boolean flag = FLAG_OPTIONS.contains(name);
-    if (flag) {
+    final boolean isFlagOption = FLAG_OPTIONS.contains(name);
+    if (isFlagOption) {
       throw new IllegalArgumentException("The QEMU option -" + name + " takes no value");
     }
     throw unsupported(name);
@@ -590,8 +590,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final List<String> checked = new ArrayList<>(parts.size());
     int files = 0;
     for (final String part : parts) {
-      final boolean names = part.startsWith(FILE_KEY);
-      if (names) {
+      final boolean namesFile = part.startsWith(FILE_KEY);
+      if (namesFile) {
         files++;
         final String image = part.substring(FILE_KEY.length());
         final Path resolved = DiskImages.require(imageFolder, image);
@@ -629,8 +629,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>();
-    for (final String flag : FLAG_OPTIONS) {
-      names.add("-" + flag);
+    for (final String isFlagOption : FLAG_OPTIONS) {
+      names.add("-" + isFlagOption);
     }
     for (final String hardware : HARDWARE_OPTIONS) {
       names.add("-" + hardware);

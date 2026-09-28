@@ -346,9 +346,9 @@ final class InstallationManagerTest {
   void copiesOnDaemonThreadsSoTheyNeverKeepTheJvmAlive() {
     final Runnable noWork = () -> {};
     final Thread thread = InstallationManager.createCopyThread(noWork);
-    final boolean daemon = thread.isDaemon();
+    final boolean isDaemon = thread.isDaemon();
     final String name = thread.getName();
-    assertTrue(daemon);
+    assertTrue(isDaemon);
     assertEquals("mcav-installer", name);
   }
 

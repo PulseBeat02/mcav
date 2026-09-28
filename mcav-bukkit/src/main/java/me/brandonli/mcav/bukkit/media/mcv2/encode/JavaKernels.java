@@ -92,12 +92,12 @@ final class JavaKernels extends Kernels {
     final byte[] record,
     final int offset,
     final int luma,
-    final int chroma,
+    final int convertsChroma,
     final int quantizer,
     final int size,
     final int[] out
   ) {
-    return Reconstruction.reduced(prediction, record, offset, luma, chroma, quantizer, size, this.scratch, out, this.score);
+    return Reconstruction.reduced(prediction, record, offset, luma, convertsChroma, quantizer, size, this.scratch, out, this.score);
   }
 
   @Override
@@ -167,11 +167,11 @@ final class JavaKernels extends Kernels {
     final int[] source,
     final int count,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    PaletteFit.finish(source, count, endpoints, quantize, colors, selectors);
+    PaletteFit.finish(source, count, endpoints, shouldQuantize, colors, selectors);
   }
 
   @Override
@@ -179,11 +179,11 @@ final class JavaKernels extends Kernels {
     final int[] source,
     final int size,
     final float[] endpoints,
-    final boolean quantize,
+    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    return PaletteFit.finishPattern(source, size, endpoints, quantize, colors, selectors);
+    return PaletteFit.finishPattern(source, size, endpoints, shouldQuantize, colors, selectors);
   }
 
   @Override
@@ -198,10 +198,23 @@ final class JavaKernels extends Kernels {
     final int globalX,
     final int globalY,
     final int range,
-    final boolean halfPixel,
+    final boolean refinesHalfPixels,
     final int[] seeds
   ) {
-    return MotionSearch.seeded(reference, width, height, source, blockLeft, blockTop, size, globalX, globalY, range, halfPixel, seeds);
+    return MotionSearch.seeded(
+      reference,
+      width,
+      height,
+      source,
+      blockLeft,
+      blockTop,
+      size,
+      globalX,
+      globalY,
+      range,
+      refinesHalfPixels,
+      seeds
+    );
   }
 
   @Override
@@ -233,13 +246,13 @@ final class JavaKernels extends Kernels {
   }
 
   @Override
-  void ycocg(final int[] source, final int count, final boolean chroma, final float[] out) {
+  void ycocg(final int[] source, final int count, final boolean convertsChroma, final float[] out) {
     for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
       final int red = source[offset];
       final int green = source[offset + 1];
       final int blue = source[offset + 2];
       out[offset] = (red + 2 * green + blue) * 0.25f;
-      if (chroma) {
+      if (convertsChroma) {
         out[offset + 1] = (red - blue) * 0.5f;
         out[offset + 2] = (-red + 2 * green - blue) * 0.25f;
       }
@@ -247,13 +260,13 @@ final class JavaKernels extends Kernels {
   }
 
   @Override
-  void residualTarget(final float[] ycocg, final int[] prediction, final int count, final boolean chroma, final float[] target) {
+  void residualTarget(final float[] ycocg, final int[] prediction, final int count, final boolean convertsChroma, final float[] target) {
     for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
       final float predictedRed = prediction[offset] * 0.25f;
       final float predictedGreen = prediction[offset + 1] * 0.25f;
       final float predictedBlue = prediction[offset + 2] * 0.25f;
       target[offset] = ycocg[offset] - (predictedRed + 2 * predictedGreen + predictedBlue) * 0.25f;
-      if (chroma) {
+      if (convertsChroma) {
         target[offset + 1] = ycocg[offset + 1] - (predictedRed - predictedBlue) * 0.5f;
         target[offset + 2] = ycocg[offset + 2] - (-predictedRed + 2 * predictedGreen - predictedBlue) * 0.25f;
       }

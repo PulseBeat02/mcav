@@ -863,16 +863,16 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       running = this.pipeline;
     }
     final long started = this.clock.getAsLong();
-    final boolean keyframe;
+    final boolean isKeyframe;
     Delivery delivery = null;
     if (running == null) {
       final byte[] frame = encoder.encode(arrival.rgb, width, height, frameId);
       final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
-      keyframe = stats.keyframe();
+      isKeyframe = stats.keyframe();
       delivery = new Delivery(frame, stats, frameId, arrival);
     } else {
       final Mcv2Encoder.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
-      keyframe = pending.isKeyframe();
+      isKeyframe = pending.isKeyframe();
       // counted before the hand-off: once the sender has the frame, a drain waits for it
       synchronized (this.lock) {
         this.handed++;
@@ -884,7 +884,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     synchronized (this.lock) {
       final Mcv2Pacer screenPacer = this.pacer;
       if (screenPacer != null) {
-        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, keyframe, finished);
+        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, isKeyframe, finished);
         if (change != null) {
           this.follow(change);
         }

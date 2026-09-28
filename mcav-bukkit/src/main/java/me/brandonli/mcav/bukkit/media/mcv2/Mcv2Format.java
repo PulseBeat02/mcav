@@ -467,11 +467,11 @@ public final class Mcv2Format {
    * The length of the walk checkpoint region of the derived form.
    *
    * @param walkpoints the number of checkpoints
-   * @param twoLevel   whether the region is a coarse plane plus deltas
+   * @param isTwoLevel whether the region is a coarse plane plus deltas
    * @return the length in bytes
    */
-  public static int walkBytes(final int walkpoints, final boolean twoLevel) {
-    if (!twoLevel) {
+  public static int walkBytes(final int walkpoints, final boolean isTwoLevel) {
+    if (!isTwoLevel) {
       return walkpoints * WORD_BYTES;
     }
     final int coarse = (walkpoints + WALK_STRIDE - 1) / WALK_STRIDE;

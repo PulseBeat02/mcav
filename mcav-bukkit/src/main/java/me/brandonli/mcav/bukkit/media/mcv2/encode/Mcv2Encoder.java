@@ -99,7 +99,7 @@ public final class Mcv2Encoder {
 
   private final Workers workers;
 
-  private final boolean verify;
+  private final boolean shouldVerify;
 
   /** The picture the live search's check decodes into, kept from frame to frame. */
   private byte @Nullable [] verified;
@@ -221,7 +221,7 @@ public final class Mcv2Encoder {
 
     private final long predictFromId;
 
-    private final boolean key;
+    private final boolean isKeyframe;
 
     private final int globalX;
 
@@ -244,7 +244,7 @@ public final class Mcv2Encoder {
       final byte[] picture,
       final byte[] predictFrom,
       final long predictFromId,
-      final boolean key,
+      final boolean isKeyframe,
       final int globalX,
       final int globalY,
       final int trial,
@@ -257,7 +257,7 @@ public final class Mcv2Encoder {
       this.picture = picture;
       this.predictFrom = predictFrom;
       this.predictFromId = predictFromId;
-      this.key = key;
+      this.isKeyframe = isKeyframe;
       this.globalX = globalX;
       this.globalY = globalY;
       this.trial = trial;
@@ -271,37 +271,37 @@ public final class Mcv2Encoder {
      * @return true for a keyframe
      */
     public boolean isKeyframe() {
-      return this.key;
+      return this.isKeyframe;
     }
   }
 
   /**
    * Constructs a new encoder.
    *
-   * @param settings the profile
-   * @param pool     the pool block evaluation runs on
-   * @param threads  how many workers evaluate blocks at once, at least 1
-   * @param verify   whether every frame is checked against its own decode before it becomes the reference; keep this
-   *                 on unless a measurement has shown the cost matters
+   * @param settings     the profile
+   * @param pool         the pool block evaluation runs on
+   * @param threads      how many workers evaluate blocks at once, at least 1
+   * @param shouldVerify whether every frame is checked against its own decode before it becomes the reference; keep this
+   *                     on unless a measurement has shown the cost matters
    */
-  public Mcv2Encoder(final EncoderSettings settings, final ForkJoinPool pool, final int threads, final boolean verify) {
-    this(settings, pool, threads, verify, settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory());
+  public Mcv2Encoder(final EncoderSettings settings, final ForkJoinPool pool, final int threads, final boolean shouldVerify) {
+    this(settings, pool, threads, shouldVerify, settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory());
   }
 
   /**
    * Constructs a new encoder whose coders use the given kernels.
    *
-   * @param settings the profile
-   * @param pool     the pool block evaluation runs on
-   * @param threads  how many workers evaluate blocks at once, at least 1
-   * @param verify   whether every frame is checked against its own decode
-   * @param kernels  makes the kernels of each coder
+   * @param settings     the profile
+   * @param pool         the pool block evaluation runs on
+   * @param threads      how many workers evaluate blocks at once, at least 1
+   * @param shouldVerify whether every frame is checked against its own decode
+   * @param kernels      makes the kernels of each coder
    */
   Mcv2Encoder(
     final EncoderSettings settings,
     final ForkJoinPool pool,
     final int threads,
-    final boolean verify,
+    final boolean shouldVerify,
     final Kernels.Factory kernels
   ) {
     Preconditions.checkNotNull(settings, "Settings must not be null");
@@ -309,7 +309,7 @@ public final class Mcv2Encoder {
     Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
     this.settings = settings;
     this.workers = new Workers(pool, threads);
-    this.verify = verify;
+    this.shouldVerify = shouldVerify;
     this.kernels = kernels;
     this.framesSinceKey = settings.keyInterval();
     final LiveSearch live = settings.live();
@@ -518,7 +518,7 @@ public final class Mcv2Encoder {
     final EncoderSettings chosen = this.settings.frame(this.moving);
     final EncoderSettings settings = control == null ? chosen : chosen.withLambda(control.lambda(chosen.lambda()));
     final LiveSearch live = settings.live();
-    boolean key = true;
+    boolean isKeyframe = true;
     int motion = 0;
     byte[] predictFrom = NONE;
     final boolean predictable = width == this.width && height == this.height && this.framesSinceKey < settings.keyInterval();
@@ -526,7 +526,7 @@ public final class Mcv2Encoder {
       if (previous != null && predictable) {
         final int estimate = GlobalMotion.estimate(rgb, previous, width, height, this.workers);
         if (!this.sceneCut(rgb, previous, width, height, estimate)) {
-          key = false;
+          isKeyframe = false;
           motion = estimate;
           predictFrom = previous;
         }
@@ -559,7 +559,7 @@ public final class Mcv2Encoder {
           this.workers
         );
         if (!analysis.sceneCut()) {
-          key = false;
+          isKeyframe = false;
           motion = candidates[analysis.vector()];
           predictFrom = previous;
         }
@@ -567,14 +567,14 @@ public final class Mcv2Encoder {
       this.projections = projections;
       if (control != null) {
         // the next frame's lambda; a scene cut starts the motion over, a keyframe on the clock does not
-        control.observe(rgb, width, height, predictable && key, this.workers);
+        control.observe(rgb, width, height, predictable && isKeyframe, this.workers);
       }
     }
     final int motionX = MotionSearch.unpackX(motion);
     final int motionY = MotionSearch.unpackY(motion);
     final int[] vectorsX;
     final int[] vectorsY;
-    if (!key && settings.compareGlobal() && motion != 0 && live == null) {
+    if (!isKeyframe && settings.compareGlobal() && motion != 0 && live == null) {
       vectorsX = new int[] { 0, motionX };
       vectorsY = new int[] { 0, motionY };
     } else {
@@ -587,15 +587,15 @@ public final class Mcv2Encoder {
       predictFrom,
       width,
       height,
-      key,
+      isKeyframe,
       vectorsX,
       vectorsY,
-      key ? null : this.motion,
+      isKeyframe ? null : this.motion,
       live == null ? null : this.buffers(width, height).levels(),
       this.jobBuffers
     );
     this.jobBuffers = job.buffers();
-    final long referenceId = key ? frameId : this.referenceId;
+    final long referenceId = isKeyframe ? frameId : this.referenceId;
     byte[] best = new byte[0];
     byte[] bestPicture = new byte[0];
     List<Leaf> bestLeaves = List.of();
@@ -620,7 +620,7 @@ public final class Mcv2Encoder {
           height,
           frameId,
           referenceId,
-          key,
+          isKeyframe,
           vectorsX[vector],
           vectorsY[vector],
           serialized,
@@ -638,7 +638,7 @@ public final class Mcv2Encoder {
           bestTrial = trial;
         }
       }
-      if (this.verify) {
+      if (this.shouldVerify) {
         check(job, bestTrial, best, bestPicture, bestLeaves, bestRoots, this.workers);
       }
     } else {
@@ -655,10 +655,10 @@ public final class Mcv2Encoder {
           predictFrom,
           width,
           height,
-          key,
+          isKeyframe,
           vectorsX,
           vectorsY,
-          key ? null : this.motion,
+          isKeyframe ? null : this.motion,
           this.buffers(width, height).levels(),
           this.jobBuffers
         );
@@ -674,19 +674,19 @@ public final class Mcv2Encoder {
     }
     final Pending pending = new Pending(
       best,
-      live != null && this.verify,
+      live != null && this.shouldVerify,
       bestRoots,
       bestPicture,
       predictFrom,
       this.referenceId,
-      key,
+      isKeyframe,
       vectorsX[job.trialVector(bestTrial)],
       vectorsY[job.trialVector(bestTrial)],
       bestTrial,
       bestLeaves.size(),
       lambda
     );
-    if (key || settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
+    if (isKeyframe || settings.reference() == EncoderSettings.ReferencePolicy.PREVIOUS_FRAME) {
       this.reference = bestPicture;
       this.referenceId = frameId;
     }
@@ -696,7 +696,7 @@ public final class Mcv2Encoder {
     this.width = width;
     this.height = height;
     this.lastFrameId = frameId;
-    this.framesSinceKey = key ? 1 : this.framesSinceKey + 1;
+    this.framesSinceKey = isKeyframe ? 1 : this.framesSinceKey + 1;
     this.older = this.newer;
     this.newer = pending;
     pending.searchNanos = System.nanoTime() - started;
@@ -759,7 +759,7 @@ public final class Mcv2Encoder {
     pending.finished = true;
     final Stats stats = new Stats(
       pending.data.length,
-      pending.key,
+      pending.isKeyframe,
       pending.globalX,
       pending.globalY,
       pending.trial,

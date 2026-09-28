@@ -122,8 +122,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final boolean headOnly = type == RequestType.HEAD;
-    final byte[] expected = headOnly ? this.headPrefix : this.getPrefix;
+    final boolean isHeadRequest = type == RequestType.HEAD;
+    final byte[] expected = isHeadRequest ? this.headPrefix : this.getPrefix;
     final int readable = data.readableBytes();
     final int start = data.readerIndex();
     if (!matchesPrefix(data, start, readable, expected)) {
@@ -134,7 +134,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     if (readable < expected.length) {
       return;
     }
-    this.serve(context, data, headOnly);
+    this.serve(context, data, isHeadRequest);
   }
 
   /**
@@ -147,11 +147,11 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     pipeline.remove(this);
   }
 
-  private void serve(final ChannelHandlerContext context, final ByteBuf data, final boolean headOnly) {
+  private void serve(final ChannelHandlerContext context, final ByteBuf data, final boolean isHeadRequest) {
     this.cumulation = null;
     this.served = true;
     data.release();
-    this.respond(context, headOnly);
+    this.respond(context, isHeadRequest);
   }
 
   private ByteBuf accumulate(final ChannelHandlerContext context, final ByteBuf buffer) {
@@ -168,7 +168,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     return composite;
   }
 
-  private void respond(final ChannelHandlerContext context, final boolean headOnly) {
+  private void respond(final ChannelHandlerContext context, final boolean isHeadRequest) {
     final byte[] body;
     try {
       body = this.packFile.read();
@@ -179,7 +179,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     }
 
     final ByteBuf headers = createHeaders(STATUS_OK, CONTENT_TYPE_ZIP, body.length);
-    if (headOnly) {
+    if (isHeadRequest) {
       final ChannelFuture headersFuture = context.writeAndFlush(headers);
       headersFuture.addListener(ChannelFutureListener.CLOSE);
       return;

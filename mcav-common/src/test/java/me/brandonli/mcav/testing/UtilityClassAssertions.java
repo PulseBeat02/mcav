@@ -52,8 +52,8 @@ public final class UtilityClassAssertions {
     assertEquals(1, constructors.length);
     final Constructor<?> constructor = constructors[0];
     final int constructorModifiers = constructor.getModifiers();
-    final boolean privateConstructor = Modifier.isPrivate(constructorModifiers);
-    assertTrue(privateConstructor, "the constructor of a utility class must be private");
+    final boolean hasPrivateConstructor = Modifier.isPrivate(constructorModifiers);
+    assertTrue(hasPrivateConstructor, "the constructor of a utility class must be private");
     constructor.setAccessible(true);
     final InvocationTargetException exception = assertThrows(InvocationTargetException.class, constructor::newInstance);
     final Throwable cause = exception.getCause();

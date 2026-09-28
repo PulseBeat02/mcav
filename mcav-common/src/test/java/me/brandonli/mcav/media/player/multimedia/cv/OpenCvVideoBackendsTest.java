@@ -76,15 +76,15 @@ final class OpenCvVideoBackendsTest {
 
   @Test
   void findsNoFileBackendInTheLinuxBuild() {
-    final boolean files = OpenCvVideoBackends.decideFromBuildInformation(LINUX);
-    assertFalse(files, "the Linux build of the presets only captures from cameras");
+    final boolean canDecodeFiles = OpenCvVideoBackends.decideFromBuildInformation(LINUX);
+    assertFalse(canDecodeFiles, "the Linux build of the presets only captures from cameras");
   }
 
   @Test
   void findsTheFileBackendsOfTheOtherBuilds() {
-    final boolean windows = OpenCvVideoBackends.decideFromBuildInformation(WINDOWS);
+    final boolean canDecodeFilesOnWindows = OpenCvVideoBackends.decideFromBuildInformation(WINDOWS);
     final boolean macOs = OpenCvVideoBackends.decideFromBuildInformation(MACOS);
-    assertTrue(windows);
+    assertTrue(canDecodeFilesOnWindows);
     assertTrue(macOs);
   }
 
@@ -99,8 +99,8 @@ final class OpenCvVideoBackendsTest {
     Video I/O:
         v4l/v4l2:                    YES (linux/videodev2.h)
     """;
-    final boolean files = OpenCvVideoBackends.listsEnabledFileBackend(elsewhere);
-    assertFalse(files, "a backend named in another section says nothing about video files");
+    final boolean canDecodeFiles = OpenCvVideoBackends.listsEnabledFileBackend(elsewhere);
+    assertFalse(canDecodeFiles, "a backend named in another section says nothing about video files");
   }
 
   @Test
@@ -121,9 +121,9 @@ final class OpenCvVideoBackendsTest {
 
   @Test
   void answersTheSameEveryTime() {
-    final boolean first = OpenCvVideoBackends.canDecodeFiles();
-    final boolean second = OpenCvVideoBackends.canDecodeFiles();
-    assertTrue(first == second, "the answer cannot change while the library runs");
+    final boolean firstAnswer = OpenCvVideoBackends.canDecodeFiles();
+    final boolean secondAnswer = OpenCvVideoBackends.canDecodeFiles();
+    assertTrue(firstAnswer == secondAnswer, "the answer cannot change while the library runs");
   }
 
   @Test

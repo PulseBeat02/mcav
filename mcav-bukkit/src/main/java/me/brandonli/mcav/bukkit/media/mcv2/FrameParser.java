@@ -183,12 +183,12 @@ public final class FrameParser {
     if (count != roots || start < HEADER_BYTES || start > total) {
       throw new Mcv2Exception("Invalid root table");
     }
-    final boolean keyframe = (flags & KEYFRAME) != 0;
-    if ((keyframe && (frameId != referenceId || motion != 0)) || (!keyframe && frameId == referenceId)) {
+    final boolean isKeyframe = (flags & KEYFRAME) != 0;
+    if ((isKeyframe && (frameId != referenceId || motion != 0)) || (!isKeyframe && frameId == referenceId)) {
       throw new Mcv2Exception("Invalid reference metadata");
     }
-    final boolean defaultSolid = (flags & DEFAULT_SOLID) != 0;
-    if (color > OFFSET_MASK || (defaultSolid && !keyframe) || (!defaultSolid && color != 0)) {
+    final boolean hasDefaultSolid = (flags & DEFAULT_SOLID) != 0;
+    if (color > OFFSET_MASK || (hasDefaultSolid && !isKeyframe) || (!hasDefaultSolid && color != 0)) {
       throw new Mcv2Exception("Invalid default color");
     }
     if ((flags & TWO_LEVEL_WALK) != 0 && (flags & DERIVED_OFFSETS) == 0) {
@@ -558,7 +558,7 @@ public final class FrameParser {
     }
 
     /** The walk checkpoints' plane: where it starts, how many there are, and the delta widths of the two-level form. */
-    private record Walk(int base, int points, boolean twoLevel, int cursorBits, int splitsBits) {}
+    private record Walk(int base, int points, boolean isTwoLevel, int cursorBits, int splitsBits) {}
 
     /** The sizes the index gives the endpoint table and the selector tables of the three block sizes. */
     private static final class Tables {
@@ -602,10 +602,10 @@ public final class FrameParser {
 
     /** Reads the table sizes after the walk plane, and checks that the index ends exactly where the payload starts. */
     private Tables readTableSizes(final Walk walk) throws Mcv2Exception {
-      int region = walkBytes(walk.points(), walk.twoLevel());
-      final boolean endpointTable = (this.flags & ENDPOINT_TABLE) != 0;
+      int region = walkBytes(walk.points(), walk.isTwoLevel());
+      final boolean hasEndpointTable = (this.flags & ENDPOINT_TABLE) != 0;
       int pairCount = 0;
-      if (endpointTable) {
+      if (hasEndpointTable) {
         final int at = walk.base() + region;
         if (at >= this.start) {
           throw new Mcv2Exception("Short endpoint table");
@@ -616,9 +616,9 @@ public final class FrameParser {
         }
       }
       final int[] wordCounts = new int[BLOCK_SIZES];
-      final boolean selectorTable = (this.flags & SELECTOR_TABLE) != 0;
-      if (selectorTable) {
-        final int at = walk.base() + region + (endpointTable ? 1 : 0);
+      final boolean hasSelectorTable = (this.flags & SELECTOR_TABLE) != 0;
+      if (hasSelectorTable) {
+        final int at = walk.base() + region + (hasEndpointTable ? 1 : 0);
         if (at + BLOCK_SIZES > this.start) {
           throw new Mcv2Exception("Short selector table sizes");
         }
@@ -630,20 +630,20 @@ public final class FrameParser {
           }
         }
       }
-      final boolean coarseEndpoints = (this.flags & ENDPOINT_565) != 0;
-      if (endpointTable) {
+      final boolean hasCoarseEndpoints = (this.flags & ENDPOINT_565) != 0;
+      if (hasEndpointTable) {
         region += 1;
       }
-      if (selectorTable) {
+      if (hasSelectorTable) {
         region += BLOCK_SIZES;
       }
-      if (coarseEndpoints && !endpointTable) {
+      if (hasCoarseEndpoints && !hasEndpointTable) {
         throw new Mcv2Exception("565 endpoints without an endpoint table");
       }
       if (walk.base() + region != this.start) {
         throw new Mcv2Exception("Noncanonical derived index length");
       }
-      return new Tables(pairCount, coarseEndpoints ? ENDPOINT_565_PAIR_BYTES : ENDPOINT_PAIR_BYTES, wordCounts);
+      return new Tables(pairCount, hasCoarseEndpoints ? ENDPOINT_565_PAIR_BYTES : ENDPOINT_PAIR_BYTES, wordCounts);
     }
 
     /** Every descriptor's block: the listed roots first, then the quarters of every split, level by level. */
@@ -721,7 +721,7 @@ public final class FrameParser {
       if (this.start + cursor != payloadEnd) {
         throw new Mcv2Exception("Noncanonical payload length");
       }
-      if (walk.twoLevel() && !minimalWidths(pairs, walk.points(), walk.cursorBits(), walk.splitsBits())) {
+      if (walk.isTwoLevel() && !minimalWidths(pairs, walk.points(), walk.cursorBits(), walk.splitsBits())) {
         throw new Mcv2Exception("Walk delta widths are not minimal");
       }
     }
@@ -873,7 +873,7 @@ public final class FrameParser {
 
     /** The (payload cursor, split prefix) pair of a walk checkpoint, as the high and low halves of a long. */
     private long walkEntry(final Walk walk, final int index) throws Mcv2Exception {
-      if (!walk.twoLevel()) {
+      if (!walk.isTwoLevel()) {
         final int at = walk.base() + index * WALK_PAIR_BYTES;
         return pair(u16(this.data, at), u16(this.data, at + Short.BYTES));
       }

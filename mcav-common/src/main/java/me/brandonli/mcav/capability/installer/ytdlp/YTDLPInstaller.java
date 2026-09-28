@@ -126,8 +126,8 @@ public final class YTDLPInstaller extends AbstractInstaller {
    */
   @Override
   protected Path getDefaultPath() {
-    final boolean archive = this.isArchive();
-    if (!archive) {
+    final boolean isArchive = this.isArchive();
+    if (!isArchive) {
       return super.getDefaultPath();
     }
     final Path unpackedFolder = this.getUnpackedFolder();
@@ -149,8 +149,8 @@ public final class YTDLPInstaller extends AbstractInstaller {
    */
   @Override
   protected Path install(final Path downloaded) throws IOException {
-    final boolean archive = this.isArchive();
-    if (!archive) {
+    final boolean isArchive = this.isArchive();
+    if (!isArchive) {
       return downloaded;
     }
     final Path folder = this.getFolder();
@@ -168,8 +168,8 @@ public final class YTDLPInstaller extends AbstractInstaller {
     return this.getDefaultPath();
   }
 
-  private void unpack(final Path archive, final Path destination) throws IOException {
-    extract(archive, destination);
+  private void unpack(final Path isArchive, final Path destination) throws IOException {
+    extract(isArchive, destination);
     final String executableName = this.getArchiveExecutableName();
     final Path executable = destination.resolve(executableName);
     final boolean present = Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS);
@@ -185,9 +185,9 @@ public final class YTDLPInstaller extends AbstractInstaller {
    * for an archive that cannot be read and as a {@link ZipEntryIntegrityException} for an archive that is unsafe, but an
    * installation must fail with an {@link IOException} like every other installation failure.
    */
-  private static void extract(final Path archive, final Path destination) throws IOException {
+  private static void extract(final Path isArchive, final Path destination) throws IOException {
     try {
-      IOUtils.unzip(archive, destination);
+      IOUtils.unzip(isArchive, destination);
     } catch (final UncheckedIOException | ZipEntryIntegrityException exception) {
       final String reason = exception.getMessage();
       throw new IOException("The yt-dlp zip cannot be extracted: " + reason, exception);

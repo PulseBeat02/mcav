@@ -198,11 +198,11 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * Tells the listener that a popup widget, such as the list of a drop-down box, was shown or hidden.
    *
    * @param browser the browser, which is this one
-   * @param show    true if it was shown
+   * @param isShown true if it was shown
    */
   @Override
-  public void onPopupShow(final CefBrowser browser, final boolean show) {
-    this.listener.onPopupShow(show);
+  public void onPopupShow(final CefBrowser browser, final boolean isShown) {
+    this.listener.onPopupShow(isShown);
   }
 
   /**
@@ -220,7 +220,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * Hands a painted frame to the listener. The buffer belongs to CEF and is only valid during the call.
    *
    * @param browser    the browser, which is this one
-   * @param popup      true if the buffer holds a popup widget rather than the page
+   * @param isPopup    true if the buffer holds a popup widget rather than the page
    * @param dirtyRects the parts of the buffer that changed
    * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
    * @param width      the width of the buffer in pixels
@@ -229,13 +229,13 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   @Override
   public void onPaint(
     final CefBrowser browser,
-    final boolean popup,
+    final boolean isPopup,
     final Rectangle[] dirtyRects,
     final ByteBuffer buffer,
     final int width,
     final int height
   ) {
-    this.listener.onPaint(popup, dirtyRects, buffer, width, height);
+    this.listener.onPaint(isPopup, dirtyRects, buffer, width, height);
   }
 
   /**
@@ -315,20 +315,20 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     /**
      * Receives a painted frame. The buffer belongs to CEF and is only valid during the call.
      *
-     * @param popup      true if the buffer holds a popup widget rather than the page
+     * @param isPopup    true if the buffer holds a popup widget rather than the page
      * @param dirtyRects the parts of the buffer that changed
      * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
      * @param width      the width of the buffer in pixels
      * @param height     the height of the buffer in pixels
      */
-    void onPaint(boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height);
+    void onPaint(boolean isPopup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height);
 
     /**
      * Receives that a popup widget was shown or hidden.
      *
-     * @param show true if it was shown
+     * @param isShown true if it was shown
      */
-    void onPopupShow(boolean show);
+    void onPopupShow(boolean isShown);
 
     /**
      * Receives where a popup widget is drawn.

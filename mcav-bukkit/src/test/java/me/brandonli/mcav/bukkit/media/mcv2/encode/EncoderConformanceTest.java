@@ -44,13 +44,13 @@ final class EncoderConformanceTest {
 
   @ParameterizedTest(name = "{0} with {1} threads, verify {2}")
   @CsvSource({ "crop-ship.mcs, 1, true", "crop-ship.mcs, 3, false", "crop-low.mcs, 2, true", "crop-low.mcs, 4, false" })
-  void reproducesTheReferenceEncoder(final String stream, final int threads, final boolean verify) {
+  void reproducesTheReferenceEncoder(final String stream, final int threads, final boolean shouldVerify) {
     final EncoderSettings settings = stream.equals("crop-ship.mcs") ? EncoderSettings.SHIP : EncoderSettings.LOW_BANDWIDTH;
     final List<byte[]> expected = Mcv2Fixtures.frames(Mcv2Fixtures.read("encoder/" + stream));
     final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
     final ForkJoinPool pool = new ForkJoinPool(threads);
     try {
-      final Mcv2Encoder encoder = new Mcv2Encoder(settings, pool, threads, verify);
+      final Mcv2Encoder encoder = new Mcv2Encoder(settings, pool, threads, shouldVerify);
       final int frameBytes = WIDTH * HEIGHT * 3;
       assertEquals(expected.size() * frameBytes, source.length);
       for (int frameIndex = 0; frameIndex < expected.size(); frameIndex++) {

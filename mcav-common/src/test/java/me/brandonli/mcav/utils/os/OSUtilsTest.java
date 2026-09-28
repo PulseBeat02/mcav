@@ -92,20 +92,20 @@ final class OSUtilsTest {
     final OS os = OSUtils.getOS();
     final Arch arch = OSUtils.getArch();
     final Bits bits = OSUtils.getBits();
-    final boolean windows = isWindows();
-    final boolean mac = isMac();
-    final boolean linux = isLinux();
+    final boolean isWindows = isWindows();
+    final boolean isMac = isMac();
+    final boolean isLinux = isLinux();
     final boolean freeBsd = isFreeBSD();
-    final boolean intel = isIntel();
-    final boolean arm = isARM();
-    final boolean sixtyFourBit = is64Bit();
-    assertEquals(windows, os == OS.WINDOWS);
-    assertEquals(mac, os == OS.MAC);
-    assertEquals(linux, os == OS.LINUX);
+    final boolean isIntel = isIntel();
+    final boolean isArm = isARM();
+    final boolean isSixtyFourBit = is64Bit();
+    assertEquals(isWindows, os == OS.WINDOWS);
+    assertEquals(isMac, os == OS.MAC);
+    assertEquals(isLinux, os == OS.LINUX);
     assertEquals(freeBsd, os == OS.FREEBSD);
-    assertEquals(intel, arch == Arch.X86);
-    assertEquals(arm, arch == Arch.ARM);
-    assertEquals(sixtyFourBit, bits == Bits.BITS_64);
+    assertEquals(isIntel, arch == Arch.X86);
+    assertEquals(isArm, arch == Arch.ARM);
+    assertEquals(isSixtyFourBit, bits == Bits.BITS_64);
   }
 
   @Test

@@ -116,10 +116,10 @@ public final class LocalHttpServer implements AutoCloseable {
     final Response response = this.nextResponse(path);
     final byte[] body = response.body;
     final String method = exchange.getRequestMethod();
-    final boolean head = method.equals("HEAD");
-    final long responseLength = head || body.length == 0 ? -1 : body.length;
+    final boolean isHeadRequest = method.equals("HEAD");
+    final long responseLength = isHeadRequest || body.length == 0 ? -1 : body.length;
     exchange.sendResponseHeaders(response.status, responseLength);
-    if (!head && body.length > 0) {
+    if (!isHeadRequest && body.length > 0) {
       try (final OutputStream output = exchange.getResponseBody()) {
         output.write(body);
       }

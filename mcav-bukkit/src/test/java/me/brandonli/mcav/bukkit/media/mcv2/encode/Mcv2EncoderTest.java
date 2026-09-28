@@ -217,8 +217,10 @@ final class Mcv2EncoderTest {
   void followsAPanWithTheGlobalVector() throws Mcv2Exception {
     final byte[] picture = texture(128, 64, 3);
     final byte[] next = panned(picture, 128, 64, 8);
-    for (final boolean compare : new boolean[] { true, false }) {
-      final Mcv2Encoder encoder = encoder(new EncoderSettings(65.255994022, 60, 24, true, compare, 45.0, ReferencePolicy.PREVIOUS_FRAME));
+    for (final boolean comparesGlobal : new boolean[] { true, false }) {
+      final Mcv2Encoder encoder = encoder(
+        new EncoderSettings(65.255994022, 60, 24, true, comparesGlobal, 45.0, ReferencePolicy.PREVIOUS_FRAME)
+      );
       final Client client = new Client();
       client.decode(encoder.encode(picture, 128, 64, 0));
       final byte[] frame = encoder.encode(next, 128, 64, 1);
@@ -227,7 +229,7 @@ final class Mcv2EncoderTest {
       assertEquals(16, stats.globalX());
       assertEquals(0, stats.globalY());
       // with the zero vector compared there are four trials and the pan's are the last two
-      assertEquals(compare ? 2 : 0, stats.trial() & 2);
+      assertEquals(comparesGlobal ? 2 : 0, stats.trial() & 2);
       assertEquals(16, FrameParser.parse(frame).getGlobalX());
       assertArrayEquals(client.decode(frame), encoder.getReference());
     }

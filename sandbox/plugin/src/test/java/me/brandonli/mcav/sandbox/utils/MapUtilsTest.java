@@ -313,10 +313,10 @@ final class MapUtilsTest {
       final MapMeta meta = this.metas.get(index);
       final MapView shown = this.existingMap(10 + index);
       verify(meta).setMapView(shown);
-      final boolean map = FakeWorld.hasTag(frame, Keys.MAP_KEY);
+      final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
       final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
       final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
-      assertTrue(map);
+      assertTrue(hasMapTag);
       assertEquals(index == 0, first);
       assertEquals(index == 3, last);
     }
@@ -402,10 +402,10 @@ final class MapUtilsTest {
     final int frameCount = frames.size();
     assertEquals(1, frameCount);
     final ItemFrame frame = frames.getFirst();
-    final boolean map = FakeWorld.hasTag(frame, Keys.MAP_KEY);
+    final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
     final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
     final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
-    assertTrue(map);
+    assertTrue(hasMapTag);
     assertTrue(first);
     assertTrue(last);
   }

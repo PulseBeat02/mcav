@@ -101,7 +101,7 @@ final class CompressedMapResultTest {
     this.server.close();
   }
 
-  private MapConfiguration createConfiguration(final int columns, final int rows, final boolean resize) {
+  private MapConfiguration createConfiguration(final int columns, final int rows, final boolean shouldResize) {
     final MapConfiguration.Builder<?> builder = MapConfiguration.builder();
     builder.viewers(this.viewers);
     builder.map(3);
@@ -109,12 +109,12 @@ final class CompressedMapResultTest {
     builder.mapBlockHeight(rows);
     builder.mapWidthResolution(64);
     builder.mapHeightResolution(64);
-    configureResize(builder, resize);
+    configureResize(builder, shouldResize);
     return builder.build();
   }
 
-  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean resize) {
-    builder.resize(resize);
+  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean shouldResize) {
+    builder.resize(shouldResize);
   }
 
   private List<ClientboundMapItemDataPacket> packetsOf(final UUID viewer, final int index) {
@@ -587,7 +587,7 @@ final class CompressedMapResultTest {
     final ForkJoinPool secondPool = pools.get(1);
     final Thread worker = workers.getFirst();
     final String workerName = worker.getName();
-    final boolean daemon = worker.isDaemon();
+    final boolean isDaemon = worker.isDaemon();
     final boolean namedWorker = workerName.startsWith("mcav-map-dither-");
     final boolean shutDownBeforeRelease = firstPool.isShutdown();
     result.release();
@@ -599,7 +599,7 @@ final class CompressedMapResultTest {
     final int parallelism = firstPool.getParallelism();
     assertTrue(parallelism <= Math.max(1, processors / 2), "map dithering leaves at least half the CPUs for the server");
     assertTrue(namedWorker, workerName);
-    assertTrue(daemon, "dither threads never keep the server alive");
+    assertTrue(isDaemon, "dither threads never keep the server alive");
     assertFalse(shutDownBeforeRelease);
     assertTrue(shutDownAfterRelease);
     verify(parallel, never()).ditherIntoBytes(any(ImageBuffer.class));

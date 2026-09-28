@@ -58,11 +58,11 @@ class CefEngineTest {
 
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
 
-  private static HelperConfiguration configuration(final boolean jit) {
-    return configuration(jit, false);
+  private static HelperConfiguration configuration(final boolean allowsJit) {
+    return configuration(allowsJit, false);
   }
 
-  private static HelperConfiguration configuration(final boolean jit, final boolean autoplay) {
+  private static HelperConfiguration configuration(final boolean allowsJit, final boolean allowsAutoplay) {
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
       ROOT.resolve("s"),
@@ -73,9 +73,9 @@ class CefEngineTest {
       480,
       1,
       30,
-      jit,
+      allowsJit,
       false,
-      autoplay
+      allowsAutoplay
     );
   }
 
@@ -89,9 +89,9 @@ class CefEngineTest {
     );
     // a page plays sound once a player clicked it, as in a desktop browser; CEF's own default lets it play at once
     assertTrue(switches.contains("--autoplay-policy=document-user-activation-required"));
-    final List<String> autoplay = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
-    assertTrue(autoplay.contains("--autoplay-policy=no-user-gesture-required"));
-    assertFalse(autoplay.contains("--autoplay-policy=document-user-activation-required"));
+    final List<String> allowsAutoplay = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
+    assertTrue(allowsAutoplay.contains("--autoplay-policy=no-user-gesture-required"));
+    assertFalse(allowsAutoplay.contains("--autoplay-policy=document-user-activation-required"));
     assertTrue(switches.contains("--js-flags=--jitless"));
     assertFalse(switches.contains("--ozone-platform=headless"));
     assertFalse(switches.contains("--use-mock-keychain"));

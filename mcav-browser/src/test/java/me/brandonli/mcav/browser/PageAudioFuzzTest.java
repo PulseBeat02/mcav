@@ -83,8 +83,8 @@ final class PageAudioFuzzTest {
   }
 
   private static boolean isBase64(final int character) {
-    final boolean letter = (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
-    final boolean digit = character >= '0' && character <= '9';
-    return letter || digit || character == '+' || character == '/' || character == '=';
+    final boolean isLetter = (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
+    final boolean isDigit = character >= '0' && character <= '9';
+    return isLetter || isDigit || character == '+' || character == '/' || character == '=';
   }
 }

@@ -204,12 +204,12 @@ final class RandomAndNearestDitherTest {
   @Test
   void xoroshiroReadsItsBooleanFromTheSignOfItsOutput() {
     final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(42L);
-    final boolean first = provider.nextBoolean();
-    final boolean second = provider.nextBoolean();
-    final boolean third = provider.nextBoolean();
-    assertTrue(first, "the first output of seed 42 is negative, so its highest bit is set");
-    assertFalse(second, "the second is positive");
-    assertTrue(third);
+    final boolean firstDraw = provider.nextBoolean();
+    final boolean secondDraw = provider.nextBoolean();
+    final boolean thirdDraw = provider.nextBoolean();
+    assertTrue(firstDraw, "the first output of seed 42 is negative, so its highest bit is set");
+    assertFalse(secondDraw, "the second is positive");
+    assertTrue(thirdDraw);
   }
 
   @Test
@@ -281,11 +281,11 @@ final class RandomAndNearestDitherTest {
       final int sameValue = second.nextInt(-2, 3);
       final double fraction = first.nextDouble(1.0, 2.0);
       final double sameFraction = second.nextDouble(1.0, 2.0);
-      final boolean flag = first.nextBoolean();
+      final boolean drawn = first.nextBoolean();
       final boolean sameFlag = second.nextBoolean();
       assertEquals(value, sameValue);
       assertEquals(fraction, sameFraction);
-      assertEquals(flag, sameFlag);
+      assertEquals(drawn, sameFlag);
     }
 
     final int firstNext = first.nextInt(0, Integer.MAX_VALUE);
@@ -303,13 +303,13 @@ final class RandomAndNearestDitherTest {
     for (int draw = 0; draw < 1_000; draw++) {
       final int value = provider.nextInt(-2, 3);
       final double fraction = provider.nextDouble(1.0, 2.0);
-      final boolean flag = provider.nextBoolean();
+      final boolean drawn = provider.nextBoolean();
       assertTrue(value >= -2 && value < 3);
       assertTrue(fraction >= 1.0 && fraction < 2.0);
       sawMinimum |= value == -2;
       sawMaximum |= value == 2;
-      sawTrue |= flag;
-      sawFalse |= !flag;
+      sawTrue |= drawn;
+      sawFalse |= !drawn;
     }
     assertTrue(sawMinimum && sawMaximum && sawTrue && sawFalse);
   }

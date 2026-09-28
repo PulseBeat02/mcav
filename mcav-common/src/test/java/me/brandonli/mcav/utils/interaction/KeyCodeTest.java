@@ -74,9 +74,9 @@ final class KeyCodeTest {
   void usesThePrivateUseAreaForEveryKey() {
     for (final KeyCode key : KeyCode.values()) {
       final char character = key.getKeyChar();
-      final boolean privateUse = character >= PRIVATE_USE_START && character <= PRIVATE_USE_END;
+      final boolean isPrivateUse = character >= PRIVATE_USE_START && character <= PRIVATE_USE_END;
       final String keyName = key.name();
-      assertTrue(privateUse, keyName);
+      assertTrue(isPrivateUse, keyName);
     }
   }
 

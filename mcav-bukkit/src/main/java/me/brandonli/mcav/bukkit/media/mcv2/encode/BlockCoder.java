@@ -575,13 +575,13 @@ final class BlockCoder {
    * @return the quantizer, 0 to 4
    */
   static int neededQuantizer(final int kind, final float[] fit, final int values) {
-    final boolean nibbles = kind == CompactRecord.GRID4_N4_YC || kind == CompactRecord.GRID4_N4_Y;
+    final boolean storesNibbles = kind == CompactRecord.GRID4_N4_YC || kind == CompactRecord.GRID4_N4_Y;
     for (int quantizer = 0; quantizer < LiveSearch.COARSEST_QUANTIZER; quantizer++) {
       final int step = 1 << quantizer;
       boolean fits = true;
       for (int valueIndex = 0; valueIndex < values && fits; valueIndex++) {
-        final int low = nibbles && valueIndex < GRID4_NODES ? NIBBLE_MIN : Byte.MIN_VALUE;
-        final int high = nibbles && valueIndex < GRID4_NODES ? NIBBLE_MAX : Byte.MAX_VALUE;
+        final int low = storesNibbles && valueIndex < GRID4_NODES ? NIBBLE_MIN : Byte.MIN_VALUE;
+        final int high = storesNibbles && valueIndex < GRID4_NODES ? NIBBLE_MAX : Byte.MAX_VALUE;
         final float scaled = (float) Math.floor(fit[valueIndex] / step + 0.5f);
         fits = scaled >= low && scaled <= high;
       }
@@ -1159,8 +1159,8 @@ final class BlockCoder {
     if (deltaX == 0 && deltaY == 0) {
       return CompactRecord.FORM_GLOBAL;
     }
-    final boolean nibbles = deltaX >= NIBBLE_MIN && deltaX <= NIBBLE_MAX && deltaY >= NIBBLE_MIN && deltaY <= NIBBLE_MAX;
-    return nibbles ? CompactRecord.FORM_NIBBLES : CompactRecord.FORM_BYTES;
+    final boolean fitsNibbles = deltaX >= NIBBLE_MIN && deltaX <= NIBBLE_MAX && deltaY >= NIBBLE_MIN && deltaY <= NIBBLE_MAX;
+    return fitsNibbles ? CompactRecord.FORM_NIBBLES : CompactRecord.FORM_BYTES;
   }
 
   /** Fits a compact class to {@link #target} into {@link #fit}; returns how many values it holds. */

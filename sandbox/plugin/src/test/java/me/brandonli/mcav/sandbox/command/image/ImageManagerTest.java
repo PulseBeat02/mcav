@@ -122,8 +122,8 @@ final class ImageManagerTest {
     this.manager.shutdown();
     verify(this.display).release();
     final ExecutorService service = this.manager.getService();
-    final boolean shutdown = service.isShutdown();
-    assertTrue(shutdown);
+    final boolean isShutdown = service.isShutdown();
+    assertTrue(isShutdown);
   }
 
   @Test

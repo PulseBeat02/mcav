@@ -78,11 +78,11 @@ final class PlatformDiscoveryStrategiesTest {
   void exactlyTheStrategyOfTheRunningSystemIsSupported() {
     final LinuxNativeDiscoveryStrategy linux = new LinuxNativeDiscoveryStrategy();
     final OsxNativeDiscoveryStrategy osx = new OsxNativeDiscoveryStrategy();
-    final WindowsNativeDiscoveryStrategy windows = new WindowsNativeDiscoveryStrategy();
+    final WindowsNativeDiscoveryStrategy isWindows = new WindowsNativeDiscoveryStrategy();
     final OS operatingSystem = OSUtils.getOS();
     final boolean linuxSupported = linux.supported();
     final boolean osxSupported = osx.supported();
-    final boolean windowsSupported = windows.supported();
+    final boolean windowsSupported = isWindows.supported();
     assertEquals(operatingSystem == OS.LINUX || operatingSystem == OS.FREEBSD || operatingSystem == OS.OTHER, linuxSupported);
     assertEquals(operatingSystem == OS.MAC, osxSupported);
     assertEquals(operatingSystem == OS.WINDOWS, windowsSupported);
@@ -119,9 +119,9 @@ final class PlatformDiscoveryStrategiesTest {
     final EnvironmentSetter setter = recordingSetter(published);
     final LinuxNativeDiscoveryStrategy strategy = new LinuxNativeDiscoveryStrategy(providers, setter);
     final String rawDirectory = directory.toString();
-    final boolean result = strategy.onSetPluginPath(rawDirectory);
+    final boolean pathSet = strategy.onSetPluginPath(rawDirectory);
     final List<String> expected = List.of("VLC_PLUGIN_PATH=" + rawDirectory + "/vlc/plugins");
-    assertTrue(result);
+    assertTrue(pathSet);
     assertEquals(expected, published);
   }
 
@@ -133,10 +133,10 @@ final class PlatformDiscoveryStrategiesTest {
     final OsxNativeDiscoveryStrategy strategy = new OsxNativeDiscoveryStrategy(providers, IGNORING_SETTER, preloaded::add);
     final String found = strategy.discover();
     final String rawDirectory = directory.toString();
-    final boolean addToSearchPath = strategy.onFound(rawDirectory);
+    final boolean addsToSearchPath = strategy.onFound(rawDirectory);
     final List<String> expectedPreloads = List.of(rawDirectory);
     assertEquals(rawDirectory, found);
-    assertTrue(addToSearchPath);
+    assertTrue(addsToSearchPath);
     assertEquals(expectedPreloads, preloaded);
   }
 
@@ -152,9 +152,9 @@ final class PlatformDiscoveryStrategiesTest {
     final EnvironmentSetter setter = recordingSetter(published);
     final OsxNativeDiscoveryStrategy strategy = new OsxNativeDiscoveryStrategy(providers, setter, _ -> {});
     final String rawDirectory = directory.toString();
-    final boolean result = strategy.onSetPluginPath(rawDirectory);
+    final boolean pathSet = strategy.onSetPluginPath(rawDirectory);
     final List<String> expected = List.of("VLC_PLUGIN_PATH=" + rawDirectory + "/../plugins");
-    assertTrue(result);
+    assertTrue(pathSet);
     assertEquals(expected, published);
   }
 
@@ -166,8 +166,8 @@ final class PlatformDiscoveryStrategiesTest {
     final OsxNativeDiscoveryStrategy strategy = new OsxNativeDiscoveryStrategy(providers, IGNORING_SETTER, _ -> {
       throw wrongArchitecture;
     });
-    final boolean addToSearchPath = strategy.onFound("/Applications/VLC.app/Contents/MacOS/lib");
-    assertFalse(addToSearchPath);
+    final boolean addsToSearchPath = strategy.onFound("/Applications/VLC.app/Contents/MacOS/lib");
+    assertFalse(addsToSearchPath);
   }
 
   @Test
@@ -200,9 +200,9 @@ final class PlatformDiscoveryStrategiesTest {
     final EnvironmentSetter setter = recordingSetter(published);
     final WindowsNativeDiscoveryStrategy strategy = new WindowsNativeDiscoveryStrategy(providers, setter);
     final String rawDirectory = directory.toString();
-    final boolean result = strategy.onSetPluginPath(rawDirectory);
+    final boolean pathSet = strategy.onSetPluginPath(rawDirectory);
     final List<String> expected = List.of("VLC_PLUGIN_PATH=" + rawDirectory + "\\plugins");
-    assertTrue(result);
+    assertTrue(pathSet);
     assertEquals(expected, published);
   }
 
@@ -292,13 +292,15 @@ final class PlatformDiscoveryStrategiesTest {
   @Test
   void setsVariablesThroughTheCLibraryOfThisProcess() {
     final OS operatingSystem = OSUtils.getOS();
-    final boolean windows = operatingSystem == OS.WINDOWS;
-    final EnvironmentSetter setter = windows ? WindowsNativeDiscoveryStrategy.nativeSetter() : LinuxNativeDiscoveryStrategy.nativeSetter();
-    final String libraryName = windows ? "msvcrt" : "c";
+    final boolean isWindows = operatingSystem == OS.WINDOWS;
+    final EnvironmentSetter setter = isWindows
+      ? WindowsNativeDiscoveryStrategy.nativeSetter()
+      : LinuxNativeDiscoveryStrategy.nativeSetter();
+    final String libraryName = isWindows ? "msvcrt" : "c";
     final EnvironmentReader reader = Native.load(libraryName, EnvironmentReader.class);
     final boolean set = setter.set(TEST_VARIABLE, "value");
     final String value = reader.getenv(TEST_VARIABLE);
-    unsetTestVariable(windows);
+    unsetTestVariable(isWindows);
     final String afterUnset = reader.getenv(TEST_VARIABLE);
     assertTrue(set);
     assertEquals("value", value, "native code such as libvlc sees the variable");
@@ -315,12 +317,12 @@ final class PlatformDiscoveryStrategiesTest {
       return libc;
     });
     final int loadsBeforeUse = loads.get();
-    final boolean first = variables.setPosixVariable("NAME", "value");
-    final boolean second = variables.setPosixVariable("NAME", "value");
+    final boolean firstSet = variables.setPosixVariable("NAME", "value");
+    final boolean secondSet = variables.setPosixVariable("NAME", "value");
     final int loadsAfterUse = loads.get();
     assertEquals(0, loadsBeforeUse, "creating the setter does not load the C library");
-    assertTrue(first);
-    assertTrue(second);
+    assertTrue(firstSet);
+    assertTrue(secondSet);
     assertEquals(1, loadsAfterUse, "a loaded C library is remembered");
   }
 
@@ -330,10 +332,10 @@ final class PlatformDiscoveryStrategiesTest {
     final EnvironmentVariables variables = new EnvironmentVariables(() -> {
       throw missingJna;
     });
-    final boolean posix = variables.setPosixVariable("NAME", "value");
-    final boolean windows = variables.setWindowsVariable("NAME", "value");
-    assertFalse(posix);
-    assertFalse(windows);
+    final boolean posixSet = variables.setPosixVariable("NAME", "value");
+    final boolean windowsSet = variables.setWindowsVariable("NAME", "value");
+    assertFalse(posixSet);
+    assertFalse(windowsSet);
   }
 
   @Test
@@ -368,9 +370,9 @@ final class PlatformDiscoveryStrategiesTest {
     String getenv(String name);
   }
 
-  private static void unsetTestVariable(final boolean windows) {
+  private static void unsetTestVariable(final boolean isWindows) {
     final LibC libc = LibC.INSTANCE;
-    if (windows) {
+    if (isWindows) {
       libc._putenv(TEST_VARIABLE + "=");
     } else {
       libc.unsetenv(TEST_VARIABLE);

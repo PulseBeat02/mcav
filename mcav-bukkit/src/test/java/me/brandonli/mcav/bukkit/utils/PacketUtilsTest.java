@@ -141,13 +141,13 @@ final class PacketUtilsTest {
     when(quitEvent.getPlayer()).thenReturn(late);
 
     joinExecutor.execute(listener, joinEvent);
-    final boolean afterJoin = PacketUtils.isConnected(LATE);
+    final boolean connectedAfterJoin = PacketUtils.isConnected(LATE);
     quitExecutor.execute(listener, quitEvent);
-    final boolean afterQuit = PacketUtils.isConnected(LATE);
+    final boolean connectedAfterQuit = PacketUtils.isConnected(LATE);
 
     assertFalse(beforeJoin);
-    assertTrue(afterJoin);
-    assertFalse(afterQuit);
+    assertTrue(connectedAfterJoin);
+    assertFalse(connectedAfterQuit);
   }
 
   @Test

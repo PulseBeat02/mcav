@@ -124,10 +124,10 @@ final class MatVideoFilterTest {
     };
     final WrittenPixels written = new WrittenPixels();
     final ImageBuffer image = foreignImage(1, 1, 0, written);
-    final boolean result = recorder.applyFilter(image);
+    final boolean changed = recorder.applyFilter(image);
     final OriginalVideoMetadata metadata = received.get();
     final boolean noOp = VideoFilter.NO_OP.applyFilter(image);
-    assertTrue(result);
+    assertTrue(changed);
     assertFalse(noOp, "the no-op filter leaves every frame untouched");
     assertSame(OriginalVideoMetadata.EMPTY, metadata);
   }

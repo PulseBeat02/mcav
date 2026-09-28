@@ -105,15 +105,15 @@ final class ResourcePackHttpHandlerFuzzTest {
   }
 
   private static void assertBehaviour(final byte[] stream, final byte[] forwarded, final byte[] answered) {
-    final boolean get = startsWith(stream, GET_PREFIX);
-    final boolean head = startsWith(stream, HEAD_PREFIX);
+    final boolean isGetRequest = startsWith(stream, GET_PREFIX);
+    final boolean isHeadRequest = startsWith(stream, HEAD_PREFIX);
     final boolean waiting = isProperPrefix(stream, GET_PREFIX) || isProperPrefix(stream, HEAD_PREFIX);
-    if (get || head) {
+    if (isGetRequest || isHeadRequest) {
       assertEquals(0, forwarded.length, "nothing of a pack request reaches Minecraft");
       final String response = new String(answered, StandardCharsets.US_ASCII);
       assertTrue(response.startsWith("HTTP/1.1 200 OK\r\n"), () -> "a pack request is answered: " + response);
       final byte[] tail = Arrays.copyOfRange(answered, Math.max(0, answered.length - PACK.length), answered.length);
-      if (get) {
+      if (isGetRequest) {
         assertArrayEquals(PACK, tail, "a GET request receives the pack");
       }
       return;

@@ -97,7 +97,7 @@ final class DisplayableImageTest {
     return MapPackets.pattern(image);
   }
 
-  private static MapConfiguration createMapConfiguration(final boolean resize) {
+  private static MapConfiguration createMapConfiguration(final boolean shouldResize) {
     final MapConfiguration.Builder<?> builder = MapConfiguration.builder();
     builder.viewers(List.of(VIEWER));
     builder.map(2);
@@ -105,12 +105,12 @@ final class DisplayableImageTest {
     builder.mapBlockHeight(1);
     builder.mapWidthResolution(64);
     builder.mapHeightResolution(64);
-    configureResize(builder, resize);
+    configureResize(builder, shouldResize);
     return builder.build();
   }
 
-  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean resize) {
-    builder.resize(resize);
+  private static void configureResize(final MapConfiguration.Builder<?> builder, final boolean shouldResize) {
+    builder.resize(shouldResize);
   }
 
   /**

@@ -132,13 +132,13 @@ final class MotionLambda {
   /**
    * Measures a frame's motion against the frame before it and adds it to the average.
    *
-   * @param rgb     the frame, row-major RGB
-   * @param width   the width
-   * @param height  the height
-   * @param restart whether the frame starts a new scene, so the motion before it no longer applies
-   * @param workers the workers, a band of rows each
+   * @param rgb        the frame, row-major RGB
+   * @param width      the width
+   * @param height     the height
+   * @param startsOver whether the frame starts a new scene, so the motion before it no longer applies
+   * @param workers    the workers, a band of rows each
    */
-  void observe(final byte[] rgb, final int width, final int height, final boolean restart, final Workers workers) {
+  void observe(final byte[] rgb, final int width, final int height, final boolean startsOver, final Workers workers) {
     final int columns = (width + SAMPLING - 1) / SAMPLING;
     final int rows = (height + SAMPLING - 1) / SAMPLING;
     if (this.across.length != columns * rows) {
@@ -146,7 +146,7 @@ final class MotionLambda {
       this.spare = new int[columns * rows];
     }
     final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
-    if (restart || columns != this.columns || rows != this.rows) {
+    if (startsOver || columns != this.columns || rows != this.rows) {
       this.motion = Double.NaN;
     } else {
       this.add(temporalInformation(current, this.previous, workers));

@@ -170,7 +170,7 @@ public final class FrameWriter {
   }
 
   /** The frame's identity and global motion. */
-  private record Frame(int width, int height, long frameId, long referenceId, boolean keyframe, int motionX, int motionY) {}
+  private record Frame(int width, int height, long frameId, long referenceId, boolean isKeyframe, int motionX, int motionY) {}
 
   private FrameWriter() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -183,7 +183,7 @@ public final class FrameWriter {
    * @param height      the height in pixels
    * @param frameId     the unsigned 32-bit frame id
    * @param referenceId the reference id; the frame id for a keyframe
-   * @param keyframe    whether the frame is independent
+   * @param isKeyframe  whether the frame is independent
    * @param motionX     the global horizontal motion in half pixels, zero on a keyframe
    * @param motionY     the global vertical motion in half pixels, zero on a keyframe
    * @param roots       one root per 32-pixel block, in raster order
@@ -196,7 +196,7 @@ public final class FrameWriter {
     final int height,
     final long frameId,
     final long referenceId,
-    final boolean keyframe,
+    final boolean isKeyframe,
     final int motionX,
     final int motionY,
     final List<TreeNode> roots,
@@ -210,7 +210,7 @@ public final class FrameWriter {
     for (final TreeNode root : roots) {
       validate(root, ROOT_SIZE);
     }
-    return pack(new Frame(width, height, frameId, referenceId, keyframe, motionX, motionY), roots, options);
+    return pack(new Frame(width, height, frameId, referenceId, isKeyframe, motionX, motionY), roots, options);
   }
 
   /**
@@ -239,7 +239,7 @@ public final class FrameWriter {
       countSolids(root, colors);
     }
     byte @Nullable [] defaultColor = null;
-    if (frame.keyframe() && !colors.isEmpty()) {
+    if (frame.isKeyframe() && !colors.isEmpty()) {
       int best = -1;
       for (final Map.Entry<Key, Integer> entry : colors.entrySet()) {
         if (entry.getValue() > best) {
@@ -567,7 +567,7 @@ public final class FrameWriter {
           payload.writeBytes(bytes);
         }
       }
-      int flags = (frame.keyframe() ? KEYFRAME : 0) | SPARSE | DERIVED_DIRECTORY | DERIVED_OFFSETS;
+      int flags = (frame.isKeyframe() ? KEYFRAME : 0) | SPARSE | DERIVED_DIRECTORY | DERIVED_OFFSETS;
       flags |= defaultColor != null ? DEFAULT_SOLID : 0;
       flags |= packed ? PACKED_SYMBOLS : 0;
       flags |= twoLevel != null ? TWO_LEVEL_WALK : 0;
@@ -805,7 +805,7 @@ public final class FrameWriter {
         );
         return FrameWriter.pack(frame, restored, wide);
       }
-      int flags = (frame.keyframe() ? KEYFRAME : 0) | (sparse ? SPARSE : 0);
+      int flags = (frame.isKeyframe() ? KEYFRAME : 0) | (sparse ? SPARSE : 0);
       flags |= defaultColor != null ? DEFAULT_SOLID : 0;
       flags |= this.options.shortIndex() ? SHORT_INDEX : 0;
       flags |= sparse && this.options.derivedDirectory() ? DERIVED_DIRECTORY : 0;

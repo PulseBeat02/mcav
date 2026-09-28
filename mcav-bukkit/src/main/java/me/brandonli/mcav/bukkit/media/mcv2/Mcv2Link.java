@@ -76,12 +76,12 @@ public final class Mcv2Link {
    * Checks whether the viewer's client could decode a frame: a keyframe, or a P frame predicting from the last frame
    * or the last keyframe the viewer was sent.
    *
-   * @param keyframe    whether the frame is a keyframe
+   * @param isKeyframe  whether the frame is a keyframe
    * @param referenceId the id of the frame a P frame predicts from
    * @return true if the viewer holds what the frame needs
    */
-  public synchronized boolean canDecode(final boolean keyframe, final long referenceId) {
-    return keyframe || (referenceId != NONE && (referenceId == this.lastFrame || referenceId == this.lastKeyframe));
+  public synchronized boolean canDecode(final boolean isKeyframe, final long referenceId) {
+    return isKeyframe || (referenceId != NONE && (referenceId == this.lastFrame || referenceId == this.lastKeyframe));
   }
 
   /**
@@ -90,23 +90,23 @@ public final class Mcv2Link {
    *
    * @param frameId     the frame's id
    * @param referenceId the id of the frame a P frame predicts from
-   * @param keyframe    whether the frame is a keyframe
+   * @param isKeyframe  whether the frame is a keyframe
    * @param bytes       the video bytes the frame puts on the viewer's connection
    * @return true if the frame is to be sent to the viewer
    */
-  public synchronized boolean offer(final long frameId, final long referenceId, final boolean keyframe, final long bytes) {
+  public synchronized boolean offer(final long frameId, final long referenceId, final boolean isKeyframe, final long bytes) {
     Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Format.MAX_U32, "Frame id must be an unsigned 32-bit value");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative");
-    if (this.backlog.get() > (keyframe ? allowance(this.limit) : this.limit)) {
+    if (this.backlog.get() > (isKeyframe ? allowance(this.limit) : this.limit)) {
       this.behind++;
       return false;
     }
-    if (!this.canDecode(keyframe, referenceId)) {
+    if (!this.canDecode(isKeyframe, referenceId)) {
       this.undecodable++;
       return false;
     }
     this.lastFrame = frameId;
-    if (keyframe) {
+    if (isKeyframe) {
       this.lastKeyframe = frameId;
     }
     this.backlog.addAndGet(bytes);

@@ -88,9 +88,9 @@ final class YTDLPInstallerTest {
       final String hash = download.getHash();
       assertNotNull(hash, url);
       final Matcher hashMatcher = SHA_256.matcher(hash);
-      final boolean sha256 = hashMatcher.matches();
+      final boolean isSha256 = hashMatcher.matches();
       assertTrue(pinned, url);
-      assertTrue(sha256, url);
+      assertTrue(isSha256, url);
     }
   }
 
@@ -182,9 +182,9 @@ final class YTDLPInstallerTest {
   @Test
   void unpacksAZipAndMarksItsExecutable() throws IOException {
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER, "_internal/library.so", LIBRARY);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
       final Path installed = installer.download(true);
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
       final Path expected = unpacked.resolve(EXECUTABLE);
@@ -220,9 +220,9 @@ final class YTDLPInstallerTest {
   @Test
   void reusesAnUnpackedZipWithoutDownloadingItAgain() throws IOException {
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller first = this.serveZip(server, ZIP_PATH, archive);
+      final YTDLPInstaller first = this.serveZip(server, ZIP_PATH, isArchive);
       final Path installed = first.download(true);
       final URI uri = server.uri(ZIP_PATH);
       final String url = uri.toString();
@@ -245,9 +245,9 @@ final class YTDLPInstallerTest {
     Files.writeString(stale, "stale");
     Files.writeString(leftover, "leftover");
     final Map<String, byte[]> entries = Map.of(EXECUTABLE, LAUNCHER);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
       final Path installed = installer.download(true);
       final boolean staleLeft = Files.exists(stale);
       final Path relocatedLeftover = unpacked.resolve("leftover.txt");
@@ -263,9 +263,9 @@ final class YTDLPInstallerTest {
   @Test
   void rejectsAZipWithoutTheExecutableAtItsTopLevel() throws IOException {
     final Map<String, byte[]> entries = Map.of("_internal/yt-dlp_test", LAUNCHER);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
       final IOException exception = assertThrows(IOException.class, () -> installer.download(true));
       final String message = exception.getMessage();
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
@@ -295,9 +295,9 @@ final class YTDLPInstallerTest {
   @Test
   void rejectsAZipWhoseEntriesEscapeTheFolder() throws IOException {
     final Map<String, byte[]> entries = Map.of("../escaped", LAUNCHER);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, archive);
+      final YTDLPInstaller installer = this.serveZip(server, ZIP_PATH, isArchive);
       final IOException exception = assertThrows(IOException.class, () -> installer.download(true));
       final Throwable cause = exception.getCause();
       final Path escaped = this.folder.resolve("escaped");
@@ -310,9 +310,9 @@ final class YTDLPInstallerTest {
   @Test
   void namesTheExecutableAfterTheProgramWhenTheZipHasNoName() throws IOException {
     final Map<String, byte[]> entries = Map.of("yt-dlp", LAUNCHER);
-    final byte[] archive = zip(entries);
+    final byte[] isArchive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      final YTDLPInstaller installer = this.serveZip(server, "/.zip", archive);
+      final YTDLPInstaller installer = this.serveZip(server, "/.zip", isArchive);
       final Path installed = installer.download(true);
       final Path unpacked = this.folder.resolve("yt-dlp-unpacked");
       final Path expected = unpacked.resolve("yt-dlp");
@@ -417,14 +417,14 @@ final class YTDLPInstallerTest {
     final YTDLPInstaller installer = YTDLPInstaller.create(this.folder);
     final Path installerFolder = installer.getFolder();
     final String name = installer.getName();
-    final boolean archive = installer.isArchive();
+    final boolean isArchive = installer.isArchive();
     final Path path = installer.getPath();
     final OS operatingSystem = OSUtils.getOS();
     final String executableName = operatingSystem == OS.WINDOWS ? "yt-dlp.exe" : "yt-dlp";
     final Path expectedPath = this.folder.resolve(executableName);
     assertEquals(this.folder, installerFolder);
     assertEquals("yt-dlp", name);
-    assertFalse(archive);
+    assertFalse(isArchive);
     assertEquals(expectedPath, path);
   }
 

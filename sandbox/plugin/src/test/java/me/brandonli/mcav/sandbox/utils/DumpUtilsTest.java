@@ -277,11 +277,11 @@ final class DumpUtilsTest {
     final String javaVendor = System.getProperty("java.vendor");
     final boolean version = dump.contains("\nOS Version: " + osVersion + "\n");
     final boolean arch = dump.contains("\nArchitecture: " + architecture + "\n");
-    final boolean java = dump.contains("\nJava Version: " + javaVersion + "\n");
+    final boolean namesJavaVersion = dump.contains("\nJava Version: " + javaVersion + "\n");
     final boolean vendor = dump.contains("\nJava Vendor: " + javaVendor + "\n");
     assertTrue(version, dump);
     assertTrue(arch, dump);
-    assertTrue(java, dump);
+    assertTrue(namesJavaVersion, dump);
     assertTrue(vendor, dump);
   }
 

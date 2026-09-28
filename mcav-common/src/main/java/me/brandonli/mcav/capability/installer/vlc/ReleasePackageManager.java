@@ -116,9 +116,9 @@ public final class ReleasePackageManager {
       return fixed;
     }
     final Bits bits = platform.getBits();
-    final boolean sixtyFourBit = bits == Bits.BITS_64;
-    final String releaseApi = sixtyFourBit ? X86_64_RELEASE_API : X86_32_RELEASE_API;
-    final Platform downloadPlatform = sixtyFourBit ? LINUX_X86_64 : LINUX_X86_32;
+    final boolean isSixtyFourBit = bits == Bits.BITS_64;
+    final String releaseApi = isSixtyFourBit ? X86_64_RELEASE_API : X86_32_RELEASE_API;
+    final Platform downloadPlatform = isSixtyFourBit ? LINUX_X86_64 : LINUX_X86_32;
     final Optional<Download> appImage = findAppImageDownload(releaseApi, downloadPlatform, fetcher);
     if (appImage.isEmpty()) {
       return fixed;
@@ -201,12 +201,12 @@ public final class ReleasePackageManager {
     final JsonElement urlElement = asset.get("browser_download_url");
     final String url = urlElement.getAsString();
     final JsonElement digestElement = asset.get("digest");
-    final Optional<String> sha256 = readSha256(digestElement);
-    if (sha256.isEmpty()) {
+    final Optional<String> isSha256Digest = readSha256(digestElement);
+    if (isSha256Digest.isEmpty()) {
       LOGGER.warn(APPIMAGE_UNVERIFIED, url);
       return Optional.empty();
     }
-    final String hash = sha256.get();
+    final String hash = isSha256Digest.get();
     final Download download = new Download(platform, url, hash);
     return Optional.of(download);
   }
@@ -221,8 +221,8 @@ public final class ReleasePackageManager {
       return Optional.empty();
     }
     final String digest = digestElement.getAsString();
-    final boolean sha256 = digest.startsWith(SHA256_DIGEST_PREFIX);
-    if (!sha256) {
+    final boolean isSha256Digest = digest.startsWith(SHA256_DIGEST_PREFIX);
+    if (!isSha256Digest) {
       return Optional.empty();
     }
     final int prefixLength = SHA256_DIGEST_PREFIX.length();

@@ -504,11 +504,11 @@ final class AbstractInstallerTest {
   @Test
   void treatsDownloadsAsProgramsUnlessAnInstallerSaysOtherwise() {
     final PlainInstaller installer = new PlainInstaller(this.folder);
-    final boolean archive = installer.isArchive();
+    final boolean isArchive = installer.isArchive();
     final String fileName = installer.getFileName();
     final OS operatingSystem = OSUtils.getOS();
     final String expected = AbstractInstaller.getExecutableFileName(NAME, operatingSystem);
-    assertFalse(archive);
+    assertFalse(isArchive);
     assertEquals(expected, fileName);
   }
 
@@ -516,12 +516,12 @@ final class AbstractInstallerTest {
   void storesProgramsUnderTheirExecutableName() {
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[0]);
     final String fileName = installer.getFileName();
-    final boolean archive = installer.isArchive();
+    final boolean isArchive = installer.isArchive();
     final String name = installer.getName();
     final OS operatingSystem = OSUtils.getOS();
     final String expected = AbstractInstaller.getExecutableFileName(NAME, operatingSystem);
     assertEquals(expected, fileName);
-    assertFalse(archive);
+    assertFalse(isArchive);
     assertEquals(NAME, name);
   }
 
@@ -634,7 +634,7 @@ final class AbstractInstallerTest {
 
     private final List<Path> installedArchives = new ArrayList<>();
     private List<Platform> fallbacks;
-    private boolean archive;
+    private boolean isArchive;
 
     TestInstaller(final Path folder, final String name, final Supplier<Download[]> downloads) {
       super(folder, name, downloads);
@@ -653,7 +653,7 @@ final class AbstractInstallerTest {
     }
 
     private void markAsArchive() {
-      this.archive = true;
+      this.isArchive = true;
     }
 
     private List<Path> getInstalledArchives() {
@@ -662,7 +662,7 @@ final class AbstractInstallerTest {
 
     @Override
     public boolean isArchive() {
-      return this.archive;
+      return this.isArchive;
     }
 
     @Override
@@ -675,7 +675,7 @@ final class AbstractInstallerTest {
 
     @Override
     protected Path install(final Path downloaded) throws IOException {
-      if (!this.archive) {
+      if (!this.isArchive) {
         return super.install(downloaded);
       }
       this.installedArchives.add(downloaded);

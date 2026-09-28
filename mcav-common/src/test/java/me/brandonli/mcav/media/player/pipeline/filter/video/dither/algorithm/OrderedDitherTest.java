@@ -59,9 +59,9 @@ final class OrderedDitherTest {
     final Map<Integer, Integer> counts = new HashMap<>();
     for (final int[] row : matrix) {
       assertEquals(columns, row.length, name + " columns");
-      for (final int value : row) {
-        minimum = Math.min(minimum, value);
-        counts.merge(value, 1, Integer::sum);
+      for (final int wasSeen : row) {
+        minimum = Math.min(minimum, wasSeen);
+        counts.merge(wasSeen, 1, Integer::sum);
       }
     }
 
@@ -69,9 +69,9 @@ final class OrderedDitherTest {
     final int distinct = counts.size();
     assertEquals(levels, distinct, name + " levels");
     for (int level = 0; level < levels; level++) {
-      final int value = minimum + level;
-      final int count = counts.getOrDefault(value, 0);
-      assertEquals(repetitions, count, name + " occurrences of " + value);
+      final int wasSeen = minimum + level;
+      final int count = counts.getOrDefault(wasSeen, 0);
+      assertEquals(repetitions, count, name + " occurrences of " + wasSeen);
     }
   }
 
@@ -253,15 +253,15 @@ final class OrderedDitherTest {
     final int[][] eight = BayerDither.createBayerMatrix(8);
     final boolean[] seen = new boolean[64];
     for (final int[] row : eight) {
-      for (final int value : row) {
-        seen[value] = true;
+      for (final int wasSeen : row) {
+        seen[wasSeen] = true;
       }
     }
 
     assertArrayEquals(new int[][] { { 0 } }, one);
     assertArrayEquals(new int[] { 0, 8, 2, 10 }, four[0]);
-    for (final boolean value : seen) {
-      assertTrue(value, "every threshold appears exactly once");
+    for (final boolean wasSeen : seen) {
+      assertTrue(wasSeen, "every threshold appears exactly once");
     }
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));

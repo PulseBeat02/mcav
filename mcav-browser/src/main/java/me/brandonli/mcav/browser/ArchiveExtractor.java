@@ -103,21 +103,21 @@ final class ArchiveExtractor {
    */
   void extract(final InputStream archive, final Path target) throws IOException {
     final FileSystem fileSystem = target.getFileSystem();
-    final boolean posix = fileSystem.supportedFileAttributeViews().contains("posix");
-    this.extract(archive, target, posix);
+    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    this.extract(archive, target, supportsPosix);
   }
 
   /**
    * Extracts an archive into an empty folder, setting the permissions of the files where the file system has POSIX
    * permissions.
    *
-   * @param archive the gzip-compressed tar archive; it is not closed
-   * @param target  the folder, which must exist
-   * @param posix   whether the permissions of the files are set
+   * @param archive       the gzip-compressed tar archive; it is not closed
+   * @param target        the folder, which must exist
+   * @param supportsPosix whether the permissions of the files are set
    * @throws IOException if the archive is malformed, breaks a rule, or cannot be written
    */
   @VisibleForTesting
-  void extract(final InputStream archive, final Path target, final boolean posix) throws IOException {
+  void extract(final InputStream archive, final Path target, final boolean supportsPosix) throws IOException {
     final Path root = target.toRealPath();
     final GzipCompressorInputStream gzip = new GzipCompressorInputStream(new NonClosingInputStream(archive));
     try (final TarArchiveInputStream tar = new TarArchiveInputStream(gzip)) {
@@ -135,12 +135,12 @@ final class ArchiveExtractor {
         }
         final Path destination = resolve(root, entry.getName());
         if (entry.isDirectory()) {
-          createFolders(destination, posix);
+          createFolders(destination, supportsPosix);
         } else {
           final long remaining = this.maxTotalBytes - written;
-          written += writeFile(tar, destination, remaining, posix);
+          written += writeFile(tar, destination, remaining, supportsPosix);
           final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
-          if (posix) {
+          if (supportsPosix) {
             Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
           }
         }
@@ -156,9 +156,9 @@ final class ArchiveExtractor {
    * @return true for symbolic and hard links, devices and named pipes
    */
   private static boolean isLinkOrSpecial(final TarArchiveEntry entry) {
-    final boolean link = entry.isSymbolicLink() || entry.isLink();
-    final boolean device = entry.isCharacterDevice() || entry.isBlockDevice();
-    return link || device || entry.isFIFO();
+    final boolean isLink = entry.isSymbolicLink() || entry.isLink();
+    final boolean isDevice = entry.isCharacterDevice() || entry.isBlockDevice();
+    return isLink || isDevice || entry.isFIFO();
   }
 
   /**
@@ -200,11 +200,11 @@ final class ArchiveExtractor {
     return current.normalize();
   }
 
-  private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean posix)
+  private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean supportsPosix)
     throws IOException {
     // every entry lies below the root, so it has a parent
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder");
-    createFolders(parent, posix);
+    createFolders(parent, supportsPosix);
     long written = 0L;
     final byte[] buffer = new byte[BUFFER_BYTES];
     try (
@@ -243,12 +243,12 @@ final class ArchiveExtractor {
   /**
    * Creates a folder and the missing folders above it, setting the permissions of each new one if asked to.
    *
-   * @param folder the folder
-   * @param posix  whether the permissions of the new folders are set
+   * @param folder        the folder
+   * @param supportsPosix whether the permissions of the new folders are set
    * @throws IOException if a folder cannot be created or its permissions cannot be set
    */
   @VisibleForTesting
-  static void createFolders(final Path folder, final boolean posix) throws IOException {
+  static void createFolders(final Path folder, final boolean supportsPosix) throws IOException {
     final List<Path> missing = new ArrayList<>();
     Path current = folder.toAbsolutePath();
     // the root of a file system always exists, so the search ends before it runs out of parents
@@ -257,7 +257,7 @@ final class ArchiveExtractor {
       current = Objects.requireNonNull(current.getParent(), "The root of a file system exists");
     }
     Files.createDirectories(folder);
-    if (posix) {
+    if (supportsPosix) {
       for (final Path created : missing) {
         Files.setPosixFilePermissions(created, FOLDER);
       }

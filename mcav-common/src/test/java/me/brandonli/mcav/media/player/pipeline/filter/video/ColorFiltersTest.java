@@ -97,10 +97,10 @@ final class ColorFiltersTest {
     final int tinted = applyToSolid(new TintFilter(BLUE, 0.5), 0xFF000000);
     final int red = (tinted >> 16) & 0xFF;
     final int blue = tinted & 0xFF;
-    final boolean halfBlue = blue == 127 || blue == 128;
+    final boolean isHalfBlue = blue == 127 || blue == 128;
     final String hexadecimal = Integer.toHexString(tinted);
     assertEquals(0, red);
-    assertTrue(halfBlue, hexadecimal);
+    assertTrue(isHalfBlue, hexadecimal);
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, -0.1));
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, 1.1));
   }

@@ -324,13 +324,13 @@ public record LiveSearch(
   /**
    * Checks whether a leaf mode is tried at a block size.
    *
-   * @param mode     the mode
-   * @param keyframe whether the frame is a keyframe
-   * @param size     the block size
+   * @param mode       the mode
+   * @param isKeyframe whether the frame is a keyframe
+   * @param size       the block size
    * @return true if the search tries it there
    */
-  public boolean tries(final int mode, final boolean keyframe, final int size) {
-    final int set = keyframe ? this.keyModes : size < ROOT_SIZE ? this.smallModes : this.modes;
+  public boolean tries(final int mode, final boolean isKeyframe, final int size) {
+    final int set = isKeyframe ? this.keyModes : size < ROOT_SIZE ? this.smallModes : this.modes;
     return ((set >> mode) & 1) != 0;
   }
 

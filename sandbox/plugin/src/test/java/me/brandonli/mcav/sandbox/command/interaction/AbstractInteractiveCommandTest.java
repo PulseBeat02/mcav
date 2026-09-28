@@ -170,8 +170,8 @@ final class AbstractInteractiveCommandTest {
     }
 
     @Override
-    protected Component createStartMessage(final boolean success, final @Nullable Throwable error) {
-      if (success) {
+    protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
+      if (succeeded) {
         return Component.text("started");
       }
       final String reason = error == null ? "refused" : error.getMessage();
@@ -1295,7 +1295,7 @@ final class AbstractInteractiveCommandTest {
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
-  private RuntimeException runFailedStartupTask(final boolean cancel, final @Nullable RuntimeException cleanup)
+  private RuntimeException runFailedStartupTask(final boolean shouldCancel, final @Nullable RuntimeException cleanup)
     throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
@@ -1303,7 +1303,7 @@ final class AbstractInteractiveCommandTest {
     final ExecutorService executor = this.command.startExecutor("browser", screen);
     final RuntimeException failure = new IllegalStateException("startup task failed");
     executor.execute(() -> {
-      if (cancel) {
+      if (shouldCancel) {
         this.command.releaseCurrent();
       }
       this.command.releaseFailure = cleanup;
@@ -1312,7 +1312,7 @@ final class AbstractInteractiveCommandTest {
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
-    if (cancel) {
+    if (shouldCancel) {
       this.assertReleased("browser");
       final FunctionalVideoFilter maps = screen.getOutput();
       verify(maps).release();

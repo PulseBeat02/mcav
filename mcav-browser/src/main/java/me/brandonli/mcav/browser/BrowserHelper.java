@@ -282,8 +282,8 @@ public final class BrowserHelper {
     try {
       while (true) {
         final HelperMessage message = HelperProtocol.read(input, size -> noPixels);
-        final boolean keepReading = this.handleCommand(message);
-        if (!keepReading) {
+        final boolean shouldKeepReading = this.handleCommand(message);
+        if (!shouldKeepReading) {
           return;
         }
       }

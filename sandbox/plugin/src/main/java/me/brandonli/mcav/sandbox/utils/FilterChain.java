@@ -193,11 +193,11 @@ public final class FilterChain {
    *
    * @param text     the option as typed, empty for no filter
    * @param overlays the folder overlays are read from
-   * @param video    whether the pictures are the frames of a video, which {@code fps} needs
+   * @param isVideo  whether the pictures are the frames of a video, which {@code fps} needs
    * @return the chain
    * @throws IllegalArgumentException with the reason for the sender, if the text is not a chain of allowed filters
    */
-  public static FilterChain parse(final String text, final Path overlays, final boolean video) {
+  public static FilterChain parse(final String text, final Path overlays, final boolean isVideo) {
     Preconditions.checkNotNull(text, "Text must not be null");
     Preconditions.checkNotNull(overlays, "Overlay folder must not be null");
     if (text.isEmpty()) {
@@ -212,19 +212,19 @@ public final class FilterChain {
     }
     final List<Supplier<VideoFilter>> filters = new ArrayList<>();
     for (final String spec : specs) {
-      filters.add(parseFilter(spec, overlays, video));
+      filters.add(parseFilter(spec, overlays, isVideo));
     }
     return new FilterChain(filters);
   }
 
-  private static Supplier<VideoFilter> parseFilter(final String spec, final Path overlays, final boolean video) {
+  private static Supplier<VideoFilter> parseFilter(final String spec, final Path overlays, final boolean isVideo) {
     final int equals = spec.indexOf('=');
     final String name = (equals < 0 ? spec : spec.substring(0, equals)).toLowerCase(Locale.ROOT);
     final List<String> args = equals < 0 ? List.of() : List.of(spec.substring(equals + 1).split(":", -1));
     return switch (name) {
       case "grayscale" -> noArguments(name, args, GrayscaleFilter::new);
       case "invert" -> noArguments(name, args, InvertFilter::new);
-      case "fps" -> fps(args, video);
+      case "fps" -> fps(args, isVideo);
       case "blur" -> blur(args);
       case "bilateral" -> bilateral(args);
       case "threshold" -> threshold(args);
@@ -248,8 +248,8 @@ public final class FilterChain {
     return filter;
   }
 
-  private static Supplier<VideoFilter> fps(final List<String> args, final boolean video) {
-    if (!video) {
+  private static Supplier<VideoFilter> fps(final List<String> args, final boolean isVideo) {
+    if (!isVideo) {
       throw new IllegalArgumentException("fps counts the frames of a video, and an image has one");
     }
     return noArguments("fps", args, FPSFilter::new);

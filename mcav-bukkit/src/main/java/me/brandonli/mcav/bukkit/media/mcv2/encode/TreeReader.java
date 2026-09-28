@@ -83,7 +83,7 @@ public final class TreeReader {
   public static List<TreeNode> roots(final Mcv2Frame frame, final Workers workers) throws Mcv2Exception {
     final int count = frame.getLeafCount();
     final TreeNode[] nodes = new TreeNode[count];
-    final boolean defaultSolid = (frame.getFlags() & DEFAULT_SOLID) != 0;
+    final boolean hasDefaultSolid = (frame.getFlags() & DEFAULT_SOLID) != 0;
     // the frame hands out copies of its bytes and tables, so each is taken once for all the leaves
     final byte[] data = frame.getData();
     final byte @Nullable [] endpoints = frame.getEndpointTable();
@@ -92,7 +92,7 @@ public final class TreeReader {
       selectors.add(frame.getSelectorTable(size));
     }
     for (int leafIndex = 0; leafIndex < count; leafIndex++) {
-      nodes[leafIndex] = node(frame, data, frame.getLeaf(leafIndex), endpoints, selectors, defaultSolid);
+      nodes[leafIndex] = node(frame, data, frame.getLeaf(leafIndex), endpoints, selectors, hasDefaultSolid);
     }
     // the leaves grouped by superblock, each group in the frame's order: counted, then placed
     final int columns = (frame.getWidth() + ROOT_SIZE - 1) / ROOT_SIZE;
@@ -137,7 +137,7 @@ public final class TreeReader {
     final Mcv2Frame.Leaf leaf,
     final byte @Nullable [] endpoints,
     final List<byte @Nullable []> selectors,
-    final boolean defaultSolid
+    final boolean hasDefaultSolid
   ) throws Mcv2Exception {
     final int mode = leaf.mode();
     if (mode == MODE_IMMEDIATE_MOTION) {
@@ -148,7 +148,7 @@ public final class TreeReader {
       final PatternRecord record = PatternRecord.expand(data, leaf.offset(), leaf.size(), endpoints, table);
       return TreeNode.leaf(MODE_PALETTE, 0, fullPalette(record, leaf.size()));
     }
-    if (mode == MODE_SKIP && defaultSolid) {
+    if (mode == MODE_SKIP && hasDefaultSolid) {
       final int color = frame.getDefaultColor();
       return TreeNode.leaf(MODE_SOLID, 0, new byte[] { (byte) (color >> 16), (byte) (color >> 8), (byte) color });
     }

@@ -117,12 +117,12 @@ final class AudioExtractorTest {
     final byte[] magic = Arrays.copyOf(bytes, 4);
     final String magicText = new String(magic, StandardCharsets.US_ASCII);
     final String content = new String(bytes, StandardCharsets.ISO_8859_1);
-    final boolean vorbis = content.contains("vorbis");
+    final boolean mentionsVorbis = content.contains("vorbis");
     final boolean endsWithOgg = name.endsWith(".ogg");
     assertEquals(cache, parent);
     assertTrue(endsWithOgg);
     assertEquals("OggS", magicText);
-    assertTrue(vorbis, "the stream is encoded with Vorbis");
+    assertTrue(mentionsVorbis, "the stream is encoded with Vorbis");
     assertNotEquals(first, second, "every extraction gets its own file");
   }
 

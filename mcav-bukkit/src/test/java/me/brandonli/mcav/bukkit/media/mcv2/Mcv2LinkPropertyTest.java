@@ -33,7 +33,7 @@ final class Mcv2LinkPropertyTest {
   private static final String SEED = "20260926";
 
   /** One step of a stream: a frame (its size, and whether it is a keyframe) and how much the connection wrote before. */
-  private record Step(boolean keyframe, int bytes, int drained) {}
+  private record Step(boolean isKeyframe, int bytes, int drained) {}
 
   @Provide
   Arbitrary<List<Step>> streams() {
@@ -75,25 +75,25 @@ final class Mcv2LinkPropertyTest {
         outstanding -= bytes;
         link.written(bytes);
       }
-      final boolean keyframe = id == 0 || step.keyframe();
-      final long reference = keyframe ? id : fromKeyframe ? lastKey : id - 1;
-      if (keyframe) {
+      final boolean isKeyframe = id == 0 || step.isKeyframe();
+      final long reference = isKeyframe ? id : fromKeyframe ? lastKey : id - 1;
+      if (isKeyframe) {
         lastKey = id;
       }
-      final boolean over = outstanding > (keyframe ? Mcv2Link.allowance(limit) : limit);
-      final boolean sent = link.offer(id, reference, keyframe, step.bytes());
+      final boolean over = outstanding > (isKeyframe ? Mcv2Link.allowance(limit) : limit);
+      final boolean sent = link.offer(id, reference, isKeyframe, step.bytes());
       if (sent) {
         // the client must hold the frame's reference, and the connection must have been at or under the limit
-        if (over || !(keyframe || reference == clientLast || reference == clientKey)) {
+        if (over || !(isKeyframe || reference == clientLast || reference == clientKey)) {
           return false;
         }
         clientLast = id;
-        if (keyframe) {
+        if (isKeyframe) {
           clientKey = id;
         }
         outstanding += step.bytes();
         inFlight.add((long) step.bytes());
-      } else if (!over && (keyframe || reference == clientLast || reference == clientKey)) {
+      } else if (!over && (isKeyframe || reference == clientLast || reference == clientKey)) {
         // a frame the viewer could take and decode is never held back
         return false;
       }

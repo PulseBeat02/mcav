@@ -223,13 +223,13 @@ final class KernelDifferential {
       case 5 -> {
         name = "reduced";
         final int luma = 1 << random.next(0, 3);
-        final int chroma = 1 << random.next(0, 2);
+        final int convertsChroma = 1 << random.next(0, 2);
         final int quantizer = random.next(0, 4);
         final int offset = random.next(0, 2);
-        final byte[] record = random.bytes(offset + luma * luma + 2 * chroma * chroma);
+        final byte[] record = random.bytes(offset + luma * luma + 2 * convertsChroma * convertsChroma);
         final int @Nullable [] predicted = random.next(0, 1) == 0 ? null : prediction;
-        finishedJava = java.reduced(predicted, record, offset, luma, chroma, quantizer, size, expected);
-        finishedOther = other.reduced(predicted, record, offset, luma, chroma, quantizer, size, actual);
+        finishedJava = java.reduced(predicted, record, offset, luma, convertsChroma, quantizer, size, expected);
+        finishedOther = other.reduced(predicted, record, offset, luma, convertsChroma, quantizer, size, actual);
       }
       default -> {
         final int kind = COMPACT_CLASSES[random.next(0, COMPACT_CLASSES.length - 1)];
@@ -370,18 +370,18 @@ final class KernelDifferential {
     for (int index = 0; index < endpoints.length; index++) {
       endpoints[index] = random.next(-2000, 257_000) / 1000.0f;
     }
-    final boolean quantize = random.next(0, 1) == 0;
+    final boolean shouldQuantize = random.next(0, 1) == 0;
     final int[] expectedColors = new int[6];
     final int[] actualColors = new int[6];
     final byte[] expected = new byte[size * size];
     final byte[] actual = new byte[size * size];
     if (kernel == 13) {
-      java.finish(source, size * size, endpoints, quantize, expectedColors, expected);
-      other.finish(source, size * size, endpoints, quantize, actualColors, actual);
+      java.finish(source, size * size, endpoints, shouldQuantize, expectedColors, expected);
+      other.finish(source, size * size, endpoints, shouldQuantize, actualColors, actual);
       return unless(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finish");
     }
-    final boolean held = java.finishPattern(source, size, endpoints, quantize, expectedColors, expected);
-    final boolean holds = other.finishPattern(source, size, endpoints, quantize, actualColors, actual);
+    final boolean held = java.finishPattern(source, size, endpoints, shouldQuantize, expectedColors, expected);
+    final boolean holds = other.finishPattern(source, size, endpoints, shouldQuantize, actualColors, actual);
     return unless(held == holds && Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPattern");
   }
 
@@ -407,7 +407,7 @@ final class KernelDifferential {
     final int globalX = random.next(-10, 10);
     final int globalY = random.next(-10, 10);
     final int range = random.next(0, 24);
-    final boolean halfPixel = random.next(0, 1) == 0;
+    final boolean refinesHalfPixels = random.next(0, 1) == 0;
     final int expected = java.seeded(
       reference,
       width,
@@ -419,10 +419,23 @@ final class KernelDifferential {
       globalX,
       globalY,
       range,
-      halfPixel,
+      refinesHalfPixels,
       seeds
     );
-    final int actual = other.seeded(reference, width, height, source, blockLeft, blockTop, size, globalX, globalY, range, halfPixel, seeds);
+    final int actual = other.seeded(
+      reference,
+      width,
+      height,
+      source,
+      blockLeft,
+      blockTop,
+      size,
+      globalX,
+      globalY,
+      range,
+      refinesHalfPixels,
+      seeds
+    );
     return unless(expected == actual, "seeded");
   }
 
@@ -436,7 +449,7 @@ final class KernelDifferential {
   ) {
     final int count = size * size;
     final int[] source = ints(random, channels, 0, 255);
-    final boolean chroma = random.next(0, 1) == 0;
+    final boolean convertsChroma = random.next(0, 1) == 0;
     return switch (kernel) {
       case 16 -> {
         final int width = random.next(1, 70);
@@ -461,8 +474,8 @@ final class KernelDifferential {
         // the chroma a luma-only conversion leaves alone must stay as it was
         final float[] expected = floats(random, channels);
         final float[] actual = expected.clone();
-        java.ycocg(source, count, chroma, expected);
-        other.ycocg(source, count, chroma, actual);
+        java.ycocg(source, count, convertsChroma, expected);
+        other.ycocg(source, count, convertsChroma, actual);
         yield unless(same(expected, actual), "ycocg");
       }
       case 19 -> {
@@ -470,8 +483,8 @@ final class KernelDifferential {
         final int[] prediction = ints(random, channels, 0, 1020);
         final float[] expected = floats(random, channels);
         final float[] actual = expected.clone();
-        java.residualTarget(ycocg, prediction, count, chroma, expected);
-        other.residualTarget(ycocg, prediction, count, chroma, actual);
+        java.residualTarget(ycocg, prediction, count, convertsChroma, expected);
+        other.residualTarget(ycocg, prediction, count, convertsChroma, actual);
         yield unless(same(expected, actual), "residualTarget");
       }
       default -> {

@@ -277,9 +277,9 @@ final class Mcv2NativesTest {
       }
     }
     final int levels = NativeTesting.resolution().levels();
-    final boolean x86 = flags.contains("sse2");
+    final boolean isX86 = flags.contains("sse2");
     assertTrue(NativeKernels.Level.SCALAR.in(levels));
-    assertEquals(x86, NativeKernels.Level.SSE2.in(levels));
+    assertEquals(isX86, NativeKernels.Level.SSE2.in(levels));
     assertEquals(flags.contains("sse4_1"), NativeKernels.Level.SSE41.in(levels));
     assertEquals(flags.contains("avx2"), NativeKernels.Level.AVX2.in(levels));
     final List<String> iceLake = List.of(
@@ -293,7 +293,7 @@ final class Mcv2NativesTest {
       "avx512_bitalg"
     );
     assertEquals(flags.containsAll(iceLake), NativeKernels.Level.AVX512.in(levels));
-    assertEquals(!x86, NativeKernels.Level.NEON.in(levels));
+    assertEquals(!isX86, NativeKernels.Level.NEON.in(levels));
     // SVE's vector length is not in /proc/cpuinfo: without SVE neither SVE level runs, with it at most one
     final boolean sve = NativeKernels.Level.SVE256.in(levels) || NativeKernels.Level.SVE512.in(levels);
     assertTrue(flags.contains("sve") || !sve);

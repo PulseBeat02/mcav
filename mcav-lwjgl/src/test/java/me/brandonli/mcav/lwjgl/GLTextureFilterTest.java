@@ -337,13 +337,13 @@ final class GLTextureFilterTest {
       }
       final int count = transferred.size();
       assertEquals(4, count);
-      final ByteBuffer first = transferred.get(0);
-      final ByteBuffer second = transferred.get(1);
+      final ByteBuffer firstUploaded = transferred.get(0);
+      final ByteBuffer secondUploaded = transferred.get(1);
       final ByteBuffer third = transferred.get(2);
       final ByteBuffer fourth = transferred.get(3);
-      assertNotSame(first, second, "the player must not overwrite the buffer being uploaded");
-      assertSame(first, third, "fixed-size playback must reuse its direct buffers");
-      assertSame(second, fourth, "both staging buffers must be reusable");
+      assertNotSame(firstUploaded, secondUploaded, "the player must not overwrite the buffer being uploaded");
+      assertSame(firstUploaded, third, "fixed-size playback must reuse its direct buffers");
+      assertSame(secondUploaded, fourth, "both staging buffers must be reusable");
     } finally {
       recording.release();
     }
@@ -474,20 +474,20 @@ final class GLTextureFilterTest {
     startThread(() -> finishUploadOnceApplied(applied, finishUpload));
 
     final long before = System.nanoTime();
-    final boolean first = slow.upload();
+    final boolean firstUploaded = slow.upload();
     final long elapsedNanos = System.nanoTime() - before;
     final long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(elapsedNanos);
     final boolean appliedInTime = await(applied, 10);
     final boolean pending = slow.hasPendingFrame();
-    final boolean second = slow.upload();
+    final boolean secondUploaded = slow.upload();
     final int texture = slow.getTextureId();
     final byte[] pixels = readTexture(texture, 2, 2);
     slow.release();
-    assertTrue(first);
+    assertTrue(firstUploaded);
     assertTrue(appliedInTime);
     assertTrue(elapsedMillis < 4_000L, () -> "the player was blocked by the upload for " + elapsedMillis + " ms");
     assertTrue(pending);
-    assertTrue(second);
+    assertTrue(secondUploaded);
     assertAllPixels(pixels, new byte[] { 0, 0, (byte) 0xFF });
   }
 
@@ -608,14 +608,14 @@ final class GLTextureFilterTest {
   @Test
   void keepsItsTextureAndDimensionsWhenStartedAgain() {
     this.filter.start();
-    final int first = this.filter.getTextureId();
+    final int firstUploaded = this.filter.getTextureId();
     stageAndUpload(this.filter, 2, 3, 0xFF00FF00);
     this.filter.start();
-    final int second = this.filter.getTextureId();
+    final int secondUploaded = this.filter.getTextureId();
     final int width = this.filter.getWidth();
     final int height = this.filter.getHeight();
-    final byte[] pixels = readTexture(second, 2, 3);
-    assertEquals(first, second);
+    final byte[] pixels = readTexture(secondUploaded, 2, 3);
+    assertEquals(firstUploaded, secondUploaded);
     assertEquals(2, width);
     assertEquals(3, height);
     assertAllPixels(pixels, new byte[] { 0, (byte) 0xFF, 0 });

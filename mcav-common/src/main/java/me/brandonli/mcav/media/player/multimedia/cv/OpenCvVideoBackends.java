@@ -103,8 +103,8 @@ final class OpenCvVideoBackends {
     for (final String line : lines) {
       final String trimmed = line.strip();
       final boolean enabled = trimmed.contains(ENABLED);
-      final boolean names = namesFileBackend(trimmed);
-      if (enabled && names) {
+      final boolean namesBackend = namesFileBackend(trimmed);
+      if (enabled && namesBackend) {
         return true;
       }
     }
@@ -113,8 +113,8 @@ final class OpenCvVideoBackends {
 
   private static boolean namesFileBackend(final String line) {
     for (final String backend : FILE_BACKENDS) {
-      final boolean names = line.startsWith(backend);
-      if (names) {
+      final boolean startsWithBackend = line.startsWith(backend);
+      if (startsWithBackend) {
         return true;
       }
     }

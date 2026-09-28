@@ -359,8 +359,8 @@ final class VMPlayerImplTest {
 
     player.release();
     when(this.qemu.isAlive()).thenReturn(true);
-    final boolean afterRelease = player.isPlaying();
-    assertFalse(afterRelease);
+    final boolean playingAfterRelease = player.isPlaying();
+    assertFalse(playingAfterRelease);
   }
 
   @Test
@@ -598,13 +598,13 @@ final class VMPlayerImplTest {
     })
       .when(this.qemu)
       .shutdown();
-    final boolean first = player.release();
+    final boolean firstRelease = player.release();
     this.assertIgnoresInputAndPlayback(player);
-    final boolean second = player.release();
-    final boolean third = player.release();
-    assertTrue(first);
-    assertFalse(second);
-    assertFalse(third);
+    final boolean secondRelease = player.release();
+    final boolean thirdRelease = player.release();
+    assertTrue(firstRelease);
+    assertFalse(secondRelease);
+    assertFalse(thirdRelease);
     verify(this.qemu, times(2)).shutdown();
     verify(this.vnc).release();
   }

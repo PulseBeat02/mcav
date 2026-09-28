@@ -193,14 +193,14 @@ final class Mcv2ParserPropertyTest {
     final Random random = new Random(seed);
     final byte[] bytes = new byte[Mcv2Format.HEADER_BYTES + body.length];
     System.arraycopy(body, 0, bytes, Mcv2Format.HEADER_BYTES, body.length);
-    final boolean keyframe = (flags & Mcv2Format.KEYFRAME) != 0;
+    final boolean isKeyframe = (flags & Mcv2Format.KEYFRAME) != 0;
     final long frameId = random.nextInt(1000) + 1L;
     Mcv2Format.putU32(bytes, 0, Mcv2Format.MAGIC);
     Mcv2Format.putU32(bytes, 4, ((long) flags << 16) | Mcv2Format.CONFIGURATION);
     Mcv2Format.putU32(bytes, 8, ((long) height << 16) | width);
     Mcv2Format.putU32(bytes, 12, frameId);
-    Mcv2Format.putU32(bytes, 16, keyframe ? frameId : frameId - 1);
-    Mcv2Format.putU32(bytes, 20, keyframe ? 0 : random.nextInt() & 0xFFFFFFFFL);
+    Mcv2Format.putU32(bytes, 16, isKeyframe ? frameId : frameId - 1);
+    Mcv2Format.putU32(bytes, 20, isKeyframe ? 0 : random.nextInt() & 0xFFFFFFFFL);
     Mcv2Format.putU32(bytes, 24, (long) ((width + 31) / 32) * ((height + 31) / 32));
     Mcv2Format.putU32(bytes, 28, Math.min(bytes.length, Mcv2Format.HEADER_BYTES + startOffset));
     Mcv2Format.putU32(bytes, 32, bytes.length);

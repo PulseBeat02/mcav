@@ -185,14 +185,14 @@ final class MCAVTest {
       final Boolean ytdlpPrepared = ytdlpReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
       final CountingModule module = this.mcav.getModule(CountingModule.class);
       final int starts = module.starts.get();
-      final boolean vlc = this.mcav.hasCapability(Capability.VLC);
-      final boolean ytdlp = this.mcav.hasCapability(Capability.YT_DLP);
+      final boolean hasVlc = this.mcav.hasCapability(Capability.VLC);
+      final boolean hasYtdlp = this.mcav.hasCapability(Capability.YT_DLP);
       final boolean imageCache = ImageIO.getUseCache();
       assertEquals(1, starts);
       assertFalse(vlcPrepared);
       assertTrue(ytdlpPrepared);
-      assertFalse(vlc);
-      assertTrue(ytdlp);
+      assertFalse(hasVlc);
+      assertTrue(hasYtdlp);
       assertFalse(imageCache);
       this.verifyEveryInstallationStep();
       final ModuleLoader verifiedModules = Mockito.verify(this.modules);
@@ -211,8 +211,8 @@ final class MCAVTest {
     final boolean startedEmpty = started.isEmpty();
     assertTrue(startedEmpty);
     this.stubCapability(Capability.FFMPEG, true);
-    final boolean ffmpeg = this.mcav.hasCapability(Capability.FFMPEG);
-    assertTrue(ffmpeg);
+    final boolean hasFfmpeg = this.mcav.hasCapability(Capability.FFMPEG);
+    assertTrue(hasFfmpeg);
   }
 
   @Test
@@ -220,8 +220,8 @@ final class MCAVTest {
     this.mcav.install();
     this.awaitBackgroundInstallation();
     this.stubCapability(Capability.FACE_DETECTION, false);
-    final boolean faceDetection = this.mcav.hasCapability(Capability.FACE_DETECTION);
-    assertFalse(faceDetection);
+    final boolean hasFaceDetection = this.mcav.hasCapability(Capability.FACE_DETECTION);
+    assertFalse(hasFaceDetection);
   }
 
   @Test
@@ -233,12 +233,12 @@ final class MCAVTest {
     final CompletableFuture<Boolean> faceDetectionReady = this.mcav.whenCapabilityReady(Capability.FACE_DETECTION);
     final boolean ffmpegDone = ffmpegReady.isDone();
     final boolean faceDetectionDone = faceDetectionReady.isDone();
-    final Boolean ffmpeg = ffmpegReady.join();
-    final Boolean faceDetection = faceDetectionReady.join();
+    final Boolean hasFfmpeg = ffmpegReady.join();
+    final Boolean hasFaceDetection = faceDetectionReady.join();
     assertTrue(ffmpegDone, "FFmpeg is decided while install() runs");
     assertTrue(faceDetectionDone, "face detection is decided while install() runs");
-    assertTrue(ffmpeg);
-    assertFalse(faceDetection);
+    assertTrue(hasFfmpeg);
+    assertFalse(hasFaceDetection);
   }
 
   @Test
@@ -286,13 +286,13 @@ final class MCAVTest {
 
     final CompletableFuture<Boolean> vlcReady = this.mcav.whenCapabilityReady(Capability.VLC);
     final CompletableFuture<Boolean> ytdlpReady = this.mcav.whenCapabilityReady(Capability.YT_DLP);
-    final Boolean vlc = vlcReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    final Boolean ytdlp = ytdlpReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    final Boolean hasVlc = vlcReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    final Boolean hasYtdlp = ytdlpReady.get(WAIT_SECONDS, TimeUnit.SECONDS);
     final boolean vlcAvailable = this.mcav.hasCapability(Capability.VLC);
     final IllegalStateException refusal = assertThrows(IllegalStateException.class, () -> this.guard.checkUsable(Capability.VLC));
     final String refusalMessage = refusal.getMessage();
-    assertFalse(vlc);
-    assertFalse(ytdlp);
+    assertFalse(hasVlc);
+    assertFalse(hasYtdlp);
     assertFalse(vlcAvailable);
     assertEquals("VLC is not available on this system", refusalMessage);
 
@@ -440,11 +440,11 @@ final class MCAVTest {
     this.awaitBackgroundInstallation();
     final TrackedModule module = this.mcav.getModule(TrackedModule.class);
     final int startsAfterRetry = TrackedModule.STARTS.get();
-    final boolean vlc = this.mcav.hasCapability(Capability.VLC);
+    final boolean hasVlc = this.mcav.hasCapability(Capability.VLC);
     final String moduleName = module.getModuleName();
     assertEquals("tracked", moduleName);
     assertEquals(2, startsAfterRetry);
-    assertTrue(vlc);
+    assertTrue(hasVlc);
   }
 
   @Test
@@ -561,10 +561,10 @@ final class MCAVTest {
    * Waits until VLC and yt-dlp have been prepared in the background.
    */
   private void awaitBackgroundInstallation() throws Exception {
-    final CompletableFuture<Boolean> vlc = this.mcav.whenCapabilityReady(Capability.VLC);
-    final CompletableFuture<Boolean> ytdlp = this.mcav.whenCapabilityReady(Capability.YT_DLP);
-    vlc.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    ytdlp.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    final CompletableFuture<Boolean> hasVlc = this.mcav.whenCapabilityReady(Capability.VLC);
+    final CompletableFuture<Boolean> hasYtdlp = this.mcav.whenCapabilityReady(Capability.YT_DLP);
+    hasVlc.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    hasYtdlp.get(WAIT_SECONDS, TimeUnit.SECONDS);
   }
 
   private void verifyEveryInstallationStep() {

@@ -242,8 +242,8 @@ public final class Mcv2Channel {
       final int rows = mapColors.length / MapLayout.MAP_SIZE;
       patches.add(new MapTilePatch(this.configuration.getPageMap() + page, 0, 0, MapLayout.MAP_SIZE, rows, mapColors));
     }
-    final boolean keyframe = header.isKeyframe();
-    if (keyframe) {
+    final boolean isKeyframe = header.isKeyframe();
+    if (isKeyframe) {
       patches.addAll(this.screen.anchors());
     }
     final List<MapPacketFactory.Bundle> bundles = MapPacketFactory.bundles(patches);
@@ -255,7 +255,7 @@ public final class Mcv2Channel {
       final UUID viewer = recipient.getKey();
       final Mcv2Link link = recipient.getValue();
       final long behind = link.getBehind();
-      if (link.offer(header.getFrameId(), header.getReferenceId(), keyframe, bytes)) {
+      if (link.offer(header.getFrameId(), header.getReferenceId(), isKeyframe, bytes)) {
         event.sentTo++;
         // the bundle's bytes leave the backlog once written, or at once for a viewer who left
         for (final MapPacketFactory.Bundle bundle : bundles) {

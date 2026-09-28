@@ -81,16 +81,16 @@ final class CefEngine implements HelperEngine {
    * Builds the command-line switches of Chromium.
    *
    * @param configuration the configuration of the helper
-   * @param linux         whether the helper runs on Linux
-   * @param mac           whether the helper runs on macOS
+   * @param isLinux       whether the helper runs on Linux
+   * @param isMac         whether the helper runs on macOS
    * @param guardPort     the port of the network guard on the loopback interface, or 0 if pages may reach any address
    * @param display       the name of the helper's null display on Linux, or null elsewhere
    * @return the switches
    */
   static List<String> createSwitches(
     final HelperConfiguration configuration,
-    final boolean linux,
-    final boolean mac,
+    final boolean isLinux,
+    final boolean isMac,
     final int guardPort,
     final @Nullable String display
   ) {
@@ -101,8 +101,8 @@ final class CefEngine implements HelperEngine {
     // browser, a page may play sound only once a player clicked the screen, which reaches it as a real click, unless
     // the options let it play right away (CEF's own default)
     switches.add("--mute-audio");
-    final boolean autoplay = configuration.isAutoplay();
-    switches.add("--autoplay-policy=" + (autoplay ? "no-user-gesture-required" : "document-user-activation-required"));
+    final boolean allowsAutoplay = configuration.isAutoplay();
+    switches.add("--autoplay-policy=" + (allowsAutoplay ? "no-user-gesture-required" : "document-user-activation-required"));
     switches.add("--hide-scrollbars");
     switches.add("--disable-extensions");
     switches.add("--disable-component-update");
@@ -125,7 +125,7 @@ final class CefEngine implements HelperEngine {
       switches.add("--force-webrtc-ip-handling-policy=disable_non_proxied_udp");
       switches.add("--disable-quic");
     }
-    if (linux) {
+    if (isLinux) {
       // Chromium draws without any display server; only JCEF's window of one pixel needs an X display, and gets the
       // helper's null display. The shared memory of a container is often small, so Chromium uses temporary files.
       switches.add("--ozone-platform=headless");
@@ -135,7 +135,7 @@ final class CefEngine implements HelperEngine {
         switches.add("--display=" + display);
       }
     }
-    if (mac) {
+    if (isMac) {
       switches.add("--use-mock-keychain");
     }
     return switches;
@@ -164,8 +164,8 @@ final class CefEngine implements HelperEngine {
     throws Exception {
     final String osName = System.getProperty("os.name");
     final String os = osName.toLowerCase(Locale.ROOT);
-    final boolean linux = os.contains("linux");
-    final boolean mac = os.contains("mac");
+    final boolean isLinux = os.contains("linux");
+    final boolean isMac = os.contains("mac");
     final CefAppBuilder builder = new CefAppBuilder();
     final Path natives = configuration.getNatives();
     final File installation = natives.toFile();
@@ -176,9 +176,9 @@ final class CefEngine implements HelperEngine {
     final int guardPort = this.startGuard(configuration, events);
     // the authority file lies in the folder of the session, next to the socket, where the server told X clients
     final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
-    final NullDisplay startedDisplay = startDisplay(linux, authority);
+    final NullDisplay startedDisplay = startDisplay(isLinux, authority);
     this.display = startedDisplay;
-    final List<String> switches = createSwitches(configuration, linux, mac, guardPort, NullDisplay.nameOf(startedDisplay));
+    final List<String> switches = createSwitches(configuration, isLinux, isMac, guardPort, NullDisplay.nameOf(startedDisplay));
     builder.addJcefArgs(switches.toArray(String[]::new));
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
@@ -238,13 +238,13 @@ final class CefEngine implements HelperEngine {
   /**
    * Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
    *
-   * @param linux     whether the helper runs on Linux
+   * @param isLinux   whether the helper runs on Linux
    * @param authority the authority file of the display
    * @return the running display, or null elsewhere
    * @throws IOException if the display cannot listen
    */
-  static @Nullable NullDisplay startDisplay(final boolean linux, final Path authority) throws IOException {
-    return linux ? NullDisplay.start(authority) : null;
+  static @Nullable NullDisplay startDisplay(final boolean isLinux, final Path authority) throws IOException {
+    return isLinux ? NullDisplay.start(authority) : null;
   }
 
   /**

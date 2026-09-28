@@ -828,13 +828,13 @@ final class Mcv2PackServerTest {
 
     private final Deque<Runnable> queue = new ArrayDeque<>();
 
-    private boolean shutdown;
+    private boolean isShutdown;
 
     private boolean interrupt;
 
     @Override
     public void execute(final Runnable command) {
-      if (this.shutdown) {
+      if (this.isShutdown) {
         throw new RejectedExecutionException("shut down");
       }
       this.queue.add(command);
@@ -851,23 +851,23 @@ final class Mcv2PackServerTest {
 
     @Override
     public void shutdown() {
-      this.shutdown = true;
+      this.isShutdown = true;
     }
 
     @Override
     public List<Runnable> shutdownNow() {
-      this.shutdown = true;
+      this.isShutdown = true;
       return List.copyOf(this.queue);
     }
 
     @Override
     public boolean isShutdown() {
-      return this.shutdown;
+      return this.isShutdown;
     }
 
     @Override
     public boolean isTerminated() {
-      return this.shutdown && this.queue.isEmpty();
+      return this.isShutdown && this.queue.isEmpty();
     }
 
     @Override

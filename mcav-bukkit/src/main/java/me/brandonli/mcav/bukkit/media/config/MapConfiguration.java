@@ -51,7 +51,7 @@ public class MapConfiguration {
   private final int mapBlockHeight;
   private final int mapWidthResolution;
   private final int mapHeightResolution;
-  private final boolean resize;
+  private final boolean shouldResize;
 
   private MapConfiguration(
     final Builder<?> builder,
@@ -65,7 +65,7 @@ public class MapConfiguration {
     this.mapBlockHeight = builder.mapBlockHeight;
     this.mapWidthResolution = mapWidthResolution;
     this.mapHeightResolution = mapHeightResolution;
-    this.resize = builder.resize;
+    this.shouldResize = builder.shouldResize;
   }
 
   /**
@@ -74,7 +74,7 @@ public class MapConfiguration {
    * @return true if frames should be resized, false otherwise
    */
   public boolean shouldResize() {
-    return this.resize;
+    return this.shouldResize;
   }
 
   /**
@@ -175,7 +175,7 @@ public class MapConfiguration {
     private int mapBlockHeight;
     private int mapWidthResolution;
     private int mapHeightResolution;
-    private boolean resize;
+    private boolean shouldResize;
 
     Builder() {
       this.map = -1;
@@ -198,11 +198,11 @@ public class MapConfiguration {
      * {@link me.brandonli.mcav.bukkit.media.image.DisplayableImage} have no player, so this option is the way to fit
      * them to the maps.
      *
-     * @param resize true to resize frames and images, false to show them at their original size
+     * @param shouldResize true to resize frames and images, false to show them at their original size
      * @return this builder
      */
-    public T resize(final boolean resize) {
-      this.resize = resize;
+    public T resize(final boolean shouldResize) {
+      this.shouldResize = shouldResize;
       return this.self();
     }
 

@@ -77,7 +77,7 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
     byte[] record,
     int offset,
     int luma,
-    int chroma,
+    int convertsChroma,
     int quantizer,
     int size,
     int[] out
@@ -115,10 +115,10 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
   abstract void paletteCluster(int[] source, int count, float[] endpoints);
 
   /** {@link PaletteFit#finish}. */
-  abstract void finish(int[] source, int count, float[] endpoints, boolean quantize, int[] colors, byte[] selectors);
+  abstract void finish(int[] source, int count, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
 
   /** {@link PaletteFit#finishPattern}. */
-  abstract boolean finishPattern(int[] source, int size, float[] endpoints, boolean quantize, int[] colors, byte[] selectors);
+  abstract boolean finishPattern(int[] source, int size, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
 
   /** {@link MotionSearch#seeded}. */
   abstract int seeded(
@@ -132,7 +132,7 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
     int globalX,
     int globalY,
     int range,
-    boolean halfPixel,
+    boolean refinesHalfPixels,
     int[] seeds
   );
 
@@ -155,23 +155,23 @@ abstract sealed class Kernels permits JavaKernels, NativeKernels {
   /**
    * Converts channels to YCoCg: luma always, the chroma only when asked, leaving it untouched otherwise.
    *
-   * @param source the channels
-   * @param count  the number of pixels
-   * @param chroma whether to convert the chroma
-   * @param out    receives the YCoCg values, three per pixel
+   * @param source         the channels
+   * @param count          the number of pixels
+   * @param convertsChroma whether to convert the chroma
+   * @param out            receives the YCoCg values, three per pixel
    */
-  abstract void ycocg(int[] source, int count, boolean chroma, float[] out);
+  abstract void ycocg(int[] source, int count, boolean convertsChroma, float[] out);
 
   /**
    * The YCoCg residual of a YCoCg source against a four-times prediction; the chroma only when asked.
    *
-   * @param ycocg      the source in YCoCg
-   * @param prediction four times the predicted channels
-   * @param count      the number of pixels
-   * @param chroma     whether to compute the chroma
-   * @param target     receives the residual, three values per pixel
+   * @param ycocg          the source in YCoCg
+   * @param prediction     four times the predicted channels
+   * @param count          the number of pixels
+   * @param convertsChroma whether to compute the chroma
+   * @param target         receives the residual, three values per pixel
    */
-  abstract void residualTarget(float[] ycocg, int[] prediction, int count, boolean chroma, float[] target);
+  abstract void residualTarget(float[] ycocg, int[] prediction, int count, boolean convertsChroma, float[] target);
 
   /**
    * One channel of YCoCg values as the means of a grid's cells, each summed in double.

@@ -202,10 +202,10 @@ final class ScriptedEngine implements HelperEngine {
   private static final class NoPainter implements McavOffscreenBrowser.PaintListener {
 
     @Override
-    public void onPaint(final boolean popup, final Rectangle[] dirtyRects, final ByteBuffer buffer, final int width, final int height) {}
+    public void onPaint(final boolean isPopup, final Rectangle[] dirtyRects, final ByteBuffer buffer, final int width, final int height) {}
 
     @Override
-    public void onPopupShow(final boolean show) {}
+    public void onPopupShow(final boolean isShown) {}
 
     @Override
     public void onPopupSize(final Rectangle bounds) {}

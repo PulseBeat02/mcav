@@ -377,8 +377,8 @@ final class NullDisplay implements AutoCloseable {
   static void writeAuthority(final Path authority, final byte[] cookie) throws IOException {
     final byte[] entry = createAuthorityEntry(cookie);
     final FileSystem fileSystem = authority.getFileSystem();
-    final boolean posix = fileSystem.supportedFileAttributeViews().contains("posix");
-    if (posix) {
+    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    if (supportsPosix) {
       Files.createFile(authority, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
     } else {
       Files.createFile(authority);

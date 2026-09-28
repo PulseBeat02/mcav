@@ -95,8 +95,8 @@ public final class NoFlagsServerMain {
     System.exit(0);
   }
 
-  private static void check(final boolean condition, final String description) {
-    if (!condition) {
+  private static void check(final boolean holds, final String description) {
+    if (!holds) {
       throw new AssertionError("Failed: " + description);
     }
   }

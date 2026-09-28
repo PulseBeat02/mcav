@@ -357,20 +357,20 @@ final class MockVlc {
       }
     }
 
-    void setPlaying(final boolean value) {
-      this.playing.set(value);
+    void setPlaying(final boolean isPlaying) {
+      this.playing.set(isPlaying);
     }
 
     void makeUnseekable() {
       this.seekable.set(false);
     }
 
-    void setTime(final long value) {
-      this.time.set(value);
+    void setTime(final long isPlaying) {
+      this.time.set(isPlaying);
     }
 
-    void setState(final State value) {
-      this.state.set(value);
+    void setState(final State isPlaying) {
+      this.state.set(isPlaying);
     }
 
     EmbeddedMediaPlayer getPlayer() {

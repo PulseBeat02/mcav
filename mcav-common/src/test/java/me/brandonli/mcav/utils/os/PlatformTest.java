@@ -84,16 +84,16 @@ final class PlatformTest {
     final OS os = current.getOS();
     final Arch arch = current.getArch();
     final Bits bits = current.getBits();
-    final boolean windows = com.sun.jna.Platform.isWindows(); // fqn: Platform is also a class of this package
-    final boolean mac = com.sun.jna.Platform.isMac(); // fqn: Platform is also a class of this package
-    final boolean intel = com.sun.jna.Platform.isIntel(); // fqn: Platform is also a class of this package
-    final boolean arm = com.sun.jna.Platform.isARM(); // fqn: Platform is also a class of this package
-    final boolean sixtyFourBit = com.sun.jna.Platform.is64Bit(); // fqn: Platform is also a class of this package
-    assertEquals(windows, os == OS.WINDOWS);
-    assertEquals(mac, os == OS.MAC);
-    assertEquals(intel, arch == Arch.X86);
-    assertEquals(arm, arch == Arch.ARM);
-    assertEquals(sixtyFourBit, bits == Bits.BITS_64);
+    final boolean isWindows = com.sun.jna.Platform.isWindows(); // fqn: Platform is also a class of this package
+    final boolean isMac = com.sun.jna.Platform.isMac(); // fqn: Platform is also a class of this package
+    final boolean isIntel = com.sun.jna.Platform.isIntel(); // fqn: Platform is also a class of this package
+    final boolean isArm = com.sun.jna.Platform.isARM(); // fqn: Platform is also a class of this package
+    final boolean isSixtyFourBit = com.sun.jna.Platform.is64Bit(); // fqn: Platform is also a class of this package
+    assertEquals(isWindows, os == OS.WINDOWS);
+    assertEquals(isMac, os == OS.MAC);
+    assertEquals(isIntel, arch == Arch.X86);
+    assertEquals(isArm, arch == Arch.ARM);
+    assertEquals(isSixtyFourBit, bits == Bits.BITS_64);
   }
 
   @Test

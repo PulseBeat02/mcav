@@ -145,29 +145,29 @@ public final class Mcv2Pack {
   /**
    * Writes the pack of one screen.
    *
-   * @param configuration the screen
-   * @param debugView     whether the pack also draws the decoded picture one to one below the strip, for testing
-   * @param zip           where the pack is written, atomically
+   * @param configuration  the screen
+   * @param showsDebugView whether the pack also draws the decoded picture one to one below the strip, for testing
+   * @param zip            where the pack is written, atomically
    * @throws UncheckedIOException if the pack cannot be written
    */
-  public static void write(final Mcv2Configuration configuration, final boolean debugView, final Path zip) {
+  public static void write(final Mcv2Configuration configuration, final boolean showsDebugView, final Path zip) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
-    write(List.of(configuration), debugView, zip);
+    write(List.of(configuration), showsDebugView, zip);
   }
 
   /**
    * Writes the pack of every screen of the server.
    *
-   * @param screens   the screens, in the order of their place in the strip; their stream ids must differ, and they
-   *                  share the outline colour of the first
-   * @param debugView whether the pack also draws the first screen's decoded picture one to one below the strip, for
-   *                  testing
-   * @param zip       where the pack is written, atomically
+   * @param screens        the screens, in the order of their place in the strip; their stream ids must differ, and they
+   *                       share the outline colour of the first
+   * @param showsDebugView whether the pack also draws the first screen's decoded picture one to one below the strip, for
+   *                       testing
+   * @param zip            where the pack is written, atomically
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAX_SCREENS}, two share a stream
    *                                  id, or their outline colours differ
    * @throws UncheckedIOException     if the pack cannot be written
    */
-  public static void write(final List<Mcv2Configuration> screens, final boolean debugView, final Path zip) {
+  public static void write(final List<Mcv2Configuration> screens, final boolean showsDebugView, final Path zip) {
     Preconditions.checkNotNull(screens, "Screens must not be null");
     Preconditions.checkNotNull(zip, "Zip must not be null");
     checkScreens(screens);
@@ -189,7 +189,7 @@ public final class Mcv2Pack {
       debugTop += Math.max(configuration.getVideoHeight(), DEBUG_SQUARES) + DEBUG_GAP;
     }
     pack.data(POST_CHAIN, postChain(screens).getBytes(StandardCharsets.UTF_8));
-    pack.data(INCLUDE + "mcv2_config.glsl", config(screens, debugView).getBytes(StandardCharsets.UTF_8));
+    pack.data(INCLUDE + "mcv2_config.glsl", config(screens, showsDebugView).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_alphabet.glsl", alphabet(palette()).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_books.glsl", books(ResidualBooks.bytes()).getBytes(StandardCharsets.UTF_8));
     pack.data("mcav_mcv2.json", manifest(screens).getBytes(StandardCharsets.UTF_8));
@@ -306,7 +306,7 @@ public final class Mcv2Pack {
   }
 
   /** The constants every shader of the pack shares: the screens' streams and places in the strip. */
-  static String config(final List<Mcv2Configuration> screens, final boolean debugView) {
+  static String config(final List<Mcv2Configuration> screens, final boolean showsDebugView) {
     final int count = screens.size();
     final int color = screens.getFirst().getOutlineColor().value();
     final StringBuilder streams = new StringBuilder();
@@ -331,7 +331,7 @@ public final class Mcv2Pack {
         "const uint MCV2_SCREEN_STREAMS[%d] = uint[%d](%s);".formatted(count, count, streams),
         "const int MCV2_SCREEN_SLOTS[%d] = int[%d](%s);".formatted(count, count, slots),
         "const int MCV2_SCREEN_FIRST_SLOTS[%d] = int[%d](%s);".formatted(count, count, firsts),
-        "const bool MCV2_DEBUG_VIEW = %s;".formatted(debugView),
+        "const bool MCV2_DEBUG_VIEW = %s;".formatted(showsDebugView),
         "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%d, %d, %d);".formatted((color >> 16) & 255, (color >> 8) & 255, color & 255),
         ""
       )

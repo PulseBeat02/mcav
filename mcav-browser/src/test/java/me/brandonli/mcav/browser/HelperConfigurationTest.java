@@ -45,7 +45,7 @@ class HelperConfigurationTest {
     return token;
   }
 
-  private static HelperConfiguration configuration(final boolean jit) {
+  private static HelperConfiguration configuration(final boolean allowsJit) {
     return new HelperConfiguration(
       token(),
       SOCKET,
@@ -56,7 +56,7 @@ class HelperConfigurationTest {
       480,
       2,
       30,
-      jit,
+      allowsJit,
       false,
       false
     );

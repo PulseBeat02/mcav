@@ -277,8 +277,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current == null) {
       return;
     }
-    final boolean special = SpecialKeys.isSpecialKey(text);
-    final int action = special ? HelperProtocol.KEY_PRESS : HelperProtocol.KEY_TYPE;
+    final boolean isSpecialKey = SpecialKeys.isSpecialKey(text);
+    final int action = isSpecialKey ? HelperProtocol.KEY_PRESS : HelperProtocol.KEY_TYPE;
     final boolean queued = current.sendKey(action, text);
     this.reportIfDropped(queued);
   }

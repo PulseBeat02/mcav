@@ -175,11 +175,11 @@ final class ChatUtilsTest {
       final ClientboundSystemChatPacket chatPacket = assertInstanceOf(ClientboundSystemChatPacket.class, packet);
       final Component content = chatPacket.content();
       final String text = content.getString();
-      final boolean overlay = chatPacket.overlay();
+      final boolean isOverlay = chatPacket.overlay();
       final String expected = "\n".repeat(99);
       assertEquals(1, packetCount);
       assertEquals(expected, text);
-      assertFalse(overlay);
+      assertFalse(isOverlay);
       assertThrows(NullPointerException.class, () -> ChatUtils.clearChat(null));
     }
   }

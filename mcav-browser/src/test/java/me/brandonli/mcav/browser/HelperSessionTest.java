@@ -142,8 +142,8 @@ class HelperSessionTest {
    */
   private Path shortDirectory() throws IOException {
     final Path temporaryDirectory = Path.of("/tmp");
-    final boolean posix = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
-    final Path parent = posix ? Files.createTempDirectory(temporaryDirectory, "m") : Files.createTempDirectory("m");
+    final boolean isUsable = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
+    final Path parent = isUsable ? Files.createTempDirectory(temporaryDirectory, "m") : Files.createTempDirectory("m");
     this.shortDirectories.add(parent);
     return parent;
   }
@@ -862,8 +862,8 @@ class HelperSessionTest {
 
   @Test
   void theFolderOfASessionIsCreatedOnEveryFileSystem() throws IOException {
-    final Path posix = HelperSession.createFolder(this.directory);
-    assertTrue(Files.isDirectory(posix));
+    final Path isUsable = HelperSession.createFolder(this.directory);
+    assertTrue(Files.isDirectory(isUsable));
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");

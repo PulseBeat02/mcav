@@ -89,13 +89,13 @@ final class SourceUtilsTest {
 
   @Test
   void recognizesUrisWithSchemeAndHost() {
-    final boolean web = SourceUtils.isUri("https://example.com/video");
+    final boolean isWebUri = SourceUtils.isUri("https://example.com/video");
     final boolean stream = SourceUtils.isUri("rtsp://camera.local/live");
-    final boolean drive = SourceUtils.isUri("c:/videos/clip.mp4");
+    final boolean isDrivePath = SourceUtils.isUri("c:/videos/clip.mp4");
     final boolean invalid = SourceUtils.isUri("http://[");
-    assertTrue(web);
+    assertTrue(isWebUri);
     assertTrue(stream);
-    assertFalse(drive);
+    assertFalse(isDrivePath);
     assertFalse(invalid);
     assertThrows(NullPointerException.class, () -> SourceUtils.isUri(null));
   }

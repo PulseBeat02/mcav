@@ -82,8 +82,8 @@ final class GeneratedMediaTest {
 
   private void assertNoPartialFiles() throws Exception {
     try (final Stream<Path> paths = Files.list(this.directory)) {
-      final boolean leftovers = paths.anyMatch(path -> path.getFileName().toString().startsWith("mcav-generating-"));
-      assertFalse(leftovers, "temporary media and process logs are removed");
+      final boolean hasLeftovers = paths.anyMatch(path -> path.getFileName().toString().startsWith("mcav-generating-"));
+      assertFalse(hasLeftovers, "temporary media and process logs are removed");
     }
   }
 

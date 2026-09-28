@@ -109,8 +109,8 @@ final class RenderThread {
 
   private static void joinUnlessSelf(final Thread target) {
     final Thread caller = Thread.currentThread();
-    final boolean self = caller.equals(target);
-    if (self) {
+    final boolean isTargetThread = caller.equals(target);
+    if (isTargetThread) {
       // a pipeline that stops the playback from its own render thread cannot wait for itself
       return;
     }

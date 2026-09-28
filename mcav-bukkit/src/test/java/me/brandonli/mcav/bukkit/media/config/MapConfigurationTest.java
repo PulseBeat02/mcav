@@ -43,8 +43,8 @@ final class MapConfigurationTest {
     return builder;
   }
 
-  private static Object configureResize(final MapConfiguration.Builder<?> builder, final boolean resize) {
-    return builder.resize(resize);
+  private static Object configureResize(final MapConfiguration.Builder<?> builder, final boolean shouldResize) {
+    return builder.resize(shouldResize);
   }
 
   @Test
@@ -64,14 +64,14 @@ final class MapConfigurationTest {
     final int rows = configuration.getMapBlockHeight();
     final int width = configuration.getMapWidthResolution();
     final int height = configuration.getMapHeightResolution();
-    final boolean resize = configuration.shouldResize();
+    final boolean shouldResize = configuration.shouldResize();
     assertSame(viewers, configuredViewers, "the viewers are not copied");
     assertEquals(12, map);
     assertEquals(5, columns);
     assertEquals(3, rows);
     assertEquals(640, width);
     assertEquals(384, height);
-    assertFalse(resize);
+    assertFalse(shouldResize);
   }
 
   @Test
@@ -85,10 +85,10 @@ final class MapConfigurationTest {
 
     final int width = configuration.getMapWidthResolution();
     final int height = configuration.getMapHeightResolution();
-    final boolean resize = configuration.shouldResize();
+    final boolean shouldResize = configuration.shouldResize();
     assertEquals(100, width);
     assertEquals(50, height);
-    assertTrue(resize);
+    assertTrue(shouldResize);
   }
 
   @Test

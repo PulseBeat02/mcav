@@ -260,9 +260,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
       return;
     }
 
-    final boolean resendToEveryone = this.advanceResendCounter();
+    final boolean shouldResendToEveryone = this.advanceResendCounter();
     final Set<UUID> watchingViewers = new HashSet<>();
-    final List<Player> playersWithoutWall = this.updateActiveViewers(watchingViewers, resendToEveryone);
+    final List<Player> playersWithoutWall = this.updateActiveViewers(watchingViewers, shouldResendToEveryone);
     if (!playersWithoutWall.isEmpty()) {
       final Map<Position, BlockData> wall = createBlockMap(currentPositions, blocks);
       for (final Player player : playersWithoutWall) {
@@ -278,11 +278,11 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    */
   private boolean advanceResendCounter() {
     this.ticksSinceFullResend++;
-    final boolean resendToEveryone = this.ticksSinceFullResend >= FULL_RESEND_INTERVAL_TICKS;
-    if (resendToEveryone) {
+    final boolean shouldResendToEveryone = this.ticksSinceFullResend >= FULL_RESEND_INTERVAL_TICKS;
+    if (shouldResendToEveryone) {
       this.ticksSinceFullResend = 0;
     }
-    return resendToEveryone;
+    return shouldResendToEveryone;
   }
 
   /**
@@ -290,7 +290,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    *
    * @return the online viewers who need the complete wall, because they just started watching or it is due
    */
-  private List<Player> updateActiveViewers(final Set<UUID> watchingViewers, final boolean resendToEveryone) {
+  private List<Player> updateActiveViewers(final Set<UUID> watchingViewers, final boolean shouldResendToEveryone) {
     final List<Player> playersWithoutWall = new ArrayList<>();
     final Collection<UUID> viewers = this.configuration.getViewers();
     for (final UUID viewer : viewers) {
@@ -300,7 +300,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
       }
       watchingViewers.add(viewer);
       final boolean startedWatching = this.activeViewers.add(viewer);
-      if (startedWatching || resendToEveryone) {
+      if (startedWatching || shouldResendToEveryone) {
         playersWithoutWall.add(player);
       }
     }

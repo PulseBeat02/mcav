@@ -72,8 +72,8 @@ final class FFmpegTemplatesTest {
     final String codec = metadata.getAudioCodec();
     final int sampleRate = metadata.getAudioSampleRate();
     assertEquals(2, channels, "the audio is stereo as requested");
-    final boolean vorbis = codec.contains("vorbis");
-    assertTrue(vorbis, codec);
+    final boolean isVorbis = codec.contains("vorbis");
+    assertTrue(isVorbis, codec);
     assertTrue(sampleRate > 0, "the file can be decoded");
   }
 

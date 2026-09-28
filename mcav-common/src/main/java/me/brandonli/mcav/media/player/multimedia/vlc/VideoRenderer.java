@@ -124,8 +124,8 @@ final class VideoRenderer implements RenderCallback {
     // asking it for the size lets a detach in between answer with the empty fallback, which would hand VLC a buffer
     // format of 0x0
     final Dimension target = dimensionCallback.retrieve();
-    final boolean scale = !target.isEmpty();
-    if (!scale) {
+    final boolean shouldScale = !target.isEmpty();
+    if (!shouldScale) {
       this.width = visibleWidth;
       this.height = visibleHeight;
       return new RV32BufferFormat(sourceWidth, sourceHeight);

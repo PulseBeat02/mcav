@@ -72,7 +72,7 @@ final class ArchiveExtractorFuzzTest {
   }
 
   private static void check(final Path root, final Path target) throws IOException {
-    final boolean posix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     try (final Stream<Path> paths = Files.walk(root)) {
       final List<Path> all = paths.toList();
       long bytes = 0L;
@@ -83,7 +83,7 @@ final class ArchiveExtractorFuzzTest {
         assertTrue(regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS), () -> "neither file nor folder: " + path);
         if (regular) {
           bytes += Files.size(path);
-          if (posix) {
+          if (supportsPosix) {
             final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
             assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE), () -> "writable by others: " + path);
           }

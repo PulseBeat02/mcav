@@ -69,8 +69,8 @@ final class HelpCommandTest {
     parser.descriptionMapper(AnnotationParserHandler::describe);
     this.help = new HelpCommand(manager);
     parser.parse(this.help);
-    final DumpCommand dump = new DumpCommand(() -> "unused");
-    parser.parse(dump);
+    final DumpCommand listsDump = new DumpCommand(() -> "unused");
+    parser.parse(listsDump);
     this.sender = mock(CommandSender.class);
     when(this.sender.hasPermission(anyString())).thenReturn(true);
     // the help sends some lines as builders; the real default method turns them into components
@@ -109,16 +109,16 @@ final class HelpCommandTest {
     this.help.commandHelp(this.sender, null);
     final String text = this.helpText();
     final boolean title = text.contains("Available Commands");
-    final boolean dump = text.contains("/mcav dump");
-    final boolean helpCommand = text.contains("/mcav help");
-    final boolean dumpDescription = text.contains("Creates a dump of the current server information");
-    final boolean helpDescription = text.contains("Shows the commands of the plugin and how to use them");
+    final boolean listsDump = text.contains("/mcav dump");
+    final boolean listsHelp = text.contains("/mcav help");
+    final boolean describesDump = text.contains("Creates a dump of the current server information");
+    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
     final boolean untranslated = text.contains("mcav.command.");
     assertTrue(title, text);
-    assertTrue(dump, text);
-    assertTrue(helpCommand, text);
-    assertTrue(dumpDescription, text);
-    assertTrue(helpDescription, text);
+    assertTrue(listsDump, text);
+    assertTrue(listsHelp, text);
+    assertTrue(describesDump, text);
+    assertTrue(describesHelp, text);
     assertFalse(untranslated, text);
   }
 
@@ -127,14 +127,14 @@ final class HelpCommandTest {
     this.help.commandHelp(this.sender, "dump");
     final String text = this.helpText();
     final boolean dumpListed = text.contains("/mcav dump");
-    final boolean dumpDescription = text.contains("Creates a dump of the current server information");
+    final boolean describesDump = text.contains("Creates a dump of the current server information");
     final boolean helpListed = text.contains("/mcav help");
-    final boolean helpDescription = text.contains("Shows the commands of the plugin and how to use them");
+    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
     final boolean untranslated = text.contains("mcav.command.");
     assertTrue(dumpListed, text);
-    assertTrue(dumpDescription, text);
+    assertTrue(describesDump, text);
     assertFalse(helpListed, text);
-    assertFalse(helpDescription, text);
+    assertFalse(describesHelp, text);
     assertFalse(untranslated, text);
   }
 

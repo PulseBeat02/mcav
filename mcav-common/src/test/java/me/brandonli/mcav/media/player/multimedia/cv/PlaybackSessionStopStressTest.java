@@ -214,7 +214,7 @@ final class PlaybackSessionStopStressTest {
 
     Round(final int number, final StopPoint point, final SplittableRandom random) {
       final int frameCount = random.nextInt(1, 16);
-      final boolean separateAudio = random.nextBoolean();
+      final boolean hasSeparateAudio = random.nextBoolean();
       final boolean stuckDecoder = random.nextInt(4) == 0;
       this.point = point;
       this.stopAfterFrames = random.nextInt(1, frameCount + 1);
@@ -226,7 +226,7 @@ final class PlaybackSessionStopStressTest {
         frameCount,
         this.stopAfterFrames,
         this.waitBeforeStopNanos,
-        separateAudio ? "separate" : "interleaved",
+        hasSeparateAudio ? "separate" : "interleaved",
         stuckDecoder ? ", decoder stuck for a moment" : ""
       );
       final List<Object> video = new ArrayList<>();
@@ -236,7 +236,7 @@ final class PlaybackSessionStopStressTest {
         final Frame picture = ScriptedFrameGrabber.video(timestamp);
         final Frame sound = ScriptedFrameGrabber.audio(timestamp);
         video.add(picture);
-        if (separateAudio) {
+        if (hasSeparateAudio) {
           audio.add(sound);
         } else {
           video.add(sound);
@@ -247,7 +247,7 @@ final class PlaybackSessionStopStressTest {
         }
       }
       this.videoGrabber = new ScriptedFrameGrabber(4, 2, false, video);
-      this.audioGrabber = separateAudio ? new ScriptedFrameGrabber(4, 2, false, audio) : null;
+      this.audioGrabber = hasSeparateAudio ? new ScriptedFrameGrabber(4, 2, false, audio) : null;
       this.audioOpened = new AtomicBoolean();
       this.pictures = Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
       this.frames = new AtomicInteger();

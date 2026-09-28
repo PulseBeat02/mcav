@@ -217,16 +217,16 @@ final class AudioProviderTest {
 
   @Test
   void reportsWhichOutputsAreEnabled() {
-    final boolean discordBefore = this.provider.isDiscordBotEnabled();
-    final boolean httpBefore = this.provider.isHttpEnabled();
-    assertFalse(discordBefore);
-    assertFalse(httpBefore);
+    final boolean discordEnabledBefore = this.provider.isDiscordBotEnabled();
+    final boolean httpEnabledBefore = this.provider.isHttpEnabled();
+    assertFalse(discordEnabledBefore);
+    assertFalse(httpEnabledBefore);
     this.enableDiscord();
     this.enableHttp();
-    final boolean discordAfter = this.provider.isDiscordBotEnabled();
-    final boolean httpAfter = this.provider.isHttpEnabled();
-    assertTrue(discordAfter);
-    assertTrue(httpAfter);
+    final boolean discordEnabledAfter = this.provider.isDiscordBotEnabled();
+    final boolean httpEnabledAfter = this.provider.isHttpEnabled();
+    assertTrue(discordEnabledAfter);
+    assertTrue(httpEnabledAfter);
   }
 
   @Test

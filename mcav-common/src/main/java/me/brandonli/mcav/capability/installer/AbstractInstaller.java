@@ -338,8 +338,8 @@ public abstract class AbstractInstaller implements Installer {
    * @return the file name of the download
    */
   protected String getFileName() {
-    final boolean archive = this.isArchive();
-    if (!archive) {
+    final boolean isArchive = this.isArchive();
+    if (!isArchive) {
       final OS operatingSystem = OSUtils.getOS();
       return getExecutableFileName(this.name, operatingSystem);
     }

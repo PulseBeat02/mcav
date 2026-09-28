@@ -73,12 +73,12 @@ final class Screen {
   }
 
   void bindStart(final CompletableFuture<Boolean> future) {
-    final boolean cancel;
+    final boolean shouldCancel;
     synchronized (this) {
       this.start = future;
-      cancel = this.cancelled;
+      shouldCancel = this.cancelled;
     }
-    if (cancel) {
+    if (shouldCancel) {
       future.cancel(false);
     }
   }

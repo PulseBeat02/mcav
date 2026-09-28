@@ -209,8 +209,8 @@ final class AddressPolicy {
     final int second = toInt(bytes, 4);
     final int third = toInt(bytes, 8);
     final boolean mapped = first == 0 && second == 0 && third == 0x0000FFFF;
-    final boolean nat64 = first == WELL_KNOWN_NAT64 && second == 0 && third == 0;
-    if (mapped || nat64) {
+    final boolean inNat64Prefix = first == WELL_KNOWN_NAT64 && second == 0 && third == 0;
+    if (mapped || inNat64Prefix) {
       return isPublicIpv4(toInt(bytes, EMBEDDED_IPV4_OFFSET));
     }
     return isGlobalUnicast(first);
@@ -236,11 +236,11 @@ final class AddressPolicy {
    * @return true if the address is global unicast
    */
   private static boolean isGlobalUnicast(final int first) {
-    final boolean globalUnicast = (first & 0xE0000000) == 0x20000000;
-    final boolean ietf = (first & 0xFFFFFE00) == 0x20010000;
-    final boolean documentation = first == 0x20010DB8 || (first & 0xFFFFF000) == 0x3FFF0000;
-    final boolean sixToFour = (first & 0xFFFF0000) == 0x20020000;
-    return globalUnicast && !ietf && !documentation && !sixToFour;
+    final boolean inGlobalUnicastRange = (first & 0xE0000000) == 0x20000000;
+    final boolean inIetfRange = (first & 0xFFFFFE00) == 0x20010000;
+    final boolean inDocumentationRange = first == 0x20010DB8 || (first & 0xFFFFF000) == 0x3FFF0000;
+    final boolean inSixToFourRange = (first & 0xFFFF0000) == 0x20020000;
+    return inGlobalUnicastRange && !inIetfRange && !inDocumentationRange && !inSixToFourRange;
   }
 
   private static int toInt(final byte[] bytes, final int offset) {

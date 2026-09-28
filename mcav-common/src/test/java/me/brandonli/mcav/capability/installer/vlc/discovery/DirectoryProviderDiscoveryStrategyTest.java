@@ -380,9 +380,9 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final List<String> published = new ArrayList<>();
     final TestStrategy strategy = recordingStrategy(published, true);
     final String libraryPath = libraries.toString();
-    final boolean result = strategy.onSetPluginPath(libraryPath);
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
     final List<String> expected = List.of("VLC_PLUGIN_PATH=" + libraryPath + "/plugins");
-    assertTrue(result);
+    assertTrue(pathSet);
     assertEquals(expected, published);
   }
 
@@ -393,9 +393,9 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final List<String> published = new ArrayList<>();
     final TestStrategy strategy = recordingStrategy(published, true);
     final String libraryPath = libraries.toString();
-    final boolean result = strategy.onSetPluginPath(libraryPath);
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
     final List<String> expected = List.of("VLC_PLUGIN_PATH=" + libraryPath + "/vlc/plugins");
-    assertTrue(result);
+    assertTrue(pathSet);
     assertEquals(expected, published);
   }
 
@@ -406,9 +406,9 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final List<String> published = new ArrayList<>();
     final TestStrategy strategy = recordingStrategy(published, false);
     final String libraryPath = libraries.toString();
-    final boolean result = strategy.onSetPluginPath(libraryPath);
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
     final int publishCount = published.size();
-    assertFalse(result);
+    assertFalse(pathSet);
     assertEquals(1, publishCount);
   }
 
@@ -418,17 +418,17 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final List<String> published = new ArrayList<>();
     final TestStrategy strategy = recordingStrategy(published, true);
     final String libraryPath = libraries.toString();
-    final boolean result = strategy.onSetPluginPath(libraryPath);
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
     final boolean nothingPublished = published.isEmpty();
-    assertFalse(result);
+    assertFalse(pathSet);
     assertTrue(nothingPublished);
   }
 
   @Test
   void letsVlcjAddTheFoundDirectoryToTheSearchPath() {
     final TestStrategy strategy = strategy();
-    final boolean addToSearchPath = strategy.onFound("anywhere");
-    assertTrue(addToSearchPath);
+    final boolean addsToSearchPath = strategy.onFound("anywhere");
+    assertTrue(addsToSearchPath);
   }
 
   @Test
@@ -487,10 +487,10 @@ final class DirectoryProviderDiscoveryStrategyTest {
     return new TestStrategy(PATTERNS, PLUGIN_FORMATS, providerList, IGNORING_SETTER);
   }
 
-  private static TestStrategy recordingStrategy(final List<String> published, final boolean result) {
+  private static TestStrategy recordingStrategy(final List<String> published, final boolean setterSucceeds) {
     final EnvironmentSetter setter = (name, value) -> {
       published.add(name + "=" + value);
-      return result;
+      return setterSucceeds;
     };
     final List<SearchProvider> noProviders = List.of();
     return new TestStrategy(PATTERNS, PLUGIN_FORMATS, noProviders, setter);

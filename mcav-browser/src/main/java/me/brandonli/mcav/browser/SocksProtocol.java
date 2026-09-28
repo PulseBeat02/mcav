@@ -173,9 +173,9 @@ final class SocksProtocol {
    * @return true if it may appear
    */
   static boolean isHostNameCharacter(final byte value) {
-    final boolean letter = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
-    final boolean digit = value >= '0' && value <= '9';
-    return letter || digit || value == '-' || value == '.' || value == '_';
+    final boolean isLetter = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
+    final boolean isDigit = value >= '0' && value <= '9';
+    return isLetter || isDigit || value == '-' || value == '.' || value == '_';
   }
 
   /**

@@ -35,11 +35,11 @@ final class FilterChainFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void everyTypedChainIsBoundedOrRefused(final FuzzedDataProvider data) {
-    final boolean video = data.consumeBoolean();
+    final boolean isVideo = data.consumeBoolean();
     final String text = data.consumeRemainingAsString();
     final FilterChain chain;
     try {
-      chain = FilterChain.parse(text, NO_OVERLAYS, video);
+      chain = FilterChain.parse(text, NO_OVERLAYS, isVideo);
     } catch (final IllegalArgumentException refused) {
       assertTrue(refused.getMessage() != null && !refused.getMessage().isBlank(), text);
       return;

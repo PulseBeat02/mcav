@@ -62,8 +62,8 @@ final class DirectAudioOutputTest {
     final SourceDataLine line = mock(SourceDataLine.class);
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
     final ByteBuffer samples = ByteBuffer.allocate(4);
-    final boolean result = output.applyFilter(samples, METADATA);
-    assertFalse(result, "the samples are only read");
+    final boolean changed = output.applyFilter(samples, METADATA);
+    assertFalse(changed, "the samples are only read");
     verifyNoInteractions(line);
   }
 
@@ -86,10 +86,10 @@ final class DirectAudioOutputTest {
     output.start();
     final ByteBuffer samples = ByteBuffer.wrap(new byte[] { 9, 1, 2, 3, 4 });
     samples.position(1);
-    final boolean result = output.applyFilter(samples, METADATA);
+    final boolean changed = output.applyFilter(samples, METADATA);
     final int position = samples.position();
     final int openCount = opened.get();
-    assertFalse(result, "the samples are only read");
+    assertFalse(changed, "the samples are only read");
     assertEquals(1, openCount);
     assertEquals(1, position, "the samples must not be consumed");
     verify(line).start();
@@ -249,14 +249,14 @@ final class DirectAudioOutputTest {
   @Test
   void usesTheDefaultAudioDeviceWhenOneExists() {
     final DataLine.Info info = new DataLine.Info(SourceDataLine.class, DirectAudioOutput.FORMAT);
-    final boolean device = AudioSystem.isLineSupported(info);
-    Assumptions.assumeTrue(device, "this machine has no sound device, see reportsLinesThatCannotBeOpened for that case");
+    final boolean hasDevice = AudioSystem.isLineSupported(info);
+    Assumptions.assumeTrue(hasDevice, "this machine has no sound device, see reportsLinesThatCannotBeOpened for that case");
     final DirectAudioOutput output = new DirectAudioOutput();
     try {
       output.start();
       final ByteBuffer silence = ByteBuffer.allocate(AudioFilter.FRAME_SIZE * 16);
-      final boolean result = output.applyFilter(silence, METADATA);
-      assertFalse(result);
+      final boolean changed = output.applyFilter(silence, METADATA);
+      assertFalse(changed);
     } finally {
       output.release();
     }
@@ -294,7 +294,7 @@ final class DirectAudioOutputTest {
   @Test
   void noOpFilterLeavesTheSamplesUntouched() {
     final ByteBuffer samples = ByteBuffer.allocate(4);
-    final boolean result = AudioFilter.NO_OP.applyFilter(samples, METADATA);
-    assertFalse(result);
+    final boolean changed = AudioFilter.NO_OP.applyFilter(samples, METADATA);
+    assertFalse(changed);
   }
 }

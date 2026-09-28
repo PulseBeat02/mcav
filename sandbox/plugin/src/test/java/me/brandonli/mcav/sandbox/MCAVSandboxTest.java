@@ -198,8 +198,8 @@ final class MCAVSandboxTest {
     assertEquals("The video player manager is not available before the plugin is enabled", videosMessage);
     assertEquals("The audio provider is not available before the plugin is enabled", audioMessage);
     assertEquals("The image manager is not available before the plugin is enabled", imagesMessage);
-    final boolean qemu = this.sandbox.isQemuInstalled();
-    assertFalse(qemu);
+    final boolean hasQemu = this.sandbox.isQemuInstalled();
+    assertFalse(hasQemu);
     assertFalse(this.sandbox.isBrowserSupported());
   }
 
@@ -238,8 +238,8 @@ final class MCAVSandboxTest {
     verify(this.logger, never()).warn(anyString());
     final MCAVApi library = this.sandbox.getMCAV();
     assertSame(this.api, library);
-    final boolean qemu = this.sandbox.isQemuInstalled();
-    assertTrue(qemu);
+    final boolean hasQemu = this.sandbox.isQemuInstalled();
+    assertTrue(hasQemu);
     assertTrue(this.sandbox.isBrowserSupported());
   }
 
@@ -437,8 +437,8 @@ final class MCAVSandboxTest {
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
     verify(this.logger).warn("QEMU is not installed, virtual machines will not be available");
-    final boolean qemu = this.sandbox.isQemuInstalled();
-    assertFalse(qemu);
+    final boolean hasQemu = this.sandbox.isQemuInstalled();
+    assertFalse(hasQemu);
     this.sandbox.onDisable();
   }
 

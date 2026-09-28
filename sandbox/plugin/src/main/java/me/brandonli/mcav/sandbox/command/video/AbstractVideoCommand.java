@@ -200,21 +200,21 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param sender  who ran the command
    * @param plugin  the plugin, whose data folder holds the overlays
    * @param filters the option as typed, or {@code null} for none
-   * @param video   whether the pictures are the frames of a video
+   * @param isVideo whether the pictures are the frames of a video
    * @return the chain, or {@code null} if the option is not valid
    */
   public static @Nullable FilterChain parseFilters(
     final CommandSender sender,
     final MCAVSandbox plugin,
     final @Nullable String filters,
-    final boolean video
+    final boolean isVideo
   ) {
     if (filters == null || filters.isEmpty()) {
       return FilterChain.NONE;
     }
     final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
     try {
-      return FilterChain.parse(filters, overlays, video);
+      return FilterChain.parse(filters, overlays, isVideo);
     } catch (final IllegalArgumentException invalid) {
       sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(invalid.getMessage(), "")));
       return null;
@@ -387,14 +387,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return the message that explains why the device cannot be played, or {@code null} if it can, or no device is asked
    */
   private @Nullable Component findDeviceProblem(final CommandSender sender, final PlayerArgument playerType, final String mrl) {
-    final boolean device = playerType == PlayerArgument.DEVICE;
-    if (!device && !RAW_INPUTS.isDetectedSource(mrl)) {
+    final boolean isDevice = playerType == PlayerArgument.DEVICE;
+    if (!isDevice && !RAW_INPUTS.isDetectedSource(mrl)) {
       return null;
     }
     if (!sender.hasPermission(CaptureDevices.PERMISSION)) {
       return Message.DEVICE_PERMISSION.build();
     }
-    return device && CaptureDevices.find(this.manager.getDevices(), mrl) == null ? Message.DEVICE_UNLISTED.build(mrl) : null;
+    return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl) == null ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
   /**
@@ -537,9 +537,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return true if the player started, false if it refused to start
    */
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
-    final Source video = selection.getVideo();
+    final Source isVideo = selection.getVideo();
     final Source audio = selection.getAudio();
-    return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
+    return this.manager.startNative(() -> audio == null ? player.start(isVideo) : player.start(isVideo, audio));
   }
 
   /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
@@ -620,8 +620,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String format = ffmpegSource.getFormat();
       return createDump(input, "FFmpeg input " + format);
     }
-    if (source instanceof final DeviceSource device) {
-      final int deviceId = device.getDeviceId();
+    if (source instanceof final DeviceSource isDevice) {
+      final int deviceId = isDevice.getDeviceId();
       return createDump("Device " + deviceId, "Video from a capture device");
     }
     if (source instanceof final FileSource file) {
@@ -654,9 +654,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final Format videoFormat = selector.getVideoSource(dump);
     final Format audioFormat = selector.getAudioSource(dump);
-    final UriSource video = videoFormat.toUriSource();
+    final UriSource isVideo = videoFormat.toUriSource();
     final UriSource audio = audioFormat.toUriSource();
-    return new SourceSelection(video, audio, dump);
+    return new SourceSelection(isVideo, audio, dump);
   }
 
   /**
@@ -664,18 +664,18 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    */
   private static final class SourceSelection {
 
-    private final Source video;
+    private final Source isVideo;
     private final @Nullable Source audio;
     private final URLParseDump dump;
 
-    SourceSelection(final Source video, final @Nullable Source audio, final URLParseDump dump) {
-      this.video = video;
+    SourceSelection(final Source isVideo, final @Nullable Source audio, final URLParseDump dump) {
+      this.isVideo = isVideo;
       this.audio = audio;
       this.dump = dump;
     }
 
     private Source getVideo() {
-      return this.video;
+      return this.isVideo;
     }
 
     private @Nullable Source getAudio() {

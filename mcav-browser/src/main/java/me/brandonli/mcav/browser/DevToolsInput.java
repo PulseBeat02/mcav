@@ -314,9 +314,9 @@ final class DevToolsInput {
     final int[] codePoints = text.codePoints().toArray();
     int previous = 0;
     for (final int codePoint : codePoints) {
-      final boolean secondHalfOfCrLf = codePoint == '\n' && previous == '\r';
+      final boolean isSecondHalfOfCrLf = codePoint == '\n' && previous == '\r';
       previous = codePoint;
-      if (secondHalfOfCrLf) {
+      if (isSecondHalfOfCrLf) {
         continue;
       }
       if (codePoint == '\n' || codePoint == '\r') {
@@ -348,8 +348,8 @@ final class DevToolsInput {
       return codePoint - 'a' + 'A';
     }
     final boolean upperCase = codePoint >= 'A' && codePoint <= 'Z';
-    final boolean digit = codePoint >= '0' && codePoint <= '9';
-    return upperCase || digit ? codePoint : 0;
+    final boolean isDigit = codePoint >= '0' && codePoint <= '9';
+    return upperCase || isDigit ? codePoint : 0;
   }
 
   /**

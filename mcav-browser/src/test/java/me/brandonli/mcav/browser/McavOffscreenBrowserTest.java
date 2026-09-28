@@ -150,13 +150,13 @@ class McavOffscreenBrowserTest {
     final List<String> log = new ArrayList<>();
 
     @Override
-    public void onPaint(final boolean popup, final Rectangle[] dirtyRects, final ByteBuffer buffer, final int width, final int height) {
-      this.log.add("paint " + popup + " " + width + "x" + height);
+    public void onPaint(final boolean isPopup, final Rectangle[] dirtyRects, final ByteBuffer buffer, final int width, final int height) {
+      this.log.add("paint " + isPopup + " " + width + "x" + height);
     }
 
     @Override
-    public void onPopupShow(final boolean show) {
-      this.log.add("show " + show);
+    public void onPopupShow(final boolean isShown) {
+      this.log.add("show " + isShown);
     }
 
     @Override

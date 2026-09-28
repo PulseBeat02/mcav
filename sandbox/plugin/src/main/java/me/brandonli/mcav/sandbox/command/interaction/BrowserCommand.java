@@ -306,10 +306,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   BrowserOptions createOptions() {
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
-    final boolean privateNetworks = configuration.isBrowserPrivateNetworks();
-    final boolean javaScriptJit = configuration.isBrowserJavaScriptJit();
-    final boolean autoplay = configuration.isBrowserAutoplaySound();
-    return BrowserOptions.builder().privateNetworks(privateNetworks).javaScriptJit(javaScriptJit).autoplay(autoplay).build();
+    final boolean allowsPrivateNetworks = configuration.isBrowserPrivateNetworks();
+    final boolean allowsJavaScriptJit = configuration.isBrowserJavaScriptJit();
+    final boolean allowsAutoplay = configuration.isBrowserAutoplaySound();
+    return BrowserOptions.builder()
+      .privateNetworks(allowsPrivateNetworks)
+      .javaScriptJit(allowsJavaScriptJit)
+      .autoplay(allowsAutoplay)
+      .build();
   }
 
   private void startBrowser(final CommandSender sender, final Screen screen, final BrowserSource source, final ScreenSound sound) {
@@ -351,8 +355,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return null;
     }
     final String lowerScheme = scheme.toLowerCase(Locale.ROOT);
-    final boolean web = WEB_SCHEMES.contains(lowerScheme);
-    return web ? uri : null;
+    final boolean isWebAddress = WEB_SCHEMES.contains(lowerScheme);
+    return isWebAddress ? uri : null;
   }
 
   /**
@@ -360,13 +364,13 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * as when its download failed, gets its own message, also when wrapped in a {@link CompletionException}. The reason
    * of a failure is logged, not shown, since it may contain details of the server.
    *
-   * @param success whether the browser started
-   * @param error   why the browser failed to start, if known
+   * @param succeeded whether the browser started
+   * @param error     why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
    */
   @Override
-  protected Component createStartMessage(final boolean success, final @Nullable Throwable error) {
-    if (success) {
+  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
+    if (succeeded) {
       return Message.START_BROWSER.build();
     }
     Throwable cause = error;

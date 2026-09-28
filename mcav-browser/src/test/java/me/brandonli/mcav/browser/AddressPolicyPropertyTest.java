@@ -124,8 +124,8 @@ final class AddressPolicyPropertyTest {
     final int third = buffer.getInt();
     final boolean mapped = first == 0 && second == 0 && third == 0x0000FFFF;
     final boolean translated = first == 0x0064FF9B && second == 0 && third == 0;
-    final boolean globalUnicast = (first & 0xE0000000) == 0x20000000;
-    if (!globalUnicast && !mapped && !translated) {
+    final boolean inGlobalUnicastRange = (first & 0xE0000000) == 0x20000000;
+    if (!inGlobalUnicastRange && !mapped && !translated) {
       assertFalse(AddressPolicy.isPublicIpv6(bytes));
     }
   }

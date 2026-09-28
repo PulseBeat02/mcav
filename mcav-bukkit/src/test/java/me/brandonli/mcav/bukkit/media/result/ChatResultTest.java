@@ -73,9 +73,9 @@ final class ChatResultTest {
     final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
     final Packet<?> packet = packets.getFirst();
     final ClientboundSystemChatPacket chatPacket = assertInstanceOf(ClientboundSystemChatPacket.class, packet);
-    final boolean overlay = chatPacket.overlay();
+    final boolean isOverlay = chatPacket.overlay();
 
-    assertFalse(overlay, "messages go into the chat, not the action bar");
+    assertFalse(isOverlay, "messages go into the chat, not the action bar");
 
     final Component content = chatPacket.content();
     return content.getString();

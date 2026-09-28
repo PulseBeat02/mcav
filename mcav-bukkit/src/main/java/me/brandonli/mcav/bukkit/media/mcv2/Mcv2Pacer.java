@@ -397,14 +397,14 @@ public final class Mcv2Pacer {
    * Reports an encoded frame.
    *
    * @param milliseconds how long the frame took to encode, waiting for the budget's threads included
-   * @param keyframe     whether it was a keyframe, which is left out
+   * @param isKeyframe   whether it was a keyframe, which is left out
    * @param now          the time the encode finished
    * @return the step it causes, which the caller carries out, or null
    */
-  public @Nullable Change encoded(final double milliseconds, final boolean keyframe, final long now) {
+  public @Nullable Change encoded(final double milliseconds, final boolean isKeyframe, final long now) {
     Preconditions.checkArgument(milliseconds >= 0 && Double.isFinite(milliseconds), "Time must be finite and non-negative");
     final Rung rung = this.getRung();
-    if (keyframe || rung.isDithered() || Double.isNaN(this.videoInterval)) {
+    if (isKeyframe || rung.isDithered() || Double.isNaN(this.videoInterval)) {
       return null;
     }
     this.smoothed = Double.isNaN(this.smoothed) ? milliseconds : this.smoothed + SMOOTHING * (milliseconds - this.smoothed);

@@ -52,25 +52,25 @@ final class HelperConfiguration {
   private final int height;
   private final int frameInterval;
   private final int frameRate;
-  private final boolean javaScriptJit;
-  private final boolean privateNetworks;
-  private final boolean autoplay;
+  private final boolean allowsJavaScriptJit;
+  private final boolean allowsPrivateNetworks;
+  private final boolean allowsAutoplay;
 
   /**
    * Constructs a configuration and checks every value.
    *
-   * @param token           the session token, {@link HelperProtocol#TOKEN_BYTES} bytes
-   * @param socket          the socket the helper connects to, an absolute path
-   * @param natives         the folder CEF is installed in, an absolute path
-   * @param profile         the folder the browser keeps its profile in, an absolute path
-   * @param url             the page to open, an absolute {@code http} or {@code https} address
-   * @param width           the width of the page in pixels
-   * @param height          the height of the page in pixels
-   * @param frameInterval   send every n-th painted frame
-   * @param frameRate       how many frames per second CEF paints at most
-   * @param javaScriptJit   true to let V8 compile JavaScript to machine code
-   * @param privateNetworks true to let the page reach loopback, private and link-local addresses
-   * @param autoplay        true to let the page play sound before anyone clicked or typed into it
+   * @param token                 the session token, {@link HelperProtocol#TOKEN_BYTES} bytes
+   * @param socket                the socket the helper connects to, an absolute path
+   * @param natives               the folder CEF is installed in, an absolute path
+   * @param profile               the folder the browser keeps its profile in, an absolute path
+   * @param url                   the page to open, an absolute {@code http} or {@code https} address
+   * @param width                 the width of the page in pixels
+   * @param height                the height of the page in pixels
+   * @param frameInterval         send every n-th painted frame
+   * @param frameRate             how many frames per second CEF paints at most
+   * @param allowsJavaScriptJit   true to let V8 compile JavaScript to machine code
+   * @param allowsPrivateNetworks true to let the page reach loopback, private and link-local addresses
+   * @param allowsAutoplay        true to let the page play sound before anyone clicked or typed into it
    * @throws IllegalArgumentException if a value is out of range
    */
   HelperConfiguration(
@@ -83,9 +83,9 @@ final class HelperConfiguration {
     final int height,
     final int frameInterval,
     final int frameRate,
-    final boolean javaScriptJit,
-    final boolean privateNetworks,
-    final boolean autoplay
+    final boolean allowsJavaScriptJit,
+    final boolean allowsPrivateNetworks,
+    final boolean allowsAutoplay
   ) {
     requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
     requireAbsolute(socket, "socket");
@@ -105,9 +105,9 @@ final class HelperConfiguration {
     this.height = height;
     this.frameInterval = frameInterval;
     this.frameRate = frameRate;
-    this.javaScriptJit = javaScriptJit;
-    this.privateNetworks = privateNetworks;
-    this.autoplay = autoplay;
+    this.allowsJavaScriptJit = allowsJavaScriptJit;
+    this.allowsPrivateNetworks = allowsPrivateNetworks;
+    this.allowsAutoplay = allowsAutoplay;
   }
 
   /**
@@ -128,9 +128,9 @@ final class HelperConfiguration {
       Integer.toString(this.height),
       Integer.toString(this.frameInterval),
       Integer.toString(this.frameRate),
-      Boolean.toString(this.javaScriptJit),
-      Boolean.toString(this.privateNetworks),
-      Boolean.toString(this.autoplay)
+      Boolean.toString(this.allowsJavaScriptJit),
+      Boolean.toString(this.allowsPrivateNetworks),
+      Boolean.toString(this.allowsAutoplay)
     );
     final Base64.Encoder encoder = Base64.getEncoder();
     final StringJoiner line = new StringJoiner(SEPARATOR);
@@ -168,9 +168,9 @@ final class HelperConfiguration {
     final int height = Integer.parseInt(values[6]);
     final int frameInterval = Integer.parseInt(values[7]);
     final int frameRate = Integer.parseInt(values[8]);
-    final boolean javaScriptJit = parseBoolean(values[9]);
-    final boolean privateNetworks = parseBoolean(values[10]);
-    final boolean autoplay = parseBoolean(values[11]);
+    final boolean allowsJavaScriptJit = parseBoolean(values[9]);
+    final boolean allowsPrivateNetworks = parseBoolean(values[10]);
+    final boolean allowsAutoplay = parseBoolean(values[11]);
     return new HelperConfiguration(
       token,
       socket,
@@ -181,9 +181,9 @@ final class HelperConfiguration {
       height,
       frameInterval,
       frameRate,
-      javaScriptJit,
-      privateNetworks,
-      autoplay
+      allowsJavaScriptJit,
+      allowsPrivateNetworks,
+      allowsAutoplay
     );
   }
 
@@ -203,8 +203,8 @@ final class HelperConfiguration {
     );
   }
 
-  private static void requireThat(final boolean condition, final String message) {
-    if (!condition) {
+  private static void requireThat(final boolean holds, final String message) {
+    if (!holds) {
       throw new IllegalArgumentException(message);
     }
   }
@@ -246,14 +246,14 @@ final class HelperConfiguration {
   }
 
   boolean isJavaScriptJit() {
-    return this.javaScriptJit;
+    return this.allowsJavaScriptJit;
   }
 
   boolean isPrivateNetworks() {
-    return this.privateNetworks;
+    return this.allowsPrivateNetworks;
   }
 
   boolean isAutoplay() {
-    return this.autoplay;
+    return this.allowsAutoplay;
   }
 }
