@@ -15,14 +15,20 @@ class CoverageException(val path: String, val sourceLine: String, val reason: St
 }
 
 /**
- * Reads {@code coverage-exceptions.txt}: one entry per line, written as
- * {@code path below src/main/java | exact source line | reason}, with {@code #} starting a comment line. The reason
- * must not contain {@code " | "}.
+ * Reads `coverage-exceptions.txt`: one entry per line, written as
+ * `path below src/main/java | exact source line | reason`, with `#` starting a comment line. The reason
+ * must not contain `" | "`.
  */
 object CoverageExceptions {
 
     private const val SEPARATOR = " | "
 
+    /**
+     * Reads the exceptions of a module.
+     *
+     * @param file the exceptions file, which may not exist
+     * @return its entries, in order
+     */
     fun read(file: File): List<CoverageException> {
         if (!file.isFile) {
             return emptyList()
@@ -49,13 +55,24 @@ object CoverageExceptions {
  */
 object CoverageReport {
 
+    // the report names JaCoCo's DTD, which the parser would otherwise download
+    private const val LOAD_EXTERNAL_DTD = "http://apache.org/xml/features/nonvalidating/load-external-dtd"
+
+    /**
+     * Finds the lines of production code that the tests leave uncovered.
+     *
+     * @param report the JaCoCo XML report, which may not exist when no test ran
+     * @param sourceDirectory the production sources the report refers to
+     * @param exceptions the lines allowed to stay uncovered, marked as used when they excuse one
+     * @return each gap as `file:line: warning: reason`
+     */
     fun findGaps(report: File, sourceDirectory: File, exceptions: List<CoverageException>): List<String> {
         if (!report.isFile) {
             val hasSources = sourceDirectory.isDirectory && sourceDirectory.walk().any { it.extension == "java" }
             return if (hasSources) listOf("$sourceDirectory: warning: no test ran, so none of this code is covered") else emptyList()
         }
         val factory = DocumentBuilderFactory.newInstance()
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+        factory.setFeature(LOAD_EXTERNAL_DTD, false)
         val document = factory.newDocumentBuilder().parse(report)
         val sourceFiles = document.getElementsByTagName("sourcefile")
         val gaps = mutableListOf<String>()

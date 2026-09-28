@@ -1,66 +1,32 @@
 plugins {
-    id("maven-publish")
-    alias(libs.plugins.shadow)
+    id("mcav.module")
+    id("mcav.publishing")
+    id("com.gradleup.shadow")
 }
 
 dependencies {
     implementation(libs.maven.resolver.supplier)
 }
 
-tasks {
+// a plugin ships the installer alone and downloads the rest of mcav with it, so the installer is one jar whose
+// dependencies are relocated into it, where they cannot clash with the plugin's
+mcavPublishing {
+    bundledJar = tasks.shadowJar
+}
 
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
-
-    withType<Javadoc>().configureEach {
-        options.encoding = "UTF-8"
-    }
-
-    assemble {
-        dependsOn(shadowJar)
-    }
-
-    // the reflective injector needs java.net opened, as the error message of the injector tells users to do
-    test {
-        jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
-    }
-
-    shadowJar {
-        archiveClassifier.set("")
-        mergeServiceFiles()
-        val relocations = listOf(
-            "com.ctc",
-            "jakarta.inject",
-            "org.apache",
-            "org.codehaus",
-            "org.eclipse",
-            "org.slf4j"
-        )
-        relocations.forEach { relocate(it, "me.brandonli.mcav.libs.$it") }
+tasks.shadowJar {
+    archiveClassifier = ""
+    mergeServiceFiles()
+    listOf("com.ctc", "jakarta.inject", "org.apache", "org.codehaus", "org.eclipse", "org.slf4j").forEach { prefix ->
+        relocate(prefix, "me.brandonli.mcav.libs.$prefix")
     }
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "brandonli"
-            url = uri("https://repo.brandonli.me/snapshots")
-            credentials(PasswordCredentials::class)
-            authentication {
-                create<BasicAuthentication>("basic")
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "me.brandonli"
-            artifactId = project.name
-            version = "${rootProject.version}"
-            artifact(tasks["shadowJar"])
-            artifact(tasks["sourcesJar"])
-            artifact(tasks["javadocJar"])
-        }
-    }
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
+}
+
+// the reflective injector needs java.net opened, as the error message of the injector tells users to do
+tasks.test {
+    jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
 }

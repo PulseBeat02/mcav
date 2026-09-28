@@ -1,122 +1,68 @@
+import me.brandonli.mcav.gradle.isWindows
+
 plugins {
-    id("maven-publish")
+    id("mcav.module")
+    id("mcav.publishing")
 }
 
 dependencies {
-
-    // project dependencies
-    api(libs.spring.boot.starter.web) {
+    api(libs.bundles.spring.boot.web) {
         exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
     }
-
-    api(libs.spring.boot.starter.websocket) {
-        exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
-    }
-
-    // provided
     compileOnlyApi(project(":mcav-common"))
-
-    // testing
     testImplementation(project(":mcav-common"))
     testImplementation(libs.slf4j.simple)
 }
 
-val windows = System.getProperty("os.name").lowercase().contains("windows")
+// The website of the audio web player (mcav-website, Next.js) is built with the npm of the Node.js the build downloads
+// and served from the jar's static folder. npm's shebang looks node up on the PATH, so that Node.js comes first there.
+val npm = node.resolvedNodeDir.get().file(if (isWindows) "npm.cmd" else "bin/npm").asFile
+val npmPath = npm.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
 
-fun getNpmExecutable(): File {
-    val npmExec = if (windows) "npm.cmd" else "bin/npm"
-    val folder = node.resolvedNodeDir.get()
-    val executable = folder.file(npmExec).asFile
-    return executable
+val npmProjectInstall = tasks.register<Exec>("npmProjectInstall") {
+    group = "build"
+    description = "Install npm dependencies for the website"
+    dependsOn("nodeSetup")
+    workingDir = file("mcav-website")
+    executable = npm.absolutePath
+    environment("PATH", npmPath)
+    // installs exactly what package-lock.json lists, so every machine builds the same website
+    args("ci")
+    inputs.file("mcav-website/package.json")
+    inputs.file("mcav-website/package-lock.json")
+    // npm's installation receipt tells a clean install without hashing tens of thousands of dependency files; use
+    // --rerun-tasks to repair a dependency folder changed outside npm
+    outputs.file("mcav-website/node_modules/.package-lock.json")
 }
 
-// npm uses an env-node shebang on Unix; put the managed Node beside npm on PATH.
-val npmDirectory = getNpmExecutable().parentFile
-val nodePath = npmDirectory.absolutePath + File.pathSeparator + System.getenv("PATH")
+val buildWebsite = tasks.register<Exec>("buildWebsite") {
+    group = "build"
+    description = "Build the Next.js website"
+    dependsOn(npmProjectInstall)
+    workingDir = file("mcav-website")
+    executable = npm.absolutePath
+    environment("PATH", npmPath)
+    environment("NODE_OPTIONS", "--max-old-space-size=4096")
+    args("run", "build")
+    inputs.dir("mcav-website/src")
+    inputs.dir("mcav-website/public")
+    inputs.file("mcav-website/package.json")
+    inputs.file("mcav-website/next.config.ts")
+    inputs.file("mcav-website/package-lock.json")
+    inputs.file("mcav-website/tsconfig.json")
+    inputs.file("mcav-website/postcss.config.mjs")
+    outputs.dir("mcav-website/out")
+    outputs.cacheIf { false }
+}
 
-tasks {
-
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
-
-    withType<Javadoc>().configureEach {
-        options.encoding = "UTF-8"
-    }
-
-    val npmProjectInstall = register<Exec>("npmProjectInstall") {
-        group = "build"
-        description = "Install npm dependencies for the website"
-        dependsOn("nodeSetup")
-        workingDir = file("mcav-website")
-        executable = getNpmExecutable().absolutePath
-        environment("PATH", nodePath)
-        // installs exactly what package-lock.json lists, so every machine builds the same website
-        setArgs(listOf("ci"))
-        inputs.file("mcav-website/package.json")
-        inputs.file("mcav-website/package-lock.json")
-        // npm's installation receipt detects clean installs without hashing tens of thousands of dependency files.
-        // Use --rerun-tasks to repair a dependency directory modified outside npm.
-        outputs.file("mcav-website/node_modules/.package-lock.json")
-    }
-
-    val buildWebsite = register<Exec>("buildWebsite") {
-        group = "build"
-        description = "Build the Next.js website"
-        dependsOn(npmProjectInstall)
-        workingDir = file("mcav-website")
-        executable = getNpmExecutable().absolutePath
-        environment("PATH", nodePath)
-        setArgs(listOf("run", "build"))
-        inputs.dir("mcav-website/src")
-        inputs.dir("mcav-website/public")
-        inputs.file("mcav-website/package.json")
-        inputs.file("mcav-website/next.config.ts")
-        inputs.file("mcav-website/package-lock.json")
-        inputs.file("mcav-website/tsconfig.json")
-        inputs.file("mcav-website/postcss.config.mjs")
-        outputs.dir("mcav-website/out")
-        outputs.cacheIf { false }
-        environment("NODE_OPTIONS", "--max-old-space-size=4096")
-    }
-
-    jar {
-        dependsOn(buildWebsite)
-        from("mcav-website/out") {
-            into("static")
-        }
-    }
-
-    named<Jar>("sourcesJar") {
-        dependsOn(buildWebsite)
-        from("mcav-website/out") {
-            into("static")
-        }
-    }
-
-    build {
-        dependsOn(buildWebsite)
+tasks.jar {
+    from(buildWebsite) {
+        into("static")
     }
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "brandonli"
-            url = uri("https://repo.brandonli.me/snapshots")
-            credentials(PasswordCredentials::class)
-            authentication {
-                create<BasicAuthentication>("basic")
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "me.brandonli"
-            artifactId = project.name
-            version = "${rootProject.version}"
-            from(components["java"])
-        }
+tasks.named<Jar>("sourcesJar") {
+    from(buildWebsite) {
+        into("static")
     }
 }

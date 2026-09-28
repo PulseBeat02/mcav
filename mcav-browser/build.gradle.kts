@@ -1,13 +1,6 @@
-import info.solidsoft.gradle.pitest.PitestPluginExtension
-
 plugins {
-    id("maven-publish")
-}
-
-// The tests tagged "cef" start real browser helpers with Chromium; a mutant cannot reach code that runs inside a helper
-// process, which loads the unmutated classes, so they only cost mutation time. Every other test runs under PIT.
-extensions.configure<PitestPluginExtension> {
-    excludedGroups = setOf("cef")
+    id("mcav.module")
+    id("mcav.publishing")
 }
 
 dependencies {
@@ -17,63 +10,33 @@ dependencies {
         exclude(group = "me.friwi", module = "jogl-all")
         exclude(group = "me.friwi", module = "gluegen-rt")
     }
-    // the Debian packages of the libraries a Linux server may lack are xz-compressed tar archives, which
-    // commons-compress (from jcefmaven) reads with this library
+    // commons-compress (from jcefmaven) reads the xz-compressed Debian packages of the libraries a Linux server may lack
     implementation(libs.xz)
-
-    // provided
     compileOnlyApi(project(":mcav-common"))
-    // the annotations JavaCPP's package declarations carry, so reading them while compiling against OpenCV warns about
+    // the annotations of JavaCPP's package declarations, so reading them while compiling against OpenCV warns about
     // nothing, as in mcav-common
     compileOnly(libs.osgi.annotation)
-
-    // test dependencies
     testImplementation(project(":mcav-common"))
     testRuntimeOnly(libs.slf4j.simple)
 }
 
-tasks {
-    // the tests start browser helper processes with the coverage agent of the test JVM, which write their coverage
-    // here; it is part of what the tests produce, so it is removed before they run and cached with their results
-    val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
-    test {
-        outputs.file(helperCoverage).withPropertyName("helperCoverage")
-        doFirst {
-            delete(helperCoverage)
-        }
-        // the measurement of how far the sound of a page drifts from its picture times real events, which a busy
-        // machine delays; it runs on request, on a quiet machine: -Pmcav.syncMeasurement=true
-        systemProperty("mcav.syncMeasurement", providers.gradleProperty("mcav.syncMeasurement").getOrElse("false"))
-    }
-    jacocoTestReport {
-        executionData(helperCoverage)
-    }
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
-    withType<Javadoc>().configureEach {
-        options.encoding = "UTF-8"
+// The tests tagged "cef" start real browser helpers with Chromium; a mutant cannot reach code that runs inside a helper,
+// which loads the unmutated classes, so they only cost mutation time.
+pitest {
+    excludedGroups = setOf("cef")
+}
+
+// the tests start browser helpers with the coverage agent of the test JVM, which write their coverage here; it is part
+// of what the tests produce, so it is removed before they run and cached with their results
+val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
+
+tasks.test {
+    outputs.file(helperCoverage).withPropertyName("helperCoverage")
+    doFirst {
+        delete(helperCoverage)
     }
 }
 
-publishing {
-    repositories {
-        maven {
-            name = "brandonli"
-            url = uri("https://repo.brandonli.me/snapshots")
-            credentials(PasswordCredentials::class)
-            authentication {
-                create<BasicAuthentication>("basic")
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "me.brandonli"
-            artifactId = project.name
-            version = "${rootProject.version}"
-            from(components["java"])
-        }
-    }
+tasks.jacocoTestReport {
+    executionData(helperCoverage)
 }

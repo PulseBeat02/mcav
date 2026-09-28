@@ -12,10 +12,14 @@ import org.gradle.api.tasks.TaskAction
 
 /**
  * Fails when Java code names a type by its fully qualified name instead of importing it, and reports each one as
- * {@code file:line: error: ...}, which IDEs turn into links. A line whose qualified name is needed because two
- * types of the same simple name meet in one file is marked {@code // fqn: <why>}.
+ * `file:line: error: ...`, which IDEs turn into links. A line whose qualified name is needed because two
+ * types of the same simple name meet in one file is marked `// fqn: <why>`.
  */
 abstract class QualifiedNamesTask : DefaultTask() {
+
+    private companion object {
+        const val WRITTEN_OUT = "{}:{}: error: {} is written out; import it, or mark the line // fqn: <why> if its simple name clashes"
+    }
 
     /** The Java sources of every source set of the module. */
     @get:InputFiles
@@ -32,7 +36,7 @@ abstract class QualifiedNamesTask : DefaultTask() {
         sources.files.sorted().forEach { file ->
             QualifiedNames.find(file.readText()).forEach { found ->
                 count++
-                logger.error("{}:{}: error: {} is written out; import it, or mark the line // fqn: <why> if its simple name clashes", file, found.line, found.name)
+                logger.error(WRITTEN_OUT, file, found.line, found.name)
             }
         }
         if (count > 0) {

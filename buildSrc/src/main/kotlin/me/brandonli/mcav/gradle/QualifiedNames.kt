@@ -28,7 +28,7 @@ object QualifiedNames {
      */
     fun find(source: String): List<QualifiedName> {
         val lines = source.split('\n')
-        val code = mask(source).split('\n')
+        val code = JavaSource.mask(source).split('\n')
         val found = mutableListOf<QualifiedName>()
         code.forEachIndexed { index, line ->
             if (DECLARATION.containsMatchIn(line) || MARKER.containsMatchIn(lines[index])) {
@@ -38,50 +38,4 @@ object QualifiedNames {
         }
         return found
     }
-
-    /** The source with every comment and literal replaced by spaces, keeping each line where it was. */
-    fun mask(source: String): String {
-        val out = StringBuilder(source.length)
-        var state = State.CODE
-        var i = 0
-        while (i < source.length) {
-            val c = source[i]
-            val next = if (i + 1 < source.length) source[i + 1] else ' '
-            when (state) {
-                State.CODE -> when {
-                    c == '/' && next == '/' -> { state = State.LINE_COMMENT; out.append("  "); i += 2 }
-                    c == '/' && next == '*' -> { state = State.BLOCK_COMMENT; out.append("  "); i += 2 }
-                    source.startsWith("\"\"\"", i) -> { state = State.TEXT_BLOCK; out.append("   "); i += 3 }
-                    c == '"' -> { state = State.STRING; out.append(' '); i++ }
-                    c == '\'' -> { state = State.CHARACTER; out.append(' '); i++ }
-                    else -> { out.append(c); i++ }
-                }
-                State.LINE_COMMENT -> {
-                    if (c == '\n') state = State.CODE
-                    out.append(if (c == '\n') '\n' else ' ')
-                    i++
-                }
-                State.BLOCK_COMMENT -> when {
-                    c == '*' && next == '/' -> { state = State.CODE; out.append("  "); i += 2 }
-                    else -> { out.append(if (c == '\n') '\n' else ' '); i++ }
-                }
-                State.TEXT_BLOCK -> when {
-                    c == '\\' -> { out.append(' ').append(if (next == '\n') '\n' else ' '); i += 2 }
-                    source.startsWith("\"\"\"", i) -> { state = State.CODE; out.append("   "); i += 3 }
-                    else -> { out.append(if (c == '\n') '\n' else ' '); i++ }
-                }
-                State.STRING, State.CHARACTER -> {
-                    val quote = if (state == State.STRING) '"' else '\''
-                    when {
-                        c == '\\' -> { out.append("  "); i += 2 }
-                        c == quote || c == '\n' -> { state = State.CODE; out.append(if (c == '\n') '\n' else ' '); i++ }
-                        else -> { out.append(' '); i++ }
-                    }
-                }
-            }
-        }
-        return out.toString()
-    }
-
-    private enum class State { CODE, LINE_COMMENT, BLOCK_COMMENT, TEXT_BLOCK, STRING, CHARACTER }
 }

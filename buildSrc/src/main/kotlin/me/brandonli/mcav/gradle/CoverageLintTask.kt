@@ -13,10 +13,16 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Reports every line of production code that the tests leave uncovered, as {@code file:line: warning: reason}, and
- * fails when there is any. Lines listed in {@code coverage-exceptions.txt} are allowed to stay uncovered.
+ * Reports every line of production code that the tests leave uncovered, as `file:line: warning: reason`, and
+ * fails when there is any. Lines listed in `coverage-exceptions.txt` are allowed to stay uncovered.
  */
 abstract class CoverageLintTask : DefaultTask() {
+
+    private companion object {
+        const val FILTERED = "coverageLint of {} skipped: the tests ran with a filter, so the report covers only part of the code"
+        const val GAP = "{}"
+        const val STALE_EXCEPTION = "{}: warning: '{} | {}' matches no uncovered line, remove it"
+    }
 
     /** The JaCoCo XML report of the test run. */
     @get:InputFiles
@@ -43,18 +49,18 @@ abstract class CoverageLintTask : DefaultTask() {
     @TaskAction
     fun lint() {
         if (testsFiltered.get()) {
-            logger.warn("coverageLint of {} skipped: the tests ran with a filter, so the report covers only part of the code", projectPath.get())
+            logger.warn(FILTERED, projectPath.get())
             return
         }
         val exceptionFile = exceptionsFile.singleFile
         val exceptions = CoverageExceptions.read(exceptionFile)
         val sources = sourceDirectory.get().asFile
         val gaps = CoverageReport.findGaps(report.singleFile, sources, exceptions)
-        gaps.forEach { gap -> logger.error(gap) }
+        gaps.forEach { gap -> logger.error(GAP, gap) }
         // an entry that matches no uncovered line must be removed, so the list never hides new gaps
         val staleExceptions = exceptions.filterNot { it.used }
         staleExceptions.forEach { exception ->
-            logger.error("{}: warning: '{} | {}' matches no uncovered line, remove it", exceptionFile, exception.path, exception.sourceLine)
+            logger.error(STALE_EXCEPTION, exceptionFile, exception.path, exception.sourceLine)
         }
         if (gaps.isNotEmpty() || staleExceptions.isNotEmpty()) {
             throw GradleException("${gaps.size} lines are not fully covered by tests and ${staleExceptions.size} coverage exceptions are stale")

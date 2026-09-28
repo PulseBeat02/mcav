@@ -19,7 +19,7 @@ class CoverageLintPluginTest {
         for (name in listOf("first", "second")) {
             val module = project.resolve(name)
             module.mkdirs()
-            module.resolve("build.gradle").writeText("plugins { id 'mcav.coverage-lint' }\n")
+            module.resolve("build.gradle").writeText("plugins { id 'mcav.coverage' }\n")
             val source = module.resolve("src/main/java/Example.java")
             source.parentFile.mkdirs()
             source.writeText("public class Example { public int value() { return 42; } }\n")

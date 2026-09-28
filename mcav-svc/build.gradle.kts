@@ -1,47 +1,11 @@
 plugins {
-    id("maven-publish")
+    id("mcav.module")
+    id("mcav.publishing")
 }
 
 dependencies {
-
-    // project dependencies
     compileOnlyApi(libs.voicechat.api)
-
-    // provided
     compileOnlyApi(project(":mcav-common"))
-
-    // test dependencies
     testImplementation(project(":mcav-common"))
     testImplementation(libs.voicechat.api)
-}
-
-tasks {
-    java {
-        withSourcesJar()
-        withJavadocJar()
-    }
-    withType<Javadoc>().configureEach {
-        options.encoding = "UTF-8"
-    }
-}
-
-publishing {
-    repositories {
-        maven {
-            name = "brandonli"
-            url = uri("https://repo.brandonli.me/snapshots")
-            credentials(PasswordCredentials::class)
-            authentication {
-                create<BasicAuthentication>("basic")
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "me.brandonli"
-            artifactId = project.name
-            version = "${rootProject.version}"
-            from(components["java"])
-        }
-    }
 }

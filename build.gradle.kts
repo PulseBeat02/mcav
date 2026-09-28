@@ -10,20 +10,11 @@ repositories {
     mavenCentral()
 }
 
-// every module shares the conventions in buildSrc/src/main/kotlin/mcav.java-conventions.gradle.kts; the sandbox folder
-// only groups the sandbox plugin and has no build file of its own, so it gets no Java tasks
-subprojects {
-    if (buildFile.exists()) {
-        apply(plugin = "mcav.java-conventions")
-    }
-}
-
 // the modules format their own sources; this formats the files of the repository around them
 spotless {
     format("repository") {
-        // one tree whose excludes are part of it, so the walk skips those folders; targetExclude would build a second
-        // tree of every build and node_modules folder and walk it while nodeSetup and npm write into them, which
-        // failed parallel builds with "Could not read path"
+        // one tree whose excludes are part of it, so its walk skips those folders: targetExclude would walk a second tree
+        // of every build and node_modules folder while nodeSetup and npm write into them ("Could not read path")
         target(
             fileTree(rootDir) {
                 include(

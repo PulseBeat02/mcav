@@ -7,22 +7,25 @@ repositories {
     mavenCentral()
 }
 
-// the plugins the convention plugins apply; their versions live in gradle/libs.versions.toml, so the module build
-// files only name them
 dependencies {
+    implementation(plugin(libs.plugins.spotless))
+    implementation(plugin(libs.plugins.checker.framework))
+    implementation(plugin(libs.plugins.node))
+    implementation(plugin(libs.plugins.errorprone))
+    implementation(plugin(libs.plugins.pitest))
+    implementation(plugin(libs.plugins.shadow))
+    implementation(plugin(libs.plugins.run.paper))
+    implementation(plugin(libs.plugins.resource.factory.paper))
+    implementation(plugin(libs.plugins.gremlin))
+    implementation(plugin(libs.plugins.javacpp.platform))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(gradleTestKit())
-    implementation(libs.spotless.gradle)
-    implementation(libs.checker.framework.gradle)
-    implementation(libs.node.gradle)
-    implementation(libs.errorprone.gradle)
-    implementation(libs.pitest.gradle)
 }
 
-// The coverage lint is also applied to builds that have no version catalog, its TestKit fixtures, so the JaCoCo
-// version it pins is compiled into it from the catalog
+// The coverage plugin is also applied by its functional test, a build without the version catalog, so the JaCoCo
+// version is compiled into the plugin from the catalog.
 val catalogVersions = layout.buildDirectory.dir("generated/sources/catalog/kotlin")
 val jacocoVersion = libs.versions.jacoco.get()
 val generateCatalogVersions = tasks.register("generateCatalogVersions") {
@@ -52,3 +55,7 @@ kotlin.sourceSets.main {
 tasks.test {
     useJUnitPlatform()
 }
+
+// a plugin the convention plugins apply is a library of this build, found through the marker artifact of its id
+fun plugin(plugin: Provider<PluginDependency>): Provider<String> =
+    plugin.map { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" }
