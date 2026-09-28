@@ -29,6 +29,11 @@ verify, operate and extend MCV2 is in mcav, and nothing in the build, the tests 
   bit-exact in the real 26.3 client ([design doc §5.2](../mcv2-integration.md)).
 - **Self-containment** (the same stage): the reference's code vendored unchanged in `tools/mcv2-reference`, every
   fixture and table regenerable from it ([conformance.md](conformance.md)), the research's result files in `data/`.
+- **Every wall of maps** (the same stage, Part 2, 2026-09-28): `--codec dither|mcv2` on the video, image, browser,
+  VM and VNC screens, with `mcv2.default-codec`; one pack for every screen from `Mcv2PackServer` (up to 8 slots, reused
+  by size so the pack seldom changes; hosted by the injector, an HTTP server or the website); page frames that hold
+  their chunks loaded for late joiners; a frame-rate cap (`Mcv2Result.takeFrame`) that thins sources faster than a
+  client draws ([design doc §14](../mcv2-integration.md)).
 
 | what | where |
 |---|---|
@@ -138,10 +143,13 @@ From mcav's side:
 - **Headless, as the stages did**: a Paper server with the plugin built by `-Pmcav.e2e=true` and the debug view
   (`-Dmcav.mcv2.debugView=true`), and a client started with portablemc (`portablemc start 26.3`, and on Xvfb
   `SDL_VIDEO_FORCE_EGL=1`, which gives 26.3 its OpenGL backend); play a stream slowly (one frame every two seconds), grab
-  the screen with ffmpeg's `x11grab`, and compare with `tools/mcv2/capture_check.py` (pictures) and
-  `tools/mcv2/strip_check.py` (pages and status squares) against the reference decode. Clear the weather first: rain
-  draws over the debug view.
-- **Without the game**: `tools/mcv2/shader_check.py`, plain and `--spirv` (Minecraft 26.3's compile path), on the
-  conformance and edge streams.
+  the screen with ffmpeg's `x11grab`, compare the pictures with the reference decode with `tools/mcv2/capture_check.py`,
+  and check the transport strip - page headers and checksums, descriptor rows, status squares - with
+  `tools/mcv2/strip_check.py`. With several screens, each screen has its own debug view and its own slots of the strip:
+  `strip_check.py --screens N --screen I --first-slot S --total-slots T --debug-top Y` checks screen I. Clear the
+  weather first: rain draws over the debug view.
+- **Without the game**: `tools/mcv2/shader_check.py`, plain and `--spirv` (Minecraft 26.3's compile path, through
+  `Mcv2ShaderCompile.java`, which also compiles each screen's copy of the passes in `post/s<screen>/`), on the
+  conformance and edge streams; `--second-screen` runs them as the second screen of a two-screen pack.
 - **In the build**: the conformance, property, fuzz and differential tests run with `./gradlew build`;
   `:sandbox:plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs a real Paper server.

@@ -67,7 +67,30 @@ chunks), when eight MCV2 screens already play, or when even the fastest encoder 
 
 By default the pack is served on the Minecraft server's port, which players behind Velocity or BungeeCord never reach.
 Set `mcv2.pack.hosting` to `http` with a port the players can reach, or to `website` to upload it to mc-packs.net,
-in the [configuration](./config#mcv2).
+in the MCV2 part of the [configuration file](./config.md).
+
+---
+
+## My server already sends a resource pack. Does it clash with the MCV2 pack?
+
+Only if your pack changes the text shaders (`assets/minecraft/shaders/core/text.vsh`, `text.fsh`) or the glow outline
+(`assets/minecraft/post_effect/entity_outline.json`), which the MCV2 pack replaces to decode the video. The pack that a
+player's client loads last wins those files. Your server pack (`server.properties`) is sent when the player joins and
+the MCV2 pack later, so the MCV2 pack wins: MCV2 screens work, and your pack's versions of those three files are not used
+by that player until they leave (the MCV2 pack stays loaded after its screens stop, so players are not reloaded again
+and again). Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
+their outline. If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens
+show nothing. To keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (the
+`mcav/mcv2/pack` folder of the plugin jar), which are vanilla's plus the decoder.
+
+---
+
+## Do players who join later see an MCV2 screen?
+
+Yes. A player who joins, rejoins or changes world while a screen plays for `@a` (or for a selector that matches them) is
+offered the MCV2 pack on the spot and sees the dithered maps until it has loaded. The screen keeps the chunks of its
+hidden page frames loaded until it is released, so players who walk away and come back see it too. Start a screen
+while a player is near its wall: the server only knows the item frames of loaded chunks.
 
 ---
 

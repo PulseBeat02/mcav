@@ -80,6 +80,12 @@ A list of all supported video sites can be found [here](https://github.com/yt-dl
 Image commands also accept a path or URL enclosed in double quotes. Unquoted image paths containing spaces still
 work; the image argument consumes the rest of the command.
 
+While a video plays, `/mcav video seek 1:30` (or `+10`, `-10`) jumps, `/mcav video volume 50` turns it down,
+`/mcav video speed 1.5` plays a file faster (0.5 to 2, with the sound higher to match) and `/mcav video loop true`
+plays it again whenever it ends; the speed and loop need the `FFMPEG` player, and a live stream only changes volume.
+Add `--filters "grayscale,blur=3"` to a video or image command to filter every picture in order; see the
+[filters](./commands.md#filters) the plugin offers.
+
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen. Decoding a high-resolution AV1 source can fall behind on a busy
 server. The playing message reports player state; it does not guarantee frames are arriving. MCAV currently has
@@ -107,7 +113,10 @@ clicks, for every player with the permission `mcav.browser.interact`. For more i
 `VLC`.
 2) Set the `mrl` to be `dshow||video=OBS Virtual Camera` on Windows. For other operating systems, please refer to the
 [FFmpeg Documentation](https://trac.ffmpeg.org/wiki/Capture/Webcam). The format MCAV parses is `format||input`. In this
-case, the format is `dshow` and the input is `video=OBS Virtual Camera`.
+case, the format is `dshow` and the input is `video=OBS Virtual Camera`. A raw input like this can open the server's
+cameras, microphones and screen, so it needs the permission `mcav.command.video.device` (operators have it).
+3) Alternatively, run `/mcav video devices` to list the cameras and capture cards of the server, and play one with the
+`DEVICE` player and its number as the `mrl`.
 
 ### If you would like to create a virtual machine, here are the steps to take:
 1) Use the `/mcav vm create` command to create a new virtual machine on that screen. Virtual machines can only be
@@ -137,14 +146,14 @@ client has loaded it; those who decline, or whose client cannot load it, keep se
 serves every MCV2 screen of the server, so a player loads it once, and again only when a screen of a new video size
 starts.
 4) If players join through a proxy such as Velocity or BungeeCord, the pack cannot be served on the Minecraft port: set
-`mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the [configuration](./config#mcv2).
+`mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the MCV2 part of the [configuration file](./config.md).
 5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a
 screen asks for more than they can give, it steps down to a faster encoder, a smaller video or fewer frames, and tells
 you. A video file you show often can be encoded ahead of time at the best quality with `/mcav mcv2 encode` and shown
 with `/mcav mcv2 play` (without sound).
 
 ### If you would like to show a VNC desktop, here are the steps to take:
-1) List the VNC server in `vnc.allowed-hosts` of the [configuration](./config#vnc), with its password if it has one,
+1) List the VNC server in `vnc.allowed-hosts` of the [configuration file](./config.md), with its password if it has one,
 and restart the server. Nothing can be reached until you do.
 2) Run `/mcav vnc create @a 1280x720 20 10x6 0 NEAREST_COLOR 127.0.0.1:5901`, naming the server exactly as listed.
 3) Players click the screen to click the desktop; `/mcav vnc interact` types their chat into it. `/mcav vnc release`

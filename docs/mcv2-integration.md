@@ -216,13 +216,13 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   (`UV2`, `Sampler2`), so a lit screen is possible by carrying it in the descriptor row; not done.
 - **Resource reloads** drop persistent targets; the picture returns with the next keyframe (at most the key interval,
   2 s for the shipped profiles).
-- **Known limits.** Iris/Sodium shader pipelines, other packs overriding `core/text` or `entity_outline.json`, and the
-  Vulkan backend are outside what was tested (on 26.3 with Mesa's software Vulkan the pack's shaders took over ten
-  minutes to compile, §5.2); with improved transparency (26.3's order-independent transparency, formerly Fabulous) the
-  text shaders draw into the transparency targets, where the pack discards its page and anchor fragments, so the
-  screen shows nothing new. One
-  MCV2 screen per client at a time. Seen from behind the wall, the page frames show a map item for a page map the
-  client has no data for yet (vanilla draws the item when a map id has no data), which is cosmetic.
+- **Known limits.** Iris/Sodium shader pipelines and the Vulkan backend are outside what was tested (on 26.3 with
+  Mesa's software Vulkan the pack's shaders took over ten minutes to compile, §5.2); with improved transparency (26.3's
+  order-independent transparency, formerly Fabulous) the text shaders draw into the transparency targets, where the
+  pack discards its page and anchor fragments, so the screen shows nothing new. Another pack that overrides `core/text`
+  or `entity_outline.json` was tested on 26.3 (§14): the pack loaded last wins those files. Seen from behind the wall,
+  the page frames show a map item for a page map the client has no data for yet (vanilla draws the item when a map id
+  has no data), which is cosmetic.
 
 ### 5.1 Verified on the real client (E3, 2026-09-25)
 
@@ -800,6 +800,123 @@ link time out of the PE header, and a macOS library is named `@rpath/libmcv2kern
 built at, which its UUID would hash). The Linux libraries import nothing (no `DT_NEEDED`, no undefined symbol), so they
 ask nothing of the C library - glibc or musl alike - and have no executable stack; every library is stripped and uses
 no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
+
+## 14. Every wall of maps in the plugin (Part 2, 2026-09-28)
+
+**One switch.** Every sandbox command that draws on a wall of maps - `/mcav video map`, `/mcav image map`,
+`/mcav browser create`, `/mcav vm create` and `/mcav vnc create` - takes `--codec dither|mcv2`, and `mcv2.default-codec`
+in `config.yml` is the default (`dither`). Block, chat, entity, scoreboard and hologram displays do not draw on maps and
+have no codec. `/mcav video mcv2` (a profile per screen) and `/mcav mcv2 play|stream|encode` stay. Live sources encode
+with `live` at up to 30 frames a second on the one shared encoder pool (`mcv2.encoder-threads`), stepping down through
+`live-fast`, smaller sizes and fewer frames as §12's pacer decides; a source that paints faster than the screen's rate,
+such as a browser at hundreds of frames a second, is thinned to it (a token bucket, `Mcv2Configuration.maxFrameRate`,
+30 by default), because a client decodes at most one frame per frame it draws. Files play live the same way (seek,
+pause, speed and loop follow the player); a file can instead be pre-encoded with the ship profile by `/mcav mcv2 encode`
+and played with `/mcav mcv2 play` when ready. Playing live is the default for files because the picture follows the
+player (seek, pause, speed, loop) and the audio outputs with it; the ship profile at 1080p is far from real time on a
+server's budget (§3), so it is kept for pre-encoding, block-parallel (encoding GOPs in parallel was measured and not
+built, §3).
+
+**One pack for every screen.** `Mcv2PackServer` owns the pack of the server: up to eight screens, each in a slot of its
+own with its video size, stream id (the slot's number) and page maps (the first page map plus eight per slot, so two
+screens never write each other's pages). A screen takes a free slot of its size, a new slot, or the least recently
+freed slot, and the pack is re-sent only when the set of slots changes - screens that start and stop with the sizes of
+earlier ones cost no reload. The pack's id is derived from its SHA-1, a player who declined keeps declining, and every
+screen's frame ids start at a clock-based value, so a screen that takes over a slot never looks older than the one
+before it. Proven on 26.3: a video and a browser as two MCV2 screens at once, byte-exact against their reference
+decodes.
+
+**Hosting.** `mcv2.pack.hosting`: `injector` (the default) serves the pack on the Minecraft port itself; `http` on a port
+of its own (`http-host`, `http-port`); `website` uploads it to mc-packs.net. **The injector does not work behind a proxy
+(Velocity, BungeeCord)**: the player's HTTP request reaches the proxy, not the backend server - behind a proxy use
+`http` with a host and port the players can reach, or `website`.
+
+**Players who join later.** A player who joins, rejoins or changes world while a screen plays is offered the pack on
+the next tick and sees the dithered maps until it loads. The page frames are not saved with the world, so a screen holds
+a plugin chunk ticket on their chunks until it is removed: without it a chunk that unloads because every player left
+took the frames with it, and a player who came back got the anchors but no page frames (found in the lab). On 26.3,
+captures against the reference decode: online at the start 25/25 byte-exact, rejoin 17/25 (the rest at least 54.6 dB),
+20 s out of range and back 25/25, a world change 5/25 (at least 49.5 dB, exact again at the next keyframe), a player
+never online before 25/25. A screen must still be started while a player is near its wall: the server only sees the
+item frames of loaded chunks, and says so otherwise.
+
+**Players without the pack** see the dithered picture of the same wall and are told why; declining was tested on 26.3
+(the client set to decline server packs).
+
+**Reload churn.** Loading the pack took 1.1 to 3.1 s from the offer on the lab client (logged by the server for every
+player); a screen whose pacer steps down to a smaller size adds a slot, and with it one reload.
+
+**Other packs.** The pack is optional and additive (`required(false)`, `replace(false)`). With a server pack
+(`server.properties`) that also overrides `core/text.fsh` (tinting text red) and `entity_outline.json` (a wider blur),
+the client stacks the MCV2 pack above it, because it arrives later: MCV2 wins those three files, screens decode, and
+the other pack's text and outline changes are shadowed while the MCV2 pack stays loaded - which is until the player
+leaves, since the pack is not withdrawn when a screen stops. Its other assets are unaffected, and ordinary glowing
+entities keep their outline (the vanilla passes run after MCV2's). A pack pushed after MCV2's with those files would
+win instead, and MCV2 screens would show nothing while the client reports the pack loaded. A server owner who needs
+their own text or outline shaders must merge them into MCV2's copies (`mcav/mcv2/pack` in the plugin jar), which are
+vanilla's plus the decoder.
+
+**Far viewers on a browser screen** (the host's netem "thin link" on port 25590: 40 ms each way, 5 ms jitter, 0.2%
+loss, 6 Mbit/s; a browser at 1280x768 through MCV2 with per-viewer backpressure, the default):
+
+| page | link | encoded | delivered | held for the backlog | skipped | server backlog p99 / max |
+| --- | --- | --- | --- | --- | --- | --- |
+| lab page (0.9 Mbit/s) | loopback | 30.1 fps | 30.1 fps | 0 | 0 | 15 / 22 kB |
+| lab page | thin link | 30.0 fps | 30.0 fps | 0 | 0 | 16 / 22 kB |
+| full-screen noise (~3.9 Mbit/s, stepped down to 852x512) | loopback | 17.9 fps | 17.9 fps | 0 | 0 | 83 / 163 kB |
+| full-screen noise | thin link | 18.8 fps | 16.9 fps | 307 | 16 | 85 / 165 kB |
+
+The browser's frames go through the same `Mcv2Link` as every other source: on the thin link bursts were held and
+frames a viewer could not decode skipped, the backlog stayed bounded and the player stayed connected.
+
+**A/V sync.** Audio stays on the shared audio outputs; MCV2 only changes when the picture is ready. On the server,
+from a frame reaching the screen to its pages being sent: `live` 6 ms (p50; p90 10, p99 15), `intra` (ship keyframes)
+18 ms (p50; p99 29), under one frame at 30 fps. End to end on the lab (a clip that flashes white with a 1 kHz tone,
+the client's screen and the audio web page's stream timed on one clock): the dithered wall showed the flash 141.5 ms
+after the tone arrived (median; p10 133, p90 154), MCV2 with `intra` 212 ms (175 to 248) - the difference is the
+software-rendered decode on the lab's llvmpipe client, not the server. There is no audio delay compensation.
+
+**Server load.** A video file, a browser and a VM playing through MCV2 at once (three 640x384 screens on 5x3 walls,
+`live`, native AVX2 kernels, the encoders sharing 6 of the lab's 12 processors), against the same server with nothing
+playing, sampled with `/mspt` and `/tps` every 30 s for two minutes: the main thread took 0.6 to 0.8 ms a tick on
+average with nothing playing and 0.6 to 1.1 ms with the three screens (the longest tick of any minute 50.5 ms), and the
+server held 20.0 TPS in every sample. The encoders never run on the main thread, so what the screens cost the tick is
+the map and entity traffic; after a release no process of the sources is left. In an earlier run one tick took 1016 ms:
+the recording shows the main thread writing vanilla's player data for 975 ms while every writer on the machine stalled
+on the host's disk at that instant, not MCV2. The same disk stalls held up the lab's frame recorder
+(`-Dmcav.sandbox.mcv2.record`, a lab switch that writes every frame on the screens' sender threads) for up to 7 s, and
+the pacer took the VM screen down a rung once and back up 12 to 16 s later; without the recorder nothing on those
+threads touches the disk.
+
+**Memory.** That run's recording also showed the server's 3 GB heap nearly full. Heap histograms after full collections:
+333 MB with nothing playing, 998 to 1134 MB with the three screens, and the recording's paths from the GC roots led from
+the native kernels' segment cache to old frames: each coder remembered the segments of the arrays it was passed in 256
+slots, and the frames themselves stayed in them after their encode - up to about 250 frames per idle coder. A coder's
+kernels now forget their arrays when the encoder takes the coder back after a frame; with the fix, the same histograms
+gave 338 MB with nothing playing and 373 to 374 MB with the three screens at every sample, and the heap after
+collections stayed under 530 MB during the load run, with GC pauses of at most 12 ms.
+
+**Native kernels and the Java fallback.** The server log says at startup which kernels the encoders use:
+`MCV2 kernels: native avx2 (linux-x86_64)` on the lab and in the e2e test. With `mcv2.native: off` in `config.yml`, or
+`-Dmcv2.native=off` given to the JVM, it says `MCV2 kernels: Java, turned off by mcv2.native=off` and the encoders run
+Java's kernels, which write the same bytes (the mcv2 stage's differential tests); on 26.3 a server started with
+`-Dmcv2.native=off` showed an MCV2 video file byte-exact in the client in 61 of 61 captures and an image in 61 of 61 (a
+first image run had its first 14 captures, 12 to 19 s after the start, before the client held a whole page, and was
+exact from then on).
+
+**End to end.** `:sandbox:plugin:e2eTest` runs the plugin on a headless Paper 26.3 server: the browser and the VM play
+their tones and leave no process behind; a VNC server of the test (RFB 3.8 with VNC authentication, its random password
+only in the allow-list) shows on six maps after one login and no refusal, and its password is in no line of the server
+log; an MCV2 browser screen plays on a wall in chunks the test force-loads (26.3 keeps no spawn chunks), and the pack
+fetched from the game port hashes to the id the server announced; a clip plays with `--filters`, seeks, speeds up, loops
+and turns down; the capture devices are listed; a picture is filtered.
+
+**Lab limits.** The lab client renders about 3 frames a second (llvmpipe at 1920x1080): under previous-frame
+prediction it decodes mostly keyframes, so its picture of a 30 fps `live` screen updates every few seconds; its
+debug-view proofs therefore compare against the reference decode byte for byte rather than count frames, and timing
+proofs use the dithered wall or the recorded stream. During the lab the host was saturated (load average above 100, I/O
+pressure above 80%, none of it from the devbox): the server froze for about a minute several times, and one
+three-screen load run was lost to it.
 
 ## Handover
 
