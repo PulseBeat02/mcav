@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.entity.Player;
@@ -149,10 +151,33 @@ final class ArgumentUtilsTest {
   }
 
   @Test
+  void theViewersOfEveryoneFollowThePlayersOnline() {
+    final OnlinePlayers online = new OnlinePlayers();
+    final MultiplePlayerSelector everyone = mock(MultiplePlayerSelector.class);
+    when(everyone.inputString()).thenReturn("@a");
+    assertSame(online.getPlayers(), ArgumentUtils.parseViewers(everyone, online));
+  }
+
+  @Test
+  void theViewersOfAnyOtherSelectorAreThePlayersItMatchesNow() {
+    final UUID id = UUID.randomUUID();
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(id);
+    for (final String input : List.of("@a[distance=..20]", "Alice", "@p")) {
+      final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
+      when(selector.inputString()).thenReturn(input);
+      when(selector.values()).thenReturn(List.of(player));
+      assertEquals(List.of(id), ArgumentUtils.parseViewers(selector, new OnlinePlayers()), input);
+    }
+  }
+
+  @Test
   void refusesNullArguments() {
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseScreenDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parsePlayerSelectors(null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(null, new OnlinePlayers()));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(mock(MultiplePlayerSelector.class), null));
   }
 
   @Test

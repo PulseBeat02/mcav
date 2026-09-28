@@ -21,6 +21,8 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -31,19 +33,22 @@ import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
- * {@code /mcav video map}: dithers a video onto a wall of maps built with {@code /mcav screen}.
+ * {@code /mcav video map}: shows a video on a wall of maps built with {@code /mcav screen}, dithered or with MCV2.
  */
 public final class VideoMapCommand extends AbstractVideoCommand {
 
@@ -58,8 +63,11 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <ditheringAlgorithm> <flags> <mrl>}: dithers a video onto a wall of maps, the highest quality way to
-   * show a video in the world.
+   * <mapId> <ditheringAlgorithm> <flags> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the highest
+   * quality way to show a video in the world. With {@code --codec mcv2}, or without the flag when
+   * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
+   * players whose client loads the MCV2 resource pack, and dithered for everyone else, like {@code /mcav video mcv2}
+   * with the {@code live} profile.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Each map holds
    * 128x128 pixels, and the maps are numbered row by row from the top left one. Frames are scaled to the
@@ -88,6 +96,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param mrl                the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                           URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                           {@code 0}, or a raw FFmpeg input written as {@code format||input}
+   * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
+   *                           absent
    */
   @Command(
     "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl>"
@@ -104,7 +114,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String flags,
-    @Quoted final String mrl
+    @Quoted final String mrl,
+    @Flag("codec") final @Nullable MapCodec codec
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
@@ -114,9 +125,23 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution ->
-      createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
+    final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final VideoConfigurationProvider configurationProvider;
+    if (chosen == MapCodec.MCV2) {
+      final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
+      if (resolution == null) {
+        return;
+      }
+      final Mcv2Support support = this.plugin.getMcv2Support();
+      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, EncoderSettings.LIVE, players);
+      if (configuration == null) {
+        return;
+      }
+      configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
+    } else {
+      configurationProvider = resolution -> createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
+    }
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
@@ -132,14 +157,15 @@ public final class VideoMapCommand extends AbstractVideoCommand {
   }
 
   /**
-   * Creates the maps that show the frames and the filter that dithers the frames onto them, and starts the filter
-   * on the main thread. Every call creates its own dithering algorithm, so a stateful algorithm never mixes up the
-   * frames of two videos. Called on the worker thread.
+   * Creates the maps that show the frames and the filter that dithers the frames onto them, or the MCV2 output of the
+   * wall, and starts the filter on the main thread. Every call creates its own dithering algorithm, so a stateful
+   * algorithm never mixes up the frames of two videos. Called on the worker thread.
    *
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider created by
-   *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String)},
-   *                              which returns {@link MapDisplaySettings}
+   *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec)},
+   *                              which returns {@link MapDisplaySettings}, or {@link VideoMcv2Command.Mcv2Settings}
+   *                              for MCV2
    * @return the pipeline that dithers the frames onto the maps
    */
   @Override
@@ -150,7 +176,13 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(resolution, "Resolution must not be null");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
 
-    final MapDisplaySettings settings = (MapDisplaySettings) configurationProvider.buildConfiguration(resolution);
+    final Object built = configurationProvider.buildConfiguration(resolution);
+    if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2) {
+      final FunctionalVideoFilter output = VideoMcv2Command.mcv2Filter(this.plugin.getMcv2Support(), mcv2);
+      this.manager.startFilter(output);
+      return VideoPipelineStep.of(output);
+    }
+    final MapDisplaySettings settings = (MapDisplaySettings) built;
     final MapConfiguration configuration = settings.getConfiguration();
     final DitherAlgorithm algorithm = settings.createAlgorithm();
     final CompressedMapResult result = new CompressedMapResult(configuration);

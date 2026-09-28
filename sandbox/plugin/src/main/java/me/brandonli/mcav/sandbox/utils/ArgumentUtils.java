@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.stream.Stream;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -43,6 +44,9 @@ public final class ArgumentUtils {
    * frame of it, and clearing it, still reach every viewer at once.
    */
   public static final int MAX_SCREEN_SIDE = 64;
+
+  /** The selector of every player online, which {@link #parseViewers} keeps following. */
+  private static final String EVERYONE = "@a";
 
   private ArgumentUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -113,5 +117,20 @@ public final class ArgumentUtils {
     final Stream<Player> playerStream = players.stream();
     final Stream<UUID> ids = playerStream.map(Entity::getUniqueId);
     return ids.toList();
+  }
+
+  /**
+   * Resolves the viewers of a wall of maps: for {@code @a} exactly, every player online, including those who join
+   * while the wall plays; for any other selector the players it matches right now, as
+   * {@link #parsePlayerSelectors(MultiplePlayerSelector)} does.
+   *
+   * @param playerSelector the selector the command received
+   * @param online         the players online
+   * @return the unique ids of the viewers, a live view for {@code @a}
+   */
+  public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
+    Preconditions.checkNotNull(online, "Online players must not be null");
+    return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);
   }
 }

@@ -18,16 +18,17 @@
 package me.brandonli.mcav.sandbox.command.interaction;
 
 import java.util.concurrent.CompletableFuture;
-import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The maps an interactive player is shown on, together with the pipeline that dithers its frames onto them.
+ * The maps an interactive player is shown on, together with the pipeline that brings its frames onto them: dithered, or
+ * encoded with MCV2 for the viewers with the pack.
  */
 final class Screen {
 
-  private final CompressedMapResult maps;
+  private final FunctionalVideoFilter output;
   private final VideoPipelineStep pipeline;
   private final int firstMapId;
   private final long mapCount;
@@ -38,13 +39,13 @@ final class Screen {
   /**
    * Constructs the screen.
    *
-   * @param maps     the maps
-   * @param pipeline the pipeline to attach to the player
+   * @param output     the output the frames go to: the dithered maps or the MCV2 screen, which releasing releases
+   * @param pipeline   the pipeline to attach to the player
    * @param firstMapId the first map identifier of the screen
-   * @param mapCount the number of consecutive maps in the screen
+   * @param mapCount   the number of consecutive maps in the screen
    */
-  Screen(final CompressedMapResult maps, final VideoPipelineStep pipeline, final int firstMapId, final long mapCount) {
-    this.maps = maps;
+  Screen(final FunctionalVideoFilter output, final VideoPipelineStep pipeline, final int firstMapId, final long mapCount) {
+    this.output = output;
     this.pipeline = pipeline;
     this.firstMapId = firstMapId;
     this.mapCount = mapCount;
@@ -98,16 +99,16 @@ final class Screen {
   }
 
   /**
-   * Gets the maps the player is shown on.
+   * Gets the output the frames go to.
    *
-   * @return the maps
+   * @return the dithered maps or the MCV2 screen
    */
-  CompressedMapResult getMaps() {
-    return this.maps;
+  FunctionalVideoFilter getOutput() {
+    return this.output;
   }
 
   /**
-   * Gets the pipeline that dithers the frames of the player onto the maps.
+   * Gets the pipeline that brings the frames of the player onto the maps.
    *
    * @return the pipeline
    */

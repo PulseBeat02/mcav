@@ -82,6 +82,37 @@ mcv2:
   # Default is auto
   native: auto
 
+  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colours
+  # every client shows, or mcv2, the MCV2 resource pack's decoder at the resolution the command asks for, which the
+  # players are offered and may decline (those who do see the dithered maps). /mcav video map, /mcav image map,
+  # /mcav browser create, /mcav vm create and /mcav vnc create take the flag, for example --codec mcv2.
+  # Default is dither
+  default-codec: dither
+
+  # The MCV2 resource pack: one pack decodes every MCV2 screen of the server, and changes only when a screen of a
+  # video size it does not decode yet starts; accepting a changed pack reloads a player's resources, a hitch of a
+  # second or more.
+  pack:
+
+    # Where the players download the pack from:
+    #   injector - the Minecraft server's own port. Nothing to set up. It does NOT work behind a proxy such as
+    #              Velocity or BungeeCord: the players' connections reach the proxy's port, not this server's.
+    #   http     - a small HTTP server on http-port, which the players must be able to reach (open the port in the
+    #              firewall). The choice behind a proxy when a port can be opened.
+    #   website  - an upload to mc-packs.net: no port at all, for a server behind a proxy or a firewall that opens
+    #              none. The pack is public there.
+    # Default is injector
+    hosting: injector
+
+    # For http: the host name or address the players reach this server by. Empty means the address the server finds
+    # for itself.
+    # Default is empty
+    http-host: ""
+
+    # For http: the port of the HTTP server, from 1 to 65535.
+    # Default is 25580
+    http-port: 25580
+
 # ======================================================================
 # VNC CONFIGURATION
 # ======================================================================

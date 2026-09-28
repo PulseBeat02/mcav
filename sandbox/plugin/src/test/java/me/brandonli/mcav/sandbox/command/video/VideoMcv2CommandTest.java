@@ -19,7 +19,6 @@ package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,45 +31,41 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Consumer;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
+import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
-import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+/**
+ * Tests {@link VideoMcv2Command}: the wall is configured from the command on the main thread, and the video's output
+ * takes a slot of the MCV2 pack when it starts, or dithers the wall when every slot plays.
+ */
 final class VideoMcv2CommandTest {
 
   private VideoPlayerManager manager;
 
   private Mcv2Support support;
-
-  private Mcv2Viewers viewers;
 
   private VideoMcv2Command command;
 
@@ -78,11 +73,7 @@ final class VideoMcv2CommandTest {
 
   private CommandSender sender;
 
-  private Player player;
-
   private final UUID viewer = UUID.randomUUID();
-
-  private World world;
 
   @BeforeEach
   void createCommand() {
@@ -90,24 +81,17 @@ final class VideoMcv2CommandTest {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
     this.support = mock(Mcv2Support.class);
-    this.viewers = mock(Mcv2Viewers.class);
-    when(this.support.offer(any(), any())).thenReturn(this.viewers);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(mock(AudioProvider.class));
     when(plugin.getMcv2Support()).thenReturn(this.support);
+    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
     this.command = spy(new VideoMcv2Command(plugin));
     doNothing().when(this.command).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
-    this.player = mock(Player.class);
-    when(this.player.getUniqueId()).thenReturn(this.viewer);
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(this.viewer);
     this.selector = mock(MultiplePlayerSelector.class);
-    when(this.selector.values()).thenReturn(List.of(this.player));
+    when(this.selector.values()).thenReturn(List.of(player));
     this.sender = mock(CommandSender.class);
-    this.world = mock(World.class);
-    final ItemFrame frame = Mcv2SupportTest.frame(Mcv2SupportTest.map(Material.FILLED_MAP, true, 20));
-    when(frame.getLocation()).thenReturn(new Location(this.world, 5.5, 64.5, 7.03));
-    when(frame.getFacing()).thenReturn(BlockFace.SOUTH);
-    when(this.world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(frame));
-    when(TestServer.server().getWorlds()).thenReturn(List.of(this.world));
   }
 
   private void play(final String resolution, final String wall, final int map) {
@@ -127,22 +111,21 @@ final class VideoMcv2CommandTest {
   }
 
   @Test
-  void offersThePackAndPlaysOnTheWall() {
+  void configuresTheWallAndPlaysOnIt() {
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(
+      this.support.configure(
+        eq(this.sender),
+        eq(Pair.pair(5, 3)),
+        eq(Pair.pair(640, 384)),
+        eq(20),
+        eq(EncoderSettings.LOW_BANDWIDTH),
+        eq(List.of(this.viewer))
+      )
+    ).thenReturn(configuration);
+
     this.play("640x384", "5x3", 20);
-    final ArgumentCaptor<Mcv2Configuration> configurations = ArgumentCaptor.forClass(Mcv2Configuration.class);
-    verify(this.support).offer(configurations.capture(), eq(List.of(this.player)));
-    final Mcv2Configuration configuration = configurations.getValue();
-    assertEquals(new Location(this.world, 5, 64, 7), configuration.getOrigin());
-    assertEquals(BlockFace.SOUTH, configuration.getFacing());
-    assertEquals(20, configuration.getMap());
-    assertEquals(5, configuration.getColumns());
-    assertEquals(3, configuration.getRows());
-    assertEquals(640, configuration.getVideoWidth());
-    assertEquals(384, configuration.getVideoHeight());
-    assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
-    assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
-    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
-    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());
+
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -159,120 +142,69 @@ final class VideoMcv2CommandTest {
     final Object built = providers.getValue().buildConfiguration(Pair.pair(640, 384));
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, built);
     assertSame(configuration, settings.configuration());
-    assertSame(this.viewers, settings.viewers());
     assertEquals(DitheringArgument.FILTER_LITE, settings.dithering());
     assertSame(this.sender, settings.sender());
   }
 
   @Test
-  void startsTheResultOnThePlayerManager() {
+  void startsTheOutputInASlotOfThePackOnThePlayerManager() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    final Mcv2Output output = mock(Mcv2Output.class);
+    when(this.support.output(this.sender, configuration, DitheringArgument.FILTER_LITE)).thenReturn(output);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ ->
+      new VideoMcv2Command.Mcv2Settings(configuration, DitheringArgument.FILTER_LITE, this.sender);
+
+    final VideoPipelineStep step = this.command.createVideoFilter(Pair.pair(640, 384), provider);
+
+    verify(this.manager).startFilter(output);
+    assertSame(output, step.getFilter());
+  }
+
+  @Test
+  void dithersTheWallWhenEverySlotOfThePackPlays() {
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(configuration.getColumns()).thenReturn(5);
+    when(configuration.getRows()).thenReturn(3);
     when(configuration.getVideoWidth()).thenReturn(640);
     when(configuration.getVideoHeight()).thenReturn(384);
+    when(configuration.getMap()).thenReturn(20);
+    when(configuration.getViewers()).thenReturn(List.of(this.viewer));
     final AbstractVideoCommand.VideoConfigurationProvider provider = _ ->
-      new VideoMcv2Command.Mcv2Settings(configuration, this.viewers, DitheringArgument.FILTER_LITE, this.sender);
-    try (MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
+      new VideoMcv2Command.Mcv2Settings(configuration, DitheringArgument.FILTER_LITE, this.sender);
+    final FunctionalVideoFilter dithered = mock(FunctionalVideoFilter.class);
+    try (
+      MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class, (_, context) -> {
+        final MapConfiguration wall = (MapConfiguration) context.arguments().getFirst();
+        assertEquals(20, wall.getMap());
+        assertEquals(5, wall.getMapBlockWidth());
+        assertEquals(3, wall.getMapBlockHeight());
+        assertEquals(640, wall.getMapWidthResolution());
+        assertEquals(384, wall.getMapHeightResolution());
+        assertEquals(List.of(this.viewer), List.copyOf(wall.getViewers()));
+      });
+      MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(dithered);
+
       final VideoPipelineStep step = this.command.createVideoFilter(Pair.pair(640, 384), provider);
-      final Mcv2Result result = results.constructed().getFirst();
-      verify(this.manager).startFilter(result);
-      assertSame(result, step.getFilter());
-      // the screen's steps are told to whoever started it
-      @SuppressWarnings("unchecked")
-      final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
-      verify(result).setPacingListener(listeners.capture());
-      final Mcv2Pacer.Change change = new Mcv2Pacer.Change(
-        new Mcv2Pacer.Rung(640, 384, 1),
-        new Mcv2Pacer.Rung(640, 384, 2),
-        true,
-        20,
-        16.7,
-        60
-      );
-      listeners.getValue().accept(change);
-      verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
-      // the screen may step down to two smaller videos, each offered with its own pack to the viewers who are online
-      @SuppressWarnings("unchecked")
-      final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
-      final ArgumentCaptor<Mcv2Result.Resizer> resizers = ArgumentCaptor.forClass(Mcv2Result.Resizer.class);
-      verify(result).setSmallerSizes(sizes.capture(), resizers.capture());
-      assertEquals(
-        List.of("426x256", "320x192"),
-        sizes
-          .getValue()
-          .stream()
-          .map(size -> size[0] + "x" + size[1])
-          .toList()
-      );
-      final Mcv2Configuration smaller = mock(Mcv2Configuration.class);
-      final UUID offline = UUID.randomUUID();
-      when(smaller.getViewers()).thenReturn(List.of(this.viewer, offline));
-      when(TestServer.server().getPlayer(this.viewer)).thenReturn(this.player);
-      try (MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
-        final Mcv2Channel channel = resizers.getValue().resize(smaller);
-        assertSame(channels.constructed().getFirst(), channel);
-      }
-      verify(this.support).offer(smaller, List.of(this.player));
+
+      dithers.verify(() -> DitherFilter.dither(DitheringArgument.FILTER_LITE.createAlgorithm(), maps.constructed().getFirst()));
+      verify(this.manager).startFilter(dithered);
+      assertSame(dithered, step.getFilter());
     }
   }
 
   @Test
-  void stepsDownToTwoThirdsAndHalfOfTheVideo() {
-    assertEquals(
-      List.of("1280x720", "960x540"),
-      VideoMcv2Command.smallerSizes(1920, 1080)
-        .stream()
-        .map(size -> size[0] + "x" + size[1])
-        .toList()
-    );
-    assertEquals(
-      List.of("256x144", "192x108"),
-      VideoMcv2Command.smallerSizes(384, 216)
-        .stream()
-        .map(size -> size[0] + "x" + size[1])
-        .toList()
-    );
-    // a size under 128 by 72 is left out
-    assertEquals(
-      List.of("160x80"),
-      VideoMcv2Command.smallerSizes(240, 120)
-        .stream()
-        .map(size -> size[0] + "x" + size[1])
-        .toList()
-    );
-    assertEquals(List.of(), VideoMcv2Command.smallerSizes(200, 100));
-    // exactly 128 by 72 is kept
-    assertEquals(
-      List.of("128x72"),
-      VideoMcv2Command.smallerSizes(192, 108)
-        .stream()
-        .map(size -> size[0] + "x" + size[1])
-        .toList()
-    );
-  }
-
-  @Test
-  void takesThePageSlotsAndTheBacklogLimitOfAMeasurement() {
-    System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
+  void takesTheBacklogLimitOfAMeasurement() {
     System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
     try {
-      final Mcv2Configuration limited = VideoMcv2Command.configure(
-        this.sender,
-        Pair.pair(5, 3),
-        Pair.pair(640, 384),
-        20,
-        Mcv2Profile.LIVE,
-        List.of()
-      );
-      assertEquals(8, Objects.requireNonNull(limited).getPageSlots());
-      assertEquals(65536, limited.getBacklogLimit());
-      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, limited.getUnsentLimit());
-      assertEquals(EncoderSettings.LIVE, limited.getSettings());
+      assertEquals(65536, VideoMcv2Command.backlogLimit());
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, VideoMcv2Command.unsentLimit());
       System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
       assertEquals(Long.MAX_VALUE, VideoMcv2Command.backlogLimit());
       // no backpressure at all: no cap on a viewer's unsent bytes either
       assertEquals(0, VideoMcv2Command.unsentLimit());
     } finally {
-      System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
     }
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, VideoMcv2Command.backlogLimit());
@@ -282,11 +214,9 @@ final class VideoMcv2CommandTest {
   void refusesInvalidSizesAndMissingWalls() {
     this.play("640x384", "65x1", 20);
     this.play("nope", "5x3", 20);
-    verify(this.support, never()).offer(any(), any());
+    verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
     this.play("640x384", "5x3", 21);
-    verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
-    verify(this.support, never()).offer(any(), any());
+    verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
-    assertNull(VideoMcv2Command.configure(this.sender, Pair.pair(5, 3), Pair.pair(640, 384), 99, Mcv2Profile.SHIP, List.of()));
   }
 }

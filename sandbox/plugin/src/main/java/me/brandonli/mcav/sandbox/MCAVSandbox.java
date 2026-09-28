@@ -33,7 +33,9 @@ import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
+import me.brandonli.mcav.sandbox.utils.Mcv2Hosting;
 import me.brandonli.mcav.svc.SVCModule;
 import me.brandonli.mcav.vm.VMModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -84,6 +86,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private @Nullable VideoPlayerManager videoPlayerManager;
 
   private @Nullable Mcv2Support mcv2Support;
+
+  private @Nullable OnlinePlayers onlinePlayers;
 
   private @Nullable AnnotationParserHandler annotationParserHandler;
 
@@ -188,7 +192,17 @@ public final class MCAVSandbox extends JavaPlugin {
     provider.initialize();
     this.videoPlayerManager = new VideoPlayerManager(this);
     this.imageManager = new ImageManager(this);
-    this.mcv2Support = new Mcv2Support(this.getDataFolder().toPath());
+    final OnlinePlayers online = new OnlinePlayers();
+    this.onlinePlayers = online;
+    online.start(this);
+    final PluginDataConfigurationMapper mapper = this.getConfiguration();
+    final Mcv2Hosting hosting = mapper.getMcv2PackHosting();
+    final Mcv2Support support = new Mcv2Support(
+      this.getDataFolder().toPath(),
+      hosting.hosting(mapper.getMcv2PackHttpHost(), mapper.getMcv2PackHttpPort())
+    );
+    this.mcv2Support = support;
+    support.start();
   }
 
   private void loadCommands() {
@@ -215,8 +229,10 @@ public final class MCAVSandbox extends JavaPlugin {
     final AnnotationParserHandler commands = this.annotationParserHandler;
     final AudioProvider audio = this.audioProvider;
     final Mcv2Support mcv2 = this.mcv2Support;
+    final OnlinePlayers online = this.onlinePlayers;
     final MCAVApi library = this.mcav;
     this.mcv2Support = null;
+    this.onlinePlayers = null;
     this.videoPlayerManager = null;
     this.imageManager = null;
     this.listener = null;
@@ -251,7 +267,12 @@ public final class MCAVSandbox extends JavaPlugin {
       },
       () -> {
         if (mcv2 != null) {
-          mcv2.close();
+          mcv2.shutdown();
+        }
+      },
+      () -> {
+        if (online != null) {
+          online.stop();
         }
       },
       () -> {
@@ -319,12 +340,21 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets what the MCV2 commands share: the served pack and who loaded it.
+   * Gets what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
    */
   public Mcv2Support getMcv2Support() {
     return require(this.mcv2Support, "MCV2 support");
+  }
+
+  /**
+   * Gets the players online, which a wall shown to {@code @a} keeps following.
+   *
+   * @return the online players
+   */
+  public OnlinePlayers getOnlinePlayers() {
+    return require(this.onlinePlayers, "list of online players");
   }
 
   /**

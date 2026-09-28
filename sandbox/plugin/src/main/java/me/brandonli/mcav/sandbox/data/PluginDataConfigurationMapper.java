@@ -23,6 +23,7 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +33,8 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
+import me.brandonli.mcav.sandbox.utils.Mcv2Hosting;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -71,6 +74,16 @@ public final class PluginDataConfigurationMapper {
 
   private static final String MCV2_NATIVE = "mcv2.native";
 
+  private static final String MCV2_DEFAULT_CODEC = "mcv2.default-codec";
+
+  private static final String MCV2_PACK_HOSTING = "mcv2.pack.hosting";
+
+  private static final String MCV2_PACK_HTTP_HOST = "mcv2.pack.http-host";
+
+  private static final String MCV2_PACK_HTTP_PORT = "mcv2.pack.http-port";
+
+  private static final int DEFAULT_PACK_HTTP_PORT = 25580;
+
   private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
 
   private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
@@ -88,6 +101,8 @@ public final class PluginDataConfigurationMapper {
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
   private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
+
+  private static final String INVALID_CHOICE = "Invalid {} {}, using {}";
 
   // names the host and the port of the entry, never its password
   private static final String INVALID_VNC_HOST = "Ignoring an entry of {} that is not a host and a port from 1 to 65535: {}:{}";
@@ -122,6 +137,14 @@ public final class PluginDataConfigurationMapper {
 
   private String mcv2Native = Mcv2Natives.AUTO;
 
+  private MapCodec mcv2DefaultCodec = MapCodec.DITHER;
+
+  private Mcv2Hosting mcv2PackHosting = Mcv2Hosting.INJECTOR;
+
+  private String mcv2PackHttpHost = "";
+
+  private int mcv2PackHttpPort = DEFAULT_PACK_HTTP_PORT;
+
   private VncAllowList vncAllowList = VncAllowList.NONE;
 
   /**
@@ -155,10 +178,14 @@ public final class PluginDataConfigurationMapper {
     this.discordBotGuildId = getString(config, DISCORD_BOT_GUILD_ID_FIELD, "");
     this.httpEnabled = config.getBoolean(HTTP_ENABLED, false);
     this.httpHostName = getString(config, HTTP_HOST_FIELD, "localhost");
-    this.httpPort = readPort(config);
+    this.httpPort = readPort(config, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
     this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = readEncoderThreads(config);
     this.mcv2Native = readNative(config);
+    this.mcv2DefaultCodec = readChoice(config, MCV2_DEFAULT_CODEC, MapCodec.class, MapCodec.DITHER);
+    this.mcv2PackHosting = readChoice(config, MCV2_PACK_HOSTING, Mcv2Hosting.class, Mcv2Hosting.INJECTOR);
+    this.mcv2PackHttpHost = getString(config, MCV2_PACK_HTTP_HOST, "").strip();
+    this.mcv2PackHttpPort = readPort(config, MCV2_PACK_HTTP_PORT, DEFAULT_PACK_HTTP_PORT);
     this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
     this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
@@ -191,13 +218,25 @@ public final class PluginDataConfigurationMapper {
     return Objects.requireNonNullElse(value, fallback);
   }
 
-  private static int readPort(final FileConfiguration config) {
-    final int port = config.getInt(HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
+  private static int readPort(final FileConfiguration config, final String key, final int fallback) {
+    final int port = config.getInt(key, fallback);
     if (port < 1 || port > MAX_PORT) {
-      LOGGER.warn(INVALID_PORT, HTTP_PORT_FIELD, port, DEFAULT_HTTP_PORT);
-      return DEFAULT_HTTP_PORT;
+      LOGGER.warn(INVALID_PORT, key, port, fallback);
+      return fallback;
     }
     return port;
+  }
+
+  /** Reads a setting that names a constant of an enum, in any case. */
+  private static <E extends Enum<E>> E readChoice(final FileConfiguration config, final String key, final Class<E> type, final E fallback) {
+    final String value = getString(config, key, fallback.name());
+    for (final E constant : EnumSet.allOf(type)) {
+      if (constant.name().equalsIgnoreCase(value.strip())) {
+        return constant;
+      }
+    }
+    LOGGER.warn(INVALID_CHOICE, key, value, fallback);
+    return fallback;
   }
 
   private static int readEncoderThreads(final FileConfiguration config) {
@@ -384,6 +423,42 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized VncAllowList getVncAllowList() {
     return this.vncAllowList;
+  }
+
+  /**
+   * Gets the codec of a map screen whose command does not say.
+   *
+   * @return {@code mcv2.default-codec}, dither unless set
+   */
+  public synchronized MapCodec getMcv2DefaultCodec() {
+    return this.mcv2DefaultCodec;
+  }
+
+  /**
+   * Gets where the players download the MCV2 resource pack from.
+   *
+   * @return {@code mcv2.pack.hosting}, the injector unless set
+   */
+  public synchronized Mcv2Hosting getMcv2PackHosting() {
+    return this.mcv2PackHosting;
+  }
+
+  /**
+   * Gets the host name or address players reach the pack's HTTP server by.
+   *
+   * @return {@code mcv2.pack.http-host}, empty for the address the server finds for itself
+   */
+  public synchronized String getMcv2PackHttpHost() {
+    return this.mcv2PackHttpHost;
+  }
+
+  /**
+   * Gets the port of the pack's HTTP server.
+   *
+   * @return {@code mcv2.pack.http-port}, from 1 to 65535
+   */
+  public synchronized int getMcv2PackHttpPort() {
+    return this.mcv2PackHttpPort;
   }
 
   /**

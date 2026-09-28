@@ -37,16 +37,24 @@ import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Output;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +75,8 @@ final class ImageMapCommandTest {
   private static final String MRL = "picture.png";
 
   private ImageMapCommand command;
+  private PluginDataConfigurationMapper configuration;
+  private Mcv2Support support;
   private MultiplePlayerSelector selector;
   private CommandSender sender;
   private UUID viewer;
@@ -76,6 +86,12 @@ final class ImageMapCommandTest {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final ImageManager manager = mock(ImageManager.class);
     when(plugin.getImageManager()).thenReturn(manager);
+    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
+    this.configuration = mock(PluginDataConfigurationMapper.class);
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
+    when(plugin.getConfiguration()).thenReturn(this.configuration);
+    this.support = mock(Mcv2Support.class);
+    when(plugin.getMcv2Support()).thenReturn(this.support);
     final ImageMapCommand realCommand = new ImageMapCommand(plugin);
     this.command = spy(realCommand);
     doNothing().when(this.command).displayImage(any(), any(), any(), any());
@@ -90,7 +106,7 @@ final class ImageMapCommandTest {
   }
 
   private AbstractImageCommand.ImageConfigurationProvider showAndCaptureProvider(final DitheringArgument dithering) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL);
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null);
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
@@ -161,7 +177,7 @@ final class ImageMapCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "3-2", "65x1", "1x65" })
   void refusesInvalidWallSizes(final String wall) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL);
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL, null);
     verify(this.command, never()).displayImage(any(), any(), any(), any());
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
@@ -175,24 +191,82 @@ final class ImageMapCommandTest {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(null, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL)
+      this.command.showMapImage(null, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL)
+      this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, null, BLOCKS, MAP_ID, dithering, MRL)
+      this.command.showMapImage(this.sender, this.selector, null, BLOCKS, MAP_ID, dithering, MRL, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, null, MAP_ID, dithering, MRL)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, null, MAP_ID, dithering, MRL, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, null, MRL)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, null, MRL, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, null)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, null, null)
     );
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
+  }
+
+  private AbstractImageCommand.ImageConfigurationProvider showWithCodecAndCaptureProvider(final @Nullable MapCodec codec) {
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.NEAREST_COLOR, MRL, codec);
+    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractImageCommand.ImageConfigurationProvider.class
+    );
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL));
+    return providers.getValue();
+  }
+
+  @Test
+  void showsTheImageWithMcv2WhenTheFlagSaysSo() {
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.MCV2);
+    final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
+    final ImageMapCommand.Mcv2ImageSettings settings = assertInstanceOf(
+      ImageMapCommand.Mcv2ImageSettings.class,
+      provider.buildConfiguration(resolution)
+    );
+    assertEquals(List.of(this.viewer), List.copyOf(settings.viewers()));
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(this.support.configure(this.sender, Pair.pair(3, 2), resolution, MAP_ID, EncoderSettings.LIVE, settings.viewers())).thenReturn(
+      configuration
+    );
+    final Mcv2Output output = mock(Mcv2Output.class);
+    when(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+
+    assertInstanceOf(Mcv2Image.class, this.command.createImage(resolution, provider));
+  }
+
+  @Test
+  void theConfiguredCodecAppliesWithoutTheFlag() {
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(null);
+    assertInstanceOf(ImageMapCommand.Mcv2ImageSettings.class, provider.buildConfiguration(Pair.pair(384, 256)));
+  }
+
+  @Test
+  void theFlagWinsOverTheConfiguredCodec() {
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.DITHER);
+    assertInstanceOf(MapDisplaySettings.class, provider.buildConfiguration(Pair.pair(384, 256)));
+  }
+
+  @Test
+  void anMcv2ImageWithoutAWallOrASlotIsDithered() {
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.MCV2);
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    // no frame holds the map the first time, and every slot plays the second time
+    when(this.support.configure(any(), any(), any(), eq(MAP_ID), any(), any())).thenReturn(null, configuration);
+    when(this.support.output(any(), any(), any())).thenReturn(null);
+
+    final DitherAlgorithm first = this.createImageAndCaptureAlgorithm(provider);
+    final DitherAlgorithm second = this.createImageAndCaptureAlgorithm(provider);
+
+    assertSame(DitheringArgument.NEAREST_COLOR.createAlgorithm(), first);
+    assertSame(DitheringArgument.NEAREST_COLOR.createAlgorithm(), second);
+    verify(this.support).output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
   }
 }

@@ -37,6 +37,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -46,11 +48,14 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
@@ -58,6 +63,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,6 +85,8 @@ final class VideoMapCommandTest {
   private MultiplePlayerSelector selector;
   private CommandSender sender;
   private UUID viewer;
+  private PluginDataConfigurationMapper configuration;
+  private Mcv2Support support;
 
   @BeforeEach
   void createCommand() {
@@ -96,6 +104,12 @@ final class VideoMapCommandTest {
     final AudioProvider provider = mock(AudioProvider.class);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(provider);
+    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
+    this.configuration = mock(PluginDataConfigurationMapper.class);
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
+    when(plugin.getConfiguration()).thenReturn(this.configuration);
+    this.support = mock(Mcv2Support.class);
+    when(plugin.getMcv2Support()).thenReturn(this.support);
     final VideoMapCommand realCommand = new VideoMapCommand(plugin);
     this.command = spy(realCommand);
     skipPlayback(this.command);
@@ -140,7 +154,8 @@ final class VideoMapCommandTest {
       20,
       dithering,
       "",
-      "clip.mp4"
+      "clip.mp4",
+      null
     );
   }
 
@@ -275,5 +290,71 @@ final class VideoMapCommandTest {
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expectedMessages = List.of(error);
     assertEquals(expectedMessages, messages);
+  }
+
+  private void playWithCodec(final String resolution, final @Nullable MapCodec codec) {
+    this.command.playMapVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      resolution,
+      "5x3",
+      20,
+      DitheringArgument.NEAREST_COLOR,
+      "",
+      "clip.mp4",
+      codec
+    );
+  }
+
+  @Test
+  void encodesTheVideoWithMcv2WhenTheFlagSaysSo() {
+    final Mcv2Configuration wall = mock(Mcv2Configuration.class);
+    when(
+      this.support.configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(EncoderSettings.LIVE), any())
+    ).thenReturn(wall);
+    this.playWithCodec("640x384", MapCodec.MCV2);
+    final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractVideoCommand.VideoConfigurationProvider.class
+    );
+    verify(this.command).playVideo(
+      providers.capture(),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq("640x384"),
+      eq("clip.mp4"),
+      eq("")
+    );
+    final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
+    final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
+      VideoMcv2Command.Mcv2Settings.class,
+      providers.getValue().buildConfiguration(resolution)
+    );
+    assertSame(wall, settings.configuration());
+    final Mcv2Output output = mock(Mcv2Output.class);
+    when(this.support.output(this.sender, wall, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+
+    final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, providers.getValue());
+
+    assertSame(output, pipeline.getFilter());
+    this.assertStartedOnTheMainThread(output);
+  }
+
+  @Test
+  void theConfiguredCodecAppliesWithoutTheFlag() {
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+    this.playWithCodec("640x384", null);
+    verify(this.support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(EncoderSettings.LIVE), any());
+  }
+
+  @Test
+  void anMcv2VideoWithAnInvalidResolutionOrWithoutAWallDoesNotStart() {
+    this.playWithCodec("wide", MapCodec.MCV2);
+    this.playWithCodec("640x384", MapCodec.MCV2);
+    verify(this.support).configure(any(), any(), any(), eq(20), any(), any());
+    verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
   }
 }

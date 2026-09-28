@@ -26,6 +26,7 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vnc.VNCPlayer;
@@ -39,6 +40,7 @@ import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -165,7 +167,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
 
   /**
    * Handles {@code /mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <server>}: connects to a VNC server and streams its desktop onto a wall of maps.
+   * <ditheringAlgorithm> <server> [--codec dither|mcv2]}: connects to a VNC server and streams its desktop onto a wall
+   * of maps, dithered or with MCV2.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then
    * click the screen to click the desktop, and type on it after enabling {@code /mcav vnc interact}. Only one desktop
@@ -187,6 +190,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
    *                           {@link DitheringArgument}
    * @param server             the VNC server as {@code host:port}, or {@code [address]:port} for an IPv6 address, as
    *                           listed in {@code vnc.allowed-hosts}
+   * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
+   *                           absent
    */
   @Command("mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <server>")
   @Permission("mcav.command.vnc.create")
@@ -199,7 +204,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String server
+    @Quoted final String server,
+    @Flag("codec") final @Nullable MapCodec codec
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
@@ -219,7 +225,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
     }
 
     final VNCSource source = createSource(entry, resolution, targetFps);
-    final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
+    final MapCodec chosen = this.chooseCodec(codec);
+    final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
     this.createResource(() -> this.connect(sender, screen, source, entry));
   }

@@ -38,18 +38,21 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.FlagYielding;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -182,9 +185,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   /**
    * Handles {@code /mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <audioType> <url>}: opens a web page in mcav's embedded Chromium, which runs in a process of
-   * its own, streams it onto a wall of maps, and its sound into the chosen audio output. The first browser on a server
-   * downloads Chromium once, about 165 MB, and on Linux about 13 MB of the libraries it needs that the server lacks.
+   * <ditheringAlgorithm> <audioType> <url> [--codec dither|mcv2]}: opens a web page in mcav's embedded Chromium, which
+   * runs in a process of its own, streams it onto a wall of maps, dithered or with MCV2, and its sound into the chosen
+   * audio output. The first browser on a server downloads Chromium once, about 165 MB, and on Linux about 13 MB of the
+   * libraries it needs that the server lacks.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then
    * left click or right click the screen to click the page at that spot, and type into it after enabling
@@ -213,8 +217,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param audioType          where the sound of the page plays, as for the video commands, see
    *                           {@link AudioArgument}; {@code NONE} keeps the page silent
    * @param url                the address of the page, such as {@code https://example.com}; the rest of the
-   *                           command line. Other schemes, such as {@code file:}, are refused so that the maps
-   *                           cannot show files of the server
+   *                           command line up to a flag. Other schemes, such as {@code file:}, are refused so that
+   *                           the maps cannot show files of the server
+   * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
+   *                           absent
    */
   @Command(
     "mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>"
@@ -230,7 +236,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final AudioArgument audioType,
-    @Greedy final String url
+    @Greedy @FlagYielding final String url,
+    @Flag("codec") final @Nullable MapCodec codec
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
@@ -272,7 +279,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     }
 
     final BrowserSource source = createSource(uri, nth, resolution);
-    final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
+    final MapCodec chosen = this.chooseCodec(codec);
+    final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);

@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.MissingResourceException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -50,6 +51,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestCommandManager;
 import me.brandonli.mcav.sandbox.testing.TestServer;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
@@ -66,6 +68,8 @@ import org.incendo.cloud.execution.CommandResult;
 import org.incendo.cloud.minecraft.extras.RichDescription;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.parser.ArgumentParser;
+import org.incendo.cloud.parser.flag.CommandFlag;
+import org.incendo.cloud.parser.flag.CommandFlagParser;
 import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
@@ -90,26 +94,26 @@ final class AnnotationParserHandlerTest {
     "mcav help query",
     "mcav screen blockDimensions mapId material location",
     "mcav image release",
-    "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl",
+    "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
     "mcav video pause",
     "mcav video resume",
     "mcav video release",
     "mcav video hologram set location",
     "mcav video hologram disable",
-    "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl",
+    "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl flags",
     "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm flags mrl",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId fps file",
     "mcav mcv2 stop",
     "mcav browser interact",
     "mcav browser release",
-    "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url",
+    "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
     "mcav vm interact",
     "mcav vm release",
     "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags",
     "mcav vnc interact",
     "mcav vnc release",
-    "mcav vnc create playerSelector vncResolution targetFps blockDimensions mapId ditheringAlgorithm server"
+    "mcav vnc create playerSelector vncResolution targetFps blockDimensions mapId ditheringAlgorithm server flags"
   );
 
   private MCAVSandbox plugin;
@@ -215,9 +219,9 @@ final class AnnotationParserHandlerTest {
     handler.registerCommands();
     final String vm =
       "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
-    final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl";
+    final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags";
     final String browser =
-      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url";
+      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
     final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");
     final ArgumentParser<CommandSender, ?> mrl = this.parserOf(image, "mrl");
     final ArgumentParser<CommandSender, ?> url = this.parserOf(browser, "url");
@@ -225,8 +229,32 @@ final class AnnotationParserHandlerTest {
     final StringParser<?> mrlParser = assertInstanceOf(StringParser.class, mrl);
     final StringParser<?> urlParser = assertInstanceOf(StringParser.class, url);
     assertEquals(StringParser.StringMode.GREEDY, flagsParser.stringMode(), "QEMU options are several words, as the jukebox sends them");
-    assertEquals(StringParser.StringMode.GREEDY, mrlParser.stringMode(), "image paths may contain spaces without quotes");
-    assertEquals(StringParser.StringMode.GREEDY, urlParser.stringMode());
+    assertEquals(
+      StringParser.StringMode.GREEDY_FLAG_YIELDING,
+      mrlParser.stringMode(),
+      "image paths may contain spaces without quotes, up to the codec flag"
+    );
+    assertEquals(StringParser.StringMode.GREEDY_FLAG_YIELDING, urlParser.stringMode());
+  }
+
+  @Test
+  void everyWallOfMapsTakesTheCodecFlag() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    for (final String syntax : List.of(
+      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl flags",
+      "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
+      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
+      "mcav vnc create playerSelector vncResolution targetFps blockDimensions mapId ditheringAlgorithm server flags"
+    )) {
+      final Command<CommandSender> command = this.commands.command(syntax);
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
+      assertEquals(List.of("codec"), names, syntax);
+      final CommandComponent<?> codec = Objects.requireNonNull(flags.flags().iterator().next().commandComponent());
+      final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codec.parser(), syntax);
+      assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), Set.copyOf(values.acceptedValues()), syntax);
+    }
   }
 
   @Test
@@ -234,9 +262,9 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String video =
-      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl";
+      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm flags mrl flags";
     final String browser =
-      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url";
+      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
     final String vm =
       "mcav vm create playerSelector vmResolution targetFps blockDimensions mapId ditheringAlgorithm architecture audioType flags";
     final ArgumentParser<CommandSender, ?> videoAudio = this.parserOf(video, "audioType");

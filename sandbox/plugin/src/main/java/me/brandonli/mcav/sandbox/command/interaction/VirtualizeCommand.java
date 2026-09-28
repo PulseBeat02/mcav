@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -40,6 +42,7 @@ import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
@@ -105,6 +108,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
+
+  /** A {@code --codec} and its value at the very end of the options, after whitespace or alone. */
+  private static final Pattern TRAILING_CODEC = Pattern.compile("(?:^|\\s)--codec\\s+(\\S+)\\s*$");
 
   /**
    * Constructs the command.
@@ -220,8 +226,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
 
   /**
    * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <architecture> <audioType> <flags>}: boots a QEMU virtual machine and streams its display
-   * onto a wall of maps, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
+   * <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither|mcv2]}: boots a QEMU virtual machine and
+   * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
    * adds their sound card itself, and the flags cannot change it.
    *
    * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}. Build
@@ -256,7 +262,10 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
    *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
    *                           {@link #supportedOptions()} are accepted, and a disk image must be a file of the
-   *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder
+   *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder.
+   *                           A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
+   *                           chooses how the picture reaches the players, as the flag of the other map commands
+   *                           does, and the configured default applies without it
    */
   @Command(
     "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
@@ -295,7 +304,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       return;
     }
 
-    final VMConfiguration vmConfiguration = this.parseOptions(sender, flags);
+    final CodecSplit split = splitCodec(flags);
+    if (split == null) {
+      sender.sendMessage(Message.UNKNOWN_CODEC.build());
+      return;
+    }
+    final VMConfiguration vmConfiguration = this.parseOptions(sender, split.options());
     if (vmConfiguration == null) {
       return;
     }
@@ -314,7 +328,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     final VMSettings vmSettings = VMSettings.of(width, height, targetFps);
-    final ScreenSettings settings = new ScreenSettings(playerSelector, blocks, resolution, mapId, ditheringAlgorithm);
+    final MapCodec codec = this.chooseCodec(split.codec());
+    final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
     final Screen screen = this.createScreen(settings);
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
@@ -367,6 +382,36 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
       return Message.VM_PATH.build();
     }
     return Message.VM_ERROR.build();
+  }
+
+  /**
+   * The QEMU options of a command, and the codec a trailing {@code --codec} names.
+   *
+   * @param options the QEMU options, without the codec flag
+   * @param codec   the codec, or null when the options end with none
+   */
+  record CodecSplit(String options, @Nullable MapCodec codec) {}
+
+  /**
+   * Splits a trailing {@code --codec dither} or {@code --codec mcv2}, in any case, off the QEMU options. Cloud's flags
+   * cannot follow the options, which start with a dash too; a {@code --codec} anywhere else is left to the options,
+   * which refuse it.
+   *
+   * @param flags the rest of the command line
+   * @return the options and the codec, or null when the flag names no codec
+   */
+  static @Nullable CodecSplit splitCodec(final String flags) {
+    final Matcher matcher = TRAILING_CODEC.matcher(flags);
+    if (!matcher.find()) {
+      return new CodecSplit(flags, null);
+    }
+    final String name = matcher.group(1);
+    for (final MapCodec codec : MapCodec.values()) {
+      if (codec.name().equalsIgnoreCase(name)) {
+        return new CodecSplit(flags.substring(0, matcher.start()).strip(), codec);
+      }
+    }
+    return null;
   }
 
   /**

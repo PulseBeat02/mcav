@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.RejectedExecutionException;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -50,12 +51,17 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DiskImages;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
+import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vm.ExecutableNotInPathException;
 import me.brandonli.mcav.vm.VMConfiguration;
@@ -103,6 +109,10 @@ final class VirtualizeCommandTest {
   void createCommand() {
     final Server server = TestServer.reset();
     this.plugin = mock(MCAVSandbox.class);
+    when(this.plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
+    final PluginDataConfigurationMapper defaults = mock(PluginDataConfigurationMapper.class);
+    when(defaults.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
+    when(this.plugin.getConfiguration()).thenReturn(defaults);
     when(this.plugin.getServer()).thenReturn(server);
     when(this.plugin.isQemuInstalled()).thenReturn(true);
     when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
@@ -159,9 +169,9 @@ final class VirtualizeCommandTest {
     final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () -> this.create("640x480", "5x4", ""));
     assertSame(failure, thrown);
     verify(this.machine).release();
-    final List<CompressedMapResult> created = this.maps.constructed();
-    final CompressedMapResult screen = created.getFirst();
-    verify(screen).release();
+    assertEquals(1, this.maps.constructed().size());
+    // the screen's output owns its maps: releasing it releases them
+    verify(this.ditherFilter).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
   }
@@ -233,6 +243,43 @@ final class VirtualizeCommandTest {
     final Component loading = Message.VM_LOADING.build();
     final Component created = Message.VM_CREATE.build();
     this.assertReceived(loading, created);
+  }
+
+  @Test
+  void takesTheCodecFromTheEndOfTheOptions() {
+    this.startsWith(CompletableFuture.completedFuture(true));
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+
+    this.create("640x480", "5x4", "-m 2048M --codec MCV2");
+
+    // the screen asked for MCV2, which found no wall here and dithers
+    verify(support).configure(eq(this.sender), eq(Pair.pair(5, 4)), eq(Pair.pair(640, 480)), eq(0), eq(EncoderSettings.LIVE), any());
+    final ArgumentCaptor<VMConfiguration> configurations = ArgumentCaptor.forClass(VMConfiguration.class);
+    verify(this.machine).startAsync(any(VMSettings.class), eq(VMPlayer.Architecture.X86_64), configurations.capture(), any());
+    assertEquals(List.of("-m", "2048M"), configurations.getValue().getArguments());
+  }
+
+  @Test
+  void refusesACodecThatIsNeitherDitherNorMcv2() {
+    this.create("640x480", "5x4", "-m 2048M --codec vp9");
+    this.assertReceived(Message.UNKNOWN_CODEC.build());
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
+  void splitsATrailingCodecOffTheOptions() {
+    assertEquals(new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.MCV2), VirtualizeCommand.splitCodec("-m 2048M --codec mcv2"));
+    assertEquals(
+      new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.DITHER),
+      VirtualizeCommand.splitCodec("-m 2048M  --codec\tDiThEr  ")
+    );
+    assertEquals(new VirtualizeCommand.CodecSplit("", MapCodec.MCV2), VirtualizeCommand.splitCodec("--codec mcv2"));
+    assertEquals(new VirtualizeCommand.CodecSplit("-m 2048M", null), VirtualizeCommand.splitCodec("-m 2048M"));
+    // a codec anywhere but at the end is an option for QEMU, which refuses it
+    assertEquals(new VirtualizeCommand.CodecSplit("--codec mcv2 -m 2048M", null), VirtualizeCommand.splitCodec("--codec mcv2 -m 2048M"));
+    assertEquals(new VirtualizeCommand.CodecSplit("-name x--codec mcv2", null), VirtualizeCommand.splitCodec("-name x--codec mcv2"));
+    assertNull(VirtualizeCommand.splitCodec("-m 2048M --codec vp9"));
   }
 
   @Test

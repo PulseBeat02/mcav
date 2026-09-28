@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -47,6 +48,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -56,6 +59,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Output;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.FakeWorld;
@@ -65,6 +72,7 @@ import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
 import me.brandonli.mcav.sandbox.utils.Keys;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
 import org.bukkit.FluidCollisionMode;
@@ -186,6 +194,10 @@ final class AbstractInteractiveCommandTest {
   void createCommand() {
     final Server server = TestServer.reset();
     this.plugin = mock(MCAVSandbox.class);
+    when(this.plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
+    final PluginDataConfigurationMapper defaults = mock(PluginDataConfigurationMapper.class);
+    when(defaults.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
+    when(this.plugin.getConfiguration()).thenReturn(defaults);
     when(this.plugin.getServer()).thenReturn(server);
     this.command = new RecordingCommand(this.plugin);
     this.fakeWorld = new FakeWorld();
@@ -242,7 +254,7 @@ final class AbstractInteractiveCommandTest {
     final MultiplePlayerSelector viewers = mockViewers(viewer);
     final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
     final Pair<Integer, Integer> resolution = Pair.pair(512, 384);
-    return new ScreenSettings(viewers, blocks, resolution, 7, dithering);
+    return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, dithering, MapCodec.DITHER);
   }
 
   // creates a screen like the commands do, with its maps and dithering mocked
@@ -317,8 +329,8 @@ final class AbstractInteractiveCommandTest {
     final FunctionalVideoFilter ditherFilter,
     final MockedStatic<DitherFilter> dithers
   ) {
-    final CompressedMapResult screenMaps = screen.getMaps();
-    assertSame(maps, screenMaps);
+    final FunctionalVideoFilter screenMaps = screen.getOutput();
+    assertSame(ditherFilter, screenMaps);
     for (int mapId = 7; mapId < 19; mapId++) {
       assertTrue(screen.ownsMap(mapId), "all twelve maps of the 4x3 wall accept interaction");
     }
@@ -330,7 +342,7 @@ final class AbstractInteractiveCommandTest {
     final VideoPipelineStep pipeline = screen.getPipeline();
     final VideoFilter filter = pipeline.getFilter();
     assertSame(ditherFilter, filter);
-    assertSame(maps, this.command.result);
+    assertSame(ditherFilter, this.command.result);
   }
 
   private static void assertWallConfiguration(final List<List<?>> arguments, final UUID viewer) {
@@ -366,7 +378,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void releasesEverythingAndStopsListeningWhenShutDown() {
     this.command.player = "browser";
-    final CompressedMapResult maps = mock(CompressedMapResult.class);
+    final FunctionalVideoFilter maps = mock(FunctionalVideoFilter.class);
     this.command.result = maps;
     this.interactions.close();
 
@@ -415,7 +427,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void createsTheMapsOfTheScreenAndReleasesTheOldOnes() {
     this.command.player = "old";
-    final CompressedMapResult oldMaps = mock(CompressedMapResult.class);
+    final FunctionalVideoFilter oldMaps = mock(FunctionalVideoFilter.class);
     this.command.result = oldMaps;
     final UUID viewer = UUID.randomUUID();
     final ScreenSettings settings = wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
@@ -468,7 +480,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void tellsTheSenderWhenThePlayerStarted() {
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
 
@@ -485,7 +497,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void releasesAPlayerThatRefusedToStart() {
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
 
@@ -516,7 +528,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void releasesAPlayerThatFailedToStart() {
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
     final IllegalStateException missingChrome = new IllegalStateException("no chrome");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingChrome);
@@ -532,13 +544,13 @@ final class AbstractInteractiveCommandTest {
   void releasesOnlyItsOwnPlayerAndMapsWhenAnOverlappingStartFails() {
     final CommandSender sender = mock(CommandSender.class);
     final Screen firstScreen = this.createMockedScreen();
-    final CompressedMapResult firstMaps = firstScreen.getMaps();
+    final FunctionalVideoFilter firstMaps = firstScreen.getOutput();
     final CompletableFuture<Boolean> firstStart = new CompletableFuture<>();
     this.command.reportStartWhenDone(sender, "first", firstScreen, firstStart, "the first browser");
 
     // a second create command replaces the first player while it is still starting
     final Screen secondScreen = this.createMockedScreen();
-    final CompressedMapResult secondMaps = secondScreen.getMaps();
+    final FunctionalVideoFilter secondMaps = secondScreen.getOutput();
     final CompletableFuture<Boolean> secondStart = new CompletableFuture<>();
     this.command.reportStartWhenDone(sender, "second", secondScreen, secondStart, "the second browser");
     this.assertReleased("first");
@@ -564,7 +576,7 @@ final class AbstractInteractiveCommandTest {
   void leavesAFailedPlayerAloneThatWasAlreadyReleased() {
     final CommandSender sender = mock(CommandSender.class);
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
     this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
 
@@ -586,7 +598,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void stillReleasesAFailedPlayerWhenThePluginIsDisabledMeanwhile() {
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
     final CommandSender sender = mock(CommandSender.class);
@@ -656,7 +668,7 @@ final class AbstractInteractiveCommandTest {
     final Runnable task = pending.getFirst();
     task.run();
     this.assertReleased("browser");
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, times(1)).release();
     assertNull(this.command.player);
     verify(sender, never()).sendMessage(any(Component.class));
@@ -695,7 +707,7 @@ final class AbstractInteractiveCommandTest {
   void releasesMapsAndStopsListeningEvenWhenPlayerCleanupFails() {
     this.createMockedScreen();
     this.command.player = "browser";
-    final CompressedMapResult maps = Objects.requireNonNull(this.command.result);
+    final FunctionalVideoFilter maps = Objects.requireNonNull(this.command.result);
     final IllegalStateException failure = new IllegalStateException("backend cleanup");
     this.command.releaseFailure = failure;
     try (final MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
@@ -1094,9 +1106,81 @@ final class AbstractInteractiveCommandTest {
     }
   }
 
+  @Test
+  void keepsTheDitherFailureWhenTheMapsFailToReleaseToo() {
+    final ScreenSettings settings = wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final IllegalStateException failure = new IllegalStateException("dither unavailable");
+    final IllegalStateException cleanup = new IllegalStateException("maps stuck");
+    try (
+      final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
+        Mockito.doThrow(cleanup).when(maps).release()
+      );
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
+      assertSame(failure, thrown);
+      assertEquals(List.of(cleanup), List.of(thrown.getSuppressed()));
+    }
+  }
+
+  private static ScreenSettings mcv2Settings(final CommandSender sender, final UUID viewer) {
+    final MultiplePlayerSelector viewers = mockViewers(viewer);
+    return new ScreenSettings(sender, viewers, Pair.pair(4, 3), Pair.pair(512, 384), 7, DitheringArgument.NEAREST_COLOR, MapCodec.MCV2);
+  }
+
+  @Test
+  void createsAnMcv2ScreenWhenTheSettingsAskForIt() {
+    final CommandSender sender = mock(CommandSender.class);
+    final UUID viewer = UUID.randomUUID();
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(512, 384), 7, EncoderSettings.LIVE, List.of(viewer))).thenReturn(
+      configuration
+    );
+    final Mcv2Output output = mock(Mcv2Output.class);
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+    try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
+      final Screen screen = this.command.createScreen(mcv2Settings(sender, viewer));
+
+      assertSame(output, screen.getOutput());
+      assertSame(output, this.command.result);
+      verify(output).start();
+      assertTrue(maps.constructed().isEmpty(), "the MCV2 output dithers for the viewers without the pack itself");
+    }
+  }
+
+  @Test
+  void dithersTheScreenWhenMcv2CannotBeHad() {
+    final CommandSender sender = mock(CommandSender.class);
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    // no frame holds the map the first time, and every slot of the pack plays the second time
+    when(support.configure(any(), any(), any(), eq(7), any(), any())).thenReturn(null, configuration);
+    final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
+    try (
+      final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
+      assertSame(ditherFilter, this.command.createScreen(mcv2Settings(sender, UUID.randomUUID())).getOutput());
+      assertSame(ditherFilter, this.command.createScreen(mcv2Settings(sender, UUID.randomUUID())).getOutput());
+      assertEquals(2, maps.constructed().size());
+    }
+    verify(support).output(sender, configuration, DitheringArgument.NEAREST_COLOR);
+  }
+
+  @Test
+  void theFlagChoosesTheCodecOverTheConfiguredDefault() {
+    assertSame(MapCodec.MCV2, this.command.chooseCodec(MapCodec.MCV2));
+    assertSame(MapCodec.DITHER, this.command.chooseCodec(null));
+  }
+
   private void assertSynchronousFailureCleanup(final RuntimeException failure, final RuntimeException cleanup) {
     final Screen screen = this.createMockedScreen();
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     this.command.ownCreatedPlayer("browser");
     this.command.releaseFailure = cleanup;
     final RuntimeException thrown = assertThrows(RuntimeException.class, () ->
@@ -1142,7 +1226,7 @@ final class AbstractInteractiveCommandTest {
     assertReceivedText(sender, "started");
     this.assertReleased();
     assertEquals("browser", this.command.player);
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, never()).release();
     this.command.releaseCurrent();
     this.assertReleased("browser");
@@ -1198,7 +1282,7 @@ final class AbstractInteractiveCommandTest {
     assertSame(failure, thrown);
     if (cancel) {
       this.assertReleased("browser");
-      final CompressedMapResult maps = screen.getMaps();
+      final FunctionalVideoFilter maps = screen.getOutput();
       verify(maps).release();
       assertNull(this.command.player);
     } else {
@@ -1317,7 +1401,7 @@ final class AbstractInteractiveCommandTest {
   void preservesANewerScreenWhenFailureRacesAfterTheCancellationCheck() throws Exception {
     TestServer.resetWithDeferredTasks();
     final Screen firstScreen = this.createMockedScreen();
-    final CompressedMapResult firstMaps = firstScreen.getMaps();
+    final FunctionalVideoFilter firstMaps = firstScreen.getOutput();
     final CompletableFuture<Boolean> firstStart = new CompletableFuture<>();
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, "first", firstScreen, firstStart, "first browser");
@@ -1340,7 +1424,7 @@ final class AbstractInteractiveCommandTest {
         final boolean reachedFailure = loggedFailure.await(10, TimeUnit.SECONDS);
         assertTrue(reachedFailure, "The failed start must reach its log before replacement");
         final Screen secondScreen = this.createMockedScreen();
-        final CompressedMapResult secondMaps = secondScreen.getMaps();
+        final FunctionalVideoFilter secondMaps = secondScreen.getOutput();
         final CompletableFuture<Boolean> secondStart = new CompletableFuture<>();
         this.command.reportStartWhenDone(sender, "second", secondScreen, secondStart, "second browser");
         resumeFailure.countDown();

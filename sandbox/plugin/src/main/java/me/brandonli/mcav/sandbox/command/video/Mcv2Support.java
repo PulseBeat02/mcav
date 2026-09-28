@@ -18,28 +18,25 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import com.google.common.base.Preconditions;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pack;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.sandbox.locale.Message;
-import net.kyori.adventure.resource.ResourcePackInfo;
-import net.kyori.adventure.resource.ResourcePackRequest;
+import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.utils.immutable.Pair;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -48,46 +45,198 @@ import org.bukkit.inventory.meta.MapMeta;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * What the MCV2 commands share: finding the wall of a map screen, building the screen's resource pack, serving it on
- * the Minecraft port, and asking the viewers' clients to load it.
+ * What every MCV2 screen of the plugin shares: the one resource pack that decodes them all, served by an
+ * {@link Mcv2PackServer}, and finding the wall of a screen.
  *
- * <p>One pack is served at a time; a new screen replaces it. Players who decline it, or whose client cannot load it,
- * are told so and keep the dithered maps.
+ * <p>A screen asks for a slot of the pack when it starts and gives it back when it is released. Players who decline
+ * the pack, or whose client cannot load it, are told so and keep the dithered maps.
  */
 public final class Mcv2Support {
 
   /**
-   * The system property that makes the pack also draw the decoded picture one to one in the top-left corner, with the
-   * state of the pages and the decoder next to it, for testing the pack in-game.
+   * The system property that makes the pack also draw the first slot's decoded picture one to one in the top-left
+   * corner, with the state of its pages and its decoder next to it, for testing the pack in-game.
    */
   public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
 
-  private static final int HASH_BUFFER = 8192;
+  /**
+   * The system property naming a folder that the frames every MCV2 screen started next sends are recorded into, one
+   * stream file per screen, for a measurement that decodes them with the reference decoder; unset for none.
+   */
+  public static final String RECORD_PROPERTY = "mcav.sandbox.mcv2.record";
 
-  private final Path folder;
+  /** The folder of the pack, inside the plugin's {@code mcv2} folder of streams. */
+  static final String PACK_FOLDER = "pack";
 
-  private @Nullable Served served;
+  /** The smaller sizes offered, as fractions of the screen's: two thirds, then a half. */
+  private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
 
-  private @Nullable UUID lastId;
+  /** The smallest size offered: 128x72. */
+  private static final int MIN_WIDTH = 128;
+
+  private static final int MIN_HEIGHT = 72;
+
+  private final Mcv2PackServer packs;
 
   /**
-   * The pack being served.
+   * Constructs the support, which serves nothing until {@link #start()}.
    *
-   * @param hosting where the players download it
-   * @param viewers who loaded it
-   * @param id      its id, derived from its hash
-   * @param hash    its SHA-1
+   * @param dataFolder the plugin's data folder; the pack is written in {@code mcv2/pack} inside it
+   * @param hosting    hosts a written pack
    */
-  private record Served(PackHosting hosting, Mcv2Viewers viewers, UUID id, String hash) {}
+  public Mcv2Support(final Path dataFolder, final Function<Path, PackHosting> hosting) {
+    this(
+      new Mcv2PackServer(
+        dataFolder.resolve(Mcv2PlayCommand.STREAMS).resolve(PACK_FOLDER),
+        hosting,
+        Boolean.getBoolean(DEBUG_VIEW),
+        Mcv2Support::tellOffered,
+        Mcv2Support::tellRefused
+      )
+    );
+  }
+
+  /** Tells a viewer why their client is about to ask them to load a pack. */
+  static void tellOffered(final Player player) {
+    player.sendMessage(Message.MCV2_PACK.build());
+  }
+
+  /** Tells a viewer whose client declined the pack, or could not load it, why they see the dithered maps. */
+  static void tellRefused(final Player player) {
+    player.sendMessage(Message.MCV2_REFUSED.build());
+  }
+
+  Mcv2Support(final Mcv2PackServer packs) {
+    Preconditions.checkNotNull(packs, "Pack server must not be null");
+    this.packs = packs;
+  }
 
   /**
-   * Constructs the support.
-   *
-   * @param folder the plugin's data folder, where the pack is written
+   * Starts listening to the players for the pack. Call on the main thread.
    */
-  public Mcv2Support(final Path folder) {
-    Preconditions.checkNotNull(folder, "Folder must not be null");
-    this.folder = folder;
+  public void start() {
+    this.packs.start();
+  }
+
+  /**
+   * Stops serving the pack; the players keep what they loaded.
+   */
+  public void shutdown() {
+    this.packs.shutdown();
+  }
+
+  /**
+   * Gets who loaded the pack.
+   *
+   * @return the viewers every screen shares
+   */
+  public Mcv2Viewers getViewers() {
+    return this.packs.getViewers();
+  }
+
+  /**
+   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none.
+   * Call on the main thread, which may look at the worlds' entities.
+   *
+   * @param sender     who ran the command
+   * @param blocks     the size of the wall in maps
+   * @param resolution the encoded resolution
+   * @param mapId      the id of the top-left map
+   * @param settings   the encoder profile
+   * @param viewers    the players who watch
+   * @return the configuration, or null if no frame holds the map
+   */
+  public @Nullable Mcv2Configuration configure(
+    final CommandSender sender,
+    final Pair<Integer, Integer> blocks,
+    final Pair<Integer, Integer> resolution,
+    final int mapId,
+    final EncoderSettings settings,
+    final Collection<UUID> viewers
+  ) {
+    final ItemFrame frame = findFrame(Bukkit.getWorlds(), mapId);
+    if (frame == null) {
+      sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
+      return null;
+    }
+    return Mcv2Configuration.builder()
+      .viewers(viewers)
+      .origin(frame.getLocation())
+      .facing(frame.getFacing())
+      .map(mapId)
+      .columns(blocks.getFirst())
+      .rows(blocks.getSecond())
+      .video(resolution.getFirst(), resolution.getSecond())
+      .settings(settings)
+      .pageSlots(Integer.getInteger(VideoMcv2Command.PAGE_SLOTS_PROPERTY, 0))
+      .backlogLimit(VideoMcv2Command.backlogLimit())
+      .unsentLimit(VideoMcv2Command.unsentLimit())
+      .build();
+  }
+
+  /**
+   * Gives a screen a slot of the pack, or tells the sender that every slot plays a screen. May be called from any
+   * thread.
+   *
+   * @param sender        who started the screen
+   * @param configuration the screen
+   * @return the lease of the slot, or null if none is free
+   */
+  public Mcv2PackServer.@Nullable Lease open(final CommandSender sender, final Mcv2Configuration configuration) {
+    try {
+      return this.packs.open(configuration);
+    } catch (final IllegalStateException full) {
+      sender.sendMessage(Message.MCV2_FULL.build());
+      return null;
+    }
+  }
+
+  /**
+   * Creates the output of an MCV2 screen: its result, which encodes the frames for the viewers with the pack and
+   * dithers them for the others, in a slot of the pack. The sender learns when the screen steps down to what its
+   * encoder budget sustains, and back up. May be called from any thread.
+   *
+   * @param sender        who started the screen
+   * @param configuration the screen
+   * @param dithering     how the frames are dithered for the viewers without the pack
+   * @return the output, not started, or null if no slot of the pack is free
+   */
+  public @Nullable Mcv2Output output(final CommandSender sender, final Mcv2Configuration configuration, final DitheringArgument dithering) {
+    final Mcv2PackServer.Lease lease = this.open(sender, configuration);
+    if (lease == null) {
+      return null;
+    }
+    final Mcv2Configuration slotted = lease.getConfiguration();
+    final Mcv2Result result = new Mcv2Result(slotted, this.getViewers(), dithering.createAlgorithm());
+    result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
+    // a smaller video before the dithered maps, in a slot of the pack of its own size
+    result.setSmallerSizes(smallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
+    final String record = System.getProperty(RECORD_PROPERTY);
+    if (record != null) {
+      final String name = "screen-%d-%d.mcs".formatted(slotted.getStreamId(), System.currentTimeMillis());
+      result.setFrameListener(new FrameRecorder(Path.of(record).resolve(name)));
+    }
+    return new Mcv2Output(result, lease);
+  }
+
+  /**
+   * The video sizes a screen may step down to when its encoder budget cannot sustain its own: two thirds and half of it,
+   * even, while at least 128 by 72 pixels.
+   *
+   * @param width  the screen's video width
+   * @param height the screen's video height
+   * @return the smaller sizes, largest first
+   */
+  static List<int[]> smallerSizes(final int width, final int height) {
+    final List<int[]> sizes = new ArrayList<>();
+    for (final int[] fraction : SMALLER_FRACTIONS) {
+      final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
+      final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
+      if (smallerWidth >= MIN_WIDTH && smallerHeight >= MIN_HEIGHT) {
+        sizes.add(new int[] { smallerWidth, smallerHeight });
+      }
+    }
+    return sizes;
   }
 
   /**
@@ -114,122 +263,5 @@ public final class Mcv2Support {
     }
     final ItemMeta meta = item.getItemMeta();
     return meta instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
-  }
-
-  /**
-   * Writes the screen's pack, serves it, and asks the players' clients to load it. A pack is known by its content: its
-   * id is derived from its hash, so the same screen offered again is the pack already served, and it is only sent to
-   * the players who have not loaded it yet - a client that loads a pack again reloads all its resources, which takes
-   * seconds, and would stack another copy. A different pack replaces the one served before, which the players are
-   * asked to remove. Call on the main thread.
-   *
-   * @param configuration the screen
-   * @param players       the players to ask
-   * @return who loaded the pack, listening to the players' answers until {@link #close()}
-   */
-  public Mcv2Viewers offer(final Mcv2Configuration configuration, final Collection<? extends Player> players) {
-    Preconditions.checkNotNull(configuration, "Configuration must not be null");
-    Preconditions.checkNotNull(players, "Players must not be null");
-    final Path directory = this.folder.resolve("mcv2");
-    final Path next = directory.resolve("mcav-mcv2-next.zip");
-    Mcv2Pack.write(configuration, Boolean.getBoolean(DEBUG_VIEW), next);
-    final String sha1 = hash(next, "SHA-1");
-    final Served current = this.served;
-    final Served pack;
-    if (current != null && current.hash().equals(sha1)) {
-      deleteQuietly(next);
-      pack = current;
-    } else {
-      this.close();
-      final UUID packId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
-      final UUID previous = this.lastId;
-      if (previous != null && !previous.equals(packId)) {
-        for (final Player player : players) {
-          player.removeResourcePacks(previous);
-        }
-      }
-      final Path zip = directory.resolve("mcav-mcv2.zip");
-      move(next, zip);
-      final PackHosting server = PackHosting.injector(zip);
-      server.start();
-      final Mcv2Viewers tracker = new Mcv2Viewers(packId, player -> player.sendMessage(Message.MCV2_REFUSED.build()));
-      tracker.register();
-      pack = new Served(server, tracker, packId, sha1);
-      this.served = pack;
-      this.lastId = packId;
-    }
-    final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(pack.id(), URI.create(pack.hosting().getRawUrl()), sha1);
-    final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(info).required(false).replace(false).build();
-    for (final Player player : players) {
-      final UUID uuid = player.getUniqueId();
-      if (pack.viewers().isLoaded(uuid)) {
-        continue;
-      }
-      pack.viewers().requested(uuid);
-      player.sendMessage(Message.MCV2_PACK.build());
-      player.sendResourcePacks(request);
-    }
-    return pack.viewers();
-  }
-
-  /**
-   * Stops serving the pack and listening to the players' answers; the next offer serves its pack anew.
-   */
-  public void close() {
-    final Served pack = this.served;
-    if (pack != null) {
-      pack.viewers().unregister();
-      pack.hosting().shutdown();
-      this.served = null;
-    }
-  }
-
-  /**
-   * Moves the pack just written into the place it is served from.
-   *
-   * @param source the pack just written
-   * @param target where it is served from
-   */
-  static void move(final Path source, final Path target) {
-    try {
-      Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-    } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot move the MCV2 pack into place", exception);
-    }
-  }
-
-  /**
-   * Deletes a pack that is not needed because the same pack is already served.
-   *
-   * @param file the pack
-   */
-  static void deleteQuietly(final Path file) {
-    try {
-      Files.deleteIfExists(file);
-    } catch (final IOException exception) {
-      // a leftover file is overwritten by the next offer
-    }
-  }
-
-  /**
-   * The hash of a file; the client checks the pack it downloads against its SHA-1.
-   *
-   * @param file      the file
-   * @param algorithm the digest algorithm
-   * @return the hash as lowercase hexadecimal
-   */
-  static String hash(final Path file, final String algorithm) {
-    try (final InputStream input = Files.newInputStream(file)) {
-      final MessageDigest digest = MessageDigest.getInstance(algorithm);
-      final byte[] buffer = new byte[HASH_BUFFER];
-      for (int read = input.read(buffer); read >= 0; read = input.read(buffer)) {
-        digest.update(buffer, 0, read);
-      }
-      return HexFormat.of().formatHex(digest.digest());
-    } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot hash the MCV2 pack", exception);
-    } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(algorithm + " is not available", exception);
-    }
   }
 }

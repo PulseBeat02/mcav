@@ -25,8 +25,9 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 /**
  * Plays an encoded MCV2 stream on a screen, one frame per run, looping. A stream cannot make a keyframe on request, so
  * when the channel asks for one, for a viewer who just started watching, playback starts over from the first frame,
- * which is a keyframe. Frame and reference ids are shifted so they keep increasing across every start and loop:
- * clients only decode frames newer than the last one they decoded.
+ * which is a keyframe. Frame and reference ids are shifted so they keep increasing across every start and loop, from
+ * the first frame id the screen's slot of the pack gave it: clients only decode frames newer than the last one they
+ * decoded.
  */
 final class Mcv2Playback implements Runnable {
 
@@ -43,10 +44,11 @@ final class Mcv2Playback implements Runnable {
   /**
    * Constructs a playback.
    *
-   * @param channel the screen's channel
-   * @param frames  the stream's frames, starting with a keyframe
+   * @param channel      the screen's channel
+   * @param frames       the stream's frames, starting with a keyframe
+   * @param firstFrameId the id the first frame sent gets
    */
-  Mcv2Playback(final Mcv2Channel channel, final List<byte[]> frames) {
+  Mcv2Playback(final Mcv2Channel channel, final List<byte[]> frames, final long firstFrameId) {
     Preconditions.checkNotNull(channel, "Channel must not be null");
     Preconditions.checkArgument(!frames.isEmpty(), "A stream has at least one frame");
     this.channel = channel;
@@ -56,6 +58,7 @@ final class Mcv2Playback implements Runnable {
       highest = Math.max(highest, Mcv2Format.u32(frame, Mcv2Format.FRAME_ID_OFFSET));
     }
     this.span = highest + 1;
+    this.offset = firstFrameId;
   }
 
   /**

@@ -63,6 +63,7 @@ import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.command.video.VideoPlayerManager;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.listener.JukeBoxListener;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.testing.TestCommandManager;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
@@ -115,6 +116,9 @@ final class MCAVSandboxTest {
 
   private MockedStatic<LegacyPaperCommandManager<CommandSender>> paperManagers;
 
+  // the mocked module injects no plugin, which the MCV2 pack server listens for the players with
+  private MockedStatic<BukkitModule> bukkitModules;
+
   @BeforeEach
   void createPlugin() {
     final Server server = TestServer.reset();
@@ -161,6 +165,8 @@ final class MCAVSandboxTest {
     when(this.api.getModule(BrowserModule.class)).thenReturn(this.browserModule);
     this.libraries = Mockito.mockStatic(MCAV.class);
     this.libraries.when(MCAV::api).thenReturn(this.api);
+    this.bukkitModules = Mockito.mockStatic(BukkitModule.class, Mockito.CALLS_REAL_METHODS);
+    this.bukkitModules.when(BukkitModule::getPlugin).thenReturn(this.sandbox);
   }
 
   @AfterEach
@@ -168,6 +174,7 @@ final class MCAVSandboxTest {
     this.javaPlugins.close();
     this.libraries.close();
     this.paperManagers.close();
+    this.bukkitModules.close();
   }
 
   @Test
@@ -179,6 +186,8 @@ final class MCAVSandboxTest {
     final IllegalStateException images = assertThrows(IllegalStateException.class, this.sandbox::getImageManager);
     final IllegalStateException mcv2 = assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
     assertEquals("The MCV2 support is not available before the plugin is enabled", mcv2.getMessage());
+    final IllegalStateException online = assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
+    assertEquals("The list of online players is not available before the plugin is enabled", online.getMessage());
     final String libraryMessage = library.getMessage();
     final String configurationMessage = configuration.getMessage();
     final String videosMessage = videos.getMessage();
@@ -211,6 +220,8 @@ final class MCAVSandboxTest {
 
     final VideoPlayerManager videoManager = this.sandbox.getVideoPlayerManager();
     final ImageManager imageManager = this.sandbox.getImageManager();
+    final OnlinePlayers online = this.sandbox.getOnlinePlayers();
+    verify(TestServer.pluginManager()).registerEvents(online, this.sandbox);
     this.sandbox.onDisable();
     verify(this.api).release();
     final ExecutorService videoWorker = videoManager.getService();
@@ -302,7 +313,8 @@ final class MCAVSandboxTest {
     ) {
       this.sandbox.onEnable();
       this.sandbox.onDisable();
-      verify(supports.constructed().getFirst()).close();
+      verify(supports.constructed().getFirst()).start();
+      verify(supports.constructed().getFirst()).shutdown();
 
       final List<JukeBoxListener> constructedListeners = listeners.constructed();
       final List<AnnotationParserHandler> constructedHandlers = handlers.constructed();

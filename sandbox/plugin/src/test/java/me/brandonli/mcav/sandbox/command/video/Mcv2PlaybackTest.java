@@ -68,7 +68,7 @@ final class Mcv2PlaybackTest {
   @Test
   void waitsForAViewer() {
     when(this.channel.getRecipients()).thenReturn(Set.of());
-    new Mcv2Playback(this.channel, stream()).run();
+    new Mcv2Playback(this.channel, stream(), 0).run();
     verify(this.channel).update();
     verify(this.channel, never()).send(any());
   }
@@ -76,7 +76,7 @@ final class Mcv2PlaybackTest {
   @Test
   void loopsWithIdsThatKeepIncreasing() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
-    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream());
+    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), 0);
     playback.run();
     assertEquals(0, this.sent(1)[0]);
     playback.run();
@@ -95,7 +95,7 @@ final class Mcv2PlaybackTest {
   void startsOverForANewViewer() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
     when(this.channel.takeKeyframeRequest()).thenReturn(true, false, true);
-    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream());
+    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), 0);
     // a request before the first frame changes nothing: the first frame is the keyframe
     playback.run();
     assertEquals(0, this.sent(1)[0]);
@@ -108,8 +108,22 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
+  void numbersItsFramesFromTheFirstFrameIdOfItsSlotAcrossTheWrap() {
+    when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
+    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), Mcv2Format.MAX_U32 - 1);
+    playback.run();
+    assertEquals(Mcv2Format.MAX_U32 - 1, this.sent(1)[0]);
+    playback.run();
+    assertEquals(Mcv2Format.MAX_U32, this.sent(2)[0]);
+    playback.run();
+    final long[] third = this.sent(3);
+    assertEquals(0, third[0], "the ids wrap like the clients' unsigned 32-bit sequence");
+    assertEquals(Mcv2Format.MAX_U32, third[1]);
+  }
+
+  @Test
   void refusesAnEmptyStream() {
-    assertThrows(IllegalArgumentException.class, () -> new Mcv2Playback(this.channel, List.of()));
-    assertThrows(NullPointerException.class, () -> new Mcv2Playback(null, stream()));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Playback(this.channel, List.of(), 0));
+    assertThrows(NullPointerException.class, () -> new Mcv2Playback(null, stream(), 0));
   }
 }

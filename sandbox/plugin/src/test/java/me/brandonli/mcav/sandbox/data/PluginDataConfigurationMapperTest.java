@@ -44,6 +44,8 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
 import me.brandonli.mcav.sandbox.locale.Locale;
 import me.brandonli.mcav.sandbox.utils.IOUtils;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
+import me.brandonli.mcav.sandbox.utils.Mcv2Hosting;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.AfterEach;
@@ -224,6 +226,10 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks());
     assertFalse(this.mapper.isBrowserJavaScriptJit());
     assertFalse(this.mapper.isBrowserAutoplaySound());
+    assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec());
+    assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
+    assertEquals("", this.mapper.getMcv2PackHttpHost());
+    assertEquals(25580, this.mapper.getMcv2PackHttpPort());
   }
 
   @Test
@@ -263,6 +269,45 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
     assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
     assertFalse(this.mapper.isBrowserAutoplaySound(), "and pages silent until a player clicked them");
+    assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec(), "and the maps dithered unless a command asks for MCV2");
+    assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
+    assertEquals("", this.mapper.getMcv2PackHttpHost());
+    assertEquals(25580, this.mapper.getMcv2PackHttpPort());
+  }
+
+  @Test
+  void readsTheCodecAndThePackHostingInAnyCase() throws IOException {
+    this.writeConfiguration(
+      "mcv2:\n  default-codec: MCV2\n  pack:\n    hosting: Http\n    http-host: \" mc.example \"\n    http-port: 8443\n"
+    );
+    this.mapper.deserialize();
+    assertSame(MapCodec.MCV2, this.mapper.getMcv2DefaultCodec());
+    assertSame(Mcv2Hosting.HTTP, this.mapper.getMcv2PackHosting());
+    assertEquals("mc.example", this.mapper.getMcv2PackHttpHost());
+    assertEquals(8443, this.mapper.getMcv2PackHttpPort());
+    this.writeConfiguration("mcv2:\n  pack:\n    hosting: website\n");
+    this.mapper.deserialize();
+    assertSame(Mcv2Hosting.WEBSITE, this.mapper.getMcv2PackHosting());
+  }
+
+  @Test
+  void warnsOfAnInvalidCodecHostingOrPortAndKeepsTheDefaults() throws IOException {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration("mcv2:\n  default-codec: vp9\n  pack:\n    hosting: ftp\n    http-port: 70000\n");
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec());
+    assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
+    assertEquals(25580, this.mapper.getMcv2PackHttpPort());
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertTrue(text.contains("Invalid mcv2.default-codec vp9, using DITHER"), text);
+    assertTrue(text.contains("Invalid mcv2.pack.hosting ftp, using INJECTOR"), text);
+    assertTrue(text.contains("Invalid mcv2.pack.http-port 70000, using 25580"), text);
   }
 
   @Test

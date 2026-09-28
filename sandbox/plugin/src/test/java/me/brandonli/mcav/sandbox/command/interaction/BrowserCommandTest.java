@@ -51,11 +51,13 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
@@ -94,6 +96,7 @@ final class BrowserCommandTest {
   void createCommand() {
     final Server server = TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
     this.plugin = plugin;
     when(plugin.getServer()).thenReturn(server);
     when(plugin.isBrowserSupported()).thenReturn(true);
@@ -101,6 +104,7 @@ final class BrowserCommandTest {
     when(plugin.getAudioProvider()).thenReturn(this.provider);
     this.configuration = mock(PluginDataConfigurationMapper.class);
     when(plugin.getConfiguration()).thenReturn(this.configuration);
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     this.command = new BrowserCommand(plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -132,7 +136,7 @@ final class BrowserCommandTest {
   }
 
   private void create(final String resolution, final String blocks, final AudioArgument audio, final String url) {
-    this.command.createBrowser(this.sender, this.selector, resolution, 2, blocks, 0, DitheringArgument.FILTER_LITE, audio, url);
+    this.command.createBrowser(this.sender, this.selector, resolution, 2, blocks, 0, DitheringArgument.FILTER_LITE, audio, url, null);
   }
 
   private void assertReceived(final Component... expected) {
@@ -371,8 +375,8 @@ final class BrowserCommandTest {
   private void assertCreatedScreenReleased() {
     final List<CompressedMapResult> created = this.maps.constructed();
     assertEquals(1, created.size());
-    final CompressedMapResult screen = created.getFirst();
-    verify(screen).release();
+    // the screen's output owns its maps: releasing it releases them
+    verify(this.ditherFilter).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
   }

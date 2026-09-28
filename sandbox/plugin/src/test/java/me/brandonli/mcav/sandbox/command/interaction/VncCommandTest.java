@@ -34,10 +34,12 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.vnc.VNCPlayer;
@@ -77,10 +79,12 @@ final class VncCommandTest {
   void createCommand() {
     final Server server = TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
     when(plugin.getServer()).thenReturn(server);
     this.configuration = mock(PluginDataConfigurationMapper.class);
     when(plugin.getConfiguration()).thenReturn(this.configuration);
     when(this.configuration.getVncAllowList()).thenReturn(new VncAllowList(List.of(DESKTOP)));
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     this.command = new VncCommand(plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -104,7 +108,7 @@ final class VncCommandTest {
   }
 
   private void create(final String resolution, final String server) {
-    this.command.createVnc(this.sender, this.selector, resolution, 20, "5x3", 0, DitheringArgument.NEAREST_COLOR, server);
+    this.command.createVnc(this.sender, this.selector, resolution, 20, "5x3", 0, DitheringArgument.NEAREST_COLOR, server, null);
   }
 
   private void assertReceived(final Component... expected) {
@@ -150,7 +154,7 @@ final class VncCommandTest {
 
   @Test
   void connectsToNothingWithInvalidBlockDimensions() {
-    this.command.createVnc(this.sender, this.selector, "1280x720", 20, "tall", 0, DitheringArgument.NEAREST_COLOR, "127.0.0.1:5901");
+    this.command.createVnc(this.sender, this.selector, "1280x720", 20, "tall", 0, DitheringArgument.NEAREST_COLOR, "127.0.0.1:5901", null);
 
     this.desktops.verifyNoInteractions();
     assertNull(this.command.result);

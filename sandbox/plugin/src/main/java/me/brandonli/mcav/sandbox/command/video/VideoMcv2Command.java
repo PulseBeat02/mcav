@@ -18,27 +18,22 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import com.google.common.base.Preconditions;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
+import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
-import me.brandonli.mcav.sandbox.locale.Message;
+import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.ItemFrame;
-import org.bukkit.entity.Player;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
@@ -66,11 +61,13 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * Handles {@code /mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
    * <mapId> <profile> <ditheringAlgorithm> <flags> <mrl>}.
    *
-   * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The players are
-   * sent the MCV2 resource pack, built for this screen and served on the server's port; those whose client loads it
-   * see the video decoded by the pack's shader over the wall, everyone else sees it dithered onto the maps. Frames
-   * are scaled to the resolution, which should have the wall's aspect ratio. The encoder is not real time at large
-   * resolutions: it encodes the newest frame whenever it is done with the last one.
+   * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The screen takes a
+   * slot of the one MCV2 resource pack that decodes every MCV2 screen of the server, which the viewers are offered if
+   * they do not have it yet; those whose client loads it see the video decoded by the pack's shader over the wall,
+   * everyone else sees it dithered onto the maps. For {@code @a}, a player who joins while the video plays is a viewer
+   * too. Frames are scaled to the resolution, which should have the wall's aspect ratio. The encoder is not real time
+   * at large resolutions: it encodes the newest frame whenever it is done with the last one, and steps down to a
+   * faster preset, a smaller video or, at worst, the dithered maps when its budget cannot keep up.
    *
    * <p>Requires the permission {@code mcav.command.video.mcv2}.
    *
@@ -112,20 +109,13 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     if (blocks == null || resolution == null) {
       return;
     }
-    final Mcv2Configuration configuration = configure(
-      sender,
-      blocks,
-      resolution,
-      mapId,
-      profile,
-      ArgumentUtils.parsePlayerSelectors(playerSelector)
-    );
+    final Collection<UUID> viewers = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final Mcv2Support support = this.plugin.getMcv2Support();
+    final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, profile.getSettings(), viewers);
     if (configuration == null) {
       return;
     }
-    final List<Player> players = List.copyOf(playerSelector.values());
-    final Mcv2Viewers viewers = this.plugin.getMcv2Support().offer(configuration, players);
-    final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, viewers, ditheringAlgorithm, sender);
+    final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, ditheringAlgorithm, sender);
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
   }
 
@@ -135,59 +125,12 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    */
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
 
-  /** The smaller sizes offered, as fractions of the screen's: two thirds, then a half. */
-  private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
-
-  /** The smallest size offered: 128x72. */
-  private static final int MIN_WIDTH = 128;
-
-  private static final int MIN_HEIGHT = 72;
-
   /**
    * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
    * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
    * default.
    */
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
-
-  /**
-   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none.
-   *
-   * @param sender     who ran the command
-   * @param blocks     the size of the wall in maps
-   * @param resolution the encoded resolution
-   * @param mapId      the id of the top-left map
-   * @param profile    the encoder profile
-   * @param viewers    the players who watch
-   * @return the configuration, or null if no frame holds the map
-   */
-  static @Nullable Mcv2Configuration configure(
-    final CommandSender sender,
-    final Pair<Integer, Integer> blocks,
-    final Pair<Integer, Integer> resolution,
-    final int mapId,
-    final Mcv2Profile profile,
-    final Collection<UUID> viewers
-  ) {
-    final ItemFrame frame = Mcv2Support.findFrame(Bukkit.getWorlds(), mapId);
-    if (frame == null) {
-      sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
-      return null;
-    }
-    return Mcv2Configuration.builder()
-      .viewers(viewers)
-      .origin(frame.getLocation())
-      .facing(frame.getFacing())
-      .map(mapId)
-      .columns(blocks.getFirst())
-      .rows(blocks.getSecond())
-      .video(resolution.getFirst(), resolution.getSecond())
-      .settings(profile.getSettings())
-      .pageSlots(Integer.getInteger(PAGE_SLOTS_PROPERTY, 0))
-      .backlogLimit(backlogLimit())
-      .unsentLimit(unsentLimit())
-      .build();
-  }
 
   /**
    * The backlog limit of new screens: the {@link #BACKLOG_PROPERTY} system property in bytes, {@code none} for no
@@ -214,7 +157,8 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
   }
 
   /**
-   * Creates the result that encodes the frames, and starts it on the main thread. Called on the worker thread.
+   * Creates the output that encodes the frames in a slot of the MCV2 pack, and starts it on the main thread. Called on
+   * the worker thread.
    *
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider, which returns {@link Mcv2Settings}
@@ -228,64 +172,40 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(resolution, "Resolution must not be null");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
+    final FunctionalVideoFilter output = mcv2Filter(this.plugin.getMcv2Support(), settings);
+    this.manager.startFilter(output);
+    return VideoPipelineStep.of(output);
+  }
+
+  /**
+   * The filter of an MCV2 video screen: its output in a slot of the pack, or, when every slot plays a screen, the
+   * dithered maps of the same wall.
+   *
+   * @param support  the plugin's MCV2 support
+   * @param settings the screen
+   * @return the filter, not started
+   */
+  static FunctionalVideoFilter mcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
     final Mcv2Configuration configuration = settings.configuration();
-    final Mcv2Result result = new Mcv2Result(configuration, settings.viewers(), settings.dithering().createAlgorithm());
-    // whoever started the screen learns when it steps down to what its encoder budget sustains, and back up
-    final CommandSender sender = settings.sender();
-    result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
-    // a smaller video before the dithered maps: each size has its own pack, offered to the viewers when it is needed
-    final Mcv2Support support = this.plugin.getMcv2Support();
-    result.setSmallerSizes(smallerSizes(configuration.getVideoWidth(), configuration.getVideoHeight()), smaller ->
-      new Mcv2Channel(smaller, support.offer(smaller, online(smaller.getViewers())))
+    final Mcv2Output output = support.output(settings.sender(), configuration, settings.dithering());
+    if (output != null) {
+      return output;
+    }
+    final MapConfiguration maps = MapDisplaySettings.createConfiguration(
+      Pair.pair(configuration.getColumns(), configuration.getRows()),
+      Pair.pair(configuration.getVideoWidth(), configuration.getVideoHeight()),
+      configuration.getMap(),
+      configuration.getViewers()
     );
-    this.manager.startFilter(result);
-    return VideoPipelineStep.of(result);
-  }
-
-  /**
-   * The video sizes a screen may step down to when its encoder budget cannot sustain its own: two thirds and half of it,
-   * even, while at least 128 by 72 pixels.
-   *
-   * @param width  the screen's video width
-   * @param height the screen's video height
-   * @return the smaller sizes, largest first
-   */
-  static List<int[]> smallerSizes(final int width, final int height) {
-    final List<int[]> sizes = new ArrayList<>();
-    for (final int[] fraction : SMALLER_FRACTIONS) {
-      final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
-      final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
-      if (smallerWidth >= MIN_WIDTH && smallerHeight >= MIN_HEIGHT) {
-        sizes.add(new int[] { smallerWidth, smallerHeight });
-      }
-    }
-    return sizes;
-  }
-
-  /**
-   * The viewers who are online.
-   *
-   * @param viewers the viewers' UUIDs
-   * @return the online players among them
-   */
-  private static List<Player> online(final Collection<UUID> viewers) {
-    final List<Player> players = new ArrayList<>();
-    for (final UUID viewer : viewers) {
-      final Player player = Bukkit.getPlayer(viewer);
-      if (player != null) {
-        players.add(player);
-      }
-    }
-    return players;
+    return DitherFilter.dither(settings.dithering().createAlgorithm(), new CompressedMapResult(maps));
   }
 
   /**
    * What {@link #createVideoFilter} needs.
    *
    * @param configuration the screen
-   * @param viewers       who loaded the pack
    * @param dithering     the fallback dithering
    * @param sender        who started the screen, who is told when it steps down or back up
    */
-  record Mcv2Settings(Mcv2Configuration configuration, Mcv2Viewers viewers, DitheringArgument dithering, CommandSender sender) {}
+  record Mcv2Settings(Mcv2Configuration configuration, DitheringArgument dithering, CommandSender sender) {}
 }

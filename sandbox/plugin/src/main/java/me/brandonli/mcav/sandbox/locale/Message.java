@@ -63,6 +63,18 @@ public interface Message extends LocaleTools {
   UniComponent<Integer> MCV2_SCREEN_ERROR = direct("mcav.command.mcv2.screen.error", null);
 
   /**
+   * Key {@code mcav.command.mcv2.full}: every slot of the MCV2 pack plays a screen, so the screen just started shows
+   * dithered maps.
+   */
+  NullComponent MCV2_FULL = direct("mcav.command.mcv2.full");
+
+  /**
+   * Key {@code mcav.command.codec.error}: the {@code --codec} at the end of the options of {@code /mcav vm create} names
+   * no codec.
+   */
+  NullComponent UNKNOWN_CODEC = direct("mcav.command.codec.error");
+
+  /**
    * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} is not an MCV2 stream; the
    * reason is inserted.
    */

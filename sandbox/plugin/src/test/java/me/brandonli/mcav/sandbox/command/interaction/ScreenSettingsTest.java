@@ -22,7 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
+import org.bukkit.command.CommandSender;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +38,8 @@ final class ScreenSettingsTest {
     final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
     final Pair<Integer, Integer> blocks = Pair.pair(5, 3);
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
-    final ScreenSettings settings = new ScreenSettings(viewers, blocks, resolution, 12, DitheringArgument.ATKINSON);
+    final CommandSender sender = mock(CommandSender.class);
+    final ScreenSettings settings = new ScreenSettings(sender, viewers, blocks, resolution, 12, DitheringArgument.ATKINSON, MapCodec.MCV2);
     final MultiplePlayerSelector keptViewers = settings.getViewers();
     final Pair<Integer, Integer> keptBlocks = settings.getBlocks();
     final Pair<Integer, Integer> keptResolution = settings.getResolution();
@@ -47,5 +50,7 @@ final class ScreenSettingsTest {
     assertSame(resolution, keptResolution);
     assertEquals(12, mapId);
     assertSame(DitheringArgument.ATKINSON, dithering);
+    assertSame(sender, settings.getSender());
+    assertSame(MapCodec.MCV2, settings.getCodec());
   }
 }

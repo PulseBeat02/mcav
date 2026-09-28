@@ -37,7 +37,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2FileEncoder;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -47,7 +47,6 @@ import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
@@ -97,6 +96,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   private @Nullable ScheduledFuture<?> streaming;
 
   private @Nullable Mcv2Channel channel;
+
+  private Mcv2PackServer.@Nullable Lease lease;
 
   private @Nullable Thread encoding;
 
@@ -226,24 +227,29 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       return null;
     }
     final Pair<Integer, Integer> resolution = Pair.pair(first.getWidth(), first.getHeight());
-    final Mcv2Configuration configuration = VideoMcv2Command.configure(
+    final Mcv2Support support = this.plugin.getMcv2Support();
+    final Mcv2Configuration configuration = support.configure(
       sender,
       blocks,
       resolution,
       mapId,
-      Mcv2Profile.SHIP,
-      ArgumentUtils.parsePlayerSelectors(playerSelector)
+      Mcv2Profile.SHIP.getSettings(),
+      ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers())
     );
     if (configuration == null) {
       return null;
     }
     this.stop();
-    final List<Player> players = List.copyOf(playerSelector.values());
-    final Mcv2Viewers viewers = this.plugin.getMcv2Support().offer(configuration, players);
-    final Mcv2Channel opened = new Mcv2Channel(configuration, viewers);
+    final Mcv2PackServer.Lease slot = support.open(sender, configuration);
+    if (slot == null) {
+      return null;
+    }
+    final Mcv2Configuration slotted = slot.getConfiguration();
+    final Mcv2Channel opened = new Mcv2Channel(slotted, support.getViewers());
     opened.open();
     this.channel = opened;
-    return new Mcv2Playback(opened, frames);
+    this.lease = slot;
+    return new Mcv2Playback(opened, frames, slotted.getFirstFrameId());
   }
 
   /**
@@ -477,8 +483,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Stops the stream played before, if any. The pack stays served and loaded, so the players' clients do not reload
-   * their resources when the next stream on the same screen starts. Call on the main thread.
+   * Stops the stream played before, if any, and gives its slot of the pack back. The pack stays served and loaded, so
+   * the players' clients do not reload their resources when the next stream of the same size starts. Call on the main
+   * thread.
    */
   void stop() {
     final BukkitTask running = this.task;
@@ -500,6 +507,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (opened != null) {
       opened.close();
       this.channel = null;
+    }
+    final Mcv2PackServer.Lease slot = this.lease;
+    if (slot != null) {
+      slot.close();
+      this.lease = null;
     }
   }
 

@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -47,6 +49,8 @@ import me.brandonli.mcav.sandbox.audio.AudioOutputs;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Output;
+import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
@@ -54,6 +58,7 @@ import me.brandonli.mcav.sandbox.utils.CleanupUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.InteractUtils;
 import me.brandonli.mcav.sandbox.utils.Keys;
+import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -88,7 +93,6 @@ import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.RayTraceResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.AnnotationParser;
-import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,9 +130,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   private boolean closed;
 
   /**
-   * The maps the player is shown on, while one is running. Changed only while holding the lock of this command.
+   * The output the player's frames go to, while one is running: the dithered maps, or the MCV2 screen. Changed only
+   * while holding the lock of this command.
    */
-  protected volatile @Nullable CompressedMapResult result;
+  protected volatile @Nullable FunctionalVideoFilter result;
 
   /**
    * The running player. Changed only while holding the lock of this command.
@@ -202,7 +207,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   protected final void releaseCurrent() {
     final T current;
-    final CompressedMapResult maps;
+    final FunctionalVideoFilter maps;
     final Screen oldScreen;
     synchronized (this.lock) {
       current = this.player;
@@ -324,9 +329,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /**
-   * Releases the running player and creates the maps a new player is shown on, together with the pipeline that
-   * dithers the frames of the player onto them. Every screen gets its own dithering algorithm, so a stateful
-   * algorithm never mixes up the frames of two players.
+   * Releases the running player and creates the maps a new player is shown on, together with the pipeline that brings
+   * the frames of the player onto them: dithered, or with MCV2 when the settings ask for it, a frame holds the wall's
+   * top-left map and a slot of the MCV2 pack is free, which the sender is told otherwise. Every screen gets its own
+   * dithering algorithm, so a stateful algorithm never mixes up the frames of two players.
    *
    * @param settings the screen as entered by the sender
    * @return the maps, which become the running ones, and the pipeline to attach to the new player
@@ -336,36 +342,74 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       Preconditions.checkState(!this.closed, "The interactive command is shut down");
     }
     this.releaseCurrent();
-    final MultiplePlayerSelector viewers = settings.getViewers();
-    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(viewers);
+    final Collection<UUID> players = ArgumentUtils.parseViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
     final Pair<Integer, Integer> blocks = settings.getBlocks();
-    final Pair<Integer, Integer> resolution = settings.getResolution();
     final int mapId = settings.getMapId();
-    final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
-
-    final DitheringArgument dithering = settings.getDithering();
-    final DitherAlgorithm algorithm = dithering.createAlgorithm();
-    final CompressedMapResult maps = new CompressedMapResult(configuration);
+    final FunctionalVideoFilter output = this.createOutput(settings, players);
     synchronized (this.lock) {
-      this.result = maps;
+      this.result = output;
     }
     try {
-      final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, maps);
-      filter.start();
+      output.start();
       final int columns = blocks.getFirst();
       final int rows = blocks.getSecond();
       final long mapCount = (long) columns * rows;
       final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
-      final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, filter);
-      final Screen created = new Screen(maps, pipeline, mapId, mapCount);
+      final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
+      final Screen created = new Screen(output, pipeline, mapId, mapCount);
       synchronized (this.lock) {
-        this.result = maps;
+        this.result = output;
         this.screen = created;
       }
       return created;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       this.releaseAfterFailure(exception);
+      throw exception;
+    }
+  }
+
+  /**
+   * Gets the codec of a screen: the one its command's {@code --codec} flag names, or the configured default.
+   *
+   * @param flag the flag's value, or null when the command has none
+   * @return the codec
+   */
+  final MapCodec chooseCodec(final @Nullable MapCodec flag) {
+    return flag != null ? flag : this.plugin.getConfiguration().getMcv2DefaultCodec();
+  }
+
+  /**
+   * Creates the output of a screen: its MCV2 screen when it asks for MCV2 and one can be had, otherwise its dithered
+   * maps. Releasing the output releases the maps.
+   */
+  private FunctionalVideoFilter createOutput(final ScreenSettings settings, final Collection<UUID> players) {
+    final Pair<Integer, Integer> blocks = settings.getBlocks();
+    final Pair<Integer, Integer> resolution = settings.getResolution();
+    final int mapId = settings.getMapId();
+    final DitheringArgument dithering = settings.getDithering();
+    if (settings.getCodec() == MapCodec.MCV2) {
+      final Mcv2Support support = this.plugin.getMcv2Support();
+      final CommandSender sender = settings.getSender();
+      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, EncoderSettings.LIVE, players);
+      final Mcv2Output output = configuration == null ? null : support.output(sender, configuration, dithering);
+      if (output != null) {
+        return output;
+      }
+    }
+    final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
+    final DitherAlgorithm algorithm = dithering.createAlgorithm();
+    final CompressedMapResult maps = new CompressedMapResult(configuration);
+    try {
+      return DitherFilter.dither(algorithm, maps);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      try {
+        maps.release();
+      } catch (final RuntimeException | Error cleanup) {
+        ThrowableUtils.throwIfFatal(cleanup);
+        exception.addSuppressed(cleanup);
+      }
       throw exception;
     }
   }
@@ -496,7 +540,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       }
     }
     screen.bindStart(start);
-    final CompressedMapResult maps = screen.getMaps();
+    final FunctionalVideoFilter maps = screen.getOutput();
     final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, screen, description);
     TaskUtils.whenComplete(start, (success, error) -> this.onStartCompleted(attempt, success, error));
   }
@@ -511,7 +555,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       final String description = attempt.getDescription();
       LOGGER.error("Failed to start {}", description, error);
       final T failed = attempt.getPlayer();
-      final CompressedMapResult maps = attempt.getMaps();
+      final FunctionalVideoFilter maps = attempt.getMaps();
       this.releaseIfCurrent(failed, maps);
     }
 
@@ -528,7 +572,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Releases a player that failed to start and the maps of its screen, each only while it is still the running
    * one. One that is no longer running was replaced by a newer command, which released it already.
    */
-  private void releaseIfCurrent(final T failed, final CompressedMapResult maps) {
+  private void releaseIfCurrent(final T failed, final FunctionalVideoFilter maps) {
     final boolean playerCurrent;
     final boolean mapsCurrent;
     synchronized (this.lock) {
@@ -895,14 +939,14 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     private final CommandSender sender;
     private final T player;
-    private final CompressedMapResult maps;
+    private final FunctionalVideoFilter maps;
     private final Screen screen;
     private final String description;
 
     StartAttempt(
       final CommandSender sender,
       final T player,
-      final CompressedMapResult maps,
+      final FunctionalVideoFilter maps,
       final Screen screen,
       final String description
     ) {
@@ -921,7 +965,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       return this.player;
     }
 
-    CompressedMapResult getMaps() {
+    FunctionalVideoFilter getMaps() {
       return this.maps;
     }
 

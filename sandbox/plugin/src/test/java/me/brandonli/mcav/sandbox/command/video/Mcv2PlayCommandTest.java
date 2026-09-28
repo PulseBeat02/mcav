@@ -44,14 +44,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2FileEncoder;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import net.kyori.adventure.text.Component;
@@ -83,9 +86,9 @@ final class Mcv2PlayCommandTest {
 
   private MCAVSandbox plugin;
 
-  private Mcv2Support support;
+  private Mcv2PackServer packs;
 
-  private Mcv2Viewers viewers;
+  private Mcv2PackServer.Lease lease;
 
   private Mcv2PlayCommand command;
 
@@ -97,19 +100,28 @@ final class Mcv2PlayCommandTest {
 
   private Player player;
 
+  private final UUID viewer = UUID.randomUUID();
+
   @BeforeEach
   void createCommand() {
     TestServer.reset();
     this.plugin = mock(MCAVSandbox.class);
     when(this.plugin.getDataFolder()).thenReturn(this.folder.toFile());
     this.streams = this.folder.resolve(Mcv2PlayCommand.STREAMS);
-    this.support = mock(Mcv2Support.class);
-    this.viewers = mock(Mcv2Viewers.class);
-    when(this.support.offer(any(), any())).thenReturn(this.viewers);
-    when(this.plugin.getMcv2Support()).thenReturn(this.support);
+    this.packs = mock(Mcv2PackServer.class);
+    when(this.packs.getViewers()).thenReturn(mock(Mcv2Viewers.class));
+    this.lease = mock(Mcv2PackServer.Lease.class);
+    final AtomicReference<Mcv2Configuration> opened = new AtomicReference<>();
+    when(this.packs.open(any())).thenAnswer(invocation -> {
+      opened.set(invocation.getArgument(0));
+      return this.lease;
+    });
+    when(this.lease.getConfiguration()).thenAnswer(_ -> opened.get());
+    when(this.plugin.getMcv2Support()).thenReturn(new Mcv2Support(this.packs));
+    when(this.plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
     this.command = new Mcv2PlayCommand(this.plugin);
     this.player = mock(Player.class);
-    when(this.player.getUniqueId()).thenReturn(UUID.randomUUID());
+    when(this.player.getUniqueId()).thenReturn(this.viewer);
     this.selector = mock(MultiplePlayerSelector.class);
     when(this.selector.values()).thenReturn(List.of(this.player));
     this.sender = mock(CommandSender.class);
@@ -145,9 +157,10 @@ final class Mcv2PlayCommandTest {
       final Mcv2Channel channel = channels.constructed().getFirst();
       verify(channel).open();
       final ArgumentCaptor<Mcv2Configuration> configurations = ArgumentCaptor.forClass(Mcv2Configuration.class);
-      verify(this.support).offer(configurations.capture(), eq(List.of(this.player)));
+      verify(this.packs).open(configurations.capture());
       assertEquals(32, configurations.getValue().getVideoWidth());
       assertEquals(32, configurations.getValue().getVideoHeight());
+      assertEquals(List.of(this.viewer), List.copyOf(configurations.getValue().getViewers()));
       final ArgumentCaptor<Runnable> playbacks = ArgumentCaptor.forClass(Runnable.class);
       verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), playbacks.capture(), eq(0L), eq(2L));
       assertInstanceOf(Mcv2Playback.class, playbacks.getValue());
@@ -156,11 +169,13 @@ final class Mcv2PlayCommandTest {
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
       verify(this.task).cancel();
       verify(channel).close();
+      verify(this.lease).close();
       this.command.stop(this.sender);
       verify(channels.constructed().getLast()).close();
       verify(this.sender).sendMessage(Message.MCV2_STOP.build());
-      // the pack stays served for the next stream
-      verify(this.support, never()).close();
+      // the slot goes back, and the pack stays served for the next stream
+      verify(this.lease, Mockito.times(2)).close();
+      verify(this.packs, never()).shutdown();
     }
   }
 
@@ -192,6 +207,14 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void playsNothingWhenEverySlotOfThePackPlays() throws IOException {
+    when(this.packs.open(any())).thenThrow(new IllegalStateException("full"));
+    this.command.play(this.sender, this.selector, "5x3", 20, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
+    verify(this.sender).sendMessage(Message.MCV2_FULL.build());
+    verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
+  }
+
+  @Test
   void refusesWhatItCannotPlay() throws IOException {
     this.command.play(this.sender, this.selector, "65x1", 20, 2, "anything");
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.streams.resolve("missing.mcs").toString());
@@ -200,7 +223,7 @@ final class Mcv2PlayCommandTest {
     verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
     this.command.play(this.sender, this.selector, "5x3", 21, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
-    verify(this.support, never()).offer(any(), any());
+    verify(this.packs, never()).open(any());
   }
 
   /** A video of solid frames; every frame after the first waits for a latch, as a slow decoder would. */
@@ -475,7 +498,7 @@ final class Mcv2PlayCommandTest {
     // so neither a stream is read from outside it nor an encode written there
     this.command.play(this.sender, this.selector, "5x3", 20, 2, "/etc/passwd");
     this.command.stream(this.sender, this.selector, "5x3", 20, 60, "../stream.mcs");
-    verify(this.support, never()).offer(any(), any());
+    verify(this.packs, never()).open(any());
     this.command.encode(this.sender, "clip.mp4", "../../escape.mcs", "16x16", Mcv2Profile.LIVE);
     assertNull(this.command.getEncoding());
     final List<String> told = this.finish();
