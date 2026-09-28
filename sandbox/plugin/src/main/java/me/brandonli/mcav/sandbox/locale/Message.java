@@ -57,8 +57,8 @@ public interface Message extends LocaleTools {
   NullComponent MCV2_REFUSED = direct("mcav.command.mcv2.refused");
 
   /**
-   * Key {@code mcav.command.mcv2.screen.error}: no item frame holds the map id given to an MCV2 command, whose
-   * argument is inserted.
+   * Key {@code mcav.command.mcv2.screen.error}: no item frame in a loaded chunk holds the map id given to an MCV2
+   * command, whose argument is inserted.
    */
   UniComponent<Integer> MCV2_SCREEN_ERROR = direct("mcav.command.mcv2.screen.error", null);
 

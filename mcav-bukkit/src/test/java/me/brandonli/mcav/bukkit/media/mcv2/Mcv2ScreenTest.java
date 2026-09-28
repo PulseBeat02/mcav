@@ -24,8 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +57,7 @@ import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,9 +115,13 @@ final class Mcv2ScreenTest {
   }
 
   private Mcv2Configuration configuration(final BlockFace facing) {
+    return this.configuration(facing, 10);
+  }
+
+  private Mcv2Configuration configuration(final BlockFace facing, final int originX) {
     return Mcv2Configuration.builder()
       .viewers(List.of(VIEWER))
-      .origin(new Location(this.world, 10, 64, -4))
+      .origin(new Location(this.world, originX, 64, -4))
       .facing(facing)
       .map(100)
       .columns(3)
@@ -245,6 +253,49 @@ final class Mcv2ScreenTest {
       verify(frame).remove();
     }
     assertEquals(List.of(), screen.getFrames());
+  }
+
+  @Test
+  void keepsTheChunkOfItsFramesLoadedUntilRemoved() {
+    final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
+    screen.build();
+    // the frames hang at x 10 to 12 and z -6: chunk 0, -1
+    verify(this.world).addPluginChunkTicket(0, -1, this.server.getPlugin());
+    verify(this.world, never()).removePluginChunkTicket(anyInt(), anyInt(), any(Plugin.class));
+    screen.remove();
+    verify(this.world).removePluginChunkTicket(0, -1, this.server.getPlugin());
+    verify(this.world).addPluginChunkTicket(anyInt(), anyInt(), any(Plugin.class));
+    screen.remove();
+    verify(this.world).removePluginChunkTicket(anyInt(), anyInt(), any(Plugin.class));
+  }
+
+  @Test
+  void keepsEveryChunkItsFramesSpanLoaded() {
+    final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH, 14));
+    screen.build();
+    // the frames hang at x 14 to 16: chunks 0 and 1
+    verify(this.world).addPluginChunkTicket(0, -1, this.server.getPlugin());
+    verify(this.world).addPluginChunkTicket(1, -1, this.server.getPlugin());
+    screen.remove();
+    verify(this.world).removePluginChunkTicket(0, -1, this.server.getPlugin());
+    verify(this.world).removePluginChunkTicket(1, -1, this.server.getPlugin());
+  }
+
+  @Test
+  void sharesAChunkWithAnotherScreenUntilBothAreRemoved() {
+    final Mcv2Screen first = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
+    final Mcv2Screen second = new Mcv2Screen(this.configuration(BlockFace.SOUTH, 11));
+    first.build();
+    second.build();
+    verify(this.world).addPluginChunkTicket(0, -1, this.server.getPlugin());
+    first.remove();
+    verify(this.world, never()).removePluginChunkTicket(anyInt(), anyInt(), any(Plugin.class));
+    second.remove();
+    verify(this.world).removePluginChunkTicket(0, -1, this.server.getPlugin());
+    // a screen built again holds the chunk again
+    first.build();
+    verify(this.world, times(2)).addPluginChunkTicket(0, -1, this.server.getPlugin());
+    first.remove();
   }
 
   @Test

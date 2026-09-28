@@ -20,9 +20,13 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
@@ -56,7 +60,9 @@ import org.bukkit.plugin.Plugin;
  * {@code (column + row) % pageSlots}, so any run of page-slot many maps of a row has every page behind it. The frames
  * are real entities that nobody sees until {@link #show(Player)} shows them to a player with the pack; they glow,
  * because the client only runs the pack's post chain while a glowing entity is drawn, and the player is sent a team
- * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world.
+ * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world,
+ * so the screen keeps their chunks loaded until it is removed: a chunk that unloads, because every player left, would
+ * take the frames with it, and a player who comes back would find nothing to show.
  *
  * <p>An anchor is the first row of a wall map: a signature, the map's column and row, the wall's size, the direction of
  * the maps' right edge and the screen's stream id, which tells the pack which of its screens the wall is. The server
@@ -70,9 +76,20 @@ public final class Mcv2Screen {
 
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
+  /** Block coordinates to chunk coordinates: a chunk is 16 blocks wide. */
+  private static final int CHUNK_SHIFT = 4;
+
+  /**
+   * How many screens keep each chunk loaded, on the main thread: a plugin holds one ticket per chunk however often it
+   * asks, so two screens in one chunk share it, and it is removed with the last of them.
+   */
+  private static final Map<HeldChunk, Integer> HELD_CHUNKS = new HashMap<>();
+
   private final Mcv2Configuration configuration;
 
   private final List<ItemFrame> frames;
+
+  private final Set<HeldChunk> chunks;
 
   /**
    * Constructs a new screen.
@@ -83,6 +100,7 @@ public final class Mcv2Screen {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     this.configuration = configuration;
     this.frames = new ArrayList<>();
+    this.chunks = new LinkedHashSet<>();
   }
 
   /**
@@ -98,7 +116,8 @@ public final class Mcv2Screen {
   }
 
   /**
-   * Spawns the hidden page frames behind the wall. Call on the main thread.
+   * Spawns the hidden page frames behind the wall, and keeps their chunks loaded until {@link #remove()}. Call on the
+   * main thread.
    *
    * @throws IllegalStateException if the frames were already spawned
    */
@@ -115,6 +134,10 @@ public final class Mcv2Screen {
           .clone()
           .add(right.getModX() * column + back.getModX() * 2, -row, right.getModZ() * column + back.getModZ() * 2);
         final ItemStack page = pageItem(this.configuration.getPageMap() + slot(column, row, this.configuration.getPageSlots()));
+        final HeldChunk chunk = new HeldChunk(world, behind.getBlockX() >> CHUNK_SHIFT, behind.getBlockZ() >> CHUNK_SHIFT);
+        if (this.chunks.add(chunk)) {
+          hold(chunk);
+        }
         final ItemFrame frame = world.spawn(behind, ItemFrame.class, spawned -> {
           spawned.setVisibleByDefault(false);
           spawned.setPersistent(false);
@@ -177,12 +200,32 @@ public final class Mcv2Screen {
   }
 
   /**
-   * Removes the page frames. Call on the main thread.
+   * Removes the page frames, and lets their chunks unload. Call on the main thread.
    */
   public void remove() {
     this.frames.forEach(Entity::remove);
     this.frames.clear();
+    this.chunks.forEach(Mcv2Screen::release);
+    this.chunks.clear();
   }
+
+  private static void hold(final HeldChunk chunk) {
+    final int holders = HELD_CHUNKS.getOrDefault(chunk, 0) + 1;
+    HELD_CHUNKS.put(chunk, holders);
+    if (holders == 1) {
+      chunk.world().addPluginChunkTicket(chunk.x(), chunk.z(), BukkitModule.getPlugin());
+    }
+  }
+
+  private static void release(final HeldChunk chunk) {
+    final Integer holders = HELD_CHUNKS.computeIfPresent(chunk, (_, count) -> count == 1 ? null : count - 1);
+    if (holders == null) {
+      chunk.world().removePluginChunkTicket(chunk.x(), chunk.z(), BukkitModule.getPlugin());
+    }
+  }
+
+  /** A chunk a screen keeps loaded, in chunk coordinates. */
+  private record HeldChunk(World world, int x, int z) {}
 
   /** The team of the page frames, with the configured colour. */
   PlayerTeam team() {

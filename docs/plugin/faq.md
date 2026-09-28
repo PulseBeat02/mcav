@@ -57,8 +57,9 @@ not decode yet starts; loading it reloads the client's resources, a hitch of a s
 
 Until their client has loaded the MCV2 pack, and for good when they declined it or their client could not load it
 (the chat tells them). A screen is also dithered for everyone when no item frame holds its top-left map (build it with
-`/mcav screen`), when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads
-of `mcv2.encoder-threads`; the command that started it says which.
+`/mcav screen`, and start the screen while a player is near it: the server only sees the item frames of loaded
+chunks), when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads of
+`mcv2.encoder-threads`; the command that started it says which.
 
 ---
 

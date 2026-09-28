@@ -107,7 +107,9 @@ With `mcv2`:
   shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then a smaller
   video, then fewer frames a second, and at worst the dithered maps; whoever started it is told every step and why.
 - A wall that no item frame holds (build it with `/mcav screen` first, with the same size and map id) shows the dithered
-  maps, and the command says so.
+  maps, and the command says so. The server only knows the item frames of loaded chunks, so start a screen while a
+  player is near its wall; from then on the screen keeps the chunks of its page frames loaded until it is released, so
+  players who leave and come back, or join later, still see it.
 
 ## Video Commands
 
