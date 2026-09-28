@@ -185,6 +185,15 @@ final class VLCInstallerTest {
   }
 
   @Test
+  void isSupportedWithoutAnInstallationWhenThisPlatformHasADownload() {
+    final Platform current = Platform.getCurrentPlatform();
+    final Download download = new Download(current, "https://example.invalid/vlc.zip");
+    final VLCInstaller installer = new VLCInstaller(this.folder, () -> new Download[] { download });
+    final boolean supported = installer.isSupported();
+    assertTrue(supported);
+  }
+
+  @Test
   void treatsAnInstallationThatCannotBeSearchedAsMissing() throws IOException {
     final VLCInstaller real = new VLCInstaller(this.folder, VLCInstallerTest::noDownloads);
     final VLCInstaller installer = Mockito.spy(real);
