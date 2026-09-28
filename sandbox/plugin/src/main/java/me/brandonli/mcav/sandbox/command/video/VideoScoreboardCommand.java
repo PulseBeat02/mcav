@@ -28,13 +28,16 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.ScoreboardArguments;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -55,7 +58,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character>
-   * <flags> <mrl>}: plays a video on the sidebar scoreboard of the selected players.
+   * <ytDlpOptions> <mrl>}: plays a video on the sidebar scoreboard of the selected players.
    *
    * <p>Every frame is drawn with the chosen character in the color of each pixel, one sidebar line per row of
    * pixels. The sidebar replaces any other sidebar the players see while the video plays. Only one video plays at a
@@ -76,13 +79,15 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                        {@code 24x15}; the height is at most {@value ScoreboardConfiguration#MAX_LINES}
    * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
    *                        most solid picture
-   * @param flags           extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
+   * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
+   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
-  @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <flags> <mrl>")
+  @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions> <mrl>")
   @Permission("mcav.command.video.scoreboard")
   @CommandDescription("mcav.command.video.scoreboard.info")
   public void playVideo(
@@ -92,8 +97,9 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
-    @Quoted final String flags,
-    @Quoted final String mrl
+    @Quoted final String ytDlpOptions,
+    @Quoted final String mrl,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
@@ -107,7 +113,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
   }
 
   /**
@@ -115,7 +121,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *
    * @param resolution            the size in characters per line and lines
    * @param configurationProvider the provider created by
-   *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String)},
+   *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String, String)},
    *                              which returns a {@link ScoreboardConfiguration}
    * @return the pipeline that shows the frames on the sidebar
    */

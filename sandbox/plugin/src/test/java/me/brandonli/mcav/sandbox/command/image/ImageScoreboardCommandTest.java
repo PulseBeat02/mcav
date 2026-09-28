@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -70,7 +71,7 @@ final class ImageScoreboardCommandTest {
     when(plugin.getImageManager()).thenReturn(manager);
     final ImageScoreboardCommand realCommand = new ImageScoreboardCommand(plugin);
     this.command = spy(realCommand);
-    doNothing().when(this.command).displayImage(any(), any(), any(), any());
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), isNull());
 
     this.viewer = UUID.randomUUID();
     final Player player = mock(Player.class);
@@ -85,7 +86,7 @@ final class ImageScoreboardCommandTest {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL));
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
     return providers.getValue();
   }
 
@@ -104,7 +105,7 @@ final class ImageScoreboardCommandTest {
 
   @Test
   void showsTheImageOnTheScoreboardOfTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL);
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final ScoreboardConfiguration configuration = this.createImage(provider);
 
@@ -122,8 +123,8 @@ final class ImageScoreboardCommandTest {
 
   @Test
   void refusesMoreLinesThanAScoreboardShows() {
-    this.command.showImage(this.sender, this.selector, "24x16", CHARACTER, MRL);
-    verify(this.command, never()).displayImage(any(), any(), any(), any());
+    this.command.showImage(this.sender, this.selector, "24x16", CHARACTER, MRL, null);
+    verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();
     final List<Component> expected = List.of(error);
@@ -134,11 +135,11 @@ final class ImageScoreboardCommandTest {
   void refusesNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
-    assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, CHARACTER, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, null, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, CHARACTER, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, null, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, null, null));
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }

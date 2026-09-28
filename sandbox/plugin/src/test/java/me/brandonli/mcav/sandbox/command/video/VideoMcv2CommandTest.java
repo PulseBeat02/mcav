@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -86,7 +87,7 @@ final class VideoMcv2CommandTest {
     when(plugin.getMcv2Support()).thenReturn(this.support);
     when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
     this.command = spy(new VideoMcv2Command(plugin));
-    doNothing().when(this.command).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
+    doNothing().when(this.command).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(this.viewer);
     this.selector = mock(MultiplePlayerSelector.class);
@@ -106,7 +107,8 @@ final class VideoMcv2CommandTest {
       Mcv2Profile.LOW,
       DitheringArgument.FILTER_LITE,
       "",
-      "clip.mp4"
+      "clip.mp4",
+      null
     );
   }
 
@@ -137,7 +139,8 @@ final class VideoMcv2CommandTest {
       eq(AudioArgument.NONE),
       eq("640x384"),
       eq("clip.mp4"),
-      eq("")
+      eq(""),
+      isNull()
     );
     final Object built = providers.getValue().buildConfiguration(Pair.pair(640, 384));
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, built);
@@ -217,6 +220,6 @@ final class VideoMcv2CommandTest {
     verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
     this.play("640x384", "5x3", 21);
     verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
-    verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
+    verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
   }
 }

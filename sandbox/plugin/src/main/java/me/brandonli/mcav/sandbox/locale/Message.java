@@ -376,6 +376,12 @@ public interface Message extends LocaleTools {
   UniComponent<String> DEVICE_UNLISTED = direct("mcav.command.video.device.unlisted", null);
 
   /**
+   * Key {@code mcav.command.filters.invalid}: the {@code --filters} option of a video or image command cannot be used,
+   * for the reason inserted.
+   */
+  UniComponent<String> FILTERS_INVALID = direct("mcav.command.filters.invalid", null);
+
+  /**
    * Key {@code mcav.command.video.start}: tells the sender of a video command that the video is playing.
    */
   NullComponent START_VIDEO = direct("mcav.command.video.start");

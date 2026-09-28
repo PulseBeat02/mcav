@@ -62,6 +62,8 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.GrayscaleFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.InvertFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
@@ -77,6 +79,7 @@ import me.brandonli.mcav.sandbox.testing.StandardErrorCapture;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CaptureDevices;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -165,6 +168,7 @@ final class AbstractVideoCommandTest {
   void createCommand() {
     TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    when(plugin.getDataFolder()).thenReturn(this.folder.toFile());
     this.manager = mock(VideoPlayerManager.class);
     this.provider = mock(AudioProvider.class);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
@@ -230,7 +234,7 @@ final class AbstractVideoCommandTest {
   }
 
   private void play(final PlayerArgument playerType, final AudioArgument audioType, final String mrl, final String flags) {
-    this.command.playVideo(_ -> "configuration", this.sender, this.selector, playerType, audioType, "640x360", mrl, flags);
+    this.command.playVideo(_ -> "configuration", this.sender, this.selector, playerType, audioType, "640x360", mrl, flags, null);
   }
 
   private void assertSenderReceived(final Component... expected) {
@@ -406,6 +410,49 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
 
     this.assertSenderReceived(Message.DEVICE_UNLISTED.build("2"));
+    this.assertNotStarting();
+    this.videoPlayers.verifyNoInteractions();
+  }
+
+  @Test
+  void putsTheFiltersBeforeTheDisplay() {
+    this.command.playVideo(
+      _ -> "configuration",
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      "640x360",
+      "0",
+      "",
+      "grayscale,invert"
+    );
+
+    final ArgumentCaptor<VideoPipelineStep> steps = ArgumentCaptor.forClass(VideoPipelineStep.class);
+    verify(this.videoCallback).attach(steps.capture());
+    final VideoPipelineStep first = steps.getValue();
+    assertInstanceOf(GrayscaleFilter.class, first.getFilter());
+    final VideoPipelineStep second = Objects.requireNonNull(first.next());
+    assertInstanceOf(InvertFilter.class, second.getFilter());
+    assertSame(this.command.pipeline, second.next());
+  }
+
+  @Test
+  void refusesFiltersThatAreNotAllowedBeforeStartingAnything() {
+    this.command.playVideo(
+      _ -> "configuration",
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      "640x360",
+      "0",
+      "",
+      "sharpen"
+    );
+
+    final Component refused = Message.FILTERS_INVALID.build("no filter sharpen; the filters are " + String.join(", ", FilterChain.NAMES));
+    this.assertSenderReceived(refused);
     this.assertNotStarting();
     this.videoPlayers.verifyNoInteractions();
   }
@@ -588,7 +635,17 @@ final class AbstractVideoCommandTest {
 
   @Test
   void refusesInvalidResolutions() {
-    this.command.playVideo(_ -> "configuration", this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, "wide", "0", "");
+    this.command.playVideo(
+      _ -> "configuration",
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      "wide",
+      "0",
+      "",
+      null
+    );
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertSenderReceived(error);
@@ -785,16 +842,16 @@ final class AbstractVideoCommandTest {
     final AudioArgument none = AudioArgument.NONE;
 
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(null, this.sender, this.selector, ffmpeg, none, "640x360", "0", "")
+      this.command.playVideo(null, this.sender, this.selector, ffmpeg, none, "640x360", "0", "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, null, this.selector, ffmpeg, none, "640x360", "0", "")
+      this.command.playVideo(configuration, null, this.selector, ffmpeg, none, "640x360", "0", "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, null, ffmpeg, none, "640x360", "0", "")
+      this.command.playVideo(configuration, this.sender, null, ffmpeg, none, "640x360", "0", "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, null, none, "640x360", "0", "")
+      this.command.playVideo(configuration, this.sender, this.selector, null, none, "640x360", "0", "", null)
     );
 
     verify(this.manager, never()).getService();
@@ -807,16 +864,16 @@ final class AbstractVideoCommandTest {
     final AudioArgument none = AudioArgument.NONE;
 
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, null, "640x360", "0", "")
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, null, "640x360", "0", "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, null, "0", "")
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, null, "0", "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", null, "")
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", null, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", "0", null)
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", "0", null, null)
     );
 
     verify(this.manager, never()).getService();
@@ -1015,7 +1072,7 @@ final class AbstractVideoCommandTest {
       return "configuration";
     };
 
-    this.command.playVideo(configuration, this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, "640x360", mrl, "");
+    this.command.playVideo(configuration, this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, "640x360", mrl, "", null);
 
     assertEquals(1, this.command.resolutions.size());
     verify(this.provider, never()).constructFilter(any(), any(), any());

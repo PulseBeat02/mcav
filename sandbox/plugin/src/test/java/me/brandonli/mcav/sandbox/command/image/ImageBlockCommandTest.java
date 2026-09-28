@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -68,7 +69,7 @@ final class ImageBlockCommandTest {
     when(plugin.getImageManager()).thenReturn(manager);
     final ImageBlockCommand realCommand = new ImageBlockCommand(plugin);
     this.command = spy(realCommand);
-    doNothing().when(this.command).displayImage(any(), any(), any(), any());
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), isNull());
 
     this.viewer = UUID.randomUUID();
     final Player player = mock(Player.class);
@@ -87,7 +88,7 @@ final class ImageBlockCommandTest {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL));
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
     return providers.getValue();
   }
 
@@ -106,7 +107,7 @@ final class ImageBlockCommandTest {
 
   @Test
   void showsTheImageAsBlocksToTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, MRL);
+    this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final BlockConfiguration configuration = this.createImage(provider);
 
@@ -126,11 +127,13 @@ final class ImageBlockCommandTest {
   void refusesNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(4, 2);
-    assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, this.location, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, this.location, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, this.location, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, null, MRL));
-    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, this.location, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, this.location, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, this.location, MRL, null));
+    assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, RESOLUTION, null, MRL, null));
+    assertThrows(NullPointerException.class, () ->
+      this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, null, null)
+    );
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }

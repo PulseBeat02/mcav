@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -107,7 +108,8 @@ final class VideoScoreboardCommandTest {
         any(AudioArgument.class),
         anyString(),
         anyString(),
-        anyString()
+        anyString(),
+        isNull()
       );
   }
 
@@ -121,7 +123,7 @@ final class VideoScoreboardCommandTest {
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.SIMPLE_VOICE_CHAT, "24x15", "#", "", "0");
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.SIMPLE_VOICE_CHAT, "24x15", "#", "", "0", null);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -133,7 +135,8 @@ final class VideoScoreboardCommandTest {
       eq(AudioArgument.SIMPLE_VOICE_CHAT),
       eq("24x15"),
       eq("0"),
-      eq("")
+      eq(""),
+      isNull()
     );
     return providers.getValue();
   }
@@ -196,7 +199,7 @@ final class VideoScoreboardCommandTest {
 
   @Test
   void refusesMoreLinesThanAScoreboardShows() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", "#", "", "0");
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", "#", "", "0", null);
 
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();
@@ -210,7 +213,8 @@ final class VideoScoreboardCommandTest {
       any(AudioArgument.class),
       anyString(),
       anyString(),
-      anyString()
+      anyString(),
+      isNull()
     );
     verify(this.manager, never()).getStatus();
     verify(this.manager, never()).getService();

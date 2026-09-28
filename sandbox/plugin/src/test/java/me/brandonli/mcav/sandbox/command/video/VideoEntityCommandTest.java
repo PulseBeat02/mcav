@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -110,7 +111,8 @@ final class VideoEntityCommandTest {
         any(AudioArgument.class),
         anyString(),
         anyString(),
-        anyString()
+        anyString(),
+        isNull()
       );
   }
 
@@ -133,7 +135,8 @@ final class VideoEntityCommandTest {
       "@",
       this.location,
       "",
-      "clip.mp4"
+      "clip.mp4",
+      null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
@@ -146,7 +149,8 @@ final class VideoEntityCommandTest {
       eq(AudioArgument.DISCORD_BOT),
       eq("64x36"),
       eq("clip.mp4"),
-      eq("")
+      eq(""),
+      isNull()
     );
     return providers.getValue();
   }

@@ -33,6 +33,7 @@ import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -99,6 +100,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
+   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
   @Command(
     "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
@@ -116,7 +119,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String ytDlpOptions,
     @Quoted final String mrl,
-    @Flag("codec") final @Nullable MapCodec codec
+    @Flag("codec") final @Nullable MapCodec codec,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
@@ -141,7 +145,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
     }
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
   }
 
   private static MapDisplaySettings createSettings(
@@ -162,7 +166,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider created by
-   *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec)},
+   *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec, String)},
    *                              which returns {@link MapDisplaySettings}, or {@link VideoMcv2Command.Mcv2Settings}
    *                              for MCV2
    * @return the pipeline that dithers the frames onto the maps

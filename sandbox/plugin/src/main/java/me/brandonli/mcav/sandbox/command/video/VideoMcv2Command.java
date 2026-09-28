@@ -31,14 +31,17 @@ import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -59,7 +62,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <profile> <ditheringAlgorithm> <flags> <mrl>}.
+   * <mapId> <profile> <ditheringAlgorithm> <ytDlpOptions> <mrl>}.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The screen takes a
    * slot of the one MCV2 resource pack that decodes every MCV2 screen of the server, which the viewers are offered if
@@ -80,11 +83,13 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param mapId              the id of the top-left map of the wall, as given to {@code /mcav screen}
    * @param profile            the encoder profile, see {@link Mcv2Profile}
    * @param ditheringAlgorithm how the video is dithered for players without the pack, see {@link DitheringArgument}
-   * @param flags              extra options, in quotes; {@code ""} for none
+   * @param ytDlpOptions       extra options, in quotes; {@code ""} for none
    * @param mrl                the media, in quotes if it contains spaces
+   * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
+   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
   @Command(
-    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <flags> <mrl>"
+    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.mcv2")
   @CommandDescription("mcav.command.video.mcv2.info")
@@ -98,8 +103,9 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final Mcv2Profile profile,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String flags,
-    @Quoted final String mrl
+    @Quoted final String ytDlpOptions,
+    @Quoted final String mrl,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(profile, "Profile must not be null");
@@ -116,7 +122,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return;
     }
     final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, ditheringAlgorithm, sender);
-    this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
+    this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
   }
 
   /**

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -94,7 +95,7 @@ final class ImageMapCommandTest {
     when(plugin.getMcv2Support()).thenReturn(this.support);
     final ImageMapCommand realCommand = new ImageMapCommand(plugin);
     this.command = spy(realCommand);
-    doNothing().when(this.command).displayImage(any(), any(), any(), any());
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), isNull());
 
     this.viewer = UUID.randomUUID();
     final Player player = mock(Player.class);
@@ -106,11 +107,11 @@ final class ImageMapCommandTest {
   }
 
   private AbstractImageCommand.ImageConfigurationProvider showAndCaptureProvider(final DitheringArgument dithering) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null);
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null, null);
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL));
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
     return providers.getValue();
   }
 
@@ -177,8 +178,8 @@ final class ImageMapCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "3-2", "65x1", "1x65" })
   void refusesInvalidWallSizes(final String wall) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL, null);
-    verify(this.command, never()).displayImage(any(), any(), any(), any());
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL, null, null);
+    verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expected = List.of(error);
@@ -191,33 +192,33 @@ final class ImageMapCommandTest {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(null, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null)
+      this.command.showMapImage(null, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null)
+      this.command.showMapImage(this.sender, null, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, null, BLOCKS, MAP_ID, dithering, MRL, null)
+      this.command.showMapImage(this.sender, this.selector, null, BLOCKS, MAP_ID, dithering, MRL, null, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, null, MAP_ID, dithering, MRL, null)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, null, MAP_ID, dithering, MRL, null, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, null, MRL, null)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, null, MRL, null, null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, null, null)
+      this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, null, null, null)
     );
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }
 
   private AbstractImageCommand.ImageConfigurationProvider showWithCodecAndCaptureProvider(final @Nullable MapCodec codec) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.NEAREST_COLOR, MRL, codec);
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.NEAREST_COLOR, MRL, codec, null);
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL));
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
     return providers.getValue();
   }
 

@@ -27,14 +27,17 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Supplier;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.SourceDetectionHelper;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
+import me.brandonli.mcav.sandbox.command.video.AbstractVideoCommand;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -82,12 +85,14 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param sender           who ran the command
    * @param imageResolution  the resolution argument, such as {@code 640x640}
    * @param mrl              the path or URL of the image, optionally enclosed in one pair of double quotes
+   * @param filters          the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
    */
   public void displayImage(
     final ImageConfigurationProvider configProvider,
     final CommandSender sender,
     final String imageResolution,
-    final String mrl
+    final String mrl,
+    final @Nullable String filters
   ) {
     Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
     Preconditions.checkNotNull(sender, "Sender must not be null");
@@ -100,6 +105,10 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
+    final FilterChain chain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, false);
+    if (chain == null) {
+      return;
+    }
     final String sourceMrl = unwrapMrl(mrl);
     final Supplier<ImageBuffer> loader = createLoader(sourceMrl);
     if (loader == null) {
@@ -109,7 +118,14 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configProvider);
-    this.startLoading(loader, request);
+    this.startLoading(chain.isEmpty() ? loader : () -> filter(loader.get(), resolution, chain), request);
+  }
+
+  /** Filters an image at the size it is shown at, which bounds the work of the filters, on the loading thread. */
+  private static ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
+    new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
+    chain.apply(image);
+    return image;
   }
 
   private static String unwrapMrl(final String mrl) {

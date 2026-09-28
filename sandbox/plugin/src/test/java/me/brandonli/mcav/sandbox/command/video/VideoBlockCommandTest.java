@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -110,7 +111,8 @@ final class VideoBlockCommandTest {
         any(AudioArgument.class),
         anyString(),
         anyString(),
-        anyString()
+        anyString(),
+        isNull()
       );
   }
 
@@ -132,7 +134,8 @@ final class VideoBlockCommandTest {
       "32x18",
       this.location,
       "--loop",
-      "clip.mp4"
+      "clip.mp4",
+      null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
@@ -145,7 +148,8 @@ final class VideoBlockCommandTest {
       eq(AudioArgument.HTTP_SERVER),
       eq("32x18"),
       eq("clip.mp4"),
-      eq("--loop")
+      eq("--loop"),
+      isNull()
     );
     return providers.getValue();
   }

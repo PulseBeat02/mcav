@@ -106,7 +106,7 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram set location",
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytDlpOptions mrl flags",
-    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm flags mrl",
+    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm ytDlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId fps file",
     "mcav mcv2 stop",
@@ -276,10 +276,38 @@ final class AnnotationParserHandlerTest {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
-      assertEquals(List.of("codec"), names, syntax);
+      assertEquals("codec", names.getFirst(), syntax);
       final CommandComponent<?> codec = Objects.requireNonNull(flags.flags().iterator().next().commandComponent());
       final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codec.parser(), syntax);
       assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), Set.copyOf(values.acceptedValues()), syntax);
+    }
+  }
+
+  @Test
+  void everyVideoAndImageCommandTakesQuotedFilters() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final List<String> media = this.commands
+      .syntaxes()
+      .stream()
+      .filter(syntax -> (syntax.startsWith("mcav video ") || syntax.startsWith("mcav image ")) && syntax.contains(" mrl"))
+      .toList();
+    assertEquals(11, media.size(), String.valueOf(media));
+    for (final String syntax : media) {
+      final Command<CommandSender> command = this.commands.command(syntax);
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final CommandFlag<?> filters = flags
+        .flags()
+        .stream()
+        .filter(flag -> flag.name().equals("filters"))
+        .findFirst()
+        .orElseThrow();
+      final StringParser<?> parser = assertInstanceOf(
+        StringParser.class,
+        Objects.requireNonNull(filters.commandComponent()).parser(),
+        syntax
+      );
+      assertEquals(StringParser.StringMode.QUOTED, parser.stringMode(), syntax);
     }
   }
 

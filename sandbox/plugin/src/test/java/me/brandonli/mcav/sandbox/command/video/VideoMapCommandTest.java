@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -130,7 +131,8 @@ final class VideoMapCommandTest {
         any(AudioArgument.class),
         anyString(),
         anyString(),
-        anyString()
+        anyString(),
+        isNull()
       );
   }
 
@@ -155,6 +157,7 @@ final class VideoMapCommandTest {
       dithering,
       "",
       "clip.mp4",
+      null,
       null
     );
   }
@@ -172,7 +175,8 @@ final class VideoMapCommandTest {
       eq(AudioArgument.NONE),
       eq("640x384"),
       eq("clip.mp4"),
-      eq("")
+      eq(""),
+      isNull()
     );
     return providers.getValue();
   }
@@ -284,7 +288,8 @@ final class VideoMapCommandTest {
       any(AudioArgument.class),
       anyString(),
       anyString(),
-      anyString()
+      anyString(),
+      isNull()
     );
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
@@ -304,7 +309,8 @@ final class VideoMapCommandTest {
       DitheringArgument.NEAREST_COLOR,
       "",
       "clip.mp4",
-      codec
+      codec,
+      null
     );
   }
 
@@ -326,7 +332,8 @@ final class VideoMapCommandTest {
       eq(AudioArgument.NONE),
       eq("640x384"),
       eq("clip.mp4"),
-      eq("")
+      eq(""),
+      isNull()
     );
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
@@ -354,7 +361,7 @@ final class VideoMapCommandTest {
   void anMcv2VideoWithAnInvalidResolutionDoesNotStart() {
     this.playWithCodec("wide", MapCodec.MCV2);
     verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
-    verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
+    verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
   }
 
   @Test
@@ -371,7 +378,8 @@ final class VideoMapCommandTest {
       eq(AudioArgument.NONE),
       eq("640x384"),
       eq("clip.mp4"),
-      eq("")
+      eq(""),
+      isNull()
     );
     assertInstanceOf(MapDisplaySettings.class, providers.getValue().buildConfiguration(Pair.pair(640, 384)));
   }

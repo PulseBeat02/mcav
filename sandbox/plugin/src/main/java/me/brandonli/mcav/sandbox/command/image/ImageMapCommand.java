@@ -32,6 +32,7 @@ import me.brandonli.mcav.sandbox.command.video.Mcv2Support;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
@@ -91,6 +92,8 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           results for most images, see {@link DitheringArgument}
    * @param mrl                the image to show: a path to a file on the server or an {@code http} or
    *                           {@code https} URL; the rest of the command line up to a flag, so it may contain spaces
+   * @param filters         the {@code --filters} option: filters applied to the image in order, such as
+   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
    */
@@ -105,7 +108,8 @@ public final class ImageMapCommand extends AbstractImageCommand {
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     @Greedy @FlagYielding final String mrl,
-    @Flag("codec") final @Nullable MapCodec codec
+    @Flag("codec") final @Nullable MapCodec codec,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
@@ -124,7 +128,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
       chosen == MapCodec.MCV2
         ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
         : createProvider(blocks, mapId, players, ditheringAlgorithm);
-    this.displayImage(configProvider, sender, imageResolution, mrl);
+    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
   }
 
   private static ImageConfigurationProvider createProvider(

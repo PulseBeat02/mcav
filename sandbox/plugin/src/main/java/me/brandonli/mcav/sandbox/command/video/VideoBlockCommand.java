@@ -27,15 +27,18 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
 import org.incendo.cloud.annotations.Default;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -54,7 +57,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
   }
 
   /**
-   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <flags>
+   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions>
    * <mrl>}: plays a video as an upright wall of colored blocks, one block per pixel.
    *
    * <p>The wall stands along the x axis, is centered horizontally on the location, and grows upward from it. The
@@ -74,13 +77,15 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * @param audioType       where the sound is played, see {@link AudioArgument}
    * @param videoResolution the size of the wall as {@code <width>x<height>} in blocks, such as {@code 32x18}
    * @param location        the bottom center of the wall, such as {@code ~ ~ ~}
-   * @param flags           extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
+   * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
+   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
-  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <flags> <mrl>")
+  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions> <mrl>")
   @Permission("mcav.command.video.block")
   @CommandDescription("mcav.command.video.block.info")
   public void playVideo(
@@ -90,15 +95,16 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     final Location location,
-    @Default @Quoted final String flags,
-    @Quoted final String mrl
+    @Default @Quoted final String ytDlpOptions,
+    @Quoted final String mrl,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
     Preconditions.checkNotNull(location, "Location must not be null");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, location);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
   }
 
   /**
@@ -107,7 +113,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *
    * @param resolution            the size of the wall in blocks
    * @param configurationProvider the provider created by
-   *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String)},
+   *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String, String)},
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
    */

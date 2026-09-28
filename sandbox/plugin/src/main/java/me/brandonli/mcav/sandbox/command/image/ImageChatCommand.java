@@ -24,13 +24,17 @@ import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.FlagYielding;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
 import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
@@ -70,6 +74,8 @@ public final class ImageChatCommand extends AbstractImageCommand {
    *                        block {@code █} gives the most solid picture
    * @param mrl             the image to show: a path to a file on the server or an {@code http} or {@code https}
    *                        URL; the rest of the command line, so it may contain spaces
+   * @param filters         the {@code --filters} option: filters applied to the image in order, such as
+   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
   @Command("mcav image chat <playerSelector> <imageResolution> <character> <mrl>")
   @Permission("mcav.command.image.chat")
@@ -79,7 +85,8 @@ public final class ImageChatCommand extends AbstractImageCommand {
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
-    @Greedy final String mrl
+    @Greedy @FlagYielding final String mrl,
+    @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(sender, "Sender must not be null");
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
@@ -88,7 +95,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(mrl, "MRL must not be null");
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, character);
-    this.displayImage(configProvider, sender, imageResolution, mrl);
+    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
   }
 
   /**

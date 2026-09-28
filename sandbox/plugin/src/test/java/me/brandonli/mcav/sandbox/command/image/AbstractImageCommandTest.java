@@ -119,6 +119,7 @@ final class AbstractImageCommandTest {
   void createCommand() {
     TestServer.reset();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    when(plugin.getDataFolder()).thenReturn(this.folder.toFile());
     this.manager = spy(new ImageManager(plugin, this.direct));
     when(plugin.getImageManager()).thenReturn(this.manager);
     this.display = mock(DisplayableImage.class);
@@ -186,7 +187,7 @@ final class AbstractImageCommandTest {
   void loadsAnImageFileAndShowsIt() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
-    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     try (final ImageBuffer image = this.verifyShown()) {
       final int width = image.getWidth();
       final int height = image.getHeight();
@@ -210,9 +211,30 @@ final class AbstractImageCommandTest {
   }
 
   @Test
+  void filtersAnImageAtTheSizeItIsShownAt() throws IOException {
+    final Path file = this.writeImage("picture.png", "png");
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
+    try (final ImageBuffer image = this.verifyShown()) {
+      assertEquals(4, image.getWidth());
+      assertEquals(2, image.getHeight());
+      // the picture is black but for its red top-left corner, so inverted its bottom-right corner is white
+      final int[] pixels = image.getPixels();
+      assertEquals(0xffffff, pixels[pixels.length - 1] & 0xffffff);
+    }
+  }
+
+  @Test
+  void refusesFiltersThatAreNotAllowedBeforeLoading() {
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", "picture.png", "fps");
+    final Component refused = Message.FILTERS_INVALID.build("fps counts the frames of a video, and an image has one");
+    assertEquals(List.of(refused), Components.received(this.sender));
+    verify(this.manager, never()).beginLoad();
+  }
+
+  @Test
   void downloadsAnImageAndShowsIt() throws IOException {
     final String url = this.serveImage();
-    this.command.displayImage(_ -> "configuration", this.sender, "8x8", url);
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", url, null);
     try (final ImageBuffer image = this.verifyShown()) {
       final int width = image.getWidth();
       assertEquals(6, width);
@@ -225,7 +247,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("my picture.png", "png");
     final String path = file.toString();
     final String mrl = quoted ? '"' + path + '"' : path;
-    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl, null);
     final ImageBuffer image = this.verifyShown();
     final int[] pixels = image.getPixels();
     assertEquals(0xFFFF0000, pixels[0]);
@@ -235,7 +257,7 @@ final class AbstractImageCommandTest {
   void downloadsAnImageFromAQuotedUrl() throws IOException {
     final String url = this.serveImage();
     final String mrl = '"' + url + '"';
-    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl, null);
     final ImageBuffer image = this.verifyShown();
     final int[] pixels = image.getPixels();
     assertEquals(0xFFFF0000, pixels[0]);
@@ -244,7 +266,7 @@ final class AbstractImageCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "", "\"", "\"\"", "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
   void rejectsEmptyOrMalformedQuotedSources(final String mrl) {
-    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl, null);
     this.assertNothingShown();
     final List<Component> messages = Components.received(this.sender);
     final Component invalid = Message.UNSUPPORTED_MRL.build();
@@ -263,7 +285,7 @@ final class AbstractImageCommandTest {
         when(helper.detectSource("\"\"")).thenReturn(Optional.of(imageSource))
       )
     ) {
-      this.command.displayImage(_ -> "configuration", this.sender, "8x8", "\"\"");
+      this.command.displayImage(_ -> "configuration", this.sender, "8x8", "\"\"", null);
       this.assertNothingShown();
       final List<Component> messages = Components.received(this.sender);
       final Component invalid = Message.UNSUPPORTED_MRL.build();
@@ -277,7 +299,7 @@ final class AbstractImageCommandTest {
   void refusesInvalidResolutions() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
-    this.command.displayImage(_ -> "configuration", this.sender, "wide", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "wide", mrl, null);
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expected = List.of(error);
@@ -289,7 +311,7 @@ final class AbstractImageCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "not a source", "0", "mp4||input" })
   void refusesMediaThatIsNotAFileOrUrl(final String mrl) {
-    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MRL.build();
     final List<Component> expected = List.of(error);
@@ -301,7 +323,7 @@ final class AbstractImageCommandTest {
   void refusesAnimatedImages() throws IOException {
     final Path file = this.writeImage("animation.gif", "gif");
     final String mrl = file.toString();
-    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MRL.build();
     final List<Component> expected = List.of(error);
@@ -316,7 +338,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     final String output;
     try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       output = capture.getOutput();
     }
     final boolean named = output.contains("Failed to load the image " + mrl);
@@ -328,7 +350,7 @@ final class AbstractImageCommandTest {
     final Path file = this.folder.resolve("broken.png");
     Files.writeString(file, "this is not an image");
     final String mrl = file.toString();
-    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     final List<Component> messages = Components.received(this.sender);
     final Component start = Message.LOAD_IMAGE_START.build();
     final Component failure = Message.UNSUPPORTED_MRL.build();
@@ -351,7 +373,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final int count = constructed.size();
       assertEquals(1, count);
@@ -373,7 +395,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, never()).release();
@@ -392,8 +414,8 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      this.command.displayImage(_ -> "first", this.sender, "4x2", mrl);
-      this.command.displayImage(_ -> "second", this.sender, "8x4", mrl);
+      this.command.displayImage(_ -> "first", this.sender, "4x2", mrl, null);
+      this.command.displayImage(_ -> "second", this.sender, "8x4", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer first = constructed.get(0);
       final MatImageBuffer second = constructed.get(1);
@@ -416,7 +438,7 @@ final class AbstractImageCommandTest {
     final IllegalStateException failure = new IllegalStateException("invalid display configuration");
     Mockito.doThrow(failure).when(failing).createImage(any(), any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
@@ -434,7 +456,7 @@ final class AbstractImageCommandTest {
     final IllegalStateException failure = new IllegalStateException("failed display");
     Mockito.doThrow(failure).when(this.display).displayImage(any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
@@ -462,7 +484,7 @@ final class AbstractImageCommandTest {
     final RecordingCommand deferredCommand = new RecordingCommand(plugin, this.display);
     final Path file = this.writeImage("late.png", "png");
     final String mrl = file.toString();
-    deferredCommand.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+    deferredCommand.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     deferredManager.shutdown();
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
       final Runnable lateWork = work.getFirst();
@@ -484,7 +506,7 @@ final class AbstractImageCommandTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal configuration failure");
     Mockito.doThrow(fatal).when(failing).createImage(any(), any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
@@ -501,7 +523,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     this.manager.shutdown();
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final boolean empty = constructed.isEmpty();
       assertTrue(empty);
@@ -532,7 +554,7 @@ final class AbstractImageCommandTest {
       });
       final StandardErrorCapture capture = StandardErrorCapture.start()
     ) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, times(1)).release();
@@ -563,7 +585,7 @@ final class AbstractImageCommandTest {
         Mockito.doThrow(cleanup).when(image).release();
       })
     ) {
-      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
       assertSame(primary, thrown);
       final Throwable[] suppressed = thrown.getSuppressed();
@@ -580,10 +602,10 @@ final class AbstractImageCommandTest {
   void refusesNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider configuration = _ -> "configuration";
     assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
-    assertThrows(NullPointerException.class, () -> this.command.displayImage(null, this.sender, "4x2", "picture.png"));
-    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, null, "4x2", "picture.png"));
-    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, null, "picture.png"));
-    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, "4x2", null));
+    assertThrows(NullPointerException.class, () -> this.command.displayImage(null, this.sender, "4x2", "picture.png", null));
+    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, null, "4x2", "picture.png", null));
+    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, null, "picture.png", null));
+    assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, "4x2", null, null));
     verify(this.manager, never()).getService();
   }
 
@@ -600,7 +622,7 @@ final class AbstractImageCommandTest {
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
       final StandardErrorCapture capture = StandardErrorCapture.start()
     ) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       output = capture.getOutput();
       verify(this.manager, never()).discardLoaded(Mockito.anyLong());
       final List<MatImageBuffer> constructed = buffers.constructed();
@@ -628,7 +650,7 @@ final class AbstractImageCommandTest {
       });
       final StandardErrorCapture capture = StandardErrorCapture.start()
     ) {
-      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       output = capture.getOutput();
       verify(this.manager, times(1)).discardLoaded(Mockito.anyLong());
       final List<MatImageBuffer> constructed = buffers.constructed();
@@ -656,7 +678,7 @@ final class AbstractImageCommandTest {
         Mockito.doThrow(fatal).doNothing().when(image).release();
       })
     ) {
-      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl);
+      failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
       assertSame(fatal, thrown);
       final Throwable[] suppressed = primary.getSuppressed();

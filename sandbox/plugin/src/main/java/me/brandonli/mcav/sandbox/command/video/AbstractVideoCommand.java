@@ -59,6 +59,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CaptureDevices;
+import me.brandonli.mcav.sandbox.utils.FilterChain;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.IOUtils;
@@ -128,6 +129,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param videoResolution       the resolution argument, such as {@code 640x640}
    * @param mrl                   the path, URL, device index, or FFmpeg input
    * @param flags                 the optional flags, may be empty
+   * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
    */
   public void playVideo(
     final VideoConfigurationProvider configurationProvider,
@@ -137,7 +139,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final String videoResolution,
     final String mrl,
-    final String flags
+    final String flags,
+    final @Nullable String filters
   ) {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
     Preconditions.checkNotNull(sender, "Sender must not be null");
@@ -156,6 +159,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (ytdlpArguments == null) {
       return;
     }
+    final FilterChain chain = parseFilters(sender, this.plugin, filters, true);
+    if (chain == null) {
+      return;
+    }
     final boolean ready = this.checkBackends(sender, playerType, audioType, mrl);
     if (!ready || !this.claim(sender)) {
       return;
@@ -171,7 +178,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         ytdlpArguments,
         resolution,
         configurationProvider,
-        viewers
+        viewers,
+        chain
       );
       this.launch(sender, request);
     } catch (final RuntimeException | Error exception) {
@@ -179,6 +187,33 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final AtomicBoolean initializing = this.manager.getStatus();
       initializing.set(false);
       throw exception;
+    }
+  }
+
+  /**
+   * Parses the {@code --filters} option of a video or image command, telling the sender when it is not valid.
+   *
+   * @param sender  who ran the command
+   * @param plugin  the plugin, whose data folder holds the overlays
+   * @param filters the option as typed, or {@code null} for none
+   * @param video   whether the pictures are the frames of a video
+   * @return the chain, or {@code null} if the option is not valid
+   */
+  public static @Nullable FilterChain parseFilters(
+    final CommandSender sender,
+    final MCAVSandbox plugin,
+    final @Nullable String filters,
+    final boolean video
+  ) {
+    if (filters == null || filters.isEmpty()) {
+      return FilterChain.NONE;
+    }
+    final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
+    try {
+      return FilterChain.parse(filters, overlays, video);
+    } catch (final IllegalArgumentException invalid) {
+      sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(invalid.getMessage(), "")));
+      return null;
     }
   }
 
@@ -456,7 +491,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private VideoPlayerMultiplexer createPlayer(final PlaybackRequest request, final URLParseDump dump) {
     final Pair<Integer, Integer> resolution = request.getResolution();
     final VideoConfigurationProvider configurationProvider = request.getConfigurationProvider();
-    final VideoPipelineStep videoPipeline = this.createVideoFilter(resolution, configurationProvider);
+    final VideoPipelineStep videoPipeline = request.getFilters().prepend(this.createVideoFilter(resolution, configurationProvider));
 
     final AudioArgument audioType = request.getAudioType();
     final Player[] viewers = request.getViewers();
@@ -674,6 +709,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     private final Pair<Integer, Integer> resolution;
     private final VideoConfigurationProvider configurationProvider;
     private final Player[] viewers;
+    private final FilterChain filters;
 
     PlaybackRequest(
       final PlayerArgument playerType,
@@ -682,7 +718,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String[] ytdlpArguments,
       final Pair<Integer, Integer> resolution,
       final VideoConfigurationProvider configurationProvider,
-      final Player[] viewers
+      final Player[] viewers,
+      final FilterChain filters
     ) {
       this.playerType = playerType;
       this.audioType = audioType;
@@ -691,6 +728,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       this.resolution = resolution;
       this.configurationProvider = configurationProvider;
       this.viewers = viewers;
+      this.filters = filters;
     }
 
     PlayerArgument getPlayerType() {
@@ -719,6 +757,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     Player[] getViewers() {
       return this.viewers;
+    }
+
+    FilterChain getFilters() {
+      return this.filters;
     }
   }
 }
