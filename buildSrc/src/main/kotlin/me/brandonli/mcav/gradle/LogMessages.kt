@@ -48,12 +48,12 @@ object LogMessages {
         var depth = 0
         var argumentStart = start
         for (index in start until code.length) {
-            val c = code[index]
-            val ends = c in CLOSING && depth == 0
+            val character = code[index]
+            val ends = character in CLOSING && depth == 0
             when {
-                c in OPENING -> depth++
-                c in CLOSING && depth > 0 -> depth--
-                ends || (c == ',' && depth == 0) -> {
+                character in OPENING -> depth++
+                character in CLOSING && depth > 0 -> depth--
+                ends || (character == ',' && depth == 0) -> {
                     arguments += Argument(source.substring(argumentStart, index), code.substring(argumentStart, index))
                     argumentStart = index + 1
                 }
@@ -76,12 +76,12 @@ object LogMessages {
             var depth = 0
             var plus = false
             var literal = false
-            code.forEachIndexed { index, c ->
+            code.forEachIndexed { index, character ->
                 when {
-                    c in OPENING -> depth++
-                    c in CLOSING -> depth--
+                    character in OPENING -> depth++
+                    character in CLOSING -> depth--
                     depth > 0 -> Unit
-                    c == '+' -> plus = true
+                    character == '+' -> plus = true
                     text[index] == '"' -> literal = true
                 }
             }
