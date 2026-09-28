@@ -54,6 +54,11 @@ final class RfbSession {
    * pixel.
    */
   void handshake(final int minor, final int security, final int width, final int height) throws IOException {
+    this.handshake(minor, security, width, height, 32);
+  }
+
+  /** Runs the handshake up to and including the server initialisation and the client's pixel format. */
+  void handshake(final int minor, final int security, final int width, final int height, final int clientBits) throws IOException {
     this.server(version(minor));
     this.client(version(minor));
     if (minor >= 7) {
@@ -81,7 +86,7 @@ final class RfbSession {
     }
     this.client(new byte[] { 1 });
     this.server(serverInit(width, height, 32, "desktop"));
-    this.client(setPixelFormat(32));
+    this.client(setPixelFormat(clientBits));
   }
 
   static byte[] version(final int minor) {
