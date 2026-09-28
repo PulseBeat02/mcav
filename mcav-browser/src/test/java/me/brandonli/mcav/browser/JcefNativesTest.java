@@ -25,10 +25,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.file.Files;
@@ -42,12 +47,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -119,7 +127,7 @@ class JcefNativesTest {
 
   private static Object installLockOf(final ClassLoader loader) throws ReflectiveOperationException {
     final Class<?> natives = Class.forName(JcefNatives.class.getName(), true, loader);
-    final java.lang.reflect.Field field = natives.getDeclaredField("INSTALL_LOCK");
+    final Field field = natives.getDeclaredField("INSTALL_LOCK");
     field.setAccessible(true);
     return field.get(null);
   }
@@ -127,15 +135,12 @@ class JcefNativesTest {
   @Test
   void everyCopyOfMcavInTheJvmSharesTheLockOfTheInstallation() throws Exception {
     // two plugins that each shade mcav load it in class loaders of their own
-    final String[] entries = System.getProperty("java.class.path").split(java.util.regex.Pattern.quote(java.io.File.pathSeparator), -1);
-    final java.net.URL[] urls = new java.net.URL[entries.length];
+    final String[] entries = System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1);
+    final URL[] urls = new URL[entries.length];
     for (int index = 0; index < entries.length; index++) {
       urls[index] = Path.of(entries[index]).toUri().toURL();
     }
-    try (
-      final java.net.URLClassLoader first = new java.net.URLClassLoader(urls, null);
-      final java.net.URLClassLoader second = new java.net.URLClassLoader(urls, null)
-    ) {
+    try (final URLClassLoader first = new URLClassLoader(urls, null); final URLClassLoader second = new URLClassLoader(urls, null)) {
       assertNotSame(first.loadClass(JcefNatives.class.getName()), second.loadClass(JcefNatives.class.getName()));
       assertSame(installLockOf(first), installLockOf(second));
     }
@@ -232,11 +237,7 @@ class JcefNativesTest {
       REPOSITORY,
       new ArchiveExtractor()
     );
-    final Optional<JcefNatives.NativePlatform> platform = JcefNatives.detect(
-      me.brandonli.mcav.utils.os.OSUtils.getOS(),
-      me.brandonli.mcav.utils.os.OSUtils.getArch(),
-      me.brandonli.mcav.utils.os.OSUtils.getBits()
-    );
+    final Optional<JcefNatives.NativePlatform> platform = JcefNatives.detect(OSUtils.getOS(), OSUtils.getArch(), OSUtils.getBits());
     if (platform.isPresent()) {
       final Path installation = natives.install();
       assertTrue(installation.getFileName().toString().endsWith(platform.get().getIdentifier()));
@@ -341,13 +342,13 @@ class JcefNativesTest {
     try {
       return natives.install("linux-amd64", "pinned", PINNED_SIZE);
     } catch (final IOException exception) {
-      throw new java.io.UncheckedIOException(exception);
+      throw new UncheckedIOException(exception);
     }
   }
 
   @Test
   void theNativesLiveInTheCacheOfMcavByDefault() {
-    assertEquals(me.brandonli.mcav.utils.IOUtils.getCachedFolder().resolve("jcef"), new JcefNatives().getFolder());
+    assertEquals(IOUtils.getCachedFolder().resolve("jcef"), new JcefNatives().getFolder());
   }
 
   @Test

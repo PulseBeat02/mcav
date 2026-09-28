@@ -46,6 +46,7 @@ import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 
@@ -232,7 +233,7 @@ final class DirectAudioOutputTest {
   void opensTheDefaultLineBeforeStartingIt() throws Exception {
     final SourceDataLine line = mock(SourceDataLine.class);
     try (final MockedStatic<AudioSystem> system = mockStatic(AudioSystem.class)) {
-      system.when(() -> AudioSystem.getLine(org.mockito.ArgumentMatchers.any(DataLine.Info.class))).thenReturn(line);
+      system.when(() -> AudioSystem.getLine(ArgumentMatchers.any(DataLine.Info.class))).thenReturn(line);
       final DirectAudioOutput output = new DirectAudioOutput();
       try {
         output.start();

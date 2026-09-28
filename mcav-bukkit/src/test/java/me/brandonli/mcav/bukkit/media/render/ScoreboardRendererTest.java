@@ -32,7 +32,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
@@ -289,9 +291,9 @@ final class ScoreboardRendererTest {
     final List<Team> teams = this.scoreboards.getTeams();
     assertSame(this.previousBoard, viewerBoard);
     assertSame(mainBoard, lateBoard, "viewers that joined later get the main scoreboard");
-    final java.lang.reflect.Field retainedField = ScoreboardRenderer.class.getDeclaredField("previousScoreboards");
+    final Field retainedField = ScoreboardRenderer.class.getDeclaredField("previousScoreboards");
     retainedField.setAccessible(true);
-    final java.util.Map<?, ?> retained = (java.util.Map<?, ?>) retainedField.get(renderer);
+    final Map<?, ?> retained = (Map<?, ?>) retainedField.get(renderer);
     assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
     verify(objective, times(1)).unregister();
     for (final Team team : teams) {

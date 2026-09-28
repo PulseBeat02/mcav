@@ -28,6 +28,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
@@ -288,12 +290,9 @@ class QemuAudioProtocolTest {
 
   @Test
   void theProtocolIsNotInstantiable() throws ReflectiveOperationException {
-    final java.lang.reflect.Constructor<QemuAudioProtocol> constructor = QemuAudioProtocol.class.getDeclaredConstructor();
+    final Constructor<QemuAudioProtocol> constructor = QemuAudioProtocol.class.getDeclaredConstructor();
     constructor.setAccessible(true);
-    final java.lang.reflect.InvocationTargetException failure = assertThrows(
-      java.lang.reflect.InvocationTargetException.class,
-      constructor::newInstance
-    );
+    final InvocationTargetException failure = assertThrows(InvocationTargetException.class, constructor::newInstance);
     assertEquals(UnsupportedOperationException.class, failure.getCause().getClass());
   }
 

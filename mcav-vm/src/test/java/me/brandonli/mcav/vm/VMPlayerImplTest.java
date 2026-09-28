@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -53,6 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -88,7 +90,7 @@ final class VMPlayerImplTest {
   private final List<VMConfiguration> createdConfigurations = new CopyOnWriteArrayList<>();
 
   private final List<VMAudioClient.Sink> sinks = new CopyOnWriteArrayList<>();
-  private final List<java.net.InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
+  private final List<InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
   private final VMAudioClient audioClient = mock(VMAudioClient.class);
   // a machine of the mocked QEMU has no sound unless a test says so, and then this connects to it
   private final VMPlayerImpl.AudioConnector audio = (address, sink, failures) -> {
@@ -219,7 +221,7 @@ final class VMPlayerImplTest {
     final List<Integer> heard = new CopyOnWriteArrayList<>();
     final VMPlayerImpl player = this.startedPlayer();
     player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
-    assertEquals(List.of(new java.net.InetSocketAddress(VMProcess.LOOPBACK, 5905)), this.audioAddresses);
+    assertEquals(List.of(new InetSocketAddress(VMProcess.LOOPBACK, 5905)), this.audioAddresses);
     final VMAudioClient.Sink sink = this.sinks.getFirst();
     sink.accept(new byte[8], 8);
     waitUntil(() -> heard.size() == 1);
@@ -236,11 +238,11 @@ final class VMPlayerImplTest {
   @Test
   void aResumeDuringAPauseLeavesPictureAndSoundTogether() throws Exception {
     when(this.qemu.hasAudio()).thenReturn(true);
-    final java.util.concurrent.CountDownLatch insidePause = new java.util.concurrent.CountDownLatch(1);
-    final java.util.concurrent.CountDownLatch finishPause = new java.util.concurrent.CountDownLatch(1);
+    final CountDownLatch insidePause = new CountDownLatch(1);
+    final CountDownLatch finishPause = new CountDownLatch(1);
     when(this.vnc.pause()).thenAnswer(invocation -> {
       insidePause.countDown();
-      finishPause.await(10, java.util.concurrent.TimeUnit.SECONDS);
+      finishPause.await(10, TimeUnit.SECONDS);
       return true;
     });
     when(this.vnc.resume()).thenReturn(true);
@@ -248,14 +250,14 @@ final class VMPlayerImplTest {
     final List<Integer> heard = new CopyOnWriteArrayList<>();
     final VMPlayerImpl player = this.startedPlayer();
     player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
-    final java.util.concurrent.CompletableFuture<Boolean> pausing = java.util.concurrent.CompletableFuture.supplyAsync(player::pause);
-    assertTrue(insidePause.await(10, java.util.concurrent.TimeUnit.SECONDS));
+    final CompletableFuture<Boolean> pausing = CompletableFuture.supplyAsync(player::pause);
+    assertTrue(insidePause.await(10, TimeUnit.SECONDS));
     // the picture is being paused while another thread resumes; without one lock the sound would end up paused
-    final java.util.concurrent.CompletableFuture<Boolean> resuming = java.util.concurrent.CompletableFuture.supplyAsync(player::resume);
+    final CompletableFuture<Boolean> resuming = CompletableFuture.supplyAsync(player::resume);
     Thread.sleep(200L);
     finishPause.countDown();
-    assertTrue(pausing.get(10, java.util.concurrent.TimeUnit.SECONDS));
-    assertTrue(resuming.get(10, java.util.concurrent.TimeUnit.SECONDS));
+    assertTrue(pausing.get(10, TimeUnit.SECONDS));
+    assertTrue(resuming.get(10, TimeUnit.SECONDS));
     this.sinks.getFirst().accept(new byte[8], 8);
     waitUntil(() -> heard.size() == 1);
     player.release();
@@ -302,7 +304,7 @@ final class VMPlayerImplTest {
       .count();
   }
 
-  private static void waitUntil(final java.util.function.BooleanSupplier condition) {
+  private static void waitUntil(final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() > deadline) {

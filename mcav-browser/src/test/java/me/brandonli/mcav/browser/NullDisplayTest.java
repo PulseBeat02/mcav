@@ -36,6 +36,7 @@ import java.net.ProtocolException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +50,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
@@ -473,7 +475,7 @@ class NullDisplayTest {
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       assertArrayEquals(NullDisplay.createAuthorityEntry(cookie), entry);
       final String name = display.getDisplay();
-      final java.util.regex.Matcher matcher = Pattern.compile("127\\.0\\.0\\.1:(\\d+)").matcher(name);
+      final Matcher matcher = Pattern.compile("127\\.0\\.0\\.1:(\\d+)").matcher(name);
       assertTrue(matcher.matches(), name);
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(matcher.group(1));
       try (final Socket client = new Socket(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port)) {
@@ -573,7 +575,7 @@ class NullDisplayTest {
       assertEnded(silent.getFirst().getInputStream());
       final Socket second = silent.get(1);
       second.setSoTimeout(300);
-      assertThrows(java.net.SocketTimeoutException.class, () -> second.getInputStream().read(), "the second client still waits");
+      assertThrows(SocketTimeoutException.class, () -> second.getInputStream().read(), "the second client still waits");
     } finally {
       for (final Socket client : silent) {
         client.close();

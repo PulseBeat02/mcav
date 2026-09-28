@@ -38,6 +38,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -694,7 +695,7 @@ final class AbstractInteractiveCommandTest {
   void releasesMapsAndStopsListeningEvenWhenPlayerCleanupFails() {
     this.createMockedScreen();
     this.command.player = "browser";
-    final CompressedMapResult maps = java.util.Objects.requireNonNull(this.command.result);
+    final CompressedMapResult maps = Objects.requireNonNull(this.command.result);
     final IllegalStateException failure = new IllegalStateException("backend cleanup");
     this.command.releaseFailure = failure;
     try (final MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {

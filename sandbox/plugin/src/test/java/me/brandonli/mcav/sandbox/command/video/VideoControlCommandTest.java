@@ -27,10 +27,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
+import me.brandonli.mcav.sandbox.audio.AudioProvider;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.Components;
 import me.brandonli.mcav.sandbox.testing.StandardErrorCapture;
@@ -41,7 +44,9 @@ import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link VideoControlCommand}.
@@ -139,22 +144,22 @@ final class VideoControlCommandTest {
   @Test
   void queuedReleaseDoesNotCancelARequestSubmittedAfterIt() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    final me.brandonli.mcav.MCAVApi api = mock(me.brandonli.mcav.MCAVApi.class);
-    final me.brandonli.mcav.sandbox.audio.AudioProvider provider = mock(me.brandonli.mcav.sandbox.audio.AudioProvider.class);
+    final MCAVApi api = mock(MCAVApi.class);
+    final AudioProvider provider = mock(AudioProvider.class);
     when(plugin.getMCAV()).thenReturn(api);
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoPlayerManager realManager = new VideoPlayerManager(plugin);
-    final VideoPlayerManager owner = org.mockito.Mockito.spy(realManager);
+    final VideoPlayerManager owner = Mockito.spy(realManager);
     final ExecutorService deferred = mock(ExecutorService.class);
-    final List<Runnable> pending = new java.util.ArrayList<>();
-    org.mockito.Mockito.doAnswer(invocation -> {
+    final List<Runnable> pending = new ArrayList<>();
+    Mockito.doAnswer(invocation -> {
       final Runnable task = invocation.getArgument(0);
       pending.add(task);
       return null;
     })
       .when(deferred)
-      .execute(org.mockito.ArgumentMatchers.any(Runnable.class));
-    org.mockito.Mockito.doReturn(deferred).when(owner).getService();
+      .execute(ArgumentMatchers.any(Runnable.class));
+    Mockito.doReturn(deferred).when(owner).getService();
     when(plugin.getVideoPlayerManager()).thenReturn(owner);
     final VideoControlCommand controls = new VideoControlCommand(plugin);
     try {
@@ -167,7 +172,7 @@ final class VideoControlCommandTest {
       cleanup.run();
       final boolean nextCurrent = owner.isCurrent(nextGeneration);
       assertTrue(nextCurrent, "queued cleanup must not invalidate a newer admitted request");
-      verify(owner, org.mockito.Mockito.times(1)).cancelStart();
+      verify(owner, Mockito.times(1)).cancelStart();
     } finally {
       owner.shutdown();
     }

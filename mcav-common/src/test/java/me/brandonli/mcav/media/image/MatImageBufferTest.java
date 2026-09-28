@@ -35,6 +35,7 @@ import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferInt;
+import java.awt.image.PixelInterleavedSampleModel;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.SinglePixelPackedSampleModel;
@@ -44,6 +45,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
@@ -456,7 +458,7 @@ final class MatImageBufferTest {
   void copiesASingleRowWithUnusedScanlinePadding() {
     final BufferedImage standard = new BufferedImage(2, 1, BufferedImage.TYPE_3BYTE_BGR);
     final ColorModel colors = standard.getColorModel();
-    final SampleModel model = new java.awt.image.PixelInterleavedSampleModel(DataBuffer.TYPE_BYTE, 2, 1, 3, 7, new int[] { 2, 1, 0 });
+    final SampleModel model = new PixelInterleavedSampleModel(DataBuffer.TYPE_BYTE, 2, 1, 3, 7, new int[] { 2, 1, 0 });
     final DataBuffer data = new DataBufferByte(6);
     final WritableRaster raster = Raster.createWritableRaster(model, data, new Point());
     final BufferedImage source = new BufferedImage(colors, raster, false, null);
@@ -957,7 +959,7 @@ final class MatImageBufferTest {
       );
       final String message = failure.getMessage();
       assertEquals("Expected 2147483646 bytes but got 2", message);
-      final java.util.List<Mat> constructed = allocations.constructed();
+      final List<Mat> constructed = allocations.constructed();
       final int count = constructed.size();
       assertEquals(0, count);
     }

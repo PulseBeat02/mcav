@@ -22,6 +22,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -104,7 +105,7 @@ public final class BrowserBenchmark {
     lines.add(header);
     lines.add("|---|---|---|---|");
     lines.addAll(rows);
-    Files.write(output, lines, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+    Files.write(output, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     final PrintStream out = System.out;
     out.println(String.join(System.lineSeparator(), lines));
     System.exit(0);

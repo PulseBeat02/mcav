@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -151,13 +152,11 @@ final class VirtualizeCommandTest {
 
   @Test
   void releasesTheMachineAndScreenWhenSubmissionIsRejected() {
-    final java.util.concurrent.RejectedExecutionException failure = new java.util.concurrent.RejectedExecutionException("executor stopped");
+    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped");
     when(this.machine.startAsync(any(VMSettings.class), any(VMPlayer.Architecture.class), any(VMConfiguration.class), any())).thenThrow(
       failure
     );
-    final java.util.concurrent.RejectedExecutionException thrown = assertThrows(java.util.concurrent.RejectedExecutionException.class, () ->
-      this.create("640x480", "5x4", "")
-    );
+    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () -> this.create("640x480", "5x4", ""));
     assertSame(failure, thrown);
     verify(this.machine).release();
     final List<CompressedMapResult> created = this.maps.constructed();

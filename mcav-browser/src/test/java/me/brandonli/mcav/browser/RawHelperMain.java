@@ -22,11 +22,14 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A misbehaving browser helper for tests of the server's session: it reads the configuration like the real helper,
@@ -190,7 +193,7 @@ public final class RawHelperMain {
         final int width = configuration.getWidth();
         final int height = configuration.getHeight();
         final byte[] pixels = new byte[width * height * 4];
-        java.util.Arrays.fill(pixels, (byte) 7);
+        Arrays.fill(pixels, (byte) 7);
         HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, pixels));
         HelperProtocol.writeLoading(out, false);
       }
@@ -231,7 +234,7 @@ public final class RawHelperMain {
         Thread.sleep(2_000L);
         startChild();
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       } catch (final InterruptedException exception) {
         Thread.currentThread().interrupt();
       }
@@ -260,7 +263,7 @@ public final class RawHelperMain {
    * helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
    */
   private static void waitTwoMinutes() {
-    final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(2);
+    final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2);
     while (System.nanoTime() < deadline) {
       sleep();
     }

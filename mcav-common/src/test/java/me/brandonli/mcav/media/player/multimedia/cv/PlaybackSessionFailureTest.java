@@ -48,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 
 /** Verifies natural worker termination when decoder acquisition, cleanup or failure reporting throws. */
 final class PlaybackSessionFailureTest {
@@ -82,12 +83,12 @@ final class PlaybackSessionFailureTest {
 
   @Test
   void closesAnOpenedSessionCancelledBeforeThreadsStart() throws Exception {
-    final FrameGrabber grabber = org.mockito.Mockito.mock(FrameGrabber.class);
+    final FrameGrabber grabber = Mockito.mock(FrameGrabber.class);
     final PlaybackSession session = session(() -> grabber, null, (_, _) -> {});
     session.open();
     session.stop();
     session.stop();
-    org.mockito.Mockito.verify(grabber).close();
+    Mockito.verify(grabber).close();
     assertFalse(session.isActive());
   }
 

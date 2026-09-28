@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import net.minecraft.world.entity.Display;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -62,7 +63,7 @@ public final class FakeWorld {
         final Location location = invocation.getArgument(0);
         final Consumer<? super TextDisplay> configurator = invocation.getArgument(2);
         final CraftTextDisplay display = mock(CraftTextDisplay.class);
-        final net.minecraft.world.entity.Display.TextDisplay handle = mock(net.minecraft.world.entity.Display.TextDisplay.class);
+        final Display.TextDisplay handle = mock(Display.TextDisplay.class);
         when(display.getHandle()).thenReturn(handle);
         when(display.isValid()).thenReturn(true);
         configurator.accept(display);

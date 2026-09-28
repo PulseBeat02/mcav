@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +43,7 @@ import me.brandonli.mcav.http.HttpResult;
 import me.brandonli.mcav.http.MediaInfo;
 import me.brandonli.mcav.jda.DiscordPlayer;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
@@ -393,9 +395,8 @@ final class AudioProviderTest {
   }
 
   private static void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
-    final java.nio.ByteBuffer samples = java.nio.ByteBuffer.allocate(4);
-    final me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata metadata =
-      me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
     when(output.applyFilter(samples, metadata)).thenReturn(true);
     assertTrue(filter.applyFilter(samples, metadata));
     verify(output).applyFilter(samples, metadata);
@@ -411,13 +412,12 @@ final class AudioProviderTest {
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     // the machine took the outputs over: the speakers of the video stop, and its filter falls silent
     verify(videoSpeakers).release();
-    final java.nio.ByteBuffer samples = java.nio.ByteBuffer.allocate(4);
-    final me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata metadata =
-      me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
     assertFalse(video.applyFilter(samples, metadata));
     verify(videoSpeakers, never()).applyFilter(any(), any());
     assertPlaysInto(machineSpeakers, sound);
-    assertFalse(sound.applyFilter(java.nio.ByteBuffer.allocate(8), metadata), "what the output answers comes back");
+    assertFalse(sound.applyFilter(ByteBuffer.allocate(8), metadata), "what the output answers comes back");
     // the source that has the outputs keeps them when it asks again
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     verify(machineSpeakers, never()).release();

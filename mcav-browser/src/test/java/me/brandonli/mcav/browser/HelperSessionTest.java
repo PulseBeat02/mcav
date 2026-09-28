@@ -25,19 +25,36 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ProtocolException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
@@ -48,6 +65,7 @@ import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -271,8 +289,8 @@ class HelperSessionTest {
     final byte[] first = HelperSession.createToken();
     final byte[] second = HelperSession.createToken();
     assertEquals(HelperProtocol.TOKEN_BYTES, first.length);
-    assertFalse(java.util.Arrays.equals(first, second), "two sessions got the same token");
-    assertFalse(java.util.Arrays.equals(new byte[HelperProtocol.TOKEN_BYTES], first), "the token is all zeros");
+    assertFalse(Arrays.equals(first, second), "two sessions got the same token");
+    assertFalse(Arrays.equals(new byte[HelperProtocol.TOKEN_BYTES], first), "the token is all zeros");
   }
 
   @Test
@@ -283,7 +301,7 @@ class HelperSessionTest {
       List.of(),
       List.of(),
       OS.LINUX,
-      java.util.Map.of("PATH", "/usr/bin", "MCAV_TEST_SECRET", "hidden"),
+      Map.of("PATH", "/usr/bin", "MCAV_TEST_SECRET", "hidden"),
       1_000L
     );
     final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
@@ -326,7 +344,7 @@ class HelperSessionTest {
   }
 
   @Test
-  @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
   void inputThatCannotBeWrittenEndsTheSession() {
     // the helper keeps its connection but reads no more, so Linux refuses to write to it (EPIPE); input goes on until
     // then, since the helper shuts its side a moment after it showed the page
@@ -342,7 +360,7 @@ class HelperSessionTest {
   @Test
   void aProcessTheHelperStartedIsKilledWhenTheSessionCloses() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/child");
-    final java.util.Set<ProcessHandle> started = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
     Await.until("the process the helper starts", () -> {
       try (final Stream<ProcessHandle> descendants = session.getProcess().descendants()) {
         descendants.forEach(started::add);
@@ -356,7 +374,7 @@ class HelperSessionTest {
 
   @Test
   void aStartThatFailsBeforeTheHelperConnectsLeavesNothingBehind() throws IOException {
-    final java.util.Set<ProcessHandle> before = liveDescendants();
+    final Set<ProcessHandle> before = liveDescendants();
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
     final Path parent = this.shortDirectory();
@@ -365,20 +383,20 @@ class HelperSessionTest {
     );
     assertEquals("The browser helper did not connect in time", failure.getMessage());
     // the helper ignores the end of its input, so only a kill ends it; its display ends with it
-    assertEquals(java.util.Set.of(), newSince(before));
+    assertEquals(Set.of(), newSince(before));
     try (final Stream<Path> left = Files.list(parent)) {
       assertEquals(List.of(), left.toList());
     }
   }
 
-  private static java.util.Set<ProcessHandle> liveDescendants() {
+  private static Set<ProcessHandle> liveDescendants() {
     try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {
-      return descendants.filter(ProcessHandle::isAlive).collect(java.util.stream.Collectors.toSet());
+      return descendants.filter(ProcessHandle::isAlive).collect(Collectors.toSet());
     }
   }
 
-  private static java.util.Set<ProcessHandle> newSince(final java.util.Set<ProcessHandle> before) {
-    final java.util.Set<ProcessHandle> now = new java.util.HashSet<>(liveDescendants());
+  private static Set<ProcessHandle> newSince(final Set<ProcessHandle> before) {
+    final Set<ProcessHandle> now = new HashSet<>(liveDescendants());
     now.removeAll(before);
     return now;
   }
@@ -428,13 +446,13 @@ class HelperSessionTest {
       System.getenv(),
       5_000L
     );
-    final java.util.Set<ProcessHandle> before = liveDescendants();
+    final Set<ProcessHandle> before = liveDescendants();
     final PlayerException failure = assertThrows(PlayerException.class, () ->
       HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
     );
     assertTrue(failure.getMessage().startsWith("The browser helper could not be started"), failure.getMessage());
     // the display that was started for the helper ends, and the folder of the session goes
-    assertEquals(java.util.Set.of(), newSince(before));
+    assertEquals(Set.of(), newSince(before));
     try (final Stream<Path> left = Files.list(this.directory)) {
       assertEquals(List.of(), left.toList());
     }
@@ -515,7 +533,7 @@ class HelperSessionTest {
 
   @Test
   void aHelperGetsTheLibrariesItsLauncherLinksIntoTheSession() {
-    final List<Path> linked = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Path> linked = new CopyOnWriteArrayList<>();
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L).withLibraries(session -> {
       final Path libraries = Files.createDirectory(session.resolve("lib"));
       linked.add(libraries);
@@ -579,14 +597,14 @@ class HelperSessionTest {
     final Process process = session.getProcess();
     // the helper ignores the end of its input, starts a process two seconds later, and is killed after ten seconds;
     // its processes are watched while the session closes, because they are no descendants once the helper is gone
-    final java.util.Set<ProcessHandle> started = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    final java.util.concurrent.atomic.AtomicBoolean closing = new java.util.concurrent.atomic.AtomicBoolean(true);
+    final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
+    final AtomicBoolean closing = new AtomicBoolean(true);
     final Thread watcher = new Thread(() -> {
       while (closing.get()) {
         try (final Stream<ProcessHandle> descendants = process.descendants()) {
           descendants.forEach(started::add);
         }
-        java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
       }
     });
     watcher.start();
@@ -712,8 +730,8 @@ class HelperSessionTest {
   void anInterruptedStartFailsAndLeavesNothingBehind() throws InterruptedException {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/never"), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L);
-    final java.util.concurrent.atomic.AtomicReference<Throwable> thrown = new java.util.concurrent.atomic.AtomicReference<>();
-    final java.util.concurrent.atomic.AtomicBoolean stillInterrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    final AtomicReference<Throwable> thrown = new AtomicReference<>();
+    final AtomicBoolean stillInterrupted = new AtomicBoolean();
     final Thread starter = new Thread(() -> {
       try {
         HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
@@ -752,8 +770,8 @@ class HelperSessionTest {
 
   @Test
   void aListenerMayCloseTheSessionFromItsOwnThread() {
-    final java.util.concurrent.atomic.AtomicReference<HelperSession> self = new java.util.concurrent.atomic.AtomicReference<>();
-    final java.util.concurrent.CountDownLatch closed = new java.util.concurrent.CountDownLatch(1);
+    final AtomicReference<HelperSession> self = new AtomicReference<>();
+    final CountDownLatch closed = new CountDownLatch(1);
     final BrowserSession.Listener closing = new BrowserSession.Listener() {
       @Override
       public void onFrame(final ImageBuffer frame) {
@@ -821,21 +839,21 @@ class HelperSessionTest {
       output.append("line ").append(line).append("\r\n");
     }
     output.append("x".repeat(3000));
-    session.drainOutput(new java.io.ByteArrayInputStream(output.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    session.drainOutput(new ByteArrayInputStream(output.toString().getBytes(StandardCharsets.UTF_8)));
     final List<String> tail = List.of(session.getOutputTail().split(System.lineSeparator()));
     assertEquals(40, tail.size());
     assertEquals("line 11", tail.getFirst());
     assertEquals(1024, tail.getLast().length(), "a line is cut at its limit");
     session.drainOutput(
-      new java.io.InputStream() {
+      new InputStream() {
         @Override
-        public int read() throws java.io.IOException {
-          throw new java.io.IOException("gone");
+        public int read() throws IOException {
+          throw new IOException("gone");
         }
 
         @Override
-        public int read(final byte[] buffer, final int offset, final int length) throws java.io.IOException {
-          throw new java.io.IOException("gone");
+        public int read(final byte[] buffer, final int offset, final int length) throws IOException {
+          throw new IOException("gone");
         }
       }
     );
@@ -847,7 +865,7 @@ class HelperSessionTest {
     final Path posix = HelperSession.createFolder(this.directory);
     assertTrue(Files.isDirectory(posix));
     final Path zip = this.directory.resolve("folders.zip");
-    try (final java.nio.file.FileSystem zipped = java.nio.file.FileSystems.newFileSystem(zip, java.util.Map.of("create", "true"))) {
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
       final Path created = HelperSession.createFolder(root);
       assertTrue(Files.isDirectory(created), "a file system without POSIX permissions gets a plain folder");
@@ -868,7 +886,7 @@ class HelperSessionTest {
 
   @Test
   void closingAndDeletingQuietlyLogFailuresOnly() throws IOException {
-    final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+    final AtomicInteger calls = new AtomicInteger();
     HelperSession.closeQuietly(() -> {
       calls.incrementAndGet();
       throw new IOException("already closed");
@@ -876,7 +894,7 @@ class HelperSessionTest {
     assertEquals(1, calls.get());
     final Path folder = Files.createDirectories(this.directory.resolve("kept").resolve("inner"));
     Files.writeString(folder.resolve("file"), "x");
-    final java.io.File inner = folder.toFile();
+    final File inner = folder.toFile();
     assumeTrue(inner.setWritable(false), "the folder can be made read-only");
     try {
       HelperSession.deleteFolder(this.directory.resolve("kept"));
@@ -910,7 +928,7 @@ class HelperSessionTest {
      * @param args ignored
      * @throws java.io.IOException if the input fails
      */
-    public static void main(final String[] args) throws java.io.IOException {
+    public static void main(final String[] args) throws IOException {
       while (System.in.read() >= 0) {
         // never connect
       }
@@ -922,10 +940,10 @@ class HelperSessionTest {
    */
   static final class RecordingListener implements BrowserSession.Listener {
 
-    final List<ImageBuffer> frames = new java.util.concurrent.CopyOnWriteArrayList<>();
-    final List<byte[]> sound = new java.util.concurrent.CopyOnWriteArrayList<>();
-    final List<Long> frameNanos = new java.util.concurrent.CopyOnWriteArrayList<>();
-    final List<String> ended = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();
+    final List<byte[]> sound = new CopyOnWriteArrayList<>();
+    final List<Long> frameNanos = new CopyOnWriteArrayList<>();
+    final List<String> ended = new CopyOnWriteArrayList<>();
 
     List<Integer> blues() {
       final List<Integer> blues = new ArrayList<>();

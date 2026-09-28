@@ -28,7 +28,6 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
@@ -51,7 +50,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class TranslationManager {
 
-  private static final Locale DEFAULT_LOCALE = Locale.getDefault();
+  private static final java.util.Locale DEFAULT_LOCALE = java.util.Locale.getDefault(); // fqn: Locale is this package's language
   private static final Key ADVENTURE_KEY = key(Keys.NAMESPACE, "main");
 
   private final ResourceBundle bundle;
@@ -65,15 +64,15 @@ public final class TranslationManager {
   public TranslationManager() {
     final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
     final PluginDataConfigurationMapper mapper = plugin.getConfiguration();
-    final me.brandonli.mcav.sandbox.locale.Locale locale = mapper.getLocale();
+    final Locale locale = mapper.getLocale();
     final Path folder = IOUtils.getPluginDataFolderPath();
     this.bundle = loadBundle(folder, locale);
     this.translator = new PluginTranslator(ADVENTURE_KEY, this.bundle);
   }
 
-  private static ResourceBundle loadBundle(final Path folder, final me.brandonli.mcav.sandbox.locale.Locale locale) {
+  private static ResourceBundle loadBundle(final Path folder, final Locale locale) {
     final String name = locale.name();
-    final String lowerCaseName = name.toLowerCase(Locale.ROOT);
+    final String lowerCaseName = name.toLowerCase(java.util.Locale.ROOT); // fqn: Locale is this package's language
     final String propertiesPath = "locale/mcav_%s.properties".formatted(lowerCaseName);
     final Path file = folder.resolve(propertiesPath);
     try {

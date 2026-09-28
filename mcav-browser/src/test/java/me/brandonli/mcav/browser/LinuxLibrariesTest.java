@@ -42,10 +42,14 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.player.PlayerException;
+import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.OS;
 import org.apache.commons.compress.archivers.ar.ArArchiveEntry;
 import org.apache.commons.compress.archivers.ar.ArArchiveOutputStream;
@@ -461,7 +465,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
   void theDefaultSessionsOfLinuxLinkTheLibrariesTheServerLacks() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
@@ -480,7 +484,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX)
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
   void aServerThatHasEveryLibraryDownloadsNothing() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
@@ -515,15 +519,15 @@ class LinuxLibrariesTest {
     final Path installation = this.folder
       .resolve("cache")
       .resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64")));
-    final java.util.concurrent.atomic.AtomicReference<Thread> installer = new java.util.concurrent.atomic.AtomicReference<>();
-    final java.util.concurrent.CompletableFuture<Path> installed;
+    final AtomicReference<Thread> installer = new AtomicReference<>();
+    final CompletableFuture<Path> installed;
     synchronized (LinuxLibraries.INSTALL_LOCK) {
-      installed = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+      installed = CompletableFuture.supplyAsync(() -> {
         installer.set(Thread.currentThread());
         try {
           return libraries.install("linux-amd64");
         } catch (final IOException exception) {
-          throw new java.io.UncheckedIOException(exception);
+          throw new UncheckedIOException(exception);
         }
       });
       // the installer found nothing installed and waits for the lock, while another process finishes the installation
@@ -531,7 +535,7 @@ class LinuxLibrariesTest {
       Files.createDirectories(installation);
       Files.writeString(installation.resolve(LinuxLibraries.INSTALL_MARKER), "done");
     }
-    assertEquals(installation, installed.get(30, java.util.concurrent.TimeUnit.SECONDS));
+    assertEquals(installation, installed.get(30, TimeUnit.SECONDS));
     assertEquals(List.of(), this.downloads, "nothing was downloaded again");
   }
 
@@ -578,7 +582,7 @@ class LinuxLibrariesTest {
       List.of("host linux-amd64")
     );
     assertEquals(List.of(), nothingExpected.getPins("linux-amd64"));
-    assertEquals(me.brandonli.mcav.utils.IOUtils.getCachedFolder().resolve("jcef-libraries"), new LinuxLibraries().getFolder());
+    assertEquals(IOUtils.getCachedFolder().resolve("jcef-libraries"), new LinuxLibraries().getFolder());
   }
 
   @Test

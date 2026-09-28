@@ -34,6 +34,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
@@ -216,7 +217,7 @@ final class BrowserCommandTest {
     this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
     // a disabling plugin hands out its provider no more, and the browser fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
-    org.mockito.Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseBrowser(this.sender));
     assertEquals("release broke", failure.getMessage());
     verify(this.provider).releaseAudioFilter(this.browser);
@@ -402,9 +403,9 @@ final class BrowserCommandTest {
 
   @Test
   void releasesTheBrowserAndScreenWhenSubmissionIsRejected() {
-    final java.util.concurrent.RejectedExecutionException failure = new java.util.concurrent.RejectedExecutionException("executor stopped");
+    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped");
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenThrow(failure);
-    final java.util.concurrent.RejectedExecutionException thrown = assertThrows(java.util.concurrent.RejectedExecutionException.class, () ->
+    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
     );
     assertSame(failure, thrown);

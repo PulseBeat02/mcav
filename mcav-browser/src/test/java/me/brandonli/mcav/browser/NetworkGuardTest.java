@@ -29,6 +29,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -330,7 +331,7 @@ class NetworkGuardTest {
     try (final Socket accepted = server.accept()) {
       accepted.getOutputStream().write("bye".getBytes(StandardCharsets.US_ASCII));
     } catch (final IOException exception) {
-      throw new java.io.UncheckedIOException(exception);
+      throw new UncheckedIOException(exception);
     }
   }
 

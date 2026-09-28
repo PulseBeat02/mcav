@@ -31,6 +31,7 @@ import java.util.Random;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
+import net.jqwik.api.From;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.Size;
@@ -65,7 +66,7 @@ final class QemuAudioProtocolPropertyTest {
 
   @Property(seed = SEED, tries = 300)
   void everyMessageIsReadAsSentHoweverTheStreamIsCut(
-    @ForAll @Size(max = 20) final List<@net.jqwik.api.From("messages") Sent> messages,
+    @ForAll @Size(max = 20) final List<@From("messages") Sent> messages,
     @ForAll final long cuts
   ) throws IOException {
     final byte[] stream = QemuAudioProtocolTest.bytes(out -> {

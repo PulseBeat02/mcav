@@ -28,12 +28,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.image.ImagePlayer;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -134,7 +136,7 @@ final class ImageManagerTest {
     this.manager.shutdown();
     final boolean retainedAfterShutdown = this.manager.retainLoaded(beforeShutdown, this.image);
     assertFalse(retainedAfterShutdown);
-    assertThrows(java.util.concurrent.RejectedExecutionException.class, this.manager::beginLoad);
+    assertThrows(RejectedExecutionException.class, this.manager::beginLoad);
   }
 
   @Test
@@ -179,7 +181,7 @@ final class ImageManagerTest {
     assertFalse(this.manager.retainLoaded(replaced, this.image));
     assertTrue(this.manager.retainLoaded(current, this.image));
     final ImageBuffer taken = this.manager.takeLoaded(current);
-    org.junit.jupiter.api.Assertions.assertSame(this.image, taken);
+    Assertions.assertSame(this.image, taken);
   }
 
   @Test

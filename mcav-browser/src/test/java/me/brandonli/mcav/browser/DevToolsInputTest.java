@@ -25,6 +25,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -158,12 +160,12 @@ class DevToolsInputTest {
 
   @Test
   void aWindowsLineBreakPressesEnterOnce() {
-    final java.util.regex.Pattern key = java.util.regex.Pattern.compile("\"key\":(\"[^\"]*\")");
+    final Pattern key = Pattern.compile("\"key\":(\"[^\"]*\")");
     final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
       .stream()
       .filter(call -> call.contains("keyDown"))
       .map(call -> {
-        final java.util.regex.Matcher matcher = key.matcher(call);
+        final Matcher matcher = key.matcher(call);
         assertTrue(matcher.find(), call);
         return matcher.group(1);
       })

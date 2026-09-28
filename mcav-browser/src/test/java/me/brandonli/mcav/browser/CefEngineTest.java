@@ -33,11 +33,14 @@ import static org.mockito.Mockito.when;
 
 import java.awt.EventQueue;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.StandardError;
@@ -169,7 +172,7 @@ class CefEngineTest {
   @Test
   void aNewBrowserGetsTheScriptsOfWindowsAndSoundBeforeItLoadsThePage() throws Exception {
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
-    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<String> notices = new CopyOnWriteArrayList<>();
     final CefBrowser closed = mock(CefBrowser.class);
     CefEngine.openPage(closed, "https://example.com/", 1_000L, audio, notices::add);
     verify(closed).loadURL("https://example.com/");
@@ -206,12 +209,12 @@ class CefEngineTest {
     when(lost.executeDevToolsMethod(anyString(), anyString())).thenReturn(new CompletableFuture<>());
     when(working.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture("{}"));
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
-    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
     Await.until("the page loaded", () -> {
       try {
         EventQueue.invokeAndWait(() -> {});
-      } catch (final InterruptedException | java.lang.reflect.InvocationTargetException exception) {
+      } catch (final InterruptedException | InvocationTargetException exception) {
         throw new IllegalStateException(exception);
       }
       return mockingDetails(browser)
@@ -233,7 +236,7 @@ class CefEngineTest {
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> slow = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(slow);
-    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     // a slow machine answered after more than a second, when the page used to be loaded without its scripts
     Thread.sleep(1_500L);
@@ -252,14 +255,14 @@ class CefEngineTest {
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
-    final List<String> notices = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<String> notices = new CopyOnWriteArrayList<>();
     // a second, so a slow machine does not reach it before the check that nothing loaded yet
     CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     verify(browser, never()).loadURL(anyString());
     Await.until("the page loaded after the timeout", () -> {
       try {
         EventQueue.invokeAndWait(() -> {});
-      } catch (final InterruptedException | java.lang.reflect.InvocationTargetException exception) {
+      } catch (final InterruptedException | InvocationTargetException exception) {
         throw new IllegalStateException(exception);
       }
       return mockingDetails(browser)
@@ -332,7 +335,7 @@ class CefEngineTest {
 
   @Test
   void anEngineThatNeverStartedIgnoresInputAndStops() throws Exception {
-    final List<Throwable> failures = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Throwable> failures = new CopyOnWriteArrayList<>();
     final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
     // a failure on the event thread reaches the default handler
     Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> {
@@ -367,7 +370,7 @@ class CefEngineTest {
     final Path authority = directory.resolve(NullDisplay.AUTHORITY_FILE);
     assertNull(CefEngine.startDisplay(false, authority));
     assertFalse(Files.exists(authority), "no display, no authority file");
-    try (NullDisplay display = java.util.Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
+    try (NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
       assertTrue(display.getDisplay().startsWith("127.0.0.1:"));
       assertTrue(Files.exists(authority), "the helper's X clients find the cookie there");
     }

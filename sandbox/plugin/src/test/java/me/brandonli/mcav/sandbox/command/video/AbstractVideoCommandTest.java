@@ -44,6 +44,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.json.ytdlp.YTDLPParser;
@@ -88,6 +90,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -163,9 +166,9 @@ final class AbstractVideoCommandTest {
     when(plugin.getAudioProvider()).thenReturn(this.provider);
     when(this.manager.getStatus()).thenReturn(this.status);
     when(this.manager.getService()).thenReturn(this.directExecutor);
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
-    when(this.manager.startNative(any(java.util.function.BooleanSupplier.class))).thenAnswer(invocation -> {
-      final java.util.function.BooleanSupplier start = invocation.getArgument(0);
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenReturn(true);
+    when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(invocation -> {
+      final BooleanSupplier start = invocation.getArgument(0);
       return start.getAsBoolean();
     });
     when(this.manager.isVLCSupported()).thenReturn(true);
@@ -473,15 +476,15 @@ final class AbstractVideoCommandTest {
   @Test
   void stopsAfterSourceResolutionWhenTheRequestWasCancelled() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
     // The second check happens after source detection but before display/audio/player allocation.
-    final java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
+    final AtomicInteger checks = new AtomicInteger();
     Mockito.doAnswer(_ -> {
       if (checks.incrementAndGet() == 2) {
         cancelled.set(true);
-        throw new java.util.concurrent.CancellationException("released during resolution");
+        throw new CancellationException("released during resolution");
       }
       return null;
     })
@@ -515,7 +518,7 @@ final class AbstractVideoCommandTest {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenReturn(false);
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenReturn(false);
     TestServer.runPendingTasks();
     verify(this.hologram, never()).start();
     verify(this.sender, never()).sendMessage(any(Component.class));
@@ -931,7 +934,7 @@ final class AbstractVideoCommandTest {
   @Test
   void stopsBeforeDisplayCreationWhenCancelledBeforePlayerCreation() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     Mockito.doAnswer(_ -> {
       cancelled.set(true);
       return null;
@@ -962,7 +965,7 @@ final class AbstractVideoCommandTest {
   @Test
   void stopsBeforeAudioConstructionWhenCancelledDuringVideoConfiguration() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     Mockito.doAnswer(_ -> {
       if (cancelled.get()) {
         throw new CancellationException("cancelled during video configuration");
@@ -992,7 +995,7 @@ final class AbstractVideoCommandTest {
   @Test
   void stopsBeforeNativeStartWhenCancelledDuringAudioConfiguration() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
-    when(this.manager.isCurrent(org.mockito.ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
+    when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     when(this.provider.constructFilter(any(), any(), any())).thenAnswer(_ -> {
       cancelled.set(true);
       return AudioFilter.NO_OP;

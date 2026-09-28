@@ -18,7 +18,9 @@
 package me.brandonli.mcav.browser;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -161,7 +163,7 @@ final class DevToolsInput {
   }
 
   private static Map<String, KeyDefinition> createKeys() {
-    final Map<String, KeyDefinition> keys = new java.util.HashMap<>();
+    final Map<String, KeyDefinition> keys = new HashMap<>();
     keys.put("Enter", new KeyDefinition("Enter", 13, "\r"));
     keys.put("Tab", new KeyDefinition("Tab", 9, ""));
     keys.put(" ", new KeyDefinition("Space", 32, " "));
@@ -367,7 +369,7 @@ final class DevToolsInput {
         case '\t' -> builder.append("\\t");
         default -> {
           if (character < 0x20 || character == 0x2028 || character == 0x2029) {
-            builder.append(String.format(java.util.Locale.ROOT, "\\u%04x", (int) character));
+            builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
           } else {
             builder.append(character);
           }

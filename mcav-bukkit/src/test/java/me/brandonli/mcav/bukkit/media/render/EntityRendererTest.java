@@ -43,6 +43,7 @@ import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.entity.CraftTextDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
@@ -128,7 +129,7 @@ final class EntityRendererTest {
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final boolean nothingSpawned = displays.isEmpty();
     assertTrue(nothingSpawned, "a tick before show() must not spawn anything");
-    verify(this.viewer, never()).showEntity(eq(plugin), any(org.bukkit.entity.Entity.class));
+    verify(this.viewer, never()).showEntity(eq(plugin), any(Entity.class));
   }
 
   @Test
@@ -144,7 +145,7 @@ final class EntityRendererTest {
     final Plugin plugin = this.server.getPlugin();
 
     final Player latecomer = this.server.addPlayer(OFFLINE);
-    verify(latecomer, never()).showEntity(eq(plugin), any(org.bukkit.entity.Entity.class));
+    verify(latecomer, never()).showEntity(eq(plugin), any(Entity.class));
 
     renderer.apply(text);
     renderer.onTick();
@@ -219,7 +220,7 @@ final class EntityRendererTest {
 
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final CraftTextDisplay display = displays.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     final ArgumentCaptor<Component> captor = ArgumentCaptor.forClass(Component.class);
     verify(handle, times(1)).setText(captor.capture());
     final Component text = captor.getValue();
@@ -252,7 +253,7 @@ final class EntityRendererTest {
     renderer.show();
     final List<CraftTextDisplay> spawnedBefore = this.world.getSpawnedDisplays();
     final CraftTextDisplay discarded = spawnedBefore.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay discardedHandle = discarded.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay discardedHandle = discarded.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     final World configuredWorld = this.world.getWorld();
     when(discarded.isValid()).thenReturn(false);
     when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(true);
@@ -263,7 +264,7 @@ final class EntityRendererTest {
     final List<CraftTextDisplay> spawnedAfter = this.world.getSpawnedDisplays();
     final int spawnCount = spawnedAfter.size();
     final CraftTextDisplay respawned = spawnedAfter.get(1);
-    final net.minecraft.world.entity.Display.TextDisplay respawnedHandle = respawned.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay respawnedHandle = respawned.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     final Plugin plugin = this.server.getPlugin();
     assertEquals(2, spawnCount, "the display is respawned once and then reused");
     verify(respawnedHandle, times(2)).setText(text);
@@ -279,7 +280,7 @@ final class EntityRendererTest {
     renderer.show();
     final List<CraftTextDisplay> spawnedBefore = this.world.getSpawnedDisplays();
     final CraftTextDisplay discarded = spawnedBefore.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay handle = discarded.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay handle = discarded.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     when(discarded.isValid()).thenReturn(false);
 
     renderer.apply(text);
@@ -344,7 +345,7 @@ final class EntityRendererTest {
 
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final CraftTextDisplay display = displays.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     final int tasks = this.server.getScheduledTaskCount();
     verify(display, times(1)).remove();
     verify(handle, never()).setText(any(Component.class));
@@ -409,7 +410,7 @@ final class EntityRendererTest {
     verify(display, never()).remove();
     final Component text = Component.literal("still rendering");
     renderer.apply(text);
-    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     verify(handle).setText(text);
     final int tasks = this.server.getScheduledTaskCount();
     assertEquals(1, tasks);

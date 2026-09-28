@@ -104,7 +104,7 @@ final class MockVlc {
     this.renderCallback = new AtomicReference<>();
     this.failingPlayerIndex = -1;
     final MediaPlayerApi playerApi = mock(MediaPlayerApi.class);
-    final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = mock(uk.co.caprica.vlcj.factory.VideoSurfaceApi.class);
+    final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = mock(uk.co.caprica.vlcj.factory.VideoSurfaceApi.class); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
     when(this.factory.mediaPlayers()).thenReturn(playerApi);
     when(this.factory.videoSurfaces()).thenReturn(surfaces);
     when(playerApi.newEmbeddedMediaPlayer()).thenAnswer(_ -> this.createPlayer());

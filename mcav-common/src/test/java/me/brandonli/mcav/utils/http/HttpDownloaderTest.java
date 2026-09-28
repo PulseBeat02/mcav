@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -38,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
@@ -48,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import me.brandonli.mcav.testing.LocalHttpServer;
@@ -234,7 +237,7 @@ final class HttpDownloaderTest {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/file", 200, CONTENT);
       server.respond("/big", 200, new byte[256 * 1024]);
-      final String sha256 = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(CONTENT));
+      final String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(CONTENT));
       final Path destination = this.directory.resolve("pinned.bin");
       HttpDownloader.download(server.uri("/file"), destination, sha256, CONTENT.length);
       assertArrayEquals(CONTENT, Files.readAllBytes(destination));
@@ -246,7 +249,7 @@ final class HttpDownloaderTest {
       assertThrows(ChecksumMismatchException.class, () -> HttpDownloader.download(server.uri("/file"), other, wrong, CONTENT.length));
       assertThrows(IllegalArgumentException.class, () -> HttpDownloader.download(server.uri("/file"), other, sha256, 0));
       assertThrows(NullPointerException.class, () -> HttpDownloader.download(server.uri("/file"), other, (String) null, 1));
-    } catch (final java.security.NoSuchAlgorithmException exception) {
+    } catch (final NoSuchAlgorithmException exception) {
       throw new IllegalStateException(exception);
     }
   }
@@ -479,20 +482,20 @@ final class HttpDownloaderTest {
 
   @Test
   void closingAResponseStreamClosesItsBodyEvenWhenTheClientOwnsNoExchange() throws IOException {
-    final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
-    final InputStream body = new java.io.ByteArrayInputStream(new byte[] { 1 }) {
+    final AtomicBoolean closed = new AtomicBoolean();
+    final InputStream body = new ByteArrayInputStream(new byte[] { 1 }) {
       @Override
       public void close() throws IOException {
         closed.set(true);
         super.close();
       }
     };
-    final HttpClient client = org.mockito.Mockito.mock(HttpClient.class);
+    final HttpClient client = Mockito.mock(HttpClient.class);
     final InputStream response = new HttpDownloader.ClientClosingStream(body, client);
     response.close();
     final boolean bodyClosed = closed.get();
     assertTrue(bodyClosed);
-    org.mockito.Mockito.verify(client).shutdownNow();
+    Mockito.verify(client).shutdownNow();
   }
 
   @Test

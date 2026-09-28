@@ -32,6 +32,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -122,7 +123,7 @@ final class GLTextureFilterTest {
     try {
       try (
         final MockedStatic<GL11> calls = mockStatic(GL11.class, invocation -> {
-          final java.lang.reflect.Method method = invocation.getMethod();
+          final Method method = invocation.getMethod();
           final String name = method.getName();
           if (name.equals("glTexImage2D")) {
             throw failure;

@@ -18,9 +18,14 @@
 package me.brandonli.mcav.browser;
 
 import java.awt.Rectangle;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import org.cef.browser.McavOffscreenBrowser;
 
@@ -67,9 +72,7 @@ final class ScriptedEngine implements HelperEngine {
    * @param args ignored
    */
   public static void main(final String[] args) {
-    final java.io.BufferedReader input = new java.io.BufferedReader(
-      new java.io.InputStreamReader(System.in, java.nio.charset.StandardCharsets.UTF_8)
-    );
+    final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final Runtime runtime = Runtime.getRuntime();
     final int status = BrowserHelper.runFromInput(input, new ScriptedEngine(), runtime::halt);
     System.exit(status);
@@ -100,11 +103,11 @@ final class ScriptedEngine implements HelperEngine {
         this.show(0);
         final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
         for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
-          final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+          final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
           while (samples.hasRemaining()) {
             samples.putShort((short) chunk);
           }
-          final String payload = java.util.Base64.getEncoder().encodeToString(samples.array());
+          final String payload = Base64.getEncoder().encodeToString(samples.array());
           audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
           audio.onEvent(
             PageAudio.BINDING_EVENT,
@@ -176,7 +179,7 @@ final class ScriptedEngine implements HelperEngine {
    * @return the chunk, 16-bit little-endian stereo
    */
   static byte[] chunk(final int value) {
-    final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
     while (samples.hasRemaining()) {
       samples.putShort((short) value);
     }

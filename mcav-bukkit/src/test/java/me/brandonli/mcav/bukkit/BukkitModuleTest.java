@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
@@ -44,6 +45,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link BukkitModule}.
@@ -94,12 +96,8 @@ final class BukkitModuleTest {
     final BukkitModule module = new BukkitModule();
     final Plugin plugin = this.server.getPlugin();
     final IllegalStateException unavailable = new IllegalStateException("palette unavailable");
-    try (
-      final MockedStatic<me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup> lookup = org.mockito.Mockito.mockStatic(
-        me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup.class
-      )
-    ) {
-      lookup.when(me.brandonli.mcav.bukkit.media.lookup.BlockPaletteLookup::init).thenThrow(unavailable);
+    try (final MockedStatic<BlockPaletteLookup> lookup = Mockito.mockStatic(BlockPaletteLookup.class)) {
+      lookup.when(BlockPaletteLookup::init).thenThrow(unavailable);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> module.inject(plugin));
       assertSame(unavailable, thrown);
     }

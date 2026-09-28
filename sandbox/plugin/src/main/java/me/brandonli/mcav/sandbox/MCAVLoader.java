@@ -26,6 +26,7 @@ import io.papermc.paper.plugin.loader.PluginLoader;
 import java.nio.file.Path;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import xyz.jpenilla.gremlin.runtime.DependencyCache;
 import xyz.jpenilla.gremlin.runtime.DependencyResolver;
@@ -88,7 +89,7 @@ public final class MCAVLoader implements PluginLoader {
     final DependencySet dependencies = DependencySet.readDefault(classLoader);
     final DependencyCache cache = new DependencyCache(this.libraries);
 
-    final org.slf4j.Logger logger = LoggerFactory.getLogger("Gremlin");
+    final Logger logger = LoggerFactory.getLogger("Gremlin");
     final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(logger);
     try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
       final ResolvedDependencySet resolvedDependencies = downloader.resolve(dependencies, cache);

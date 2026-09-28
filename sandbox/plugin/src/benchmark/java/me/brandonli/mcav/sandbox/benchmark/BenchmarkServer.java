@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -139,7 +140,7 @@ final class BenchmarkServer implements AutoCloseable {
 
   void send(final String color) {
     final byte[] event = ("data: " + color + "\n\n").getBytes(StandardCharsets.UTF_8);
-    final List<OutputStream> gone = new java.util.ArrayList<>();
+    final List<OutputStream> gone = new ArrayList<>();
     for (final OutputStream listener : this.listeners) {
       try {
         listener.write(event);

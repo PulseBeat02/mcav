@@ -24,6 +24,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -70,7 +71,7 @@ final class HelperProtocolFuzzTest {
         assertTrue(length % HelperProtocol.AUDIO_FRAME_BYTES == 0, "the sound holds whole frames");
       }
       case HelperProtocol.READY, HelperProtocol.NOTICE, HelperProtocol.FAILURE, HelperProtocol.KEY -> {
-        final int length = message.getText().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+        final int length = message.getText().getBytes(StandardCharsets.UTF_8).length;
         assertTrue(length <= HelperProtocol.MAX_TEXT_BYTES, "the text is within its limit");
       }
       default -> assertTrue(type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE, () -> "type " + type);

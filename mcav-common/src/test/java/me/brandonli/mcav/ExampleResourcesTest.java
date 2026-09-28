@@ -47,6 +47,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 final class ExampleResourcesTest {
 
@@ -244,7 +245,7 @@ final class ExampleResourcesTest {
   void everyVideoExampleOwnsTheApiBeforeInstallationCanFail(final String example) {
     final MCAVApi api = mock(MCAVApi.class);
     final IllegalStateException failure = new IllegalStateException("install");
-    org.mockito.Mockito.doThrow(failure).when(api).install();
+    Mockito.doThrow(failure).when(api).install();
     try (final MockedStatic<MCAV> entry = mockStatic(MCAV.class)) {
       entry.when(MCAV::api).thenReturn(api);
       final Executable run = switch (example) {

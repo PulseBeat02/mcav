@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import java.awt.Component;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.nio.ByteBuffer;
@@ -96,7 +97,7 @@ class McavOffscreenBrowserTest {
   @Test
   void theBrowserRendersItselfAndHasADetachedComponent() {
     assertSame(this.browser, this.browser.getRenderHandler());
-    final java.awt.Component component = this.browser.getUIComponent();
+    final Component component = this.browser.getUIComponent();
     assertNotNull(component);
     assertNull(component.getParent());
     assertFalse(component.isDisplayable());

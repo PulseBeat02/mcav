@@ -18,6 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -267,7 +268,7 @@ final class ArchiveExtractor {
   /**
    * Keeps the archive stream of the caller open when the tar stream is closed.
    */
-  private static final class NonClosingInputStream extends java.io.FilterInputStream {
+  private static final class NonClosingInputStream extends FilterInputStream {
 
     NonClosingInputStream(final InputStream in) {
       super(in);

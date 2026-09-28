@@ -48,6 +48,7 @@ import org.cef.handler.CefResourceRequestHandler;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefRequest;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 
 class ContentPolicyTest {
 
@@ -79,7 +80,7 @@ class ContentPolicyTest {
   @Test
   void aPopupToAnotherSchemeIsRefused() {
     assertTrue(this.policy.onBeforePopup(this.browser, frame(true), "file:///etc/passwd", ""));
-    verify(this.browser, never()).loadURL(org.mockito.ArgumentMatchers.anyString());
+    verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
     assertEquals(List.of("notice: Refused a new window: file:///etc/passwd"), this.events.log);
   }
 
@@ -92,7 +93,7 @@ class ContentPolicyTest {
   @Test
   void aNewTabWithoutAClickOrAKeyIsCancelled() {
     assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", false));
-    verify(this.browser, never()).loadURL(org.mockito.ArgumentMatchers.anyString());
+    verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
   }
 
   @Test

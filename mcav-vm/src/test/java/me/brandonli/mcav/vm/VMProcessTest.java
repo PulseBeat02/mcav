@@ -56,6 +56,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link VMProcess} with {@link FakeProcess} instances in place of QEMU and a local socket in place of its
@@ -818,13 +820,13 @@ final class VMProcessTest {
   @Test
   void boundsForcedWaitsAndPreservesInterruptsDuringForcedTermination() throws InterruptedException {
     final FakeProcess original = FakeProcess.running("");
-    final FakeProcess qemu = org.mockito.Mockito.spy(original);
+    final FakeProcess qemu = Mockito.spy(original);
     qemu.ignoringDestroy();
     qemu.delayingForcedExit(100L);
     final VMProcess process = this.reachable(OS.FREEBSD, qemu);
     process.start();
-    final java.util.concurrent.atomic.AtomicBoolean interruptedOnce = new java.util.concurrent.atomic.AtomicBoolean();
-    org.mockito.Mockito.doAnswer(invocation -> {
+    final AtomicBoolean interruptedOnce = new AtomicBoolean();
+    Mockito.doAnswer(invocation -> {
       final int forced = qemu.getForcibleDestroyCalls();
       if (forced > 0) {
         final long timeout = invocation.getArgument(0);
@@ -839,7 +841,7 @@ final class VMProcessTest {
       return invocation.callRealMethod();
     })
       .when(qemu)
-      .waitFor(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any(TimeUnit.class));
+      .waitFor(ArgumentMatchers.anyLong(), ArgumentMatchers.any(TimeUnit.class));
     try {
       process.shutdown();
       final boolean alive = qemu.isAlive();
@@ -857,9 +859,9 @@ final class VMProcessTest {
   @Test
   void retainsAProcessThatRemainsAliveAfterTheForcedDeadline() throws InterruptedException {
     final FakeProcess original = FakeProcess.running("");
-    final FakeProcess qemu = org.mockito.Mockito.spy(original);
+    final FakeProcess qemu = Mockito.spy(original);
     qemu.ignoringDestroy();
-    org.mockito.Mockito.doReturn(qemu).when(qemu).destroyForcibly();
+    Mockito.doReturn(qemu).when(qemu).destroyForcibly();
     final VMProcess process = this.reachable(OS.FREEBSD, qemu);
     process.start();
     final Thread stopping = new Thread(process::shutdown, "stubborn-process-shutdown");

@@ -47,6 +47,7 @@ import net.kyori.adventure.text.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.world.entity.Display;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -182,7 +183,7 @@ final class DisplayableImageTest {
     final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
     final Packet<?> packet = packets.get(index);
     final ClientboundSystemChatPacket chatPacket = assertInstanceOf(ClientboundSystemChatPacket.class, packet);
-    final net.minecraft.network.chat.Component content = chatPacket.content();
+    final net.minecraft.network.chat.Component content = chatPacket.content(); // fqn: Component is imported as net.kyori.adventure.text.Component
     return content.getString();
   }
 
@@ -327,8 +328,8 @@ final class DisplayableImageTest {
 
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final CraftTextDisplay entity = displays.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay handle = entity.getHandle();
-    verify(handle).setText(any(net.minecraft.network.chat.Component.class));
+    final Display.TextDisplay handle = entity.getHandle();
+    verify(handle).setText(any(net.minecraft.network.chat.Component.class)); // fqn: Component is imported as net.kyori.adventure.text.Component
     verify(entity).remove();
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }

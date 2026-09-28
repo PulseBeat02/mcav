@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.TestPages;
@@ -83,7 +84,7 @@ class BrowserSoundTest {
     assertEquals(0, HelperProcesses.count());
     Await.until("every browser process of this test has ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
     // a CEF process that lost its parent is no longer below this JVM; they are only told, as other programs may run CEF
-    try (final java.util.stream.Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
+    try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       final List<String> stray = all
         .filter(handle -> handle.info().command().orElse("").contains("jcef"))
         .map(handle -> handle.pid() + " " + handle.info().command().orElse(""))

@@ -54,8 +54,10 @@ import me.brandonli.mcav.sandbox.utils.DitheringArgument;
 import me.brandonli.mcav.sandbox.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,9 +85,9 @@ final class VideoMapCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    org.mockito.Mockito.doAnswer(invocation -> {
+    Mockito.doAnswer(invocation -> {
       final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final org.bukkit.scheduler.BukkitScheduler scheduler = org.bukkit.Bukkit.getScheduler();
+      final BukkitScheduler scheduler = Bukkit.getScheduler();
       scheduler.runTask(plugin, filter::start);
       return null;
     })

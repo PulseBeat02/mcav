@@ -2,6 +2,7 @@
 // the coverage lint and PIT mutation testing. The root build applies this plugin to every subproject.
 
 import info.solidsoft.gradle.pitest.PitestPluginExtension
+import me.brandonli.mcav.gradle.QualifiedNamesTask
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
@@ -207,6 +208,19 @@ listOf(propertyTest, fuzzTest).forEach { task ->
 
 tasks.check {
     dependsOn(propertyTest, fuzzTest)
+}
+
+// Java code imports the types it names; a fully qualified name stays only where two types of one simple name meet in
+// a file, on a line marked // fqn: <why>
+val qualifiedNames = tasks.register<QualifiedNamesTask>("qualifiedNames") {
+    description = "Fails on fully qualified type names in the Java code of every source set of this module"
+    group = "verification"
+    sources.from(layout.projectDirectory.dir("src").asFileTree.matching { include("*/java/**/*.java") })
+    report = layout.buildDirectory.file("reports/qualified-names.txt")
+}
+
+tasks.check {
+    dependsOn(qualifiedNames)
 }
 
 // PIT mutation testing runs on demand with `./gradlew :<module>:pitest` (it is not part of check, because mutating

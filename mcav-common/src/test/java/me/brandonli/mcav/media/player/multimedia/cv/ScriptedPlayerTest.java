@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -308,7 +309,7 @@ final class ScriptedPlayerTest {
     final Dimension size = Dimension.of(160, 90);
     final DimensionAttachableCallback dimension = player.getDimensionAttachableCallback();
     dimension.attach(size);
-    final List<Dimension> delivered = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Dimension> delivered = new CopyOnWriteArrayList<>();
     final VideoFilter recording = (samples, _) -> {
       final int deliveredWidth = samples.getWidth();
       final int deliveredHeight = samples.getHeight();

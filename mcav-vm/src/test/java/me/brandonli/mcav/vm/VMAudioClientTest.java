@@ -27,6 +27,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
@@ -37,8 +38,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,7 +122,7 @@ class VMAudioClientTest {
         streams.out().flush();
         waitUntil(() -> this.chunks.size() == 2);
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
     try (VMAudioClient client = this.connect()) {
@@ -141,7 +146,7 @@ class VMAudioClientTest {
         // the client closes the connection once its sink failed
         assertEquals(-1, streams.in().read());
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
     final VMAudioClient.Sink failing = (samples, length) -> {
@@ -192,11 +197,11 @@ class VMAudioClientTest {
         final Streams streams = handshake(socket);
         QemuAudioProtocolTest.writeAcknowledgement(streams.out());
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
-    final java.util.concurrent.atomic.AtomicReference<VMAudioClient> self = new java.util.concurrent.atomic.AtomicReference<>();
-    final java.util.concurrent.atomic.AtomicLong closeNanos = new java.util.concurrent.atomic.AtomicLong(-1);
+    final AtomicReference<VMAudioClient> self = new AtomicReference<>();
+    final AtomicLong closeNanos = new AtomicLong(-1);
     final VMAudioClient client = VMAudioClient.connect(
       this.address(),
       (samples, length) -> {},
@@ -221,7 +226,7 @@ class VMAudioClientTest {
         handshake(socket);
         socket.getInputStream().read();
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
     final VMAudioClient client = this.connect();
@@ -238,7 +243,7 @@ class VMAudioClientTest {
         handshake(socket);
         socket.getInputStream().read();
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
     final VMAudioClient client = this.connect();
@@ -267,7 +272,7 @@ class VMAudioClientTest {
         socket.getInputStream().readNBytes(12);
         socket.getInputStream().read();
       } catch (final IOException exception) {
-        throw new java.io.UncheckedIOException(exception);
+        throw new UncheckedIOException(exception);
       }
     });
     final ProtocolException failure = assertThrows(ProtocolException.class, this::connect);
@@ -285,7 +290,7 @@ class VMAudioClientTest {
     assertEquals(1, closed.get());
   }
 
-  private static void waitUntil(final java.util.function.BooleanSupplier condition) {
+  private static void waitUntil(final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() > deadline) {
@@ -305,7 +310,7 @@ class VMAudioClientTest {
 
   @Test
   void anInterruptedWaitForAThreadOfTheSoundKeepsTheInterrupt() throws InterruptedException {
-    final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
     final Thread alive = new Thread(() -> {
       try {
         release.await();

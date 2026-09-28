@@ -27,15 +27,21 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -43,7 +49,9 @@ import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.junit.jupiter.api.Test;
 
@@ -141,9 +149,9 @@ class CefBrowserPlayerTest {
   }
 
   private List<byte[]> attachSoundRecorder() {
-    final List<byte[]> heard = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
     this.player.getAudioAttachableCallback().attach(
-      me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> {
+      AudioPipelineStep.of((samples, metadata) -> {
         final byte[] copy = new byte[samples.remaining()];
         samples.get(copy);
         heard.add(copy);
@@ -181,10 +189,8 @@ class CefBrowserPlayerTest {
       this.sessions.add(session);
       return session;
     });
-    final List<byte[]> earlyHeard = new java.util.concurrent.CopyOnWriteArrayList<>();
-    early
-      .getAudioAttachableCallback()
-      .attach(me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep.of((samples, metadata) -> earlyHeard.add(new byte[0])));
+    final List<byte[]> earlyHeard = new CopyOnWriteArrayList<>();
+    early.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> earlyHeard.add(new byte[0])));
     assertTrue(early.start(SOURCE));
     early.release();
     assertTrue(this.player.start(SOURCE));
@@ -253,10 +259,10 @@ class CefBrowserPlayerTest {
     assertEquals(List.of("The browser helper exited"), reports);
   }
 
-  private static java.util.Set<Thread> audioThreads() {
-    final java.util.Set<Thread> threads = new java.util.HashSet<>();
+  private static Set<Thread> audioThreads() {
+    final Set<Thread> threads = new HashSet<>();
     for (final Thread thread : Thread.getAllStackTraces().keySet()) {
-      if (thread.isAlive() && thread.getName().equals(me.brandonli.mcav.utils.audio.DelayedAudioOutput.THREAD_NAME)) {
+      if (thread.isAlive() && thread.getName().equals(DelayedAudioOutput.THREAD_NAME)) {
         threads.add(thread);
       }
     }
@@ -265,7 +271,7 @@ class CefBrowserPlayerTest {
 
   @Test
   void aReleaseEndsTheAudioThreadAndNeitherAPlayingNorAReleasedPlayerStarts() {
-    final java.util.Set<Thread> before = audioThreads();
+    final Set<Thread> before = audioThreads();
     assertTrue(this.player.start(SOURCE));
     assertFalse(before.containsAll(audioThreads()), "a started player hands its sound over on a thread of its own");
     assertFalse(this.player.start(SOURCE), "a playing player does not start twice");
@@ -277,7 +283,7 @@ class CefBrowserPlayerTest {
 
   @Test
   void aHelperThatEndsTakesTheSoundOfItsSessionAlongAndLeavesNoThread() {
-    final java.util.Set<Thread> before = audioThreads();
+    final Set<Thread> before = audioThreads();
     final List<byte[]> heard = this.attachSoundRecorder();
     assertTrue(this.player.start(SOURCE));
     final BrowserSession.Listener ended = this.listener;
@@ -515,10 +521,10 @@ class CefBrowserPlayerTest {
    */
   private static final class ClosingProbe {
 
-    private final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     ImageBuffer wrap(final ImageBuffer real) {
-      return (ImageBuffer) java.lang.reflect.Proxy.newProxyInstance(
+      return (ImageBuffer) Proxy.newProxyInstance(
         ImageBuffer.class.getClassLoader(),
         new Class<?>[] { ImageBuffer.class },
         (proxy, method, arguments) -> {
@@ -527,7 +533,7 @@ class CefBrowserPlayerTest {
           }
           try {
             return method.invoke(real, arguments);
-          } catch (final java.lang.reflect.InvocationTargetException exception) {
+          } catch (final InvocationTargetException exception) {
             throw exception.getCause();
           }
         }
@@ -569,7 +575,7 @@ class CefBrowserPlayerTest {
 
   @Test
   void aStoppedModuleDownloadsNothing() {
-    final List<URI> downloads = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<URI> downloads = new CopyOnWriteArrayList<>();
     final JcefNatives recording = new JcefNatives(
       Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
       (uri, destination, sha256, size) -> {

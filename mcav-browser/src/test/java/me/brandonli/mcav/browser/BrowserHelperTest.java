@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Rectangle;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -37,10 +38,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PipedReader;
 import java.io.PipedWriter;
+import java.io.Reader;
 import java.io.StringReader;
 import java.net.StandardProtocolFamily;
 import java.net.URI;
 import java.net.UnixDomainSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -48,7 +51,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
@@ -328,7 +335,7 @@ class BrowserHelperTest {
   void aBrokenStandardInputStopsTheHelper() {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
     helper.watchInput(
-      new java.io.Reader() {
+      new Reader() {
         @Override
         public int read(final char[] buffer, final int offset, final int length) throws IOException {
           throw new IOException("broken pipe");
@@ -349,8 +356,8 @@ class BrowserHelperTest {
     this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve("s")));
     final PipedReader reader = new PipedReader(this.standardInput);
-    final java.util.concurrent.atomic.AtomicInteger status = new java.util.concurrent.atomic.AtomicInteger(-1);
-    final java.util.concurrent.atomic.AtomicBoolean interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    final AtomicInteger status = new AtomicInteger(-1);
+    final AtomicBoolean interrupted = new AtomicBoolean();
     final Thread running = new Thread(() -> {
       status.set(helper.run(reader, BrowserHelperTest::connectTo));
       interrupted.set(Thread.currentThread().isInterrupted());
@@ -368,10 +375,10 @@ class BrowserHelperTest {
   @Test
   void framesThatCannotBeSentStopTheHelper() {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
-    final java.nio.ByteBuffer red = java.nio.ByteBuffer.allocate(4 * 3 * 4);
-    helper.getCompositor().onPaint(false, new java.awt.Rectangle[] { new java.awt.Rectangle(0, 0, 4, 3) }, red, 4, 3);
+    final ByteBuffer red = ByteBuffer.allocate(4 * 3 * 4);
+    helper.getCompositor().onPaint(false, new Rectangle[] { new Rectangle(0, 0, 4, 3) }, red, 4, 3);
     final DataOutputStream broken = new DataOutputStream(
-      new java.io.OutputStream() {
+      new OutputStream() {
         @Override
         public void write(final int value) throws IOException {
           throw new IOException("connection reset");
@@ -385,9 +392,9 @@ class BrowserHelperTest {
   @Test
   void anInterruptedFrameSenderEndsAndKeepsTheInterrupt() throws InterruptedException {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
-    final java.util.concurrent.atomic.AtomicBoolean interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    final AtomicBoolean interrupted = new AtomicBoolean();
     final Thread sender = new Thread(() -> {
-      helper.sendFrames(new DataOutputStream(java.io.OutputStream.nullOutputStream()));
+      helper.sendFrames(new DataOutputStream(OutputStream.nullOutputStream()));
       interrupted.set(Thread.currentThread().isInterrupted());
     });
     sender.start();
@@ -451,7 +458,7 @@ class BrowserHelperTest {
 
   @Test
   void aHelperThatHasNotStoppedByTheDeadlineAfterItsInputEndedHalts() {
-    final List<Integer> halts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Integer> halts = new CopyOnWriteArrayList<>();
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 100L);
     final long start = System.nanoTime();
     helper.watchInput(new StringReader(""));
@@ -471,7 +478,7 @@ class BrowserHelperTest {
 
   @Test
   void anInterruptedDeadlineStillHaltsAndKeepsTheInterrupt() {
-    final List<Integer> halts = new java.util.concurrent.CopyOnWriteArrayList<>();
+    final List<Integer> halts = new CopyOnWriteArrayList<>();
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 60_000L);
     Thread.currentThread().interrupt();
     try {
@@ -485,8 +492,8 @@ class BrowserHelperTest {
 
   @Test
   void aHelperWhoseBrowserHangsInItsStartHaltsOnceTheServerIsGone() throws Exception {
-    final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
-    final java.util.concurrent.CountDownLatch halted = new java.util.concurrent.CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    final CountDownLatch halted = new CountDownLatch(1);
     final HelperEngine hanging = new HelperEngine() {
       @Override
       public void start(

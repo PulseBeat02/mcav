@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -70,7 +71,7 @@ final class PageAudioFuzzTest {
       check(chunk.samples());
       assertTrue(chunk.context() == 1, "the context is the one of the call");
       assertTrue(payload.chars().allMatch(PageAudioFuzzTest::isBase64), "the payload is Base64 and nothing else");
-      final byte[] decoded = java.util.Base64.getDecoder().decode(payload);
+      final byte[] decoded = Base64.getDecoder().decode(payload);
       assertTrue(Arrays.equals(chunk.samples(), decoded), "the samples are the payload");
     }
   }

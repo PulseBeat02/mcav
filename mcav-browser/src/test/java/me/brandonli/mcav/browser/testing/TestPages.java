@@ -27,6 +27,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -440,7 +442,7 @@ public final class TestPages implements AutoCloseable {
    */
   private static void toneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
-    final java.nio.ByteBuffer wave = java.nio.ByteBuffer.allocate(44 + rate * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
     wave
       .put("RIFF".getBytes(StandardCharsets.US_ASCII))
       .putInt(36 + rate * 4)

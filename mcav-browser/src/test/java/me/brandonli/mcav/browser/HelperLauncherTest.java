@@ -33,8 +33,13 @@ import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.MethodTypeEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.classfile.constantpool.PoolEntry;
+import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -130,12 +135,12 @@ class HelperLauncherTest {
   void aClassLoadedFromTheNetworkCannotBeAHelperClassPath() throws Exception {
     final String name = Loaded.class.getName();
     final byte[] bytes;
-    try (final java.io.InputStream in = Loaded.class.getResourceAsStream("HelperLauncherTest$Loaded.class")) {
+    try (final InputStream in = Loaded.class.getResourceAsStream("HelperLauncherTest$Loaded.class")) {
       bytes = in.readAllBytes();
     }
-    final java.net.URL remote = java.net.URI.create("http://example.com/remote.jar").toURL();
-    final java.security.CodeSource source = new java.security.CodeSource(remote, (java.security.cert.Certificate[]) null);
-    final java.security.ProtectionDomain domain = new java.security.ProtectionDomain(source, null);
+    final URL remote = URI.create("http://example.com/remote.jar").toURL();
+    final CodeSource source = new CodeSource(remote, (Certificate[]) null);
+    final ProtectionDomain domain = new ProtectionDomain(source, null);
     final ClassLoader loader = new ClassLoader(null) {
       @Override
       protected Class<?> findClass(final String className) throws ClassNotFoundException {

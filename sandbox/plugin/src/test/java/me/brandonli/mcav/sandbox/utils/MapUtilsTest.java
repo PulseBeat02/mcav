@@ -52,7 +52,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -327,16 +330,16 @@ final class MapUtilsTest {
     MapUtils.buildMapScreen(console, firstLocation, Material.STONE, 2, 1, 0);
     MapUtils.buildMapScreen(console, secondLocation, Material.STONE, 1, 1, 2);
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
-    final org.bukkit.persistence.PersistentDataContainer first = frames.get(0).getPersistentDataContainer();
-    final org.bukkit.persistence.PersistentDataContainer same = frames.get(1).getPersistentDataContainer();
-    final org.bukkit.persistence.PersistentDataContainer other = frames.get(2).getPersistentDataContainer();
-    final String firstId = first.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-    final String sameId = same.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-    final String otherId = other.get(Keys.SCREEN_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-    org.junit.jupiter.api.Assertions.assertNotNull(firstId);
-    org.junit.jupiter.api.Assertions.assertNotNull(otherId);
+    final PersistentDataContainer first = frames.get(0).getPersistentDataContainer();
+    final PersistentDataContainer same = frames.get(1).getPersistentDataContainer();
+    final PersistentDataContainer other = frames.get(2).getPersistentDataContainer();
+    final String firstId = first.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
+    final String sameId = same.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
+    final String otherId = other.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
+    Assertions.assertNotNull(firstId);
+    Assertions.assertNotNull(otherId);
     assertEquals(firstId, sameId);
-    org.junit.jupiter.api.Assertions.assertNotEquals(firstId, otherId);
+    Assertions.assertNotEquals(firstId, otherId);
   }
 
   @Test

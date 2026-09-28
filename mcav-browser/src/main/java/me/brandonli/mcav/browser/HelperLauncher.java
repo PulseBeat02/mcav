@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
@@ -157,7 +158,7 @@ final class HelperLauncher {
     }
     try {
       return Path.of(location.toURI());
-    } catch (final URISyntaxException | IllegalArgumentException | java.nio.file.FileSystemNotFoundException exception) {
+    } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
       throw new PlayerException("The browser helper cannot use " + location + " as its class path", exception);
     }
   }

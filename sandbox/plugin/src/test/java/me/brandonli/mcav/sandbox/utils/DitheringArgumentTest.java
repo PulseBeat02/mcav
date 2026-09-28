@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
@@ -144,7 +145,7 @@ final class DitheringArgumentTest {
   void cachedAlgorithmDoesNotWaitForTheInitializationLock() throws Exception {
     final DitheringArgument argument = DitheringArgument.NEAREST_COLOR;
     final DitherAlgorithm expected = argument.createAlgorithm();
-    final java.util.concurrent.CompletableFuture<DitherAlgorithm> completed = new java.util.concurrent.CompletableFuture<>();
+    final CompletableFuture<DitherAlgorithm> completed = new CompletableFuture<>();
     final Thread reader = new Thread(() -> completed.complete(argument.createAlgorithm()), "cached-algorithm-reader");
     try {
       synchronized (argument) {

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.LogCapture;
 import org.apache.logging.log4j.Level;
+import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.AfterEach;
@@ -252,9 +253,7 @@ final class MainThreadRendererTest {
     when(plugin.isEnabled()).thenReturn(true);
     when(plugin.getName()).thenReturn("MCAV");
     final BukkitScheduler scheduler = this.server.getScheduler();
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(
-      new org.bukkit.plugin.IllegalPluginAccessException("disabled after check")
-    );
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled after check"));
     final AtomicInteger runs = new AtomicInteger();
     final List<LogCapture.RecordedEvent> events;
     try (final LogCapture logs = LogCapture.capture(MainThreadRenderer.class)) {

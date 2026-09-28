@@ -30,10 +30,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -681,13 +684,13 @@ final class CompressedMapResultTest {
     assertEquals(2, clearedCount);
     MapPackets.assertMapPacket(firstCleared, 3, 0, 0, 128, 128, transparent);
     MapPackets.assertMapPacket(secondCleared, 4, 0, 0, 128, 128, transparent);
-    final java.lang.reflect.Field retainedField = CompressedMapResult.class.getDeclaredField("sentPixels");
+    final Field retainedField = CompressedMapResult.class.getDeclaredField("sentPixels");
     retainedField.setAccessible(true);
-    final java.util.Map<?, ?> retained = (java.util.Map<?, ?>) retainedField.get(result);
+    final Map<?, ?> retained = (Map<?, ?>) retainedField.get(result);
     assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
-    final java.lang.reflect.Field viewersField = CompressedMapResult.class.getDeclaredField("activeViewers");
+    final Field viewersField = CompressedMapResult.class.getDeclaredField("activeViewers");
     viewersField.setAccessible(true);
-    final java.util.Set<?> retainedViewers = (java.util.Set<?>) viewersField.get(result);
+    final Set<?> retainedViewers = (Set<?>) viewersField.get(result);
     assertTrue(retainedViewers.isEmpty(), "release drops the old viewer snapshot");
   }
 

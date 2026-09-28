@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import java.awt.Rectangle;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import org.cef.browser.McavOffscreenBrowser;
@@ -68,7 +69,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     this.settleNanos = TimeUnit.MILLISECONDS.toNanos(settleMillis);
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
-    java.util.Arrays.fill(this.page, (byte) 0xFF);
+    Arrays.fill(this.page, (byte) 0xFF);
   }
 
   /**

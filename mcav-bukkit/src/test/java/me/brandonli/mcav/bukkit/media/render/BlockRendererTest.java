@@ -28,10 +28,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.papermc.paper.math.Position;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
@@ -368,9 +370,9 @@ final class BlockRendererTest {
     final Map<Position, BlockData> expected = this.expectOriginal();
     assertEquals(expected, restored);
     assertEquals(0, tasks, "rendering stopped");
-    final java.lang.reflect.Field retainedField = BlockRenderer.class.getDeclaredField("activeViewers");
+    final Field retainedField = BlockRenderer.class.getDeclaredField("activeViewers");
     retainedField.setAccessible(true);
-    final java.util.Set<?> retained = (java.util.Set<?>) retainedField.get(renderer);
+    final Set<?> retained = (Set<?>) retainedField.get(renderer);
     assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
   }
 

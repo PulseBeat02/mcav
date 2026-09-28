@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -454,7 +455,7 @@ final class AbstractImageCommandTest {
     })
       .when(deferred)
       .execute(any(Runnable.class));
-    when(deferred.awaitTermination(Mockito.anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
+    when(deferred.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final ImageManager deferredManager = new ImageManager(plugin, deferred);
     when(plugin.getImageManager()).thenReturn(deferredManager);

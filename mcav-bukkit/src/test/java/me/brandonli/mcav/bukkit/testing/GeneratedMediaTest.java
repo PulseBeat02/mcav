@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,7 +74,7 @@ final class GeneratedMediaTest {
 
   private List<String> command(final Path temporary, final String mode) {
     final String home = System.getProperty("java.home");
-    final String executable = java.io.File.separatorChar == '\\' ? "java.exe" : "java";
+    final String executable = File.separatorChar == '\\' ? "java.exe" : "java";
     final String java = Path.of(home, "bin", executable).toString();
     final String classes = this.directory.toString();
     return List.of(java, "-cp", classes, "FixtureWriter", mode, temporary.toString());

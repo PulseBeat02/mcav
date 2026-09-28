@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -156,8 +159,8 @@ class DelayedAudioOutputTest {
 
   @Test
   void aFilterThatClosesTheOutputDoesNotWaitForItself() {
-    final java.util.concurrent.atomic.AtomicReference<DelayedAudioOutput> self = new java.util.concurrent.atomic.AtomicReference<>();
-    final java.util.concurrent.atomic.AtomicLong closeNanos = new java.util.concurrent.atomic.AtomicLong(-1);
+    final AtomicReference<DelayedAudioOutput> self = new AtomicReference<>();
+    final AtomicLong closeNanos = new AtomicLong(-1);
     final DelayedAudioOutput closing = start(
       () ->
         AudioPipelineStep.of((samples, metadata) -> {
@@ -199,7 +202,7 @@ class DelayedAudioOutputTest {
   void aPipelineThatStillHoldsTheThreadAfterTheWaitIsInterrupted() throws InterruptedException {
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch never = new CountDownLatch(1);
-    final java.util.concurrent.atomic.AtomicBoolean interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    final AtomicBoolean interrupted = new AtomicBoolean();
     final DelayedAudioOutput stuck = DelayedAudioOutput.start(
       "the browser",
       DELAY_MILLIS,
@@ -228,7 +231,7 @@ class DelayedAudioOutputTest {
 
   @Test
   void samplesAreHeldUntilTheyAreDue() throws InterruptedException {
-    final java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
+    final AtomicLong now = new AtomicLong();
     this.output.close();
     this.output = DelayedAudioOutput.start(
       "the virtual machine",

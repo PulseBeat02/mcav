@@ -222,7 +222,7 @@ final class VLCPlayback {
 
   private void installVideoSurface() {
     final FrameFormatCallback formatCallback = new FrameFormatCallback(this.videoRenderer, this.videoPlayer);
-    final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = this.factory.videoSurfaces();
+    final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = this.factory.videoSurfaces(); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
     final CallbackVideoSurface surface = surfaces.newVideoSurface(formatCallback, this.videoRenderer, true);
     final VideoSurfaceApi surfaceApi = this.videoPlayer.videoSurface();
     surfaceApi.set(surface);

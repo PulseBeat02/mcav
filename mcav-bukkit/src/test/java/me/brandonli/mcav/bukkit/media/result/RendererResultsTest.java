@@ -42,6 +42,7 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import net.kyori.adventure.text.Component;
+import net.minecraft.world.entity.Display;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -144,12 +145,12 @@ final class RendererResultsTest {
     result.release();
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final CraftTextDisplay display = displays.getFirst();
-    final net.minecraft.world.entity.Display.TextDisplay handle = display.getHandle();
+    final Display.TextDisplay handle = display.getHandle();
     final Plugin plugin = this.server.getPlugin();
 
     assertTrue(handled);
     verify(this.viewer).showEntity(plugin, display);
-    verify(handle).setText(any(net.minecraft.network.chat.Component.class));
+    verify(handle).setText(any(net.minecraft.network.chat.Component.class)); // fqn: Component is imported as net.kyori.adventure.text.Component
     verify(display).remove();
     assertThrows(NullPointerException.class, () -> new EntityResult(null));
 

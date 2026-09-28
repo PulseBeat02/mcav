@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.Frames;
@@ -247,7 +248,7 @@ class CefBrowserIntegrationTest {
    * @param description what the click achieves, for the failure message
    * @param condition   whether it has been achieved
    */
-  private static void clickUntil(final BrowserPlayer player, final String description, final java.util.function.BooleanSupplier condition) {
+  private static void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {
       assertTrue(System.nanoTime() < deadline, description + " never happened");

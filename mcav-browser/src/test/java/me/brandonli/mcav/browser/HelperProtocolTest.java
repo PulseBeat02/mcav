@@ -30,8 +30,10 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ProtocolException;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.IntFunction;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
@@ -417,7 +419,7 @@ class HelperProtocolTest {
       out.writeByte(0xFF);
     });
     final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(invalid));
-    assertTrue(failure.getCause() instanceof java.nio.charset.CharacterCodingException);
+    assertTrue(failure.getCause() instanceof CharacterCodingException);
   }
 
   @Test
@@ -455,15 +457,15 @@ class HelperProtocolTest {
   @Test
   void aLongTextIsSplitIntoPartsThatEachFitIntoAMessage() {
     final int max = HelperProtocol.MAX_TEXT_BYTES;
-    assertEquals(java.util.List.of(""), HelperProtocol.split(""));
-    assertEquals(java.util.List.of("hello"), HelperProtocol.split("hello"));
-    assertEquals(java.util.List.of("a".repeat(max)), HelperProtocol.split("a".repeat(max)));
-    assertEquals(java.util.List.of("a".repeat(max), "a"), HelperProtocol.split("a".repeat(max + 1)));
+    assertEquals(List.of(""), HelperProtocol.split(""));
+    assertEquals(List.of("hello"), HelperProtocol.split("hello"));
+    assertEquals(List.of("a".repeat(max)), HelperProtocol.split("a".repeat(max)));
+    assertEquals(List.of("a".repeat(max), "a"), HelperProtocol.split("a".repeat(max + 1)));
     // two, three and four bytes per character: no character is cut, no part is too long, nothing is lost
     // the first characters of two, three and four bytes are counted right too
     for (final String character : new String[] { "\u0080", "\u00e9", "\u0800", "\u20ac", "\uD800\uDC00", "\uD83D\uDE00" }) {
       final String text = character.repeat(max);
-      final java.util.List<String> parts = HelperProtocol.split(text);
+      final List<String> parts = HelperProtocol.split(text);
       assertEquals(text, String.join("", parts));
       for (int index = 0; index < parts.size(); index++) {
         final String part = parts.get(index);
@@ -478,9 +480,9 @@ class HelperProtocolTest {
   void aLineBreakIsNeverSplit() {
     final int max = HelperProtocol.MAX_TEXT_BYTES;
     final String text = "a".repeat(max - 1) + "\r\nb";
-    assertEquals(java.util.List.of("a".repeat(max - 1), "\r\nb"), HelperProtocol.split(text));
+    assertEquals(List.of("a".repeat(max - 1), "\r\nb"), HelperProtocol.split(text));
     final String lone = "a".repeat(max) + "\nb";
-    assertEquals(java.util.List.of("a".repeat(max), "\nb"), HelperProtocol.split(lone));
+    assertEquals(List.of("a".repeat(max), "\nb"), HelperProtocol.split(lone));
   }
 
   @Test

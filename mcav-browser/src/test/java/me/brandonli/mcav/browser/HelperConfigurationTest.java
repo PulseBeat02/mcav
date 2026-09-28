@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
@@ -197,7 +198,7 @@ class HelperConfigurationTest {
   @Test
   void aLineWithTooFewOrTooManyValuesIsRefused() {
     final String[] parts = parts(configuration(false));
-    final String missing = String.join(":", java.util.Arrays.copyOf(parts, parts.length - 1));
+    final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
     assertEquals("The configuration has 11 values instead of 12", tooFew.getMessage());
     final String extra = configuration(false).toLine() + ":" + encode("x");

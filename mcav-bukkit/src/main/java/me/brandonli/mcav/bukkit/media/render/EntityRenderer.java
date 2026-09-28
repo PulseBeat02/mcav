@@ -212,7 +212,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     }
 
     final CraftTextDisplay craftDisplay = (CraftTextDisplay) display;
-    final net.minecraft.world.entity.Display.TextDisplay handle = craftDisplay.getHandle();
+    final net.minecraft.world.entity.Display.TextDisplay handle = craftDisplay.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     handle.setText(text);
   }
 
