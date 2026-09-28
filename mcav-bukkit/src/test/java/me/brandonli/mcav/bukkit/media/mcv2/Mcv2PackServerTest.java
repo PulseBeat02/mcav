@@ -362,6 +362,19 @@ final class Mcv2PackServerTest {
   }
 
   @Test
+  void aPackWhoseScreensAllClosedTakesTheOutlineColourOfTheNextScreen() {
+    this.packs.open(screen(320, Set.of())).close();
+    this.settle();
+    final Mcv2Configuration gold = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.GOLD).build();
+    final Mcv2PackServer.Lease lease = this.packs.open(gold);
+    this.settle();
+    assertEquals(1, lease.getConfiguration().getStreamId(), "the gold screen has the first slot of a new pack");
+    assertEquals(2, this.hostings.size(), "the pack changed for the new colour");
+    final Mcv2Configuration aqua = screen(320, Set.of());
+    assertThrows(IllegalArgumentException.class, () -> this.packs.open(aqua), "while the gold screen plays");
+  }
+
+  @Test
   void aScreenKeepsTheSlotOfEverySizeItSteppedDownTo() {
     final CraftPlayer alice = this.online(ALICE);
     this.packs.start();

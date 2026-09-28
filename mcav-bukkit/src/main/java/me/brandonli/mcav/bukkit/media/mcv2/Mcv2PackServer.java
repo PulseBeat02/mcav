@@ -293,20 +293,22 @@ public final class Mcv2PackServer {
    * @param requested the screen
    * @return the screen's lease, which holds its slots until it is closed
    * @throws IllegalStateException    if every slot plays another screen, or the server was shut down
-   * @throws IllegalArgumentException if the screen's outline colour is not the one of the pack's slots
+   * @throws IllegalArgumentException if the screen's outline colour is not the one of the screens that play
    */
   public synchronized Lease open(final Mcv2Configuration requested) {
     Preconditions.checkNotNull(requested, "Configuration must not be null");
     Preconditions.checkState(!this.stopped, "The MCV2 pack server was shut down");
     Preconditions.checkArgument(
-      this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor()),
-      "The screens of a pack share one outline colour"
-    );
-    Preconditions.checkArgument(
       requested.getPageMap() <= Integer.MAX_VALUE - PAGE_MAPS,
       "The page maps of every slot of the pack must be ints: the first page map is at most %s",
       Integer.MAX_VALUE - PAGE_MAPS
     );
+    final boolean sameColour = this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor());
+    Preconditions.checkArgument(sameColour || this.leases.isEmpty(), "The screens of a pack share one outline colour");
+    if (!sameColour) {
+      // no screen plays: the free slots give way to a pack in the new colour
+      this.slots.clear();
+    }
     final Slot slot = this.acquire(requested);
     if (slot == null) {
       throw new IllegalStateException("Every one of the %d MCV2 slots plays a screen".formatted(Mcv2Pack.MAX_SCREENS));
