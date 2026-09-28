@@ -67,7 +67,7 @@ number of threads.
 :name: mcv2-block-flow
 :alt: Flow chart of one block's candidates and of the bottom-up split decision of a superblock.
 
-How one block arrives at one leaf mode, and how a superblock arrives at its tree. The dashed decision is taken by the
+How one block arrives at one leaf mode, and how a superblock arrives at its tree. The blue decision is taken by the
 live presets only; the reference search measures every candidate.
 ```
 

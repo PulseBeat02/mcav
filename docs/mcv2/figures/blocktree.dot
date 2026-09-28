@@ -19,7 +19,7 @@ digraph blocktree {
     style="rounded"; color="#999999";
     pframe [shape=diamond, label="P frame?", margin="0.02,0.02"];
     skip [label="SKIP (mode 0)\nthe reference at the global vector, no record"];
-    earlyskip [shape=diamond, label="Live presets only:\nSKIP cost at most\n26.5 x lambda?", margin="0.02,0.02", style="filled,dashed"];
+    earlyskip [shape=diamond, label="Live presets only:\nSKIP cost at most\n26.5 x lambda?", margin="0.02,0.02", fillcolor="#dae8fc", color="#6c8ebf"];
     local [label="Local motion search\neight-neighbour diamond around the global vector on\n16 sampled pixels, steps from 24 pixels to half a pixel"];
     motion [label="MOTION (1): that vector, 2 bytes"];
     intra [label="Intra candidates\nSOLID (2), 3 bytes; PALETTE (3), two colours and a bit a pixel;\nbilinear RGB grids 2x2, 4x4, 8x8 (5 to 7);\nreduced chroma: luma 4x4 + one chroma pair (12),\nluma 8x8 + 2x2 chroma (14); PATTERN (18): a two-colour\npalette repeating along one axis, full and RGB565 endpoints"];
@@ -41,7 +41,7 @@ digraph blocktree {
   pframe -> skip [label="yes"];
   pframe -> intra [label="no (keyframe)"];
   skip -> earlyskip;
-  earlyskip -> leaf [label="yes", style=dashed];
+  earlyskip -> leaf [label="yes", color="#6c8ebf"];
   earlyskip -> local [label="no, or the\nreference search"];
   local -> motion -> intra;
   intra -> residual [label="P frames"];
