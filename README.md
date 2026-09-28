@@ -52,7 +52,7 @@ Click to watch a demo video above.
 | Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): FFmpeg and OpenCV are bundled for these, and their natives are extracted into the JavaCPP cache of the user |
 | VLC (optional) | Nothing: VLC 3.0.24 is downloaded into the cache folder of the user on Windows and macOS, and an AppImage on x86-64 Linux, when the system has none; elsewhere the system's VLC is used |
 | yt-dlp (optional) | Nothing: it is downloaded into the cache folder of the user, pinned and checked; its Linux builds need glibc |
-| Web browser | Nothing: Chromium (136 to 165 MB) is downloaded on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
+| Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. Chromium (136 to 165 MB) is downloaded on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
 | Virtual machines | QEMU, installed by you and on the `PATH` |
 | MCV2 | Players accept a resource pack the server offers; the server's CPU encodes, with native kernels for Linux, Windows and macOS on x86-64 and ARM64 and a Java fallback anywhere else |
 | Sound in Minecraft | A port for the audio web page, a Discord bot, or the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin (2.6.24 for Minecraft 26.3) |
