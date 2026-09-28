@@ -100,7 +100,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
       sender.sendMessage(Message.SEEK_RELATIVE_UNSUPPORTED.build());
       return;
     }
-    final long current = player instanceof final AbstractVideoPlayerCV cv ? cv.getPositionMillis() : 0L;
+    final long current = player instanceof final AbstractVideoPlayerCV cvPlayer ? cvPlayer.getPositionMillis() : 0L;
     final long target = parsed.resolve(current);
     final CompletableFuture<Boolean> seek = CompletableFuture.supplyAsync(() -> player.seek(target), this.manager.getService());
     TaskUtils.whenComplete(seek, (seeked, error) -> this.reportSeek(sender, target, seeked, error));

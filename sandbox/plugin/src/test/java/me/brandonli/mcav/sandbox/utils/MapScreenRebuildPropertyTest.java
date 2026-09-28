@@ -275,17 +275,17 @@ final class MapScreenRebuildPropertyTest {
     ) {
       for (final Obstacle obstacle : this.obstacles) {
         final List<Integer> cell = cells.get(obstacle.cell % cells.size());
-        final int x = cell.get(0);
-        final int y = cell.get(1);
-        final int z = cell.get(2);
+        final int blockX = cell.get(0);
+        final int blockY = cell.get(1);
+        final int blockZ = cell.get(2);
         switch (obstacle.kind) {
           case OLD_FRAME -> {
-            final Location inside = world.location(x + 0.5, y + 0.5, z + 0.5);
+            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
             final ItemFrame frame = world.addFrame(inside, obstacle.facing);
             doomed.add(frame);
           }
           case OTHER_ENTITY -> {
-            final Location inside = world.location(x + 0.5, y + 0.5, z + 0.5);
+            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
             final Entity entity = mock(Entity.class);
             when(entity.getLocation()).thenAnswer(_ -> inside.clone());
             world.addEntity(entity);
@@ -293,7 +293,7 @@ final class MapScreenRebuildPropertyTest {
           }
           case NEIGHBOUR_FRAME -> {
             // the block above the top of the wall is never part of it
-            final Location above = world.location(x + 0.5, 64 + this.height + 0.5, z + 0.5);
+            final Location above = world.location(blockX + 0.5, 64 + this.height + 0.5, blockZ + 0.5);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);
           }

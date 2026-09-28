@@ -76,9 +76,9 @@ final class FilterChainTest {
 
   private void writeOverlay(final String name, final int width, final int height) throws IOException {
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        image.setRGB(x, y, 0xff0000);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        image.setRGB(column, row, 0xff0000);
       }
     }
     ImageIO.write(image, "png", this.overlays.resolve(name + ".png").toFile());

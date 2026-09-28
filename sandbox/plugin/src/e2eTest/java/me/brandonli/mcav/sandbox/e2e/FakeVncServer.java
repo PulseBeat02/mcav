@@ -160,8 +160,8 @@ final class FakeVncServer implements AutoCloseable {
   private static byte[] encrypt(final byte[] challenge, final String password) throws GeneralSecurityException {
     final byte[] key = new byte[8];
     final byte[] bytes = password.getBytes(StandardCharsets.ISO_8859_1);
-    for (int i = 0; i < Math.min(bytes.length, key.length); i++) {
-      key[i] = (byte) (Integer.reverse(bytes[i] & 0xff) >>> 24);
+    for (int index = 0; index < Math.min(bytes.length, key.length); index++) {
+      key[index] = (byte) (Integer.reverse(bytes[index] & 0xff) >>> 24);
     }
     final Cipher cipher = Cipher.getInstance("DES/ECB/NoPadding");
     cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "DES"));
@@ -267,9 +267,9 @@ final class FakeVncServer implements AutoCloseable {
         value |= (long) ((level * this.max[channel]) / 255) << this.shift[channel];
       }
       final byte[] pixel = new byte[this.bytes];
-      for (int i = 0; i < this.bytes; i++) {
-        final int byteShift = this.bigEndian ? 8 * (this.bytes - 1 - i) : 8 * i;
-        pixel[i] = (byte) (value >> byteShift);
+      for (int byteIndex = 0; byteIndex < this.bytes; byteIndex++) {
+        final int byteShift = this.bigEndian ? 8 * (this.bytes - 1 - byteIndex) : 8 * byteIndex;
+        pixel[byteIndex] = (byte) (value >> byteShift);
       }
       return pixel;
     }

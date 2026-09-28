@@ -53,7 +53,7 @@ final class FilterChainPropertyTest {
       Arbitraries.of("90", "180", "270").map(angle -> "rotate=" + angle),
       Arbitraries.integers()
         .between(0, 99)
-        .map(x -> "crop=%d:0:%d:100".formatted(x, 100 - x)),
+        .map(left -> "crop=%d:0:%d:100".formatted(left, 100 - left)),
       Arbitraries.integers()
         .between(1, FilterChain.MAX_MORPHOLOGY)
         .map(kernel -> "dilate=" + kernel),

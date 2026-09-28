@@ -155,13 +155,13 @@ final class AbstractInteractiveCommandTest {
     }
 
     @Override
-    protected void handleLeftClick(final String current, final int x, final int y) {
-      this.forwarded.add(current + " left " + x + "," + y);
+    protected void handleLeftClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " left " + screenX + "," + screenY);
     }
 
     @Override
-    protected void handleRightClick(final String current, final int x, final int y) {
-      this.forwarded.add(current + " right " + x + "," + y);
+    protected void handleRightClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " right " + screenX + "," + screenY);
     }
 
     @Override
@@ -213,8 +213,8 @@ final class AbstractInteractiveCommandTest {
     this.command.shutdown();
   }
 
-  private ItemFrame addScreenFrame(final double x, final double y, final double z) {
-    final Location location = this.fakeWorld.location(x, y, z);
+  private ItemFrame addScreenFrame(final double frameX, final double frameY, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, frameY, frameZ);
     final ItemFrame frame = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
     setMapId(frame, 7);
     return frame;
@@ -231,8 +231,8 @@ final class AbstractInteractiveCommandTest {
   }
 
   // plain frames hang at the height of the screen frames, so only their position along the wall differs
-  private ItemFrame addPlainFrame(final double x, final double z) {
-    final Location location = this.fakeWorld.location(x, 64.5, z);
+  private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, 64.5, frameZ);
     return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
   }
 

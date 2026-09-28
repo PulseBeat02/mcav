@@ -192,9 +192,9 @@ public final class InteractUtils {
       return null;
     }
     final boolean mirrored = face == BlockFace.WEST || face == BlockFace.SOUTH;
-    final double x = mirrored ? 1 - horizontal : horizontal;
-    final double y = 1 - verticalFraction;
-    return new double[] { x, y };
+    final double fromLeft = mirrored ? 1 - horizontal : horizontal;
+    final double fromTop = 1 - verticalFraction;
+    return new double[] { fromLeft, fromTop };
   }
 
   /**

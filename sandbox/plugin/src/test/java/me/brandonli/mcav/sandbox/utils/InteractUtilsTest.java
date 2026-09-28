@@ -77,14 +77,14 @@ final class InteractUtilsTest {
     when(this.player.getEyeLocation()).thenAnswer(_ -> eye.clone());
   }
 
-  private Location eye(final double x, final double y, final double z, final float yaw) {
+  private Location eye(final double eyeX, final double eyeY, final double eyeZ, final float yaw) {
     final World world = this.fakeWorld.world();
-    return new Location(world, x, y, z, yaw, 0.0f);
+    return new Location(world, eyeX, eyeY, eyeZ, yaw, 0.0f);
   }
 
-  private Location eye(final double x, final double y, final double z, final float yaw, final float pitch) {
+  private Location eye(final double eyeX, final double eyeY, final double eyeZ, final float yaw, final float pitch) {
     final World world = this.fakeWorld.world();
-    return new Location(world, x, y, z, yaw, pitch);
+    return new Location(world, eyeX, eyeY, eyeZ, yaw, pitch);
   }
 
   /**
@@ -97,9 +97,9 @@ final class InteractUtilsTest {
     ItemFrame target = null;
     for (int row = 0; row < 2; row++) {
       for (int column = 0; column < 4; column++) {
-        final int x = 4 + column;
-        final int y = 65 - row;
-        final Location location = this.fakeWorld.location(x + 0.5, y + 0.5, 0.0);
+        final int blockX = 4 + column;
+        final int blockY = 65 - row;
+        final Location location = this.fakeWorld.location(blockX + 0.5, blockY + 0.5, 0.0);
         final boolean first = row == 0 && column == 0;
         final boolean last = row == 1 && column == 3;
         if (first) {
@@ -125,8 +125,8 @@ final class InteractUtilsTest {
     ItemFrame target = null;
     for (int row = 0; row < 2; row++) {
       for (int column = 0; column < 4; column++) {
-        final int y = 65 - row;
-        final Location location = this.fakeWorld.location(column + 0.5, y + 0.5, 0.0);
+        final int blockY = 65 - row;
+        final Location location = this.fakeWorld.location(column + 0.5, blockY + 0.5, 0.0);
         final boolean first = row == 0 && column == 0;
         final boolean last = row == 1 && column == 3;
         if (first) {
@@ -326,11 +326,11 @@ final class InteractUtilsTest {
   @Test
   void rejectsUnsupportedFramesOnTheFloor() {
     ItemFrame target = null;
-    for (int x = 0; x < 2; x++) {
-      for (int z = 0; z < 2; z++) {
-        final Location location = this.fakeWorld.location(x + 0.5, 65.0, z + 0.5);
-        final boolean first = x == 0 && z == 0;
-        final boolean last = x == 1 && z == 1;
+    for (int blockX = 0; blockX < 2; blockX++) {
+      for (int blockZ = 0; blockZ < 2; blockZ++) {
+        final Location location = this.fakeWorld.location(blockX + 0.5, 65.0, blockZ + 0.5);
+        final boolean first = blockX == 0 && blockZ == 0;
+        final boolean last = blockX == 1 && blockZ == 1;
         if (first) {
           this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
         } else if (last) {
@@ -349,9 +349,9 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "2.9,64.5", "4.1,64.5", "3.5,63.9", "3.5,65.1" })
-  void rejectsRaysOutsideTheSelectedFrame(final double x, final double y) {
+  void rejectsRaysOutsideTheSelectedFrame(final double eyeX, final double eyeY) {
     this.buildSouthWall();
-    final Location eye = this.eye(x, y, 5.0, LOOK_NORTH);
+    final Location eye = this.eye(eyeX, eyeY, 5.0, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
@@ -377,10 +377,10 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "5.0", "0.0" })
-  void rejectsParallelAndCoplanarRays(final double z) {
+  void rejectsParallelAndCoplanarRays(final double eyeZ) {
     this.buildSouthWall();
     final Location eye = mock(Location.class);
-    when(eye.getZ()).thenReturn(z);
+    when(eye.getZ()).thenReturn(eyeZ);
     final Vector direction = new Vector(1, 0, 0);
     when(eye.getDirection()).thenReturn(direction);
     when(this.player.getEyeLocation()).thenReturn(eye);
@@ -390,9 +390,9 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "3.0,64.0,0,127", "4.0,65.0,127,0" })
-  void keepsFrameEdgesInsideTheSelectedMap(final double x, final double y, final int pixelX, final int pixelY) {
+  void keepsFrameEdgesInsideTheSelectedMap(final double eyeX, final double eyeY, final int pixelX, final int pixelY) {
     this.buildSouthWall();
-    final Location eye = this.eye(x, y, -5.0, LOOK_SOUTH);
+    final Location eye = this.eye(eyeX, eyeY, -5.0, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertArrayEquals(new int[] { 3 * 128 + pixelX, 128 + pixelY }, coordinates);

@@ -135,26 +135,26 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
    * Clicks the display of the virtual machine with the left mouse button.
    *
    * @param current the running virtual machine
-   * @param x       the x coordinate on the display, in pixels
-   * @param y       the y coordinate on the display, in pixels
+   * @param screenX the x coordinate on the display, in pixels
+   * @param screenY the y coordinate on the display, in pixels
    */
   @Override
-  protected void handleLeftClick(final VMPlayer current, final int x, final int y) {
+  protected void handleLeftClick(final VMPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    current.sendMouseEvent(MouseClick.LEFT, x, y);
+    current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
   /**
    * Clicks the display of the virtual machine with the right mouse button.
    *
    * @param current the running virtual machine
-   * @param x       the x coordinate on the display, in pixels
-   * @param y       the y coordinate on the display, in pixels
+   * @param screenX the x coordinate on the display, in pixels
+   * @param screenY the y coordinate on the display, in pixels
    */
   @Override
-  protected void handleRightClick(final VMPlayer current, final int x, final int y) {
+  protected void handleRightClick(final VMPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    current.sendMouseEvent(MouseClick.RIGHT, x, y);
+    current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
   /**

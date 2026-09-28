@@ -85,26 +85,26 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
    * Clicks the desktop with the left mouse button.
    *
    * @param current the connected desktop
-   * @param x       the x coordinate on the desktop, in pixels
-   * @param y       the y coordinate on the desktop, in pixels
+   * @param screenX the x coordinate on the desktop, in pixels
+   * @param screenY the y coordinate on the desktop, in pixels
    */
   @Override
-  protected void handleLeftClick(final VNCPlayer current, final int x, final int y) {
+  protected void handleLeftClick(final VNCPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null");
-    current.sendMouseEvent(MouseClick.LEFT, x, y);
+    current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
   /**
    * Clicks the desktop with the right mouse button.
    *
    * @param current the connected desktop
-   * @param x       the x coordinate on the desktop, in pixels
-   * @param y       the y coordinate on the desktop, in pixels
+   * @param screenX the x coordinate on the desktop, in pixels
+   * @param screenY the y coordinate on the desktop, in pixels
    */
   @Override
-  protected void handleRightClick(final VNCPlayer current, final int x, final int y) {
+  protected void handleRightClick(final VNCPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null");
-    current.sendMouseEvent(MouseClick.RIGHT, x, y);
+    current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
   /**

@@ -69,23 +69,23 @@ public final class FakeWorld {
     when(this.world.getName()).thenReturn("world");
     when(this.world.getBlockAt(any(Location.class))).thenAnswer(invocation -> {
       final Location location = invocation.getArgument(0);
-      final int x = location.getBlockX();
-      final int y = location.getBlockY();
-      final int z = location.getBlockZ();
-      return this.block(x, y, z);
+      final int blockX = location.getBlockX();
+      final int blockY = location.getBlockY();
+      final int blockZ = location.getBlockZ();
+      return this.block(blockX, blockY, blockZ);
     });
     when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(invocation -> {
-      final int x = invocation.getArgument(0);
-      final int y = invocation.getArgument(1);
-      final int z = invocation.getArgument(2);
-      return this.block(x, y, z);
+      final int blockX = invocation.getArgument(0);
+      final int blockY = invocation.getArgument(1);
+      final int blockZ = invocation.getArgument(2);
+      return this.block(blockX, blockY, blockZ);
     });
     when(this.world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
       final Location center = invocation.getArgument(0);
-      final double x = invocation.getArgument(1);
-      final double y = invocation.getArgument(2);
-      final double z = invocation.getArgument(3);
-      return this.findNearbyEntities(center, x, y, z);
+      final double radiusX = invocation.getArgument(1);
+      final double radiusY = invocation.getArgument(2);
+      final double radiusZ = invocation.getArgument(3);
+      return this.findNearbyEntities(center, radiusX, radiusY, radiusZ);
     });
     when(this.world.spawn(any(Location.class), eq(ItemFrame.class))).thenAnswer(invocation -> {
       final Location location = invocation.getArgument(0);
@@ -107,44 +107,44 @@ public final class FakeWorld {
   /**
    * Creates a location in this world.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
+   * @param positionX the x coordinate
+   * @param positionY the y coordinate
+   * @param positionZ the z coordinate
    * @return the location
    */
-  public Location location(final double x, final double y, final double z) {
-    return new Location(this.world, x, y, z);
+  public Location location(final double positionX, final double positionY, final double positionZ) {
+    return new Location(this.world, positionX, positionY, positionZ);
   }
 
   /**
    * Gets the block at a position.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
+   * @param blockX the x coordinate
+   * @param blockY the y coordinate
+   * @param blockZ the z coordinate
    * @return the block, the same instance for the same position
    */
-  public Block block(final int x, final int y, final int z) {
-    final List<Integer> key = List.of(x, y, z);
+  public Block block(final int blockX, final int blockY, final int blockZ) {
+    final List<Integer> key = List.of(blockX, blockY, blockZ);
     final Block existing = this.blocks.get(key);
     if (existing != null) {
       return existing;
     }
     final Block block = mock(Block.class);
     this.blocks.put(key, block);
-    when(block.getX()).thenReturn(x);
-    when(block.getY()).thenReturn(y);
-    when(block.getZ()).thenReturn(z);
+    when(block.getX()).thenReturn(blockX);
+    when(block.getY()).thenReturn(blockY);
+    when(block.getZ()).thenReturn(blockZ);
     when(block.getWorld()).thenReturn(this.world);
-    when(block.getLocation()).thenAnswer(_ -> this.location(x, y, z));
+    when(block.getLocation()).thenAnswer(_ -> this.location(blockX, blockY, blockZ));
     when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> {
       final BlockFace face = invocation.getArgument(0);
-      return this.relative(x, y, z, face, 1);
+      return this.relative(blockX, blockY, blockZ, face, 1);
     });
     when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation -> {
       final BlockFace face = invocation.getArgument(0);
       final int distance = invocation.getArgument(1);
-      return this.relative(x, y, z, face, distance);
+      return this.relative(blockX, blockY, blockZ, face, distance);
     });
     when(block.getType()).thenAnswer(_ -> this.materials.getOrDefault(block, Material.AIR));
     doAnswer(invocation -> {
@@ -157,23 +157,23 @@ public final class FakeWorld {
     return block;
   }
 
-  private Block relative(final int x, final int y, final int z, final BlockFace face, final int distance) {
-    final int modX = face.getModX();
-    final int modY = face.getModY();
-    final int modZ = face.getModZ();
-    return this.block(x + modX * distance, y + modY * distance, z + modZ * distance);
+  private Block relative(final int blockX, final int blockY, final int blockZ, final BlockFace face, final int distance) {
+    final int offsetX = face.getModX();
+    final int offsetY = face.getModY();
+    final int offsetZ = face.getModZ();
+    return this.block(blockX + offsetX * distance, blockY + offsetY * distance, blockZ + offsetZ * distance);
   }
 
   /**
    * Gets the material a block was set to.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
-   * @param z the z coordinate
+   * @param blockX the x coordinate
+   * @param blockY the y coordinate
+   * @param blockZ the z coordinate
    * @return the material, {@link Material#AIR} if it was never set
    */
-  public Material material(final int x, final int y, final int z) {
-    final Block block = this.block(x, y, z);
+  public Material material(final int blockX, final int blockY, final int blockZ) {
+    final Block block = this.block(blockX, blockY, blockZ);
     return this.materials.getOrDefault(block, Material.AIR);
   }
 
@@ -271,11 +271,11 @@ public final class FakeWorld {
     return container.has(key, PersistentDataType.BOOLEAN);
   }
 
-  private Collection<Entity> findNearbyEntities(final Location center, final double x, final double y, final double z) {
+  private Collection<Entity> findNearbyEntities(final Location center, final double radiusX, final double radiusY, final double radiusZ) {
     final List<Entity> nearby = new ArrayList<>();
     for (final Entity entity : this.entities) {
       final Location location = entity.getLocation();
-      final boolean near = isWithin(location, center, x, y, z);
+      final boolean near = isWithin(location, center, radiusX, radiusY, radiusZ);
       if (near) {
         nearby.add(entity);
       }
@@ -283,13 +283,19 @@ public final class FakeWorld {
     return nearby;
   }
 
-  private static boolean isWithin(final Location location, final Location center, final double x, final double y, final double z) {
+  private static boolean isWithin(
+    final Location location,
+    final Location center,
+    final double radiusX,
+    final double radiusY,
+    final double radiusZ
+  ) {
     final double offsetX = location.getX() - center.getX();
     final double offsetY = location.getY() - center.getY();
     final double offsetZ = location.getZ() - center.getZ();
     final double distanceX = Math.abs(offsetX);
     final double distanceY = Math.abs(offsetY);
     final double distanceZ = Math.abs(offsetZ);
-    return distanceX <= x && distanceY <= y && distanceZ <= z;
+    return distanceX <= radiusX && distanceY <= radiusY && distanceZ <= radiusZ;
   }
 }

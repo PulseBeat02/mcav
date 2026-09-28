@@ -332,7 +332,7 @@ public final class FilterChain {
     count("rectangle", args, 5);
     final Region region = region("rectangle", args);
     final double[] color = color("rectangle", args.get(4));
-    return () -> new RegionFilter(region, (x, y, width, height, _, _) -> new RectangleFilter(x, y, width, height, color));
+    return () -> new RegionFilter(region, (left, top, width, height, _, _) -> new RectangleFilter(left, top, width, height, color));
   }
 
   private static Supplier<VideoFilter> dilate(final List<String> args) {
@@ -426,11 +426,11 @@ public final class FilterChain {
   }
 
   private static Region region(final String name, final List<String> args) {
-    final int x = whole(name, args.getFirst(), 0, PERCENT - 1);
-    final int y = whole(name, args.get(1), 0, PERCENT - 1);
-    final int width = whole(name, args.get(2), 1, PERCENT - x);
-    final int height = whole(name, args.get(3), 1, PERCENT - y);
-    return new Region(x, y, width, height);
+    final int left = whole(name, args.getFirst(), 0, PERCENT - 1);
+    final int top = whole(name, args.get(1), 0, PERCENT - 1);
+    final int width = whole(name, args.get(2), 1, PERCENT - left);
+    final int height = whole(name, args.get(3), 1, PERCENT - top);
+    return new Region(left, top, width, height);
   }
 
   /**
@@ -480,12 +480,12 @@ public final class FilterChain {
   }
 
   /** A region in percent of the picture. */
-  private record Region(int x, int y, int width, int height) {}
+  private record Region(int left, int top, int width, int height) {}
 
   /** Makes a filter for a region in pixels of pictures of a size. */
   @FunctionalInterface
   private interface RegionFactory {
-    VideoFilter create(int x, int y, int width, int height, int pictureWidth, int pictureHeight);
+    VideoFilter create(int left, int top, int width, int height, int pictureWidth, int pictureHeight);
   }
 
   /** A filter over a region given in percent, made again whenever the pictures change size. */
@@ -512,11 +512,11 @@ public final class FilterChain {
       final int pictureHeight = samples.getHeight();
       VideoFilter current = this.filter;
       if (current == null || pictureWidth != this.width || pictureHeight != this.height) {
-        final int x = (pictureWidth * this.region.x()) / PERCENT;
-        final int y = (pictureHeight * this.region.y()) / PERCENT;
-        final int regionWidth = Math.max(1, Math.min(pictureWidth - x, (pictureWidth * this.region.width()) / PERCENT));
-        final int regionHeight = Math.max(1, Math.min(pictureHeight - y, (pictureHeight * this.region.height()) / PERCENT));
-        current = this.factory.create(x, y, regionWidth, regionHeight, pictureWidth, pictureHeight);
+        final int left = (pictureWidth * this.region.left()) / PERCENT;
+        final int top = (pictureHeight * this.region.top()) / PERCENT;
+        final int regionWidth = Math.max(1, Math.min(pictureWidth - left, (pictureWidth * this.region.width()) / PERCENT));
+        final int regionHeight = Math.max(1, Math.min(pictureHeight - top, (pictureHeight * this.region.height()) / PERCENT));
+        current = this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
         this.filter = current;
         this.width = pictureWidth;
         this.height = pictureHeight;
@@ -532,8 +532,8 @@ public final class FilterChain {
 
     private final ResizeFilter resize;
 
-    private CropZoom(final int x, final int y, final int width, final int height, final int pictureWidth, final int pictureHeight) {
-      this.crop = new CropFilter(x, y, width, height);
+    private CropZoom(final int left, final int top, final int width, final int height, final int pictureWidth, final int pictureHeight) {
+      this.crop = new CropFilter(left, top, width, height);
       this.resize = new ResizeFilter(pictureWidth, pictureHeight);
     }
 

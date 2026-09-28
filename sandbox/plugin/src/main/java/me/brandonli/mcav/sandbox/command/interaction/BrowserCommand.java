@@ -96,26 +96,26 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Clicks the page of the browser with the left mouse button.
    *
    * @param current the running browser
-   * @param x       the x coordinate on the page, in pixels
-   * @param y       the y coordinate on the page, in pixels
+   * @param screenX the x coordinate on the page, in pixels
+   * @param screenY the y coordinate on the page, in pixels
    */
   @Override
-  protected void handleLeftClick(final BrowserPlayer current, final int x, final int y) {
+  protected void handleLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null");
-    current.sendMouseEvent(MouseClick.LEFT, x, y);
+    current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
   /**
    * Clicks the page of the browser with the right mouse button.
    *
    * @param current the running browser
-   * @param x       the x coordinate on the page, in pixels
-   * @param y       the y coordinate on the page, in pixels
+   * @param screenX the x coordinate on the page, in pixels
+   * @param screenY the y coordinate on the page, in pixels
    */
   @Override
-  protected void handleRightClick(final BrowserPlayer current, final int x, final int y) {
+  protected void handleRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null");
-    current.sendMouseEvent(MouseClick.RIGHT, x, y);
+    current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
   /**

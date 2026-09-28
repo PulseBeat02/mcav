@@ -928,19 +928,19 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Forwards a left click.
    *
    * @param current the running player
-   * @param x       the x coordinate on the screen
-   * @param y       the y coordinate on the screen
+   * @param screenX the x coordinate on the screen
+   * @param screenY the y coordinate on the screen
    */
-  protected abstract void handleLeftClick(final T current, final int x, final int y);
+  protected abstract void handleLeftClick(final T current, final int screenX, final int screenY);
 
   /**
    * Forwards a right click.
    *
    * @param current the running player
-   * @param x       the x coordinate on the screen
-   * @param y       the y coordinate on the screen
+   * @param screenX the x coordinate on the screen
+   * @param screenY the y coordinate on the screen
    */
-  protected abstract void handleRightClick(final T current, final int x, final int y);
+  protected abstract void handleRightClick(final T current, final int screenX, final int screenY);
 
   /**
    * Forwards typed text.

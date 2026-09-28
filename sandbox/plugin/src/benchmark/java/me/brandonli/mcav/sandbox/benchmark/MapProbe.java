@@ -201,15 +201,15 @@ final class MapProbe implements DitherResultStep {
       for (final MapTilePatch patch : patches) {
         final byte[] colors = patch.getColors();
         final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;
-        final int x = patch.getX();
-        final int y = patch.getY();
+        final int left = patch.getX();
+        final int top = patch.getY();
         final int width = patch.getWidth();
         boolean shows = false;
         for (int position = 0; position < colors.length; position++) {
           if (colors[position] == this.index) {
             shows = true;
-            final int row = y + position / width;
-            final int column = x + (position % width);
+            final int row = top + position / width;
+            final int column = left + (position % width);
             this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
           }
         }

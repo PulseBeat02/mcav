@@ -122,10 +122,10 @@ final class MapUtilsTest {
 
   private static int[] coordinates(final ItemFrame frame) {
     final Location location = frame.getLocation();
-    final int x = location.getBlockX();
-    final int y = location.getBlockY();
-    final int z = location.getBlockZ();
-    return new int[] { x, y, z };
+    final int blockX = location.getBlockX();
+    final int blockY = location.getBlockY();
+    final int blockZ = location.getBlockZ();
+    return new int[] { blockX, blockY, blockZ };
   }
 
   private static String describe(final List<ItemFrame> frames) {
@@ -297,12 +297,12 @@ final class MapUtilsTest {
     assertEquals(expectedFrames, positions);
     final int changed = this.fakeWorld.changedBlocks();
     assertEquals(4, changed);
-    final int modX = face.getModX();
-    final int modZ = face.getModZ();
+    final int offsetX = face.getModX();
+    final int offsetZ = face.getModZ();
     for (int index = 0; index < frames.size(); index++) {
       final ItemFrame frame = frames.get(index);
       final int[] position = coordinates(frame);
-      final Material wall = this.fakeWorld.material(position[0] + modX, position[1], position[2] + modZ);
+      final Material wall = this.fakeWorld.material(position[0] + offsetX, position[1], position[2] + offsetZ);
       assertEquals(Material.STONE, wall);
       verify(frame).setFacingDirection(expectedFrameFacing);
       verify(frame).setInvulnerable(true);
