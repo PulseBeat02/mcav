@@ -330,7 +330,11 @@ final class RfbGuard {
     }
 
     private int collect(final byte[] buffer, final int at) throws IOException {
-      this.field[this.have++] = buffer[at];
+      // a list of security types may be longer than the field; its types are only counted
+      if (this.have < this.field.length) {
+        this.field[this.have] = buffer[at];
+      }
+      this.have++;
       if (this.have == this.need) {
         this.complete();
       }

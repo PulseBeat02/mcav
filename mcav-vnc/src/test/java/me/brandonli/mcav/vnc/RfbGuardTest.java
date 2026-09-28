@@ -445,6 +445,21 @@ final class RfbGuardTest {
   }
 
   @Test
+  void framesAListOfMoreSecurityTypesThanAFieldHolds() throws IOException {
+    final RfbSession session = new RfbSession();
+    session.server(version(8));
+    session.client(version(8));
+    final byte[] types = new byte[255];
+    Arrays.fill(types, (byte) NONE);
+    session.server(concat(new byte[] { (byte) types.length }, types));
+    session.client(new byte[] { NONE });
+    session.server(u32(0));
+    session.client(new byte[] { 1 });
+    session.server(serverInit(SIDE, SIDE, 32, "desktop"));
+    assertAtAMessage(session);
+  }
+
+  @Test
   void followsTheClientPastEveryEncodingItLists() throws IOException {
     final RfbSession session = connected();
     session.client(concat(new byte[] { 2, 0 }, u16(3), pixels(3 * 4)));
