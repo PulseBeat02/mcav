@@ -60,7 +60,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * each frame is due according to the {@link PlaybackClock}, then runs the video pipeline; frames that are more than
  * 100 ms late are dropped, so a slow pipeline lowers the frame rate instead of drifting out of sync. An audio
  * rendering thread hands each chunk to the audio pipeline slightly before it is due, which keeps downstream buffers
- * full without running ahead of the video.
+ * full without running ahead of the video. Played faster or slower, the clock runs at that speed and the audio is
+ * resampled to match, see {@link SpeedResampler}.
  *
  * <p>Pictures are copied out of the decoder into a small {@link ImagePool}: the rendering thread hands every image
  * back once the pipeline ran, so no memory is allocated per frame. Frames that have another size than the attached
@@ -120,6 +121,7 @@ final class PlaybackSession {
   private final BlockingQueue<DecodedAudioChunk> audioQueue;
   private final ImagePool imagePool;
   private final VideoFrameCopier frameCopier;
+  private final SpeedResampler resampler;
   private final AtomicBoolean running;
   private final List<Thread> threads;
 
@@ -189,6 +191,7 @@ final class PlaybackSession {
     this.audioQueue = new ArrayBlockingQueue<>(AUDIO_QUEUE_CAPACITY);
     this.imagePool = new ImagePool(IMAGE_POOL_CAPACITY);
     this.frameCopier = new VideoFrameCopier(this.imagePool, dimensionCallback);
+    this.resampler = new SpeedResampler();
     this.running = new AtomicBoolean(true);
     this.threads = new ArrayList<>();
     this.positionMicros = startMicros;
@@ -629,7 +632,7 @@ final class PlaybackSession {
     if (empty) {
       return;
     }
-    final ByteBuffer samples = chunk.getSamples();
+    final ByteBuffer samples = this.resampler.resample(chunk.getSamples(), this.clock.getSpeed());
     this.runAudioPipeline(step, samples);
   }
 
@@ -671,6 +674,15 @@ final class PlaybackSession {
         throw new InterruptedException("Interrupted while waiting for media to be due");
       }
     }
+  }
+
+  /**
+   * Plays faster or slower from now on.
+   *
+   * @param speed the media time that passes per unit of wall time, positive
+   */
+  void setSpeed(final double speed) {
+    this.clock.setSpeed(speed);
   }
 
   /**

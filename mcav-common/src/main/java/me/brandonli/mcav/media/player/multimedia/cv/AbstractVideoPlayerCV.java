@@ -59,6 +59,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
 
+  /** The slowest speed media plays at: half as fast. */
+  public static final double MIN_SPEED = 0.5;
+
+  /** The fastest speed media plays at: twice as fast, which the decoder must keep up with. */
+  public static final double MAX_SPEED = 2.0;
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final long MICROS_PER_MILLI = 1_000L;
   private static final String NETWORK_TIMEOUT_MICROS = "15000000";
@@ -71,6 +77,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   private volatile BiConsumer<String, Throwable> exceptionHandler;
   private volatile long maxVideoLagNanos;
   private volatile @Nullable PlaybackSession session;
+  private volatile double speed;
   private @Nullable Source videoSource;
   private @Nullable Source audioSource;
   private boolean released;
@@ -87,6 +94,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
     this.lock = new ReentrantLock();
     this.exceptionHandler = defaultHandler.getExceptionHandler();
     this.maxVideoLagNanos = PlaybackSession.MAX_VIDEO_LAG_NANOS;
+    this.speed = PlaybackClock.NORMAL_SPEED;
   }
 
   /**
@@ -196,7 +204,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
       if (previous != null) {
         previous.stop();
       }
-      started = this.publishSession(created, video, audio);
+      started = this.publishSession(created, video, audio, expected != null);
       return started;
     } finally {
       this.finishStart(created, started);
@@ -237,13 +245,20 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
     }
   }
 
-  /** Release can cancel an acquisition or replacement; its owner then closes the prepared candidate. */
-  private boolean publishSession(final PlaybackSession created, final Source video, final @Nullable Source audio) {
+  /**
+   * Release can cancel an acquisition or replacement; its owner then closes the prepared candidate. A seek keeps the
+   * speed of the media it seeks in, and new media plays at normal speed.
+   */
+  private boolean publishSession(final PlaybackSession created, final Source video, final @Nullable Source audio, final boolean seek) {
     this.lock.lock();
     try {
       if (this.released) {
         return false;
       }
+      if (!seek) {
+        this.speed = PlaybackClock.NORMAL_SPEED;
+      }
+      created.setSpeed(this.speed);
       created.startThreads();
       this.videoSource = video;
       this.audioSource = audio;
@@ -411,6 +426,46 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
     }
     final long positionMicros = Math.min(time, Long.MAX_VALUE / MICROS_PER_MILLI) * MICROS_PER_MILLI;
     return this.startSources(video, audio, positionMicros, paused, current);
+  }
+
+  /**
+   * Plays the media faster or slower, with its sound resampled to match, so faster sound is higher. Only media of a
+   * known length changes speed: a live stream or a camera cannot be played ahead of itself, and played slower it
+   * would fall ever further behind. Seeking keeps the speed; new media starts at normal speed.
+   *
+   * @param speed from {@link #MIN_SPEED} to {@link #MAX_SPEED}, 1 for normal speed
+   * @return true if the speed changed, false if nothing is playing or the media is live
+   * @throws IllegalArgumentException if the speed is outside that range or not a number
+   */
+  public boolean setSpeed(final double speed) {
+    Preconditions.checkArgument(
+      speed >= MIN_SPEED && speed <= MAX_SPEED,
+      "Speed must be between %s and %s: %s",
+      MIN_SPEED,
+      MAX_SPEED,
+      speed
+    );
+    this.lock.lock();
+    try {
+      final PlaybackSession current = this.session;
+      if (current == null || !current.isSeekable()) {
+        return false;
+      }
+      this.speed = speed;
+      current.setSpeed(speed);
+      return true;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Gets the speed the media plays at.
+   *
+   * @return the media time that passes per unit of wall time, 1 for normal speed
+   */
+  public double getSpeed() {
+    return this.speed;
   }
 
   /**

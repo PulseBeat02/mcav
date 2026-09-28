@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -145,6 +146,45 @@ final class PlaybackClockTest {
     now.set(8_000_000_000L);
     final long reanchored = clock.dueAt(4_000_000L);
     assertEquals(8_000_000_000L, reanchored);
+  }
+
+  @Test
+  void playsFasterAndSlowerFromTheMediaDueNow() {
+    final AtomicLong now = new AtomicLong(1_000_000_000L);
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    assertEquals(PlaybackClock.NORMAL_SPEED, clock.getSpeed());
+    // before the clock is anchored a speed only applies
+    clock.setSpeed(2);
+    assertEquals(2, clock.getSpeed());
+    assertEquals(1_000_000_000L, clock.dueAt(0L));
+    // a second of media is due half a second later
+    assertEquals(1_500_000_000L, clock.dueAt(1_000_000L));
+    // a quarter of a second on, half a second of media has passed, which stays due now at the new speed
+    now.set(1_250_000_000L);
+    clock.setSpeed(0.5);
+    assertEquals(1_250_000_000L, clock.dueAt(500_000L));
+    assertEquals(1_450_000_000L, clock.dueAt(600_000L));
+    assertThrows(IllegalArgumentException.class, () -> clock.setSpeed(0));
+    assertThrows(IllegalArgumentException.class, () -> clock.setSpeed(-1));
+    assertThrows(IllegalArgumentException.class, () -> clock.setSpeed(Double.NaN));
+    assertThrows(IllegalArgumentException.class, () -> clock.setSpeed(Double.POSITIVE_INFINITY));
+    assertEquals(0.5, clock.getSpeed());
+  }
+
+  @Test
+  void changesSpeedWhilePausedFromWhereThePauseBegan() {
+    final AtomicLong now = new AtomicLong(0L);
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    clock.dueAt(0L);
+    now.set(400_000_000L);
+    clock.pause();
+    now.set(900_000_000L);
+    clock.setSpeed(2);
+    now.set(1_000_000_000L);
+    clock.resume();
+    // 0.4 s of media had passed when the pause began, and the pause lasted 0.6 s
+    assertEquals(1_000_000_000L, clock.dueAt(400_000L));
+    assertEquals(1_100_000_000L, clock.dueAt(600_000L));
   }
 
   @Test

@@ -42,7 +42,9 @@ import java.util.function.Supplier;
 import me.brandonli.mcav.media.Polling;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
+import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.file.FileSource;
@@ -76,6 +78,18 @@ final class ScriptedPlayerTest {
     }
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
     grabber.setLength(10_000_000L);
+    return grabber;
+  }
+
+  /** Half a minute of sound in chunks of 10 ms: 480 frames, 1,920 bytes each. */
+  private static ScriptedFrameGrabber sound() {
+    final List<Object> script = new ArrayList<>();
+    for (int index = 0; index < 3_000; index++) {
+      final Object chunk = ScriptedFrameGrabber.audio(index * 10_000L);
+      script.add(chunk);
+    }
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
+    grabber.setLength(30_000_000L);
     return grabber;
   }
 
@@ -298,6 +312,60 @@ final class ScriptedPlayerTest {
       assertFalse(seeked, "live streams and cameras cannot be seeked");
       assertTrue(playing, "the playback goes on");
       assertEquals(1, openCount, "the source is not opened again");
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void playsFasterWithItsSoundResampledAndKeepsTheSpeedWhenSeeking() throws Exception {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::sound);
+    final List<Integer> chunks = new CopyOnWriteArrayList<>();
+    final AudioFilter sizes = (samples, _) -> chunks.add(samples.remaining());
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of(sizes));
+    try {
+      final boolean idle = player.setSpeed(2);
+      player.start(VIDEO);
+      await("sound at normal speed", () -> chunks.contains(1_920));
+      final boolean faster = player.setSpeed(2);
+      chunks.clear();
+      await("sound twice as fast", () -> chunks.contains(960));
+      final boolean seeked = player.seek(5_000L);
+      final ScriptedFrameGrabber latest = player.getLatestGrabber();
+      await("the decoder seeked", () -> latest.getRequestedTimestamp() == 5_000_000L);
+      chunks.clear();
+      await("sound after the seek", () -> !chunks.isEmpty());
+      final double afterSeek = player.getSpeed();
+      final boolean allFaster = chunks.stream().allMatch(size -> size == 960);
+      player.start(VIDEO);
+      final double newMedia = player.getSpeed();
+      assertFalse(idle, "nothing plays yet");
+      assertTrue(faster);
+      assertTrue(seeked);
+      assertEquals(2, afterSeek, "a seek keeps the speed");
+      assertTrue(allFaster, "and the new session plays at it: " + chunks);
+      assertEquals(1, newMedia, "new media plays at normal speed");
+      assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCV.MIN_SPEED - 0.01));
+      assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCV.MAX_SPEED + 0.01));
+      assertThrows(IllegalArgumentException.class, () -> player.setSpeed(Double.NaN));
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void refusesToChangeTheSpeedOfMediaWithoutALength() {
+    final Supplier<ScriptedFrameGrabber> live = () -> {
+      final ScriptedFrameGrabber grabber = endlessVideo();
+      grabber.setLength(0L);
+      return grabber;
+    };
+    final ScriptedPlayer player = new ScriptedPlayer(live);
+    try {
+      player.start(VIDEO);
+      final boolean changed = player.setSpeed(AbstractVideoPlayerCV.MAX_SPEED);
+      assertFalse(changed, "a live stream cannot be played ahead of itself");
+      assertEquals(1, player.getSpeed());
     } finally {
       player.release();
     }
