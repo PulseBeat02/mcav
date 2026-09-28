@@ -86,7 +86,10 @@ checkerFramework {
     excludeTests = true
     // javac keeps only the last value of a repeated -A option, so every stub folder goes into one option
     val stubFolders = listOf(project.file("checker-framework"), rootProject.file("checker-framework")).filter { it.isDirectory }
-    extraJavacArgs = if (stubFolders.isEmpty()) emptyList() else listOf("-Astubs=" + stubFolders.joinToString(File.pathSeparator))
+    val stubs = if (stubFolders.isEmpty()) emptyList() else listOf("-Astubs=" + stubFolders.joinToString(File.pathSeparator))
+    // the checker warns when a class takes 45 seconds of wall-clock time, which -Werror turns into a failed build on a
+    // loaded two-core VM although the same class takes under a second here; ten minutes still flags a real blow-up
+    extraJavacArgs = stubs + "-AslowTypecheckingSeconds=600"
 }
 
 tasks.withType<Test>().configureEach {
