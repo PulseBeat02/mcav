@@ -14,7 +14,7 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
 - **Normative bitstream:** the Python reference decoder of gpu-codec at commit
   `85445433aeb9f8a35a5ce528d47d8829976d1401` (`mcvideo/format.py`, `v2.py`, `compact.py`, `pattern.py`,
   `decoder.py`, `pixels.py`), not `FORMAT.md`, which predates every kept frontier round. The complete syntax as
-  implemented is written down in [mcv2-format.md](mcv2-format.md).
+  implemented is written down in [mcv2/format.md](mcv2/format.md).
 - **Kept rounds** (EXPERIMENTS.md): 1 immediate motion (mode 20), 4 derived root directory (flag 16), 7 derived
   offsets (flag 32), 8 matched cost model (encoder), 9 packed symbols (flag 64), 10 two-level walk (flag 128), 12 motion
   range 24 (encoder), 13 pattern RDO (encoder), 16 endpoint table (flag 512), 17 selector tables (flags 1024, 2048,
@@ -24,7 +24,7 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
   and 22 of round 3, and the motion table flag 256 with indexed motion mode 23 of round 15. These are the only inputs
   on which the Java decoder and the reference knowingly disagree: the reference decodes MCV1, modes 21/22, and flag 256
   with mode 23 on derived-offset frames, and ignores flag 256 on stored-index frames (table in
-  [mcv2-format.md](mcv2-format.md), section 1).
+  [mcv2/format.md](mcv2/format.md), section 1).
 - **Profiles shipped** (owner addendum 2, rule: newest round with 1080p30 points, cheapest `wire_mbps` at VMAF mean
   >= 75, and its >= 70 alternative from the same round, in `results/frontier_1080p30.json`):
 
@@ -801,9 +801,7 @@ built at, which its UUID would hash). The Linux libraries import nothing (no `DT
 ask nothing of the C library - glibc or musl alike - and have no executable stack; every library is stripped and uses
 no C++ runtime. Warnings are errors (`-Wall -Wextra -Werror`).
 
-## Handover notes
+## Handover
 
-- The conformance fixtures are in `mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/conformance`; the
-  scripts that produced their digests with the reference decoder are in `tools/mcv2/` and take the gpu-codec checkout
-  as an argument.
-- `mcav-overhaul-handover.md` is not edited by this work (mcav-features deletes it); notes belong here.
+The maintainer handover for MCV2 is [mcv2/HANDOVER.md](mcv2/HANDOVER.md); the conformance fixtures and how to
+regenerate them without the research repository are in [mcv2/conformance.md](mcv2/conformance.md).

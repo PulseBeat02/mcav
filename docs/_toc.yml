@@ -46,5 +46,5 @@ parts:
   - caption: MCV2 Video Codec 🎞️
     chapters:
       - file: mcv2-integration.md
-      - file: mcv2-format.md
+      - file: mcv2/format.md
       - file: mcv2-testing.md

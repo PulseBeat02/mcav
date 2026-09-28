@@ -2,14 +2,15 @@
 
 The complete syntax of an MCV2 frame and of the map pages that carry it, as mcav's Java implementation parses and
 writes it. Why the codec is built this way, and the evidence for it, is in the design doc,
-[mcv2-integration.md](mcv2-integration.md).
+[mcv2-integration.md](../mcv2-integration.md).
 
 ## 1. Scope and status
 
 - **Normative source:** the Python reference decoder of gpu-codec at commit
   `85445433aeb9f8a35a5ce528d47d8829976d1401`: `mcvideo/format.py`, `v2.py`, `compact.py`, `pattern.py`, `decoder.py`,
-  `pixels.py` and `transport.py`, with `codebooks.py` for the residual books. That repository's `FORMAT.md` predates
-  every kept frontier round and is not a source.
+  `pixels.py` and `transport.py`, with `codebooks.py` for the residual books. mcav keeps these files byte for byte in
+  `tools/mcv2-reference/mcvideo` ([conformance.md](conformance.md)). That repository's `FORMAT.md` predates every kept
+  frontier round and is not a source.
 - **What is described:** mcav's implementation in `mcav-bukkit`, package `me.brandonli.mcav.bukkit.media.mcv2`. Each rule
   names the Java method that enforces it and the reference function it mirrors. `FrameParser.parse` is written to
   accept exactly the frames the reference's `v2.parse_frame` accepts (reached through `format.parse_frame`), apart
