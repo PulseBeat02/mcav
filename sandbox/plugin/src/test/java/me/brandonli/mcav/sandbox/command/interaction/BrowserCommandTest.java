@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +80,9 @@ import org.mockito.Mockito;
  */
 final class BrowserCommandTest {
 
+  /** How long a test waits for a player stopped in the background. */
+  private static final long RELEASE_MILLIS = 5000;
+
   private BrowserCommand command;
   private MCAVSandbox plugin;
   private AudioProvider provider;
@@ -115,6 +119,7 @@ final class BrowserCommandTest {
     this.browser = mock(BrowserPlayer.class);
     this.callback = mock(VideoAttachableCallback.class);
     when(this.browser.getVideoAttachableCallback()).thenReturn(this.callback);
+    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     this.browsers = Mockito.mockStatic(BrowserPlayer.class);
     this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenReturn(this.browser);
     this.ditherFilter = mock(FunctionalVideoFilter.class);
@@ -222,9 +227,21 @@ final class BrowserCommandTest {
     // a disabling plugin hands out its provider no more, and the browser fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
-    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseBrowser(this.sender));
-    assertEquals("release broke", failure.getMessage());
+    // the browser stops in the background, where its failure is logged; its sound and frames stop at once
+    this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
+    verify(this.callback).detach();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+  }
+
+  @Test
+  void aBrowserThatFailsToStopWhileTheCommandShutsDownFailsTheShutdown() {
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+    this.create("1280x720", "5x3", "https://example.com/page");
+    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    // the plugin disables: the browser stops before the command is shut down
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
+    assertEquals("release broke", failure.getMessage());
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -273,7 +290,7 @@ final class BrowserCommandTest {
 
     this.create("1280x720", "5x3", "https://example.com/page");
 
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
     final Component failed = Message.BROWSER_ERROR.build();
@@ -401,7 +418,7 @@ final class BrowserCommandTest {
       this.create("1280x720", "5x3", "https://example.com")
     );
     assertSame(failure, thrown);
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
     this.assertCreatedScreenReleased();
   }
 
@@ -413,7 +430,7 @@ final class BrowserCommandTest {
       this.create("1280x720", "5x3", "https://example.com")
     );
     assertSame(failure, thrown);
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
     this.assertCreatedScreenReleased();
   }
 
@@ -446,12 +463,12 @@ final class BrowserCommandTest {
 
     this.command.releaseBrowser(this.sender);
 
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
     assertNull(this.command.player);
     final Component released = Message.RELEASE_BROWSER.build();
     this.assertReceived(released);
     this.command.releaseBrowser(this.sender);
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
   }
 
   @Test
@@ -490,7 +507,7 @@ final class BrowserCommandTest {
 
     this.create("1280x720", "5x3", "https://example.com/page");
 
-    verify(this.browser).release();
+    verify(this.browser, timeout(RELEASE_MILLIS)).release();
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }

@@ -351,10 +351,28 @@ final class VideoMapCommandTest {
   }
 
   @Test
-  void anMcv2VideoWithAnInvalidResolutionOrWithoutAWallDoesNotStart() {
+  void anMcv2VideoWithAnInvalidResolutionDoesNotStart() {
     this.playWithCodec("wide", MapCodec.MCV2);
-    this.playWithCodec("640x384", MapCodec.MCV2);
-    verify(this.support).configure(any(), any(), any(), eq(20), any(), any());
+    verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString());
+  }
+
+  @Test
+  void anMcv2VideoWithoutAWallIsDithered() {
+    this.playWithCodec("640x384", MapCodec.MCV2);
+    final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractVideoCommand.VideoConfigurationProvider.class
+    );
+    verify(this.command).playVideo(
+      providers.capture(),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq("640x384"),
+      eq("clip.mp4"),
+      eq("")
+    );
+    assertInstanceOf(MapDisplaySettings.class, providers.getValue().buildConfiguration(Pair.pair(640, 384)));
   }
 }

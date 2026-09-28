@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
@@ -394,6 +395,37 @@ final class AbstractInteractiveCommandTest {
     assertNull(this.command.result);
     final boolean stopped = this.command.service.isShutdown();
     assertTrue(stopped);
+  }
+
+  @Test
+  void stopsAPlayerInTheBackgroundUntilItShutsDown() throws InterruptedException {
+    final Thread caller = Thread.currentThread();
+    final CountDownLatch stopped = new CountDownLatch(1);
+    final AtomicReference<Thread> where = new AtomicReference<>();
+    this.command.releaseInTheBackground(() -> {
+      where.set(Thread.currentThread());
+      stopped.countDown();
+    });
+    assertTrue(stopped.await(5, TimeUnit.SECONDS));
+    assertNotSame(caller, where.get(), "the calling thread, often the main thread, does not wait");
+    // a failure in the background reaches the log, not the caller
+    this.command.releaseInTheBackground(() -> {
+      throw new IllegalStateException("release broke");
+    });
+    this.command.shutdown();
+    final AtomicReference<Thread> atShutdown = new AtomicReference<>();
+    this.command.releaseInTheBackground(() -> atShutdown.set(Thread.currentThread()));
+    assertSame(caller, atShutdown.get(), "a command that shuts down stops its player before it is gone");
+  }
+
+  @Test
+  void stopsAPlayerAtOnceWhenItsThreadTakesNoMoreWork() {
+    final ExecutorService stoppedWorker = Executors.newSingleThreadExecutor();
+    stoppedWorker.shutdown();
+    final RecordingCommand command = new RecordingCommand(this.plugin, stoppedWorker);
+    final AtomicReference<Thread> where = new AtomicReference<>();
+    command.releaseInTheBackground(() -> where.set(Thread.currentThread()));
+    assertSame(Thread.currentThread(), where.get());
   }
 
   @Test

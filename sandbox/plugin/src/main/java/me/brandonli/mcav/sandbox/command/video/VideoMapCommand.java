@@ -63,8 +63,9 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <ditheringAlgorithm> <flags> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the highest
-   * quality way to show a video in the world. With {@code --codec mcv2}, or without the flag when
+   * <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
+   * highest quality way to show a video in the world. The yt-dlp options are named so, not {@code flags} as in the
+   * other video commands, because Cloud names the component of the command's flags so. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
    * players whose client loads the MCV2 resource pack, and dithered for everyone else, like {@code /mcav video mcv2}
    * with the {@code live} profile.
@@ -91,7 +92,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code FILTER_LITE} is recommended, and
    *                           {@code FLOYD_STEINBERG_TEMPORAL} flickers least, see {@link DitheringArgument}
-   * @param flags              extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytDlpOptions       extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                           {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl                the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                           URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -100,7 +101,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           absent
    */
   @Command(
-    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <flags> <mrl>"
+    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
@@ -113,7 +114,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String flags,
+    @Quoted final String ytDlpOptions,
     @Quoted final String mrl,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
@@ -127,7 +128,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
-    final VideoConfigurationProvider configurationProvider;
+    VideoConfigurationProvider configurationProvider = resolution -> createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     if (chosen == MapCodec.MCV2) {
       final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
       if (resolution == null) {
@@ -135,14 +136,12 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       }
       final Mcv2Support support = this.plugin.getMcv2Support();
       final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, EncoderSettings.LIVE, players);
-      if (configuration == null) {
-        return;
+      // a wall no frame holds, which the sender was told, is dithered
+      if (configuration != null) {
+        configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
-      configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
-    } else {
-      configurationProvider = resolution -> createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     }
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, flags);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions);
   }
 
   private static MapDisplaySettings createSettings(

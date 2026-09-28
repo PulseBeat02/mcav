@@ -139,7 +139,13 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
     Preconditions.checkNotNull(current, "Browser must not be null");
-    CleanupUtils.runAll(current::release, () -> this.releaseSound(current));
+    // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
+    CleanupUtils.runAll(
+      () -> current.getVideoAttachableCallback().detach(),
+      () -> current.getAudioAttachableCallback().detach(),
+      () -> this.releaseSound(current),
+      () -> this.releaseInTheBackground(current::release)
+    );
   }
 
   /**

@@ -35,6 +35,8 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.incendo.cloud.annotation.specifier.FlagYielding;
+import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotation.specifier.Quoted;
 import org.incendo.cloud.annotation.specifier.Range;
 import org.incendo.cloud.annotations.Argument;
@@ -189,7 +191,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text sharp, see
    *                           {@link DitheringArgument}
    * @param server             the VNC server as {@code host:port}, or {@code [address]:port} for an IPv6 address, as
-   *                           listed in {@code vnc.allowed-hosts}
+   *                           listed in {@code vnc.allowed-hosts}; the rest of the line up to a flag, since a quoted
+   *                           argument would refuse the colon unquoted
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
    */
@@ -204,7 +207,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VNCPlayer> {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String server,
+    @Greedy @FlagYielding final String server,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null");

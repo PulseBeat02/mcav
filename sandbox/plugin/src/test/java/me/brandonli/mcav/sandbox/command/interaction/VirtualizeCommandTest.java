@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,6 +89,9 @@ import org.mockito.Mockito;
  */
 final class VirtualizeCommandTest {
 
+  /** How long a test waits for a player stopped in the background. */
+  private static final long RELEASE_MILLIS = 5000;
+
   private MCAVSandbox plugin;
   private VirtualizeCommand command;
   private CommandSender sender;
@@ -129,6 +133,7 @@ final class VirtualizeCommandTest {
     this.machine = mock(VMPlayer.class);
     this.callback = mock(VideoAttachableCallback.class);
     when(this.machine.getVideoAttachableCallback()).thenReturn(this.callback);
+    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     this.machines = Mockito.mockStatic(VMPlayer.class);
     this.machines.when(VMPlayer::create).thenReturn(this.machine);
     this.ditherFilter = mock(FunctionalVideoFilter.class);
@@ -168,7 +173,7 @@ final class VirtualizeCommandTest {
     );
     final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () -> this.create("640x480", "5x4", ""));
     assertSame(failure, thrown);
-    verify(this.machine).release();
+    verify(this.machine, timeout(RELEASE_MILLIS)).release();
     assertEquals(1, this.maps.constructed().size());
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
@@ -290,7 +295,7 @@ final class VirtualizeCommandTest {
 
     this.create("640x480", "5x4", "");
 
-    verify(this.machine).release();
+    verify(this.machine, timeout(RELEASE_MILLIS)).release();
     assertNull(this.command.player);
     final Component loading = Message.VM_LOADING.build();
     final Component path = Message.VM_PATH.build();
@@ -406,9 +411,11 @@ final class VirtualizeCommandTest {
     // a disabling plugin hands out its provider no more, and QEMU fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
-    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> this.command.releaseVM(this.sender));
-    assertEquals("release broke", failure.getMessage());
+    // QEMU stops in the background, where its failure is logged; its sound and frames stop at once
+    this.command.releaseVM(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
+    verify(this.callback).detach();
+    verify(this.machine, timeout(RELEASE_MILLIS)).release();
   }
 
   @Test
@@ -418,7 +425,7 @@ final class VirtualizeCommandTest {
     this.command.releaseVM(this.sender);
     this.command.releaseVM(this.sender);
 
-    verify(this.machine).release();
+    verify(this.machine, timeout(RELEASE_MILLIS)).release();
     final Component released = Message.VM_RELEASE.build();
     this.assertReceived(released, released);
   }
@@ -851,7 +858,7 @@ final class VirtualizeCommandTest {
 
     this.create("640x480", "5x4", "");
 
-    verify(this.machine).release();
+    verify(this.machine, timeout(RELEASE_MILLIS)).release();
     assertNull(this.command.player);
     final Component loading = Message.VM_LOADING.build();
     final Component failed = Message.VM_ERROR.build();

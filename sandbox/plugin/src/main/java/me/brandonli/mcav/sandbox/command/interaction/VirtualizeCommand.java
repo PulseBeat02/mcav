@@ -178,7 +178,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   @Override
   protected void releasePlayer(final VMPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    CleanupUtils.runAll(current::release, () -> this.releaseSound(current));
+    // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
+    CleanupUtils.runAll(
+      () -> current.getVideoAttachableCallback().detach(),
+      () -> current.getAudioAttachableCallback().detach(),
+      () -> this.releaseSound(current),
+      () -> this.releaseInTheBackground(current::release)
+    );
   }
 
   /**

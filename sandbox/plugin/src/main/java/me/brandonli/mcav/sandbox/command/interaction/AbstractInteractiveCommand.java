@@ -29,6 +29,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
@@ -113,6 +114,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final int REACH = 100;
+  private static final String CANNOT_RELEASE = "A player failed to stop";
 
   /**
    * The plugin.
@@ -230,6 +232,39 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
         }
       }
     );
+  }
+
+  /**
+   * Stops a player on the thread that starts players, so the main thread never waits for a browser or a virtual machine
+   * to stop, which takes up to ten seconds and more on a busy server; while the command shuts down, or once that thread
+   * takes no more work, at once. Detach the player's pipelines first: its maps are released right after this returns.
+   *
+   * @param release stops the player
+   */
+  final void releaseInTheBackground(final Runnable release) {
+    final boolean closing;
+    synchronized (this.lock) {
+      closing = this.closed;
+    }
+    if (!closing) {
+      try {
+        this.service.execute(() -> releaseLogged(release));
+        return;
+      } catch (final RejectedExecutionException stopped) {
+        // the thread takes no more work, so the player stops here
+      }
+    }
+    release.run();
+  }
+
+  /** Stops a player in the background, where nobody waits for a failure but the log. */
+  private static void releaseLogged(final Runnable release) {
+    try {
+      release.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      LOGGER.error(CANNOT_RELEASE, exception);
+    }
   }
 
   /**
