@@ -15,8 +15,9 @@ hands the driver.
 For every frame, the reference's make_pages splits the frame into pages, each page is written into a simulated main
 target exactly as the core text shader writes it (four symbols to three bytes, slot by slot from the top of the
 screen), and the pack's post chain runs pass for pass as its entity_outline.json lists them, with the target sizes
-the pack builder fills in: mcav's passes with their own shaders, Minecraft's blit as a texel copy, and Minecraft's
-own outline passes, which only touch the outline target, left out. The persistent targets carry over to the next
+the pack builder fills in: mcav's passes with their own shaders (the pack's copies among them: Minecraft 26.3's blit is
+not an exact copy of a video-sized target), Minecraft's blit as a texel copy, and Minecraft's own outline passes, which
+only touch the outline target, left out. The persistent targets carry over to the next
 frame, as they do in the client. The picture the chain keeps must equal the reference
 decoder's picture byte for byte. --drop K leaves out every K-th frame from the client's view, to check that the chain
 waits for the next frame it can decode instead of decoding against the wrong reference.

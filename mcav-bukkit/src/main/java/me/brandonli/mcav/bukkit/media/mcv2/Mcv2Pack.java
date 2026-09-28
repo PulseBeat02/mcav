@@ -77,6 +77,7 @@ public final class Mcv2Pack {
     "assets/mcav/shaders/post/mcv2_decode.fsh",
     "assets/mcav/shaders/post/mcv2_keyframe.fsh",
     "assets/mcav/shaders/post/mcv2_state.fsh",
+    "assets/mcav/shaders/post/mcv2_copy.fsh",
     "assets/mcav/shaders/post/mcv2_view.fsh",
     "assets/mcav/shaders/post/mcv2_screen.vsh",
     "assets/mcav/shaders/post/mcv2_screen.fsh",

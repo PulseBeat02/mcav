@@ -3,7 +3,7 @@
 This is how to watch MCV2 on a real Minecraft client and GPU, and what to compare with the numbers measured on the
 devbox. Everything the devbox could check is listed at the end, with what only your client can show.
 
-You need a vanilla Minecraft **26.2** client (any GPU with OpenGL 3.3; no mods) and the sandbox server of this branch.
+You need a vanilla Minecraft **26.3** client (any GPU with OpenGL 3.3; no mods) and the sandbox server of this branch.
 
 ## 1. Server
 
@@ -113,8 +113,9 @@ Verified on the devbox:
 - the Java decoder bit-exact with the reference on the conformance corpus, edge streams and 24,864 generated frames;
   the encoder byte-identical to the reference on both shipped profiles;
 - the resource pack's decode chain bit-exact with the reference on the Intel UHD 630 (EGL) and on Mesa llvmpipe, pass
-  for pass outside Minecraft, and **in the real 26.2 client** on llvmpipe: 300 of 300 captured frames of a ship stream
-  identical to the reference decode, byte for byte;
+  for pass outside Minecraft, **in the real 26.2 client** on llvmpipe (300 of 300 captured frames of a ship stream
+  identical to the reference decode, byte for byte) and, after the port to 26.3's shader compiler, **in the real 26.3
+  client** (564 of 564 captures of four streams, the design doc's §5.2);
 - screen placement in several camera views, ordinary maps unaffected, the dithered fallback for a declined pack;
 - transport at 60 frames a second off the server tick, per-viewer backpressure over simulated distant links, the
   server's tick with live screens encoding.

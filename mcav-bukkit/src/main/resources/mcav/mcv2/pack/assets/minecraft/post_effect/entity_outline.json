@@ -156,27 +156,13 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "mcav:post/mcv2_copy",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "mcav:mcv2_next"
         }
       ],
-      "uniforms": {
-        "BlitConfig": [
-          {
-            "name": "ColorModulate",
-            "type": "vec4",
-            "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ]
-          }
-        ]
-      },
       "output": "mcav:mcv2_previous"
     },
     {
@@ -200,27 +186,13 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "mcav:post/mcv2_copy",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "mcav:mcv2_key_next"
         }
       ],
-      "uniforms": {
-        "BlitConfig": [
-          {
-            "name": "ColorModulate",
-            "type": "vec4",
-            "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ]
-          }
-        ]
-      },
       "output": "mcav:mcv2_key"
     },
     {
@@ -240,27 +212,13 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "mcav:post/mcv2_copy",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "mcav:mcv2_state_next"
         }
       ],
-      "uniforms": {
-        "BlitConfig": [
-          {
-            "name": "ColorModulate",
-            "type": "vec4",
-            "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ]
-          }
-        ]
-      },
       "output": "mcav:mcv2_state"
     },
     {
@@ -316,27 +274,13 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "mcav:post/mcv2_copy",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "mcav:mcv2_screen"
         }
       ],
-      "uniforms": {
-        "BlitConfig": [
-          {
-            "name": "ColorModulate",
-            "type": "vec4",
-            "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ]
-          }
-        ]
-      },
       "output": "minecraft:main"
     },
     {
@@ -352,27 +296,13 @@
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "mcav:post/mcv2_copy",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "mcav:mcv2_outline"
         }
       ],
-      "uniforms": {
-        "BlitConfig": [
-          {
-            "name": "ColorModulate",
-            "type": "vec4",
-            "value": [
-              1.0,
-              1.0,
-              1.0,
-              1.0
-            ]
-          }
-        ]
-      },
       "output": "minecraft:entity_outline"
     },
     {

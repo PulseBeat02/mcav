@@ -93,10 +93,11 @@ final class Mcv2PackTest {
       "assets/mcav/shaders/post/mcv2_view.fsh",
       "assets/mcav/shaders/post/mcv2_screen.vsh",
       "assets/mcav/shaders/post/mcv2_screen.fsh",
+      "assets/mcav/shaders/post/mcv2_copy.fsh",
     }) {
       assertTrue(entries.containsKey(name), name);
     }
-    assertEquals(25, entries.size());
+    assertEquals(26, entries.size());
     final JsonObject meta = JsonParser.parseString(entries.get("pack.mcmeta")).getAsJsonObject().getAsJsonObject("pack");
     assertEquals(Mcv2Pack.PACK_FORMAT, meta.get("pack_format").getAsInt());
     assertEquals("mcav MCV2 decoder, 320x180 video, stream 9", meta.get("description").getAsString());

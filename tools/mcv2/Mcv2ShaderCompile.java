@@ -18,6 +18,7 @@
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.util.shaderc.Shaderc.*;
+import static org.lwjgl.util.spvc.Spv.SpvDecorationLocation;
 import static org.lwjgl.util.spvc.Spvc.*;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
@@ -35,14 +37,19 @@ import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.util.shaderc.ShadercIncludeResolve;
 import org.lwjgl.util.shaderc.ShadercIncludeResult;
 import org.lwjgl.util.shaderc.ShadercIncludeResultRelease;
+import org.lwjgl.util.spvc.SpvcReflectedResource;
 
 /**
  * Compiles the MCV2 resource pack's shaders the way Minecraft 26.3's OpenGL backend does, so a pack change can be
  * checked without starting the game: GLSL through shaderc into SPIR-V for Vulkan 1.2 (uniforms bound automatically,
  * {@code #include <namespace:path>} read from {@code assets/<namespace>/shaders/include/<path>}, the renderer's
- * macros defined), then SPIR-V through SPIRV-Cross back into GLSL 330 with the options the game sets. Every stage of
- * every pipeline the pack takes part in is compiled: the text shaders with each define set the game uses for text,
- * and the post passes of {@code entity_outline.json}.
+ * macros defined), then SPIR-V through SPIRV-Cross back into GLSL 330 with the options and interface names the game
+ * uses outside its shader debug mode. Every stage of every pipeline the pack takes part in is compiled: the text
+ * shaders with each define set the game uses for text, and the post passes of {@code entity_outline.json}.
+ *
+ * <p>One difference is left in on purpose: the game renames every sampler and uniform block after its descriptor set
+ * and binding ({@code _uniform_00_03}); here they keep their GLSL names, so shader_check.py can bind its textures by
+ * name. A name is all that differs.
  *
  * <p>Run with a JDK, the LWJGL 3.4.3 jars the 26.3 client uses (lwjgl, lwjgl-shaderc, lwjgl-spvc and their
  * natives) on the class path:
@@ -56,15 +63,19 @@ public final class Mcv2ShaderCompile {
 
   private static final int VULKAN_1_2 = (1 << 22) | (2 << 12);
 
-  // the macros GlslCompiler defines for every shader on a device with a zero-to-one depth range
-  private static final Map<String, String> RENDERER_MACROS = Map.of("RENDERPEARL_DEPTH_IS_ZERO_TO_ONE", "1");
+  // the macros GlslCompiler defines for every shader on a device with a zero-to-one depth range; it also defines
+  // RENDERPEARL_INSTANCE_INDEX_INCLUDES_BASE_INSTANCE on devices with shader draw parameters, which no shader reads
+  private static final Map<String, String> RENDERER_MACROS = Map.of("RENDERPEARL_DEPTH_IS_ZERO_TO_ONE", "");
+
+  // what GlslCompiler defines on drivers that need depth invariance spelled out; only the transparency includes read it
+  private static final String EXPLICIT_DEPTH_INVARIANCE = "RENDERPEARL_EXPLICIT_DEPTH_INVARIANCE";
 
   // RenderPipelines' OIT snippet: a wavelet of rank 2, LevelRenderer.OIT_COEFFICIENT_COUNT = 2^3 coefficients, a
   // quarter of them per transmittance target
-  private static final Map<String, String> OIT = Map.of("OIT", "1", "OIT_WAVELET_RANK", "2", "OIT_COEFF_COUNT", "8", "OIT_COEFF_ATTACHMENT_COUNT", "2");
+  private static final Map<String, String> OIT = Map.of("OIT", "", "OIT_WAVELET_RANK", "2", "OIT_COEFF_COUNT", "8", "OIT_COEFF_ATTACHMENT_COUNT", "2");
 
   // the define sets of the text pipelines of RenderPipelines: world text, grayscale, see-through, GUI, and the three
-  // stages of improved transparency
+  // stages of improved transparency, those also as drivers that need explicit depth invariance compile them
   private static final Map<String, Map<String, String>> TEXT_VARIANTS = new LinkedHashMap<>();
 
   static {
@@ -76,12 +87,15 @@ public final class Mcv2ShaderCompile {
     TEXT_VARIANTS.put("oit_text_depth_bounds", with(OIT, "OIT_ALPHA_ONLY", "OIT_DEPTH_BOUNDS"));
     TEXT_VARIANTS.put("oit_text_transmittance", with(OIT, "OIT_ALPHA_ONLY", "OIT_TRANSMITTANCE"));
     TEXT_VARIANTS.put("oit_text_accumulate", with(OIT, "OIT_ACCUMULATE"));
+    TEXT_VARIANTS.put("oit_text_depth_bounds_invariant", with(OIT, "OIT_ALPHA_ONLY", "OIT_DEPTH_BOUNDS", EXPLICIT_DEPTH_INVARIANCE));
+    TEXT_VARIANTS.put("oit_text_transmittance_invariant", with(OIT, "OIT_ALPHA_ONLY", "OIT_TRANSMITTANCE", EXPLICIT_DEPTH_INVARIANCE));
+    TEXT_VARIANTS.put("oit_text_accumulate_invariant", with(OIT, "OIT_ACCUMULATE", EXPLICIT_DEPTH_INVARIANCE));
   }
 
   private static Map<String, String> with(final Map<String, String> base, final String... flags) {
     final Map<String, String> defines = new LinkedHashMap<>(base);
     for (final String flag : flags) {
-      defines.put(flag, "1");
+      defines.put(flag, "");
     }
     return defines;
   }
@@ -129,7 +143,8 @@ public final class Mcv2ShaderCompile {
     try (MemoryStack stack = stackPush()) {
       shaderc_compile_options_set_target_env(options, shaderc_target_env_vulkan, VULKAN_1_2);
       shaderc_compile_options_set_auto_bind_uniforms(options, true);
-      shaderc_compile_options_set_preserve_bindings(options, true);
+      shaderc_compile_options_set_preserve_bindings(options, false);
+      shaderc_compile_options_set_generate_debug_info(options);
       shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_zero);
       for (final Map.Entry<String, String> macro : RENDERER_MACROS.entrySet()) {
         shaderc_compile_options_add_macro_definition(options, macro.getKey(), macro.getValue());
@@ -152,7 +167,7 @@ public final class Mcv2ShaderCompile {
         return 1;
       }
       final ByteBuffer spirv = shaderc_result_get_bytes(result);
-      final String glsl = crossCompile(spirv);
+      final String glsl = crossCompile(spirv, kind == shaderc_vertex_shader);
       shaderc_result_release(result);
       Files.writeString(target, glsl);
       System.out.println("ok   " + target.getFileName());
@@ -189,7 +204,7 @@ public final class Mcv2ShaderCompile {
     return result.address();
   }
 
-  private static String crossCompile(final ByteBuffer spirv) {
+  private static String crossCompile(final ByteBuffer spirv, final boolean vertex) {
     try (MemoryStack stack = stackPush()) {
       final PointerBuffer pointer = stack.callocPointer(1);
       check(spvc_context_create(pointer), "context");
@@ -204,15 +219,36 @@ public final class Mcv2ShaderCompile {
         spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 330);
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, false);
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_EMIT_PUSH_CONSTANT_AS_UNIFORM_BUFFER, true);
+        // the game sets this to whether the device has shader draw parameters; no shader here reads gl_InstanceIndex
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SUPPORT_NONZERO_BASE_INSTANCE, false);
+        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_FORCE_ZERO_INITIALIZED_VARIABLES, true);
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_FLATTEN_MULTIDIMENSIONAL_ARRAYS, true);
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SEPARATE_SHADER_OBJECTS, true);
+        check(spvc_compiler_create_shader_resources(compiler, pointer), "resources");
+        final long resources = pointer.get(0);
+        // without separate shader objects the stages link by name, so the game names every stage input and output
+        // after its location
+        final int attributes = vertex ? SPVC_RESOURCE_TYPE_STAGE_INPUT : SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
+        final int varyings = vertex ? SPVC_RESOURCE_TYPE_STAGE_OUTPUT : SPVC_RESOURCE_TYPE_STAGE_INPUT;
+        renameByLocation(compiler, resources, attributes, vertex ? "_vert_input_%02d" : "_frag_output_%02d");
+        renameByLocation(compiler, resources, varyings, "_interface_variable_%02d");
         spvc_compiler_install_compiler_options(compiler, options);
         final PointerBuffer source = stack.callocPointer(1);
         check(spvc_compiler_compile(compiler, source), "compile");
         return MemoryUtil.memUTF8(source.get(0));
       } finally {
         spvc_context_destroy(context);
+      }
+    }
+  }
+
+  private static void renameByLocation(final long compiler, final long resources, final int type, final String format) {
+    try (MemoryStack stack = stackPush()) {
+      final PointerBuffer list = stack.callocPointer(1);
+      final PointerBuffer count = stack.callocPointer(1);
+      check(spvc_resources_get_resource_list_for_type(resources, type, list, count), "interface");
+      for (final SpvcReflectedResource variable : SpvcReflectedResource.create(list.get(0), (int) count.get(0))) {
+        final int location = spvc_compiler_get_decoration(compiler, variable.id(), SpvDecorationLocation);
+        spvc_compiler_set_name(compiler, variable.id(), String.format(Locale.ROOT, format, location));
       }
     }
   }

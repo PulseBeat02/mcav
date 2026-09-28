@@ -164,8 +164,8 @@ decoding would remove that gap and remain a stretch goal.
 
 ## 5. Client shader architecture (resource pack)
 
-As built in `mcav-bukkit/src/main/resources/mcav/mcv2/pack` and assembled by `Mcv2Pack` (pack format 88, Minecraft
-26.2). The pass sources are fixed; what depends on the screen is generated: the video size and page slots, the stream
+As built in `mcav-bukkit/src/main/resources/mcav/mcv2/pack` and assembled by `Mcv2Pack` (pack format 97, Minecraft
+26.3; the pack was built on 26.2 and ported, §5.2). The pass sources are fixed; what depends on the screen is generated: the video size and page slots, the stream
 id, the page frames' outline colour, the transport alphabet (the RGB of map colours 4..67 from the server's own
 `MapColor` table, which is the client's) and the residual books (from the bytes the Java decoder uses).
 
@@ -205,8 +205,8 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
 - **Trigger and outline colour.** The chain runs only while a glowing entity is drawn. The page frames hide two blocks
   behind the wall, glow on the team `mcav_mcv2`, and are shown only to viewers whose pack loaded. Their colour
   (default `DARK_PURPLE`) is removed from the outline target by the last pass, so no glow is ever visible. **Black is
-  rejected**: in 26.2 an outline colour of 0 is `EntityRenderState.NO_OUTLINE`, so the chain would never run (found
-  in-game).
+  rejected**: an outline colour of 0 is `EntityRenderState.NO_OUTLINE` (26.2 and 26.3), so the chain would never run
+  (found in-game).
 - **Debug view** (`-Dmcav.mcv2.debugView=true` on the server, baked into the pack): the decoded picture is also drawn
   one to one below the strip, and to its right one square per page slot (green: a valid page, red: none), one for
   this client frame's decision (green: decoded, blue: nothing new, red: a frame that cannot be decoded) and four grey
@@ -217,7 +217,10 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
 - **Resource reloads** drop persistent targets; the picture returns with the next keyframe (at most the key interval,
   2 s for the shipped profiles).
 - **Known limits.** Iris/Sodium shader pipelines, other packs overriding `core/text` or `entity_outline.json`, and the
-  26.2 Vulkan backend are outside what was tested; Fabulous graphics composites translucency after our pass. One
+  Vulkan backend are outside what was tested (on 26.3 with Mesa's software Vulkan the pack's shaders took over ten
+  minutes to compile, §5.2); with improved transparency (26.3's order-independent transparency, formerly Fabulous) the
+  text shaders draw into the transparency targets, where the pack discards its page and anchor fragments, so the
+  screen shows nothing new. One
   MCV2 screen per client at a time. Seen from behind the wall, the page frames show a map item for a page map the
   client has no data for yet (vanilla draws the item when a map id has no data), which is cosmetic.
 
@@ -246,6 +249,66 @@ normally beside the MCV2 screen, and a screen rebuilt by `/mcav screen` faces th
 `e16ab5d0`). A second opinion on four screenshots (agy) confirmed the seamless wall and the untouched ordinary maps;
 its two geometry objections were checked and refuted: gold blocks placed directly above the wall sit flush on the
 picture's top edge, and the picture's framing on the wall matches the debug view to one pixel.
+
+### 5.2 Minecraft 26.3 (2026-09-27)
+
+Minecraft 26.3 compiles every shader through a new backend: GLSL goes through shaderc into SPIR-V for Vulkan 1.2 and,
+on OpenGL, back into GLSL 330 through SPIRV-Cross. What that and the rest of 26.3 changed for the pack, read from both
+client jars and proven on the real 26.3 client:
+
+| | 26.2 | 26.3 | what the pack does |
+|---|---|---|---|
+| includes | `#moj_import`, a preprocessor that inserts a file once | `#include <namespace:path>` through shaderc, inserted every time it is named | `#include`; every include guarded and without `#version` (the generated ones too) |
+| stage interfaces | matched by name | matched by `layout(location)`, checked per location by the game | explicit locations everywhere: text 0-12 (vanilla uses 0-3), the decode pass 0-3, the screen pass 0-8 |
+| vertex index | `gl_VertexID` | `gl_VertexIndex` (Vulkan), turned back into `gl_VertexID` by SPIRV-Cross | `gl_VertexIndex` |
+| reserved words | | `sampler` is a type | a parameter renamed |
+| `core/text.fsh` | one variant per define set | also three improved-transparency stages (OIT) | rebased on 26.3's vanilla shaders; page and anchor fragments are discarded in the transparency stages |
+| pack format | 88 | 97 (resource 97.1) | `Mcv2Pack.PACK_FORMAT` 97 |
+| `post/blit` on the pack's video-sized persistent targets | an exact copy | loses a level of values from 64 up here and there, on every rendered frame | the pack's own copies use `mcav:post/mcv2_copy`, a `texelFetch` of the same texel; vanilla's blit stays only in vanilla's outline passes |
+
+Unchanged, checked: the map colour palette (`MapColor`'s table and brightness arithmetic), the map item packet, how the
+client uploads a map's colours into its texture, the post chain's JSON fields and vanilla's `entity_outline.json`,
+`EntityRenderState.NO_OUTLINE`, and the window origin (`glClipControl(LOWER_LEFT, ZERO_TO_ONE)`; SPIRV-Cross is not
+asked to flip Y, and its GLSL keeps `gl_FragCoord` lower-left), so the pack's pixel arithmetic holds unchanged.
+
+**Offline.** `tools/mcv2/Mcv2ShaderCompile.java` compiles every stage the pack takes part in as 26.3 does outside its
+shader debug mode, read from the client's `GlslCompiler` and `GlPipelineRecompiler`: LWJGL 3.4.3's shaderc into SPIR-V
+for Vulkan 1.2 (uniforms bound automatically, debug info, no optimisation, the renderer's macros), then SPIRV-Cross
+into GLSL 330 without separate shader objects, every stage input and output renamed after its location, variables
+zero-initialised. All 36 stages compile: the text shaders in eleven define sets (world, grayscale, see-through, both,
+GUI, and the three transparency stages with and without the depth-invariance workaround some drivers get) and the 14
+post stages. `tools/mcv2/shader_check.py` decodes every frame of 37 streams bit-exactly, on the UHD 630 (EGL) and on
+llvmpipe (GLX), each with the pack's sources and compiled the way 26.3 compiles them (`--spirv`): the 14 conformance
+and 14 edge streams, the two encoder crops, the lab's ship stream and 768x384 clips A, B and D, and the lab's 1080p30
+`low_bandwidth`, B and D encodes; `--drop 7` on clips A and B waits for a frame it can decode and never decodes a
+wrong one (the edge stream of the wide-index fallback, a 202,032-byte frame of 17 pages, does not fit eight page slots
+and is counted as never sent, as a server would never send it).
+
+**In the real 26.3 client** (Paper 26.3 build 49, the sandbox plugin of this branch, the client on Mesa llvmpipe with
+its OpenGL backend, the debug view, one frame every two seconds, `x11grab` at 2 fps for 70 s, `capture_check.py`):
+
+| stream | captures byte-exact | frames seen exactly |
+|---|---:|---:|
+| ship, 1920x1080, model A, on a 15x9 wall | 141 of 141 (and 145 of 145 in an earlier run) | 30 of 30 |
+| clip A, 768x384, previous frame, 6x3 wall | 142 of 142 | 28 of 30 (two not on screen while captured) |
+| clip B, 768x384, last keyframe | 141 of 141 | 30 of 30 |
+| clip D, 768x384, all intra | 140 of 140 | 30 of 30 |
+
+PSNR infinite and SSIM 1.0 throughout. `tools/mcv2/strip_check.py` reads the rest of the same captures: the transport
+strip holds a valid page (header, extent and CRC32 checked by the reference's `read_page`) in slots 0 and 1 of all
+564, the anchor descriptor row starts with `MCV` and 0xA1 in all 564, and in the 423 captures of the clips, which leave
+room right of the picture, every status square is one exact colour, each slot's square agrees with the page read from
+the same capture, no decision is red, and the decoded-frame counter counts up by one per stream frame (35 in 70 s). Before the
+copy pass, clip A matched only while its keyframe was on screen: its picture lost a level here and there with every
+rendered frame, which the harness could not see because it runs `post/blit` as a texel copy; a 1920x1080 video on a
+1920x1080 screen stayed exact either way.
+
+Lab notes for 26.3: the client opens its window with SDL and asks for an sRGB-capable OpenGL 3.3 core framebuffer,
+which Xvfb's GLX cannot offer, so it falls back to Vulkan (on Mesa's software Vulkan the pack's shaders then took over
+ten minutes to compile and the server timed the client out); `SDL_VIDEO_FORCE_EGL=1` gives it the OpenGL backend
+through EGL. Paper 26.3's alpha build 49 stalled its server thread twice inside its bundled spark profiler under the
+lab's load; the lab turns spark off (`spark.enabled: false` in `paper-global.yml`). Rain draws over the debug view, so
+the captures run in clear weather.
 
 ## 6. Server integration
 
@@ -686,7 +749,7 @@ the same effect: `MCV2 kernels: Java, no library for <platform>`.
 
 **Native access.** Paper's launcher jar declares `Enable-Native-Access: ALL-UNNAMED` in its manifest, which Java
 honours for `java -jar`, so on a Paper server the kernels load without any flag and nothing is printed (checked on Paper
-26.2 build 123: `MCV2 kernels: native avx2 (linux-x86_64)` at startup, no warning). Another launcher gets Java 25's
+26.2 build 123 and on Paper 26.3 build 49: `MCV2 kernels: native avx2 (linux-x86_64)` at startup, no warning). Another launcher gets Java 25's
 default: the library loads and the JVM prints one warning (`WARNING: A restricted method in
 java.lang.foreign.SymbolLookup has been called ...`), which `--enable-native-access=ALL-UNNAMED` silences;
 `--illegal-native-access=deny` refuses the load, and the Java kernels run.
