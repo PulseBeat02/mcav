@@ -352,17 +352,17 @@ final class HelperProtocol {
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
     final int pageWidth = in.readUnsignedShort();
     final int pageHeight = in.readUnsignedShort();
-    final int x = in.readUnsignedShort();
-    final int y = in.readUnsignedShort();
+    final int left = in.readUnsignedShort();
+    final int top = in.readUnsignedShort();
     final int width = in.readUnsignedShort();
     final int height = in.readUnsignedShort();
     checkSide("page width", pageWidth);
     checkSide("page height", pageHeight);
     checkSide("region width", width);
     checkSide("region height", height);
-    if ((long) x + width > pageWidth || (long) y + height > pageHeight) {
+    if ((long) left + width > pageWidth || (long) top + height > pageHeight) {
       throw new ProtocolException(
-        "The region " + width + "x" + height + " at " + x + "," + y + " leaves the page " + pageWidth + "x" + pageHeight
+        "The region " + width + "x" + height + " at " + left + "," + top + " leaves the page " + pageWidth + "x" + pageHeight
       );
     }
     final long pixelBytes = (long) width * height * PIXEL_BYTES;
@@ -375,7 +375,7 @@ final class HelperProtocol {
       throw new ProtocolException("A frame of " + size + " bytes arrived where no frame of that size is expected");
     }
     in.readFully(target, 0, size);
-    final FrameRegion region = new FrameRegion(pageWidth, pageHeight, x, y, width, height, target);
+    final FrameRegion region = new FrameRegion(pageWidth, pageHeight, left, top, width, height, target);
     return HelperMessage.frame(region);
   }
 
@@ -392,8 +392,8 @@ final class HelperProtocol {
   private static HelperMessage readMouse(final DataInput in, final int length) throws IOException {
     expectLength(MOUSE, length, MOUSE_BYTES);
     final int action = in.readUnsignedByte();
-    final int x = in.readUnsignedShort();
-    final int y = in.readUnsignedShort();
+    final int pageX = in.readUnsignedShort();
+    final int pageY = in.readUnsignedShort();
     final int button = in.readUnsignedByte();
     final int clickCount = in.readUnsignedByte();
     final int deltaX = in.readShort();
@@ -407,7 +407,7 @@ final class HelperProtocol {
     if (clickCount > MAX_CLICK_COUNT) {
       throw new ProtocolException("A click counts at most " + MAX_CLICK_COUNT + " but was " + clickCount);
     }
-    final MouseInput input = new MouseInput(action, x, y, button, clickCount, deltaX, deltaY);
+    final MouseInput input = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
     return HelperMessage.mouse(input);
   }
 

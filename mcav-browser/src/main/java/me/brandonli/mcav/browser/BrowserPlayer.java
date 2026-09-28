@@ -133,29 +133,29 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Moves the mouse pointer.
    *
-   * @param x the x coordinate on the page
-   * @param y the y coordinate on the page
+   * @param pageX the x coordinate on the page
+   * @param pageY the y coordinate on the page
    */
-  void moveMouse(final int x, final int y);
+  void moveMouse(final int pageX, final int pageY);
 
   /**
    * Moves the mouse pointer and performs a click.
    *
-   * @param type the kind of click
-   * @param x    the x coordinate on the page
-   * @param y    the y coordinate on the page
+   * @param type  the kind of click
+   * @param pageX the x coordinate on the page
+   * @param pageY the y coordinate on the page
    */
-  void sendMouseEvent(final MouseClick type, final int x, final int y);
+  void sendMouseEvent(final MouseClick type, final int pageX, final int pageY);
 
   /**
    * Turns the mouse wheel over a position, which scrolls what is under the pointer.
    *
-   * @param x      the x coordinate on the page
-   * @param y      the y coordinate on the page
+   * @param pageX  the x coordinate on the page
+   * @param pageY  the y coordinate on the page
    * @param deltaX how far to scroll right in pixels, negative to scroll left
    * @param deltaY how far to scroll down in pixels, negative to scroll up
    */
-  void scroll(final int x, final int y, final int deltaX, final int deltaY);
+  void scroll(final int pageX, final int pageY, final int deltaX, final int deltaY);
 
   /**
    * Types text into the focused element. Special keys are pressed by their W3C name, such as {@code Enter},

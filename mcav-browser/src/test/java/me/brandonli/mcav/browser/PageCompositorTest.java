@@ -42,14 +42,14 @@ class PageCompositorTest {
     return new PageCompositor(WIDTH, HEIGHT, frameInterval, 100L, this.clock::get);
   }
 
-  /** A buffer whose every pixel is (value, x, y, 255) in BGRA order. */
+  /** A buffer whose every pixel is (value, column, row, 255) in BGRA order. */
   private static ByteBuffer buffer(final int width, final int height, final int value) {
     final ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
         buffer.put((byte) value);
-        buffer.put((byte) x);
-        buffer.put((byte) y);
+        buffer.put((byte) column);
+        buffer.put((byte) row);
         buffer.put((byte) 255);
       }
     }
@@ -57,8 +57,8 @@ class PageCompositorTest {
     return buffer;
   }
 
-  private static int pixel(final FrameRegion region, final int x, final int y, final int channel) {
-    final int offset = ((y - region.getY()) * region.getWidth() + (x - region.getX())) * 4 + channel;
+  private static int pixel(final FrameRegion region, final int column, final int row, final int channel) {
+    final int offset = ((row - region.getY()) * region.getWidth() + (column - region.getX())) * 4 + channel;
     return region.getPixels()[offset] & 0xFF;
   }
 

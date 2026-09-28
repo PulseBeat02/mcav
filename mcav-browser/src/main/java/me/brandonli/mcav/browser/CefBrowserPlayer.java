@@ -211,39 +211,39 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   @Override
-  public void moveMouse(final int x, final int y) {
-    this.sendMouse(HelperProtocol.MOUSE_MOVE, x, y, HelperProtocol.BUTTON_LEFT, 0);
+  public void moveMouse(final int pageX, final int pageY) {
+    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 0);
   }
 
   @Override
-  public void sendMouseEvent(final MouseClick type, final int x, final int y) {
+  public void sendMouseEvent(final MouseClick type, final int pageX, final int pageY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
-    this.moveMouse(x, y);
+    this.moveMouse(pageX, pageY);
     final Runnable input = switch (type) {
-      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
-      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, x, y, 1);
+      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
+      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, 1);
       case DOUBLE -> () -> {
-        this.click(HelperProtocol.BUTTON_LEFT, x, y, 1);
-        this.click(HelperProtocol.BUTTON_LEFT, x, y, 2);
+        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
+        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 2);
       };
-      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, x, y, HelperProtocol.BUTTON_LEFT, 1);
-      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, x, y, HelperProtocol.BUTTON_LEFT, 1);
+      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
+      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
     };
     input.run();
   }
 
-  private void click(final int button, final int x, final int y, final int clickCount) {
-    this.sendMouse(HelperProtocol.MOUSE_PRESS, x, y, button, clickCount);
-    this.sendMouse(HelperProtocol.MOUSE_RELEASE, x, y, button, clickCount);
+  private void click(final int button, final int pageX, final int pageY, final int clickCount) {
+    this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, button, clickCount);
+    this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, button, clickCount);
   }
 
   @Override
-  public void scroll(final int x, final int y, final int deltaX, final int deltaY) {
+  public void scroll(final int pageX, final int pageY, final int deltaX, final int deltaY) {
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
     }
-    final int[] position = this.clamp(x, y);
+    final int[] position = this.clamp(pageX, pageY);
     final int clampedX = Math.clamp(deltaX, Short.MIN_VALUE, Short.MAX_VALUE);
     final int clampedY = Math.clamp(deltaY, Short.MIN_VALUE, Short.MAX_VALUE);
     final MouseInput input = new MouseInput(
@@ -259,12 +259,12 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.reportIfDropped(queued);
   }
 
-  private void sendMouse(final int action, final int x, final int y, final int button, final int clickCount) {
+  private void sendMouse(final int action, final int pageX, final int pageY, final int button, final int clickCount) {
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
     }
-    final int[] position = this.clamp(x, y);
+    final int[] position = this.clamp(pageX, pageY);
     final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
     final boolean queued = current.sendMouse(input);
     this.reportIfDropped(queued);
@@ -300,17 +300,17 @@ final class CefBrowserPlayer implements BrowserPlayer {
   /**
    * Clamps a position to the page.
    *
-   * @param x the x coordinate
-   * @param y the y coordinate
+   * @param pageX the x coordinate
+   * @param pageY the y coordinate
    * @return the coordinates inside the page
    */
   @VisibleForTesting
-  int[] clamp(final int x, final int y) {
+  int[] clamp(final int pageX, final int pageY) {
     final BrowserSource current = this.source;
     final int width = current == null ? 1 : current.getWidth();
     final int height = current == null ? 1 : current.getHeight();
-    final int clampedX = Math.clamp(x, 0, width - 1);
-    final int clampedY = Math.clamp(y, 0, height - 1);
+    final int clampedX = Math.clamp(pageX, 0, width - 1);
+    final int clampedY = Math.clamp(pageY, 0, height - 1);
     return new int[] { clampedX, clampedY };
   }
 

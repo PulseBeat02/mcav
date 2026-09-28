@@ -207,21 +207,23 @@ final class DevToolsInput {
    * @return the calls, in order
    */
   static List<DevToolsCall> mouse(final MouseInput input, final int held) {
-    final int x = input.getX();
-    final int y = input.getY();
+    final int pageX = input.getX();
+    final int pageY = input.getY();
     final String button = BUTTON_NAMES[input.getButton()];
     final int clickCount = input.getClickCount();
     final int after = heldAfter(input, held);
     final String parameters = switch (input.getAction()) {
-      case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", x, y, after) + buttonParameters(button, clickCount) + "}";
-      case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", x, y, after) + buttonParameters(button, clickCount) + "}";
-      case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", x, y, after) +
+      case HelperProtocol.MOUSE_PRESS -> mouseParameters("mousePressed", pageX, pageY, after) + buttonParameters(button, clickCount) + "}";
+      case HelperProtocol.MOUSE_RELEASE -> mouseParameters("mouseReleased", pageX, pageY, after) +
+        buttonParameters(button, clickCount) +
+        "}";
+      case HelperProtocol.MOUSE_WHEEL -> mouseParameters("mouseWheel", pageX, pageY, after) +
         ",\"deltaX\":" +
         input.getDeltaX() +
         ",\"deltaY\":" +
         input.getDeltaY() +
         "}";
-      default -> mouseParameters("mouseMoved", x, y, after) + ",\"button\":\"" + heldButtonName(after) + "\"}";
+      default -> mouseParameters("mouseMoved", pageX, pageY, after) + ",\"button\":\"" + heldButtonName(after) + "\"}";
     };
     final DevToolsCall call = new DevToolsCall(MOUSE_METHOD, parameters);
     return List.of(call);
@@ -252,8 +254,8 @@ final class DevToolsInput {
     return "none";
   }
 
-  private static String mouseParameters(final String type, final int x, final int y, final int held) {
-    return "{\"type\":\"" + type + "\",\"x\":" + x + ",\"y\":" + y + ",\"buttons\":" + held;
+  private static String mouseParameters(final String type, final int pageX, final int pageY, final int held) {
+    return "{\"type\":\"" + type + "\",\"x\":" + pageX + ",\"y\":" + pageY + ",\"buttons\":" + held;
   }
 
   private static String buttonParameters(final String button, final int clickCount) {

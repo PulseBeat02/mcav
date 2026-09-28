@@ -42,9 +42,9 @@ class FrameCanvasTest {
     return pixels;
   }
 
-  private static int[] bgr(final ImageBuffer image, final int x, final int y) {
+  private static int[] bgr(final ImageBuffer image, final int column, final int row) {
     final ByteBuffer pixels = image.getData();
-    final int offset = (y * image.getWidth() + x) * 3;
+    final int offset = (row * image.getWidth() + column) * 3;
     return new int[] { pixels.get(offset) & 0xFF, pixels.get(offset + 1) & 0xFF, pixels.get(offset + 2) & 0xFF };
   }
 

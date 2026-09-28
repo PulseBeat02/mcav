@@ -98,17 +98,17 @@ public final class BrowserInputExample {
         @Override
         public void mouseClicked(final MouseEvent event) {
           label.requestFocusInWindow();
-          final int x = event.getX();
-          final int y = event.getY();
-          browser.sendMouseEvent(MouseClick.LEFT, x, y);
+          final int pageX = event.getX();
+          final int pageY = event.getY();
+          browser.sendMouseEvent(MouseClick.LEFT, pageX, pageY);
         }
       }
     );
     label.addMouseWheelListener(event -> {
-      final int x = event.getX();
-      final int y = event.getY();
+      final int pageX = event.getX();
+      final int pageY = event.getY();
       final int rotation = event.getWheelRotation();
-      browser.scroll(x, y, 0, rotation * 100);
+      browser.scroll(pageX, pageY, 0, rotation * 100);
     });
   }
 

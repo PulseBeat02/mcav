@@ -166,8 +166,8 @@ class HelperProtocolTest {
   private static byte[] frame(
     final int pageWidth,
     final int pageHeight,
-    final int x,
-    final int y,
+    final int left,
+    final int top,
     final int width,
     final int height,
     final int pixelBytes
@@ -177,8 +177,8 @@ class HelperProtocolTest {
       out.writeInt(12 + pixelBytes);
       out.writeShort(pageWidth);
       out.writeShort(pageHeight);
-      out.writeShort(x);
-      out.writeShort(y);
+      out.writeShort(left);
+      out.writeShort(top);
       out.writeShort(width);
       out.writeShort(height);
       out.write(new byte[pixelBytes]);

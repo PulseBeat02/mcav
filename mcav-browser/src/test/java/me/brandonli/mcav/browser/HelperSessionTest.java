@@ -141,9 +141,9 @@ class HelperSessionTest {
    * @throws IOException if it cannot be created
    */
   private Path shortDirectory() throws IOException {
-    final Path tmp = Path.of("/tmp");
-    final boolean posix = Files.isDirectory(tmp) && Files.isWritable(tmp);
-    final Path parent = posix ? Files.createTempDirectory(tmp, "m") : Files.createTempDirectory("m");
+    final Path temporaryDirectory = Path.of("/tmp");
+    final boolean posix = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
+    final Path parent = posix ? Files.createTempDirectory(temporaryDirectory, "m") : Files.createTempDirectory("m");
     this.shortDirectories.add(parent);
     return parent;
   }

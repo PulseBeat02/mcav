@@ -25,8 +25,8 @@ final class FrameRegion {
 
   private final int pageWidth;
   private final int pageHeight;
-  private final int x;
-  private final int y;
+  private final int left;
+  private final int top;
   private final int width;
   private final int height;
   private final byte[] pixels;
@@ -36,17 +36,25 @@ final class FrameRegion {
    *
    * @param pageWidth  the width of the page in pixels
    * @param pageHeight the height of the page in pixels
-   * @param x          the left edge of the region
-   * @param y          the top edge of the region
+   * @param left       the left edge of the region
+   * @param top        the top edge of the region
    * @param width      the width of the region
    * @param height     the height of the region
    * @param pixels     the pixels of the region, at least {@code width * height * 4} bytes
    */
-  FrameRegion(final int pageWidth, final int pageHeight, final int x, final int y, final int width, final int height, final byte[] pixels) {
+  FrameRegion(
+    final int pageWidth,
+    final int pageHeight,
+    final int left,
+    final int top,
+    final int width,
+    final int height,
+    final byte[] pixels
+  ) {
     this.pageWidth = pageWidth;
     this.pageHeight = pageHeight;
-    this.x = x;
-    this.y = y;
+    this.left = left;
+    this.top = top;
     this.width = width;
     this.height = height;
     this.pixels = pixels;
@@ -61,11 +69,11 @@ final class FrameRegion {
   }
 
   int getX() {
-    return this.x;
+    return this.left;
   }
 
   int getY() {
-    return this.y;
+    return this.top;
   }
 
   int getWidth() {

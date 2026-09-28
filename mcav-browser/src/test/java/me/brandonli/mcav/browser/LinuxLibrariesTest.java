@@ -113,15 +113,15 @@ class LinuxLibrariesTest {
       }
     }
     final ByteArrayOutputStream deb = new ByteArrayOutputStream();
-    try (final ArArchiveOutputStream ar = new ArArchiveOutputStream(deb)) {
+    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(deb)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);
-      ar.putArchiveEntry(new ArArchiveEntry("debian-binary", version.length));
-      ar.write(version);
-      ar.closeArchiveEntry();
+      archive.putArchiveEntry(new ArArchiveEntry("debian-binary", version.length));
+      archive.write(version);
+      archive.closeArchiveEntry();
       final byte[] tarData = data.toByteArray();
-      ar.putArchiveEntry(new ArArchiveEntry(dataName, tarData.length));
-      ar.write(tarData);
-      ar.closeArchiveEntry();
+      archive.putArchiveEntry(new ArArchiveEntry(dataName, tarData.length));
+      archive.write(tarData);
+      archive.closeArchiveEntry();
     }
     return deb.toByteArray();
   }
@@ -541,10 +541,10 @@ class LinuxLibrariesTest {
 
   @Test
   void aPatternWithoutARootIsReadBelowTheRoot() throws IOException {
-    final Path conf = Files.createDirectories(this.folder.resolve("etc/ld.so.conf.d"));
-    Files.writeString(conf.resolve("a.conf"), "/opt/a");
-    Files.writeString(conf.resolve("b.txt"), "/opt/b");
-    assertEquals(List.of(conf.resolve("a.conf")), LinuxLibraries.glob(this.folder, "etc/ld.so.conf.d/*.conf"));
+    final Path configurationDirectory = Files.createDirectories(this.folder.resolve("etc/ld.so.conf.d"));
+    Files.writeString(configurationDirectory.resolve("a.conf"), "/opt/a");
+    Files.writeString(configurationDirectory.resolve("b.txt"), "/opt/b");
+    assertEquals(List.of(configurationDirectory.resolve("a.conf")), LinuxLibraries.glob(this.folder, "etc/ld.so.conf.d/*.conf"));
     // a pattern without a folder is read in the root; a folder or the root itself holds no library
     Files.writeString(this.folder.resolve("top.conf"), "/opt/top");
     assertEquals(List.of(this.folder.resolve("top.conf")), LinuxLibraries.glob(this.folder, "*.conf"));

@@ -402,9 +402,9 @@ final class LinuxLibraries {
     final boolean extracted;
     try (
       final InputStream raw = Files.newInputStream(deb);
-      final ArArchiveInputStream ar = new ArArchiveInputStream(new BufferedInputStream(raw))
+      final ArArchiveInputStream archive = new ArArchiveInputStream(new BufferedInputStream(raw))
     ) {
-      extracted = extractMembers(ar, files, target, deb, maxFileBytes, maxEntries);
+      extracted = extractMembers(archive, files, target, deb, maxFileBytes, maxEntries);
     }
     if (!extracted) {
       throw new IOException("The package " + deb.getFileName() + " holds no " + DATA_MEMBER);
@@ -412,23 +412,23 @@ final class LinuxLibraries {
   }
 
   private static boolean extractMembers(
-    final ArArchiveInputStream ar,
+    final ArArchiveInputStream archive,
     final Map<String, String> files,
     final Path target,
     final Path deb,
     final long maxFileBytes,
     final int maxEntries
   ) throws IOException {
-    ArArchiveEntry member = ar.getNextEntry();
+    ArArchiveEntry member = archive.getNextEntry();
     while (member != null) {
       if (member.getName().equals(DATA_MEMBER)) {
         // the streams are not closed here: the package closes them all
-        final XZCompressorInputStream xz = new XZCompressorInputStream(ar);
-        final TarArchiveInputStream tar = new TarArchiveInputStream(xz);
+        final XZCompressorInputStream decompressed = new XZCompressorInputStream(archive);
+        final TarArchiveInputStream tar = new TarArchiveInputStream(decompressed);
         extractData(tar, files, target, deb, maxFileBytes, maxEntries);
         return true;
       }
-      member = ar.getNextEntry();
+      member = archive.getNextEntry();
     }
     return false;
   }

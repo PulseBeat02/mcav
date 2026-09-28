@@ -288,12 +288,12 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param browser  the browser, which is this one
    * @param dragData what would be dragged
    * @param mask     the allowed operations
-   * @param x        the x coordinate where the drag started
-   * @param y        the y coordinate where the drag started
+   * @param pageX    the x coordinate where the drag started
+   * @param pageY    the y coordinate where the drag started
    * @return false, so CEF cancels the drag
    */
   @Override
-  public boolean startDragging(final CefBrowser browser, final CefDragData dragData, final int mask, final int x, final int y) {
+  public boolean startDragging(final CefBrowser browser, final CefDragData dragData, final int mask, final int pageX, final int pageY) {
     return false;
   }
 

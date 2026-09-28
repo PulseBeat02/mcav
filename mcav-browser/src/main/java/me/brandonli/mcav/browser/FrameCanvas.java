@@ -78,13 +78,13 @@ final class FrameCanvas implements AutoCloseable {
       return;
     }
     final byte[] source = region.getPixels();
-    final int x = region.getX();
-    final int y = region.getY();
+    final int left = region.getX();
+    final int top = region.getY();
     final int regionWidth = region.getWidth();
     final int rows = region.getHeight();
     final int rowBytes = regionWidth * HelperProtocol.PIXEL_BYTES;
     for (int row = 0; row < rows; row++) {
-      final int target = ((y + row) * this.width + x) * HelperProtocol.PIXEL_BYTES;
+      final int target = ((top + row) * this.width + left) * HelperProtocol.PIXEL_BYTES;
       final int offset = row * rowBytes;
       this.pixels.put(target, source, offset, rowBytes);
     }

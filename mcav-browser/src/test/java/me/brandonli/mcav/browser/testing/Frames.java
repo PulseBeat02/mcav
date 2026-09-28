@@ -70,9 +70,9 @@ public final class Frames {
    */
   public static byte[] jpeg(final int width, final int height, final int rgb) {
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        image.setRGB(x, y, rgb);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        image.setRGB(column, row, rgb);
       }
     }
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {

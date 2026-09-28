@@ -572,11 +572,11 @@ public final class TestPages implements AutoCloseable {
     final String rawButton = parameters.getOrDefault("button", "0");
     final String rawButtons = parameters.getOrDefault("buttons", "0");
     final String key = parameters.getOrDefault("key", "");
-    final int x = Integer.parseInt(rawX);
-    final int y = Integer.parseInt(rawY);
+    final int pageX = Integer.parseInt(rawX);
+    final int pageY = Integer.parseInt(rawY);
     final int button = Integer.parseInt(rawButton);
     final int buttons = Integer.parseInt(rawButtons);
-    return new PageEvent(page, type, x, y, button, buttons, key);
+    return new PageEvent(page, type, pageX, pageY, button, buttons, key);
   }
 
   private static Map<String, String> parse(final String query) {
@@ -612,17 +612,25 @@ public final class TestPages implements AutoCloseable {
 
     private final String page;
     private final String type;
-    private final int x;
-    private final int y;
+    private final int pageX;
+    private final int pageY;
     private final int button;
     private final int buttons;
     private final String key;
 
-    PageEvent(final String page, final String type, final int x, final int y, final int button, final int buttons, final String key) {
+    PageEvent(
+      final String page,
+      final String type,
+      final int pageX,
+      final int pageY,
+      final int button,
+      final int buttons,
+      final String key
+    ) {
       this.page = page;
       this.type = type;
-      this.x = x;
-      this.y = y;
+      this.pageX = pageX;
+      this.pageY = pageY;
       this.button = button;
       this.buttons = buttons;
       this.key = key;
@@ -652,7 +660,7 @@ public final class TestPages implements AutoCloseable {
      * @return the x coordinate
      */
     public int getX() {
-      return this.x;
+      return this.pageX;
     }
 
     /**
@@ -661,7 +669,7 @@ public final class TestPages implements AutoCloseable {
      * @return the y coordinate
      */
     public int getY() {
-      return this.y;
+      return this.pageY;
     }
 
     /**
@@ -698,9 +706,9 @@ public final class TestPages implements AutoCloseable {
         " " +
         this.type +
         " " +
-        this.x +
+        this.pageX +
         "," +
-        this.y +
+        this.pageY +
         " button " +
         this.button +
         " buttons " +
