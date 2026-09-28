@@ -120,7 +120,7 @@ public final class Mcv2ShaderCompile {
     final Path post = pack.resolve("assets/mcav/shaders/post");
     try (final var files = Files.walk(post)) {
       for (final Path source : files.filter(Files::isRegularFile).sorted().toList()) {
-        final String name = post.relativize(source).toString().replace('/', '_');
+        final String name = post.relativize(source).toString().replace(post.getFileSystem().getSeparator(), "_");
         final String stage = name.substring(name.lastIndexOf('.') + 1);
         failures += compile(pack, generated, vanilla, source, stage, Map.of(), output.resolve(name));
       }
