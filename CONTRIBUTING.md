@@ -62,8 +62,19 @@ and the new digests in `Mcv2Natives.DIGESTS`: the build fails when the sources a
 
 Every compilation runs [Error Prone](https://errorprone.info/) with its default checks, on production and test code,
 next to the Checker Framework's nullness checker on production code. The build must compile without a single warning:
-fix what Error Prone reports instead of suppressing it. Java code imports the types it names: `check` fails on a fully
-qualified type name, except on a line marked `// fqn: <why>` where two types of one simple name meet in a file.
+fix what Error Prone reports instead of suppressing it. Error Prone also fails the build on the code-quality rules of
+the project that it can check: the most restrictive modifiers (a field that is never reassigned is `final`, a private
+method that uses no instance state is `static`, a utility class has a private constructor), no unused code, constants in
+UPPER_SNAKE_CASE, one variable per declaration, overloads next to each other and no wildcard imports; the list is in
+`buildSrc/src/main/kotlin/mcav.java-library.gradle.kts`.
+
+Three lints of the sources run in `check`. Java code imports the types it names: `qualifiedNames` fails on a fully
+qualified type name, except on a line marked `// fqn: <why>` where two types of one simple name meet in a file. Log
+messages live in constants: `logMessages` fails on a log call whose message does not name a constant (an
+UPPER_SNAKE_CASE field such as `FAILED_TO_START`, a `private static final String` next to the class's logger) or that
+joins strings with `+`; the message's SLF4J placeholders take the other arguments. Names say what they hold:
+`variableNames` fails on a variable, parameter or field named by one letter or by a short form a word says better
+(`buf`, `tmp`, `idx`...); generic type parameters stay single capitals.
 
 ## Mutation Testing
 

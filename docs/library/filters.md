@@ -48,11 +48,11 @@ frame, from its top left corner.
 | `RotationFilter` | `new RotationFilter(Rotation.ROTATE_90_CLOCKWISE)` | Rotated by 90, 180 or 270 degrees; 90 and 270 swap the width and height |
 | `TransposeFilter` | `new TransposeFilter()` | Rows and columns swapped |
 | `ResizeFilter` | `new ResizeFilter(width, height)` | Scaled to a fixed size, averaging areas when it shrinks |
-| `CropFilter` | `new CropFilter(x, y, width, height)` | Cropped to a rectangle, clamped to the frame |
+| `CropFilter` | `new CropFilter(left, top, width, height)` | Cropped to a rectangle, clamped to the frame |
 | `RectangleFilter`, `CircleFilter`, `EllipseFilter`, `LineFilter` | the shape's position and size, then its colour | The outline of a shape drawn onto every frame |
-| `RegionScalarFilter` | `new RegionScalarFilter(x, y, width, height, color)` | A rectangle filled with a solid colour |
-| `TextFilter` | `new TextFilter(text, x, y, font, scale, color)` | A line of text in one of OpenCV's `FONT_HERSHEY_` fonts |
-| `OverlayImageFilter` | `new OverlayImageFilter(image, x, y)` | An image drawn on top of every frame; the image is copied, so it may be released |
+| `RegionScalarFilter` | `new RegionScalarFilter(left, top, width, height, color)` | A rectangle filled with a solid colour |
+| `TextFilter` | `new TextFilter(text, left, baseline, font, scale, color)` | A line of text in one of OpenCV's `FONT_HERSHEY_` fonts |
+| `OverlayImageFilter` | `new OverlayImageFilter(image, left, top)` | An image drawn on top of every frame; the image is copied, so it may be released |
 | `BlendFilter` | `new BlendFilter(image, alpha)` | Every frame blended with a fixed image of the same size |
 | `ZeroFilter` | `new ZeroFilter()` | A black frame |
 | `FPSFilter` | `new FPSFilter()` | The frame rate of the pipeline written into the top left corner, smoothed over a second |
