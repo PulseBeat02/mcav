@@ -5,8 +5,11 @@ The MCAV plugin is in active development and may contain bugs or incomplete feat
 sandbox plugin that demonstrates what the MCAV library can do.
 ```
 
-The MCAV plugin is a Paper plugin that displays images, videos, browsers, and virtual machines in Minecraft. It is
-designed to be a fun and experimental plugin that showcases the capabilities of the MCAV library.
+The MCAV plugin is a Paper plugin that displays images, videos, web pages, virtual machines and VNC desktops in
+Minecraft, with their sound. It is designed to be a fun and experimental plugin that showcases the capabilities of the
+MCAV library. The [tutorial](tutorial.md) sets it up step by step; [videos and images](video.md),
+[web browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../mcv2/using.md) explain each
+feature as a server owner uses it.
 
 ## Installing the Plugin
 
@@ -16,7 +19,7 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 2026-09-27; the plugin is built and tested against build 49.
 ```
 
-1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav/.lastFinished/mcav-sandbox-1.0.0-v26.3-all.jar).
+1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav_Build/.lastFinished/mcav-sandbox-1.0.0-v26.3-all.jar).
 2) Place the JAR file into the `plugins` folder of your server.
 3) Start the server.
 

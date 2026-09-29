@@ -94,6 +94,24 @@ while a player is near its wall: the server only knows the item frames of loaded
 
 ---
 
+## Why does my screen stay blank?
+
+A wall of maps shows nothing, or the backs of item frames, when more than one item frame hangs in a block of it: placed
+by hand, by another plugin or by an old version of MCAV, the extra frames hang in front of the maps, backwards, and
+hide them however much is sent, dithered or MCV2 alike. Rebuild the wall with `/mcav screen`, which removes the frames
+already hanging where it places one. Also check that the command names the same wall size and first map id as
+`/mcav screen`.
+
+---
+
+## Why can `/mcav vnc create` not connect?
+
+The server it names must be listed in `vnc.allowed-hosts` of the [configuration](./config.md), exactly as the command
+names it, and none is listed by default: the Minecraft server connects to it, so a player must never choose where. Put
+the server's password in that list, never in the command, and restart the server after changing it.
+
+---
+
 ## Why do VLC commands say "VLC is still being prepared"?
 
 On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder

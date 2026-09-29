@@ -11,10 +11,14 @@ incorporated into the project. The following table lists the libraries used in M
 | [caprica/vlcj](https://github.com/caprica/vlcj)        | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)            |
 | [bytedeco/javacv](https://github.com/bytedeco/javacv)  | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp)      | [Unlicense](https://opensource.org/license/unlicense)       |
+| [chromiumembedded/java-cef](https://github.com/chromiumembedded/java-cef) | [BSD 3-Clause](https://opensource.org/license/bsd-3-clause) |
+| [jcefmaven/jcefmaven](https://github.com/jcefmaven/jcefmaven) | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)            |
 
-The yt-dlp source code is released under the Unlicense, but the standalone yt-dlp executables that MCAV downloads are
-built with PyInstaller and include GPLv3+ code, so each of them is licensed under the GPLv3 or later as a whole.
+The browser module does not bundle Chromium: it downloads the Chromium Embedded Framework, under the BSD license of
+Chromium and the licenses of its third-party code, on its first start. The yt-dlp source code is released under the
+Unlicense, but the standalone yt-dlp executables that MCAV downloads are built with PyInstaller and include GPLv3+
+code, so each of them is licensed under the GPLv3 or later as a whole.
 
 As a result of this, the MCAV library is licensed under the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
 license. The Apache 2 license is compatible with the GPLv3 license, but not with the GPLv2 license. License your

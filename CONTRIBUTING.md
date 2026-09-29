@@ -30,11 +30,40 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
 - The measurements of how far the sound of a virtual machine or of a browser page drifts from its picture time real
   events, which a busy machine delays, so they only run with `-Pmcav.syncMeasurement=true`, on a quiet machine.
 
+## Property, Fuzz and Concurrency Tests
+
+Property tests are [jqwik](https://jqwik.net/) properties in classes named `*PropertyTest`, and fuzz tests are
+[Jazzer](https://github.com/CodeIntelligenceTesting/jazzer) fuzz tests in classes named `*FuzzTest`, both in the test
+source set of their module. `./gradlew check`, and so `./gradlew build`, runs both, next to the ordinary tests.
+
+- `./gradlew propertyTest` runs the properties of every module with 200 tries each (`-Pproperty.tries=<n>`); `test`
+  runs them too, with 10 tries (`-Pproperty.smokeTries=<n>`). Every property pins its seed, so a run is reproducible
+  and a failure reports the seed and the shrunk sample.
+- `./gradlew fuzzTest` replays the committed inputs of every fuzz test, the seed corpus and every crash reproducer in
+  `src/test/resources/<package>/<class>Inputs/<method>`. With `-Pfuzz.seconds=<n>`, each fuzz test is also fuzzed
+  for that many seconds, one JVM per test class; a crash is written to `build/jazzer` of the module. Commit the input
+  of a crash you fixed next to the others, so every build replays it.
+- `./gradlew jcstressTest` runs the concurrency tests of `mcav-jcstress` on OpenJDK's
+  [jcstress](https://github.com/openjdk/jcstress) harness, in its quick mode (`-Pjcstress.mode=quick|default|stress`,
+  `-Pjcstress.timeBudgetMinutes=<n>`, `-Pjcstress.tests=<regex>`, `-Pjcstress.cpus=<n>`). The module is a test
+  harness: it is not published and is kept out of the coverage lint and of PIT. A result a test marks as forbidden
+  fails the task.
+
+## The MCV2 Native Libraries
+
+`mcav-bukkit` ships the native kernels of the MCV2 encoder as six committed libraries (Linux, Windows and macOS on
+x86-64 and ARM64), so the build needs no C or C++ toolchain. After changing a source in `mcav-bukkit/src/main/native`,
+rebuild all six with `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build`, which needs
+[Zig](https://ziglang.org/) 0.16.0 (`ZIG=/path/to/zig`), and commit them with the `SHA256SUMS` and `SOURCES` it writes
+and the new digests in `Mcv2Natives.DIGESTS`: the build fails when the sources and the libraries disagree.
+`./gradlew :mcav-bukkit:formatMcv2Natives -Pmcav.natives=build` formats the sources.
+
 ## Static Analysis
 
 Every compilation runs [Error Prone](https://errorprone.info/) with its default checks, on production and test code,
 next to the Checker Framework's nullness checker on production code. The build must compile without a single warning:
-fix what Error Prone reports instead of suppressing it.
+fix what Error Prone reports instead of suppressing it. Java code imports the types it names: `check` fails on a fully
+qualified type name, except on a line marked `// fqn: <why>` where two types of one simple name meet in a file.
 
 ## Mutation Testing
 

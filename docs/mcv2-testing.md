@@ -1,7 +1,9 @@
 # Testing MCV2 on your own client
 
 This is how to watch MCV2 on a real Minecraft client and GPU, and what to compare with the numbers measured on the
-devbox. Everything the devbox could check is listed at the end, with what only your client can show.
+build machine (a 6-core Intel i7-8700 with an Intel UHD 630, whose client rendered in software). Everything the build
+machine could check is listed at the end, with what only your client can show. How MCV2 works, and what each preset
+costs, is in [the MCV2 chapter](mcv2/how-it-works.md).
 
 You need a vanilla Minecraft **26.3** client (any GPU with OpenGL 3.3; no mods) and the sandbox server of this branch.
 
@@ -12,15 +14,20 @@ Set up the server as in the [manual test](manual-test.md), sections 1 and 2, **w
 section of `run/plugins/MCAV/config.yml`:
 
 - `mcv2.encoder-threads`: the threads every MCV2 encoder of the server shares; `0` (the default) is half the processors
-  the server may use. The server log says, when the plugin loads, `MCV2 encoders share N of M processors`.
+  the server may use. The server log says, when the plugin loads, `MCV2 encoders share N of M processors`, and then
+  which encoder kernels run, such as `MCV2 kernels: native avx2 (linux-x86_64)`.
+- `mcv2.native`: `auto` uses the native encoder kernels; `off` runs the Java ones, which write the same stream.
+- `mcv2.default-codec`: `dither`, or `mcv2` to make every wall of maps use MCV2 without the `--codec` flag.
+- `mcv2.pack.hosting`: `injector` serves the pack on the Minecraft server's own port (nothing else to forward); behind a
+  proxy use `http` or `website`.
 
-The pack is served on the Minecraft server's own port (nothing else to forward), and it is built for each screen: a
-screen of another size or profile gets another pack.
+One pack decodes every MCV2 screen of the server, up to eight at once; it changes only when a screen of a video size it
+does not decode yet starts, and each change reloads the client's resources once.
 
 ## 2. A screen
 
-Join, `op` yourself from the console, stand in an open area and build a wall once per location (a second
-`/mcav screen` on the same blocks stacks a second item frame in each block, which hides the maps):
+Join, `op` yourself from the console, stand in an open area and build a wall (`/mcav screen` removes the item frames
+already hanging where it places one, so building a wall again on the same blocks is safe):
 
 ```
 mcav screen "6x3" 200 black_concrete ~ ~ ~
@@ -52,7 +59,14 @@ low-bandwidth point, VMAF >= 70), the live searches `live`, `live_adaptive` and 
 robust reference modes `keyframe` (P frames predict from the last keyframe), `intra` (every frame a keyframe) and
 `live_keyframe`.
 
-**A live source**, encoded while it plays:
+**A live source**, encoded while it plays: add `--codec mcv2` to any command that draws on a wall of maps,
+
+```
+mcav video map @a FFMPEG NONE "1920x1080" "6x3" 200 FILTER_LITE "" "/absolute/path/to/video.mp4" --codec mcv2
+mcav browser create @a "1280x720" 1 "6x3" 200 NEAREST_COLOR NONE https://example.com --codec mcv2
+```
+
+or choose the profile with `mcav video mcv2`:
 
 ```
 mcav video mcv2 @a FFMPEG NONE "1920x1080" "6x3" 200 live FILTER_LITE "" "/absolute/path/to/video.mp4"
@@ -97,7 +111,7 @@ Send the client log, a screenshot and the server log's lines around `MCV2` if so
 
 ## 6. Numbers to compare
 
-| what | measured on the devbox | how to see it on yours |
+| what | measured on the build machine | how to see it on yours |
 | --- | --- | --- |
 | upload per viewer, live 1080p30 (`live`, the default) | quiet content 2.80 Mbit/s of map packets, 1.83 after the game's zlib (-35%); fast gameplay 13.0 and 8.3 (15.2 and 8.6 once the screen steps to `live_adaptive`) | the server's network monitor, or `nload` on the server |
 | upload per viewer, ship 1080p30 | 3.40 Mbit/s, 2.19 after zlib | as above |
@@ -106,9 +120,9 @@ Send the client log, a screenshot and the server log's lines around `MCV2` if so
 | server tick with 1 or 2 live screens | TPS 20.0 (19.3-20.0); MSPT p95 0.78-0.90 / 0.79-0.91 ms at the default budget, 0.53-0.72 without a screen | `/mspt` (Paper) |
 | live encode, 1080p30 | `live`: 18 ms mean per frame of quiet content (p95 20-21), 25 of gameplay (p95 31-32), on a 6-core machine's 12 threads: the full 30 fps; with the default 6 threads 20 and 29 ms (gameplay's p95 37: frames late now and then; `live_adaptive` 26, p95 33) | the screen's pacing messages |
 
-## 7. What was verified on the devbox, and what needs your client
+## 7. What was verified on the build machine, and what needs your client
 
-Verified on the devbox:
+Verified on the build machine:
 
 - the Java decoder bit-exact with the reference on the conformance corpus, edge streams and 24,864 generated frames;
   the encoder byte-identical to the reference on both shipped profiles;
@@ -122,10 +136,10 @@ Verified on the devbox:
 
 Needs your client:
 
-- **real GPUs and drivers**: the devbox's GPU is an Intel UHD 630 driven headless through EGL, and its client renders on
+- **real GPUs and drivers**: the build machine's GPU is an Intel UHD 630 driven headless through EGL, and its client renders on
   llvmpipe (software, about 3 fps at 1080p). NVIDIA and AMD drivers, macOS (OpenGL 4.1 over Metal) and Windows have not
   run the pack; the shaders stay within GLSL 330 and the post-chain features vanilla uses;
 - **the look at full speed**: motion, the frame time the decoder costs a player, and a client rendering at 60 fps or
   more, which the software-rendered client cannot;
-- **a network between you and the server**: the devbox tested distant links with simulated delay and loss on one
+- **a network between you and the server**: the build machine tested distant links with simulated delay and loss on one
   machine.

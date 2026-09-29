@@ -86,6 +86,8 @@ plays it again whenever it ends; the speed and loop need the `FFMPEG` player, an
 Add `--filters "grayscale,blur=3"` to a video or image command to filter every picture in order; see the
 [filters](./commands.md#filters) the plugin offers.
 
+[Videos and Images](video.md) explains the players, the audio outputs, the controls and the filters in full.
+
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen. Decoding a high-resolution AV1 source can fall behind on a busy
 server. The playing message reports player state; it does not guarantee frames are arriving. MCAV currently has
@@ -107,6 +109,8 @@ chat input and send it to the browser as if you were typing in a real web browse
 key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse
 clicks, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the `KeyboardEvent.key` column [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
+
+[Web Browsers](browser.md) has the details: the first-start download, sound, and what a page may reach.
 
 ### If you would like to stream OBS output, here are the steps to take:
 1) Follow all the steps to play a video. The only difference is that you must set the player to be `FFMPEG` instead of
@@ -132,7 +136,8 @@ Simple Voice Chat. Put names that contain spaces in double quotes.
 
 MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio, and the PC speaker), so the guest needs no
 option for it; machines of other architectures are silent and must choose `NONE`. Its sound plays about 70 ms late on
-purpose, so that it plays with the picture of QEMU's display.
+purpose, so that it plays with the picture of QEMU's display. [Virtual Machines](vm.md) lists the options QEMU accepts
+and where disk images go.
 
 ### If you would like a sharper picture with MCV2, here are the steps to take:
 1) Build the wall with `/mcav screen` as usual; MCV2 finds the wall by the item frame that holds its top-left map.
@@ -150,14 +155,15 @@ starts.
 5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a
 screen asks for more than they can give, it steps down to a faster encoder, a smaller video or fewer frames, and tells
 you. A video file you show often can be encoded ahead of time at the best quality with `/mcav mcv2 encode` and shown
-with `/mcav mcv2 play` (without sound).
+with `/mcav mcv2 play` (without sound). [Using MCV2](../mcv2/using.md) helps you choose a preset, host the pack and
+troubleshoot.
 
 ### If you would like to show a VNC desktop, here are the steps to take:
 1) List the VNC server in `vnc.allowed-hosts` of the [configuration file](./config.md), with its password if it has one,
 and restart the server. Nothing can be reached until you do.
 2) Run `/mcav vnc create @a 1280x720 20 10x6 0 NEAREST_COLOR 127.0.0.1:5901`, naming the server exactly as listed.
 3) Players click the screen to click the desktop; `/mcav vnc interact` types their chat into it. `/mcav vnc release`
-disconnects.
+disconnects. See [VNC Desktops](vnc.md).
 
 You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on your
 server!

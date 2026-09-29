@@ -1,0 +1,49 @@
+// Figure: a frame's bytes from the encoder to the client's decoder, with where the CRC is computed and checked and
+// where the map rate charges the six-bit expansion, row rounding and the packet envelope.
+// TransportPages, MapAlphabet, Mcv2Channel, Mcv2Link; on the client core/text.vsh and the mcv2_bytes/crc/pages passes.
+digraph transport {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.2;
+  nodesep=0.3;
+  ranksep=0.28;
+  node [shape=box, style=filled, fillcolor="#f5f5f5", color="#666666", fontname="Arial", fontsize=11, fontcolor="#333333", margin="0.12,0.07"];
+  edge [color="#666666", arrowsize=0.7, fontname="Arial", fontsize=10, fontcolor="#555555"];
+
+  subgraph cluster_server {
+    label="Server";
+    fontname="Arial"; fontsize=11; fontcolor="#333333";
+    style="rounded"; color="#999999";
+    frame [label="Frame bytes (48 to 16,777,215)", fillcolor="#fff2cc", color="#d6b656"];
+    cut [label="Cut into pages\npage n carries frame bytes n x 12,256 up to the next page"];
+    header [label="32-byte page header\nMCP1, version, symbol bits (6), frame type, stream id,\nframe id, page number and count, reference id, frame length"];
+    crc [label="CRC32 (IEEE) computed over the header with its CRC field\nzero, then the page's slice of the frame"];
+    symbols [label="Bytes to six-bit symbols, least significant bit first\na full page is 16,384 symbols: one 128x128 map\n(map rate: symbol_expansion, 4 map bytes per 3)"];
+    colours [label="Symbol s becomes map colour s + 4\n(colour ids 4 to 67), padded with colour 4 to\nwhole 128-colour rows (map rate: row_rounding)"];
+    packet [label="One map-data packet per page, into map page_map + n;\nall pages of a frame in one bundle\n(map rate: page_headers, packet_envelope of 18 bytes)"];
+    link [shape=diamond, label="Per viewer (Mcv2Link):\ncan the viewer decode it, and\nis its unwritten video under\n128 KiB (256 KiB for a keyframe)?", margin="0.02,0.02"];
+    hold [label="Held: that viewer waits for the\nnext frame it can decode"];
+    zlib [label="The game's packet compression\nzlib on packets of 256 bytes or more"];
+  }
+
+  subgraph cluster_client {
+    label="Client";
+    fontname="Arial"; fontsize=11; fontcolor="#333333";
+    style="rounded"; color="#999999";
+    texture [label="The map's 128x128 texture is updated"];
+    strip [label="core/text.vsh recognises a page map by its MCP1 header\nand moves it into its slot's rows of a strip on the screen;\ntext.fsh writes four symbols per pixel, alpha 1"];
+    bytes [label="mcv2_bytes: the strip back to frame bytes"];
+    check [label="mcv2_crc, mcv2_pages: the CRC32 of every page recomputed\nin 192-byte chunks, compared, the header checked"];
+    whole [shape=diamond, label="Every page of the\nframe here, and valid?", margin="0.02,0.02"];
+    decoder [label="Frame to the decoder\n(chart: client decode)", fillcolor="#fff2cc", color="#d6b656"];
+    stale [label="Not decoded: the last\npicture stays"];
+  }
+
+  frame -> cut -> header -> crc -> symbols -> colours -> packet -> link;
+  link -> zlib [label="yes"];
+  link -> hold [label="no"];
+  zlib -> texture [label="TCP"];
+  texture -> strip -> bytes -> check -> whole;
+  whole -> decoder [label="yes"];
+  whole -> stale [label="no"];
+}

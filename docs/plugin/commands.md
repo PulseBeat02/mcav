@@ -90,8 +90,8 @@ A wall of maps shows its picture in one of two ways, chosen per command with the
 argument, for example `/mcav browser create @a 1280x720 1 10x6 0 NEAREST_COLOR NONE https://example.com --codec mcv2`.
 `/mcav vm create` takes it at the very end of its QEMU options, since those start with a dash too:
 `... X86_64 NONE -m 2048M -cdrom "alpine linux.iso" --codec mcv2`. `/mcav video mcv2` always uses MCV2 and chooses its
-encoder profile. The block, chat, entity, scoreboard and hologram outputs draw no maps, so the codec does not apply to
-them.
+encoder profile. The block, chat, entity and scoreboard outputs (and the information hologram) draw no maps, so the
+codec does not apply to them.
 
 With `mcv2`:
 
@@ -207,9 +207,9 @@ every device there is.
 |------------------------------------|----------------------------------------------------------|
 | **Usage**                          | `/mcav video hologram set <location>`                    |
 | **Permission**                     | `mcav.command.hologram.set`                              |
-| **Description**                    | Sets the location for displaying hologram video content. |
+| **Description**                    | Makes every video started from now on show a floating hologram at the location with its title, uploader and a progress bar; a video that already plays keeps its hologram, or none. |
 | **Arguments**                      |                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location` | The location in the World to display the hologram        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location` | Where the hologram floats, such as `~ ~2 ~`                |
 
 ---
 
@@ -217,7 +217,7 @@ every device there is.
 |-----------------|--------------------------------------------------|
 | **Usage**       | `/mcav video hologram disable`                   |
 | **Permission**  | `mcav.command.hologram.disable`                  |
-| **Description** | Disables the hologram display for video content. |
+| **Description** | Videos started from now on show no hologram; the one shown goes away when the next video starts. |
 | **Arguments**   | None                                             |
 
 ---
