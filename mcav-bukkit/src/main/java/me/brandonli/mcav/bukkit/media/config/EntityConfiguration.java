@@ -29,10 +29,13 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  * result.
  *
  * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
- * one line of text. The entity always faces the viewer horizontally and is only visible to the viewers that were
- * online when it was spawned.
+ * one line of text. The entity always faces the viewer horizontally. Visibility is checked every server tick,
+ * including viewers added after spawning and players who reconnect; removed online viewers are hidden.
  *
  * <p>The viewers collection is not copied, so a concurrent collection can be passed.
+ *
+ * <p>The position is retained by reference. Finish setting it before creating the display and do not
+ * mutate it while rendering. {@link #getPosition()} returns that same mutable location.
  */
 public class EntityConfiguration {
 
@@ -53,7 +56,8 @@ public class EntityConfiguration {
   /**
    * Gets the players who see the entity.
    *
-   * @return the UUIDs of the viewers
+   * @return the original mutable-or-immutable collection supplied to the builder, without a copy; use a
+   *         concurrent collection if another thread changes membership during rendering
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
@@ -90,7 +94,7 @@ public class EntityConfiguration {
   /**
    * Gets the position the entity is spawned at.
    *
-   * @return the position of the entity
+   * @return the original location supplied to the builder, without a defensive copy
    */
   public Location getPosition() {
     return this.position;
@@ -127,6 +131,9 @@ public class EntityConfiguration {
 
   /**
    * Builds entity configurations. Every value is required.
+   *
+   * <p>Builders are mutable and not thread-safe. Setters retain reference arguments; numeric ranges and
+   * required fields are checked by {@link #build()}, which may be called again to create another configuration.
    *
    * @param <T> the type of the builder
    */
@@ -165,6 +172,9 @@ public class EntityConfiguration {
     /**
      * Sets the text drawn for every pixel.
      *
+     * <p>The text must be nonempty when {@link #build()} is called. Multiple characters are allowed, but
+     * change the visual width of a pixel; no font or character-width validation is performed.
+     *
      * @param character the pixel text, usually a single character such as {@code █}
      * @return this builder
      * @throws NullPointerException if the character is null
@@ -199,6 +209,8 @@ public class EntityConfiguration {
 
     /**
      * Sets the position the entity is spawned at.
+     *
+     * <p>The location is stored without copying. Its world is checked when {@link #build()} is called.
      *
      * @param position the position of the entity, which must have a world
      * @return this builder

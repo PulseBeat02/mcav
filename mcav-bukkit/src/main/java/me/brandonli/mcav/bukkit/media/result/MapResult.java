@@ -35,6 +35,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  *
  * <p>This is the simplest way to display video on maps and every frame is shown exactly, but it uses a lot of
  * bandwidth: 16 KB per map per frame. Prefer {@link CompressedMapResult}, which only sends what changed.
+ *
+ * <p>The caller owns this result and its lifecycle; attaching it to a pipeline does not call start or release.
+ * Input buffers remain caller-owned and are consumed synchronously, even when converted display data is applied
+ * on a later server tick. Serialize frame delivery with lifecycle operations unless this class explicitly provides
+ * locking, and never mutate an input buffer concurrently with conversion.
  */
 public class MapResult implements DitherResultStep {
 
@@ -44,6 +49,7 @@ public class MapResult implements DitherResultStep {
    * Constructs a new {@code MapResult}.
    *
    * @param configuration the configuration describing the map grid and the viewers
+   * @throws NullPointerException if {@code configuration} is null
    */
   public MapResult(final MapConfiguration configuration) {
     Preconditions.checkNotNull(configuration, "Map configuration must not be null");
@@ -56,6 +62,7 @@ public class MapResult implements DitherResultStep {
    *
    * @param samples   the frame, which is resized in place if resizing is configured
    * @param algorithm the dithering algorithm that converts the frame into map colors
+   * @throws NullPointerException if {@code samples} or {@code algorithm} is null
    */
   @Override
   public void process(final ImageBuffer samples, final DitherAlgorithm algorithm) {

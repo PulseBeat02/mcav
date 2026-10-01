@@ -102,6 +102,9 @@ public final class BlockPaletteLookup {
   /**
    * Gets the dithering algorithm that reduces images to the colors of the block palette.
    *
+   * <p>The instance and its lookup tables are shared. Treat its exposed palette arrays as read-only and
+   * use independently owned input buffers for concurrent calls.
+   *
    * @return the dithering algorithm for the block palette
    */
   public static FilterLiteDither getDitheringImpl() {

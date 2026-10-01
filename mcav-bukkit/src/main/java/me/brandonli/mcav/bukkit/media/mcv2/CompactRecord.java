@@ -22,6 +22,9 @@ package me.brandonli.mcav.bukkit.media.mcv2;
  * in its high nibble, zero to two motion bytes, then a class-specific body. Every record's length follows from its
  * control byte, so no preceding record is parsed to find it.
  *
+ * <p>The public record constructor stores values without validation. Use {@link #parse(byte[], int, int)}
+ * for record bytes; only parsed instances carry the parser's validity guarantee.
+ *
  * @param kind       the class, 0 to 8
  * @param form       the motion form: 0 inherits the global vector, 1 adds a signed nibble pair, 2 a signed byte pair
  * @param dx         the horizontal motion delta, in half pixels
@@ -81,6 +84,7 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
    *
    * @param kind the class, 0 to 8
    * @return the body length in bytes
+   * @throws ArrayIndexOutOfBoundsException if kind is outside 0 through 8
    */
   public static int bodyBytes(final int kind) {
     return BODY_BYTES[kind];
@@ -91,10 +95,11 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
    *
    * @param data      the frame bytes; the record must end inside them
    * @param offset    the offset of the control byte
-   * @param quantizer the leaf's quantizer
+   * @param quantizer the leaf's quantizer, 0 through 7; the gain/bias class requires zero
    * @return the record
-   * @throws Mcv2Exception if the record is truncated, names an unknown class or motion form, gives the gain class a
+   * @throws Mcv2Exception if the offset or quantizer is out of range, the record is truncated, names an unknown class or motion form, gives the gain class a
    *                       quantizer, or has an out-of-range book index or nonzero index padding
+   * @throws NullPointerException if data is null
    */
   public static CompactRecord parse(final byte[] data, final int offset, final int quantizer) throws Mcv2Exception {
     if (offset < 0 || offset >= data.length || quantizer < 0 || quantizer > Mcv2Format.MAX_QUANTIZER) {
@@ -125,9 +130,13 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
   /**
    * The horizontal motion delta a record adds to the global vector, from its control and motion bytes.
    *
+   * <p>This accessor assumes a previously validated record and does not validate the control byte.
+   *
    * @param data   the bytes holding the record, its motion bytes included
    * @param offset the offset of the control byte
    * @return the delta in half pixels
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if a required control or motion byte lies outside data
    */
   public static int deltaX(final byte[] data, final int offset) {
     final int form = Byte.toUnsignedInt(data[offset]) >> NIBBLE_BITS;
@@ -140,9 +149,13 @@ public record CompactRecord(int kind, int form, int dx, int dy, int bodyOffset, 
   /**
    * The vertical motion delta a record adds to the global vector, from its control and motion bytes.
    *
+   * <p>This accessor assumes a previously validated record and does not validate the control byte.
+   *
    * @param data   the bytes holding the record, its motion bytes included
    * @param offset the offset of the control byte
    * @return the delta in half pixels
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if a required control or motion byte lies outside data
    */
   public static int deltaY(final byte[] data, final int offset) {
     final int form = Byte.toUnsignedInt(data[offset]) >> NIBBLE_BITS;

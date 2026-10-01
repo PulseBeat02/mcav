@@ -153,6 +153,7 @@ public final class Mcv2Frame {
    *
    * @param size the leaf size, 8, 16 or 32
    * @return the table of {@code 1 + size / 8}-byte words, or null when the frame names no words of that size
+   * @throws IllegalArgumentException if the leaf size is not 8, 16 or 32
    */
   public byte @Nullable [] getSelectorTable(final int size) {
     Preconditions.checkArgument(Mcv2Format.isBlockSize(size), "Invalid leaf size %s", size);
@@ -300,6 +301,9 @@ public final class Mcv2Frame {
 
   /**
    * One leaf of the block tree.
+   *
+   * <p>Leaves returned by {@link Mcv2Frame#getLeaf(int)} are validated. The public record constructor stores
+   * components without validation; constructing a leaf does not create or alter a validated frame.
    *
    * @param x      the left edge in pixels
    * @param y      the top edge in pixels

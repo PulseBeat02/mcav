@@ -50,6 +50,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * its mode, quantizer and record in the wide form, immediate motion becomes an ordinary motion leaf, a pattern becomes
  * the full palette it stands for, and a skipped keyframe leaf becomes the default colour's solid leaf. Serializing the
  * result with the frame's own options reproduces the frame byte for byte.
+ *
+ * <p>Tree nodes and records are immutable. Transformations may reuse unchanged nodes and create new nodes
+ * for rewritten subtrees. Input sizes must be 8, 16 or 32 pixels with no split below eight; rewrite helpers assume
+ * valid logical records rather than validating an entire frame. Worker pools remain caller-owned.
  */
 public final class TreeReader {
 
@@ -65,8 +69,9 @@ public final class TreeReader {
    * Rebuilds the roots of a frame.
    *
    * @param frame the frame
-   * @return one root per 32-pixel block, in raster order
+   * @return a new fixed-size list in raster order, with one immutable root per 32-pixel block
    * @throws Mcv2Exception never for a frame the parser accepted; declared because records are re-read
+   * @throws NullPointerException if frame is null
    */
   public static List<TreeNode> roots(final Mcv2Frame frame) throws Mcv2Exception {
     return roots(frame, Workers.SEQUENTIAL);
@@ -77,8 +82,9 @@ public final class TreeReader {
    *
    * @param frame   the frame
    * @param workers the workers, a superblock each
-   * @return one root per 32-pixel block, in raster order
+   * @return a new fixed-size list in raster order, with one immutable root per 32-pixel block
    * @throws Mcv2Exception never for a frame the parser accepted; declared because records are re-read
+   * @throws NullPointerException if frame or workers is null
    */
   public static List<TreeNode> roots(final Mcv2Frame frame, final Workers workers) throws Mcv2Exception {
     final int count = frame.getLeafCount();
@@ -208,6 +214,8 @@ public final class TreeReader {
    * @param record the full palette record: two endpoints, then one selector bit per pixel
    * @param size   the leaf size
    * @return the pattern record, or null when the selectors do not repeat along an axis
+   * @throws NullPointerException if record is null
+   * @throws ArrayIndexOutOfBoundsException if the record lacks required palette/selector bytes
    */
   public static byte @Nullable [] patternRecord(final byte[] record, final int size) {
     for (int kind = 0; kind < 2; kind++) {
@@ -247,6 +255,7 @@ public final class TreeReader {
    * @param size the root's size
    * @return the rewritten tree
    * @throws Mcv2Exception if a pattern record is invalid
+   * @throws NullPointerException if node is null
    */
   public static TreeNode withPalettes(final TreeNode node, final int size) throws Mcv2Exception {
     if (node.isSplit()) {
@@ -271,6 +280,7 @@ public final class TreeReader {
    * @param node the root
    * @param size the root's size
    * @return the rewritten tree
+   * @throws NullPointerException if node is null
    */
   public static TreeNode withPatterns(final TreeNode node, final int size) {
     if (node.isSplit()) {

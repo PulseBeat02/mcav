@@ -25,6 +25,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * codec's last kept round (round 19), chosen by the owner's rule: the cheapest point reaching VMAF 75, and the cheapest
  * reaching VMAF 70.
  *
+ * <p>Settings and nested search records are immutable and may be shared by encoders. Each with-method
+ * returns another validated record; it does not change a running encoder until explicitly switched.
+ *
  * @param lambda          the rate-distortion trade, weighted squared error per logical bit
  * @param keyInterval     frames between keyframes; 1 makes every frame independent
  * @param motionRange     the local motion search range in pixels around the global vector, at most 63
@@ -150,9 +153,14 @@ public record EncoderSettings(
    */
   public record Adaptive(LiveSearch search, double lambda, double enter, double leave) {
     /**
-     * Validates the adaptive search.
+     * Constructs immutable settings for the moving state of an adaptive live encoder.
      *
-     * @throws IllegalArgumentException if a value is out of range
+     * @param search the non-null live search to use while moving
+     * @param lambda the finite nonnegative base rate-distortion trade for that search
+     * @param enter the finite nonnegative mean temporal-information threshold for entering the moving state
+     * @param leave the threshold for returning to calm, from zero through enter
+     * @throws NullPointerException if search is null
+     * @throws IllegalArgumentException if lambda or thresholds are not finite or their ranges/order are invalid
      */
     public Adaptive {
       Preconditions.checkNotNull(search, "Search must not be null");
@@ -172,6 +180,9 @@ public record EncoderSettings(
   /**
    * Constructs settings that search like the reference encoder.
    *
+   * <p>Lambda must be finite and nonnegative, keyInterval positive, motionRange from 0 through 63 pixels,
+   * and sceneThreshold finite and positive. These are the same ranges as the canonical constructor.
+   *
    * @param lambda         the rate-distortion trade, weighted squared error per logical bit
    * @param keyInterval    frames between keyframes; 1 makes every frame independent
    * @param motionRange    the local motion search range in pixels around the global vector, at most 63
@@ -180,6 +191,7 @@ public record EncoderSettings(
    * @param sceneThreshold the mean absolute luma change after global prediction that forces a keyframe
    * @param reference      which decoded frame P frames predict from
    * @throws IllegalArgumentException if a value is out of range
+   * @throws NullPointerException if reference is null
    */
   public EncoderSettings(
     final double lambda,
@@ -196,6 +208,9 @@ public record EncoderSettings(
   /**
    * Constructs settings that search one way for every frame.
    *
+   * <p>Lambda must be finite and nonnegative, keyInterval positive, motionRange from 0 through 63 pixels,
+   * and sceneThreshold finite and positive. These are the same ranges as the canonical constructor.
+   *
    * @param lambda         the rate-distortion trade, weighted squared error per logical bit
    * @param keyInterval    frames between keyframes; 1 makes every frame independent
    * @param motionRange    the local motion search range in pixels around the global vector, at most 63
@@ -205,6 +220,7 @@ public record EncoderSettings(
    * @param reference      which decoded frame P frames predict from
    * @param live           the cheaper search of a live profile, or null for the reference's exhaustive search
    * @throws IllegalArgumentException if a value is out of range
+   * @throws NullPointerException if reference is null
    */
   public EncoderSettings(
     final double lambda,
@@ -220,9 +236,23 @@ public record EncoderSettings(
   }
 
   /**
-   * Validates the settings.
+   * Creates immutable encoder settings and validates their ranges and adaptive-search compatibility.
    *
-   * @throws IllegalArgumentException if a value is out of range
+   *
+   * @param lambda the finite nonnegative rate-distortion trade, weighted squared error per logical bit
+   * @param keyInterval the positive encoded-frame interval between keyframes; one makes every frame independent
+   * @param motionRange the local motion search radius in whole pixels around the global vector, from 0 through 63
+   * @param halfPixel whether local motion is refined to half-pixel positions
+   * @param compareGlobal whether zero global motion is also considered
+   * @param sceneThreshold the finite positive mean absolute luma-change threshold for forcing a keyframe
+   * @param reference the non-null decoded-picture reference policy
+   * @param live the cheaper live search, or null for exhaustive reference search
+   * @param adaptive the motion-dependent search, or null for one search; a non-null value requires a live search
+   *                 whose motionLambda flag is enabled
+   *
+   * @throws NullPointerException if reference is null
+   * @throws IllegalArgumentException if a numeric range is invalid, a floating value is not finite, or adaptive
+   *         settings lack a live search that measures motion
    */
   public EncoderSettings {
     Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
@@ -241,6 +271,7 @@ public record EncoderSettings(
    *
    * @param value the lambda
    * @return the new settings
+   * @throws IllegalArgumentException if value is negative, NaN or infinite
    */
   public EncoderSettings withLambda(final double value) {
     return new EncoderSettings(
@@ -261,6 +292,7 @@ public record EncoderSettings(
    *
    * @param value the key interval
    * @return the new settings
+   * @throws IllegalArgumentException if value is nonpositive
    */
   public EncoderSettings withKeyInterval(final int value) {
     return new EncoderSettings(
@@ -281,6 +313,7 @@ public record EncoderSettings(
    *
    * @param value the policy
    * @return the new settings
+   * @throws NullPointerException if value is null
    */
   public EncoderSettings withReference(final ReferencePolicy value) {
     return new EncoderSettings(
@@ -327,6 +360,7 @@ public record EncoderSettings(
    *
    * @param value the search of a live profile, or null for the reference's
    * @return the new settings
+   * @throws IllegalArgumentException if retained adaptive settings require motion measurement absent from value
    */
   public EncoderSettings withLive(final @Nullable LiveSearch value) {
     return new EncoderSettings(

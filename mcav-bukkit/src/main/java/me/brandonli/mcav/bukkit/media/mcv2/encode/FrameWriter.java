@@ -179,6 +179,10 @@ public final class FrameWriter {
   /**
    * Serializes a tree.
    *
+   * <p>Roots and their records remain caller-owned; the returned array is independent. Metadata ids must be
+   * unsigned 32-bit values, motions signed 16-bit half-pixel displacements, and keyframes must name themselves with
+   * zero motion. Low-level metadata serialization truncates to its storage width, so callers must satisfy those ranges.
+   *
    * @param width       the width in pixels
    * @param height      the height in pixels
    * @param frameId     the unsigned 32-bit frame id
@@ -190,6 +194,7 @@ public final class FrameWriter {
    * @param options     the forms the frame may use
    * @return the frame bytes
    * @throws IllegalArgumentException if the tree is not a valid MCV2 tree for these dimensions
+   * @throws NullPointerException if {@code roots} or {@code options} is null
    */
   public static byte[] write(
     final int width,

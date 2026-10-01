@@ -52,6 +52,7 @@ public final class ChatUtils {
    *
    * @param index a non-negative index
    * @return an invisible string that is unique for every index
+   * @throws IllegalArgumentException if the index is negative
    */
   public static String getUniqueString(final int index) {
     Preconditions.checkArgument(index >= 0, "Index must be non-negative");
@@ -68,11 +69,16 @@ public final class ChatUtils {
   /**
    * Creates a single line of colored text from one row of pixels.
    *
+   * <p>Pixel data is read synchronously and not retained. Alpha is ignored. The character string is inserted
+   * verbatim, so formatting codes in it can affect the output; no escaping is performed.
+   *
    * @param data      the pixels in ARGB format, laid out row by row; the alpha channel is ignored
    * @param character the text drawn for every pixel
    * @param width     the width of the image in pixels
    * @param row       the row to convert
    * @return the row as text with legacy section sign color codes
+   * @throws IllegalArgumentException if width is nonpositive or the requested zero-based row is outside the data
+   * @throws NullPointerException if {@code data} or {@code character} is null
    */
   public static String createRawLine(final int[] data, final String character, final int width, final int row) {
     Preconditions.checkNotNull(data, "Pixels must not be null");
@@ -89,11 +95,16 @@ public final class ChatUtils {
   /**
    * Creates a chat component from the given pixels, with one line of text for every row of pixels.
    *
+   * <p>Pixel data is read synchronously and not retained; extra pixels beyond the requested dimensions are
+   * ignored. Character text is interpreted as legacy formatted text rather than escaped literal text.
+   *
    * @param data      the pixels in ARGB format, laid out row by row; the alpha channel is ignored
    * @param character the text drawn for every pixel
    * @param width     the width of the image in pixels
    * @param height    the height of the image in pixels
    * @return a chat component showing the image
+   * @throws IllegalArgumentException if either dimension is nonpositive or the image requires more pixels than supplied
+   * @throws NullPointerException if {@code data} or {@code character} is null
    */
   public static Component createChatComponent(final int[] data, final String character, final int width, final int height) {
     Preconditions.checkNotNull(data, "Pixels must not be null");
@@ -144,6 +155,7 @@ public final class ChatUtils {
    * players are skipped. May be called from any thread.
    *
    * @param viewers the UUIDs of the players to clear the chat for
+   * @throws NullPointerException if {@code viewers} is null
    */
   public static void clearChat(final Collection<UUID> viewers) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null");

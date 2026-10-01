@@ -54,6 +54,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * passes, with its video size, page slots and place in the strip, the table of the screens' streams, the outline
  * colour of the page frames, the map colours of the transport alphabet (from this server's map palette, which is the
  * client's), and the residual books (from the same bytes the Java decoder uses).
+ *
+ * <p>Writing performs synchronous resource reads and archive creation. Run it off the main thread with stable
+ * configuration inputs, and keep the resulting file available for the chosen hosting strategy.
  */
 public final class Mcv2Pack {
 
@@ -149,6 +152,7 @@ public final class Mcv2Pack {
    * @param showsDebugView whether the pack also draws the decoded picture one to one below the strip, for testing
    * @param zip            where the pack is written, atomically
    * @throws UncheckedIOException if the pack cannot be written
+   * @throws NullPointerException if the zip path is null
    */
   public static void write(final Mcv2Configuration configuration, final boolean showsDebugView, final Path zip) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
@@ -166,6 +170,7 @@ public final class Mcv2Pack {
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAX_SCREENS}, two share a stream
    *                                  id, or their outline colours differ
    * @throws UncheckedIOException     if the pack cannot be written
+   * @throws NullPointerException if {@code screens} or {@code zip} is null
    */
   public static void write(final List<Mcv2Configuration> screens, final boolean showsDebugView, final Path zip) {
     Preconditions.checkNotNull(screens, "Screens must not be null");

@@ -29,6 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The workers a decode or an encoder stage may use: a pool and how many of its threads. A loop over independent items
  * runs with each worker pulling the next item from a shared counter and keeping its own scratch state, so what an item
  * computes never depends on which worker ran it or on the number of workers.
+ *
+ * <p>This immutable wrapper borrows the pool; the caller controls its lifetime. Operations block until the
+ * submitted work completes and may be invoked concurrently with independent input and scratch state. Suppliers
+ * and bodies must tolerate concurrent calls and avoid sharing mutable scratch between workers. Callback failures
+ * propagate; effects from items already processed are not rolled back.
  */
 public final class Workers {
 
@@ -64,10 +69,13 @@ public final class Workers {
   /**
    * Runs a body for every index from 0 to count, exclusive.
    *
-   * @param count   the number of items
+   * @param count the nonnegative number of items; zero or negative counts run no body calls, although
+   *              the scratch supplier is still called once
    * @param scratch makes one worker's scratch state
    * @param body    processes one item with the worker's scratch state
    * @param <T>     the scratch type
+   * @throws NullPointerException if scratch is null, or body is null and an item is processed
+   * @throws java.util.concurrent.RejectedExecutionException if parallel work is submitted to a pool that rejects it
    */
   public <T> void forEach(final int count, final Supplier<T> scratch, final ObjIntConsumer<T> body) {
     final ForkJoinPool target = this.pool;

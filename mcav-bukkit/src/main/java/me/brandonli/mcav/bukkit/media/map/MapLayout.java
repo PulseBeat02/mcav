@@ -31,6 +31,9 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  *
  * <p>Images are passed as map palette indices, one byte per pixel, laid out row by row. Instances are immutable
  * and thread-safe.
+ *
+ * <p>Odd centering differences use integer division toward zero, so opposite margins or crop amounts may
+ * differ by one pixel. Extracted patches own copied color arrays and do not retain the source image array.
  */
 public final class MapLayout {
 
@@ -57,11 +60,11 @@ public final class MapLayout {
   /**
    * Constructs a new layout.
    *
-   * @param startMapId  the id of the top left map
-   * @param columns     the number of maps horizontally
-   * @param rows        the number of maps vertically
-   * @param imageWidth  the width of the image in pixels
-   * @param imageHeight the height of the image in pixels
+   * @param startMapId the nonnegative id of the top left map
+   * @param columns the strictly positive number of maps horizontally
+   * @param rows the strictly positive number of maps vertically
+   * @param imageWidth the strictly positive width of the image in pixels
+   * @param imageHeight the strictly positive height of the image in pixels
    * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
    *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
    *                                  than {@link Integer#MAX_VALUE} pixels
@@ -219,6 +222,7 @@ public final class MapLayout {
    * @throws IndexOutOfBoundsException if the map index is outside of the grid
    * @throws IllegalArgumentException  if the image size does not match the layout, or the rectangle is empty or
    *                                   not inside the region of the map
+   * @throws NullPointerException if {@code image} is null
    */
   public MapTilePatch extractPatch(final byte[] image, final int index, final int left, final int top, final int width, final int height) {
     Preconditions.checkNotNull(image, "Image must not be null");
@@ -275,6 +279,7 @@ public final class MapLayout {
    * @param image the image as map palette indices, laid out row by row
    * @return the patches for the entire image
    * @throws IllegalArgumentException if the image size does not match the layout
+   * @throws NullPointerException if {@code image} is null
    */
   public List<MapTilePatch> extractAll(final byte[] image) {
     Preconditions.checkNotNull(image, "Image must not be null");

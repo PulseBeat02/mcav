@@ -40,6 +40,10 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
  *
  * <p>Call {@link #start()} before sending the URL to players and {@link #shutdown()} when the pack is no longer
  * needed.
+ *
+ * <p>The caller owns the hosting lifecycle and source zip. Starting local hosting does not send resource-pack
+ * requests to players; obtain the URL and send those requests separately. Keep the source file available for
+ * strategies that serve it locally. Website upload is an external operation that shutdown cannot undo.
  */
 public interface PackHosting {
   /**
@@ -57,7 +61,9 @@ public interface PackHosting {
   void start();
 
   /**
-   * Stops hosting the resource pack and releases all resources.
+   * Releases this strategy's local hosting resources. Dedicated HTTP hosting stops its server; injected hosting
+   * stops accepting new HTTP connections; website hosting leaves the uploaded pack available. Source zip files
+   * remain caller-owned and are not deleted. See the strategy's shutdown method for in-flight download behavior.
    */
   void shutdown();
 
@@ -76,6 +82,7 @@ public interface PackHosting {
    * @param port     the port the HTTP server listens on, from 1 to 65535
    * @return the hosting strategy
    * @throws IllegalArgumentException if the port is out of range
+   * @throws NullPointerException if {@code path} or {@code hostName} is null
    */
   static HttpHosting http(final Path path, final String hostName, final int port) {
     Preconditions.checkNotNull(path, "Resource pack path must not be null");
@@ -88,6 +95,7 @@ public interface PackHosting {
    *
    * @param path the path to the resource pack zip
    * @return the hosting strategy
+   * @throws NullPointerException if {@code path} is null
    */
   static WebsiteHosting website(final Path path) {
     Preconditions.checkNotNull(path, "Resource pack path must not be null");
@@ -99,6 +107,7 @@ public interface PackHosting {
    *
    * @param path the path to the resource pack zip
    * @return the hosting strategy
+   * @throws NullPointerException if {@code path} is null
    */
   static InjectorHosting injector(final Path path) {
     Preconditions.checkNotNull(path, "Resource pack path must not be null");

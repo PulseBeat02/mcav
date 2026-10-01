@@ -34,11 +34,15 @@ import org.bytedeco.javacv.FrameGrabber;
 /**
  * Encodes a video ahead of time into an MCV2 stream: the path for a server too small to encode a video while it plays.
  * The frames are encoded one after another, each inside an encoder budget ({@link EncoderPool}), the one every screen
- * of the server shares, so encoding a file ahead takes turns with the screens instead of adding threads, and it never
- * runs on the server's main thread: call it from a thread of its own.
+ * of the server shares, so encoding a file ahead takes turns with the screens instead of adding threads, so call it from a worker thread, not from the server's main thread.
  *
  * <p>The stream is every frame's MCV2 bytes, each preceded by their length as a little-endian 32-bit number, the form
  * a stream is read back in to be played.
+ *
+ * <p>Call from an application worker thread: the method performs reading, writing and progress callbacks
+ * synchronously, and waits for encoding tasks in the supplied budget. It does not dispatch the entire operation
+ * off the calling thread. The caller owns the output stream and pool; the frame reader is closed after validated
+ * arguments enter the encode operation, including on encoding or I/O failure.
  */
 public final class Mcv2FileEncoder {
 
@@ -73,7 +77,7 @@ public final class Mcv2FileEncoder {
    *
    * @param frames      the frames encoded
    * @param keyframes   how many of them were keyframes
-   * @param bytes       the MCV2 bytes of the frames
+   * @param bytes the MCV2 frame bytes, excluding each four-byte length prefix
    * @param nanoseconds the time the encodes took, waiting for the budget's threads included
    */
   public record Result(long frames, long keyframes, long bytes, long nanoseconds) {
@@ -90,16 +94,24 @@ public final class Mcv2FileEncoder {
   /**
    * Encodes every frame a reader has into a stream.
    *
-   * @param frames   the frames, which are closed at the end
-   * @param width    the frames' width
-   * @param height   the frames' height
+   * @param frames the non-null reader, closed at the end after argument validation; validation failures
+   *               before encoding starts leave it caller-owned
+   * @param width the frame width in pixels, 1 through 4096 for encoding
+   * @param height the frame height in pixels, 1 through 4096 for encoding
    * @param settings the encoder settings, for example {@link EncoderSettings#SHIP}
    * @param budget   the encoder budget, usually {@link EncoderPool#shared()}
-   * @param out      where the stream is written; it is not closed
-   * @param progress told the number of frames encoded after every frame
+   * @param out the caller-owned output, written synchronously without flush or close; failures can leave
+   *            a partial length prefix or frame in the stream
+   * @param progress called synchronously on the calling thread after each complete frame write, with
+   *                 the cumulative count starting at one; callback failures abort encoding
    * @return what the encode did
-   * @throws IOException          if the video cannot be read or the stream cannot be written
+   * @throws IOException if the reader cannot read or close, or the output cannot be written
    * @throws InterruptedException if the calling thread is interrupted, which stops the encode
+   * @throws IllegalArgumentException if a dimension is nonpositive, or an encoded frame exceeds the codec
+   *    *         dimension/id range
+   * @throws ArithmeticException if the RGB allocation size overflows an int
+   * @throws java.util.concurrent.RejectedExecutionException if the budget rejects the encoding task
+   * @throws NullPointerException if {@code frames}, {@code settings}, {@code budget}, {@code out} or {@code progress} is null
    */
   public static Result encode(
     final FrameReader frames,
@@ -144,11 +156,16 @@ public final class Mcv2FileEncoder {
   /**
    * Opens a video file with FFmpeg, its frames scaled to a size.
    *
+   * <p>The returned reader owns the FFmpeg grabber. Close it after use or pass it to encode, which closes it
+   * once argument validation succeeds. Do not read or close the same reader concurrently.
+   *
    * @param video  the video file
    * @param width  the width of the frames
    * @param height the height of the frames
    * @return the frames
    * @throws IOException if the file cannot be opened
+   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws NullPointerException if {@code video} is null
    */
   public static FrameReader ffmpeg(final Path video, final int width, final int height) throws IOException {
     Preconditions.checkNotNull(video, "Video must not be null");

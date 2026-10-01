@@ -44,8 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * highest such rung, and keeps off a rung it had to leave for {@link #BLOCK_SECONDS}, longer each time.
  * From the dithered maps it tries the lowest encoded rung again after {@link #RETRY_SECONDS}, and twice as long after
  * every try that failed, up to {@link #MAX_RETRY_SECONDS}; on the dithered maps it does not measure the video's rate,
- * since the frames then come as fast as the dithering allows. So once it has seen a rung, the frames it asks for never
- * take more than the budget gives them for longer than {@link #DOWN_SECONDS}, and it climbs back when the budget frees.
+ * since the frames then come as fast as the dithering allows. The thresholds guide adaptation after startup and sample-count gates; they are predictions, not a hard
+ * latency guarantee. Changing content or external load can invalidate an earlier timing estimate.
  *
  * <p>Times are {@link System#nanoTime()} values passed in by the caller. Not thread-safe: the screen calls it from
  * one thread at a time.
@@ -118,8 +118,11 @@ public final class Mcv2Pacer {
     public static final Preset ONLY = new Preset("", 1);
 
     /**
-     * Validates the preset.
+     * Constructs and validates a preset used to compare expected search costs.
      *
+     * @param name the non-null diagnostic name, possibly empty for an unnamed single preset
+     * @param cost the strictly positive finite relative cost; only ratios between presets matter
+     * @throws NullPointerException if name is null
      * @throws IllegalArgumentException if the cost is not positive and finite
      */
     public Preset {
@@ -135,6 +138,9 @@ public final class Mcv2Pacer {
 
   /**
    * A rung of the ladder.
+   *
+   * <p>Direct construction does not validate components. Use positive pixel dimensions, a positive frame
+   * divisor and a non-null preset for encoded rungs; {@link #DITHERED} is the canonical zero-divisor sentinel.
    *
    * @param width   the video width, or 0 for the dithered maps
    * @param height  the video height, or 0 for the dithered maps
@@ -269,9 +275,13 @@ public final class Mcv2Pacer {
   /**
    * Creates a pacer that starts at the top of the ladder and may fall back to the dithered maps.
    *
+   * <p>Each size array must contain exactly two positive pixel dimensions. Dimensions are copied into
+   * immutable rungs, so later changes to the lists or arrays do not change this pacer.
+   *
    * @param sizes the video sizes the screen can show, largest first: the size it was asked for, then smaller ones it
    *              can switch to
    * @throws IllegalArgumentException if there is no size, or a size is not positive
+   * @throws NullPointerException if the sizes or one of its arrays is null
    */
   public Mcv2Pacer(final List<int[]> sizes) {
     this(sizes, true);
@@ -280,11 +290,15 @@ public final class Mcv2Pacer {
   /**
    * Creates a pacer that starts at the top of the ladder.
    *
+   * <p>Each size array must contain exactly two positive pixel dimensions. Dimensions are copied into
+   * immutable rungs, so later changes to the lists or arrays do not change this pacer.
+   *
    * @param sizes    the video sizes the screen can show, largest first: the size it was asked for, then smaller ones it
    *                 can switch to
    * @param dithered whether the screen can fall back to the dithered maps; without them, the lowest encoded rung is as
    *                 low as the pacer goes, even when its frames take longer than they have
    * @throws IllegalArgumentException if there is no size, or a size is not positive
+   * @throws NullPointerException if the sizes or one of its arrays is null
    */
   public Mcv2Pacer(final List<int[]> sizes, final boolean dithered) {
     this(sizes, List.of(Preset.ONLY), dithered);
@@ -293,6 +307,9 @@ public final class Mcv2Pacer {
   /**
    * Creates a pacer that starts at the top of the ladder and steps down through presets before frame rates.
    *
+   * <p>Each size array must contain exactly two positive pixel dimensions. Dimensions are copied into
+   * immutable rungs, so later changes to the lists or arrays do not change this pacer.
+   *
    * @param sizes    the video sizes the screen can show, largest first: the size it was asked for, then smaller ones it
    *                 can switch to
    * @param presets  how hard the encoder can search, from the preset the screen was asked for down to the fastest
@@ -300,6 +317,7 @@ public final class Mcv2Pacer {
    *                 low as the pacer goes, even when its frames take longer than they have
    * @throws IllegalArgumentException if there is no size or no preset, a size is not positive, or a preset does not
    *                                  cost less than the one before it
+   * @throws NullPointerException if the sizes or one of its arrays is null, or presets is null
    */
   public Mcv2Pacer(final List<int[]> sizes, final List<Preset> presets, final boolean dithered) {
     Preconditions.checkArgument(!sizes.isEmpty(), "At least one size is needed");
@@ -334,7 +352,7 @@ public final class Mcv2Pacer {
   /**
    * Gets the rungs of the ladder, top first; the last is {@link Rung#DITHERED} when the screen can fall back to it.
    *
-   * @return the ladder
+   * @return the unmodifiable ladder, whose immutable rungs may be shared
    */
   public List<Rung> getLadder() {
     return this.ladder;
@@ -362,7 +380,7 @@ public final class Mcv2Pacer {
    * Takes a frame of the video and decides whether it is encoded. On the dithered maps it is not, until the time to
    * try again comes, which moves the pacer to the lowest encoded rung.
    *
-   * @param now the time the frame arrived
+   * @param now the arrival time in monotonic nanoseconds, from the same clock used for other calls
    * @return the step a try from the dithered maps takes, which the caller carries out, or null
    */
   public @Nullable Change arrive(final long now) {
@@ -398,8 +416,9 @@ public final class Mcv2Pacer {
    *
    * @param milliseconds how long the frame took to encode, waiting for the budget's threads included
    * @param isKeyframe   whether it was a keyframe, which is left out
-   * @param now          the time the encode finished
+   * @param now the completion time in monotonic nanoseconds, from the same clock used for other calls
    * @return the step it causes, which the caller carries out, or null
+   * @throws IllegalArgumentException if milliseconds is negative, NaN or infinite
    */
   public @Nullable Change encoded(final double milliseconds, final boolean isKeyframe, final long now) {
     Preconditions.checkArgument(milliseconds >= 0 && Double.isFinite(milliseconds), "Time must be finite and non-negative");

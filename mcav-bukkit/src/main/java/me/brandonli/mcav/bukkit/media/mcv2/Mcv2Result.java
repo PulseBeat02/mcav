@@ -86,6 +86,13 @@ import org.slf4j.LoggerFactory;
  * without dithered maps stays at its lowest frame rate instead.
  *
  * <p>Call {@link #start()} and {@link #release()} on the main thread.
+ *
+ * <p>Use one start/release lifecycle per instance: configure callbacks and smaller sizes before start, stop
+ * submitting frames before release, and create a new result for another lifecycle. Repeated start is not guarded,
+ * and the fallback executor is shut down permanently by release. The result owns its worker threads, encoders,
+ * channel screen and fallback result. The pack tracker, fallback algorithm and encoder pool remain caller-owned.
+ * Serialize applyFilter calls; copied RGB/pixel data is handed to workers, so callers may reuse or close an input
+ * buffer after the call returns. Do not mutate it during conversion.
  */
 public final class Mcv2Result implements FunctionalVideoFilter {
 
@@ -267,6 +274,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /**
    * What the result has done so far.
+   *
+   * <p>Each getter is synchronized, but several getter calls are not one atomic snapshot. Counts describe
+   * frames accepted by the channel, not multiplied by recipients or acknowledged by clients.
    */
   public static final class Statistics {
 
@@ -335,7 +345,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     /**
-     * Gets the map colours sent to every viewer with the pack: every page as whole 128-colour rows.
+     * Gets accumulated page-map color bytes per potential recipient: every page as whole 128-color rows.
+     * Anchors, packet overhead and actual recipient counts are excluded.
      *
      * @return the map bytes per viewer
      */
@@ -359,6 +370,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @param configuration     the screen
    * @param viewers           who has the pack loaded
    * @param fallbackAlgorithm how the video is dithered for viewers without the pack, or null to show them nothing
+   * @throws NullPointerException if configuration or viewers is null
    */
   public Mcv2Result(final Mcv2Configuration configuration, final Mcv2Viewers viewers, final @Nullable DitherAlgorithm fallbackAlgorithm) {
     this(configuration, new Mcv2Channel(configuration, viewers), fallbackAlgorithm);
@@ -499,8 +511,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * Lets the screen step down to smaller video sizes when its encoder budget cannot sustain the size it was asked for,
    * before it falls back to the dithered maps. Call before {@link #start()}.
    *
+   * <p>The list is copied, but its arrays are retained. Supply non-null arrays of exactly two positive pixel
+   * dimensions, each within the codec limit, and do not mutate them afterward. Validation is deferred to pacer/configuration use.
+   *
    * @param sizes   the smaller sizes, largest first, each a width and a height
    * @param resizer offers a size's pack and creates its channel
+   * @throws NullPointerException if {@code sizes} or {@code resizer} is null
    */
   public void setSmallerSizes(final List<int[]> sizes, final Resizer resizer) {
     Preconditions.checkNotNull(sizes, "Sizes must not be null");
@@ -512,7 +528,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /**
    * Sets who is told of the pacer's steps besides the server log, for example the operator who started the screen.
    *
+   * <p>The callback may run on different threads on different calls; it must be thread-safe, nonblocking and
+   * must schedule Bukkit world changes on the main thread. Callback exceptions are not swallowed at the call site.
+   *
    * @param listener called with every step, on the thread that caused it
+   * @throws NullPointerException if {@code listener} is null
    */
   public void setPacingListener(final Consumer<Mcv2Pacer.Change> listener) {
     Preconditions.checkNotNull(listener, "Listener must not be null");
@@ -524,7 +544,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * viewers were sent and decode it again with the reference decoder. A frame too large for the screen's page slots is
    * not sent, and not heard.
    *
+   * <p>The callback receives the actual encoded array without a defensive copy. Treat it as read-only and
+   * copy it before handing it to code that may mutate it. Callback failures propagate on the sender thread.
+   *
    * @param listener called with every frame sent, on the thread that sends the frames, which it should not hold up
+   * @throws NullPointerException if {@code listener} is null
    */
   public void setFrameListener(final Consumer<byte[]> listener) {
     Preconditions.checkNotNull(listener, "Listener must not be null");
@@ -587,7 +611,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    *
    * @param data     the frame, resized in place to the screen's video size
    * @param metadata the metadata of the original video, which is not used
-   * @return true, because the frame may have been resized
+   * @return false when rate limiting skips the frame before conversion, otherwise true because it may
+   *         have been resized; this does not report encoding, sending or client decoding success
+   * @throws NullPointerException if {@code data} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
@@ -1026,6 +1052,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /**
    * Stops the encoder, removes the page frames and clears the dithered maps. Call on the main thread.
+   *
+   * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
+   * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
    */
   @Override
   public void release() {

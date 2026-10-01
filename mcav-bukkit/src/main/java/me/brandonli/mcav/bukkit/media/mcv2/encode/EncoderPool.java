@@ -35,8 +35,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A whole encode runs inside the budget ({@link #run(Callable)}): the encoder's sequential steps and all its
  * parallel loops run on the budget's threads, and no thread is ever added beyond them, not even while one waits for a
- * loop to finish. The frames of several encoders are encoded by whichever threads are free, in the order they were
- * handed over. The threads are daemon threads in a thread group whose priority is capped at the lowest, which the
+ * loop to finish. The frames of several encoders use whichever threads are free; task submission does not promise
+ * execution or completion order across streams. The threads are daemon threads in a thread group whose priority is capped at the lowest, which the
  * operating systems that honour Java thread priorities, like Windows, run after the game's threads; HotSpot on Linux
  * ignores thread priorities unless the JVM is started with {@code -XX:ThreadPriorityPolicy=1} as root, so there the
  * size of the budget is what keeps processors free for the game.
@@ -44,6 +44,11 @@ import org.slf4j.LoggerFactory;
  * <p>A server has one shared budget, {@link #shared()}, of {@link #defaultThreads(int) half its processors} unless
  * {@link #setSharedThreads(int)} sets another size. {@link Runtime#availableProcessors()} counts the processors the
  * JVM may use, which on JDK 25 follows the CPU limit and CPU set of a container.
+ *
+ * <p>A privately constructed pool belongs to its caller and must be closed after its encoders stop. The
+ * shared pool is server-wide; an individual screen must not close it. Work submitted here must not nest parallel
+ * loops inside other parallel loop items: this fixed-size pool does not add spare threads for arbitrary nested
+ * blocking work. Keep run tasks bounded and avoid waits on unrelated tasks in the same pool.
  */
 public final class EncoderPool implements AutoCloseable {
 
@@ -174,6 +179,7 @@ public final class EncoderPool implements AutoCloseable {
    * @param settings     the encoder settings
    * @param shouldVerify whether every frame is decoded and compared, as the encoder's verify argument
    * @return the encoder
+   * @throws NullPointerException if settings is null
    */
   public Mcv2Encoder encoder(final EncoderSettings settings, final boolean shouldVerify) {
     return new Mcv2Encoder(settings, this.pool, this.threads, shouldVerify);
@@ -182,11 +188,17 @@ public final class EncoderPool implements AutoCloseable {
   /**
    * Runs a task on the budget's threads and waits for it.
    *
+   * <p>Runtime exceptions and errors from the task propagate. Interruption cancels the submitted job, but
+   * cancellation does not guarantee that already running computation has stopped before this call exits.
+   *
    * @param task the task
    * @param <T>  the result type
    * @return what the task returned
    * @throws InterruptedException if the calling thread was interrupted before, when the task is not started, or while
    *                              it waits, when the task is cancelled
+   * @throws IllegalStateException if the task throws a checked exception
+   * @throws java.util.concurrent.RejectedExecutionException if the pool has been shut down or rejects submission
+   * @throws NullPointerException if {@code task} is null
    */
   public <T> T run(final Callable<T> task) throws InterruptedException {
     Preconditions.checkNotNull(task, "Task must not be null");
@@ -226,7 +238,9 @@ public final class EncoderPool implements AutoCloseable {
   }
 
   /**
-   * Stops the budget's threads; tasks that are still running are interrupted.
+   * Requests immediate pool shutdown and cancellation of queued work. This method does not await termination;
+   * running tasks may take time to respond. Further parallel submissions are rejected. Repeated calls are allowed.
+   * Do not close a shared pool on behalf of one screen.
    */
   @Override
   public void close() {

@@ -49,7 +49,8 @@ public class ChatConfiguration {
   /**
    * Gets the players who see the chat image.
    *
-   * @return the UUIDs of the viewers
+   * @return the original mutable-or-immutable collection supplied to the builder, without a copy; use a
+   *         concurrent collection if another thread changes membership during rendering
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
@@ -115,6 +116,9 @@ public class ChatConfiguration {
   /**
    * Builds chat configurations. Every value is required.
    *
+   * <p>Builders are mutable and not thread-safe. Setters retain reference arguments; numeric ranges and
+   * required fields are checked by {@link #build()}, which may be called again to create another configuration.
+   *
    * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
@@ -150,6 +154,9 @@ public class ChatConfiguration {
 
     /**
      * Sets the text drawn for every pixel.
+     *
+     * <p>The text must be nonempty when {@link #build()} is called. Multiple characters are allowed, but
+     * change the visual width of a pixel; no font or character-width validation is performed.
      *
      * @param character the pixel text, usually a single character such as {@code █}
      * @return this builder

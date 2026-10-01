@@ -57,6 +57,7 @@ public final class MapPacketFactory {
    *
    * @param viewers the UUIDs of the players to send the patches to
    * @param patches the patches to send
+   * @throws NullPointerException if {@code viewers} or {@code patches} is null
    */
   public static void send(final Collection<UUID> viewers, final List<MapTilePatch> patches) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null");
@@ -70,7 +71,8 @@ public final class MapPacketFactory {
   }
 
   /**
-   * A bundle of map data packets, and the bytes its patches take on the network before compression.
+   * A bundle of map data packets, and their estimated size in bytes before network compression.
+   * The record retains the packet without copying; it does not validate either component.
    *
    * @param packet the bundle
    * @param bytes  the sum of its patches' {@link MapTilePatch#getEncodedSize()}
@@ -80,8 +82,12 @@ public final class MapPacketFactory {
      * Sends the bundle to one player and runs a callback once its write completed or failed, or at once when the
      * player is not connected, since nothing reaches a connection then. May be called from any thread.
      *
+     * <p>Write completion is not a client rendering acknowledgment. The callback must be safe to run on a
+     * connection thread and should not block; it receives no success/failure flag.
+     *
      * @param viewer  the UUID of the player
      * @param written run once, on the player's connection thread or on this one
+     * @throws NullPointerException if the viewer or callback is null
      */
     public void send(final UUID viewer, final Runnable written) {
       Preconditions.checkNotNull(written, "Callback must not be null");
@@ -97,6 +103,7 @@ public final class MapPacketFactory {
    *
    * @param patches the patches
    * @return the bundles, none for no patches
+   * @throws NullPointerException if {@code patches} is null
    */
   public static List<Bundle> bundles(final List<MapTilePatch> patches) {
     Preconditions.checkNotNull(patches, "Patches must not be null");
@@ -124,6 +131,8 @@ public final class MapPacketFactory {
    * @param viewers    the UUIDs of the players to clear the maps for
    * @param startMapId the id of the first map
    * @param count      the number of maps with consecutive ids to clear
+   * @throws IllegalArgumentException if the first map id or count is negative, or the last id overflows an integer
+   * @throws NullPointerException if {@code viewers} is null
    */
   public static void clear(final Collection<UUID> viewers, final int startMapId, final int count) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null");

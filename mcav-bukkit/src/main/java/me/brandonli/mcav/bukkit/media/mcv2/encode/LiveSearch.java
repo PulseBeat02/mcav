@@ -49,6 +49,11 @@ import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;
  * descriptors, {@code 52.5} bits, so a leaf costing at most {@code 52.5 lambda} is never split. Above them they trade
  * bandwidth for time.
  *
+ * <p>All thresholds and childGate must be finite and nonnegative; childGate may exceed one. Mode masks
+ * must be subsets of ALL_MODES, smallModes a subset of modes, compactClasses a subset of ALL_CLASSES, and quantizers
+ * a subset of bits zero through four, with zero selecting FROM_LAMBDA. Zero mode/class masks are allowed. Instances
+ * are immutable and can be shared across encoders.
+ *
  * @param smallestBlock  the smallest leaf size tried: 8, 16 or 32
  * @param skipThreshold  a block whose SKIP costs at most this many times lambda is coded SKIP, and nothing else is tried
  *                       for it or inside it
@@ -297,9 +302,53 @@ public record LiveSearch(
   );
 
   /**
-   * Validates the search.
+   * Constructs an immutable live-search strategy.
    *
-   * @throws IllegalArgumentException if a value is out of range
+   * <p>All thresholds and childGate must be finite and nonnegative; childGate may exceed one. Mode masks
+   * must be subsets of ALL_MODES, smallModes a subset of modes, compactClasses a subset of ALL_CLASSES, and quantizers
+   * a subset of bits zero through four, with zero selecting FROM_LAMBDA. Zero mode/class masks are allowed. Instances
+   * are immutable and can be shared across encoders.
+   *
+   * @param smallestBlock the smallest leaf size tried: 8, 16 or 32
+   * @param skipThreshold a block whose SKIP costs at most this many times lambda is coded SKIP, and nothing else is tried
+   *                       for it or inside it
+   * @param splitThreshold a 32-pixel block whose best leaf costs at most this many times lambda is not split, in a
+   *                       keyframe or where the previous frame split the superblock
+   * @param steadySplitThreshold the split threshold of a 32-pixel block of a P frame whose superblock the previous frame
+   *                       coded whole: a split there is rarer, so a higher threshold saves most of the searches of
+   *                       its quarters for little bandwidth
+   * @param fineThreshold a 16-pixel block whose best leaf costs at most this many times lambda is not split
+   * @param goodThreshold a block whose best leaf after SKIP and local motion costs at most this many times lambda tries
+   *                       no other leaf; at 0 every candidate the rate bound allows is tried
+   * @param childGate a quarter of a split block whose best leaf after SKIP and local motion costs at most this
+   *                       fraction of a quarter of the block's best cost tries no other leaf; 0 turns the gate off
+   * @param modes the leaf modes tried in P frames besides SKIP, as a bit set of mode numbers
+   *                       ({@code 1 << MODE_SOLID} and so on)
+   * @param smallModes the leaf modes tried at the 16- and 8-pixel blocks of P frames, a subset of {@code modes}
+   * @param keyModes the leaf modes tried in keyframes, as a bit set; only intra modes apply
+   * @param compactClasses the compact classes tried when compact records are, as a bit set of class numbers
+   * @param quantizers the quantizers tried by residual and compact records, as a bit set, or {@link #FROM_LAMBDA} for
+   *                       the one {@link #quantizer(double)} derives from lambda
+   * @param seededMotion whether the local motion search is a small diamond around the vectors of the previous frame,
+   *                       refined to half pixels, instead of the reference's search of the whole range
+   * @param searchBlock the smallest block size that searches its own local motion: 8, 16 or 32; a smaller block
+   *                       predicts with the vector of the block it splits from
+   * @param coarseEndpoints whether pattern records may use RGB565 endpoints, the reference's second trial of each vector,
+   *                       instead of full ones
+   * @param shortcuts the search's shortcuts, as a bit set: {@link #FAST_GRIDS} intra grid nodes as cell means,
+   *                       {@link #FAST_PALETTES} two integer Lloyd iterations on sampled pixels ({@link FastFits}),
+   *                       {@link #FAST_COMPACT} compact luma nodes as cell means, {@link #ONE_PREDICTION} compact
+   *                       records tried on the closer of the global and the local prediction only, {@link #FIT_ONE}
+   *                       compact records at the quantizer their fitted values need only, {@link #HALF_MOTION} local
+   *                       motion searched at half resolution first, {@link #QUARTER_MOTION} and at a quarter before that,
+   *                       {@link #CELL_FITS} reduced and compact grids as cell means
+   * @param splitAbove a 32-pixel block of a P frame whose cost after SKIP and local motion exceeds this many times
+   *                       lambda is split without its other leaves being tried: such a block is almost always split; 0
+   *                       turns this off
+   * @param motionLambda whether a frame's lambda rises with the motion of the source above a knee, where VMAF
+   *                       forgives more ({@link MotionLambda}), instead of staying the profile's
+   * @throws IllegalArgumentException if either block size is not 8, 16 or 32, any threshold/gate is negative or
+   *         nonfinite, a mask names unsupported choices, or smallModes is not a subset of modes
    */
   public LiveSearch {
     Preconditions.checkArgument(isBlockSize(smallestBlock), "Smallest block must be 8, 16 or 32");
@@ -324,9 +373,9 @@ public record LiveSearch(
   /**
    * Checks whether a leaf mode is tried at a block size.
    *
-   * @param mode       the mode
+   * @param mode the leaf mode number, 0 through 31; values outside this range are not validated
    * @param isKeyframe whether the frame is a keyframe
-   * @param size       the block size
+   * @param size the block side, 8, 16 or 32 pixels; not validated
    * @return true if the search tries it there
    */
   public boolean tries(final int mode, final boolean isKeyframe, final int size) {
@@ -337,8 +386,9 @@ public record LiveSearch(
   /**
    * Checks whether a quantizer is tried at a lambda.
    *
-   * @param quantizer the quantizer
-   * @param lambda    the rate-distortion trade
+   * @param quantizer the candidate quantizer, 0 through 4; not validated
+   * @param lambda the finite nonnegative rate-distortion trade in weighted squared error per logical bit;
+   *               a caller precondition, not validated here
    * @return true if the search tries it
    */
   public boolean triesQuantizer(final int quantizer, final double lambda) {
@@ -350,7 +400,8 @@ public record LiveSearch(
    * lambda, and the step of quantizer q is {@code 2^q}, so q is half the binary logarithm of lambda, less two, rounded:
    * 0 below lambda 32, 1 up to 128 (the shipped 65), 2 up to 512, 3 up to 2048.
    *
-   * @param lambda the rate-distortion trade
+   * @param lambda the finite nonnegative rate-distortion trade in weighted squared error per logical bit;
+   *               a caller precondition, not validated here
    * @return the quantizer, 0 to 4
    */
   public static int quantizer(final double lambda) {

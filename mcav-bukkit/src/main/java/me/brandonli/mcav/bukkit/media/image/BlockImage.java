@@ -50,6 +50,8 @@ public class BlockImage implements DisplayableImage {
 
   /**
    * Shows the original blocks to the viewers again. May be called from any thread.
+   *
+   * <p>During plugin shutdown, call on the main thread so entity removal or restoration can run immediately.
    */
   @Override
   public void release() {

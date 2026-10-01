@@ -51,6 +51,8 @@ public class EntityImage implements DisplayableImage {
 
   /**
    * Removes the text display. May be called from any thread.
+   *
+   * <p>During plugin shutdown, call on the main thread so entity removal or restoration can run immediately.
    */
   @Override
   public void release() {

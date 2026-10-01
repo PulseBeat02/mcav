@@ -67,6 +67,15 @@ import org.slf4j.LoggerFactory;
  * the whole picture, so almost every pixel changes in every frame. A temporally stable algorithm, such as
  * {@link DitherAlgorithm#temporalFloydSteinberg()}, keeps unchanged areas identical between frames and gives by
  * far the best results.
+ *
+ * <p>The caller owns this result and its lifecycle; attaching it to a pipeline does not call start or release.
+ * Input buffers remain caller-owned and are consumed synchronously, even when converted display data is applied
+ * on a later server tick. Serialize frame delivery with lifecycle operations unless this class explicitly provides
+ * locking, and never mutate an input buffer concurrently with conversion.
+ *
+ * <p>Processing, start and release are serialized by an internal lock. The result owns any dithering pool it
+ * creates, but does not own the supplied algorithm. Release waits for the current process call to leave the lock;
+ * start permits reuse, with a new encoder created on the next frame.
  */
 public class CompressedMapResult implements DitherResultStep {
 
@@ -89,6 +98,7 @@ public class CompressedMapResult implements DitherResultStep {
    * {@link DeltaMapEncoder#DEFAULT_MAX_BYTES_PER_FRAME} bytes per frame.
    *
    * @param configuration the configuration describing the map grid and the viewers
+   * @throws NullPointerException if the configuration is null
    */
   public CompressedMapResult(final MapConfiguration configuration) {
     this(configuration, DeltaMapEncoder.DEFAULT_MAX_BYTES_PER_FRAME);
@@ -102,6 +112,7 @@ public class CompressedMapResult implements DitherResultStep {
    *                         urgent map is always sent even if it exceeds the budget. Resize cleanup and new-viewer
    *                         snapshots are additional. Lower values spread motion and scene cuts over more frames
    * @throws IllegalArgumentException if the budget is not positive
+   * @throws NullPointerException if {@code configuration} is null
    */
   public CompressedMapResult(final MapConfiguration configuration, final int maxBytesPerFrame) {
     Preconditions.checkNotNull(configuration, "Map configuration must not be null");
@@ -120,6 +131,7 @@ public class CompressedMapResult implements DitherResultStep {
    *
    * @param samples   the frame, which is resized in place if resizing is configured
    * @param algorithm the dithering algorithm; a {@link ParallelDitherAlgorithm} runs on dedicated daemon threads
+   * @throws NullPointerException if {@code samples} or {@code algorithm} is null
    */
   @Override
   public void process(final ImageBuffer samples, final DitherAlgorithm algorithm) {

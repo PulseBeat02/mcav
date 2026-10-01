@@ -170,6 +170,9 @@ public final class Mcv2Natives {
    * Gives the native kernels a folder to extract their library into and the configured mode; a plugin calls this once
    * as it starts, before any live encoder runs. Which kernels run is decided again at the next live encoder.
    *
+   * <p>Resolution is deferred until a live encoder or describe call needs it. Existing encoders retain their
+   * selected kernels. Changing this setting does not unload a native library already loaded in this process.
+   *
    * @param folder the folder, such as the plugin's data folder; created if missing
    * @param mode   {@value #AUTO} or {@value #OFF}; the system property {@value #PROPERTY} wins over it
    * @throws IllegalArgumentException if the mode is neither

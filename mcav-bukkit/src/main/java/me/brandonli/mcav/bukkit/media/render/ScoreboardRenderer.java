@@ -55,6 +55,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>All scoreboard changes happen on the main thread, while frames may be submitted from any thread. The
  * scoreboard each viewer had before is restored when the renderer is hidden.
+ *
+ * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
+ * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most
+ * the latest submitted frame is applied per tick, so intermediate frames may be dropped. Do not concurrently
+ * write to the same input buffer. Hiding clears pending work; the renderer can subsequently be shown again.
+ *
+ * <p>If another plugin replaces a viewer's scoreboard, cleanup leaves that replacement in place. While the
+ * viewer remains tracked, ticks do not reclaim the sidebar from the replacing plugin.
  */
 public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
 
@@ -85,6 +93,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
 
   /**
    * Creates the scoreboard and shows it to every online viewer. May be called from any thread.
+   * @throws IllegalStateException if no plugin was injected
    */
   public void show() {
     this.showDisplay(this::createScoreboard);
@@ -95,6 +104,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
    *
    * @param image the image to render, which is resized to the scoreboard dimensions in place
    * @throws NullPointerException if the image is null
+   * @throws IllegalStateException if the image has been released
    */
   public void render(final ImageBuffer image) {
     Preconditions.checkNotNull(image, "Image must not be null");
@@ -177,7 +187,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   /**
-   * Puts the scoreboard back on viewers who are not looking at it yet.
+   * Shows the scoreboard to newly configured or returning online viewers.
    *
    * <p>The scoreboard a player sees is per session, so a viewer added to the configuration after the board was
    * created, and a viewer who logged out and back in, would never be shown it again without this. A viewer already

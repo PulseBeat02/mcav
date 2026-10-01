@@ -29,6 +29,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
  *
  * <p>Call {@link #start()} before playback and {@link #release()} afterward. The scoreboard updates at most once
  * per server tick. The filter may run on any thread.
+ *
+ * <p>The caller owns this result and its lifecycle; attaching it to a pipeline does not call start or release.
+ * Input buffers remain caller-owned and are consumed synchronously, even when converted display data is applied
+ * on a later server tick. Serialize frame delivery with lifecycle operations unless this class explicitly provides
+ * locking, and never mutate an input buffer concurrently with conversion.
  */
 public class ScoreboardResult implements FunctionalVideoFilter {
 
@@ -38,6 +43,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    * Constructs a new {@code ScoreboardResult}.
    *
    * @param configuration the configuration describing the viewers, character, and size of the scoreboard image
+   * @throws NullPointerException if {@code configuration} is null
    */
   public ScoreboardResult(final ScoreboardConfiguration configuration) {
     Preconditions.checkNotNull(configuration, "Scoreboard configuration must not be null");
@@ -58,6 +64,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which may be resized by the renderer
    * @param metadata the metadata of the original video, which is not used
    * @return always true, because the renderer may resize the frame
+   * @throws NullPointerException if {@code data} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {
@@ -70,6 +77,8 @@ public class ScoreboardResult implements FunctionalVideoFilter {
   /**
    * Removes the scoreboard and restores the previous scoreboard of every viewer. Call this method on the main thread
    * during shutdown, because a disabled plugin cannot schedule the restore anymore.
+   *
+   * <p>A scoreboard installed by another plugin after this display started is preserved.
    */
   @Override
   public void release() {

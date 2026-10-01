@@ -46,6 +46,11 @@ import org.bukkit.entity.Player;
  * that were shown the screen, each through its own {@link Mcv2Link}: a viewer whose connection falls behind misses
  * frames until one it can decode comes with its backlog under the configuration's limit, and the others are not held
  * back. The two may be called from any thread, but not concurrently with each other.
+ *
+ * <p>The channel owns its hidden page-frame screen and per-viewer links, but does not register or unregister
+ * the caller-owned pack tracker. Open and close on the main thread; stop frame delivery before closing. Serialize
+ * update, send and keyframe-request consumption. A successful send records a delivery attempt, not a client decode
+ * acknowledgment, and can succeed when no viewers are currently eligible.
  */
 public final class Mcv2Channel {
 
@@ -70,6 +75,7 @@ public final class Mcv2Channel {
    *
    * @param configuration the screen
    * @param viewers       who has the pack loaded
+   * @throws NullPointerException if configuration or viewers is null
    */
   public Mcv2Channel(final Mcv2Configuration configuration, final Mcv2Viewers viewers) {
     this(configuration, viewers, new Mcv2Screen(configuration));
@@ -209,9 +215,10 @@ public final class Mcv2Channel {
    * frame when its link admits it: the viewer can decode it and its connection is not over the backlog limit.
    *
    * @param frame the frame
-   * @return the map colours of the frame, or -1 if the frame has more pages than the screen has page slots, in which
+   * @return the number of page-map color bytes per potential recipient, excluding anchors and packet overhead, or -1 if the frame has more pages than the screen has page slots, in which
    *     case nothing is sent and the next frame is asked to be a keyframe
    * @throws IllegalArgumentException if the bytes are not a valid MCV2 frame
+   * @throws NullPointerException if {@code frame} is null
    */
   public int send(final byte[] frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");

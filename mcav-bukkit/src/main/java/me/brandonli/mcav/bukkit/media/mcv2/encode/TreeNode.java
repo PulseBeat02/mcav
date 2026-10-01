@@ -62,10 +62,15 @@ public final class TreeNode {
   /**
    * Creates a leaf.
    *
+   * <p>This factory checks only descriptor ranges and copies the record. It does not validate record contents
+   * or whether this mode/quantizer is legal at a particular block size; {@link FrameWriter#write} performs tree validation.
+   *
    * @param mode      the leaf mode
    * @param quantizer the quantizer, 0 to 7
    * @param record    the record bytes, which are copied
    * @return the leaf
+   * @throws IllegalArgumentException if mode is outside 0 through MODE_MASK or is MODE_SPLIT, or quantizer is outside 0 through 7
+   * @throws NullPointerException if {@code record} is null
    */
   public static TreeNode leaf(final int mode, final int quantizer, final byte[] record) {
     Preconditions.checkNotNull(record, "Record must not be null");
@@ -82,6 +87,7 @@ public final class TreeNode {
    * @param bottomLeft  the bottom left child
    * @param bottomRight the bottom right child
    * @return the split
+   * @throws NullPointerException if {@code topLeft}, {@code topRight}, {@code bottomLeft} or {@code bottomRight} is null
    */
   public static TreeNode split(final TreeNode topLeft, final TreeNode topRight, final TreeNode bottomLeft, final TreeNode bottomRight) {
     Preconditions.checkNotNull(topLeft, "Children must not be null");
@@ -121,7 +127,7 @@ public final class TreeNode {
   /**
    * Gets a copy of the record.
    *
-   * @return the record bytes, empty for a split or skip
+   * @return an independent byte-array copy, empty for a split or the canonical {@link #skip()} node
    */
   public byte[] getRecord() {
     return this.record.clone();
@@ -137,6 +143,7 @@ public final class TreeNode {
    * @param index 0 to 3, top left, top right, bottom left, bottom right
    * @return the child
    * @throws IllegalStateException if this node is a leaf
+   * @throws ArrayIndexOutOfBoundsException if this is a split and index is outside 0 through 3
    */
   public TreeNode getChild(final int index) {
     final TreeNode[] nodes = this.children;

@@ -82,6 +82,12 @@ import org.slf4j.LoggerFactory;
  * the screen plays. It is optional and additive: it replaces no other pack, and a player who declines keeps the
  * dithered maps and is not asked again while online. The methods may be called from any thread; the players are asked
  * on the main thread.
+ *
+ * <p>Use a dedicated output folder: startup deletes files left there. Start once before opening leases and
+ * shut down once when finished; the writer executor is permanently shut down. The server owns created hosting
+ * instances, generated packs, listeners and leases, but does not release the caller's results or screen entities.
+ * Stop and release those results before closing their leases or shutting down this server. Offered/refused
+ * callbacks run with player events or offers on the main thread and should return promptly.
  */
 public final class Mcv2PackServer {
 
@@ -208,6 +214,7 @@ public final class Mcv2PackServer {
    * @param onOffered      called with a player who is about to be asked to load the pack, for example to say why
    * @param onRefused      called with a player whose client declined the pack or failed to load it, who keeps the dithered
    *                       maps
+   * @throws NullPointerException if any argument other than the primitive flag is null
    */
   public Mcv2PackServer(
     final Path folder,
@@ -293,7 +300,9 @@ public final class Mcv2PackServer {
    * @param requested the screen
    * @return the screen's lease, which holds its slots until it is closed
    * @throws IllegalStateException    if every slot plays another screen, or the server was shut down
-   * @throws IllegalArgumentException if the screen's outline colour is not the one of the screens that play
+   * @throws IllegalArgumentException if the outline color differs from active screens, or the page-map range
+   *         cannot accommodate every pack slot without overflowing or overlapping the wall
+   * @throws NullPointerException if {@code requested} is null
    */
   public synchronized Lease open(final Mcv2Configuration requested) {
     Preconditions.checkNotNull(requested, "Configuration must not be null");
@@ -566,6 +575,9 @@ public final class Mcv2PackServer {
   /**
    * Stops listening and hosting, and closes every lease. The players keep the pack they loaded, which a removal would
    * make them reload.
+   *
+   * <p>Hosting cleanup runs on the writer executor and is awaited for a bounded time. If interrupted, the
+   * interrupt flag is restored; this method does not guarantee all background cleanup has finished before return.
    */
   public synchronized void shutdown() {
     if (this.stopped) {
@@ -670,6 +682,7 @@ public final class Mcv2PackServer {
      * @param resized the screen at the other size
      * @return its channel, not opened yet; one whose viewers all see the dithered maps if no slot is free
      * @throws IllegalStateException if the lease was closed
+     * @throws NullPointerException if {@code resized} is null
      */
     @Override
     public Mcv2Channel resize(final Mcv2Configuration resized) {
@@ -693,6 +706,9 @@ public final class Mcv2PackServer {
 
     /**
      * Gives the lease's slots back: they stay in the pack, free for the next screen of their size.
+     *
+     * <p>Closing is idempotent and releases only slot ownership. Release the associated result or channel
+     * first; closing the lease does not stop encoding or remove entities.
      */
     public void close() {
       synchronized (Mcv2PackServer.this) {

@@ -63,6 +63,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The original blocks are captured when the renderer is shown and sent again when it is hidden, which makes the
  * wall disappear for the viewers. The block state of this renderer is only accessed on the main thread.
+ *
+ * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
+ * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most
+ * the latest submitted frame is applied per tick, so intermediate frames may be dropped. Do not concurrently
+ * write to the same input buffer. Hiding clears pending work; the renderer can subsequently be shown again.
  */
 public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
 
@@ -95,7 +100,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    * Remembers the blocks currently at the location of the wall, so they can be restored later, and starts
    * rendering frames. May be called from any thread.
    *
-   * @throws IllegalStateException if the position of the wall has no world, when called on the main thread
+   * @throws IllegalStateException if no plugin was injected, or if initialization runs on the calling thread
+   *         and the configured position no longer has a world
    */
   public void show() {
     this.showDisplay(this::captureBlocks);
@@ -106,6 +112,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
    *
    * @param image the image to render, which is resized to the wall dimensions in place
    * @throws NullPointerException if the image is null
+   * @throws IllegalStateException if the image has been released
    */
   public void render(final ImageBuffer image) {
     Preconditions.checkNotNull(image, "Image must not be null");

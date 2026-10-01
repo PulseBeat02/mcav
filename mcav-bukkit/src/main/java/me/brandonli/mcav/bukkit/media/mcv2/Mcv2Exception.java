@@ -24,8 +24,8 @@ import java.io.Serial;
  * the reference it names.
  *
  * <p>This is the only exception the MCV2 parsers and decoders throw for bad input. They treat every byte as hostile:
- * whatever the bytes are, parsing either succeeds or throws this exception, never an unchecked exception or an
- * out-of-bounds read.
+ * malformed non-null byte input is reported by this exception rather than an out-of-bounds read.
+ * API preconditions such as non-null arguments and valid worker lifecycles may still throw unchecked exceptions.
  */
 public class Mcv2Exception extends Exception {
 

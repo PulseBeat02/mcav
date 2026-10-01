@@ -58,6 +58,10 @@ import org.slf4j.LoggerFactory;
  * {@code HEAD} request, and the pack is uploaded again if the download is gone, for example because mc-packs.net
  * deleted it. The check and the upload block for as long as the transfer takes, so call {@link #start()} off the
  * main thread.
+ *
+ * <p>The first successful start fixes this instance's URL. Rebuilding the file afterward does not upload it
+ * again through this instance; create another hosting instance for changed content. Shutdown does not clear that
+ * URL or the cache. The cache lock serializes upload/cache decisions across instances in this class loader.
  */
 public class MCPackHosting implements WebsiteHosting {
 
@@ -82,6 +86,7 @@ public class MCPackHosting implements WebsiteHosting {
    * Constructs a new {@code MCPackHosting}. Nothing is uploaded until {@link #start()} is called.
    *
    * @param zip the path to the resource pack zip to upload
+   * @throws NullPointerException if the zip path is null
    */
   public MCPackHosting(final Path zip) {
     this(zip, UPLOAD_URI, DOWNLOAD_URL_FORMAT);

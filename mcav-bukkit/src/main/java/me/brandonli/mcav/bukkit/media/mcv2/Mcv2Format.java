@@ -24,6 +24,10 @@ package me.brandonli.mcav.bukkit.media.mcv2;
  * {@code 85445433aeb9f8a35a5ce528d47d8829976d1401} ({@code mcvideo/format.py}, {@code v2.py}, {@code compact.py},
  * {@code pattern.py}, {@code decoder.py}), kept unchanged in {@code tools/mcv2-reference}; {@code docs/mcv2/format.md}
  * writes it down. All multi-byte integers are little-endian.
+ *
+ * <p>These low-level arithmetic and byte-access helpers assume their documented ranges; they do not validate
+ * mode, size or numeric bounds. Use {@link FrameParser} for untrusted complete frames. Byte reads/writes use the
+ * caller-owned array directly and must be synchronized with any other writer.
  */
 public final class Mcv2Format {
 
@@ -298,6 +302,8 @@ public final class Mcv2Format {
    * @param data   the bytes
    * @param offset where to read; both bytes must be inside the bytes
    * @return the value, 0 to 65535
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if the 2-byte range is outside the array
    */
   public static int u16(final byte[] data, final int offset) {
     return (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
@@ -309,6 +315,8 @@ public final class Mcv2Format {
    * @param data   the bytes
    * @param offset where to read; all four bytes must be inside the bytes
    * @return the value, 0 to 4294967295
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if the 4-byte range is outside the array
    */
   public static long u32(final byte[] data, final int offset) {
     return (
@@ -322,6 +330,8 @@ public final class Mcv2Format {
    * @param data   the bytes
    * @param offset where to write
    * @param value  the value; only the low 16 bits are written
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if the 2-byte range is outside the array
    */
   public static void putU16(final byte[] data, final int offset, final int value) {
     data[offset] = (byte) value;
@@ -334,6 +344,8 @@ public final class Mcv2Format {
    * @param data   the bytes
    * @param offset where to write
    * @param value  the value; only the low 32 bits are written
+   * @throws NullPointerException if data is null
+   * @throws ArrayIndexOutOfBoundsException if the 4-byte range is outside the array
    */
   public static void putU32(final byte[] data, final int offset, final long value) {
     data[offset] = (byte) value;
@@ -411,7 +423,7 @@ public final class Mcv2Format {
   /**
    * The index of a block size among the three: 0 for 8, 1 for 16 and 2 for 32 pixels.
    *
-   * @param size the block size
+   * @param size the block size, 8, 16 or 32 pixels; not validated
    * @return the index
    */
   public static int sizeIndex(final int size) {
@@ -466,7 +478,8 @@ public final class Mcv2Format {
   /**
    * The length of the walk checkpoint region of the derived form.
    *
-   * @param walkpoints the number of checkpoints
+   * @param walkpoints the nonnegative checkpoint count, small enough for the computed byte length to fit
+   *                   in an int; no range or overflow checks are performed
    * @param isTwoLevel whether the region is a coarse plane plus deltas
    * @return the length in bytes
    */

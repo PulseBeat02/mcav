@@ -63,8 +63,12 @@ public final class ServerEnvironment {
   /**
    * Checks whether the given Minecraft version is supported by the Bukkit module.
    *
+   * <p>This is an exact-name or dotted-prefix check, not a runtime probe of server internals. The suffix
+   * after the supported version and a dot is not parsed or validated.
+   *
    * @param version the Minecraft version to check, such as {@code 26.3.1}
    * @return true if the version is supported, false otherwise
+   * @throws NullPointerException if {@code version} is null
    */
   public static boolean isSupported(final String version) {
     Preconditions.checkNotNull(version, "Version must not be null");

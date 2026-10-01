@@ -68,6 +68,10 @@ import org.bukkit.plugin.Plugin;
  * the maps' right edge and the screen's stream id, which tells the pack which of its screens the wall is. The server
  * sends every wall map as it stores it to players who start tracking the frame, which erases the anchors, so they are
  * sent again with every keyframe.
+ *
+ * <p>The visible wall and its map items remain caller-owned. This object owns only its hidden page entities
+ * and chunk holds. Use build/show/hide/remove on the main thread; do not manipulate or remove entities obtained
+ * from {@link #getFrames()} independently. Removal releases chunk holds but does not restore wall map pixels.
  */
 public final class Mcv2Screen {
 
@@ -95,6 +99,7 @@ public final class Mcv2Screen {
    * Constructs a new screen.
    *
    * @param configuration the screen
+   * @throws NullPointerException if {@code configuration} is null
    */
   public Mcv2Screen(final Mcv2Configuration configuration) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
@@ -120,6 +125,7 @@ public final class Mcv2Screen {
    * main thread.
    *
    * @throws IllegalStateException if the frames were already spawned
+   * @throws NullPointerException if the origin no longer resolves to a world
    */
   public void build() {
     Preconditions.checkState(this.frames.isEmpty(), "The page frames already exist");
@@ -163,7 +169,7 @@ public final class Mcv2Screen {
   /**
    * Gets the page frames.
    *
-   * @return the frames, in wall order
+   * @return an unmodifiable list snapshot in wall order, containing live screen-owned entity references
    */
   public List<ItemFrame> getFrames() {
     return List.copyOf(this.frames);
@@ -173,6 +179,8 @@ public final class Mcv2Screen {
    * Shows the screen to a player with the pack: the page frames, their team and the anchors. Call on the main thread.
    *
    * @param player the player
+   * @throws IllegalStateException if no plugin has been injected
+   * @throws NullPointerException if {@code player} is null
    */
   public void show(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null");
@@ -189,6 +197,8 @@ public final class Mcv2Screen {
    * Hides the page frames from a player again and removes their team. Call on the main thread.
    *
    * @param player the player
+   * @throws IllegalStateException if no plugin has been injected
+   * @throws NullPointerException if {@code player} is null
    */
   public void hide(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null");
