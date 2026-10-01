@@ -30,6 +30,12 @@ import org.slf4j.LoggerFactory;
  * <p>This keeps plugin jars small: the plugin ships only the installer and downloads the library on its first
  * start. Shading the library into the plugin remains the simpler choice where jar size does not matter.
  *
+ * <p>Loading is synchronous and can perform network and file I/O. Serialize installations that share a
+ * destination folder, including calls through different installer instances: copies use shared temporary
+ * paths. Custom {@link JarLoader} callbacks run on the calling thread after downloading and copying finish.
+ * The caller retains ownership of the class loader and its lifetime. There is no uninstall operation or
+ * rollback of jars already added if a loader fails part way. An installer itself has no resources to close.
+ *
  * <pre><code>
  *   final Path dataPath = dataFolder.toPath();
  *   final Path folder = dataPath.resolve("libs");
@@ -101,8 +107,8 @@ public final class MCAVInstaller {
   /**
    * Creates an installer that loads into a class loader.
    *
-   * @param folder      the folder the jars are copied into
-   * @param classLoader the class loader the jars are added to
+   * @param folder      the non-null destination folder; artifact subdirectories are created when loading
+   * @param classLoader the non-null caller-owned class loader the jars are added to
    * @return the installer
    * @throws NullPointerException if the folder or the class loader is null
    */
@@ -115,8 +121,8 @@ public final class MCAVInstaller {
   /**
    * Creates an installer that loads into the class loader of an object, typically the plugin instance.
    *
-   * @param folder the folder the jars are copied into
-   * @param owner  the object whose class loader receives the jars
+   * @param folder the non-null destination folder; artifact subdirectories are created when loading
+   * @param owner  the non-null object whose caller-owned class loader receives the jars
    * @return the installer
    * @throws NullPointerException if the folder or the owner is null
    * @throws JarInjectorException if the class of the owner was loaded by the bootstrap class loader
@@ -133,11 +139,12 @@ public final class MCAVInstaller {
   }
 
   /**
-   * Downloads a module of the library in the default version and adds it to the class loader.
+   * Downloads a module and its compile/runtime dependencies at {@link Artifact#DEFAULT_VERSION}, then adds
+   * them with {@link JarLoader#DEFAULT_URL_LOADER}. This call blocks until copying and loading finish.
    *
-   * @param artifact the module
+   * @param artifact the non-null module
    * @throws NullPointerException  if the artifact is null
-   * @throws InstallationException if the module cannot be downloaded
+   * @throws InstallationException if the module cannot be resolved, verified or copied
    * @throws JarInjectorException  if the jars cannot be added to the class loader
    */
   public void loadMCAVDependencies(final Artifact artifact) {
@@ -146,13 +153,14 @@ public final class MCAVInstaller {
   }
 
   /**
-   * Downloads a module of the library in the default version and adds it with a custom loader.
+   * Downloads a module and its compile/runtime dependencies at {@link Artifact#DEFAULT_VERSION}, then invokes
+   * a custom loader on this thread. The loader is not invoked if downloading or copying fails.
    *
-   * @param artifact the module
-   * @param loader   how the jars are added
+   * @param artifact the non-null module
+   * @param loader   the non-null loader; callback failures propagate unchanged
    * @throws NullPointerException  if the artifact or the loader is null
-   * @throws InstallationException if the module cannot be downloaded
-   * @throws JarInjectorException  if the loader cannot add the jars
+   * @throws InstallationException if the module cannot be resolved, verified or copied
+   * @throws JarInjectorException  if the chosen loader reports that jars cannot be injected
    */
   public void loadMCAVDependencies(final Artifact artifact, final JarLoader loader) {
     Objects.requireNonNull(artifact, "Artifact must not be null");
@@ -162,16 +170,21 @@ public final class MCAVInstaller {
   }
 
   /**
-   * Downloads any Maven artifact with its runtime dependencies and adds it to the class loader.
+   * Downloads a Maven jar with its compile and runtime dependencies and adds it to the class loader.
+   * Downloads are cached in {@code ~/.m2/repository}; resolved files are copied below the configured folder's
+   * artifact subdirectory before the loader runs. Missing or mismatching repository checksums fail resolution.
+   * The loader is not called unless all files have been copied successfully.
    *
-   * @param groupId    the group id
-   * @param artifactId the artifact id
-   * @param version    the version
-   * @param loader     how the jars are added
-   * @return the jars that were added
+   * @param groupId    the non-null Maven group id
+   * @param artifactId the non-null, nonempty artifact id containing only ASCII letters, digits, dots,
+   *                   underscores and hyphens; {@code .} and {@code ..} are forbidden
+   * @param version    the non-null Maven version to resolve
+   * @param loader     the non-null callback that loads the copied jars; its failures propagate unchanged
+   * @return an unmodifiable list of copied jar paths, in resolver order, after the loader returns normally
    * @throws NullPointerException  if any argument is null
-   * @throws InstallationException if the artifact or one of its dependencies cannot be downloaded
-   * @throws JarInjectorException  if the loader cannot add the jars
+   * @throws InstallationException if the artifact id is invalid, resolution or verification fails, or a
+   *                               dependency cannot be copied, including interruption while waiting for copies
+   * @throws JarInjectorException  if the chosen loader reports that jars cannot be injected
    */
   public List<Path> loadDependencies(final String groupId, final String artifactId, final String version, final JarLoader loader) {
     Objects.requireNonNull(groupId, "Group id must not be null");

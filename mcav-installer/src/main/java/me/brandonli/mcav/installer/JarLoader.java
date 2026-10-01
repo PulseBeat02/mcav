@@ -21,7 +21,9 @@ import java.nio.file.Path;
 import java.util.Collection;
 
 /**
- * Adds downloaded jars to a class loader so their classes can be loaded.
+ * Adds downloaded jars to a caller-owned class loader so their classes can be loaded. An installer calls the
+ * loader synchronously after copying all resolved files. Implementations define their own synchronization and
+ * partial-failure behavior; a failure does not undo earlier additions.
  */
 @FunctionalInterface
 public interface JarLoader {
@@ -34,8 +36,8 @@ public interface JarLoader {
   /**
    * Adds jars to a class loader.
    *
-   * @param jars   the jar files
-   * @param loader the class loader
+   * @param jars   the non-null collection of non-null jar paths; installers pass an unmodifiable list
+   * @param loader the non-null class loader, which remains owned by the caller
    * @throws JarInjectorException if the jars cannot be added
    */
   void loadJars(final Collection<Path> jars, final ClassLoader loader);
