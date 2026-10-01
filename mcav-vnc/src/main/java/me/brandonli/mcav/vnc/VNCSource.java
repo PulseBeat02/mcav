@@ -22,7 +22,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A VNC server to stream: its address, optional credentials, the size frames are scaled to, and the frame rate
- * requested from the server.
+ * requested from the server. The default builder produces immutable values that can be shared across threads.
+ * Creating a source performs no network I/O and does not create a connection.
  *
  * <pre><code>
  *   final VNCSource.Builder builder = VNCSource.builder();
@@ -65,7 +66,7 @@ public interface VNCSource extends DynamicSource {
   /**
    * Gets the port of the server.
    *
-   * @return the port
+   * @return the TCP port, from 1 to 65535
    */
   int getPort();
 
@@ -86,24 +87,30 @@ public interface VNCSource extends DynamicSource {
   /**
    * Gets the width the frames are scaled to.
    *
-   * @return the width in pixels
+   * @return the nonnegative configured width in pixels, or 0 to use each remote frame's width
    */
   int getScreenWidth();
 
   /**
    * Gets the height the frames are scaled to.
    *
-   * @return the height in pixels
+   * @return the nonnegative configured height in pixels, or 0 to use each remote frame's height
    */
   int getScreenHeight();
 
   /**
    * Gets the frame rate requested from the server. The server sends fewer frames when nothing changes.
    *
-   * @return the frame rate in frames per second
+   * @return the positive requested frame rate in frames per second; this is not a delivery guarantee
    */
   int getTargetFrameRate();
 
+  /**
+   * Builds a diagnostic resource identifier from the host and port, without credentials.
+   *
+   * @return {@code vnc://} followed by the host verbatim, a colon and the decimal port; this does not
+   *         escape or bracket the host and is not a general-purpose URI serializer
+   */
   @Override
   default String getResource() {
     final String host = this.getHost();
@@ -111,6 +118,11 @@ public interface VNCSource extends DynamicSource {
     return "vnc://" + host + ":" + port;
   }
 
+  /**
+   * Gets the source kind.
+   *
+   * @return {@code vnc}
+   */
   @Override
   default String getName() {
     return "vnc";
@@ -119,14 +131,16 @@ public interface VNCSource extends DynamicSource {
   /**
    * Collects the settings of a {@link VNCSource}. The host is required; the port defaults to
    * {@link #DEFAULT_PORT}, the frame size to the size of the remote screen, and the frame rate to
-   * {@link #DEFAULT_FRAME_RATE}.
+   * {@link #DEFAULT_FRAME_RATE}. Builders are mutable and not thread-safe; built sources keep their own settings.
    */
   interface Builder {
     /**
      * Sets the host name or address of the server.
      *
-     * @param host the host
+     * @param host the non-null, nonblank host name or address, retained without trimming
      * @return this builder
+     * @throws NullPointerException if {@code host} is null
+     * @throws IllegalArgumentException if {@code host} is blank
      */
     Builder host(final String host);
 
@@ -135,22 +149,25 @@ public interface VNCSource extends DynamicSource {
      *
      * @param port the port from 1 to 65535
      * @return this builder
+     * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
      */
     Builder port(final int port);
 
     /**
      * Sets the user name sent to the server.
      *
-     * @param username the user name
+     * @param username the non-null user name; an empty string makes the default player omit this credential
      * @return this builder
+     * @throws NullPointerException if {@code username} is null
      */
     Builder username(final String username);
 
     /**
      * Sets the password sent to the server.
      *
-     * @param password the password
+     * @param password the non-null password; an empty string makes the default player omit this credential
      * @return this builder
+     * @throws NullPointerException if {@code password} is null
      */
     Builder password(final String password);
 
@@ -159,6 +176,7 @@ public interface VNCSource extends DynamicSource {
      *
      * @param width the width in pixels, or 0 to keep the width of the remote screen
      * @return this builder
+     * @throws IllegalArgumentException if {@code width} is negative
      */
     Builder screenWidth(final int width);
 
@@ -167,21 +185,23 @@ public interface VNCSource extends DynamicSource {
      *
      * @param height the height in pixels, or 0 to keep the height of the remote screen
      * @return this builder
+     * @throws IllegalArgumentException if {@code height} is negative
      */
     Builder screenHeight(final int height);
 
     /**
      * Sets the frame rate requested from the server.
      *
-     * @param targetFrameRate the frame rate in frames per second
+     * @param targetFrameRate the strictly positive frame rate in frames per second
      * @return this builder
+     * @throws IllegalArgumentException if {@code targetFrameRate} is zero or negative
      */
     Builder targetFrameRate(final int targetFrameRate);
 
     /**
      * Builds the source.
      *
-     * @return the source
+     * @return a new immutable source; subsequent builder changes do not affect it
      * @throws IllegalStateException if no host was set
      */
     VNCSource build();

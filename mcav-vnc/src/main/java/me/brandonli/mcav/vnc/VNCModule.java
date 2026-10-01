@@ -32,16 +32,27 @@ public final class VNCModule implements MCAVModule {
     // stateless
   }
 
+  /**
+   * Starts the module; no resources are allocated. Players connect independently.
+   */
   @Override
   public void start() {
     // nothing to prepare
   }
 
+  /**
+   * Stops the module; no players are released. Call {@link VNCPlayer#release()} on each owned player.
+   */
   @Override
   public void stop() {
     // nothing to release
   }
 
+  /**
+   * Gets the module identifier.
+   *
+   * @return {@code vnc}
+   */
   @Override
   public String getModuleName() {
     return "vnc";

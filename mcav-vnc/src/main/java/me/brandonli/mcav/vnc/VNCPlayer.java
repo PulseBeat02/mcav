@@ -32,7 +32,14 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  *
  * <p>Frames arrive whenever the remote screen changes, scaled to the size of the {@link VNCSource}. Input
  * coordinates are in the coordinate system of the streamed frames. Pausing keeps the connection open but stops
- * delivering frames.
+ * accepting new frames for delivery; an in-flight filter call may finish. The default player runs the video
+ * pipeline on a dedicated daemon renderer, keeps only the newest waiting update and closes each image buffer
+ * after its pipeline call. Filters must copy data they retain beyond that call.
+ *
+ * <p>The caller owns the player and must {@link #release()} it. Release is terminal and closes the connection;
+ * stopping {@link VNCModule} does not release players. Attached pipelines and their filters remain caller-owned.
+ * Lifecycle calls are serialized. Exception callbacks run on the thread detecting the failure and must return
+ * promptly without throwing.
  *
  * <pre><code>
  *   final VNCPlayer player = VNCPlayer.create();
@@ -55,10 +62,12 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
   /**
    * Connects to a server and starts streaming its screen. A player streams one server at a time.
    *
-   * @param source the server to connect to
-   * @return true if the connection was made, false if the player is already playing or released
+   * @param source the non-null server description; credentials and dimensions are read from it
+   * @return true if startup succeeded, false if a session is already active (including paused) or the player
+   *         has been released; a session that failed may be started again before release
    * @throws me.brandonli.mcav.media.player.PlayerException if the server cannot be reached or rejects the
    * connection
+   * @throws NullPointerException if {@code source} is null
    */
   boolean start(final VNCSource source);
 
@@ -66,7 +75,9 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
    * Connects on the common pool.
    *
    * @param source the server to connect to
-   * @return a future that completes with the result of {@link #start(VNCSource)}
+   * @return a future that completes with the result of {@link #start(VNCSource)}, or exceptionally if
+   *         startup fails; cancelling this future does not release the player
+   * @throws NullPointerException if {@code source} is null
    */
   default CompletableFuture<Boolean> startAsync(final VNCSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -78,8 +89,11 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
    * Connects on an executor.
    *
    * @param source   the server to connect to
-   * @param executor the executor that connects
-   * @return a future that completes with the result of {@link #start(VNCSource)}
+   * @param executor the non-null caller-owned executor that connects; the player never shuts it down
+   * @return a future that completes with the result of {@link #start(VNCSource)}, or exceptionally if
+   *         startup fails; cancelling this future does not release the player
+   * @throws java.util.concurrent.RejectedExecutionException if the executor refuses the startup task
+   * @throws NullPointerException if {@code source} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final VNCSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -88,27 +102,38 @@ public interface VNCPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
   }
 
   /**
-   * Moves the mouse pointer.
+   * Moves the mouse pointer while a session is active, including while paused. Input is ignored before
+   * connection and after release or a connection failure. Coordinates are scaled to the remote screen and
+   * clamped to its bounds; before its size is known only negative coordinates are clamped to zero.
    *
-   * @param frameX the x coordinate in the streamed frame
-   * @param frameY the y coordinate in the streamed frame
+   * @param frameX the horizontal pixel coordinate from the left edge of the streamed frame; out-of-range
+   *               values are clamped after scaling
+   * @param frameY the vertical pixel coordinate from the top edge of the streamed frame; out-of-range
+   *               values are clamped after scaling
    */
   void moveMouse(final int frameX, final int frameY);
 
   /**
    * Types text. A key name from the X11 keysym table, such as {@code Return}, {@code Escape}, or {@code Left},
-   * presses that key; any other text is typed character by character.
+   * presses and releases that key; any other text is typed character by character. Input is ignored without
+   * an active session, but is accepted while paused. Forwarding failures are reported to the exception handler.
    *
-   * @param text the text or key name
+   * @param text the non-null text or key name; an empty string types nothing
+   * @throws NullPointerException if {@code text} is null, even without an active connection
    */
   void sendKeyEvent(final String text);
 
   /**
-   * Moves the mouse pointer and performs a click.
+   * Moves the mouse pointer as {@link #moveMouse(int, int)} describes, then performs a click. Left, right,
+   * double-left, left-button hold and left-button release are supported. Connection failures during forwarding
+   * are reported to the exception handler.
    *
    * @param type   the kind of click
-   * @param frameX the x coordinate in the streamed frame
-   * @param frameY the y coordinate in the streamed frame
+   * @param frameX the horizontal pixel coordinate from the left edge of the streamed frame; out-of-range
+   *               values are clamped after scaling
+   * @param frameY the vertical pixel coordinate from the top edge of the streamed frame; out-of-range
+   *               values are clamped after scaling
+   * @throws NullPointerException if {@code type} is null, even without an active connection
    */
   void sendMouseEvent(final MouseClick type, final int frameX, final int frameY);
 
