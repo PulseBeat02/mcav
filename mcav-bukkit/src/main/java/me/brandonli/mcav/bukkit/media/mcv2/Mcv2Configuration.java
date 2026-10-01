@@ -38,7 +38,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * left, in frames facing {@link #getFacing()}; {@link #getOrigin()} is the block the top-left frame hangs in. For
  * players with the pack, those maps carry anchors that tell the shader where the screen is, and hidden glowing frames
  * behind the wall carry the frames' pages on the page maps from {@link #getPageMap()} on. The default page maps lie
- * far above the ids a world hands out, so the server never sends map data of its own for them.
+ * far above ordinary world allocations to avoid server map updates; callers must still ensure that those ids
+ * are not allocated to other maps or streams.
  *
  * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed to
  * add or remove viewers while media is playing.
@@ -76,8 +77,8 @@ public final class Mcv2Configuration {
   public static final double MAX_FRAME_RATE = 240;
 
   /**
-   * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about
-   * 170 milliseconds of a 6 Mbit/s link.
+   * The default backlog threshold: 128 KiB of estimated map-update bytes, including patch overhead and anchors.
+   * Its duration and number of buffered frames depend on encoded content and connection speed.
    */
   public static final long DEFAULT_BACKLOG_LIMIT = 128 * 1024;
 
@@ -312,8 +313,8 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Gets how much video a viewer's connection may have left to write for the viewer to be sent another frame, in map
-   * colour bytes. A viewer over it misses frames until one it can decode comes with its backlog under it again (see
+   * Gets how much video a viewer's connection may have left to write for the viewer to be sent another frame, in estimated
+   * map-update bytes including patch overhead. A viewer over it misses frames until one it can decode comes with its backlog under it again (see
    * {@link Mcv2Link}), so a slow connection neither delays the other viewers nor piles video in front of its own
    * game packets.
    *
@@ -650,7 +651,8 @@ public final class Mcv2Configuration {
      * Sets how much video a viewer's connection may have left to write for the viewer to be sent another frame;
      * defaults to {@link #DEFAULT_BACKLOG_LIMIT}.
      *
-     * @param backlogLimit the limit in map colour bytes, not negative
+     * @param backlogLimit the nonnegative threshold in estimated map-update bytes, including patch overhead;
+     *                     zero allows a new frame only once the tracked backlog has drained
      * @return this builder
      */
     public Builder backlogLimit(final long backlogLimit) {

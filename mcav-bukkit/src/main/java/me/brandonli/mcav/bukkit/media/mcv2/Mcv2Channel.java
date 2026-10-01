@@ -113,6 +113,8 @@ public final class Mcv2Channel {
 
   /**
    * Spawns the screen's page frames. Call on the main thread.
+   * @throws IllegalStateException if the screen is already built or no plugin has been injected
+   * @throws NullPointerException if the origin no longer resolves to a world
    */
   public void open() {
     this.screen.build();
@@ -132,6 +134,7 @@ public final class Mcv2Channel {
    * Sorts the configured viewers, and schedules showing the screen to those whose pack just loaded.
    *
    * @return the viewers who do not receive frames and should be shown the dithered maps
+   * @throws IllegalStateException if showing a new viewer requires scheduling before a plugin has been injected
    */
   public Set<UUID> update() {
     final Map<UUID, Mcv2Link> receiving = new HashMap<>();

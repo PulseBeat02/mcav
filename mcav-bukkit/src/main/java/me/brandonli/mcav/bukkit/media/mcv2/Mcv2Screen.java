@@ -124,7 +124,7 @@ public final class Mcv2Screen {
    * Spawns the hidden page frames behind the wall, and keeps their chunks loaded until {@link #remove()}. Call on the
    * main thread.
    *
-   * @throws IllegalStateException if the frames were already spawned
+   * @throws IllegalStateException if the frames were already spawned or a required plugin has not been injected
    * @throws NullPointerException if the origin no longer resolves to a world
    */
   public void build() {
