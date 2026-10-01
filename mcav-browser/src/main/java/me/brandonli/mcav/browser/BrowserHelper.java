@@ -117,7 +117,7 @@ public final class BrowserHelper {
    * Runs the helper and exits the JVM with its result: 0 when it was asked to stop, 1 when it failed, 2 when its
    * configuration was missing or invalid.
    *
-   * @param args ignored; the configuration comes from the standard input
+   * @param args the non-null launch arguments, ignored; the configuration comes from standard input
    */
   public static void main(final String[] args) {
     // JCEF writes progress to the standard output; the server reads both outputs as the log of the helper

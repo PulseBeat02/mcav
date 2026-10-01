@@ -20,7 +20,8 @@ package me.brandonli.mcav.browser;
 import com.google.common.base.Preconditions;
 
 /**
- * How a {@link BrowserPlayer} treats the pages it shows. The defaults suit untrusted web content: the browser runs
+ * Immutable options for how a {@link BrowserPlayer} treats pages; instances may be shared across threads.
+ * The defaults suit untrusted web content: the browser runs
  * without the Chromium sandbox, which the embedded browser cannot use, so JavaScript runs without V8's just-in-time
  * compiler, the part of Chromium most exploits target. Pages load slower that way; turn it back on only for pages you
  * trust.
@@ -86,7 +87,7 @@ public final class BrowserOptions {
   /**
    * Checks whether JavaScript is compiled to machine code.
    *
-   * @return true if V8's just-in-time compiler runs
+   * @return true if the configuration enables V8's just-in-time compiler when a browser is started
    */
   public boolean isJavaScriptJit() {
     return this.allowsJavaScriptJit;
@@ -95,7 +96,8 @@ public final class BrowserOptions {
   /**
    * Checks whether pages may reach loopback, private and other non-public addresses.
    *
-   * @return true if the browser connects to any address
+   * @return true if the address policy permits private and other non-public destinations; connectivity
+   *         is still subject to the host network and other browser policies
    */
   public boolean isPrivateNetworks() {
     return this.allowsPrivateNetworks;
@@ -104,14 +106,16 @@ public final class BrowserOptions {
   /**
    * Checks whether a page may play sound before anyone clicked or typed into it.
    *
-   * @return true if pages play sound right away
+   * @return true if the autoplay policy permits sound without a user gesture; this does not guarantee
+   *         that a page produces capturable audio
    */
   public boolean isAutoplay() {
     return this.allowsAutoplay;
   }
 
   /**
-   * Builds {@link BrowserOptions}.
+   * Builds immutable {@link BrowserOptions}. Builders are mutable and not thread-safe;
+   * {@link #build()} snapshots their current values.
    */
   public static final class Builder {
 
