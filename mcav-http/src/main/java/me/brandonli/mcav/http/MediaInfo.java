@@ -25,7 +25,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The information about the current media that the web player shows: title, artist, thumbnail, and a few
- * statistics. Only these fields are sent to browsers, not the complete yt-dlp output.
+ * statistics. Instances are immutable snapshots and can be shared across threads. Only these fields are sent
+ * to browsers, not the complete yt-dlp output.
  */
 public final class MediaInfo {
 
@@ -73,8 +74,9 @@ public final class MediaInfo {
    * Takes the shown fields from the output of yt-dlp. The duration is shown in whole seconds, rounded up, so a
    * video of 215.2 seconds is shown as 216 seconds.
    *
-   * @param dump the output of yt-dlp
-   * @return the information
+   * @param dump the non-null output of yt-dlp; do not mutate it while this snapshot is taken
+   * @return a new immutable snapshot, with missing text fields retained as null
+   * @throws NullPointerException if {@code dump} is null
    */
   public static MediaInfo of(final URLParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null");
@@ -97,8 +99,9 @@ public final class MediaInfo {
   /**
    * Creates information with only a title, for media that did not come from yt-dlp.
    *
-   * @param title the title
-   * @return the information
+   * @param title the non-null title, retained verbatim; empty or blank strings are allowed
+   * @return a new immutable snapshot with that title, unknown other text fields and zero statistics
+   * @throws NullPointerException if {@code title} is null
    */
   public static MediaInfo titled(final String title) {
     Preconditions.checkNotNull(title, "Title must not be null");

@@ -428,6 +428,7 @@ public final class HttpResultImpl implements HttpResult {
    * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
    * @param metadata the metadata of the original audio
    * @return always false, because the samples are only copied out and never changed
+   * @throws NullPointerException if {@code samples} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -492,6 +493,7 @@ public final class HttpResultImpl implements HttpResult {
    * takes them.
    *
    * @param dump the output of yt-dlp
+   * @throws NullPointerException if {@code dump} is null
    */
   @Override
   public void setCurrentMedia(final URLParseDump dump) {
