@@ -113,6 +113,10 @@ public final class VMPlayerImpl implements VMPlayer {
     this.released = new AtomicBoolean(false);
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code settings}, {@code architecture} or {@code configuration} is null
+   */
   @Override
   public boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration) {
     Preconditions.checkNotNull(settings, "Settings must not be null");
@@ -295,6 +299,10 @@ public final class VMPlayerImpl implements VMPlayer {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code type} is null
+   */
   @Override
   public void sendMouseEvent(final MouseClick type, final int frameX, final int frameY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
@@ -304,6 +312,10 @@ public final class VMPlayerImpl implements VMPlayer {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code text} is null
+   */
   @Override
   public void sendKeyEvent(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null");
@@ -313,6 +325,12 @@ public final class VMPlayerImpl implements VMPlayer {
     }
   }
 
+  /**
+   * Pauses picture and sound delivery while QEMU and the guest continue to run. Queued sound is discarded,
+   * and new audio is dropped until resume. Input can still be sent to the guest.
+   *
+   * @return true if an active display was paused, false if inactive or already paused
+   */
   @Override
   public boolean pause() {
     // picture and sound change together, so a resume that runs meanwhile cannot leave one of them paused
@@ -328,6 +346,11 @@ public final class VMPlayerImpl implements VMPlayer {
     }
   }
 
+  /**
+   * Resumes picture and sound delivery without replaying audio dropped during the pause.
+   *
+   * @return true if an active paused display resumed, false if inactive or already unpaused
+   */
   @Override
   public boolean resume() {
     synchronized (this.controls) {
@@ -348,7 +371,10 @@ public final class VMPlayerImpl implements VMPlayer {
   }
 
   /**
-   * Releases playback and attempts to stop QEMU. Later calls retry a surviving process without releasing VNC twice.
+   * Permanently releases playback, closes owned audio resources and attempts bounded termination of QEMU.
+   * Later calls retry a surviving process without releasing VNC twice. A normal return does not guarantee that
+   * a process which ignored forced termination has exited. Attached filters remain caller-owned; first release
+   * makes further startup attempts return false.
    *
    * @return true for the first release, false for subsequent cleanup attempts
    */
@@ -392,6 +418,10 @@ public final class VMPlayerImpl implements VMPlayer {
     return this.vncPlayer.getExceptionHandler();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code exceptionHandler} is null
+   */
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");

@@ -100,6 +100,7 @@ public final class ExecutableFinder {
    *
    * @param name the program name, such as {@code qemu-system-x86_64}, or a path to it
    * @return the absolute path of the program, or empty if it is not installed where this finder looks
+   * @throws NullPointerException if {@code name} is null
    */
   public Optional<Path> find(final String name) {
     Preconditions.checkNotNull(name, "Name must not be null");

@@ -23,7 +23,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * How a virtual machine is streamed: the local VNC port QEMU listens on, the size frames are scaled to, and
- * the target frame rate of the VNC render loop. This setting does not change the guest display rate.
+ * the requested VNC update rate. This does not change the guest display rate. Instances are immutable and
+ * may be shared across threads; creating settings does not reserve a port or start a machine.
  */
 public final class VMSettings {
 
@@ -40,12 +41,15 @@ public final class VMSettings {
   }
 
   /**
-   * Creates settings on the next free VNC port.
+   * Creates settings using the first port from 5900 through 65535 that can be bound during a temporary probe.
+   * The probe socket is closed before returning, so another process may claim the port before QEMU starts.
    *
-   * @param width           the width the frames are scaled to, in pixels
-   * @param height          the height the frames are scaled to, in pixels
-   * @param targetFrameRate the frame rate in frames per second
+   * @param width           the strictly positive output width in pixels
+   * @param height          the strictly positive output height in pixels
+   * @param targetFrameRate the strictly positive requested frame rate in frames per second
    * @return the settings
+   * @throws IllegalArgumentException if a dimension or frame rate is nonpositive
+   * @throws java.io.UncheckedIOException if no port in the VNC range can be bound by the probe
    */
   public static VMSettings of(final int width, final int height, final int targetFrameRate) {
     final int port = IOUtils.getNextFreeVNCPort();
@@ -55,11 +59,12 @@ public final class VMSettings {
   /**
    * Creates settings on a specific VNC port.
    *
-   * @param port            the local port QEMU listens on, at least 5900
-   * @param width           the width the frames are scaled to, in pixels
-   * @param height          the height the frames are scaled to, in pixels
-   * @param targetFrameRate the frame rate in frames per second
+   * @param port            the local TCP port QEMU listens on, from 5900 through 65535
+   * @param width           the strictly positive output width in pixels
+   * @param height          the strictly positive output height in pixels
+   * @param targetFrameRate the strictly positive requested frame rate in frames per second
    * @return the settings
+   * @throws IllegalArgumentException if the port is outside 5900 through 65535, or a dimension or frame rate is nonpositive
    */
   public static VMSettings of(final int port, final int width, final int height, final int targetFrameRate) {
     Preconditions.checkArgument(
@@ -75,7 +80,7 @@ public final class VMSettings {
   /**
    * Gets the local VNC port.
    *
-   * @return the port
+   * @return the configured TCP port, from 5900 through 65535; it is not reserved by these settings
    */
   public int getPort() {
     return this.port;
@@ -100,9 +105,9 @@ public final class VMSettings {
   }
 
   /**
-   * Gets the target frame rate of the VNC render loop. This setting does not change the guest display rate.
+   * Gets the requested VNC update rate. This setting does not change the guest display rate.
    *
-   * @return the frame rate in frames per second
+   * @return the strictly positive requested frames per second; actual updates depend on the remote display
    */
   public int getTargetFps() {
     return this.targetFrameRate;

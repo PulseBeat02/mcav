@@ -27,14 +27,19 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The QEMU command line of a virtual machine, without the display and VNC options which the player adds.
+ * Mutable QEMU command-line settings for a {@link VMPlayer}.
+ *
+ * <p>This object is not thread-safe. Finish configuring it before starting the player, and do not modify it
+ * during startup or while the player uses it. Values are passed as individual process arguments, without a
+ * shell; paths need no shell quoting. Option values are otherwise left to QEMU to validate.
  *
  * <p>Options keep the order they were first set in, and setting an option again replaces its value. Options
  * QEMU accepts more than once, such as {@code -drive} or {@code -device}, are added with
  * {@link #repeatable(String, String)}.
  *
- * <p>The player adds the options it relies on unless the configuration sets them: {@code -vga std},
- * {@code -display none}, {@code -vnc} on the port of the settings, and a USB tablet ({@code -usb -device usb-tablet}),
+ * <p>The player supplies {@code -vnc} from {@link VMSettings}, reserves {@code -audio}, {@code -audiodev} and
+ * {@code pcspk-audiodev} routing, and rejects configurations that set those options. It also supplies defaults
+ * for {@code -vga std}, {@code -display none} and a USB tablet ({@code -usb -device usb-tablet}) unless overridden,
  * which reports absolute pointer positions so clicks land where they are sent. The tablet is left out when the
  * configuration adds its own with {@code device("usb-tablet")} or uses the older {@code -usbdevice} option. To choose
  * the USB controller yourself, set the {@code usb} flag or {@code usb=on} in the machine type, and to run without USB
@@ -71,8 +76,9 @@ public final class VMConfiguration {
   /**
    * Sets the memory of the machine ({@code -m}).
    *
-   * @param memoryMB the memory in megabytes
+   * @param memoryMB the strictly positive memory amount, passed to QEMU with its {@code M} suffix
    * @return this configuration
+   * @throws IllegalArgumentException if {@code memoryMB} is zero or negative
    */
   public VMConfiguration memory(final int memoryMB) {
     Preconditions.checkArgument(memoryMB > 0, "Memory must be positive but was %s", memoryMB);
@@ -82,9 +88,12 @@ public final class VMConfiguration {
   /**
    * Sets the memory of the machine ({@code -m}) with a unit.
    *
-   * @param amount the amount
-   * @param unit   the unit, such as {@code M} or {@code G}
+   * @param amount the strictly positive amount
+   * @param unit   the non-null QEMU unit suffix, such as {@code M} or {@code G}; it is appended verbatim
+   *               and is not validated here
    * @return this configuration
+   * @throws IllegalArgumentException if {@code amount} is zero or negative
+   * @throws NullPointerException if {@code unit} is null
    */
   public VMConfiguration memory(final int amount, final String unit) {
     Preconditions.checkArgument(amount > 0, "Memory must be positive but was %s", amount);
@@ -95,8 +104,9 @@ public final class VMConfiguration {
   /**
    * Sets the number of virtual processors ({@code -smp}).
    *
-   * @param cores the number of cores
+   * @param cores the strictly positive number of virtual processors
    * @return this configuration
+   * @throws IllegalArgumentException if {@code cores} is zero or negative
    */
   public VMConfiguration cores(final int cores) {
     Preconditions.checkArgument(cores > 0, "Cores must be positive but was %s", cores);
@@ -109,6 +119,7 @@ public final class VMConfiguration {
    *
    * @param isoPath the path of the image
    * @return this configuration
+   * @throws NullPointerException if {@code isoPath} is null
    */
   public VMConfiguration cdrom(final String isoPath) {
     Preconditions.checkNotNull(isoPath, "ISO path must not be null");
@@ -120,6 +131,7 @@ public final class VMConfiguration {
    *
    * @param hdaPath the path of the image
    * @return this configuration
+   * @throws NullPointerException if {@code hdaPath} is null
    */
   public VMConfiguration hda(final String hdaPath) {
     Preconditions.checkNotNull(hdaPath, "Disk path must not be null");
@@ -131,6 +143,7 @@ public final class VMConfiguration {
    *
    * @param hdbPath the path of the image
    * @return this configuration
+   * @throws NullPointerException if {@code hdbPath} is null
    */
   public VMConfiguration hdb(final String hdbPath) {
     Preconditions.checkNotNull(hdbPath, "Disk path must not be null");
@@ -142,6 +155,7 @@ public final class VMConfiguration {
    *
    * @param bootOrder the boot order, such as {@code d} for the CD-ROM first
    * @return this configuration
+   * @throws NullPointerException if {@code bootOrder} is null
    */
   public VMConfiguration boot(final String bootOrder) {
     Preconditions.checkNotNull(bootOrder, "Boot order must not be null");
@@ -153,6 +167,7 @@ public final class VMConfiguration {
    *
    * @param networkConfiguration the configuration, such as {@code user,model=virtio-net-pci}
    * @return this configuration
+   * @throws NullPointerException if {@code networkConfiguration} is null
    */
   public VMConfiguration network(final String networkConfiguration) {
     Preconditions.checkNotNull(networkConfiguration, "Network configuration must not be null");
@@ -164,6 +179,7 @@ public final class VMConfiguration {
    *
    * @param model the model, such as {@code host} or {@code max}
    * @return this configuration
+   * @throws NullPointerException if {@code model} is null
    */
   public VMConfiguration cpu(final String model) {
     Preconditions.checkNotNull(model, "CPU model must not be null");
@@ -175,6 +191,7 @@ public final class VMConfiguration {
    *
    * @param machineType the type, such as {@code q35} or {@code virt}
    * @return this configuration
+   * @throws NullPointerException if {@code machineType} is null
    */
   public VMConfiguration machine(final String machineType) {
     Preconditions.checkNotNull(machineType, "Machine type must not be null");
@@ -183,10 +200,11 @@ public final class VMConfiguration {
 
   /**
    * Sets the accelerator ({@code -accel}). Without it the player picks the fastest accelerator available on the
-   * machine and falls back to software emulation.
+   * host platform and retries with software emulation when startup fails with an accelerator-related diagnostic.
    *
    * @param accelerator the accelerator, such as {@code kvm}, {@code whpx}, {@code hvf}, or {@code tcg}
    * @return this configuration
+   * @throws NullPointerException if {@code accelerator} is null
    */
   public VMConfiguration accelerator(final String accelerator) {
     Preconditions.checkNotNull(accelerator, "Accelerator must not be null");
@@ -198,6 +216,7 @@ public final class VMConfiguration {
    *
    * @param adapter the adapter, such as {@code std} or {@code virtio}
    * @return this configuration
+   * @throws NullPointerException if {@code adapter} is null
    */
   public VMConfiguration vga(final String adapter) {
     Preconditions.checkNotNull(adapter, "Adapter must not be null");
@@ -209,6 +228,7 @@ public final class VMConfiguration {
    *
    * @param drive the drive specification, such as {@code file=disk.qcow2,format=qcow2}
    * @return this configuration
+   * @throws NullPointerException if {@code drive} is null
    */
   public VMConfiguration drive(final String drive) {
     Preconditions.checkNotNull(drive, "Drive must not be null");
@@ -220,6 +240,7 @@ public final class VMConfiguration {
    *
    * @param device the device specification, such as {@code usb-tablet}
    * @return this configuration
+   * @throws NullPointerException if {@code device} is null
    */
   public VMConfiguration device(final String device) {
     Preconditions.checkNotNull(device, "Device must not be null");
@@ -229,9 +250,11 @@ public final class VMConfiguration {
   /**
    * Sets an option that takes a value, replacing an earlier value of the same option.
    *
-   * @param key   the option name without the leading dash
-   * @param value the value
+   * @param key   the non-null, nonblank option name without the leading dash
+   * @param value the non-null value, passed verbatim as one process argument; empty values are allowed
    * @return this configuration
+   * @throws IllegalArgumentException if {@code key} is blank
+   * @throws NullPointerException if {@code key} or {@code value} is null
    */
   public VMConfiguration option(final String key, final String value) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -244,9 +267,11 @@ public final class VMConfiguration {
   /**
    * Adds an option that takes a value and may appear more than once.
    *
-   * @param key   the option name without the leading dash
-   * @param value the value
+   * @param key   the non-null, nonblank option name without the leading dash
+   * @param value the non-null value, passed verbatim as one process argument; empty values are allowed
    * @return this configuration
+   * @throws IllegalArgumentException if {@code key} is blank
+   * @throws NullPointerException if {@code key} or {@code value} is null
    */
   public VMConfiguration repeatable(final String key, final String value) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -260,8 +285,10 @@ public final class VMConfiguration {
   /**
    * Adds an option without a value, such as {@code enable-kvm}.
    *
-   * @param flag the option name without the leading dash
+   * @param flag the non-null, nonblank option name without the leading dash; duplicates are ignored
    * @return this configuration
+   * @throws IllegalArgumentException if {@code flag} is blank
+   * @throws NullPointerException if {@code flag} is null
    */
   public VMConfiguration flag(final String flag) {
     Preconditions.checkNotNull(flag, "Flag must not be null");
@@ -275,6 +302,7 @@ public final class VMConfiguration {
    *
    * @param key the option name without the leading dash
    * @return this configuration
+   * @throws NullPointerException if {@code key} is null
    */
   public VMConfiguration remove(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -302,6 +330,7 @@ public final class VMConfiguration {
    *
    * @param key the option name without the leading dash
    * @return true if set
+   * @throws NullPointerException if {@code key} is null
    */
   public boolean has(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -313,7 +342,9 @@ public final class VMConfiguration {
    * Gets the values of a repeatable option, such as every {@code -device}.
    *
    * @param key the option name without the leading dash
-   * @return the values in the order they were added, which cannot be modified
+   * @return an unmodifiable snapshot in insertion order, empty if no repeatable values exist; singleton
+   *         options and flags are not included
+   * @throws NullPointerException if {@code key} is null
    */
   public List<String> getAll(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -334,6 +365,7 @@ public final class VMConfiguration {
    *
    * @param key the option name without the leading dash
    * @return the value, or null if the option is not set
+   * @throws NullPointerException if {@code key} is null
    */
   public @Nullable String get(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -343,7 +375,7 @@ public final class VMConfiguration {
   /**
    * Gets the command-line arguments in order: options, repeatable options, then flags.
    *
-   * @return the arguments, which cannot be modified
+   * @return an unmodifiable snapshot; later configuration changes do not affect the returned list
    */
   public List<String> getArguments() {
     final List<String> arguments = new ArrayList<>();
@@ -366,13 +398,19 @@ public final class VMConfiguration {
   /**
    * Gets the command-line arguments as an array.
    *
-   * @return the arguments
+   * @return a new array snapshot; changes to the array do not affect this configuration
    */
   public String[] buildArgs() {
     final List<String> arguments = this.getArguments();
     return arguments.toArray(new String[0]);
   }
 
+  /**
+   * Joins the current argument tokens with spaces for diagnostics.
+   *
+   * @return the argument list without the executable; tokens are not shell-quoted, so this is not a
+   *         command intended for shell execution
+   */
   @Override
   public String toString() {
     final List<String> arguments = this.getArguments();
