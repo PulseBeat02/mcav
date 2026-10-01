@@ -144,7 +144,11 @@ public final class SVCFilterImpl implements SVCFilter {
 
   /**
    * Stops every speaker, closes their encoders and drops all queued and partially collected audio. The filter can be
-   * started again afterwards, and releasing a stopped filter does nothing.
+   * started again afterwards, and releasing a stopped filter does nothing. Cleanup continues after recoverable
+   * failures and rethrows the first with later failures suppressed. Fatal VM failures propagate immediately.
+   *
+   * @throws RuntimeException if a voice chat player or encoder fails during cleanup
+   * @throws Error if a voice chat player or encoder reports an error during cleanup
    */
   @Override
   public synchronized void release() {
@@ -246,7 +250,8 @@ public final class SVCFilterImpl implements SVCFilter {
   /**
    * Gets the number of 20 millisecond frames the slowest speaker still has to play.
    *
-   * @return the largest queue length of all speakers, or 0 while the filter is stopped
+   * @return the largest complete-frame queue length, from 0 to 25, or 0 while stopped; partially collected
+   *         audio is not counted
    */
   @Override
   public synchronized int getQueuedFrames() {
