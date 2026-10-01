@@ -34,8 +34,11 @@ public interface RepeatingFrameSource extends FrameSource {
    * Creates a source that loops an animation a fixed number of times, then keeps showing its last frame.
    *
    * @param animation   the decoded animation, which must stay open while the source is played
-   * @param repeatCount how often the animation is played, at least 1
+   * @param repeatCount how often the animation is played, at least 1; {@link Integer#MAX_VALUE} means forever
    * @return the source
+   * @throws IllegalArgumentException if {@code repeatCount} is nonpositive or the animation has no frames
+   * @throws IllegalStateException if the first animation frame has been released
+   * @throws NullPointerException if {@code animation} is null
    */
   static RepeatingFrameSource repeating(final DynamicImageBuffer animation, final int repeatCount) {
     Preconditions.checkNotNull(animation, "Animation must not be null");
@@ -48,6 +51,9 @@ public interface RepeatingFrameSource extends FrameSource {
    *
    * @param animation the decoded animation, which must stay open while the source is played
    * @return the source
+   * @throws IllegalArgumentException if the animation has no frames
+   * @throws IllegalStateException if the first animation frame has been released
+   * @throws NullPointerException if {@code animation} is null
    */
   static RepeatingFrameSource repeating(final DynamicImageBuffer animation) {
     Preconditions.checkNotNull(animation, "Animation must not be null");

@@ -32,6 +32,7 @@ public interface OrderedDitherBuilder<T extends BayerDither, B extends OrderedDi
    *
    * @param mapper the threshold pattern
    * @return this builder
+   * @throws NullPointerException if {@code mapper} is null
    */
   B withDitherMatrix(final PixelMapper mapper);
 }

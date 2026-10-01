@@ -66,6 +66,7 @@ public final class ByteUtils {
    * @param buffer the samples, read from position to limit without changing the buffer
    * @return a new buffer with the samples in little-endian order, ready to read
    * @throws PlayerException if the buffer is not a short, float, or byte buffer
+   * @throws NullPointerException if {@code buffer} is null
    */
   public static ByteBuffer toLittleEndian(final Buffer buffer) {
     Preconditions.checkNotNull(buffer, "Buffer must not be null");
@@ -110,6 +111,7 @@ public final class ByteUtils {
    *
    * @param samples the samples, read from position to limit without changing the buffer
    * @return a new buffer with the samples in big-endian order, ready to read
+   * @throws NullPointerException if {@code samples} is null
    */
   public static ByteBuffer toBigEndian(final ByteBuffer samples) {
     Preconditions.checkNotNull(samples, "Samples must not be null");

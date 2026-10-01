@@ -50,11 +50,14 @@ public interface ImagePlayer extends ReleasablePlayer, ExceptionHandler {
   }
 
   /**
-   * Starts pulling frames from a source. A player plays one source at a time; release it or wait for
-   * {@link #release()} before starting another.
+   * Starts pulling frames from a source on a new worker. Only one source can run at a time. Release is
+   * terminal; create another player to switch an actively playing source. If setup fails on the worker,
+   * the error handler is notified and this unreleased player can be started again.
    *
    * @param source the source of frames
    * @return true if playback started, false if the player is already playing or released
+   * @throws NullPointerException if {@code source} is null
+   * @throws IllegalArgumentException if the source frame rate is nonpositive or nonfinite
    */
   boolean start(final FrameSource source);
 
@@ -64,6 +67,9 @@ public interface ImagePlayer extends ReleasablePlayer, ExceptionHandler {
    * @param source   the source of frames
    * @param executor the executor that runs the call
    * @return a future that completes with the result of {@link #start(FrameSource)}
+   * @throws NullPointerException if {@code source} or {@code executor} is null
+   * @throws java.util.concurrent.RejectedExecutionException if the executor rejects the task
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
    */
   default CompletableFuture<Boolean> startAsync(final FrameSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -76,6 +82,8 @@ public interface ImagePlayer extends ReleasablePlayer, ExceptionHandler {
    *
    * @param source the source of frames
    * @return a future that completes with the result of {@link #start(FrameSource)}
+   * @throws NullPointerException if {@code source} is null
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
    */
   default CompletableFuture<Boolean> startAsync(final FrameSource source) {
     final ForkJoinPool pool = ForkJoinPool.commonPool();

@@ -29,6 +29,7 @@ public final class StevensonArceDither extends ErrorDiffusionDither {
    * Constructs a new Stevenson-Arce algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public StevensonArceDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.STEVENSON_ARCE);

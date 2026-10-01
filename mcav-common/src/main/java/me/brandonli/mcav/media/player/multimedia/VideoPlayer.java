@@ -65,6 +65,7 @@ public interface VideoPlayer extends ExceptionHandler {
    * @return the player
    * @throws IllegalStateException if VLC is still being prepared in the background, or its preparation found that VLC
    *                               is not available on this system; the message says which
+   * @throws NullPointerException if the options array or any option is null
    */
   static VideoPlayerMultiplexer vlc(final String... args) {
     Preconditions.checkNotNull(args, "Arguments must not be null");
@@ -111,8 +112,10 @@ public interface VideoPlayer extends ExceptionHandler {
    * the current playback and plays the new source instead.
    *
    * @param combined the source
-   * @return true if playback started, false if it could not start, for example because the source cannot be opened;
+   * @return true if the backend accepted playback (VLC may still be opening); false if the player is released,
+   * another start is in progress, or the source could not be opened;
    * the reason is passed to the exception handler of the player
+   * @throws NullPointerException if {@code combined} is null
    */
   boolean start(final Source combined);
 
@@ -122,6 +125,9 @@ public interface VideoPlayer extends ExceptionHandler {
    * @param combined the source
    * @param executor the executor that opens the source
    * @return a future that completes with the result of {@link #start(Source)}
+   * @throws java.util.concurrent.RejectedExecutionException if the executor rejects the task
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
+   * @throws NullPointerException if {@code combined} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final Source combined, final ExecutorService executor) {
     Preconditions.checkNotNull(combined, "Source must not be null");
@@ -134,6 +140,8 @@ public interface VideoPlayer extends ExceptionHandler {
    *
    * @param combined the source
    * @return a future that completes with the result of {@link #start(Source)}
+   * @throws NullPointerException if {@code combined} is null
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
    */
   default CompletableFuture<Boolean> startAsync(final Source combined) {
     final ForkJoinPool pool = ForkJoinPool.commonPool();

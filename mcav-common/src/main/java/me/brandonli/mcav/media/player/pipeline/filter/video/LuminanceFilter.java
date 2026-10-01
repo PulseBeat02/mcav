@@ -34,6 +34,7 @@ public class LuminanceFilter extends MatVideoFilter {
    *
    * @param contrast   the factor every channel is multiplied by; 1 keeps the contrast, values above 1 increase it
    * @param brightness the offset added to every channel, from -255 to 255; 0 keeps the brightness
+   * @throws IllegalArgumentException if contrast is negative or NaN, or brightness is outside -255 through 255 or NaN
    */
   public LuminanceFilter(final double contrast, final double brightness) {
     Preconditions.checkArgument(contrast >= 0, "Contrast must not be negative");

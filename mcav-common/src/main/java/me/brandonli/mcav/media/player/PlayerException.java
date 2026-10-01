@@ -37,7 +37,7 @@ public class PlayerException extends RuntimeException {
   /**
    * Constructs a new exception with a detail message and no cause.
    *
-   * @param message the detail message, which describes what the player could not do
+   * @param message the detail message describing what the player could not do, or null
    */
   public PlayerException(final @Nullable String message) {
     super(message);
@@ -46,7 +46,7 @@ public class PlayerException extends RuntimeException {
   /**
    * Constructs a new exception with a detail message and the failure that caused it.
    *
-   * @param message the detail message, which describes what the player could not do
+   * @param message the detail message describing what the player could not do, or null
    * @param cause   the underlying failure, or null if it is unknown
    */
   public PlayerException(final @Nullable String message, final @Nullable Throwable cause) {

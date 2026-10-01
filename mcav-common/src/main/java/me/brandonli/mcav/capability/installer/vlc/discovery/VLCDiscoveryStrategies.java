@@ -55,6 +55,7 @@ public final class VLCDiscoveryStrategies {
    *
    * @param libraryDirectory the directory that contains the VLC libraries
    * @return the strategies for Linux, macOS and Windows
+   * @throws NullPointerException if {@code libraryDirectory} is null
    */
   public static NativeDiscoveryStrategy[] createDirectoryStrategies(final Path libraryDirectory) {
     Preconditions.checkNotNull(libraryDirectory, "Library directory must not be null");

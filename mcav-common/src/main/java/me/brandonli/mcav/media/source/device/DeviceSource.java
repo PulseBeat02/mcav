@@ -30,6 +30,7 @@ public interface DeviceSource extends DynamicSource {
    *
    * @param deviceId the index of the device, starting at 0
    * @return the source
+   * @throws IllegalArgumentException if {@code deviceId} is negative
    */
   static DeviceSource device(final int deviceId) {
     Preconditions.checkArgument(deviceId >= 0, "Device index must not be negative");

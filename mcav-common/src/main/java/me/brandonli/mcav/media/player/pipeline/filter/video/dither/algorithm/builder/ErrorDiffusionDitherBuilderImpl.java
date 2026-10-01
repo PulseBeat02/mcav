@@ -82,6 +82,7 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
    *
    * @param palette the palette
    * @return this builder
+   * @throws NullPointerException if {@code palette} is null
    */
   @Override
   public ErrorDiffusionDitherBuilderImpl withPalette(final DitherPalette palette) {
@@ -95,6 +96,7 @@ public class ErrorDiffusionDitherBuilderImpl implements ErrorDiffusionDitherBuil
    *
    * @param algorithm the algorithm
    * @return this builder
+   * @throws NullPointerException if {@code algorithm} is null
    */
   @Override
   public ErrorDiffusionDitherBuilderImpl withAlgorithm(final Algorithm algorithm) {

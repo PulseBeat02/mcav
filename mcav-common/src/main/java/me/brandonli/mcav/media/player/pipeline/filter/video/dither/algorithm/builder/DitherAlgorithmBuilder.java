@@ -46,6 +46,7 @@ public interface DitherAlgorithmBuilder<T extends DitherAlgorithm, B extends Dit
    *
    * @param palette the palette
    * @return this builder
+   * @throws NullPointerException if {@code palette} is null
    */
   B withPalette(final DitherPalette palette);
 }

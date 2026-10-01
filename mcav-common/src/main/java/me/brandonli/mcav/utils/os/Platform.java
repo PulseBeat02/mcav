@@ -57,6 +57,7 @@ public final class Platform {
    * @param arch the CPU architecture family
    * @param bits the bitness
    * @return the platform
+   * @throws NullPointerException if any platform component is null
    */
   public static Platform ofPlatform(final OS os, final Arch arch, final Bits bits) {
     return new Platform(os, arch, bits);

@@ -35,6 +35,10 @@ public class FFmpegDirectSourceDetector implements SourceDetector<FFmpegDirectSo
     // stateless
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public boolean isDetectedSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
@@ -50,6 +54,12 @@ public class FFmpegDirectSourceDetector implements SourceDetector<FFmpegDirectSo
     return !formatBlank && !mrlBlank;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws IllegalArgumentException if there is not exactly one {@code ||} separator or the format is blank
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public FFmpegDirectSource createSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");

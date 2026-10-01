@@ -40,6 +40,7 @@ public class HttpStatusException extends IOException {
    *
    * @param statusCode the status code the server answered with
    * @param uri        the URI that was requested
+   * @throws NullPointerException if {@code uri} is null
    */
   public HttpStatusException(final int statusCode, final URI uri) {
     Preconditions.checkNotNull(uri, "URI must not be null");

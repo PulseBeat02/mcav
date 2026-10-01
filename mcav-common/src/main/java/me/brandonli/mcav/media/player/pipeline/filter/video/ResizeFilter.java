@@ -33,7 +33,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * <p>The result is written into the spare matrix of the frame, see
  * {@link MatImageBuffer#transformMat(java.util.function.BiConsumer)}. A player that refills the frame at the size of
- * the video every frame gets the spare back, so resizing allocates nothing per frame once the sizes are settled. The
+ * the video every frame gets the spare back, so resizing reuses native frame storage once the sizes are settled. The
  * filter keeps no state besides its target size, so one filter may be attached to several pipelines at once.
  */
 public class ResizeFilter extends MatVideoFilter {
@@ -47,6 +47,7 @@ public class ResizeFilter extends MatVideoFilter {
    *
    * @param width  the target width in pixels
    * @param height the target height in pixels
+   * @throws IllegalArgumentException if either target dimension is nonpositive
    */
   public ResizeFilter(final int width, final int height) {
     Preconditions.checkArgument(width > 0 && height > 0, "Target size must be positive but was %sx%s", width, height);

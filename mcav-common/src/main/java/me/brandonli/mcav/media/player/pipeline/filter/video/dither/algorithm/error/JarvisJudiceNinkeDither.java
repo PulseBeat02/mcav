@@ -29,6 +29,7 @@ public final class JarvisJudiceNinkeDither extends ErrorDiffusionDither {
    * Constructs a new Jarvis-Judice-Ninke algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public JarvisJudiceNinkeDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.JARVIS_JUDICE_NINKE);

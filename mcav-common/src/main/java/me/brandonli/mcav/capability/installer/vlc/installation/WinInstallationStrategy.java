@@ -46,6 +46,7 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
    * Constructs a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
+   * @throws NullPointerException if {@code installer} is null
    */
   public WinInstallationStrategy(final VLCInstaller installer) {
     super(installer);
@@ -70,6 +71,7 @@ public final class WinInstallationStrategy extends ManualInstallationStrategy {
    * @param archive the downloaded zip
    * @return the installation directory, which contains {@code libvlc.dll}
    * @throws IOException if the zip cannot be extracted or does not contain the library
+   * @throws NullPointerException if {@code archive} is null
    */
   @Override
   public Path execute(final Path archive) throws IOException {

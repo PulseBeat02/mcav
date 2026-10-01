@@ -54,6 +54,7 @@ public class RandomDitherBuilderImpl implements RandomDitherBuilder<RandomDither
    *
    * @param palette the palette
    * @return this builder
+   * @throws NullPointerException if {@code palette} is null
    */
   @Override
   public RandomDitherBuilderImpl withPalette(final DitherPalette palette) {

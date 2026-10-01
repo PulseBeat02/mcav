@@ -38,7 +38,8 @@ public final class ImageUtils {
    * components are ignored.
    *
    * @param components the channel values in the order OpenCV expects, which is blue, green, red, and alpha
-   * @return the scalar
+   * @return a new scalar owned by the caller, which should be closed after use
+   * @throws NullPointerException if {@code components} is null
    */
   public static Scalar toScalar(final double[] components) {
     Preconditions.checkNotNull(components, "Components must not be null");
@@ -57,6 +58,9 @@ public final class ImageUtils {
    * @param newWidth       the width of the resized image
    * @param newHeight      the height of the resized image
    * @return the pixels of the resized image, laid out row by row
+   * @throws IllegalArgumentException if a dimension is nonpositive, the input pixel count differs from
+   *                                  its dimensions, or the original packed BGR size exceeds {@link Integer#MAX_VALUE}
+   * @throws NullPointerException if {@code pixels} is null
    */
   public static int[] resizeIntArrayImage(
     final int[] pixels,

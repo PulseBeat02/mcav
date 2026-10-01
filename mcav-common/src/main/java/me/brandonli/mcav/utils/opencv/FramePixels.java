@@ -47,6 +47,7 @@ public final class FramePixels {
    * @param frame the frame, decoded to BGR24 with eight bits per channel
    * @return the pixels, three bytes per pixel in blue, green, red order, ready to be read from position zero
    * @throws IllegalArgumentException if the frame holds no 8-bit image or its rows are shorter than its width
+   * @throws NullPointerException if {@code frame} is null
    */
   public static ByteBuffer copyBgr(final Frame frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");
@@ -66,8 +67,11 @@ public final class FramePixels {
    * @param frame  the frame, decoded to BGR24 with eight bits per channel
    * @param target the buffer that receives the pixels, three bytes per pixel in blue, green, red order; its capacity
    *               must be at least {@code width * height * 3} bytes
-   * @throws IllegalArgumentException if the frame holds no 8-bit image, its rows are shorter than its width, or the
+   * @throws IllegalArgumentException if the frame holds no 8-bit image, its rows are shorter than its width,
+   *                                 the source plane cannot hold the declared rows, or the
    *                                  target is too small
+   * @throws java.nio.ReadOnlyBufferException if the target is read-only
+   * @throws NullPointerException if {@code frame} or {@code target} is null
    */
   public static void copyBgr(final Frame frame, final ByteBuffer target) {
     Preconditions.checkNotNull(frame, "Frame must not be null");

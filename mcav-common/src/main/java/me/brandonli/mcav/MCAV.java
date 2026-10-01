@@ -94,6 +94,10 @@ public final class MCAV implements MCAVApi {
     return new MCAV();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code capability} is null
+   */
   @Override
   public boolean hasCapability(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -101,6 +105,10 @@ public final class MCAV implements MCAVApi {
     return installation.isAvailable(capability);
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code capability} is null
+   */
   @Override
   public CompletableFuture<Boolean> whenCapabilityReady(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -116,6 +124,10 @@ public final class MCAV implements MCAVApi {
     return installation;
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code modules} is null
+   */
   @Override
   public void install(final Class<?>... modules) {
     Preconditions.checkNotNull(modules, "Modules must not be null");
@@ -180,6 +192,10 @@ public final class MCAV implements MCAVApi {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code moduleClass} is null
+   */
   @Override
   public <T extends MCAVModule> T getModule(final Class<T> moduleClass) {
     Preconditions.checkNotNull(moduleClass, "Module class must not be null");

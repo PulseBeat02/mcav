@@ -58,8 +58,10 @@ public interface ImageBuffer extends Image {
    * Wraps an OpenCV matrix. The matrix is converted to 8-bit BGR if it uses another layout, and the buffer takes
    * ownership of it.
    *
-   * @param mat the matrix, which must not be empty
+   * @param mat the non-null, nonempty matrix with 1, 3 or 4 channels; ownership transfers on success
    * @return the image buffer
+   * @throws IllegalArgumentException if the matrix is empty or has a channel count other than 1, 3 or 4
+   * @throws NullPointerException if {@code mat} is null
    */
   static ImageBuffer mat(final Mat mat) {
     Preconditions.checkNotNull(mat, "Mat must not be null");
@@ -74,6 +76,9 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
+   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
+   * @throws NullPointerException if {@code data} is null
    */
   static ImageBuffer bytes(final byte[] data, final int width, final int height) {
     Preconditions.checkNotNull(data, "Data must not be null");
@@ -83,12 +88,15 @@ public interface ImageBuffer extends Image {
   /**
    * Creates an image from raw 8-bit BGR pixels without padding. The bytes are copied from the current position of
    * the buffer to its limit. Dimensions must be positive and their packed BGR representation must fit within
-   * {@link Integer#MAX_VALUE} bytes.
+   * {@link Integer#MAX_VALUE} bytes. The input buffer's position and limit are unchanged.
    *
    * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
+   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
+   * @throws NullPointerException if {@code data} is null
    */
   static ImageBuffer bytes(final ByteBuffer data, final int width, final int height) {
     Preconditions.checkNotNull(data, "Data must not be null");
@@ -101,6 +109,7 @@ public interface ImageBuffer extends Image {
    * @param bytes the encoded image
    * @return the image buffer
    * @throws IllegalArgumentException if the bytes are not a supported image format
+   * @throws NullPointerException if {@code bytes} is null
    */
   static ImageBuffer bytes(final byte[] bytes) {
     Preconditions.checkNotNull(bytes, "Bytes must not be null");
@@ -111,8 +120,10 @@ public interface ImageBuffer extends Image {
    * Converts a JavaCV frame. Frames with three channels are treated as BGR, frames with four channels as BGRA, and
    * frames with one channel as grayscale.
    *
-   * @param frame the frame, which must contain an image
+   * @param frame the non-null frame containing an image; its pixels are copied and the caller keeps ownership
    * @return the image buffer
+   * @throws IllegalArgumentException if the frame has no image or has a channel count other than 1, 3 or 4
+   * @throws NullPointerException if {@code frame} is null
    */
   static ImageBuffer frame(final Frame frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");
@@ -126,6 +137,7 @@ public interface ImageBuffer extends Image {
    * @return the image buffer
    * @throws java.io.UncheckedIOException if the image cannot be downloaded
    * @throws IllegalArgumentException     if the file is not a supported image format
+   * @throws NullPointerException if {@code source} is null
    */
   static ImageBuffer uri(final UriSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -138,6 +150,7 @@ public interface ImageBuffer extends Image {
    * @param source the image file
    * @return the image buffer
    * @throws IllegalArgumentException if the file does not exist or is not a supported image format
+   * @throws NullPointerException if {@code source} is null
    */
   static ImageBuffer path(final FileSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -153,6 +166,9 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
+   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the pixel count differs from the dimensions
+   * @throws NullPointerException if {@code data} is null
    */
   static ImageBuffer buffer(final int[] data, final int width, final int height) {
     Preconditions.checkNotNull(data, "Data must not be null");
@@ -160,11 +176,13 @@ public interface ImageBuffer extends Image {
   }
 
   /**
-   * Copies a Java image. Every image type is supported; images that are not BGR, RGB, or ARGB are drawn onto a
-   * BGR image first.
+   * Copies a Java image. Every image type is supported; layouts that cannot be copied directly are read
+   * through {@link BufferedImage#getRGB(int, int, int, int, int[], int, int)}. Alpha is discarded.
    *
    * @param image the image to copy
    * @return the image buffer
+   * @throws IllegalArgumentException if the image dimensions exceed the maximum packed BGR buffer size
+   * @throws NullPointerException if {@code image} is null
    */
   static ImageBuffer image(final BufferedImage image) {
     Preconditions.checkNotNull(image, "Image must not be null");
@@ -175,6 +193,7 @@ public interface ImageBuffer extends Image {
    * Copies the image into a new Java image of type {@link BufferedImage#TYPE_3BYTE_BGR}.
    *
    * @return a new Java image
+   * @throws IllegalStateException if the image was released
    */
   BufferedImage toBufferedImage();
 
@@ -182,24 +201,33 @@ public interface ImageBuffer extends Image {
    * Replaces the content of this buffer with a Java image, resizing the buffer if necessary.
    *
    * @param image the image to copy
+   * @throws NullPointerException if {@code image} is null
+   * @throws IllegalStateException if the image was released
    */
   void setAsBufferedImage(final BufferedImage image);
 
   /**
    * Sets the color of one pixel.
    *
-   * @param column the column of the pixel
-   * @param row    the row of the pixel
-   * @param value  the blue, green, and red components in that order, from 0 to 255
+   * @param column the zero-based column, less than {@link #getWidth()}
+   * @param row    the zero-based row, less than {@link #getHeight()}
+   * @param value  the non-null blue, green and red components in that order; the first three supplied
+   *               values are rounded and clamped to 0 through 255, missing components are unchanged,
+   *               and additional components are ignored
+   * @throws IllegalArgumentException if the row or column is outside the image
+   * @throws NullPointerException if {@code value} is null
+   * @throws IllegalStateException if the image was released
    */
   void setPixel(final int column, final int row, final double[] value);
 
   /**
    * Gets the color of one pixel.
    *
-   * @param column the column of the pixel
-   * @param row    the row of the pixel
-   * @return the blue, green, and red components in that order, from 0 to 255
+   * @param column the zero-based column, less than {@link #getWidth()}
+   * @param row    the zero-based row, less than {@link #getHeight()}
+   * @return a new three-element array containing blue, green and red, each from 0 to 255
+   * @throws IllegalArgumentException if the row or column is outside the image
+   * @throws IllegalStateException if the image was released
    */
   double[] getPixel(final int column, final int row);
 
@@ -218,6 +246,7 @@ public interface ImageBuffer extends Image {
    * rejects writes without copying.
    *
    * @return the shared pixels of the image, which must not be modified
+   * @throws IllegalStateException if the image was released
    */
   int[] getPixels();
 
@@ -228,6 +257,7 @@ public interface ImageBuffer extends Image {
    * the pixels once per frame.
    *
    * @return a new array with the pixels of the image
+   * @throws IllegalStateException if the image was released
    */
   default int[] copyPixels() {
     final int[] shared = this.getPixels();
@@ -243,6 +273,7 @@ public interface ImageBuffer extends Image {
    * showing the old pixels after the image changes, so call this method again for the new pixels.
    *
    * @return a read-only view of the pixels of the image
+   * @throws IllegalStateException if the image was released
    */
   default IntBuffer getReadOnlyPixels() {
     final int[] shared = this.getPixels();
@@ -254,6 +285,7 @@ public interface ImageBuffer extends Image {
    * Gets the width of the image.
    *
    * @return the width in pixels
+   * @throws IllegalStateException if the image was released
    */
   int getWidth();
 
@@ -261,6 +293,7 @@ public interface ImageBuffer extends Image {
    * Gets the height of the image.
    *
    * @return the height in pixels
+   * @throws IllegalStateException if the image was released
    */
   int getHeight();
 
@@ -268,6 +301,7 @@ public interface ImageBuffer extends Image {
    * Gets the number of pixels of the image.
    *
    * @return the width multiplied by the height
+   * @throws IllegalStateException if the image was released
    */
   int getPixelCount();
 
@@ -277,17 +311,23 @@ public interface ImageBuffer extends Image {
    * image, and it becomes invalid when the image is resized, transformed or released.
    *
    * @return a direct buffer over the pixels
+   * @throws IllegalStateException if the image was released
    */
   ByteBuffer getData();
 
   /**
    * Replaces the pixels of the image with raw 8-bit BGR pixels, reusing the native memory when the dimensions did
    * not change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be
-   * positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes.
+   * positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes. The source
+   * position and limit are unchanged.
    *
    * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
    * @param width  the new width in pixels
    * @param height the new height in pixels
+   * @throws NullPointerException if {@code data} is null
+   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException if the image was released
    */
   void updateData(final ByteBuffer data, final int width, final int height);
 
@@ -299,6 +339,10 @@ public interface ImageBuffer extends Image {
    * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
    * @param width  the new width in pixels
    * @param height the new height in pixels
+   * @throws NullPointerException if {@code pixels} is null
+   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException if the image was released
    */
   void updateArgb(final int[] pixels, final int width, final int height);
 
@@ -312,12 +356,14 @@ public interface ImageBuffer extends Image {
    * Creates a deep copy of this image that is independent of it.
    *
    * @return a new image buffer with the same pixels
+   * @throws IllegalStateException if the image was released
    */
   ImageBuffer copy();
 
   /**
    * Releases the native memory of the image. Calling this method more than once has no effect, and every other
-   * method fails after it was called.
+   * operation accessing native pixels or dimensions throws {@link IllegalStateException} afterward.
+   * {@link #invalidateCache()} remains harmless. Previously returned native views must no longer be used.
    */
   void release();
 

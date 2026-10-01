@@ -67,6 +67,7 @@ public final class FFmpegCommand {
    * Gets the FFmpeg executable the command runs with.
    *
    * @return the path of the executable
+   * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
    */
   public Path getExecutable() {
     return FFmpegExecutableProvider.getFFmpegPath();
@@ -76,6 +77,7 @@ public final class FFmpegCommand {
    * Gets the complete command line, starting with the executable.
    *
    * @return the command line as separate arguments
+   * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
    */
   public String[] toCommandArray() {
     final Path executable = this.getExecutable();
@@ -92,12 +94,20 @@ public final class FFmpegCommand {
    * {@link CommandTask#run(java.time.Duration)} to run it and wait for the exit code.
    *
    * @return the task, which has not been run yet
+   * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
    */
   public CommandTask createTask() {
     final String[] command = this.toCommandArray();
     return new CommandTask(command);
   }
 
+  /**
+   * Joins the executable and arguments with spaces for diagnostics. The result is not shell-escaped and should
+   * not be parsed to execute the command; use {@link #toCommandArray()} instead.
+   *
+   * @return the diagnostic command text
+   * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
+   */
   @Override
   public String toString() {
     final String[] command = this.toCommandArray();
@@ -121,6 +131,7 @@ public final class FFmpegCommand {
      *
      * @param input the input
      * @return this builder
+     * @throws NullPointerException if {@code input} is null
      */
     public Builder addInput(final String input) {
       Preconditions.checkNotNull(input, "Input must not be null");
@@ -134,6 +145,7 @@ public final class FFmpegCommand {
      *
      * @param output the output path
      * @return this builder
+     * @throws NullPointerException if {@code output} is null
      */
     public Builder addOutput(final String output) {
       Preconditions.checkNotNull(output, "Output must not be null");
@@ -146,6 +158,7 @@ public final class FFmpegCommand {
      *
      * @param codec the codec name, or {@code copy} to keep the stream
      * @return this builder
+     * @throws NullPointerException if {@code codec} is null
      */
     public Builder addVideoCodec(final String codec) {
       Preconditions.checkNotNull(codec, "Codec must not be null");
@@ -159,6 +172,7 @@ public final class FFmpegCommand {
      *
      * @param codec the codec name, or {@code copy} to keep the stream
      * @return this builder
+     * @throws NullPointerException if {@code codec} is null
      */
     public Builder addAudioCodec(final String codec) {
       Preconditions.checkNotNull(codec, "Codec must not be null");
@@ -172,6 +186,7 @@ public final class FFmpegCommand {
      *
      * @param bitrate the bitrate, such as {@code 1000k}
      * @return this builder
+     * @throws NullPointerException if {@code bitrate} is null
      */
     public Builder addBitrate(final String bitrate) {
       Preconditions.checkNotNull(bitrate, "Bitrate must not be null");
@@ -185,6 +200,7 @@ public final class FFmpegCommand {
      *
      * @param bitrate the bitrate, such as {@code 128k}
      * @return this builder
+     * @throws NullPointerException if {@code bitrate} is null
      */
     public Builder addAudioBitrate(final String bitrate) {
       Preconditions.checkNotNull(bitrate, "Bitrate must not be null");
@@ -198,6 +214,7 @@ public final class FFmpegCommand {
      *
      * @param framerate the frame rate in frames per second
      * @return this builder
+     * @throws IllegalArgumentException if the frame rate is nonpositive
      */
     public Builder addFramerate(final int framerate) {
       Preconditions.checkArgument(framerate > 0, "Frame rate must be positive but was %s", framerate);
@@ -213,6 +230,7 @@ public final class FFmpegCommand {
      * @param width  the width in pixels
      * @param height the height in pixels
      * @return this builder
+     * @throws IllegalArgumentException if either dimension is nonpositive
      */
     public Builder addResolution(final int width, final int height) {
       Preconditions.checkArgument(width > 0 && height > 0, "Resolution must be positive but was %sx%s", width, height);
@@ -237,6 +255,7 @@ public final class FFmpegCommand {
      *
      * @param filter the filter graph
      * @return this builder
+     * @throws NullPointerException if {@code filter} is null
      */
     public Builder addFilter(final String filter) {
       Preconditions.checkNotNull(filter, "Filter must not be null");
@@ -250,6 +269,7 @@ public final class FFmpegCommand {
      *
      * @param argument the argument
      * @return this builder
+     * @throws NullPointerException if {@code argument} is null
      */
     public Builder addArgument(final String argument) {
       Preconditions.checkNotNull(argument, "Argument must not be null");
@@ -260,8 +280,10 @@ public final class FFmpegCommand {
     /**
      * Adds raw arguments.
      *
-     * @param rawArguments the arguments in order
+     * @param rawArguments the non-null arguments in order, with no null elements; entries before a null
+   *                     element have already been appended when validation fails
      * @return this builder
+     * @throws NullPointerException if the array or any argument is null
      */
     public Builder addArguments(final String... rawArguments) {
       Preconditions.checkNotNull(rawArguments, "Arguments must not be null");
@@ -275,7 +297,7 @@ public final class FFmpegCommand {
     /**
      * Builds the command.
      *
-     * @return the command
+     * @return a new immutable snapshot; subsequent builder changes do not affect it
      */
     public FFmpegCommand build() {
       return new FFmpegCommand(this.arguments);

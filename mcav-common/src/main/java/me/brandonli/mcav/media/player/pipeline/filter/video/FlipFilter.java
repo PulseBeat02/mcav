@@ -32,6 +32,7 @@ public class FlipFilter extends MatVideoFilter {
    * Constructs a new flip filter.
    *
    * @param direction the direction to mirror in
+   * @throws NullPointerException if {@code direction} is null
    */
   public FlipFilter(final FlipDirection direction) {
     Preconditions.checkNotNull(direction, "Direction must not be null");

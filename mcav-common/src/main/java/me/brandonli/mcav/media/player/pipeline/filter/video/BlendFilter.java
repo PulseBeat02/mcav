@@ -36,6 +36,9 @@ public class BlendFilter extends MatVideoFilter {
    *
    * @param other the image to blend with
    * @param alpha the weight of the frame from 0 to 1; the image gets the remaining weight
+   * @throws IllegalArgumentException if {@code alpha} is outside 0 through 1 or is NaN
+   * @throws IllegalStateException if {@code other} has been released
+   * @throws NullPointerException if {@code other} is null
    */
   public BlendFilter(final ImageBuffer other, final double alpha) {
     Preconditions.checkNotNull(other, "Other image must not be null");

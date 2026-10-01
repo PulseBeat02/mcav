@@ -20,15 +20,17 @@ package me.brandonli.mcav.media.source;
 /**
  * Something a player can play: a file, a URL, a capture device, a raw FFmpeg input, or frames supplied by code.
  *
- * <p>Sources are small immutable descriptions; they do not open anything themselves. Players receive the
- * {@link #getResource() resource string} and open it with their own backend. Create sources with the static
+ * <p>Sources describe inputs without opening decoder resources. File, URI, device and direct FFmpeg sources are
+ * immutable; frame sources can retain stateful suppliers. Resource-based players open the
+ * {@link #getResource() resource string}, while generated sources expose frames to a compatible player. Create sources with the static
  * factories of the subtypes, such as {@link me.brandonli.mcav.media.source.file.FileSource#path(java.nio.file.Path)}
  * or {@link me.brandonli.mcav.media.source.uri.UriSource#uri(java.net.URI)}, or detect the right type from a
  * string with {@link SourceDetectionHelper}.
  */
 public interface Source {
   /**
-   * Gets the string a player opens, such as a file path, a URL, or a device index.
+   * Gets the resource description, such as a file path, a URL, or a device index. Generated and specialized
+   * sources may return a diagnostic string that cannot be opened by an arbitrary backend.
    *
    * @return the resource string
    */
@@ -42,8 +44,8 @@ public interface Source {
   String getName();
 
   /**
-   * Checks whether the source is a fixed piece of media whose length is known, as opposed to a live stream,
-   * a device, or generated frames.
+   * Checks whether the source is classified as static, as opposed to a URI, device or generated frames.
+   * This does not probe its actual duration or whether the selected decoder supports seeking.
    *
    * @return true for files and similar finite media
    */

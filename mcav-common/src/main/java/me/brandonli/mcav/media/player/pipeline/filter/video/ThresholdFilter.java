@@ -22,8 +22,9 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 /**
- * Applies a fixed threshold to every channel of every frame, for example to turn frames into pure black and
- * white with {@link opencv_imgproc#THRESH_BINARY}.
+ * Applies a fixed threshold independently to every channel of every frame. To obtain black and white with
+ * {@link opencv_imgproc#THRESH_BINARY}, use {@link GrayscaleFilter} first; thresholding color channels directly
+ * can retain combinations of saturated colors.
  */
 public class ThresholdFilter extends MatVideoFilter {
 
@@ -36,7 +37,9 @@ public class ThresholdFilter extends MatVideoFilter {
    *
    * @param threshold the threshold value, from 0 to 255
    * @param maxValue  the value assigned to channels that pass the threshold, from 0 to 255
-   * @param type      the threshold type, one of the {@code THRESH_} constants of {@link opencv_imgproc}
+   * @param type      a fixed threshold mode from {@link opencv_imgproc}; automatic Otsu and triangle modes
+   *                  require a single-channel input and are not suitable for this three-channel BGR filter
+   * @throws IllegalArgumentException if the threshold or maximum is outside 0 through 255 or is NaN
    */
   public ThresholdFilter(final double threshold, final double maxValue, final int type) {
     Preconditions.checkArgument(threshold >= 0 && threshold <= 255, "Threshold must be between 0 and 255");

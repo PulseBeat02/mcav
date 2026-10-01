@@ -39,7 +39,9 @@ public class CircleFilter extends MatVideoFilter {
    * @param centerX the x coordinate of the center
    * @param centerY the y coordinate of the center
    * @param radius  the radius in pixels, which must not be negative; a radius of 0 draws a single pixel
-   * @param color   the blue, green, and red components of the color, from 0 to 255
+   * @param color   the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
+   * @throws IllegalArgumentException if {@code radius} is negative
+   * @throws NullPointerException if {@code color} is null
    */
   public CircleFilter(final int centerX, final int centerY, final int radius, final double[] color) {
     Preconditions.checkArgument(radius >= 0, "Radius must not be negative but was %s", radius);

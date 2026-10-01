@@ -104,10 +104,13 @@ public final class DependencyLoader {
   }
 
   /**
-   * Checks whether a capability is available.
+   * Checks whether preparation has recorded a failure for a capability. A new loader optimistically contains
+   * every capability, so this method alone is not a readiness test. Normal callers should use
+   * {@link me.brandonli.mcav.MCAVApi#hasCapability(Capability)}, which also tracks background completion.
    *
    * @param capability the capability to check
-   * @return true if the program or native library behind the capability was installed or loaded successfully
+   * @return true if the capability has not been removed after a failed preparation; initially true for every capability
+   * @throws NullPointerException if {@code capability} is null
    */
   public boolean hasCapability(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");

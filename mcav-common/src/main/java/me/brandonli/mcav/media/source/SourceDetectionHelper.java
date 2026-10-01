@@ -29,7 +29,7 @@ import me.brandonli.mcav.media.source.uri.UriSourceDetector;
 /**
  * Turns strings entered by users into sources by asking a set of {@link SourceDetector}s.
  *
- * <p>The default detectors recognize existing file paths, URLs with a scheme and host, plain numbers as capture
+ * <p>The default detectors recognize existing file or directory paths, URLs with a scheme and host, plain numbers as capture
  * device indices, and {@code format||input} pairs as raw FFmpeg inputs.
  *
  * <pre><code>
@@ -51,7 +51,9 @@ public class SourceDetectionHelper {
   /**
    * Constructs a helper with custom detectors.
    *
-   * @param detectors the detectors to consult
+   * @param detectors the non-null detectors to consult in iteration order; the collection is copied and
+   *                  must contain no null elements. Detectors themselves are shared, not copied
+   * @throws NullPointerException if the collection or any detector is null
    */
   public SourceDetectionHelper(final Collection<SourceDetector<? extends Source>> detectors) {
     Preconditions.checkNotNull(detectors, "Detectors must not be null");
@@ -70,7 +72,10 @@ public class SourceDetectionHelper {
    *
    * @param resource the string entered by a user
    * @return the source created by the accepting detector with the highest priority, or empty if no detector
-   * accepts the string
+   * accepts the string; the first detector wins a priority tie
+   * @throws RuntimeException if a detector fails while testing or creating the source; failures propagate
+   *                          and no lower-priority detector is tried as a fallback
+   * @throws NullPointerException if {@code resource} is null
    */
   public Optional<Source> detectSource(final String resource) {
     Preconditions.checkNotNull(resource, "Resource must not be null");

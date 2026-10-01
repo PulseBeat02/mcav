@@ -57,7 +57,7 @@ public final class VideoPipelineStepImpl implements VideoPipelineStep {
   }
 
   /**
-   * Applies the filter of this step to the frame. Whatever the filter returns, the frame is passed on.
+   * Applies the filter of this step to the frame. The filter's return value is ignored; this call does not invoke the next step.
    *
    * @param buffer   the frame
    * @param metadata the metadata of the original video

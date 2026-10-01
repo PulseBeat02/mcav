@@ -41,8 +41,10 @@ public final class Download {
    * Constructs a new download.
    *
    * @param platform the platform the file is built for
-   * @param url      the URL of the file
+   * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
    * @param hash     the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
+   * @throws IllegalArgumentException if {@code url} is blank
+   * @throws NullPointerException if {@code platform} or {@code url} is null
    */
   public Download(final Platform platform, final String url, final @Nullable String hash) {
     Preconditions.checkNotNull(platform, "Platform must not be null");
@@ -57,7 +59,9 @@ public final class Download {
    * Constructs a new download without hash verification.
    *
    * @param platform the platform the file is built for
-   * @param url      the URL of the file
+   * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @throws IllegalArgumentException if {@code url} is blank
+   * @throws NullPointerException if {@code platform} or {@code url} is null
    */
   public Download(final Platform platform, final String url) {
     this(platform, url, null);
@@ -69,8 +73,10 @@ public final class Download {
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
    * @param bits            the bitness the file is built for
-   * @param url             the URL of the file
+   * @param url             the non-null, nonblank URL of the file; URI syntax is checked when downloading
    * @param hash            the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
+   * @throws IllegalArgumentException if {@code url} is blank
+   * @throws NullPointerException if {@code operatingSystem}, {@code architecture}, {@code bits} or {@code url} is null
    */
   public Download(final OS operatingSystem, final Arch architecture, final Bits bits, final String url, final @Nullable String hash) {
     final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);
@@ -83,7 +89,9 @@ public final class Download {
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
    * @param bits            the bitness the file is built for
-   * @param url             the URL of the file
+   * @param url             the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @throws IllegalArgumentException if {@code url} is blank
+   * @throws NullPointerException if {@code operatingSystem}, {@code architecture}, {@code bits} or {@code url} is null
    */
   public Download(final OS operatingSystem, final Arch architecture, final Bits bits, final String url) {
     final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);

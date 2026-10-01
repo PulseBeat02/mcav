@@ -107,6 +107,7 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
    * @param path the directory that contains the libraries
    * @return {@code true} to let vlcj add the directory to the JNA search path, {@code false} if the core library
    * cannot be loaded from it
+   * @throws NullPointerException if {@code path} is null
    */
   @Override
   public boolean onFound(final String path) {

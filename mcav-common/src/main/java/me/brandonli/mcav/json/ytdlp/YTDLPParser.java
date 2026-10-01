@@ -26,7 +26,9 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  *
  * <p>yt-dlp is run as an external process, so parsing blocks for a few seconds and must not be called on a
  * server main thread. The result lists every available stream; pick one with a
- * {@link me.brandonli.mcav.json.ytdlp.strategy.StrategySelector}.
+ * {@link me.brandonli.mcav.json.ytdlp.strategy.StrategySelector}. The shared default parser can serve concurrent
+ * calls, each with its own command process and result. Returned metadata is mutable and belongs to the caller;
+ * do not mutate source settings or the argument array while a parse uses them.
  *
  * <pre>{@code
  * final URI page = URI.create("https://youtu.be/...");
@@ -39,10 +41,11 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  */
 public interface YTDLPParser {
   /**
-   * Runs yt-dlp on a URL and parses the JSON it prints. Only the first video of a playlist is resolved.
+   * Runs yt-dlp on a URL and parses the first JSON output line. The default command disables playlists on
+   * watch pages and selects the first playlist entry; supplied options can override these command defaults.
    *
-   * @param input     the URL of the web page, which must be an absolute {@code http} or {@code https} URL
-   * @param arguments extra command line options for yt-dlp, such as {@code --cookies-from-browser}; they are placed
+   * @param input     the non-null web-page source with an absolute {@code http} or {@code https} URI
+   * @param arguments a non-null array of non-null extra yt-dlp options, passed verbatim after defaults and
    *                  before the URL, which yt-dlp always reads as a URL and never as an option
    * @return the parsed metadata and streams
    * @throws IOException              if yt-dlp cannot be installed or run, or does not finish within two minutes
@@ -52,6 +55,7 @@ public interface YTDLPParser {
    *                                  library is still preparing yt-dlp in the background; wait for
    *                                  {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(me.brandonli.mcav.capability.Capability)}
    *                                  with {@link me.brandonli.mcav.capability.Capability#YT_DLP} or try again shortly
+   * @throws NullPointerException if {@code input}, the argument array or an argument is null
    */
   URLParseDump parse(final UriSource input, final String... arguments) throws IOException;
 

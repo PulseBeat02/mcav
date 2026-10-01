@@ -44,10 +44,9 @@ import me.brandonli.mcav.utils.os.Platform;
  * {@code yt-dlp-unpacked} folder of the installation folder, whose top level must hold the executable under the name
  * of the zip without {@code .zip}, as {@code yt-dlp_linux_armv7l.zip} holds {@code yt-dlp_linux_armv7l}.
  *
- * <p>A platform without a build of its own falls back to a build its operating system emulates: 64-bit ARM Windows
- * and macOS can run the 64-bit x86 executable through the x64 emulation built into the operating system. The bundled
- * list has a native build for every platform it names, including 64-bit ARM Windows and the universal macOS build for
- * both Apple silicon and Intel Macs, so the fallback only matters for custom download lists.
+ * <p>For a custom download list without an exact match, 64-bit ARM Windows and macOS also consider the 64-bit
+ * x86 build of the same operating system; using that candidate requires working x86 emulation on the host.
+ * The bundled list already names a native build for these platforms, including a universal macOS build.
  *
  * <p>Use {@link #shared()} inside the library, so every user of yt-dlp goes through one installer and the program is
  * downloaded at most once, even when several threads need it at the same time.
@@ -78,6 +77,7 @@ public final class YTDLPInstaller extends AbstractInstaller {
    *
    * @param folder the folder to install into
    * @return the installer
+   * @throws NullPointerException if {@code folder} is null
    */
   public static YTDLPInstaller create(final Path folder) {
     Preconditions.checkNotNull(folder, "Folder must not be null");
@@ -88,6 +88,7 @@ public final class YTDLPInstaller extends AbstractInstaller {
    * Creates an installer that installs yt-dlp into the cache folder of the library, {@code ~/.mcav/cache}.
    *
    * @return the installer
+   * @throws java.io.UncheckedIOException if the default cache folder cannot be created
    */
   public static YTDLPInstaller create() {
     return new YTDLPInstaller();
@@ -213,12 +214,14 @@ public final class YTDLPInstaller extends AbstractInstaller {
   }
 
   /**
-   * Gets the platforms whose yt-dlp build also runs on the specified platform. 64-bit ARM Windows and macOS run the
-   * 64-bit x86 build through the x86 emulation of the operating system; every other platform has no fallback,
-   * because it either has a native build or cannot emulate x86.
+   * Gets fallback download candidates when no exact build is listed. 64-bit ARM Windows and macOS consider
+   * their corresponding 64-bit x86 build; this method does not verify that host emulation is installed.
+   * Other platforms receive no fallback candidates.
    *
    * @param platform the platform to find fallbacks for
-   * @return the 64-bit x86 platform of the same operating system on 64-bit ARM Windows and macOS, otherwise nothing
+   * @return an immutable singleton list of the same OS on 64-bit x86 for ARM64 Windows/macOS, otherwise
+   *         an immutable empty list
+   * @throws NullPointerException if {@code platform} is null
    */
   @Override
   protected List<Platform> getFallbackPlatforms(final Platform platform) {

@@ -38,7 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * such as headless servers, {@link #start()} throws a {@link PlayerException} instead.
  *
  * <p>The samples are written through one byte array that is reused for every chunk, so the filter allocates nothing
- * while it plays. It must therefore be used by one pipeline at a time.
+ * after the largest chunk has been accommodated. Use it from one producer at a time. Stop producers before
+ * releasing the device; synchronization of start and release does not serialize sample writes with them.
+ * Starting again after release opens a new device line.
  */
 public class DirectAudioOutput implements FunctionalAudioFilter {
 
@@ -86,6 +88,8 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
    * @param samples  the samples from the position to the limit of the buffer, which is not consumed
    * @param metadata the metadata of the original stream
    * @return false, because the samples are never changed
+   * @throws IllegalArgumentException if the sound line rejects a byte count that is not a whole PCM frame
+   * @throws NullPointerException if {@code samples} is null
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -155,6 +159,8 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
    * Closes the sound device, discarding samples that have not been played yet. Ordinary stop or flush failures do
    * not prevent closing the line; the first failure is rethrown with later failures suppressed. Fatal VM errors
    * propagate immediately.
+   * @throws RuntimeException if stopping, flushing or closing the line fails
+   * @throws Error if the sound line reports an error during cleanup
    */
   @Override
   public synchronized void release() {

@@ -34,12 +34,22 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
     // stateless
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public boolean isDetectedSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
     return SourceUtils.isUri(raw);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws IllegalArgumentException if the string is not syntactically a URI
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public UriSource createSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");

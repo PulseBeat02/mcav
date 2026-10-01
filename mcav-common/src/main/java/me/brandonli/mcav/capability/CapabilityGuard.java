@@ -62,6 +62,7 @@ public final class CapabilityGuard {
    * Records that a capability is being prepared in the background.
    *
    * @param capability the capability
+   * @throws NullPointerException if {@code capability} is null
    */
   public void markPreparing(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -75,6 +76,7 @@ public final class CapabilityGuard {
    *
    * @param capability the capability
    * @param available  true if the capability can be used now
+   * @throws NullPointerException if {@code capability} is null
    */
   public void markPrepared(final Capability capability, final boolean available) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -89,6 +91,7 @@ public final class CapabilityGuard {
    * Forgets everything recorded about a capability, so it is no longer refused. Called when the library is released.
    *
    * @param capability the capability
+   * @throws NullPointerException if {@code capability} is null
    */
   public void forget(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -100,6 +103,7 @@ public final class CapabilityGuard {
    *
    * @param capability the capability
    * @return true if its preparation has not finished yet
+   * @throws NullPointerException if {@code capability} is null
    */
   public boolean isPreparing(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -113,6 +117,7 @@ public final class CapabilityGuard {
    *
    * @param capability the capability
    * @throws IllegalStateException if the capability is still being prepared
+   * @throws NullPointerException if {@code capability} is null
    */
   public void checkNotPreparing(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
@@ -129,6 +134,7 @@ public final class CapabilityGuard {
    *
    * @param capability the capability
    * @throws IllegalStateException if the capability is still being prepared or is not available on this system
+   * @throws NullPointerException if {@code capability} is null
    */
   public void checkUsable(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");

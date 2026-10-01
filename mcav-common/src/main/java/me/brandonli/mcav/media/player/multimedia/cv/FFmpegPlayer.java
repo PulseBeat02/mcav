@@ -22,7 +22,8 @@ import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * A player that decodes media with the bundled FFmpeg, which is always available and handles files, HTTP
+ * A player that decodes media with the bundled FFmpeg libraries, when their native binaries load on the host.
+ * It handles files, HTTP
  * streams, RTSP cameras, and raw device input. Create instances with
  * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()}.
  */

@@ -37,6 +37,7 @@ public abstract class AbstractAttachableCallback<T> implements AttachableCallbac
    * Constructs a slot.
    *
    * @param fallback the value returned while nothing is attached
+   * @throws NullPointerException if {@code fallback} is null
    */
   protected AbstractAttachableCallback(final T fallback) {
     Preconditions.checkNotNull(fallback, "Fallback must not be null");
@@ -44,6 +45,10 @@ public abstract class AbstractAttachableCallback<T> implements AttachableCallbac
     this.attached = new AtomicReference<>();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code value} is null
+   */
   @Override
   public void attach(final T value) {
     Preconditions.checkNotNull(value, "Attached value must not be null");

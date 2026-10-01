@@ -34,14 +34,15 @@ public interface DynamicImageBuffer extends Image {
   /**
    * Gets every frame of the animation in playback order.
    *
-   * @return the frames, which must not be released individually
+   * @return an unmodifiable list of borrowed frames; the images must not be released individually, and the image data becomes invalid when the animation closes
    */
   List<ImageBuffer> getFrames();
 
   /**
    * Gets the playback speed of the animation.
    *
-   * @return the frame rate in frames per second
+   * @return the decoder's positive finite reported rate in frames per second, or a rate derived from
+   *         frame timestamps; the fallback is 10 frames per second when neither is available
    */
   float getFrameRate();
 
@@ -50,6 +51,7 @@ public interface DynamicImageBuffer extends Image {
    *
    * @param index the index of the frame, from 0 to {@code getFrameCount() - 1}
    * @return the frame, which must not be released individually
+   * @throws IndexOutOfBoundsException if {@code index} is negative or at least {@link #getFrameCount()}
    */
   ImageBuffer getFrame(final int index);
 
@@ -66,6 +68,8 @@ public interface DynamicImageBuffer extends Image {
    * @param source the image file
    * @return the decoded animation
    * @throws IOException if the file cannot be decoded
+   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
+   * @throws NullPointerException if {@code source} is null
    */
   static DynamicImageBuffer path(final FileSource source) throws IOException {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -77,7 +81,10 @@ public interface DynamicImageBuffer extends Image {
    *
    * @param source the URL of the image
    * @return the decoded animation
-   * @throws IOException if the image cannot be downloaded or decoded
+   * @throws IOException if the downloaded file cannot be decoded
+   * @throws java.io.UncheckedIOException if the image cannot be downloaded
+   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
+   * @throws NullPointerException if {@code source} is null
    */
   static DynamicImageBuffer uri(final UriSource source) throws IOException {
     Preconditions.checkNotNull(source, "Source must not be null");

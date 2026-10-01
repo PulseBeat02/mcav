@@ -38,6 +38,7 @@ public class RotationFilter extends MatVideoFilter {
    * Constructs a new rotation filter.
    *
    * @param rotation the rotation to apply
+   * @throws NullPointerException if {@code rotation} is null
    */
   public RotationFilter(final Rotation rotation) {
     Preconditions.checkNotNull(rotation, "Rotation must not be null");

@@ -29,6 +29,7 @@ public final class StuckiDither extends ErrorDiffusionDither {
    * Constructs a new Stucki algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public StuckiDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.STUCKI);

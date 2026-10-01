@@ -20,10 +20,10 @@ package me.brandonli.mcav.capability.installer.vlc;
 import java.io.Serial;
 
 /**
- * Thrown when VLC can neither be found on the system nor be installed for the current operating system.
+ * Thrown when VLC cannot be found or installed, or when an installed private copy cannot be loaded.
  *
  * <p>This is an {@link UnsupportedOperationException}: the requested operation, providing VLC, is not supported on
- * this system, and retrying on the same system fails again. Callers catch it to disable VLC playback and fall back to
+ * this system in its current state. Callers catch it to disable VLC playback and fall back to
  * another player.
  */
 public class UnsupportedOperatingSystemException extends UnsupportedOperationException {

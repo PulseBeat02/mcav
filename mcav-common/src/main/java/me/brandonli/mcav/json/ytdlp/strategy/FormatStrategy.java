@@ -31,8 +31,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>yt-dlp lists many streams per video, typically separate audio and video streams in several qualities and
  * protocols. A strategy encodes a preference, such as the best quality audio or an MP4 video over plain HTTPS,
- * which players decode most reliably. Strategies never fail on missing metadata: streams without the needed
- * information are simply skipped.
+ * which players decode most reliably. Built-in strategies skip null entries and entries missing the extension
+ * or protocol marker they require. A missing format list selects nothing. Quality strategies compare the
+ * numeric {@link Format#quality} field, including its default zero value; they do not calculate a bitrate or
+ * resolution score. Built-in strategies are stateless, but the supplied mutable metadata must remain stable
+ * throughout selection. Selected formats are borrowed objects from the dump, not copies.
  *
  * <p>yt-dlp lists the streams from worst to best. The quality strategies therefore break ties in that order: among
  * streams of equal quality, the best quality strategies pick the stream listed last and the lowest quality
@@ -89,16 +92,18 @@ public interface FormatStrategy {
    *
    * @param dump the metadata yt-dlp produced
    * @return the selected stream, or empty if no stream matches
+   * @throws NullPointerException if {@code dump} is null when using a built-in strategy
    */
   Optional<Format> select(final URLParseDump dump);
 
   /**
-   * Checks whether a stream is an audio-only stream. yt-dlp reports an audio extension only for streams without
-   * video, so streams that combine audio and video are not audio streams in this sense; this keeps the audio
-   * strategies from downloading video data.
+   * Classifies a stream by its audio-extension marker. A non-null {@link Format#audio_ext} other than
+   * {@code none} is accepted, as used for audio-only formats in yt-dlp metadata. This does not independently
+   * inspect the video extension, codecs or URL.
    *
-   * @param format the stream
-   * @return true if the stream has an audio track and no video track
+   * @param format the non-null stream metadata
+   * @return true if its audio-extension marker is present and not {@code none}
+   * @throws NullPointerException if {@code format} is null
    */
   static boolean hasAudio(final Format format) {
     Preconditions.checkNotNull(format, "Format must not be null");
@@ -110,7 +115,8 @@ public interface FormatStrategy {
    * Checks whether a stream contains video, with or without audio.
    *
    * @param format the stream
-   * @return true if the stream has a video track
+   * @return true if {@link Format#video_ext} is non-null and not {@code none}; no stream is opened or inspected
+   * @throws NullPointerException if {@code format} is null
    */
   static boolean hasVideo(final Format format) {
     Preconditions.checkNotNull(format, "Format must not be null");
@@ -122,7 +128,8 @@ public interface FormatStrategy {
    * Checks whether a stream is served over plain HTTPS rather than a streaming protocol such as HLS or DASH.
    *
    * @param format the stream
-   * @return true if the stream URL uses HTTPS
+   * @return true if {@link Format#protocol} equals {@code https}, case-sensitively; the URL is not parsed
+   * @throws NullPointerException if {@code format} is null
    */
   static boolean isHttps(final Format format) {
     Preconditions.checkNotNull(format, "Format must not be null");

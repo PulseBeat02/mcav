@@ -25,8 +25,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This is an {@link IllegalStateException}: the environment of the library is not in a state that lets it work,
  * because the natives for this platform are missing or cannot be linked. The caller did nothing wrong, and retrying
- * the same call in the same environment fails again. It is unchecked, unlike the {@link LinkageError} it usually
- * wraps, so a missing native disables one feature without being mistaken for a fatal error of the virtual machine.
+ * the same call in the same environment fails again. It can be caught as a {@link RuntimeException}, rather than as the {@link LinkageError} it usually wraps,
+ * so applications can report an unavailable feature separately from fatal virtual-machine failures.
  */
 public class NativeLoadingException extends IllegalStateException {
 
@@ -36,7 +36,7 @@ public class NativeLoadingException extends IllegalStateException {
   /**
    * Constructs a new exception with a detail message and no cause.
    *
-   * @param message the detail message, which names the library that could not be loaded
+   * @param message the detail message naming the library that could not be loaded, or null
    */
   public NativeLoadingException(final @Nullable String message) {
     super(message);
@@ -45,7 +45,7 @@ public class NativeLoadingException extends IllegalStateException {
   /**
    * Constructs a new exception with a detail message and the failure that caused it.
    *
-   * @param message the detail message, which names the library that could not be loaded
+   * @param message the detail message naming the library that could not be loaded, or null
    * @param cause   the underlying failure, usually a {@link LinkageError}, or null if it is unknown
    */
   public NativeLoadingException(final @Nullable String message, final @Nullable Throwable cause) {

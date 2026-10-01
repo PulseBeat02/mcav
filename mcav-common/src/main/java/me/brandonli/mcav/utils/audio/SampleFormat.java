@@ -24,7 +24,8 @@ import org.bytedeco.ffmpeg.global.avutil;
  *
  * <p>Every format is packed (interleaved): the samples of all channels of one frame follow each other, so a stereo
  * stream is laid out as {@code left, right, left, right, ...}. Samples are stored in the native byte order of the
- * platform, which is little-endian on every platform mcav runs on (x86 and ARM). Floating point formats use the
+ * platform. This agrees with the pipeline's little-endian format on little-endian hosts; callers on another
+ * byte order must convert the bytes explicitly. Floating point formats use the
  * nominal range {@code -1.0} to {@code 1.0}.
  */
 public enum SampleFormat {

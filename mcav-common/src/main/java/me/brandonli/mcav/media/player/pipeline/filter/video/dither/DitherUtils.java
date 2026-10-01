@@ -58,6 +58,7 @@ public final class DitherUtils {
    * @param blue    the blue component from 0 to 255
    * @return the palette index
    * @throws IllegalArgumentException if a component is outside the range from 0 to 255
+   * @throws NullPointerException if {@code palette} is null
    */
   public static byte getBestColor(final DitherPalette palette, final int red, final int green, final int blue) {
     Preconditions.checkNotNull(palette, "Palette must not be null");
@@ -77,6 +78,7 @@ public final class DitherUtils {
    * @param blue    the blue component from 0 to 255
    * @return the closest palette color as opaque ARGB
    * @throws IllegalArgumentException if a component is outside the range from 0 to 255
+   * @throws NullPointerException if {@code palette} is null
    */
   public static int getBestFullColor(final DitherPalette palette, final int red, final int green, final int blue) {
     Preconditions.checkNotNull(palette, "Palette must not be null");
@@ -103,6 +105,7 @@ public final class DitherUtils {
    * @param blue    the blue component from 0 to 255
    * @return the closest palette color as opaque ARGB
    * @throws IllegalArgumentException if a component is outside the range from 0 to 255
+   * @throws NullPointerException if {@code palette} is null
    */
   public static int getBestColorNormal(final DitherPalette palette, final int red, final int green, final int blue) {
     return getBestFullColor(palette, red, green, blue);
@@ -115,6 +118,7 @@ public final class DitherUtils {
    * @param index   the palette index, as stored in map data; negative bytes are treated as unsigned
    * @return the color as opaque ARGB, or zero for a reserved transparent index
    * @throws IndexOutOfBoundsException if the palette has no color at the index
+   * @throws NullPointerException if {@code palette} is null
    */
   public static int getColorFromMinecraftPalette(final DitherPalette palette, final byte index) {
     Preconditions.checkNotNull(palette, "Palette must not be null");
@@ -126,11 +130,12 @@ public final class DitherUtils {
 
   /**
    * Finds the palette index of the color closest to an ARGB color, mapping fully transparent colors to the first
-   * reserved index of the palette.
+   * index, even when a custom palette reserves no transparent entries. Nonzero alpha is treated as opaque.
    *
    * @param palette the palette
    * @param argb    the color
    * @return the palette index, or zero if the color is fully transparent
+   * @throws NullPointerException if {@code palette} is null
    */
   public static byte getBestColorIncludingTransparent(final DitherPalette palette, final int argb) {
     Preconditions.checkNotNull(palette, "Palette must not be null");
@@ -146,11 +151,13 @@ public final class DitherUtils {
   }
 
   /**
-   * Maps every pixel to its closest palette index without dithering.
+   * Maps every pixel to its closest palette index without dithering. Alpha is ignored, including alpha zero.
+   * The input array is not modified and the returned array belongs to the caller.
    *
    * @param palette the palette
    * @param pixels  the pixels as ARGB
    * @return the palette index of every pixel
+   * @throws NullPointerException if {@code palette} or {@code pixels} is null
    */
   public static byte[] simplify(final DitherPalette palette, final int[] pixels) {
     Preconditions.checkNotNull(palette, "Palette must not be null");

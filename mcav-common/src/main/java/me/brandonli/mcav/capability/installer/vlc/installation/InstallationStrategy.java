@@ -43,7 +43,8 @@ public interface InstallationStrategy {
    *
    * @param archive the downloaded archive
    * @return the directory that contains the VLC libraries
-   * @throws IOException if the archive cannot be extracted
+   * @throws IOException if extraction, installation verification, archive deletion or related file operations fail
+   * @throws NullPointerException if {@code archive} is null
    */
   Path execute(final Path archive) throws IOException;
 }

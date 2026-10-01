@@ -42,6 +42,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param videoBitrate   the bitrate in bits per second, or {@link #UNKNOWN}
    * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
    * @return the metadata
+   * @throws IllegalArgumentException if either dimension is nonpositive
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
     Preconditions.checkArgument(videoWidth > 0 && videoHeight > 0, "Video size must be positive but was %sx%s", videoWidth, videoHeight);
@@ -55,6 +56,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param videoHeight    the height in pixels
    * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
    * @return the metadata
+   * @throws IllegalArgumentException if either dimension is nonpositive
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
     return of(videoWidth, videoHeight, UNKNOWN, videoFrameRate);
@@ -66,6 +68,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the metadata
+   * @throws IllegalArgumentException if either dimension is nonpositive
    */
   static OriginalVideoMetadata of(final int width, final int height) {
     return of(width, height, UNKNOWN, UNKNOWN);
@@ -74,14 +77,14 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
   /**
    * Gets the width of the decoded frames.
    *
-   * @return the width in pixels
+   * @return the width in pixels, or {@link #UNKNOWN} in {@link #EMPTY}
    */
   int getVideoWidth();
 
   /**
    * Gets the height of the decoded frames.
    *
-   * @return the height in pixels
+   * @return the height in pixels, or {@link #UNKNOWN} in {@link #EMPTY}
    */
   int getVideoHeight();
 

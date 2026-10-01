@@ -38,6 +38,9 @@ public class OverlayImageFilter extends MatVideoFilter {
    * @param overlay the image to draw
    * @param left    the x coordinate of the top left corner of the image inside the frame
    * @param top     the y coordinate of the top left corner of the image inside the frame
+   * @throws IllegalArgumentException if {@code left} or {@code top} is negative
+   * @throws IllegalStateException if {@code overlay} has been released
+   * @throws NullPointerException if {@code overlay} is null
    */
   public OverlayImageFilter(final ImageBuffer overlay, final int left, final int top) {
     Preconditions.checkNotNull(overlay, "Overlay must not be null");

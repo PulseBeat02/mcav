@@ -54,6 +54,7 @@ public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDithe
    *
    * @param palette the palette
    * @return this builder
+   * @throws NullPointerException if {@code palette} is null
    */
   @Override
   public OrderedDitherBuilderImpl withPalette(final DitherPalette palette) {
@@ -67,6 +68,7 @@ public class OrderedDitherBuilderImpl implements OrderedDitherBuilder<BayerDithe
    *
    * @param mapper the threshold pattern
    * @return this builder
+   * @throws NullPointerException if {@code mapper} is null
    */
   @Override
   public OrderedDitherBuilderImpl withDitherMatrix(final PixelMapper mapper) {

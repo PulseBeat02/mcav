@@ -39,8 +39,8 @@ public final class ExecutorUtils {
   }
 
   /**
-   * Shuts down the executor, waiting up to five seconds for running tasks to finish before interrupting them. This
-   * method never throws, so it is safe to call from cleanup code.
+   * Shuts down the executor, waiting up to five seconds for running tasks to finish before interrupting them. Interruption restores the caller's interrupt flag and requests immediate shutdown.
+   * Failures thrown by the executor itself propagate; no second termination wait follows shutdownNow.
    *
    * @param service the executor to shut down
    * @return true if every task finished in time, false if tasks had to be interrupted or the wait was interrupted
@@ -52,13 +52,15 @@ public final class ExecutorUtils {
   }
 
   /**
-   * Shuts down the executor, waiting up to the timeout for running tasks to finish before interrupting them. This
-   * method never throws, so it is safe to call from cleanup code.
+   * Shuts down the executor, waiting up to the timeout for running tasks to finish before interrupting them. Interruption restores the caller's interrupt flag and requests immediate shutdown.
+   * Failures thrown by the executor itself propagate; no second termination wait follows shutdownNow.
    *
    * @param service the executor to shut down
-   * @param timeout how long to wait for running tasks
+   * @param timeout the non-null wait duration, converted to whole milliseconds; zero or negative values
+   *                request an immediate termination check
    * @return true if every task finished in time, false if tasks had to be interrupted or the wait was interrupted
    * @throws NullPointerException if the executor or the timeout is null
+   * @throws ArithmeticException if the timeout cannot be represented as a {@code long} number of milliseconds
    */
   public static boolean shutdownExecutorGracefully(final ExecutorService service, final Duration timeout) {
     Preconditions.checkNotNull(service, "Executor must not be null");

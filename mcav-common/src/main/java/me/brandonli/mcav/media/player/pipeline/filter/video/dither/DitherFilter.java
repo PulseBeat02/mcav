@@ -52,6 +52,7 @@ public final class DitherFilter implements FunctionalVideoFilter {
    * @param algorithm the dithering algorithm
    * @param result    the step that receives the frames
    * @return the filter
+   * @throws NullPointerException if {@code algorithm} or {@code result} is null
    */
   public static FunctionalVideoFilter dither(final DitherAlgorithm algorithm, final DitherResultStep result) {
     Preconditions.checkNotNull(algorithm, "Algorithm must not be null");
@@ -83,6 +84,7 @@ public final class DitherFilter implements FunctionalVideoFilter {
    * @param samples  the frame
    * @param metadata the metadata of the original video
    * @return true, because the result step may modify the frame
+   * @throws NullPointerException if {@code samples} is null
    */
   @Override
   public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {

@@ -27,7 +27,7 @@ import java.util.Objects;
  *
  * <p>The lookup tables use 7 bits per channel, so they hold two million entries and take about a second to build.
  * Palettes are therefore built once and shared; use {@link #DEFAULT_MAP_PALETTE} for Minecraft maps rather than
- * creating new instances. Palettes are immutable and thread-safe.
+ * creating new instances. Palettes are read-only by contract and safe to share while their exposed arrays remain unmodified.
  *
  * <p>Colors are packed as opaque ARGB integers, {@code 0xFFRRGGBB}. A palette may reserve its first indices for
  * transparency; those indices are never returned by the lookup tables.
@@ -55,8 +55,10 @@ public interface DitherPalette {
    * Creates a palette from RGB colors. The alpha channel of the colors is ignored, and no index is reserved for
    * transparency.
    *
-   * @param colors the colors, at most 256
+   * @param colors the non-null colors, from 1 through 256, copied during construction
    * @return the palette
+   * @throws IllegalArgumentException if the palette is empty or contains more than 256 colors
+   * @throws NullPointerException if {@code colors} is null
    */
   static DitherPalette colors(final int... colors) {
     Preconditions.checkNotNull(colors, "Colors must not be null");
@@ -67,8 +69,10 @@ public interface DitherPalette {
    * Creates a palette from RGB colors. The alpha channel of the colors is ignored, and no index is reserved for
    * transparency.
    *
-   * @param colors the colors, at most 256, none of them null
+   * @param colors the non-null colors, from 1 through 256, copied during construction, none of them null
    * @return the palette
+   * @throws IllegalArgumentException if the palette is empty or contains more than 256 colors
+   * @throws NullPointerException if the list or any color is null
    */
   static DitherPalette colors(final List<Integer> colors) {
     Preconditions.checkNotNull(colors, "Colors must not be null");

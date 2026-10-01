@@ -25,6 +25,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * One stream of a video as listed by yt-dlp, such as a 1080p MP4 video stream or an Opus audio stream. The fields
  * mirror the JSON yt-dlp prints and are filled by Gson; fields yt-dlp did not report are null or zero.
+ *
+ * <p>This is a mutable Gson data model, not a validated media object. Nullable fields may be null when absent;
+ * primitive fields default to zero or false, which does not distinguish missing values from reported ones.
+ * Instances and their nested lists are not synchronized; copy or coordinate them before concurrent mutation.
  */
 public class Format {
 
@@ -80,7 +84,7 @@ public class Format {
   /** The size of the stream in bytes as estimated from its bitrate and duration, or zero if unknown. */
   public long filesize_approx;
 
-  /** The HTTP headers that requests for the stream must send, or null if any request works. */
+  /** The HTTP headers that requests for the stream must send, or null if no headers were reported. */
   public @Nullable HttpHeaders http_headers;
 
   /** The audio extension of an audio-only stream, such as {@code m4a}, or {@code none} for a stream with video. */
@@ -144,10 +148,12 @@ public class Format {
   public @Nullable DownloaderOptions downloader_options;
 
   /**
-   * Gets the URL of this stream as a source that can be played.
+   * Wraps the reported URL in a source. This does not open or validate the remote stream and does not transfer
+   * {@link #http_headers}; a caller must separately configure any headers required by its playback backend.
    *
    * @return the stream URL as a source
    * @throws IllegalStateException if yt-dlp did not report a URL for this stream
+   * @throws IllegalArgumentException if the reported URL is not a syntactically valid URI
    */
   public UriSource toUriSource() {
     final String streamUrl = this.url;

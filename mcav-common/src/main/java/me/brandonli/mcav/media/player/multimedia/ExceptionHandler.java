@@ -42,6 +42,7 @@ public interface ExceptionHandler {
    * and must not throw.
    *
    * @param exceptionHandler the handler
+   * @throws NullPointerException if {@code exceptionHandler} is null
    */
   void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler);
 

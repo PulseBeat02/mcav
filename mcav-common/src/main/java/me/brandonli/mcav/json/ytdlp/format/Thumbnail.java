@@ -21,6 +21,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * One thumbnail of a video, as listed by yt-dlp.
+ *
+ * <p>This is a mutable Gson data model, not a validated media object. Nullable fields may be null when absent;
+ * primitive fields default to zero or false, which does not distinguish missing values from reported ones.
+ * Instances and their nested lists are not synchronized; copy or coordinate them before concurrent mutation.
  */
 public class Thumbnail {
 

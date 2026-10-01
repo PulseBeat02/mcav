@@ -36,6 +36,7 @@ public final class FFmpegTemplates {
    * @param codec  the audio codec to encode with, such as {@code vorbis}, {@code aac}, or {@code libmp3lame}
    * @param output the path of the output file
    * @return the command
+   * @throws NullPointerException if {@code input}, {@code codec} or {@code output} is null
    */
   public static FFmpegCommand extractAudio(final String input, final String codec, final String output) {
     Preconditions.checkNotNull(input, "Input must not be null");
@@ -59,6 +60,7 @@ public final class FFmpegTemplates {
    * @param input  the path or URL of the input
    * @param output the path of the {@code .ogg} output file
    * @return the command
+   * @throws NullPointerException if {@code input} or {@code output} is null
    */
   public static FFmpegCommand extractOggVorbis(final String input, final String output) {
     Preconditions.checkNotNull(input, "Input must not be null");
@@ -82,6 +84,7 @@ public final class FFmpegTemplates {
    * @param videoBitrate the video bitrate, such as {@code 1000k}
    * @param audioBitrate the audio bitrate, such as {@code 128k}
    * @return the command
+   * @throws NullPointerException if {@code input}, {@code output}, {@code videoBitrate} or {@code audioBitrate} is null
    */
   public static FFmpegCommand compressVideo(final String input, final String output, final String videoBitrate, final String audioBitrate) {
     Preconditions.checkNotNull(input, "Input must not be null");
@@ -107,6 +110,7 @@ public final class FFmpegTemplates {
    * @param startTime where the clip starts, as seconds or {@code HH:mm:ss}
    * @param duration  how long the clip is, as seconds or {@code HH:mm:ss}
    * @return the command
+   * @throws NullPointerException if {@code input}, {@code output}, {@code startTime} or {@code duration} is null
    */
   public static FFmpegCommand extractClip(final String input, final String output, final String startTime, final String duration) {
     Preconditions.checkNotNull(input, "Input must not be null");
@@ -131,6 +135,7 @@ public final class FFmpegTemplates {
    * @param output       the path of the image, whose extension picks the format
    * @param timePosition the position of the frame, as seconds or {@code HH:mm:ss}
    * @return the command
+   * @throws NullPointerException if {@code input}, {@code output} or {@code timePosition} is null
    */
   public static FFmpegCommand createThumbnail(final String input, final String output, final String timePosition) {
     Preconditions.checkNotNull(input, "Input must not be null");
@@ -151,6 +156,7 @@ public final class FFmpegTemplates {
    * @param input  the path or URL of the input
    * @param output the path of the output file, whose extension picks the container
    * @return the command
+   * @throws NullPointerException if {@code input} or {@code output} is null
    */
   public static FFmpegCommand remuxVideo(final String input, final String output) {
     Preconditions.checkNotNull(input, "Input must not be null");

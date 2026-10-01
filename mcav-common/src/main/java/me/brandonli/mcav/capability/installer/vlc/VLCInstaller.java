@@ -98,6 +98,7 @@ public final class VLCInstaller extends AbstractInstaller {
    *
    * @param folder the folder to install into
    * @return the installer
+   * @throws NullPointerException if {@code folder} is null
    */
   public static VLCInstaller create(final Path folder) {
     Preconditions.checkNotNull(folder, "Folder must not be null");
@@ -108,6 +109,7 @@ public final class VLCInstaller extends AbstractInstaller {
    * Creates an installer that installs VLC into the cache folder of the library, {@code ~/.mcav/cache}.
    *
    * @return the installer
+   * @throws java.io.UncheckedIOException if the default cache folder cannot be created
    */
   public static VLCInstaller create() {
     return new VLCInstaller();

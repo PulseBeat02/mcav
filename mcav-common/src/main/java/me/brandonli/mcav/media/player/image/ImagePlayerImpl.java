@@ -65,6 +65,7 @@ public final class ImagePlayerImpl implements ImagePlayer {
    * @param source the source, whose frame rate must be positive and finite
    * @return true if playback started, false if the player is already playing or was released
    * @throws IllegalArgumentException if the frame rate of the source is not positive and finite
+   * @throws NullPointerException if {@code source} is null
    */
   @Override
   public boolean start(final FrameSource source) {

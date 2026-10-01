@@ -36,7 +36,7 @@ public interface RandomNumberProvider {
    *
    * @param min the smallest value, inclusive
    * @param max the largest value, exclusive
-   * @return a random value from {@code min} to {@code max}
+   * @return a random value greater than or equal to {@code min} and strictly less than {@code max}
    */
   double nextDouble(final double min, final double max);
 

@@ -30,6 +30,7 @@ public interface FileSource extends StaticSource {
    *
    * @param path the path of the file
    * @return the source
+   * @throws NullPointerException if {@code path} is null
    */
   static FileSource path(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");

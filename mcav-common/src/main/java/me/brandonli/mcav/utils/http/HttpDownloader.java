@@ -48,14 +48,16 @@ import org.slf4j.LoggerFactory;
  * <p>Every download writes to a temporary {@code .part} file with a unique name next to the destination, so two
  * downloads of the same file never write into each other. The file is moved into place only after the download
  * completed and the hash was verified, atomically where the file system supports it, so a crashed or failed download
- * never leaves a corrupt file behind.
+ * does not expose a partial download as the destination before that move. A non-atomic fallback move has the
+ * guarantees of its file-system provider.
  *
  * <p>Network failures, server errors, and bodies that deliver no data for longer than the idle timeout of one minute
  * are retried a few times with a growing delay, because installer downloads are large and connection resets are
  * common. Client errors such as {@code 404 Not Found}, hash mismatches, and failures to move the finished file into
  * place are not retried, because another attempt would fail the same way.
  *
- * <p>Concurrent downloads of the same file within one JVM all succeed: each writes its own temporary file, and the
+ * <p>Concurrent downloads of the same file within one JVM coordinate final replacement: each writes its own
+ * temporary file, and the
  * finished files are moved into place one after another, so the destination always holds one complete, verified
  * download. A move that another process denies for a moment, such as a virus scanner inspecting the new file, is
  * retried briefly by {@link IOUtils#moveReplacing(Path, Path)}. A known limitation: another process that replaces the
@@ -91,7 +93,8 @@ public final class HttpDownloader {
   }
 
   /**
-   * Creates an HTTP client with the timeouts and redirect policy used by the library.
+   * Creates an HTTP client with a 20-second connection timeout and {@link HttpClient.Redirect#NORMAL}.
+   * The caller owns this client; individual requests define their own response timeout.
    *
    * @return a new client, which the caller must close
    */
@@ -103,10 +106,12 @@ public final class HttpDownloader {
   }
 
   /**
-   * Creates a GET request for the URI with the timeouts and user agent used by the library.
+   * Creates a GET request with a 30-minute request timeout and mcav's user-agent header.
    *
    * @param uri the URI to request
    * @return the request
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host
+   * @throws NullPointerException if {@code uri} is null
    */
   public static HttpRequest createRequest(final URI uri) {
     Preconditions.checkNotNull(uri, "URI must not be null");
@@ -120,11 +125,14 @@ public final class HttpDownloader {
 
   /**
    * Opens the body of a URL as a stream. The stream must be closed by the caller, which also shuts down the HTTP
-   * client behind it.
+   * client behind it. This method makes one request and does not impose a timeout on subsequent body reads.
+   * Interruption while waiting for the response is restored and wrapped in {@link IOException}.
    *
    * @param uri the URI to download
    * @return the body of the response
    * @throws IOException if the request fails or the server answers with an error status
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host
+   * @throws NullPointerException if {@code uri} is null
    */
   public static InputStream openStream(final URI uri) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");
@@ -159,6 +167,9 @@ public final class HttpDownloader {
    * @param uri         the URI to download
    * @param destination the file to write, which is replaced if it exists
    * @throws IOException if the download fails after all retries
+   * @throws NullPointerException if {@code uri}, {@code destination} is null
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host,
+   *                                  the destination has no file name
    */
   public static void download(final URI uri, final Path destination) throws IOException {
     download(uri, destination, null);
@@ -172,6 +183,9 @@ public final class HttpDownloader {
    * @param expectedSha256 the expected SHA-256 hash in hexadecimal, or null to skip verification
    * @throws IOException                if the download fails after all retries or the file cannot be moved into place
    * @throws ChecksumMismatchException if the hash does not match, which is not retried
+   * @throws NullPointerException if {@code uri}, {@code destination} is null
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host,
+   *                                  the destination has no file name
    */
   public static void download(final URI uri, final Path destination, final @Nullable String expectedSha256) throws IOException {
     download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT, NO_SIZE_LIMIT);
@@ -187,6 +201,9 @@ public final class HttpDownloader {
    * @param maxBytes    the largest number of bytes the download may have, at least 1
    * @throws DownloadTooLargeException if the download is larger than the limit
    * @throws IOException               if the download fails
+   * @throws NullPointerException if {@code uri}, {@code destination} is null
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host,
+   *                                  the destination has no file name, or {@code maxBytes} is nonpositive
    */
   public static void download(final URI uri, final Path destination, final long maxBytes) throws IOException {
     Preconditions.checkArgument(maxBytes > 0, "The size limit must be positive but was %s", maxBytes);
@@ -205,6 +222,9 @@ public final class HttpDownloader {
    * @throws DownloadTooLargeException if the download is larger than the limit
    * @throws ChecksumMismatchException if the hash does not match
    * @throws IOException               if the download fails
+   * @throws NullPointerException if {@code uri}, {@code destination}, {@code expectedSha256} is null
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host,
+   *                                  the destination has no file name, or {@code maxBytes} is nonpositive
    */
   public static void download(final URI uri, final Path destination, final String expectedSha256, final long maxBytes) throws IOException {
     Preconditions.checkNotNull(expectedSha256, "Expected SHA-256 must not be null");
@@ -416,8 +436,11 @@ public final class HttpDownloader {
    * Fetches a URL as text, for small responses such as JSON APIs.
    *
    * @param uri the URI to fetch
-   * @return the body as UTF-8 text, or empty if the server answers with an error status
+   * @return the body decoded using the response charset, or UTF-8 if none is supplied, or empty for a
+   *         non-2xx status; the response is accumulated in memory
    * @throws IOException if the request cannot be sent
+   * @throws IllegalArgumentException if the URI is not an absolute HTTP or HTTPS URI with a valid host
+   * @throws NullPointerException if {@code uri} is null
    */
   public static Optional<String> fetchText(final URI uri) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");

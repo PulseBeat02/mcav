@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.io.Serial;
 
 /**
- * Thrown when a downloaded file does not have the expected SHA-256 hash. Downloading the same file again would
- * give the same result, so a mismatch is never retried.
+ * Thrown when a downloaded file does not have the expected SHA-256 hash. The downloader treats a mismatch as
+ * a terminal verification failure and does not retry it automatically.
  */
 public class ChecksumMismatchException extends IOException {
 

@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link #run(Duration)} uses one deadline for the program and both captured streams. At the deadline it requests
  * termination of the program and the descendants observed while it ran. Descendant discovery is best effort:
- * an operating system can reparent a very short-lived program's children before they can be observed. A task can be run only once. Instances are not thread-safe.
+ * an operating system can reparent a very short-lived program's children before they can be observed. After a successful launch a task cannot run again, including after a wait failure. A failed launch may be
+ * retried. Instances are not thread-safe.
  */
 public final class CommandTask {
 
@@ -77,6 +78,8 @@ public final class CommandTask {
    * Creates a task that runs the command in the working directory of the JVM.
    *
    * @param command the program followed by its arguments
+   * @throws NullPointerException if the command array or any argument is null
+   * @throws IllegalArgumentException if the command array is empty
    */
   public CommandTask(final String... command) {
     this(null, command);
@@ -87,6 +90,8 @@ public final class CommandTask {
    *
    * @param workingDirectory the working directory of the program, or null for the working directory of the JVM
    * @param command          the program followed by its arguments
+   * @throws NullPointerException if the command array or any argument is null
+   * @throws IllegalArgumentException if the command array is empty
    */
   public CommandTask(final @Nullable Path workingDirectory, final String... command) {
     Preconditions.checkNotNull(command, "Command must not be null");
@@ -105,6 +110,8 @@ public final class CommandTask {
    * @param command       the program followed by its arguments
    * @param runOnCreation true to run the command before the constructor returns
    * @throws IOException if the program cannot be started
+   * @throws NullPointerException if the command array or any argument is null
+   * @throws IllegalArgumentException if the command array is empty
    */
   public CommandTask(final String[] command, final boolean runOnCreation) throws IOException {
     this(null, command);
@@ -134,6 +141,8 @@ public final class CommandTask {
    * @throws IOException           if the program cannot be started, its output cannot be read, or it does not exit
    *                               in time
    * @throws IllegalStateException if the task was already run
+   * @throws NullPointerException if {@code timeout} is null
+   * @throws IllegalArgumentException if the timeout is zero or negative
    */
   public int run(final Duration timeout) throws IOException {
     checkTimeout(timeout);
@@ -173,6 +182,7 @@ public final class CommandTask {
    *
    * @throws IOException      if the program cannot be started or its output cannot be read
    * @throws ProcessException if the program exits with a non-zero exit code
+   * @throws IllegalStateException if a process was already launched by this task
    */
   public void runChecked() throws IOException {
     final int code = this.run();
@@ -187,6 +197,9 @@ public final class CommandTask {
    * @throws IOException      if the program cannot be started, its output cannot be read, or it does not exit in
    *                          time
    * @throws ProcessException if the program exits with a non-zero exit code
+   * @throws NullPointerException if {@code timeout} is null
+   * @throws IllegalArgumentException if the timeout is zero or negative
+   * @throws IllegalStateException if a process was already launched by this task
    */
   public void runChecked(final Duration timeout) throws IOException {
     final int code = this.run(timeout);
@@ -332,7 +345,7 @@ public final class CommandTask {
    * Gets the exit code of the program.
    *
    * @return the exit code
-   * @throws IllegalStateException if the task has not been run
+   * @throws IllegalStateException if no exit code was recorded, including after a launch or wait failure
    */
   public int getExitCode() {
     Preconditions.checkState(this.exitCode != NOT_RUN, "Command has not been run");
@@ -351,7 +364,7 @@ public final class CommandTask {
   /**
    * Gets the process of the program.
    *
-   * @return the process, or null if the task has not been run
+   * @return the process after a successful launch, even if waiting failed, or null if none was launched
    */
   public @Nullable Process getProcess() {
     return this.process;

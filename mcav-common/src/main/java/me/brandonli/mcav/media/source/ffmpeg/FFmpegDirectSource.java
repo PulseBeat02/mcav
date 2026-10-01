@@ -31,8 +31,10 @@ public interface FFmpegDirectSource extends DynamicSource {
    * Creates a raw FFmpeg source.
    *
    * @param mrl    the input FFmpeg opens, such as {@code desktop} for {@code gdigrab}
-   * @param format the FFmpeg input format, such as {@code gdigrab}
+   * @param format the non-null, nonblank FFmpeg input format, such as {@code gdigrab}
    * @return the source
+   * @throws IllegalArgumentException if {@code format} is blank
+   * @throws NullPointerException if {@code mrl} or {@code format} is null
    */
   static FFmpegDirectSource mrl(final String mrl, final String format) {
     Preconditions.checkNotNull(mrl, "MRL must not be null");

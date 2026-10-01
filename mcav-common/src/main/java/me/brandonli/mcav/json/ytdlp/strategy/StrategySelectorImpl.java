@@ -45,6 +45,10 @@ public final class StrategySelectorImpl implements StrategySelector {
     return this.video;
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code dump} is null
+   */
   @Override
   public Format getAudioSource(final URLParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null");
@@ -56,6 +60,10 @@ public final class StrategySelectorImpl implements StrategySelector {
     return selected.get();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code dump} is null
+   */
   @Override
   public Format getVideoSource(final URLParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null");

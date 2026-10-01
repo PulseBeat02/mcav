@@ -32,8 +32,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Dithe
  * color.
  *
  * <p>Ordered dithering is fully parallel and needs no state, so it is fast and perfectly stable between frames,
- * at the cost of a visible regular pattern. The pattern offsets are scaled to the average distance between
- * neighboring palette colors, so a strength of one spans exactly one color step.
+ * at the cost of a visible regular pattern. The pattern offsets are scaled to a channel spacing between
+ * palette colors estimated from their count; this is not a measured distance between particular colors.
  */
 public final class OrderedDither extends AbstractDitherAlgorithm implements BayerDither, ParallelDitherAlgorithm {
 
@@ -48,6 +48,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    *
    * @param palette the palette to reduce images to
    * @param mapper  the threshold pattern
+   * @throws NullPointerException if {@code palette}, {@code mapper} is null
    */
   public OrderedDither(final DitherPalette palette, final PixelMapper mapper) {
     super(palette);
@@ -101,6 +102,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    * @param image the image to dither, which must not be modified while the method runs
    * @param pool  the pool that runs the work
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException if {@code pool} is null
    */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image, final ForkJoinPool pool) {

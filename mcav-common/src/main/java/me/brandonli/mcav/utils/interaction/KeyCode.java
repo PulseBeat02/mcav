@@ -179,6 +179,7 @@ public enum KeyCode {
    *
    * @param name the name of the key
    * @return the key, or empty if no key has that name
+   * @throws NullPointerException if {@code name} is null
    */
   public static Optional<KeyCode> fromName(final String name) {
     Preconditions.checkNotNull(name, "Name must not be null");

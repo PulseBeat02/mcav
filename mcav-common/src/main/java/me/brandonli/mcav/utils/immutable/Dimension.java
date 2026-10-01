@@ -38,6 +38,7 @@ public final class Dimension {
    *
    * @param width  the width in pixels, not negative
    * @param height the height in pixels, not negative
+   * @throws IllegalArgumentException if either dimension is negative
    */
   public Dimension(final int width, final int height) {
     Preconditions.checkArgument(width >= 0, "Width must not be negative but was %s", width);
@@ -52,6 +53,7 @@ public final class Dimension {
    * @param width  the width in pixels, not negative
    * @param height the height in pixels, not negative
    * @return the dimension
+   * @throws IllegalArgumentException if either dimension is negative
    */
   public static Dimension of(final int width, final int height) {
     return new Dimension(width, height);

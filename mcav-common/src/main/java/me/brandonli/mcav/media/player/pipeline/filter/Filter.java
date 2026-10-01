@@ -27,7 +27,7 @@ package me.brandonli.mcav.media.player.pipeline.filter;
 public interface Filter<A, B> {
   /**
    * Processes one sample, usually by modifying it in place. Pipelines pass the sample on to their next step whatever
-   * this method returns; they never discard samples.
+   * this method returns. An exception propagates and prevents the remaining steps of that invocation from running.
    *
    * @param samples  the sample to process
    * @param metadata the metadata of the original stream the sample belongs to

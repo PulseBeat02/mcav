@@ -47,9 +47,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * frame is kept, so a slow pipeline lowers the frame rate instead of piling up work. Audio is requested from VLC
  * as 16-bit stereo at 48 kHz, so no resampling is needed, and is run through the audio pipeline on its own thread.
  *
- * <p>VLC opens media asynchronously. Starting waits up to five seconds for VLC to open the media, so a source that
- * cannot be opened makes {@link #start(Source)} return false; errors that happen later, while the media plays, are
- * reported to the exception handler.
+ * <p>VLC opens media asynchronously. Starting waits up to five seconds for opening events. An error reported
+ * during that wait makes {@link #start(Source)} return false, but an elapsed timeout alone is accepted as a slow
+ * open and returns true. Errors arriving afterward are reported to the exception handler. The event wait does
+ * not bound native setup or previous-playback cleanup.
  *
  * <p>When separate video and audio sources are given, two VLC media players are used and kept in sync by nudging
  * the playback rate of the video, or seeking when they drift far apart. All VLC instances share one native
@@ -97,9 +98,11 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * that VLC is not available on this system; wait for
    * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(Capability)} with {@link Capability#VLC} first.
    *
-   * @param mediaOptions VLC media options applied to every source, such as {@code :network-caching=1000}
+   * @param mediaOptions the non-null array of non-null VLC media options, copied for use with every source,
+   *                     such as {@code :network-caching=1000}
    * @throws IllegalStateException if VLC is still being prepared, or is not available on this system; the message
    *                               says which
+   * @throws NullPointerException if the options array or any option is null
    */
   public VLCPlayer(final String... mediaOptions) {
     final CapabilityGuard guard = CapabilityGuard.shared();
@@ -137,11 +140,12 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   /**
    * Starts playing a source that contains both video and audio, replacing the current playback. Waits until VLC has
-   * opened the media. The current playback keeps playing if VLC cannot even be set up for the new source.
+   * reported an opening event or the five-second event wait expires. The current playback keeps playing if VLC cannot even be set up for the new source.
    *
    * @param combined the source
-   * @return true if playback started; false if the player is released, another start is in progress, or the source
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or the source
    * cannot be opened. Source failures are reported to the exception handler.
+   * @throws NullPointerException if {@code combined} is null
    */
   @Override
   public boolean start(final Source combined) {
@@ -151,13 +155,14 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
 
   /**
    * Starts playing video from one source and audio from another, replacing the current playback. Equal sources are
-   * played as one combined source. Waits until VLC has opened both sources, which it does at the same time, so
-   * starting waits at most the open timeout. The current playback keeps playing if VLC cannot even be set up.
+   * played as one combined source. Both sources open concurrently and share the opening-event timeout;
+   * expiry alone is accepted even if VLC is still opening. The current playback keeps playing if VLC cannot even be set up.
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback started; false if the player is released, another start is in progress, or a source
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or a source
    * cannot be opened. Source failures are reported to the exception handler.
+   * @throws NullPointerException if {@code video} or {@code audio} is null
    */
   @Override
   public boolean start(final Source video, final Source audio) {
@@ -375,6 +380,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    *
    * @param time the position in milliseconds from the start of the media, not negative
    * @return true if the player seeked, false if nothing is playing or the source cannot be seeked
+   * @throws IllegalArgumentException if {@code time} is negative
    */
   @Override
   public boolean seek(final long time) {
@@ -477,6 +483,7 @@ public final class VLCPlayer implements VideoPlayerMultiplexer {
    * thread safe and should return quickly.
    *
    * @param exceptionHandler the exception handler, which receives a description of the failure and its cause
+   * @throws NullPointerException if {@code exceptionHandler} is null
    */
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {

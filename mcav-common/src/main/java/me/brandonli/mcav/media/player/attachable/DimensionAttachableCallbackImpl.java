@@ -29,6 +29,12 @@ public final class DimensionAttachableCallbackImpl extends AbstractAttachableCal
     super(Dimension.NONE);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws IllegalArgumentException if either dimension is zero
+   * @throws NullPointerException if {@code value} is null
+   */
   @Override
   public void attach(final Dimension value) {
     Preconditions.checkNotNull(value, "Dimension must not be null");

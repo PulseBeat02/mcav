@@ -45,6 +45,7 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
    *
    * @param palette the palette to reduce images to
    * @param kernel  the kernel that describes how errors are spread
+   * @throws NullPointerException if {@code palette}, {@code kernel} is null
    */
   protected ErrorDiffusionDither(final DitherPalette palette, final DiffusionKernel kernel) {
     super(palette);

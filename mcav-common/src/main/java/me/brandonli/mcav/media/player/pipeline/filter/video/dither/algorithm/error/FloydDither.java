@@ -29,6 +29,7 @@ public final class FloydDither extends ErrorDiffusionDither {
    * Constructs a new Floyd-Steinberg algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public FloydDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.FLOYD_STEINBERG);

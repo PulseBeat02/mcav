@@ -32,6 +32,7 @@ public interface SeekablePlayer {
    *
    * @param time the position in milliseconds from the start of the media, not negative
    * @return true if the player seeked, false if nothing is playing or the source cannot be seeked
+   * @throws IllegalArgumentException if {@code time} is negative
    */
   boolean seek(final long time);
 
@@ -40,6 +41,7 @@ public interface SeekablePlayer {
    *
    * @param time the position in milliseconds from the start of the media, not negative
    * @return a future that completes with the result of {@link #seek(long)}
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
    */
   default CompletableFuture<Boolean> seekAsync(final long time) {
     final ForkJoinPool pool = ForkJoinPool.commonPool();
@@ -52,6 +54,9 @@ public interface SeekablePlayer {
    * @param executor the executor that runs the call
    * @param time     the position in milliseconds from the start of the media, not negative
    * @return a future that completes with the result of {@link #seek(long)}
+   * @throws java.util.concurrent.RejectedExecutionException if the executor rejects the task
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
+   * @throws NullPointerException if {@code executor} is null
    */
   default CompletableFuture<Boolean> seekAsync(final ExecutorService executor, final long time) {
     Preconditions.checkNotNull(executor, "Executor must not be null");
