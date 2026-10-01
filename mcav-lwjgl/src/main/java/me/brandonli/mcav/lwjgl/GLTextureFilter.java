@@ -35,7 +35,13 @@ import org.lwjgl.opengl.GLCapabilities;
  * player. The filter therefore only copies each frame into a staging buffer; the render thread uploads the newest
  * frame by calling {@link #upload()} once per rendered frame. {@link #start()} and {@link #release()} must also be
  * called on the render thread. Two staging buffers are used, so the player copies the next frame while the render
- * thread uploads the previous one and neither waits for the other.
+ * thread uploads the previous one. Staging and the buffer swap briefly share a lock; the native upload runs
+ * outside that lock.
+ *
+ * <p>Keep {@code start}, {@code upload}, {@code release}, and the texture ID and dimension getters on the same
+ * render thread with the same context current. {@code applyFilter} and {@code hasPendingFrame} may be called
+ * from other threads. Stop or detach producers before release so that they cannot stage more frames afterward.
+ * The context belongs to the caller; releasing this filter does not close it.
  *
  * <pre><code>
  *   // render thread, context current
@@ -88,7 +94,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   /**
    * Constructs a filter that streams into an existing texture, which the caller keeps owning.
    *
-   * @param textureId the name of the texture, created with {@code glGenTextures}
+   * @param textureId the positive name of a texture in the caller's context, created with {@code glGenTextures}
+   * @throws IllegalArgumentException if {@code textureId} is zero or negative
    */
   public GLTextureFilter(final int textureId) {
     Preconditions.checkArgument(textureId > 0, "Texture id must be positive but was %s", textureId);
@@ -100,7 +107,10 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Creates the texture with linear filtering and edge clamping. Call it on the render thread.
+   * Creates an owned texture if needed and sets linear filtering and edge clamping on either an owned or a
+   * borrowed texture. Call it on the render thread after creating LWJGL capabilities for the current context.
+   * Calling it again keeps the texture and its uploaded dimensions. Starting after an owned texture was released
+   * creates a new texture and resets its dimensions to zero.
    *
    * @throws IllegalStateException if no OpenGL context is current on the calling thread
    */
@@ -123,7 +133,9 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Deletes the texture if the filter created it. Call it on the render thread.
+   * Deletes the texture if the filter created it and drops both staging buffers. Call it on the render thread
+   * after stopping producers. A borrowed texture is kept, including its ID and last uploaded dimensions.
+   * Repeated release is harmless; {@link #start()} permits reuse.
    *
    * @throws IllegalStateException if the filter created a texture and no OpenGL context is current on the calling
    *                               thread
@@ -143,10 +155,12 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Copies the frame into the staging buffer. Runs on the player thread and makes no OpenGL calls.
+   * Copies the newest packed BGR frame into the staging buffer, replacing any frame not yet uploaded. Runs on
+   * the player thread and makes no OpenGL calls. If fewer than {@code width * height * 3} bytes remain in the
+   * frame's buffer, the frame is ignored. The input position, limit and pixels are unchanged.
    *
-   * @param samples  the frame
-   * @param metadata the metadata of the frame
+   * @param samples  the non-null frame with three tightly packed BGR bytes per pixel
+   * @param metadata the non-null original video metadata; dimensions are read from {@code samples}
    * @return always false, because the frame is only copied into the staging buffer and never modified
    * @throws NullPointerException if the frame or the metadata is null
    */
@@ -200,8 +214,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
    * blocked by the upload.
    *
    * @return true if a new frame was uploaded
-   * @throws IllegalStateException if {@link #start()} was not called, or no OpenGL context is current on the calling
-   *                               thread
+   * @throws IllegalStateException if an owned texture has not been created or has been released, or LWJGL
+   *                               capabilities are missing on the calling thread
    */
   public boolean upload() {
     if (this.textureId == NO_TEXTURE) {
@@ -308,7 +322,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   /**
    * Checks whether a frame is waiting to be uploaded.
    *
-   * @return true if {@link #upload()} would upload a frame
+   * @return true if a staged frame is waiting at the time of the call; this does not check the texture
+   *         or context, and another upload or release can consume that frame
    */
   public boolean hasPendingFrame() {
     synchronized (this.lock) {
@@ -319,7 +334,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   /**
    * Gets the name of the texture.
    *
-   * @return the texture name, or 0 before {@link #start()}
+   * @return the borrowed texture name, or the owned texture name; an owned texture has ID 0 before
+   *         {@link #start()} and after {@link #release()}
    */
   public int getTextureId() {
     return this.textureId;
@@ -328,7 +344,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   /**
    * Gets the width of the texture, which is the width of the last uploaded frame.
    *
-   * @return the width in pixels, or 0 before the first upload
+   * @return the width in pixels of the last texture storage allocation, or 0 before the first upload
+   *         and after recreating an owned texture; release alone leaves this cached value unchanged
    */
   public int getWidth() {
     return this.textureWidth;
@@ -337,7 +354,8 @@ public class GLTextureFilter implements FunctionalVideoFilter {
   /**
    * Gets the height of the texture, which is the height of the last uploaded frame.
    *
-   * @return the height in pixels, or 0 before the first upload
+   * @return the height in pixels of the last texture storage allocation, or 0 before the first upload
+   *         and after recreating an owned texture; release alone leaves this cached value unchanged
    */
   public int getHeight() {
     return this.textureHeight;
