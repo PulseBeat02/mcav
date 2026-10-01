@@ -281,7 +281,7 @@ public final class FFmpegCommand {
      * Adds raw arguments.
      *
      * @param rawArguments the non-null arguments in order, with no null elements; entries before a null
-   *                     element have already been appended when validation fails
+     *                     elements have already been appended when validation fails
      * @return this builder
      * @throws NullPointerException if the array or any argument is null
      */
