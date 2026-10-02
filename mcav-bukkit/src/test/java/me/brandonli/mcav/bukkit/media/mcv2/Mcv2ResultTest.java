@@ -1298,7 +1298,13 @@ final class Mcv2ResultTest {
         .pageMap(500)
         .maxFrameRate(0)
         .build();
-      final Mcv2Result result = new Mcv2Result(wide, new Mcv2Channel(wide, this.viewers, this.screen), recording, System::nanoTime, Runnable::run);
+      final Mcv2Result result = new Mcv2Result(
+        wide,
+        new Mcv2Channel(wide, this.viewers, this.screen),
+        recording,
+        System::nanoTime,
+        Runnable::run
+      );
       result.applyFilter(Images.solid(video[0], video[1], 0xFF336699), this.metadata);
       result.release();
     }
