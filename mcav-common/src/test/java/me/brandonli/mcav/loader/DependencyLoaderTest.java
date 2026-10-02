@@ -55,6 +55,7 @@ import me.brandonli.mcav.capability.installer.vlc.VLCInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallerFailures;
 import me.brandonli.mcav.capability.installer.ytdlp.YTDLPInstaller;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
+import org.bytedeco.opencv.global.opencv_core;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.slf4j.Logger;
@@ -89,6 +90,27 @@ final class DependencyLoaderTest {
     assertEquals("false", pathsFirst);
     assertNull(openBlas, "OpenCV links OpenBLAS, so the library must not disable it");
     assertTrue(hasFfmpeg);
+  }
+
+  @Test
+  void runsOpenCvOnTheCallingThreadUnlessToldOtherwise() {
+    final DependencyLoader loader = new DependencyLoader();
+    assertDoesNotThrow(() -> loader.loadModules());
+    // OpenCV's own pool would outlive every player, a thread per processor but one, named after the first caller
+    assertEquals(1, opencv_core.getNumThreads());
+    final String previous = System.getProperty(DependencyLoader.OPENCV_THREADS_PROPERTY);
+    try {
+      System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, "3");
+      DependencyLoader.configureOpenCvThreads();
+      assertEquals(3, opencv_core.getNumThreads());
+    } finally {
+      if (previous == null) {
+        System.clearProperty(DependencyLoader.OPENCV_THREADS_PROPERTY);
+      } else {
+        System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, previous);
+      }
+      DependencyLoader.configureOpenCvThreads();
+    }
   }
 
   @Test

@@ -75,6 +75,8 @@ public final class DependencyLoader {
   private static final List<Class<?>> OPENCV_MODULES = List.of(opencv_core.class, opencv_imgproc.class, opencv_imgcodecs.class);
   private static final String FACE_DETECTION = "Face detection";
   private static final String PATHS_FIRST_PROPERTY = "org.bytedeco.javacpp.pathsFirst";
+  /** The system property that sets how many threads OpenCV may run its own work on, 1 if it is not set. */
+  static final String OPENCV_THREADS_PROPERTY = "mcav.opencv.threads";
   private static final String PATHS_FIRST_VALUE = "false";
 
   private final Set<Capability> capabilities;
@@ -156,7 +158,21 @@ public final class DependencyLoader {
     for (final Class<?> module : OPENCV_MODULES) {
       Loader.load(module);
     }
+    configureOpenCvThreads();
     this.loadFaceDetection(DependencyLoader::loadObjectDetection);
+  }
+
+  /**
+   * Sets how many threads OpenCV runs its own work on, such as a resize: one by default, so it runs on the calling
+   * thread. Otherwise OpenCV starts a pool of one thread per processor but one at its first parallel call, named after
+   * the thread that made it, which outlives every player and works outside the encoders' budget. The system property
+   * {@value #OPENCV_THREADS_PROPERTY} sets another number; 0 runs everything sequentially, and below 0 is OpenCV's
+   * default.
+   */
+  @VisibleForTesting
+  static void configureOpenCvThreads() {
+    final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, 1);
+    org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: the presets class of the same name is imported to load the natives
   }
 
   /**

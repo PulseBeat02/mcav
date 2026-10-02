@@ -17,7 +17,9 @@ such state.
 
 `install` returns as soon as the library is usable. By then:
 
-- the JavaCV natives, FFmpeg and OpenCV, are loaded;
+- the JavaCV natives, FFmpeg and OpenCV, are loaded; OpenCV runs its own work, such as a resize, on the thread that
+  asks for it, as a pool of its own threads would outlive every player and work outside the encoders' budget
+  (`-Dmcav.opencv.threads=<n>` gives it `n` threads);
 - the modules you passed are started;
 - the lookup tables, such as the map color table, are built.
 
