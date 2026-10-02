@@ -109,6 +109,39 @@ final class BlockCoderTest {
   }
 
   @Test
+  void aBlockTooSmallForHalfResolutionMotionSearchesFromItsOwnSeeds() {
+    // half-resolution motion seeds blocks of 16 pixels and more; an 8x8 block without a parent searches from its seeds
+    final LiveSearch halfMotion = new LiveSearch(
+      8,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_CLASSES,
+      LiveSearch.FROM_LAMBDA,
+      true,
+      8,
+      false,
+      LiveSearch.HALF_MOTION,
+      0,
+      false
+    );
+    final Random random = new Random(658);
+    final byte[] picture = new byte[32 * 32 * 3];
+    random.nextBytes(picture);
+    final EncoderSettings settings = STILL.withLive(halfMotion);
+    final FrameJob job = new FrameJob(settings, picture, picture.clone(), 32, 32, false, new int[] { 0 }, new int[] { 0 }, null, null);
+    final BlockCoder coder = new BlockCoder(job, 8);
+    coder.code(2, 5, 8, 8);
+    assertEquals(MotionSearch.pack(0, 0), coder.localVector(), "a still picture moves nowhere");
+  }
+
+  @Test
   void aBlockBelowTheSearchSizeTakesItsParentsVectorWhicheverWayItPoints() {
     // a still picture: a search finds no motion, so a vector other than none is the parent's
     final Random random = new Random(45);

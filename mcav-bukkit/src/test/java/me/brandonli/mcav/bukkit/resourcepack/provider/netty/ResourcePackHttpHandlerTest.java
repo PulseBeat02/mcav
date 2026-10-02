@@ -505,7 +505,8 @@ final class ResourcePackHttpHandlerTest {
     channel.pipeline().fireUserEventTriggered("before");
     writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
     channel.pipeline().fireUserEventTriggered(IdleStateEvent.READER_IDLE_STATE_EVENT);
-    assertEquals(List.of("before", IdleStateEvent.READER_IDLE_STATE_EVENT), events);
+    channel.pipeline().fireUserEventTriggered("during");
+    assertEquals(List.of("before", IdleStateEvent.READER_IDLE_STATE_EVENT, "during"), events);
     channel.finishAndReleaseAll();
   }
 }

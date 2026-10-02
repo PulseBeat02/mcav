@@ -273,6 +273,23 @@ final class EntityRendererTest {
   }
 
   @Test
+  void aDisplayThatComesBackBeforeTheFirstFrameIsGivenNoText() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    renderer.show();
+    final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
+    when(discarded.isValid()).thenReturn(false);
+    when(this.world.getWorld().isChunkLoaded(0, 0)).thenReturn(true);
+    renderer.onTick();
+
+    final List<CraftTextDisplay> spawned = this.world.getSpawnedDisplays();
+    assertEquals(2, spawned.size(), "the display comes back");
+    final net.minecraft.world.entity.Display.TextDisplay handle = spawned.get(1).getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
+    verify(handle, never()).setText(any());
+    renderer.hide();
+  }
+
+  @Test
   void aStillImageComesBackWithItsTextOnceItsChunkIsLoadedAgain() {
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
