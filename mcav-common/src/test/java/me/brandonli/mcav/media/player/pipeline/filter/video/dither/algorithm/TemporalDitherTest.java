@@ -160,6 +160,17 @@ final class TemporalDitherTest {
   }
 
   @Test
+  void keptPixelsDiffuseOnlyTheConfiguredShareOfTheirError() {
+    // a dark gray is black, and a gray 96 lighter, within the threshold of 100, keeps the black; at a strength of 0 none
+    // of a kept pixel's error is passed on, which in full would push the pixels after it past the threshold, to white
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 100, 0, 0.0f);
+    final byte[] dark = ditherSolid(dither, 0xFF404040);
+    final byte[] lighter = ditherSolid(dither, 0xFF606060);
+    assertEquals(0.0, DitherTestImages.whiteRatio(dark), "a dark gray is black");
+    assertEquals(0.0, DitherTestImages.whiteRatio(lighter), "a strength of 0 diffuses nothing, a kept pixel's error included");
+  }
+
+  @Test
   void recomputesPixelsWhenAnyChannelDriftsTooFar() {
     final int[][] drifts = { { 0xFFFFFF00, YELLOW }, { 0xFFFF00FF, MAGENTA }, { 0xFF00FF00, GREEN } };
     for (final int[] drift : drifts) {

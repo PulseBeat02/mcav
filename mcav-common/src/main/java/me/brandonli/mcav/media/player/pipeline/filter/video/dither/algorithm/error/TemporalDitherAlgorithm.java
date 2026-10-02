@@ -349,14 +349,14 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
       if (reusedIndex >= 0) {
         final int reusedColor = this.paletteColors[reusedIndex];
         this.store(pixelIndex, row, (byte) reusedIndex);
-        this.diffuseError(wanted, reusedColor, column, row, step, false);
+        this.diffuseError(wanted, reusedColor, column, row, step);
         return;
       }
       final int lookup = ErrorRows.getLookupIndex(wanted);
       final byte chosenIndex = this.colorMap[lookup];
       final int chosenColor = this.fullColorMap[lookup];
       this.store(pixelIndex, row, chosenIndex);
-      this.diffuseError(wanted, chosenColor, column, row, step, true);
+      this.diffuseError(wanted, chosenColor, column, row, step);
     }
 
     /**
@@ -382,16 +382,13 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
       }
     }
 
-    private void diffuseError(final int wanted, final int chosen, final int column, final int row, final int step, final boolean scaled) {
+    // a kept color's error is scaled like a chosen one's: the strength is the share of every error that is diffused
+    private void diffuseError(final int wanted, final int chosen, final int column, final int row, final int step) {
       final int errorRed = ErrorRows.red(wanted) - ErrorRows.red(chosen);
       final int errorGreen = ErrorRows.green(wanted) - ErrorRows.green(chosen);
       final int errorBlue = ErrorRows.blue(wanted) - ErrorRows.blue(chosen);
       final int totalError = Math.abs(errorRed) + Math.abs(errorGreen) + Math.abs(errorBlue);
       if (totalError <= TemporalDitherAlgorithm.this.errorThreshold) {
-        return;
-      }
-      if (!scaled) {
-        this.errors.diffuse(column, row, step, errorRed, errorGreen, errorBlue);
         return;
       }
       final TemporalDitherAlgorithm algorithm = TemporalDitherAlgorithm.this;
