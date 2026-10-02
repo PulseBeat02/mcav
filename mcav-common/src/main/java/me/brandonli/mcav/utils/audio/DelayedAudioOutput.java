@@ -68,6 +68,9 @@ public final class DelayedAudioOutput implements AutoCloseable {
    */
   static final int JOIN_TIMEOUT_MILLIS = 5_000;
 
+  /** The longest queue whose size in bytes, 192 to a millisecond of 48 kHz stereo, still fits in an {@code int}. */
+  public static final int MAX_QUEUED_MILLIS = Integer.MAX_VALUE / ((AudioFilter.SAMPLE_RATE / 1000) * AudioFilter.FRAME_SIZE);
+
   private final String source;
   private final long joinTimeoutMillis;
   private final long delayNanos;
@@ -107,14 +110,14 @@ public final class DelayedAudioOutput implements AutoCloseable {
    *
    * @param source          names the source in the failures it reports, such as {@code "the virtual machine"}
    * @param delayMillis     how long every chunk is held before the pipeline gets it, in milliseconds
-   * @param maxQueuedMillis the queue duration in milliseconds, strictly greater than {@code delayMillis};
-   *                        use at most 11,184,810 so its 192-bytes-per-millisecond size fits in an {@code int}.
-   *                        The upper bound is a caller precondition and is not validated here
+   * @param maxQueuedMillis the queue duration in milliseconds, strictly greater than {@code delayMillis} and at most
+   *                        {@link #MAX_QUEUED_MILLIS}, so its 192-bytes-per-millisecond size fits in an {@code int}
    * @param pipeline        gives the audio pipeline of the player for every chunk, so a pipeline attached later is
    *                        used
    * @param failures        receives a failure of the pipeline
    * @return the running output
-   * @throws IllegalArgumentException if the delay is negative or leaves no room in the queue
+   * @throws IllegalArgumentException if the delay is negative or leaves no room in the queue, or the queue is longer
+   *                                  than {@link #MAX_QUEUED_MILLIS}
    * @throws NullPointerException if {@code source}, {@code pipeline} or {@code failures} is null
    */
   public static DelayedAudioOutput start(
@@ -158,6 +161,13 @@ public final class DelayedAudioOutput implements AutoCloseable {
       "At most %s ms may wait, which leaves no room past the delay of %s ms",
       maxQueuedMillis,
       delayMillis
+    );
+    // a longer queue's size in bytes wraps around to a negative int, which the first chunk then fails on
+    Preconditions.checkArgument(
+      maxQueuedMillis <= MAX_QUEUED_MILLIS,
+      "At most %s ms of sound may wait, but %s ms were asked for",
+      MAX_QUEUED_MILLIS,
+      maxQueuedMillis
     );
     final DelayedAudioOutput output = new DelayedAudioOutput(
       source,

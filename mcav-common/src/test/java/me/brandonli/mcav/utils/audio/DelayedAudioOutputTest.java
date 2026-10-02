@@ -320,6 +320,24 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void refusesAQueueTooLongForItsSizeInBytes() {
+    final Supplier<AudioPipelineStep> pipeline = () -> this.step;
+    final BiConsumer<String, Throwable> ignored = (message, failure) -> {};
+    // 11,184,811 ms of 48 kHz stereo are 2,147,483,712 bytes, one frame more than an int holds
+    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () ->
+      DelayedAudioOutput.start("a source", 0, 11_184_811, pipeline, ignored)
+    );
+    assertEquals("At most 11184810 ms of sound may wait, but 11184811 ms were asked for", tooLong.getMessage());
+    final DelayedAudioOutput longest = DelayedAudioOutput.start("a source", 0, 11_184_810, pipeline, ignored);
+    try {
+      longest.accept(new byte[] { 7, 0, 7, 0 }, 4);
+      waitUntil(() -> this.processed.size() == 1);
+    } finally {
+      longest.close();
+    }
+  }
+
+  @Test
   void anOutputNeedsADelayAndRoomPastIt() {
     final Supplier<AudioPipelineStep> pipeline = () -> this.step;
     final BiConsumer<String, Throwable> ignored = (message, failure) -> {};
