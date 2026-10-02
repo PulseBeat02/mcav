@@ -143,8 +143,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     Preconditions.checkNotNull(source, "Source must not be null");
     this.lock.lock();
     try {
-      final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
-      return idle && this.startReleasably(source);
+      return this.startReleasably(source);
     } finally {
       this.lock.unlock();
     }
@@ -156,8 +155,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.starting = Thread.currentThread();
     }
     try {
-      // a release between the check of start and the line above found no start to interrupt
-      return !this.released.get() && this.startSession(source);
+      // checked once the start can be interrupted, so a release either finds the start or is seen here
+      final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
+      return idle && this.startSession(source);
     } catch (final PlayerException failure) {
       if (this.released.get()) {
         return false;
