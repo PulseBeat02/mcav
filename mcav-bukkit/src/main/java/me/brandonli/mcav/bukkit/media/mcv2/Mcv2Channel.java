@@ -219,16 +219,20 @@ public final class Mcv2Channel {
 
   /**
    * Sorts the configured viewers, and schedules showing the screen to those whose pack just loaded. A viewer too far
-   * from the wall to see it is in neither group.
+   * from the wall to see it is in neither group. A viewer no longer configured is shown the screen no more: their link
+   * is retired, and the page frames are hidden from them on the main thread.
    *
    * @return the viewers who do not receive frames and should be shown the dithered maps
    * @throws IllegalStateException if showing a new viewer requires scheduling before a plugin has been injected
    */
   public Set<UUID> update() {
+    // one view of a collection the caller may change while this runs
+    final Set<UUID> selected = new HashSet<>(this.configuration.getViewers());
+    this.retireRemoved(selected);
     final Map<UUID, Mcv2Link> receiving = new HashMap<>();
     final Set<UUID> others = ConcurrentHashMap.newKeySet();
     final Set<UUID> far = this.farAway;
-    for (final UUID viewer : this.configuration.getViewers()) {
+    for (final UUID viewer : selected) {
       final Mcv2Link link = this.links.get(viewer);
       if (far.contains(viewer)) {
         // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew
@@ -251,10 +255,36 @@ public final class Mcv2Channel {
     return others;
   }
 
+  /**
+   * Retires the viewers removed from the configuration: a viewer the screen was still to be shown to is not shown it,
+   * and one shown it loses their link, and has the page frames hidden on the main thread. The removed viewer kept the
+   * screen otherwise, frozen on its last frame, and the channel kept their link.
+   */
+  private void retireRemoved(final Set<UUID> selected) {
+    this.scheduled.removeIf(viewer -> !selected.contains(viewer));
+    for (final UUID viewer : Set.copyOf(this.links.keySet())) {
+      if (!selected.contains(viewer) && this.links.remove(viewer) != null) {
+        Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
+      }
+    }
+  }
+
+  /** Hides the screen from a viewer removed from the configuration, unless they were shown it again since. */
+  private void hide(final UUID viewer) {
+    if (this.scheduled.contains(viewer) || this.links.containsKey(viewer)) {
+      return;
+    }
+    final Player player = Bukkit.getPlayer(viewer);
+    if (player != null) {
+      this.screen.hide(player);
+    }
+  }
+
   /** Shows the screen to a viewer whose pack loaded, then lets the next frame, a keyframe, reach the viewer. */
   void show(final UUID viewer) {
     final Player player = Bukkit.getPlayer(viewer);
-    if (player == null || !this.scheduled.contains(viewer)) {
+    // a viewer removed from the configuration since the show was scheduled is not shown the screen
+    if (player == null || !this.scheduled.contains(viewer) || !this.configuration.getViewers().contains(viewer)) {
       this.scheduled.remove(viewer);
       return;
     }

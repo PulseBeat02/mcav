@@ -23,11 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -167,6 +170,47 @@ final class Mcv2ChannelTest {
     verify(this.screen).show(this.player);
     channel.requestKeyframe();
     assertTrue(channel.takeKeyframeRequest());
+  }
+
+  @Test
+  void aViewerRemovedFromTheScreenIsShownItNoMore() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+    this.configuration.getViewers().remove(LOADED);
+    assertEquals(Set.of(WITHOUT, OFFLINE), channel.update());
+    assertEquals(Set.of(), channel.getRecipients());
+    assertEquals(Map.of(), channel.getLinks(), "the link is retired");
+    this.server.runTasks();
+    verify(this.screen).hide(this.player);
+  }
+
+  @Test
+  void aViewerAddedBackBeforeTheScreenIsHiddenKeepsIt() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    final Collection<UUID> selected = this.configuration.getViewers();
+    channel.update();
+    this.server.runTasks();
+    selected.remove(LOADED);
+    channel.update();
+    selected.add(LOADED);
+    channel.update();
+    this.server.runTasks();
+    verify(this.screen, never()).hide(this.player);
+    verify(this.screen, times(2)).show(this.player);
+    assertEquals(Set.of(LOADED), channel.getLinks().keySet());
+  }
+
+  @Test
+  void aViewerRemovedBeforeTheScreenIsShownIsNotShownIt() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.configuration.getViewers().remove(LOADED);
+    this.server.runTasks();
+    verify(this.screen, never()).show(this.player);
+    assertEquals(Map.of(), channel.getLinks());
   }
 
   @Test
