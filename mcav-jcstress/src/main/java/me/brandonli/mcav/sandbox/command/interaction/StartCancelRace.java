@@ -41,7 +41,7 @@ import org.openjdk.jcstress.infra.results.I_Result;
 @State
 public class StartCancelRace {
 
-  private final Screen screen = new Screen(null, null, 0, 1);
+  private final Screen screen = new Screen(null, null, 0, 1, WallPicture.of(1, 1, 128, 128, false));
   private final AtomicInteger releases = new AtomicInteger();
 
   /**

@@ -392,7 +392,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       final long mapCount = (long) columns * rows;
       final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
       final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
-      final Screen created = new Screen(output, pipeline, mapId, mapCount);
+      final Pair<Integer, Integer> resolution = settings.getResolution();
+      // an MCV2 screen stretches the picture over the wall, dithered maps centre it at its own size
+      final boolean stretched = output instanceof Mcv2Output;
+      final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
+      final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
       synchronized (this.lock) {
         this.result = output;
         this.screen = created;
@@ -646,22 +650,23 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     return data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN);
   }
 
-  private boolean ownsScreen(final ItemFrame frame) {
+  /** The screen of this command a frame belongs to, or null if it belongs to none. */
+  private @Nullable Screen screenOf(final ItemFrame frame) {
     final Screen current = this.screen;
     if (current == null) {
-      return false;
+      return null;
     }
     final ItemStack item = frame.getItem();
     final ItemMeta metadata = item.getItemMeta();
     if (!(metadata instanceof final MapMeta mapMetadata)) {
-      return false;
+      return null;
     }
     final MapView map = mapMetadata.getMapView();
     if (map == null) {
-      return false;
+      return null;
     }
     final int mapId = map.getId();
-    return current.ownsMap(mapId);
+    return current.ownsMap(mapId) ? current : null;
   }
 
   /**
@@ -684,7 +689,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     final Player breaker = event.getPlayer();
     final ItemFrame frame = findScreenInSight(breaker);
-    if (frame == null || !this.ownsScreen(frame)) {
+    final Screen shown = frame == null ? null : this.screenOf(frame);
+    if (frame == null || shown == null) {
       return;
     }
 
@@ -695,8 +701,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     // the wall stays intact whoever breaks the block, but only a player with the permission clicks with it
     event.setCancelled(true);
     final boolean allowed = this.mayInteract(breaker);
-    if (allowed) {
-      this.handleLeftClick(current, coordinates[0], coordinates[1]);
+    final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
+    if (allowed && pixel != null) {
+      this.handleLeftClick(current, pixel[0], pixel[1]);
     }
   }
 
@@ -767,7 +774,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     // only a punch is forwarded; a projectile is not the player who shot it
     final boolean punched = damager instanceof Player;
     final T current = this.player;
-    if (current == null || !punched || !this.ownsScreen((ItemFrame) entity)) {
+    final Screen shown = this.screenOf((ItemFrame) entity);
+    if (current == null || !punched || shown == null) {
       return;
     }
     final boolean allowed = this.mayInteract(attacker);
@@ -775,8 +783,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       return;
     }
     final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
-    if (coordinates != null) {
-      this.handleLeftClick(current, coordinates[0], coordinates[1]);
+    final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
+    if (pixel != null) {
+      this.handleLeftClick(current, pixel[0], pixel[1]);
     }
   }
 
@@ -808,7 +817,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final T current = this.player;
     final Entity entity = event.getRightClicked();
     final boolean isScreen = isScreen(entity);
-    if (current == null || !isScreen || !this.ownsScreen((ItemFrame) entity)) {
+    final Screen shown = isScreen ? this.screenOf((ItemFrame) entity) : null;
+    if (current == null || shown == null) {
       return;
     }
 
@@ -820,8 +830,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     // the map keeps its rotation whoever right clicks it, but only a player with the permission clicks with it
     event.setCancelled(true);
     final boolean allowed = this.mayInteract(clicker);
-    if (allowed) {
-      this.handleRightClick(current, coordinates[0], coordinates[1]);
+    final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
+    if (allowed && pixel != null) {
+      this.handleRightClick(current, pixel[0], pixel[1]);
     }
   }
 

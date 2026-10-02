@@ -261,7 +261,10 @@ final class AbstractInteractiveCommandTest {
   // creates a screen like the commands do, with its maps and dithering mocked
   private Screen createMockedScreen() {
     final UUID viewer = UUID.randomUUID();
-    final ScreenSettings settings = wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
+    return this.createMockedScreen(wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
+  }
+
+  private Screen createMockedScreen(final ScreenSettings settings) {
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     try (
       final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
@@ -1574,5 +1577,77 @@ final class AbstractInteractiveCommandTest {
     assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
     assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
     assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
+  }
+
+  @Test
+  void forwardsTheClickedPixelOfTheSourceCentredOnTheWall() {
+    // a 384x256 source on a wall of 4x3 maps, 512x384 pixels: the dithered maps leave a 64-pixel border around it
+    final MultiplePlayerSelector viewers = mockViewers(UUID.randomUUID());
+    final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
+    final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
+    this.createMockedScreen(
+      new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, DitheringArgument.NEAREST_COLOR, MapCodec.DITHER)
+    );
+    this.command.player = "browser";
+    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 200, 100 });
+
+    this.command.onPlayerInteractEntity(this.rightClick(frame));
+    this.command.onScreenDamage(damage(frame, this.player));
+
+    this.assertForwarded("browser right 136,36", "browser left 136,36");
+  }
+
+  @Test
+  void forwardsNoClickOnTheBorderAroundASmallerSource() {
+    final MultiplePlayerSelector viewers = mockViewers(UUID.randomUUID());
+    final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
+    final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
+    this.createMockedScreen(
+      new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, DitheringArgument.NEAREST_COLOR, MapCodec.DITHER)
+    );
+    this.command.player = "browser";
+    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.aimAtBlock(block);
+    final ItemFrame frame = this.addScreenFrame(0.1, 64.1, -0.9);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 10, 20 });
+    final PlayerInteractEntityEvent right = this.rightClick(frame);
+    final EntityDamageByEntityEvent punch = damage(frame, this.player);
+    final BlockBreakEvent broken = this.blockBreak();
+
+    this.command.onPlayerInteractEntity(right);
+    this.command.onScreenDamage(punch);
+    this.command.onBlockBreak(broken);
+
+    // the frame is still the screen's: its map does not turn and its wall does not break, but no pixel was clicked
+    verify(right).setCancelled(true);
+    verify(punch).setCancelled(true);
+    verify(broken).setCancelled(true);
+    this.assertForwarded();
+  }
+
+  @Test
+  void forwardsTheClickedPixelOfTheSourceStretchedOverAnMcv2Wall() {
+    final CommandSender sender = mock(CommandSender.class);
+    final UUID viewer = UUID.randomUUID();
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(1024, 768), 7, EncoderSettings.LIVE, List.of(viewer))).thenReturn(
+      configuration
+    );
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(mock(Mcv2Output.class));
+    final MultiplePlayerSelector viewers = mockViewers(viewer);
+    this.command.createScreen(
+      new ScreenSettings(sender, viewers, Pair.pair(4, 3), Pair.pair(1024, 768), 7, DitheringArgument.NEAREST_COLOR, MapCodec.MCV2)
+    );
+    this.command.player = "browser";
+    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 200, 100 });
+
+    this.command.onPlayerInteractEntity(this.rightClick(frame));
+
+    // the pack stretches the 1024x768 picture over the 512x384 pixels of the wall
+    this.assertForwarded("browser right 400,200");
   }
 }

@@ -32,6 +32,7 @@ final class Screen {
   private final VideoPipelineStep pipeline;
   private final int firstMapId;
   private final long mapCount;
+  private final WallPicture picture;
   private boolean cancelled;
   private boolean starting;
   private @Nullable CompletableFuture<Boolean> start;
@@ -43,12 +44,31 @@ final class Screen {
    * @param pipeline   the pipeline to attach to the player
    * @param firstMapId the first map identifier of the screen
    * @param mapCount   the number of consecutive maps in the screen
+   * @param picture    how the picture of the source sits on the wall
    */
-  Screen(final FunctionalVideoFilter output, final VideoPipelineStep pipeline, final int firstMapId, final long mapCount) {
+  Screen(
+    final FunctionalVideoFilter output,
+    final VideoPipelineStep pipeline,
+    final int firstMapId,
+    final long mapCount,
+    final WallPicture picture
+  ) {
     this.output = output;
     this.pipeline = pipeline;
     this.firstMapId = firstMapId;
     this.mapCount = mapCount;
+    this.picture = picture;
+  }
+
+  /**
+   * Gets the pixel of the source a player clicks at a pixel of the wall.
+   *
+   * @param wallX the column of the pixel on the wall
+   * @param wallY the row of the pixel on the wall
+   * @return the column and row of the source's pixel, or null for the empty border around a smaller picture
+   */
+  int @Nullable [] toSource(final int wallX, final int wallY) {
+    return this.picture.toSource(wallX, wallY);
   }
 
   boolean ownsMap(final int mapId) {
