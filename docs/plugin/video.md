@@ -56,7 +56,7 @@ until it is granted.
 | `SIMPLE_VOICE_CHAT` | Voice chat, played from the position of each viewer and heard within 32 blocks of them | `simple-voice-chat`, and the Simple Voice Chat plugin |
 
 One source plays through the audio outputs at a time: a video, a browser or a virtual machine that starts takes them
-over from the one that played before.
+over from the one that played before, and gives them back to it when it is released, if that one still plays.
 
 ## Controlling a Video
 

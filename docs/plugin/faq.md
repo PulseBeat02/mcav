@@ -40,7 +40,8 @@ browser, every page they open and every player who may click on it.
 `/mcav vm create` with an audio type other than `NONE` gives an `X86_64` machine a sound card (Intel HD Audio, and the
 PC speaker) and plays its sound through that output, like a video; the guest needs a driver for the card, which every
 current operating system has. Machines of other architectures have no sound. Only one video, browser or virtual
-machine plays through the audio outputs at a time: the newest one takes them over.
+machine plays through the audio outputs at a time: the newest one takes them over, and gives them back to the one
+before it when it is released.
 
 ---
 

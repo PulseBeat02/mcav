@@ -20,6 +20,8 @@ package me.brandonli.mcav.sandbox.audio;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -65,6 +67,8 @@ public final class AudioProvider {
 
   private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available";
 
+  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before";
+
   // the source a video plays as, as there is one video at a time
   private static final Object VIDEO = new Object();
   // sources are told apart by identity
@@ -80,9 +84,11 @@ public final class AudioProvider {
   private volatile @Nullable HttpResult httpServer;
   private volatile @Nullable SVCFilter voiceChatFilter;
   private boolean stopped;
-  // the outputs play one source at a time, a video or a virtual machine; the newest takes them over
+  // the outputs play one source at a time, a video or a virtual machine; the newest takes them over, and when it is
+  // released they go back to the one it took them from, if that one still plays
   private final Object outputLock;
-  private volatile @Nullable Object owner;
+  private final Deque<Claim> claims;
+  private volatile @Nullable Claim owner;
 
   /**
    * Constructs the provider.
@@ -108,6 +114,7 @@ public final class AudioProvider {
     this.startup = startup;
     this.lock = new Object();
     this.outputLock = new Object();
+    this.claims = new ArrayDeque<>();
   }
 
   /**
@@ -322,7 +329,9 @@ public final class AudioProvider {
 
   /**
    * Creates the audio filter of an output for a source. The outputs play one source at a time: the source takes them
-   * over from any other, whose filter falls silent, and a filter plays only while its source has the outputs.
+   * over from any other, whose filter falls silent, and a filter plays only while its source has the outputs. When
+   * the source is released, the outputs go back to the source it took them from, if that one was not released
+   * meanwhile.
    *
    * @param argument the output chosen in the command
    * @param dump     information about the media, shown by outputs that display a title
@@ -340,18 +349,27 @@ public final class AudioProvider {
       return AudioFilter.NO_OP;
     }
     synchronized (this.outputLock) {
-      if (!IDENTITY.equivalent(this.owner, source)) {
+      final Claim current = this.owner;
+      if (current == null || !IDENTITY.equivalent(current.source, source)) {
         // the speakers of the previous source stop; the bot and the web page play the new one from now on
         this.releaseSpeakers();
-        this.owner = source;
       }
-      final AudioFilter output = switch (argument) {
-        case DISCORD_BOT -> this.constructDiscordFilter(dump);
-        case HTTP_SERVER -> this.constructHttpFilter(dump);
-        default -> this.constructSVCFilter(players);
-      };
-      return (samples, metadata) -> IDENTITY.equivalent(this.owner, source) && output.applyFilter(samples, metadata);
+      final Claim claim = new Claim(source, argument, dump, players);
+      claim.output = this.connect(claim);
+      this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+      this.claims.push(claim);
+      this.owner = claim;
+      return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
     }
+  }
+
+  /** Connects the output a source chose to it. */
+  private AudioFilter connect(final Claim claim) {
+    return switch (claim.argument) {
+      case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
+      case HTTP_SERVER -> this.constructHttpFilter(claim.dump);
+      default -> this.constructSVCFilter(claim.players);
+    };
   }
 
   private AudioFilter constructSVCFilter(final Object[] players) {
@@ -386,26 +404,42 @@ public final class AudioProvider {
   }
 
   /**
-   * Disconnects the outputs, unless a virtual machine plays through them.
+   * Disconnects the outputs from the video, unless a virtual machine plays through them; they go back to the source the
+   * video took them from, if that one still plays.
    */
   public void releaseAudioFilter() {
     this.releaseAudioFilter(VIDEO);
   }
 
   /**
-   * Disconnects the outputs, unless another source plays through them.
+   * Disconnects the outputs from a source that is done, unless another source plays through them; they go back to the
+   * source it took them from, if that one still plays.
    *
    * @param source the source that is done, such as a virtual machine
    */
   public void releaseAudioFilter(final Object source) {
     Preconditions.checkNotNull(source, "Source must not be null");
     synchronized (this.outputLock) {
-      final Object current = this.owner;
-      if (current != null && !IDENTITY.equivalent(current, source)) {
+      this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+      final Claim current = this.owner;
+      if (current != null && !IDENTITY.equivalent(current.source, source)) {
+        // another source plays through the outputs; this one no longer waits to have them back
         return;
       }
       this.owner = null;
       this.releaseOutputs();
+      final Claim previous = this.claims.peek();
+      if (previous == null) {
+        return;
+      }
+      try {
+        previous.output = this.connect(previous);
+        this.owner = previous;
+      } catch (final RuntimeException unavailable) {
+        // the output the source played through cannot take it back, such as a bot that lost the right to join
+        this.claims.remove(previous);
+        LOGGER.warn(HAND_BACK_FAILED, unavailable);
+      }
     }
   }
 
@@ -442,6 +476,7 @@ public final class AudioProvider {
     }
     synchronized (this.outputLock) {
       this.owner = null;
+      this.claims.clear();
       this.releaseOutputs();
     }
     final HttpResult server;
@@ -460,6 +495,25 @@ public final class AudioProvider {
       bot.shutdown();
     }
     this.startup.shutdownNow();
+  }
+
+  /** A source's hold on the outputs: the output it chose, what it shows there, and the filter it plays into. */
+  private static final class Claim {
+
+    private final Object source;
+    private final AudioArgument argument;
+    private final URLParseDump dump;
+    private final Object[] players;
+    // the speakers of Simple Voice Chat are made again when the source gets the outputs back
+    private volatile AudioFilter output;
+
+    Claim(final Object source, final AudioArgument argument, final URLParseDump dump, final Object[] players) {
+      this.source = source;
+      this.argument = argument;
+      this.dump = dump;
+      this.players = players;
+      this.output = AudioFilter.NO_OP;
+    }
   }
 
   /**
