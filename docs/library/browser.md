@@ -15,8 +15,8 @@ dependencies {
 ```
 
 The page is rendered by Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), the Java binding of
-the Chromium Embedded Framework, packaged by [jcefmaven](https://github.com/jcefmaven/jcefmaven) 146.0.10
-(Chromium 146). Every started `BrowserPlayer` runs its Chromium in a helper process of its own, so the JVM of your
+the Chromium Embedded Framework, packaged by [jcefmaven](https://github.com/jcefmaven/jcefmaven) 152.0.6
+(Chromium 152). Every started `BrowserPlayer` runs its Chromium in a helper process of its own, so the JVM of your
 application needs no options at all, and a crash of the browser never takes your application with it. Chromium hands
 every painted frame over as plain pixels, so frames arrive only when the page changes and need no image decoding.
 

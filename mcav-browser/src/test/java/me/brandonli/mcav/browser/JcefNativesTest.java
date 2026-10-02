@@ -201,7 +201,7 @@ class JcefNativesTest {
     assertEquals(
       URI.create(
         REPOSITORY +
-          "jcef-natives-linux-amd64/jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179/jcef-natives-linux-amd64-jcef-d3de827%2Bcef-146.0.10%2Bg8219561%2Bchromium-146.0.7680.179.jar"
+          "jcef-natives-linux-amd64/jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83/jcef-natives-linux-amd64-jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83.jar"
       ),
       this.requested.getFirst()
     );
@@ -361,5 +361,14 @@ class JcefNativesTest {
       assertTrue(lock.isValid());
       assertSame(channel, lock.channel());
     }
+  }
+
+  @Test
+  void thePinnedNativesBelongToTheJcefOnTheClassPath() {
+    // the natives and the Java side of JCEF must be of one release: a bump of the catalog needs new pins, and the
+    // pins a bump of the catalog
+    final String classPath = System.getProperty("java.class.path");
+    assertTrue(classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + ".jar"), classPath);
+    assertTrue(classPath.contains("jcefmaven-" + JcefNatives.JCEFMAVEN_VERSION + ".jar"), classPath);
   }
 }

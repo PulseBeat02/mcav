@@ -61,12 +61,12 @@ final class JcefNatives {
   /**
    * The version of jcefmaven the natives belong to.
    */
-  static final String JCEFMAVEN_VERSION = "146.0.10";
+  static final String JCEFMAVEN_VERSION = "152.0.6";
 
   /**
    * The release of JCEF, CEF and Chromium the natives were built from.
    */
-  static final String RELEASE_TAG = "jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179";
+  static final String RELEASE_TAG = "jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83";
 
   /**
    * The marker file of a complete installation, the one jcefmaven checks.
@@ -348,17 +348,17 @@ final class JcefNatives {
    */
   enum NativePlatform {
     /** Linux on x86-64. */
-    LINUX_AMD64("linux-amd64", OS.LINUX, Arch.X86, "b089370c3bf8f853183ec822817e1b58348d90d1236bb6a26e921f513449dac2", 147_903_463L),
+    LINUX_AMD64("linux-amd64", OS.LINUX, Arch.X86, "83f427992cd783fb6f3d499fdf275675187818aa7ca9c4a2a4d43af534a8bdfc", 152_141_475L),
     /** Linux on 64-bit ARM. */
-    LINUX_ARM64("linux-arm64", OS.LINUX, Arch.ARM, "ad9fa0818b43d9e11fb5622b76fd5af8eadbcd33f11ff1ba106d64c52ad63c09", 165_191_345L),
+    LINUX_ARM64("linux-arm64", OS.LINUX, Arch.ARM, "a653d2cbdac487663ac52957511c022a6c5dd7bf9c99f79c6d1d732ab4138a24", 167_953_639L),
     /** Windows on x86-64. */
-    WINDOWS_AMD64("windows-amd64", OS.WINDOWS, Arch.X86, "e9a2d4ef3c33b372c24655ee4cdaf9ef23fe2de5f7e57410576569977299c4b4", 162_120_546L),
+    WINDOWS_AMD64("windows-amd64", OS.WINDOWS, Arch.X86, "0dc2ce28766d267f551398e24af7a9bec244b888e651bd97a14ac2d128550875", 171_200_308L),
     /** Windows on 64-bit ARM; mcav's browser does not need JOGL, which jcefmaven lacks there. */
-    WINDOWS_ARM64("windows-arm64", OS.WINDOWS, Arch.ARM, "735b039c27fb9a79904938be6348fd0db6db9c395e79ded6a48dfb0e18e8ed22", 160_379_728L),
+    WINDOWS_ARM64("windows-arm64", OS.WINDOWS, Arch.ARM, "ec77b5798dfb53c4804b69eda5144d31e20e0e17b6291c98f7b4a66533ce6504", 168_690_639L),
     /** macOS on Intel. */
-    MACOS_AMD64("macosx-amd64", OS.MAC, Arch.X86, "4c05aae6c80841bf763a9d0dcdc3c3332af57abe0ab76091fb7bb9ef128e1bad", 145_034_271L),
+    MACOS_AMD64("macosx-amd64", OS.MAC, Arch.X86, "0a49f85ebc8f942fae81bc0120950ce83a629696352338f000856ee72580908a", 153_880_493L),
     /** macOS on Apple silicon. */
-    MACOS_ARM64("macosx-arm64", OS.MAC, Arch.ARM, "b9c8ad6809372db9b6597911b7d3f12f0f6b9b23ef1506261b5518f78332642b", 135_870_260L);
+    MACOS_ARM64("macosx-arm64", OS.MAC, Arch.ARM, "685b27b3dc7f6899a7d4a3a3d58978c95c36ebd1afd571c7027a66fe6f1252a0", 142_331_980L);
 
     private final String identifier;
     private final OS os;

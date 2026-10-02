@@ -330,7 +330,7 @@ final class CefEngine implements HelperEngine {
    * Describes the version of CEF and Chromium.
    *
    * @param version the version JCEF reports, or null if it reports none
-   * @return the description, such as {@code 146.0.10 (Chromium 146.0.7680.179)}
+   * @return the description, such as {@code 152.0.6 (Chromium 152.0.7977.83)}
    */
   static String describe(final CefApp.@Nullable CefVersion version) {
     if (version == null) {
