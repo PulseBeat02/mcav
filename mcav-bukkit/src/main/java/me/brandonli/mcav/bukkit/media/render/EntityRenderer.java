@@ -49,8 +49,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * cannot leave stray entities behind.
  *
  * <p>Because the entity is not saved, the server discards it when its chunk unloads, for example when every
- * player walked away. The renderer notices that on the next frame and spawns a new entity once the chunk is
- * loaded again, so the display comes back when the viewers return.
+ * player walked away. The renderer notices that on its next tick, or the next frame, and spawns a new entity with the
+ * last frame's text once the chunk is loaded again, so the display comes back when the viewers return, a still image
+ * included.
  *
  * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
  * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most
@@ -63,6 +64,8 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   private final Set<UUID> shownTo;
 
   private @Nullable TextDisplay entity;
+  // the text of the last frame, for a display that comes back after its chunk unloaded; read on the main thread only
+  private @Nullable Component lastText;
 
   /**
    * Constructs a new entity renderer. Nothing is spawned until {@link #show()} is called.
@@ -155,7 +158,12 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    */
   @Override
   protected void onTick() {
-    final TextDisplay display = this.entity;
+    final TextDisplay current = this.entity;
+    if (current == null) {
+      return;
+    }
+    // a still image sends no further frame that would bring the display back after its chunk unloaded
+    final TextDisplay display = current.isValid() ? current : this.respawnWithLastText();
     if (display == null) {
       return;
     }
@@ -218,9 +226,24 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
       return;
     }
 
+    setText(display, text);
+    this.lastText = text;
+  }
+
+  private static void setText(final TextDisplay display, final Component text) {
     final CraftTextDisplay craftDisplay = (CraftTextDisplay) display;
     final net.minecraft.world.entity.Display.TextDisplay handle = craftDisplay.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     handle.setText(text);
+  }
+
+  /** Spawns a new display in place of one that is gone, with the text the old one showed last. */
+  private @Nullable TextDisplay respawnWithLastText() {
+    final TextDisplay display = this.respawnEntity();
+    final Component text = this.lastText;
+    if (display != null && text != null) {
+      setText(display, text);
+    }
+    return display;
   }
 
   /**
@@ -258,5 +281,6 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
 
     display.remove();
     this.entity = null;
+    this.lastText = null;
   }
 }

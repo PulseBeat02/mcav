@@ -273,6 +273,36 @@ final class EntityRendererTest {
   }
 
   @Test
+  void aStillImageComesBackWithItsTextOnceItsChunkIsLoadedAgain() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Component text = Component.literal("still");
+    renderer.show();
+    renderer.apply(text);
+    final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
+    final World configuredWorld = this.world.getWorld();
+    // the chunk unloads with every viewer gone, and no frame follows: a still image
+    when(discarded.isValid()).thenReturn(false);
+    renderer.onTick();
+    assertEquals(1, this.world.getSpawnedDisplays().size(), "not while the chunk is unloaded");
+    when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(true);
+    renderer.onTick();
+    renderer.onTick();
+
+    final List<CraftTextDisplay> spawned = this.world.getSpawnedDisplays();
+    assertEquals(2, spawned.size(), "the display comes back once");
+    final CraftTextDisplay respawned = spawned.get(1);
+    final net.minecraft.world.entity.Display.TextDisplay handle = respawned.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
+    verify(handle).setText(text);
+    verify(this.viewer).showEntity(this.server.getPlugin(), respawned);
+    // once hidden, nothing comes back
+    renderer.hide();
+    when(respawned.isValid()).thenReturn(false);
+    renderer.onTick();
+    assertEquals(2, this.world.getSpawnedDisplays().size());
+  }
+
+  @Test
   void waitsForTheChunkToLoadBeforeRespawningTheDisplay() {
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
