@@ -26,6 +26,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Small network helpers: looking up the public address of this machine and checking whether a URL can be
@@ -50,6 +54,8 @@ public final class NetworkUtils {
   public static final URI DEFAULT_ADDRESS_SERVICE = URI.create("https://ipv4.icanhazip.com/");
 
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
+  // an address is a few dozen characters; an answer longer than this is none, and is not read to its end
+  private static final long MAX_ADDRESS_ANSWER_BYTES = 256;
   private static final int HTTP_OK = 200;
 
   private NetworkUtils() {
@@ -110,12 +116,23 @@ public final class NetworkUtils {
   public static Optional<String> lookUpPublicAddress(final URI addressService) {
     Preconditions.checkNotNull(addressService, "Address service must not be null");
     final HttpRequest request = createRequest(addressService, "GET");
-    final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
+    final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.limiting(
+      HttpResponse.BodyHandlers.ofString(),
+      MAX_ADDRESS_ANSWER_BYTES
+    );
 
     try (final HttpClient client = createClient(HttpClient.Redirect.NEVER)) {
-      final HttpResponse<String> response = client.send(request, bodyHandler);
-      return readAddress(response);
-    } catch (final IOException exception) {
+      // the request's own timeout ends with the response's headers, so a body that trickles in or never ends held the
+      // caller, the thread that writes the pack, far longer; this deadline covers the body too
+      final CompletableFuture<HttpResponse<String>> pending = client.sendAsync(request, bodyHandler);
+      try {
+        return readAddress(pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
+      } finally {
+        pending.cancel(true);
+        // closing the client waits for the requests it still runs, so the one cut short is ended first
+        client.shutdownNow();
+      }
+    } catch (final ExecutionException | TimeoutException exception) {
       return Optional.empty();
     } catch (final InterruptedException exception) {
       restoreInterruptFlag();

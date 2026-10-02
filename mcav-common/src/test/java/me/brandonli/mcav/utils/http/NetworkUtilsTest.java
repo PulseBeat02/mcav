@@ -20,6 +20,7 @@ package me.brandonli.mcav.utils.http;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.Headers;
@@ -32,6 +33,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -123,6 +125,23 @@ final class NetworkUtilsTest {
     assertTrue(errorAddressEmpty);
     assertTrue(invalidAddressEmpty);
     assertTrue(closedAddressEmpty);
+  }
+
+  @Test
+  void givesUpOnAnAnswerThatDoesNotEndWithinTheTimeout() {
+    // the headers and the start of the body arrive at once, the rest never: the request's timeout is long over
+    this.http.respondStalling("/ip", 200, "203.0".getBytes(StandardCharsets.US_ASCII), 11);
+    final URI service = this.http.uri("/ip");
+    final Optional<String> address = assertTimeoutPreemptively(Duration.ofSeconds(9), () -> NetworkUtils.lookUpPublicAddress(service));
+    assertTrue(address.isEmpty());
+  }
+
+  @Test
+  void readsNoAnswerLongerThanAnyAddress() {
+    final byte[] padded = (" ".repeat(300) + "203.0.113.7").getBytes(StandardCharsets.US_ASCII);
+    this.http.respond("/padded", 200, padded);
+    final Optional<String> address = NetworkUtils.lookUpPublicAddress(this.http.uri("/padded"));
+    assertTrue(address.isEmpty(), "an address is a few dozen characters");
   }
 
   @Test
