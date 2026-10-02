@@ -322,10 +322,11 @@ the captures run in clear weather.
 - **`Mcv2Configuration`** (builder, in the style of `MapConfiguration`): viewers, the wall's top-left block and
   facing, the first map id and size in blocks (at most 63 on a side), the video size (default 128 pixels per block),
   the first page map id (default 2,000,000,000, far from any world's maps) and the page slots (default
-  min(8, blocks), at most 8: 98 KB a frame), the stream id, the encoder settings, and the page frames' outline colour.
+  min(8, blocks), at most 8 and at most the wall's blocks: 98 KB a frame), the stream id, the encoder settings, and the
+  page frames' outline colour.
 - **`Mcv2Screen`** spawns the hidden, glowing, invulnerable, fixed item frames that hold the page maps (slot
-  (column + row) mod slots, so every slot is spread over the wall), shows them per player with the team packet, and
-  sends the anchor patches.
+  (row × columns + column) mod slots, in reading order, so the first maps of the wall carry every slot), shows them
+  per player with the team packet, and sends the anchor patches.
 - **`Mcv2Viewers`** follows each player's resource-pack status (`PlayerResourcePackStatusEvent`: requested, loaded,
   refused) and forgets players who quit.
 - **`Mcv2Channel`** shows the screen to a viewer whose pack loaded (on the main thread) before that viewer receives

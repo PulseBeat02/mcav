@@ -37,6 +37,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
@@ -73,6 +76,9 @@ final class Mcv2ScreenTest {
   private FakeServer server;
 
   private CraftPlayer player;
+
+  /** The page map behind each map of a 3x2 wall with two page slots, in reading order: the slots alternate. */
+  private static final int[] PAGES_OF_A_THREE_BY_TWO_WALL = { 500, 501, 500, 501, 500, 501 };
 
   private World world;
 
@@ -151,10 +157,7 @@ final class Mcv2ScreenTest {
       verify(frame).setInvulnerable(true);
       verify(frame).setFixed(true);
       verify(frame).setSilent(true);
-      final int column = index % 3;
-      final int row = index / 3;
-      final ItemStack expected = this.items.get(500 + Mcv2Screen.slot(column, row, 2));
-      verify(frame).setItem(expected, false);
+      verify(frame).setItem(this.items.get(PAGES_OF_A_THREE_BY_TWO_WALL[index]), false);
     }
     assertEquals(this.frames, screen.getFrames());
     assertThrows(IllegalStateException.class, screen::build);
@@ -191,9 +194,12 @@ final class Mcv2ScreenTest {
       verify(stacks.constructed().getFirst()).set(DataComponents.MAP_ID, new MapId(2_000_000_123));
     }
     this.statics = Mockito.mockStatic(Mcv2Screen.class, Mockito.CALLS_REAL_METHODS);
-    assertEquals(0, Mcv2Screen.slot(0, 0, 4));
-    assertEquals(3, Mcv2Screen.slot(1, 2, 4));
-    assertEquals(0, Mcv2Screen.slot(2, 2, 4));
+    // in reading order, on a wall of three columns with four slots
+    assertEquals(0, Mcv2Screen.slot(0, 0, 3, 4));
+    assertEquals(3, Mcv2Screen.slot(1, 2, 3, 4));
+    assertEquals(0, Mcv2Screen.slot(2, 2, 3, 4));
+    // the second row of a wall of two columns goes on with the third slot
+    assertEquals(2, Mcv2Screen.slot(0, 1, 2, 4));
   }
 
   @Test
@@ -304,5 +310,33 @@ final class Mcv2ScreenTest {
     final PlayerTeam team = screen.team();
     assertEquals(Optional.of(TeamColor.GOLD), team.getColor());
     assertEquals(Mcv2Screen.TEAM, team.getName());
+  }
+
+  @Test
+  void everyPageSlotHangsBehindSomeMapOfTheWall() {
+    final Map<String, Set<Integer>> missing = new TreeMap<>();
+    for (final int[] wall : new int[][] { { 1, 1 }, { 2, 1 }, { 1, 3 }, { 2, 2 }, { 3, 3 }, { 4, 3 }, { 5, 3 }, { 16, 9 } }) {
+      this.items.clear();
+      final Mcv2Configuration configuration = Mcv2Configuration.builder()
+        .viewers(List.of(VIEWER))
+        .origin(new Location(this.world, 10, 64, -4))
+        .facing(BlockFace.SOUTH)
+        .map(100)
+        .columns(wall[0])
+        .rows(wall[1])
+        .pageMap(500)
+        .build();
+      new Mcv2Screen(configuration).build();
+      final Set<Integer> absent = new TreeSet<>();
+      for (int slot = 0; slot < configuration.getPageSlots(); slot++) {
+        if (!this.items.containsKey(500 + slot)) {
+          absent.add(slot);
+        }
+      }
+      if (!absent.isEmpty()) {
+        missing.put(wall[0] + "x" + wall[1] + " with " + configuration.getPageSlots() + " slots", absent);
+      }
+    }
+    assertEquals(Map.of(), missing, "the page slots no map of the wall hangs in front of");
   }
 }

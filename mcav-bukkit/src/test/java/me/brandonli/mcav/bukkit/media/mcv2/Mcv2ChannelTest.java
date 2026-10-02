@@ -298,12 +298,13 @@ final class Mcv2ChannelTest {
 
   @Test
   void sendsEachPageToItsOwnMap() {
+    // a wall of two maps: a page frame hangs behind each, so it carries two page slots
     final Mcv2Configuration two = Mcv2Configuration.builder()
       .viewers(List.of(LOADED))
       .origin(new Location(mock(World.class), 0, 64, 0))
       .facing(BlockFace.SOUTH)
       .map(100)
-      .columns(1)
+      .columns(2)
       .rows(1)
       .pageMap(500)
       .pageSlots(2)

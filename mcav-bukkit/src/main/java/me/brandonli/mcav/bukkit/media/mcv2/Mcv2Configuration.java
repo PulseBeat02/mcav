@@ -273,8 +273,8 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Gets how many pages a frame may have; a frame with more is not sent. Defaults to four, or the number of maps of
-   * a smaller wall, because behind every map of the wall hangs one page's frame.
+   * Gets how many pages a frame may have; a frame with more is not sent. Defaults to {@value #MAX_PAGE_SLOTS}, or the
+   * number of maps of a smaller wall, because behind every map of the wall hangs one page's frame.
    *
    * @return the page slots
    */
@@ -569,9 +569,11 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets how many pages a frame may have.
+     * Sets how many pages a frame may have. Behind every map of the wall hangs one page's frame, so a wall carries at
+     * most as many slots as it has maps; {@link #build()} refuses more.
      *
-     * @param pageSlots 1 to {@link #MAX_PAGE_SLOTS}, or 0 for the default
+     * @param pageSlots 1 to {@link #MAX_PAGE_SLOTS} and at most the wall's maps, or 0 for the default:
+     *                  {@value #MAX_PAGE_SLOTS}, or the wall's maps when it has fewer
      * @return this builder
      */
     public Builder pageSlots(final int pageSlots) {
@@ -713,7 +715,15 @@ public final class Mcv2Configuration {
       );
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
-      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, this.columns * this.rows);
+      final int maps = this.columns * this.rows;
+      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, maps);
+      // a slot without a map to hang behind is never shown, so a frame that needs it can never be put together
+      Preconditions.checkArgument(
+        slots <= maps,
+        "A wall of %s maps cannot carry %s page slots: one page frame hangs behind each map",
+        maps,
+        slots
+      );
       final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
       final long lastPage = (long) this.pageMap + slots - 1;
       Preconditions.checkArgument(this.pageMap >= 0 && lastPage <= Integer.MAX_VALUE, "Page map ids must be non-negative ints");

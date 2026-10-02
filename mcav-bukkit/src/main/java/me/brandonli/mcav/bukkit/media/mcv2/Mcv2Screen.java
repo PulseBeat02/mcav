@@ -109,15 +109,17 @@ public final class Mcv2Screen {
   }
 
   /**
-   * The page slot behind a map of the wall.
+   * The page slot behind a map of the wall: the slots in reading order, so the first maps of the wall carry every slot
+   * once; counting the sum of column and row left slots out on walls with fewer columns and rows than slots.
    *
-   * @param column the map's column
-   * @param row    the map's row
-   * @param slots  the page slots
+   * @param column  the map's column
+   * @param row     the map's row
+   * @param columns the wall's columns
+   * @param slots   the page slots, at most the wall's maps
    * @return the slot
    */
-  static int slot(final int column, final int row, final int slots) {
-    return (column + row) % slots;
+  static int slot(final int column, final int row, final int columns, final int slots) {
+    return (row * columns + column) % slots;
   }
 
   /**
@@ -139,7 +141,8 @@ public final class Mcv2Screen {
         final Location behind = origin
           .clone()
           .add(right.getModX() * column + back.getModX() * 2, -row, right.getModZ() * column + back.getModZ() * 2);
-        final ItemStack page = pageItem(this.configuration.getPageMap() + slot(column, row, this.configuration.getPageSlots()));
+        final int slot = slot(column, row, this.configuration.getColumns(), this.configuration.getPageSlots());
+        final ItemStack page = pageItem(this.configuration.getPageMap() + slot);
         final HeldChunk chunk = new HeldChunk(world, behind.getBlockX() >> CHUNK_SHIFT, behind.getBlockZ() >> CHUNK_SHIFT);
         if (this.chunks.add(chunk)) {
           hold(chunk);

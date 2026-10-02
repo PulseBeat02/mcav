@@ -302,4 +302,13 @@ final class Mcv2ConfigurationTest {
     assertEquals(3, complete().pageSlots(4).pageMap(3).build().getPageMap());
     assertEquals(22, complete().pageMap(22).build().getPageMap());
   }
+
+  @Test
+  void refusesMorePageSlotsThanTheWallHasMaps() {
+    final Mcv2Configuration.Builder square = complete().columns(2).rows(2);
+    assertEquals(4, square.pageSlots(0).build().getPageSlots(), "the default of a wall of four maps");
+    assertEquals(4, square.pageSlots(4).build().getPageSlots());
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> square.pageSlots(5).build());
+    assertEquals("A wall of 4 maps cannot carry 5 page slots: one page frame hangs behind each map", refused.getMessage());
+  }
 }
