@@ -111,7 +111,10 @@ With `mcv2`:
   shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then fewer frames
   a second, then a smaller video, and at worst the dithered maps; whoever started it is told every step and why.
 - An MCV2 wall can be at most 63 maps on a side, and its resolution at most 4096 pixels on a side, against 64 maps and
-  8192 pixels for the dithered maps.
+  8192 pixels for the dithered maps. A larger one is refused with "MCV2 plays on walls of at most 63 by 63 maps, and
+  videos of at most 4096 by 4096 pixels." Commands that take `--codec mcv2` (video and image maps, and the browser,
+  virtual machine and VNC screens) then show the dithered maps; `/mcav video mcv2` and `/mcav mcv2 play` and `stream`
+  start nothing.
 - A wall that no item frame holds (build it with `/mcav screen` first, with the same size and map id) shows the dithered
   maps, and the command says so. The server only knows the item frames of loaded chunks, so start a screen while a
   player is near its wall; from then on the screen keeps the chunks of its page frames loaded until it is released, so

@@ -420,7 +420,7 @@ public final class Mcv2Encoder {
    * <p>This is a search target, not a hard output cap: the last retry can still exceed it. Callers must check
    * the returned frame length and arrange a later keyframe if a frame is discarded.
    *
-   * @param bytes the most bytes of a frame, or 0 for any number
+   * @param bytes the size a frame is searched to stay within, in bytes, or 0 for any size
    * @throws IllegalArgumentException if the bound is negative
    */
   public void setFrameLimit(final int bytes) {

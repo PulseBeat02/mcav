@@ -436,11 +436,11 @@ public final class MatImageBuffer implements ImageBuffer {
    * Makes a result the matrix of this image and keeps the previous matrix as the spare, unless the result shares its
    * pixel memory, in which case writing into the spare would overwrite the image.
    *
-   * <p>Sharing is recognised by the address the pixels start at, which an operation that returns its source, or a
-   * matrix wrapping the same data, compares equal on. A view into the middle of the previous matrix, such as a region
-   * of interest, starts at another address and would be kept as the spare although it points into the image, so
-   * {@link #transformMat(BiConsumer)} requires an operation that writes a matrix of its own or returns the source
-   * unchanged. No filter of the library produces such a view.
+   * <p>Sharing is recognised by {@code datastart()}, the address of the allocation the pixels belong to: an operation
+   * that returns its source, a matrix wrapping the same data, and an OpenCV region of interest of the previous matrix,
+   * whose first pixel lies elsewhere in that allocation, all compare equal on it. A matrix wrapped around a pointer into
+   * the middle of the pixels has an allocation of its own and is not recognised, so {@link #transformMat(BiConsumer)}
+   * still requires an operation that writes a matrix of its own or returns the source unchanged.
    */
   private void exchange(final Mat result) {
     final Mat previous = this.mat;

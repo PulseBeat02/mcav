@@ -213,8 +213,9 @@ public final class ImageMapCommand extends AbstractImageCommand {
   }
 
   /**
-   * Creates an MCV2 image in a slot of the pack, or null, which the sender is told, when no item frame holds the wall's
-   * top-left map or every slot plays a screen. Called on the main thread.
+   * Creates an MCV2 image in a slot of the pack, or null, which the sender is told, when the wall or the picture is larger
+   * than MCV2 plays, no item frame holds the wall's top-left map, or every slot plays a screen. Called on the main
+   * thread.
    */
   private @Nullable DisplayableImage createMcv2Image(final Mcv2ImageSettings settings) {
     final Mcv2Support support = this.plugin.getMcv2Support();
