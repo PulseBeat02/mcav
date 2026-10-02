@@ -24,8 +24,9 @@ pitest {
     outputFormats = setOf("HTML", "XML")
     timestampedReports = false
     // the mutated code runs with the JVM options of the module's tests, a module's own included, such as the opened
-    // java.net package of mcav-installer
-    jvmArgs = tasks.named<Test>("test").map { it.jvmArgs.orEmpty() }
+    // java.net package of mcav-installer; read through a plain provider, since a provider mapped from the task would
+    // make pitest run the whole unit suite and its coverage report first
+    jvmArgs = provider { tasks.getByName<Test>("test").jvmArgs.orEmpty() }
     val testJavaHome = providers.gradleProperty("mcav.testJavaHome")
     if (testJavaHome.isPresent) {
         jvmPath = file(javaExecutable(testJavaHome.get()))
