@@ -95,7 +95,8 @@ public final class Mcv2Decoder {
 
   /**
    * Decodes a validated frame into a picture the caller may reuse from frame to frame, when it has the frame's size;
-   * a valid frame's leaves cover every pixel, so nothing of the picture before is left.
+   * a valid frame's leaves cover every pixel, so nothing of the picture before is left. The picture may be the
+   * reference itself, which a P frame then reads from a copy.
    *
    * @param frame       the frame
    * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
@@ -124,7 +125,9 @@ public final class Mcv2Decoder {
       if (reference == null || referenceId != frame.getReferenceId() || reference.length != width * height * CHANNELS) {
         throw new Mcv2Exception("Reference frame mismatch");
       }
-      referencePicture = reference;
+      // a caller may decode into the picture it passes as the reference, but the leaves read the reference's pixels
+      // after other leaves wrote theirs, so the reference is read from a copy then
+      referencePicture = isSamePicture(reference, into) ? reference.clone() : reference;
     }
     final byte[] output = into != null && into.length == width * height * CHANNELS ? into : new byte[width * height * CHANNELS];
     final int[] leaves = frame.leafArray();
@@ -288,5 +291,11 @@ public final class Mcv2Decoder {
         }
       }
     }
+  }
+
+  /** Whether the picture decoded into is the reference itself: identity is the point, as only then is a copy needed. */
+  @SuppressWarnings("ReferenceEquality")
+  private static boolean isSamePicture(final byte[] reference, final byte @Nullable [] into) {
+    return reference == into;
   }
 }

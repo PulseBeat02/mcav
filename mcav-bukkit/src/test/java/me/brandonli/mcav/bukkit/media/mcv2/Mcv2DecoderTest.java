@@ -98,6 +98,29 @@ final class Mcv2DecoderTest {
     }
   }
 
+  @Test
+  void decodesAPFrameIntoThePictureItIsPredictedFrom() throws Mcv2Exception {
+    final String stream = Mcv2Fixtures.digests("conformance").keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
+    final ForkJoinPool pool = new ForkJoinPool(4);
+    try {
+      for (final Workers workers : List.of(Workers.SEQUENTIAL, new Workers(pool, 4))) {
+        byte[] reference = null;
+        byte[] reused = null;
+        for (int index = 0; index < frames.size(); index++) {
+          final Mcv2Frame frame = FrameParser.parse(frames.get(index));
+          final byte[] fresh = Mcv2Decoder.decode(frame, reference, frame.getReferenceId(), workers);
+          // one picture from frame to frame: the reference of each P frame is the picture it is decoded into
+          reused = Mcv2Decoder.decode(frame, reused, frame.getReferenceId(), workers, reused);
+          assertArrayEquals(fresh, reused, "frame " + index + " of " + stream);
+          reference = fresh;
+        }
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
   /**
    * A frame the parser would refuse, built directly: 300 compact leaves on a 2400x8 keyframe, where leaf 1 has an
    * invalid control byte and leaf 290, in another group of leaves, is truncated. Whichever group a worker finishes
