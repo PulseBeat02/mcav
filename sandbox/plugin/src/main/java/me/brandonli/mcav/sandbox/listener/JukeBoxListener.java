@@ -32,6 +32,7 @@ import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
@@ -93,6 +94,11 @@ public final class JukeBoxListener implements Listener {
   @EventHandler
   public void onJukeboxInteract(final PlayerInteractEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null");
+    // a use of the jukebox that another plugin denied, such as a region's protection, starts nothing with the player's
+    // permissions
+    if (event.useInteractedBlock() == Event.Result.DENY) {
+      return;
+    }
     final ItemStack item = event.getItem();
     if (item == null || !isDiscOnJukebox(event, item)) {
       return;

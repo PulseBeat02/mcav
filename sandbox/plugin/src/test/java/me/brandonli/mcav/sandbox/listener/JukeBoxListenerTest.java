@@ -35,6 +35,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -146,6 +147,15 @@ final class JukeBoxListenerTest {
     verify(this.player).performCommand(
       "mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"" + absolute + "\" -m 2048M"
     );
+  }
+
+  @Test
+  void leavesAUseOfTheJukeboxThatAnotherPluginDeniedAlone() throws IOException {
+    this.createImage("alpine.iso");
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    // a region's protection, for example, denies the player the jukebox
+    when(event.useInteractedBlock()).thenReturn(Event.Result.DENY);
+    this.assertIgnored(event);
   }
 
   @Test
