@@ -20,6 +20,7 @@ package me.brandonli.mcav.sandbox;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,11 @@ import io.papermc.paper.plugin.loader.library.ClassPathLibrary;
 import io.papermc.paper.plugin.loader.library.LibraryStore;
 import io.papermc.paper.plugin.loader.library.impl.JarLibrary;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -39,6 +45,8 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -89,7 +97,7 @@ final class MCAVLoaderTest {
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readDefault(any(ClassLoader.class))).thenReturn(set);
-      final MCAVLoader loader = new MCAVLoader(this.cache);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
     final ArgumentCaptor<ClassPathLibrary> captor = ArgumentCaptor.forClass(ClassPathLibrary.class);
@@ -129,7 +137,7 @@ final class MCAVLoaderTest {
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readDefault(any(ClassLoader.class))).thenReturn(set);
-      final MCAVLoader loader = new MCAVLoader(this.cache);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
 
@@ -147,9 +155,102 @@ final class MCAVLoaderTest {
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readDefault(any(ClassLoader.class))).thenReturn(set);
-      final MCAVLoader loader = new MCAVLoader(this.cache);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
     verify(builder, never()).addLibrary(any());
+  }
+
+  /** A jar holding class files of the given internal names, with no content. */
+  private Path jarOf(final String name, final String... classes) throws IOException {
+    final Path jar = this.cache.resolve(name);
+    try (final OutputStream file = Files.newOutputStream(jar); final JarOutputStream entries = new JarOutputStream(file)) {
+      for (final String internalName : classes) {
+        entries.putNextEntry(new ZipEntry(internalName + ".class"));
+        entries.closeEntry();
+      }
+    }
+    return jar;
+  }
+
+  @Test
+  void refusesModulesOlderThanThePlugin() throws IOException {
+    final Path old = this.jarOf("mcav-bukkit-1.0.0-20260510.193149-206.jar", "me/brandonli/mcav/bukkit/BukkitModule");
+    final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
+    final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> MCAVLoader.checkModules(required, List.of(old)));
+    assertEquals(
+      "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as " +
+        "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or build the plugin " +
+        "with -Pmcav.e2e=true",
+      refused.getMessage()
+    );
+  }
+
+  @Test
+  void acceptsModulesThatHaveEveryClassThePluginUses() throws IOException {
+    final Path bukkit = this.jarOf("mcav-bukkit.jar", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
+    final Path common = this.jarOf("mcav-common.jar", "me/brandonli/mcav/MCAV");
+    MCAVLoader.checkModules(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"), List.of(bukkit, common));
+    assertThrows(UncheckedIOException.class, () -> MCAVLoader.checkModules(List.of(), List.of(this.cache.resolve("missing.jar"))));
+  }
+
+  @Test
+  void namesAtMostFiveOfTheMissingClasses() throws IOException {
+    final Path empty = this.jarOf("empty.jar");
+    final List<String> required = List.of("a/A", "b/B", "c/C", "d/D", "e/E", "f/F");
+    final IllegalStateException refused = assertThrows(IllegalStateException.class, () ->
+      MCAVLoader.checkModules(required, List.of(empty))
+    );
+    assertTrue(refused.getMessage().contains("(6), such as a.A, b.B, c.C, d.D, e.E. "), refused.getMessage());
+  }
+
+  @Test
+  void checksTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException, NoSuchAlgorithmException {
+    final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
+    Files.createDirectories(jar.getParent());
+    final byte[] content = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    Files.write(jar, content);
+    final Dependency dependency = Dependency.parse("com.example:library:1.0@jar", sha256(content));
+    final DependencySet set = dependencies(List.of(dependency));
+    final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
+    try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
+      sets.when(() -> DependencySet.readDefault(any(ClassLoader.class))).thenReturn(set);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of("me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"));
+      assertThrows(IllegalStateException.class, () -> loader.classloader(builder));
+    }
+    verify(builder, never()).addLibrary(any());
+  }
+
+  @Test
+  void readsTheModuleClassesTheBuildListed() {
+    final List<String> required = MCAVLoader.readRequiredClasses(MCAVLoaderTest.class.getClassLoader());
+    assertTrue(required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"), "the plugin starts MCV2 screens");
+    assertTrue(required.contains("me/brandonli/mcav/MCAV"));
+    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/sandbox/")), "the plugin's own classes");
+    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/svc/")), "a module shaded into the plugin");
+  }
+
+  @Test
+  void readsNoModuleClassesFromAPluginBuiltWithoutTheList() throws IOException {
+    try (final URLClassLoader withoutTheList = new URLClassLoader(new URL[0], null)) {
+      assertEquals(List.of(), MCAVLoader.readRequiredClasses(withoutTheList));
+    }
+    final ClassLoader unreadable = new ClassLoader(null) {
+      @Override
+      public InputStream getResourceAsStream(final String name) {
+        return new InputStream() {
+          @Override
+          public int read() throws IOException {
+            throw new IOException("the jar was replaced while the server started");
+          }
+
+          @Override
+          public int read(final byte[] buffer, final int offset, final int length) throws IOException {
+            throw new IOException("the jar was replaced while the server started");
+          }
+        };
+      }
+    };
+    assertThrows(UncheckedIOException.class, () -> MCAVLoader.readRequiredClasses(unreadable));
   }
 }

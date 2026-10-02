@@ -6,10 +6,12 @@
 // first and served on a loopback port while the end-to-end test runs.
 
 import java.net.ServerSocket
+import me.brandonli.mcav.gradle.RequiredModuleClassesTask
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
 import me.brandonli.mcav.gradle.versionOf
 import org.gradle.api.artifacts.component.ModuleComponentSelector
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import xyz.jpenilla.gremlin.gradle.WriteDependencySet
 import xyz.jpenilla.runtask.task.AbstractRun
 
@@ -55,6 +57,30 @@ configurations.matching { it.name.endsWith("Classpath") }.configureEach {
 
 tasks.assemble {
     dependsOn(tasks.shadowJar)
+}
+
+// the classes of the downloaded modules the plugin's code uses, which its loader checks the downloaded modules against,
+// so a server that downloads modules published before the plugin's code refuses to start it with a message instead of
+// failing on the first class they lack
+val requiredModuleClasses = tasks.register<RequiredModuleClassesTask>("requiredModuleClasses") {
+    description = "Lists the classes of the downloaded modules that the plugin uses, for its loader to check them"
+    val downloaded = configurations.runtimeDownload.get().dependencies
+        .filter { it.group == "me.brandonli" && rootProject.findProject(":${it.name}") != null }
+        .map { ":${it.name}" }
+        .toSet()
+    pluginClasses.from(sourceSets.main.map { it.output.classesDirs })
+    modules.from(
+        configurations.compileClasspath.map { classpath ->
+            classpath.incoming.artifactView {
+                componentFilter { it is ProjectComponentIdentifier && it.projectPath in downloaded }
+            }.files
+        }
+    )
+    output = layout.buildDirectory.dir("generated/resources/required-classes")
+}
+
+sourceSets.main {
+    resources.srcDir(requiredModuleClasses)
 }
 
 paperPluginYaml {
