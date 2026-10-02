@@ -1721,6 +1721,15 @@ final class VNCPlayerImplTest {
   }
 
   @Test
+  void rejectsNonPositiveHandshakeTimeouts() {
+    final IllegalArgumentException zero = assertThrows(IllegalArgumentException.class, () ->
+      new VNCPlayerImpl(VernacularClient::new, Socket::new, 1, 0)
+    );
+    assertEquals("Handshake timeout must be positive", zero.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> new VNCPlayerImpl(VernacularClient::new, Socket::new, 1, -1));
+  }
+
+  @Test
   void releasesFromARenderCallbackWithoutWaitingForItself() throws Exception {
     this.assertControlFromRenderCallback(false);
   }
