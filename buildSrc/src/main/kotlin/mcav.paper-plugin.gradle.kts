@@ -59,6 +59,13 @@ tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
 
+// the plugin jar bundles third-party code too, which the notices name
+tasks.shadowJar {
+    from(rootProject.file("THIRD-PARTY-NOTICES.md")) {
+        into("META-INF")
+    }
+}
+
 // the classes of the downloaded modules the plugin's code uses, which its loader checks the downloaded modules against,
 // so a server that downloads modules published before the plugin's code refuses to start it with a message instead of
 // failing on the first class they lack

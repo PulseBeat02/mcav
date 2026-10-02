@@ -55,6 +55,7 @@ val buildWebsite = tasks.register<Exec>("buildWebsite") {
     inputs.dir("mcav-website/public")
     inputs.file("mcav-website/package.json")
     inputs.file("mcav-website/next.config.ts")
+    inputs.file("mcav-website/third-party-notices.mjs")
     inputs.file("mcav-website/package-lock.json")
     inputs.file("mcav-website/tsconfig.json")
     inputs.file("mcav-website/postcss.config.mjs")
@@ -72,4 +73,10 @@ tasks.named<Jar>("sourcesJar") {
     from(buildWebsite) {
         into("static")
     }
+}
+
+// the notice tests read the jar the build made, with the website and its npm notices in it
+tasks.test {
+    dependsOn(tasks.jar)
+    jvmArgs("-Dmcav.http.jar=" + layout.buildDirectory.file("libs/mcav-http.jar").get().asFile.absolutePath)
 }

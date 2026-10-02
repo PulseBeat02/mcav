@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && node third-party-notices.mjs out/THIRD-PARTY-NOTICES.txt",
     "start": "next start",
     "lint": "eslint src"
   },

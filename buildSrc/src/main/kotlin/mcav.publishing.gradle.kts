@@ -22,6 +22,14 @@ tasks.withType<Javadoc>().configureEach {
     options.encoding = "UTF-8"
 }
 
+// every published jar names the third-party code mcav's jars bundle and what mcav downloads while it runs
+val thirdPartyNotices = rootProject.file("THIRD-PARTY-NOTICES.md")
+tasks.withType<Jar>().matching { it.name == "jar" || it.name == "shadowJar" }.configureEach {
+    from(thirdPartyNotices) {
+        into("META-INF")
+    }
+}
+
 tasks.withType<GenerateModuleMetadata>().configureEach {
     enabled = settings.gradleModuleMetadata.get()
 }

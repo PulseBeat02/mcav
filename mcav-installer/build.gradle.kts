@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+
 plugins {
     id("mcav.module")
     id("mcav.publishing")
@@ -17,6 +19,15 @@ mcavPublishing {
 tasks.shadowJar {
     archiveClassifier = ""
     mergeServiceFiles()
+    // Apache-2.0 asks a redistribution to keep the NOTICE of every bundled component; a plain merge keeps only the first,
+    // and the transformer sees only the duplicates the jar's duplicates strategy lets through
+    filesMatching(listOf("META-INF/NOTICE", "META-INF/NOTICE.txt", "META-INF/NOTICE.md")) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    transform(ApacheNoticeResourceTransformer::class.java)
+    // Gradle does not count the duplicates strategy of a filesMatching among the task's inputs, so a jar built without it
+    // could come from the build cache
+    inputs.property("noticeDuplicates", DuplicatesStrategy.INCLUDE.name)
     listOf("com.ctc", "jakarta.inject", "org.apache", "org.codehaus", "org.eclipse", "org.slf4j").forEach { prefix ->
         relocate(prefix, "me.brandonli.mcav.libs.$prefix")
     }
@@ -26,7 +37,10 @@ tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
 
-// the reflective injector needs java.net opened, as the error message of the injector tells users to do
+// the reflective injector needs java.net opened, as the error message of the injector tells users to do; the notice
+// tests read the jar the build made
 tasks.test {
     jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
+    dependsOn(tasks.shadowJar)
+    jvmArgs("-Dmcav.installer.jar=" + layout.buildDirectory.file("libs/mcav-installer.jar").get().asFile.absolutePath)
 }
