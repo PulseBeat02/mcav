@@ -330,7 +330,18 @@ class ContentPolicyTest {
       "https://x.invalid/"
     );
     this.policy.onLoadingStateChange(this.browser, false, true, false);
-    assertEquals(List.of("loading: true", "load error: -105 no such host https://x.invalid/", "loading: false"), this.events.log);
+    assertEquals(
+      List.of("loading: true", "page start", "load error: -105 no such host https://x.invalid/", "loading: false"),
+      this.events.log
+    );
+  }
+
+  @Test
+  void onlyANewPageInTheMainFrameStartsAPage() {
+    this.policy.onLoadStart(this.browser, frame(false), CefRequest.TransitionType.TT_AUTO_SUBFRAME);
+    assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
+    this.policy.onLoadStart(this.browser, frame(true), CefRequest.TransitionType.TT_LINK);
+    assertEquals(List.of("page start"), this.events.log);
   }
 
   /**
@@ -343,6 +354,11 @@ class ContentPolicyTest {
     @Override
     public void onReady(final String engineVersion) {
       this.log.add("ready: " + engineVersion);
+    }
+
+    @Override
+    public void onPageStart() {
+      this.log.add("page start");
     }
 
     @Override

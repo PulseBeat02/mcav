@@ -122,6 +122,25 @@ class BrowserHelperTest {
     assertEquals(message, played.size(), "with autoplay the sound passes at once");
   }
 
+  @Test
+  void aNewPageWaitsForItsOwnPressBeforeItsSoundReachesTheServer() {
+    final byte[] chunk = new byte[HelperProtocol.AUDIO_FRAME_BYTES];
+    final int message = 1 + 4 + chunk.length;
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final ByteArrayOutputStream sent = new ByteArrayOutputStream();
+    final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(sent));
+    helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
+    reporter.onAudio(chunk);
+    assertEquals(message, sent.size(), "a press lets the sound of the page pass");
+    // the page moves on, by a link or by itself, to a page nobody touched
+    reporter.onPageStart();
+    reporter.onAudio(chunk);
+    assertEquals(message, sent.size(), "the new page plays nothing before a press on it");
+    helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, "Enter"));
+    reporter.onAudio(chunk);
+    assertEquals(2 * message, sent.size());
+  }
+
   private static SocketChannel connectTo(final Path socket) throws IOException {
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(socket));

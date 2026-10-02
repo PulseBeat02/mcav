@@ -217,6 +217,9 @@ final class ScriptedEngine implements HelperEngine {
     public void onReady(final String engineVersion) {}
 
     @Override
+    public void onPageStart() {}
+
+    @Override
     public void onLoading(final boolean loading) {}
 
     @Override

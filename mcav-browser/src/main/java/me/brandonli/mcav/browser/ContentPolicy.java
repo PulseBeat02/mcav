@@ -411,11 +411,15 @@ final class ContentPolicy
   }
 
   /**
-   * Does nothing; the load state is reported by {@link #onLoadingStateChange}.
+   * Reports that a new page starts to load in the main frame, so its sound waits for a press on it. The load state is
+   * reported by {@link #onLoadingStateChange}; a frame inside the page, and a navigation within the same document,
+   * start no new page.
    */
   @Override
   public void onLoadStart(final CefBrowser browser, final CefFrame frame, final CefRequest.TransitionType transitionType) {
-    // reported by onLoadingStateChange
+    if (frame.isMain()) {
+      this.events.onPageStart();
+    }
   }
 
   /**

@@ -135,7 +135,7 @@ a page can do instead:
 
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
-  second, and passes none of it on before the first press of a mouse button or a key on the browser, unless
+  second, and passes none of it on before a press of a mouse button or a key on the page that plays it, unless
   `autoplay(true)` was set. A page written to call the binding itself gains nothing else.
 - On Linux, the helper's null display listens on the loopback interface only and serves only clients that present
   the random cookie of that helper; a client has ten seconds to do so, and clients without the cookie can never take
@@ -157,9 +157,9 @@ scripts does it: every Web Audio context of a document is one context at 48 kHz,
 at their own volume, and its samples go to the helper. A page that asks for another sample rate therefore gets
 48 kHz, and a page that closes a context closes it for all of its parts, which get a new one when they make one. Nothing plays on the speakers of the machine. As in a desktop
 browser, a page may play sound only once someone clicked or typed into it, such as with `sendMouseEvent`; the helper
-holds the sound back until the first press of a mouse button or a key on the browser as well, so the first page still
-plays nothing before anyone touched it even if it works around Chromium's rule. The helper does not hold the sound back
-again when the browser moves on to another page; there only Chromium's rule applies. `BrowserOptions.builder().autoplay(true)` lets pages play
+holds the sound of every page back until a press of a mouse button or a key on that page as well, so a page plays
+nothing before anyone touched it even if it works around Chromium's rule; a press on one page does not count for the
+next page the browser loads, by a link or by itself. `BrowserOptions.builder().autoplay(true)` lets pages play
 sound right away. The sound of one frame of the page plays at
 a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site
 that does not allow it (CORS), and of protected media (DRM) stays silent. The sound reaches the pipeline within a few

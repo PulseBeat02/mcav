@@ -78,7 +78,8 @@ public final class BrowserHelper {
   private final AtomicReference<String> stopReason;
   // the mouse buttons the page sees held; only the thread that reads the commands of the server touches them
   private int heldButtons;
-  // whether a player pressed a mouse button or a key on the page, after which its sound may reach the server
+  // whether a player pressed a mouse button or a key on the page shown now, after which its sound may reach the server;
+  // a new page starts without, as a document does in Chromium
   private volatile boolean activated;
 
   /**
@@ -419,6 +420,11 @@ public final class BrowserHelper {
     }
 
     @Override
+    public void onPageStart() {
+      BrowserHelper.this.activated = false;
+    }
+
+    @Override
     public void onLoading(final boolean loading) {
       this.send(out -> HelperProtocol.writeLoading(out, loading));
     }
@@ -434,8 +440,8 @@ public final class BrowserHelper {
     }
 
     /**
-     * Passes the sound of the page on, once a player pressed a mouse button or a key on it, or at once if the options
-     * let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that gets
+     * Passes the sound of the page on, once a player pressed a mouse button or a key on this page, or at once if the
+     * options let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that gets
      * around Chromium's rule, or around the capture script, from playing to the server before anyone touched it.
      */
     @Override

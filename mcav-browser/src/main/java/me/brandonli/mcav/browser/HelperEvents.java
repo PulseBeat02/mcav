@@ -29,6 +29,12 @@ interface HelperEvents {
   void onReady(String engineVersion);
 
   /**
+   * The browser started to load a new page in its main frame. Its sound waits for the next press of a mouse button or a
+   * key, as a press on the page before does not count for it.
+   */
+  void onPageStart();
+
+  /**
    * The page started or stopped loading.
    *
    * @param loading true while the page loads
