@@ -19,6 +19,7 @@ package me.brandonli.mcav.utils.http;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +33,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -79,6 +81,7 @@ final class IdleTimeoutInputStreamTest {
       final boolean namesTheTimeout = message.contains("100 ms");
       assertTrue(namesTheTimeout, message);
       assertTrue(closed, "the stalled source is closed, which releases its connection");
+      assertInstanceOf(TimeoutException.class, exception.getCause(), "the timeout it came from is kept");
     }
   }
 
@@ -112,9 +115,10 @@ final class IdleTimeoutInputStreamTest {
     try (final IdleTimeoutInputStream stream = new IdleTimeoutInputStream(source, GENEROUS_TIMEOUT)) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      assertThrows(InterruptedIOException.class, stream::read);
+      final InterruptedIOException thrown = assertThrows(InterruptedIOException.class, stream::read);
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted, "the interrupt must be restored");
+      assertInstanceOf(InterruptedException.class, thrown.getCause(), "the interrupt it came from is kept");
     }
   }
 
