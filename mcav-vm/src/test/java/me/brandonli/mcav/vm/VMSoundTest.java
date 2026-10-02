@@ -228,35 +228,22 @@ final class VMSoundTest {
     } finally {
       player.release();
     }
-    final List<Long> soundOnsets = onsets(sound);
-    final List<Long> pictureOnsets = onsets(picture);
-    final List<Double> offsets = new ArrayList<>();
-    for (final long shown : pictureOnsets) {
-      long nearest = Long.MAX_VALUE;
-      for (final long heard : soundOnsets) {
-        if (Math.abs(heard - shown) < Math.abs(nearest)) {
-          nearest = heard - shown;
-        }
-      }
-      if (Math.abs(nearest) < TimeUnit.MILLISECONDS.toNanos(150)) {
-        offsets.add(nearest / 1e6);
-      }
-    }
-    assertTrue(offsets.size() >= 10, "matched " + offsets.size() + " of " + pictureOnsets.size() + " changes of the picture");
+    // toggle.asm turns on at least 6 timer ticks (330 ms) apart, so the sound within half of that belongs to a turn
+    final long matchWindow = TimeUnit.MILLISECONDS.toNanos(165);
+    final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
+    final List<Double> offsets = judgement.offsets();
+    final int changes = judgement.changes();
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
-    final long within = offsets
-      .stream()
-      .filter(offset -> offset >= -40 && offset <= 80)
-      .count();
     final int half = offsets.size() / 2;
     final double firstHalf = median(offsets.subList(0, half));
     final double secondHalf = median(offsets.subList(half, offsets.size()));
+    final long within = judgement.within(-40, 80);
     System.out.printf(
       Locale.ROOT,
       "A/V sync: %d changes matched of %d, sound minus picture: median %.1f ms, p5 %.1f ms, p95 %.1f ms, %d within [-40, +80] ms; first half %.1f ms, second half %.1f ms%n",
       offsets.size(),
-      pictureOnsets.size(),
+      changes,
       median(sorted),
       sorted.get(sorted.size() / 20),
       sorted.get((sorted.size() * 19) / 20),
@@ -265,16 +252,72 @@ final class VMSoundTest {
       secondHalf
     );
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
-    final long acceptable = offsets
-      .stream()
-      .filter(offset -> offset >= -90 && offset <= 185)
-      .count();
-    System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, offsets.size());
+    final long acceptable = judgement.within(-90, 185);
+    System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
+    // every change of the picture counts: one without sound near it is a change out of sync
+    assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
     // the picture reaches the pipeline late now and then, when QEMU refreshes its VNC display late or the host is busy;
     // the sound is held so that the two arrive together in the middle, and they must not drift apart
     assertTrue(Math.abs(median(sorted)) <= 40, "the sound and the picture arrive together in the middle");
-    assertTrue(acceptable >= Math.ceil(offsets.size() * 0.9), acceptable + " of " + offsets.size() + " changes are in sync");
+    assertTrue(acceptable >= Math.ceil(changes * 0.9), acceptable + " of " + changes + " changes are in sync");
     assertTrue(Math.abs(secondHalf - firstHalf) < 25, "the sound does not drift from the picture");
+  }
+
+  /**
+   * What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
+   * the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
+   * change without one counts against every rate: leaving those out before the rates were taken let a stream out of sync
+   * for most of its changes pass on the few that matched (deep review DR-016).
+   *
+   * @param changes the changes of the picture
+   * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
+   */
+  record SyncJudgement(int changes, List<Double> offsets) {
+    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanos) {
+      final List<Double> offsets = new ArrayList<>();
+      for (final long shown : pictureOnsets) {
+        long nearest = Long.MAX_VALUE;
+        for (final long heard : soundOnsets) {
+          if (Math.abs(heard - shown) < Math.abs(nearest)) {
+            nearest = heard - shown;
+          }
+        }
+        if (Math.abs(nearest) <= windowNanos) {
+          offsets.add(nearest / 1e6);
+        }
+      }
+      return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
+    }
+
+    /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */
+    long within(final double low, final double high) {
+      return this.offsets
+        .stream()
+        .filter(offset -> offset >= low && offset <= high)
+        .count();
+    }
+  }
+
+  @Test
+  void theSyncOracleCountsAChangeWithoutItsSoundAsOutOfSync() {
+    // 50 changes of the picture, 800 ms apart; the sound of 10 of them 20 ms late, of the other 40 300 ms late
+    final List<Long> picture = new ArrayList<>();
+    final List<Long> sound = new ArrayList<>();
+    for (int change = 0; change < 50; change++) {
+      final long shown = TimeUnit.MILLISECONDS.toNanos(800L * change);
+      picture.add(shown);
+      sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? 20 : 300));
+    }
+    final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(165));
+    assertEquals(50, late.changes());
+    assertTrue(late.within(-90, 185) < Math.ceil(late.changes() * 0.9), "40 of 50 changes 300 ms late are not in sync");
+    // and the same changes with their sound 20 ms late are
+    final List<Long> onTime = picture
+      .stream()
+      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
+      .toList();
+    final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(165));
+    assertEquals(50, inSync.within(-40, 80));
   }
 
   private static double median(final List<Double> values) {
