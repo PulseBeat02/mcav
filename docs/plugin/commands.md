@@ -100,10 +100,12 @@ With `mcv2`:
   optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
   online. Until a player's client has loaded it, that player sees the dithered maps.
 - Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
-  a video size it does not decode yet starts; screens of the sizes it has start and stop without anyone reloading. It
-  decodes up to eight sizes; when eight screens play at once, the next one shows dithered maps and says so.
+  a video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the
+  pack itself, once no screen plays); a new screen of the same size within that minute reloads nothing. It decodes up
+  to eight sizes; when eight screens play at once, the next one shows dithered maps and says so.
 - A wall shown to `@a` keeps following the players online: a player who joins while it plays is offered the pack and
-  watches too. Any other selector means the players it matches when the command runs, who are offered the pack again
+  watches too. Only players who can see the wall are sent its MCV2 stream: one farther away than their view distance,
+  or in another world, is sent nothing until they come back. Any other selector means the players it matches when the command runs, who are offered the pack again
   when they join or change world.
 - The picture is encoded as it arrives, with the default live preset `live`, on the encoder threads every MCV2 screen
   shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then fewer frames

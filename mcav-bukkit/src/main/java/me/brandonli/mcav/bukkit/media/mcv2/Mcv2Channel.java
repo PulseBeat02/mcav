@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,7 +35,12 @@ import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Delivers encoded MCV2 frames to the viewers of a screen who can decode them.
@@ -51,8 +57,22 @@ import org.bukkit.entity.Player;
  * the caller-owned pack tracker. Open and close on the main thread; stop frame delivery before closing. Serialize
  * update, send and keyframe-request consumption. A successful send records a delivery attempt, not a client decode
  * acknowledgment, and can succeed when no viewers are currently eligible.
+ *
+ * <p>While the channel is open, a viewer farther from the wall than their view distance, or in another world, receives
+ * nothing: no frames, and no dithered maps either, as their client cannot see the wall. Coming back, the viewer is
+ * shown the screen again and starts on a keyframe. The distances are measured on the main thread once a second; a
+ * viewer who is near goes out of range only {@value #RANGE_MARGIN} blocks farther, so one at the edge does not come
+ * and go.
  */
 public final class Mcv2Channel {
+
+  /** The blocks past their view distance a viewer near the wall may go before the screen stops sending to them. */
+  static final int RANGE_MARGIN = 32;
+
+  private static final int CHUNK_BLOCKS = 16;
+
+  /** How often the distances are measured: once a second. */
+  private static final long RANGE_TICKS = 20;
 
   private final Mcv2Configuration configuration;
 
@@ -69,6 +89,11 @@ public final class Mcv2Channel {
   private volatile Map<UUID, Mcv2Link> recipients;
 
   private volatile boolean keyframeRequested;
+
+  /** The viewers too far from the wall to see it, as of the last measurement. */
+  private volatile Set<UUID> farAway;
+
+  private @Nullable BukkitTask ranging;
 
   /**
    * Constructs a new channel.
@@ -91,6 +116,7 @@ public final class Mcv2Channel {
     this.scheduled = ConcurrentHashMap.newKeySet();
     this.links = new ConcurrentHashMap<>();
     this.recipients = Map.of();
+    this.farAway = Set.of();
   }
 
   /**
@@ -112,26 +138,87 @@ public final class Mcv2Channel {
   }
 
   /**
-   * Spawns the screen's page frames. Call on the main thread.
+   * Spawns the screen's page frames, and starts measuring how far the viewers are from the wall. Call on the main
+   * thread.
    * @throws IllegalStateException if the screen is already built or no plugin has been injected
    * @throws NullPointerException if the origin no longer resolves to a world
    */
   public void open() {
     this.screen.build();
+    this.measureRange();
+    this.ranging = Bukkit.getScheduler().runTaskTimer(BukkitModule.getPlugin(), this::measureRange, RANGE_TICKS, RANGE_TICKS);
   }
 
   /**
-   * Removes the screen's page frames. Call on the main thread.
+   * Removes the screen's page frames, and stops measuring the viewers' distances. Call on the main thread.
    */
   public void close() {
+    final BukkitTask task = this.ranging;
+    if (task != null) {
+      task.cancel();
+      this.ranging = null;
+    }
     this.screen.remove();
     this.scheduled.clear();
     this.links.clear();
     this.recipients = Map.of();
+    this.farAway = Set.of();
+  }
+
+  /** Finds the viewers too far from the wall to see it, on the main thread. */
+  void measureRange() {
+    final Set<UUID> before = this.farAway;
+    final Set<UUID> far = new HashSet<>();
+    for (final UUID viewer : this.configuration.getViewers()) {
+      final Player player = Bukkit.getPlayer(viewer);
+      if (player != null && this.isFarAway(player, before.contains(viewer))) {
+        far.add(viewer);
+      }
+    }
+    this.farAway = Set.copyOf(far);
   }
 
   /**
-   * Sorts the configured viewers, and schedules showing the screen to those whose pack just loaded.
+   * Whether a player cannot see the wall: in another world, or farther from it than their view distance; one who could
+   * see it goes out of range only {@value #RANGE_MARGIN} blocks farther. A player whose view distance is not known is
+   * never far away.
+   */
+  private boolean isFarAway(final Player player, final boolean wasFarAway) {
+    final int viewDistance = player.getViewDistance();
+    if (viewDistance <= 0) {
+      return false;
+    }
+    final World wall = this.configuration.getOrigin().getWorld();
+    if (wall == null || !wall.getUID().equals(player.getWorld().getUID())) {
+      return true;
+    }
+    final double reach = viewDistance * CHUNK_BLOCKS + (wasFarAway ? 0 : RANGE_MARGIN);
+    return this.distanceToWall(player.getLocation()) > reach;
+  }
+
+  /** The distance from a point to the nearest block of the wall, in blocks. */
+  private double distanceToWall(final Location location) {
+    final Location origin = this.configuration.getOrigin();
+    final BlockFace right = this.configuration.getRight();
+    final int span = this.configuration.getColumns() - 1;
+    final int firstX = origin.getBlockX();
+    final int lastX = firstX + right.getModX() * span;
+    final int firstZ = origin.getBlockZ();
+    final int lastZ = firstZ + right.getModZ() * span;
+    final double outsideX = outside(location.getX(), Math.min(firstX, lastX), Math.max(firstX, lastX) + 1);
+    final double outsideY = outside(location.getY(), origin.getBlockY() - (this.configuration.getRows() - 1), origin.getBlockY() + 1);
+    final double outsideZ = outside(location.getZ(), Math.min(firstZ, lastZ), Math.max(firstZ, lastZ) + 1);
+    return Math.sqrt(outsideX * outsideX + outsideY * outsideY + outsideZ * outsideZ);
+  }
+
+  /** How far a coordinate lies outside a range, 0 inside it. */
+  private static double outside(final double coordinate, final double low, final double high) {
+    return Math.max(0, Math.max(low - coordinate, coordinate - high));
+  }
+
+  /**
+   * Sorts the configured viewers, and schedules showing the screen to those whose pack just loaded. A viewer too far
+   * from the wall to see it is in neither group.
    *
    * @return the viewers who do not receive frames and should be shown the dithered maps
    * @throws IllegalStateException if showing a new viewer requires scheduling before a plugin has been injected
@@ -139,9 +226,14 @@ public final class Mcv2Channel {
   public Set<UUID> update() {
     final Map<UUID, Mcv2Link> receiving = new HashMap<>();
     final Set<UUID> others = ConcurrentHashMap.newKeySet();
+    final Set<UUID> far = this.farAway;
     for (final UUID viewer : this.configuration.getViewers()) {
       final Mcv2Link link = this.links.get(viewer);
-      if (!this.viewers.isLoaded(viewer)) {
+      if (far.contains(viewer)) {
+        // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew
+        this.scheduled.remove(viewer);
+        this.links.remove(viewer);
+      } else if (!this.viewers.isLoaded(viewer)) {
         others.add(viewer);
         this.scheduled.remove(viewer);
         this.links.remove(viewer);

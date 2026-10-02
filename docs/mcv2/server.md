@@ -8,7 +8,9 @@ work, and is in the [design doc, sections 7, 10, 11 and 14](../mcv2-integration.
 
 ## Bandwidth per Viewer
 
-A screen is encoded once; every viewer receives the same stream. At 1080p30:
+A screen is encoded once; every viewer who can see the wall receives the same stream. A viewer farther from the wall
+than their view distance, or in another world, receives nothing (they are measured once a second, and one who could
+see the wall goes out of range 32 blocks farther); coming back, they start on a keyframe. At 1080p30:
 
 | Preset and content | Map packets | After the game's zlib |
 |---|---:|---:|

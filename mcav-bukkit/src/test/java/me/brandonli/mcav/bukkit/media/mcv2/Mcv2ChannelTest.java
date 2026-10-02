@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
@@ -375,5 +376,93 @@ final class Mcv2ChannelTest {
     channel.update();
     verify(this.screen).show(this.player);
     assertEquals(1, this.server.getScheduledTaskCount());
+  }
+
+  /** A wall of one map at (0, 64, 0) in a world of its own, watched by the viewer with the pack at a view distance of 6. */
+  private Mcv2Channel watchedFrom(final World world, final AtomicReference<Location> position) {
+    when(world.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000a0a0"));
+    final Mcv2Configuration wall = Mcv2Configuration.builder()
+      .viewers(List.of(LOADED))
+      .origin(new Location(world, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .pageMap(500)
+      .build();
+    when(this.player.getViewDistance()).thenReturn(6);
+    when(this.player.getWorld()).thenAnswer(_ -> position.get().getWorld());
+    when(this.player.getLocation()).thenAnswer(_ -> position.get());
+    return new Mcv2Channel(wall, this.viewers, this.screen);
+  }
+
+  /** Lets a second pass on the main thread measure the distances, show the screen and sort the viewers again. */
+  private void tick(final Mcv2Channel channel) {
+    this.server.runTasks();
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+  }
+
+  @Test
+  void aViewerOutOfSightOfTheWallGetsNoFramesUntilTheyComeBack() {
+    final World world = mock(World.class);
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 400, 64, 0));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    this.tick(channel);
+    assertEquals(Set.of(), channel.update(), "too far for the dithered maps as well");
+    channel.takeKeyframeRequest();
+    assertTrue(channel.send(keyframe()) > 0);
+    assertEquals(List.of(), this.server.getSentPackets(LOADED), "400 blocks away with a view distance of 6 chunks");
+    // the viewer walks up to the wall: shown the screen anew, they start on a keyframe
+    position.set(new Location(world, 0, 64, 4));
+    this.tick(channel);
+    assertTrue(channel.takeKeyframeRequest());
+    channel.send(frame(1, 0, false));
+    assertEquals(List.of(), this.server.getSentPackets(LOADED), "a P frame before the keyframe is useless to them");
+    channel.send(frame(2, 2, true));
+    assertEquals(1, this.server.getSentPackets(LOADED).size());
+    channel.close();
+  }
+
+  @Test
+  void aViewerInAnotherWorldGetsNoFrames() {
+    final World world = mock(World.class);
+    final World nether = mock(World.class);
+    when(nether.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000b0b0"));
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(nether, 0, 64, 4));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    this.tick(channel);
+    channel.send(keyframe());
+    assertEquals(List.of(), this.server.getSentPackets(LOADED), "the same place in another world");
+    channel.close();
+  }
+
+  @Test
+  void aViewerAtTheEdgeOfTheirViewDistanceDoesNotComeAndGo() {
+    final World world = mock(World.class);
+    // 96 blocks from the wall's block: the six chunks of the view distance
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 97, 64, 0));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    this.tick(channel);
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+    // up to 32 blocks farther the viewer stays
+    position.set(new Location(world, 129, 64, 0));
+    this.tick(channel);
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+    position.set(new Location(world, 130, 64, 0));
+    this.tick(channel);
+    assertEquals(Set.of(), channel.getRecipients());
+    // and once gone, comes back only within the view distance
+    position.set(new Location(world, 98, 64, 0));
+    this.tick(channel);
+    assertEquals(Set.of(), channel.getRecipients());
+    position.set(new Location(world, 97, 64, 0));
+    this.tick(channel);
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+    channel.close();
   }
 }
