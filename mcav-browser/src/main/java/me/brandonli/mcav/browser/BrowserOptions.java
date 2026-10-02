@@ -39,7 +39,8 @@ import com.google.common.base.Preconditions;
 public final class BrowserOptions {
 
   /**
-   * The highest frame rate: CEF paints an off-screen browser at most 60 times per second.
+   * The highest frame rate a browser may paint at. This is mcav's limit, not CEF's: CEF's frame rate setting has a
+   * minimum of 1 and a default of 30, and no maximum.
    */
   public static final int MAX_FRAME_RATE = HelperConfiguration.MAX_FRAME_RATE;
 

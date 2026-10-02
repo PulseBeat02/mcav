@@ -201,8 +201,8 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * Gets the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
    * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
    * someone clicked or typed into it, such as a player who clicks the screen, unless {@link BrowserOptions#isAutoplay()};
-   * a page written to hand sound to mcav's capture itself can play earlier, but never more than sound. Nothing plays on
-   * the server's speakers.
+   * mcav holds the sound of every page back until a press on that page as well, so a page written to get around the
+   * browser's rule plays nothing earlier. Nothing plays on the server's speakers.
    *
    * @return the audio pipeline slot
    */

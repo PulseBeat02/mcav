@@ -33,7 +33,7 @@ import java.util.StringJoiner;
 final class HelperConfiguration {
 
   /**
-   * The highest frame rate CEF paints an off-screen browser at.
+   * The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
    */
   static final int MAX_FRAME_RATE = 60;
 

@@ -58,6 +58,13 @@ class BrowserSourceTest {
       BrowserSource.uri(URI.create("file:///etc/passwd"))
     );
     assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", file.getMessage());
+    final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () ->
+      BrowserSource.uri(URI.create("https://my_site.example.com/"))
+    );
+    assertEquals(
+      "The address has no host name the browser can check, such as a name with an underscore: https://my_site.example.com/",
+      underscore.getMessage()
+    );
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));

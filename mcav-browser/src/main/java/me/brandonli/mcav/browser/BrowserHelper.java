@@ -212,7 +212,8 @@ public final class BrowserHelper {
   private int serve(final Reporter reporter) {
     try {
       this.engine.start(this.configuration, this.compositor, reporter);
-    } catch (final Exception exception) {
+    } catch (final Exception | LinkageError exception) {
+      // a native library CEF cannot load is a LinkageError, which ended the helper before the server heard why
       final String message = "The browser could not be started: " + exception;
       reporter.onFailure(message);
     }

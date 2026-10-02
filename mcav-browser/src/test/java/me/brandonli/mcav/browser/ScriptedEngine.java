@@ -44,6 +44,7 @@ import org.cef.browser.McavOffscreenBrowser;
  *   whose samples hold the number of DevTools calls so far after every input;</li>
  *   <li>{@code /exit}: ends the helper process during the start;</li>
  *   <li>{@code /throw}: fails to start;</li>
+ *   <li>{@code /unlinked}: fails to start as a native library that cannot be loaded does;</li>
  *   <li>{@code /never}: never reports anything.</li>
  * </ul>
  */
@@ -89,6 +90,7 @@ final class ScriptedEngine implements HelperEngine {
     final String path = url.getPath();
     switch (path) {
       case "/throw" -> throw new IllegalStateException("scripted start failure");
+      case "/unlinked" -> throw new UnsatisfiedLinkError("scripted missing native library");
       case "/exit" -> System.exit(3);
       case "/never" -> {
         // nothing is ever reported

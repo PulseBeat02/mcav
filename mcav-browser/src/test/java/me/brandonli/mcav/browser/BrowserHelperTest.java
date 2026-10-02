@@ -435,6 +435,17 @@ class BrowserHelperTest {
   }
 
   @Test
+  void anEngineWhoseNativesCannotLoadIsAFailure() throws Exception {
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/unlinked"), new ScriptedEngine());
+    final CompletableFuture<Integer> result = this.run(helper);
+    try (final Peer peer = new Peer(this.server.accept())) {
+      final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
+      assertEquals("The browser could not be started: java.lang.UnsatisfiedLinkError: scripted missing native library", failure.getText());
+      assertEquals(1, result.get(10, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
   void aBrowserThatFailsLaterIsAFailure() throws Exception {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/fail"), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);

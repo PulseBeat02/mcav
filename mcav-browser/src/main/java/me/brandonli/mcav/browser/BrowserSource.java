@@ -68,6 +68,13 @@ public interface BrowserSource extends UriSource {
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null");
+    // java.net.URI reads no host from a name with an underscore, which the policy then cannot check; such an address
+    // was refused as one that is not http or https
+    Preconditions.checkArgument(
+      uri.getHost() != null || uri.getRawAuthority() == null,
+      "The address has no host name the browser can check, such as a name with an underscore: %s",
+      uri
+    );
     Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "The browser shows http and https addresses only but got %s", uri);
     final int length = uri.toString().length();
     Preconditions.checkArgument(
