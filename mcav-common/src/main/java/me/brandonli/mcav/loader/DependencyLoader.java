@@ -109,7 +109,7 @@ public final class DependencyLoader {
    * {@link me.brandonli.mcav.MCAVApi#hasCapability(Capability)}, which also tracks background completion.
    *
    * @param capability the capability to check
-   * @return true if the capability has not been removed after a failed preparation; initially true for every capability
+   * @return true if the last preparation of the capability did not fail; initially true for every capability
    * @throws NullPointerException if {@code capability} is null
    */
   public boolean hasCapability(final Capability capability) {
@@ -191,7 +191,10 @@ public final class DependencyLoader {
     // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; servers often lack it, and
     // only face detection needs these natives, so everything else keeps working without them
     final boolean available = loadOptionalModule(objectDetectionLoader, FACE_DETECTION);
-    if (!available) {
+    // a later load that succeeds, after a release and a new installation, makes the feature available again
+    if (available) {
+      this.capabilities.add(Capability.FACE_DETECTION);
+    } else {
       this.capabilities.remove(Capability.FACE_DETECTION);
     }
   }
@@ -273,6 +276,8 @@ public final class DependencyLoader {
     final long start = System.currentTimeMillis();
     try {
       starter.start();
+      // a preparation that succeeds after one that failed, after a release, makes VLC available again
+      this.capabilities.add(Capability.VLC);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
       this.logger.info(VLC_READY, elapsed);
@@ -339,6 +344,7 @@ public final class DependencyLoader {
     final long start = System.currentTimeMillis();
     try {
       installer.download(true);
+      this.capabilities.add(Capability.YT_DLP);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
       this.logger.info(YTDLP_READY, elapsed);

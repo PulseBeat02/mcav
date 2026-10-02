@@ -246,6 +246,31 @@ final class DependencyLoaderTest {
   }
 
   @Test
+  void restoresTheCapabilitiesWhenALaterPreparationSucceeds() throws IOException {
+    final DependencyLoader loader = new DependencyLoader();
+    loader.installVLC(() -> {
+      throw new IOException("offline");
+    });
+    final Installer installer = mock(Installer.class);
+    when(installer.isSupported()).thenReturn(true);
+    when(installer.download(true)).thenThrow(new IOException("offline")).thenReturn(Path.of("yt-dlp"));
+    loader.installYTDLP(installer);
+    loader.loadFaceDetection(() -> {
+      throw new UnsatisfiedLinkError("no libgtk-x11-2.0");
+    });
+    assertFalse(loader.hasCapability(Capability.VLC));
+    assertFalse(loader.hasCapability(Capability.YT_DLP));
+    assertFalse(loader.hasCapability(Capability.FACE_DETECTION));
+    // the next installation, after a release, succeeds
+    loader.installVLC(() -> Optional.of(Path.of("vlc")));
+    loader.installYTDLP(installer);
+    loader.loadFaceDetection(() -> {});
+    assertTrue(loader.hasCapability(Capability.VLC));
+    assertTrue(loader.hasCapability(Capability.YT_DLP));
+    assertTrue(loader.hasCapability(Capability.FACE_DETECTION));
+  }
+
+  @Test
   void removesTheVlcCapabilityOnUnsupportedSystems() {
     final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(
       "VLC cannot be installed automatically on FREEBSD"
