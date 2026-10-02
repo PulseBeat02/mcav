@@ -88,7 +88,7 @@ public final class Mcv2Channel {
   /** The viewers that receive frames as of the last update, with their links. */
   private volatile Map<UUID, Mcv2Link> recipients;
 
-  private volatile boolean keyframeRequested;
+  private final Mcv2KeyframeRequest keyframeRequest;
 
   /** The viewers too far from the wall to see it, as of the last measurement. */
   private volatile Set<UUID> farAway;
@@ -117,6 +117,7 @@ public final class Mcv2Channel {
     this.links = new ConcurrentHashMap<>();
     this.recipients = Map.of();
     this.farAway = Set.of();
+    this.keyframeRequest = new Mcv2KeyframeRequest();
   }
 
   /**
@@ -265,7 +266,7 @@ public final class Mcv2Channel {
     }
     // a viewer shown the screen again starts over: its client holds no picture of this stream yet
     this.links.put(viewer, new Mcv2Link(this.configuration.getBacklogLimit()));
-    this.keyframeRequested = true;
+    this.keyframeRequest.request();
   }
 
   /**
@@ -290,7 +291,7 @@ public final class Mcv2Channel {
    * Asks for the next frame to be a keyframe.
    */
   public void requestKeyframe() {
-    this.keyframeRequested = true;
+    this.keyframeRequest.request();
   }
 
   /**
@@ -299,9 +300,7 @@ public final class Mcv2Channel {
    * @return true if the next frame should be a keyframe
    */
   public boolean takeKeyframeRequest() {
-    final boolean requested = this.keyframeRequested;
-    this.keyframeRequested = false;
-    return requested;
+    return this.keyframeRequest.take();
   }
 
   /**
@@ -331,7 +330,7 @@ public final class Mcv2Channel {
     event.keyframe = header.isKeyframe();
     event.bytes = frame.length;
     if (pages.size() > this.configuration.getPageSlots()) {
-      this.keyframeRequested = true;
+      this.keyframeRequest.request();
       event.colors = -1;
       event.commit();
       return -1;
