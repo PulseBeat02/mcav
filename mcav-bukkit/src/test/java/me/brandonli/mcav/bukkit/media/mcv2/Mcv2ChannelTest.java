@@ -193,6 +193,19 @@ final class Mcv2ChannelTest {
   }
 
   @Test
+  void aRemovedViewerWhoLeftTheServerHasNothingToHide() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    this.configuration.getViewers().remove(LOADED);
+    channel.update();
+    this.server.removePlayer(LOADED);
+    this.server.runTasks();
+    verify(this.screen, never()).hide(this.player);
+    assertEquals(Map.of(), channel.getLinks());
+  }
+
+  @Test
   void everyViewerRemovedWhileTheScreenClosesIsHidden() {
     final UUID second = UUID.fromString("00000000-0000-0000-0000-000000000034");
     final CraftPlayer secondPlayer = this.server.addPlayer(second);

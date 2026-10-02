@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -189,8 +190,10 @@ public final class Mcv2Channel {
     if (viewDistance <= 0) {
       return false;
     }
-    final World wall = this.configuration.getOrigin().getWorld();
-    if (wall == null || !wall.getUID().equals(player.getWorld().getUID())) {
+    // a configuration's origin is in a world (Mcv2Configuration.Builder.origin), and a location whose world unloaded
+    // throws rather than answering null
+    final World wall = Objects.requireNonNull(this.configuration.getOrigin().getWorld(), "A screen's origin is in a world");
+    if (!wall.getUID().equals(player.getWorld().getUID())) {
       return true;
     }
     final double reach = viewDistance * CHUNK_BLOCKS + (wasFarAway ? 0 : RANGE_MARGIN);
@@ -270,9 +273,12 @@ public final class Mcv2Channel {
     }
   }
 
-  /** Hides the screen from a viewer removed from the configuration, unless they were shown it again since. */
+  /**
+   * Hides the screen from a viewer removed from the configuration, unless they were added back since: such a viewer is
+   * scheduled again. A viewer added back is shown the screen by a show scheduled after this hide, which runs after it.
+   */
   private void hide(final UUID viewer) {
-    if (this.scheduled.contains(viewer) || this.links.containsKey(viewer)) {
+    if (this.scheduled.contains(viewer)) {
       return;
     }
     final Player player = Bukkit.getPlayer(viewer);
