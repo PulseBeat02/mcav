@@ -485,6 +485,17 @@ final class NativeKernels extends Kernels {
     Preconditions.checkArgument(offset >= 0 && offset <= length - count, "Array too short");
   }
 
+  /**
+   * Checks that an array holds the values of a grid from {@code offset}, one every {@code stride}. The span is counted in
+   * long: in int a large stride wrapped it around to a small or negative count, which passed the check, and the kernel
+   * then wrote past the array.
+   */
+  private static void checkGridOutput(final int length, final int offset, final int grid, final int stride) {
+    Preconditions.checkArgument(stride > 0, "Invalid stride");
+    final long span = (long) (grid * grid - 1) * stride + 1;
+    Preconditions.checkArgument(offset >= 0 && offset <= length - span, "Array too short");
+  }
+
   /** Checks that an array holds a block's channels. */
   private static void checkBlock(final int length, final int size) {
     checkRange(length, 0, size * size * CHANNELS);
@@ -743,8 +754,7 @@ final class NativeKernels extends Kernels {
     checkSize(size);
     checkGrid(grid);
     checkStrided(values.length, offset, stride, size * size);
-    Preconditions.checkArgument(outStride > 0, "Invalid stride");
-    checkRange(out.length, outOffset, (grid * grid - 1) * outStride + 1);
+    checkGridOutput(out.length, outOffset, grid, outStride);
     try {
       this.binding.fit.invokeExact(of(values), offset, stride, size, grid, of(Fits.matrix(size, grid)), of(out), outOffset, outStride);
     } catch (final Throwable failure) {
@@ -957,8 +967,7 @@ final class NativeKernels extends Kernels {
     checkGrid(grid);
     Preconditions.checkArgument(channel >= 0 && channel < CHANNELS, "Invalid channel");
     checkBlock(target.length, size);
-    Preconditions.checkArgument(outStride > 0, "Invalid stride");
-    checkRange(out.length, outOffset, (grid * grid - 1) * outStride + 1);
+    checkGridOutput(out.length, outOffset, grid, outStride);
     try {
       this.binding.cellMeans.invokeExact(of(target), size, channel, grid, of(out), outOffset, outStride);
     } catch (final Throwable failure) {

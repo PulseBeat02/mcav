@@ -70,6 +70,18 @@ final class NativeKernelsTest {
     assertThrows(IllegalArgumentException.class, call);
   }
 
+  @Test
+  void refusesAnOutputStrideWhoseSpanAnIntCannotHold() {
+    final NativeKernels kernels = failing();
+    final float[] values = new float[8 * 8 * 3];
+    final float[] out = new float[1];
+    // 15 strides of 2^30 span 15 * 2^30 + 1 values, which an int wraps around to -2^30 + 1; 15 of 0x11111111 wrap to 0
+    for (final int stride : new int[] { 1 << 30, 0x11111111 }) {
+      refused(() -> kernels.fit(values, 0, 3, 8, 4, out, 0, stride));
+      refused(() -> kernels.cellMeans(values, 8, 0, 4, out, 0, stride));
+    }
+  }
+
   private static void failed(final Executable call) {
     assertEquals("MCV2 native kernel failed", assertThrows(IllegalStateException.class, call).getMessage());
   }
