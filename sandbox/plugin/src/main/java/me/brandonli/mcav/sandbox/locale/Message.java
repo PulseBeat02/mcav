@@ -69,6 +69,12 @@ public interface Message extends LocaleTools {
   NullComponent MCV2_FULL = direct("mcav.command.mcv2.full");
 
   /**
+   * Key {@code mcav.command.mcv2.size.error}: the wall or the video of an MCV2 screen is larger than MCV2 plays, 63 maps
+   * and 4096 pixels a side; a command that can shows dithered maps instead.
+   */
+  NullComponent MCV2_SIZE_ERROR = direct("mcav.command.mcv2.size.error");
+
+  /**
    * Key {@code mcav.command.codec.error}: the {@code --codec} at the end of the options of {@code /mcav vm create} names
    * no codec.
    */

@@ -140,8 +140,8 @@ public final class Mcv2Configuration {
     this.map = builder.map;
     this.columns = builder.columns;
     this.rows = builder.rows;
-    this.videoWidth = builder.videoWidth > 0 ? builder.videoWidth : MapLayout.MAP_SIZE * builder.columns;
-    this.videoHeight = builder.videoHeight > 0 ? builder.videoHeight : MapLayout.MAP_SIZE * builder.rows;
+    this.videoWidth = videoSize(builder.videoWidth, builder.columns);
+    this.videoHeight = videoSize(builder.videoHeight, builder.rows);
     this.pageMap = builder.pageMap;
     this.pageSlots = pageSlots;
     this.streamId = builder.streamId;
@@ -152,6 +152,11 @@ public final class Mcv2Configuration {
     this.backlogLimit = builder.backlogLimit;
     this.encoderPool = builder.encoderPool;
     this.unsentLimit = builder.unsentLimit;
+  }
+
+  // the size of the video along a side of the wall: the one set, or the wall's own, 128 pixels a map
+  private static int videoSize(final int size, final int maps) {
+    return size > 0 ? size : MapLayout.MAP_SIZE * maps;
   }
 
   /**
@@ -547,8 +552,10 @@ public final class Mcv2Configuration {
     /**
      * Sets the size of the encoded video. Frames are resized to it before they are encoded.
      *
-     * @param width  1 to 4096 pixels, or 0 for the wall's native width
-     * @param height 1 to 4096 pixels, or 0 for the wall's native height
+     * @param width  1 to 4096 pixels, or 0 for the wall's native width, 128 pixels a map, which a wall of more than 32
+     *               columns takes past 4096
+     * @param height 1 to 4096 pixels, or 0 for the wall's native height, 128 pixels a map, which a wall of more than 32
+     *               rows takes past 4096
      * @return this builder
      */
     public Builder video(final int width, final int height) {
@@ -691,7 +698,8 @@ public final class Mcv2Configuration {
      *
      * @return the configuration
      * @throws NullPointerException     if the viewers, the origin or the facing were not set
-     * @throws IllegalArgumentException if a value is out of range
+     * @throws IllegalArgumentException if a value is out of range, or the video, at the wall's native size where none was
+     *                                  set, is larger than 4096 pixels
      */
     public Mcv2Configuration build() {
       final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set");
@@ -702,6 +710,18 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.rows >= 1 && this.rows <= MAX_SIDE, "Rows must be 1 to %s", MAX_SIDE);
       Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Format.MAX_DIMENSION, "Video width must be 0 to 4096");
       Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Format.MAX_DIMENSION, "Video height must be 0 to 4096");
+      // the wall's native size, the default, passed here and failed the encoder later, on its first frame
+      final int width = videoSize(this.videoWidth, this.columns);
+      final int height = videoSize(this.videoHeight, this.rows);
+      Preconditions.checkArgument(
+        width <= Mcv2Format.MAX_DIMENSION && height <= Mcv2Format.MAX_DIMENSION,
+        "A wall of %s by %s maps is %s by %s pixels, more than the codec's %s: set a smaller video size",
+        this.columns,
+        this.rows,
+        width,
+        height,
+        Mcv2Format.MAX_DIMENSION
+      );
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
       Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= MAX_STREAM_ID, "Stream id must be 0 to %s", MAX_STREAM_ID);
       Preconditions.checkArgument(

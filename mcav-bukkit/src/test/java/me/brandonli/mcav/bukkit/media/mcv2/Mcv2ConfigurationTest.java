@@ -246,9 +246,10 @@ final class Mcv2ConfigurationTest {
     // the smallest and the largest value of every range, each one step inside the values refused above
     assertEquals(0, complete().map(0).build().getMap());
     assertEquals(1, complete().columns(1).build().getColumns());
-    assertEquals(Mcv2Configuration.MAX_SIDE, complete().columns(Mcv2Configuration.MAX_SIDE).build().getColumns());
+    // a side of 63 maps is 8064 pixels at its native size, so it plays a video the codec can take
+    assertEquals(Mcv2Configuration.MAX_SIDE, complete().columns(Mcv2Configuration.MAX_SIDE).video(4096, 0).build().getColumns());
     assertEquals(1, complete().rows(1).build().getRows());
-    assertEquals(Mcv2Configuration.MAX_SIDE, complete().rows(Mcv2Configuration.MAX_SIDE).build().getRows());
+    assertEquals(Mcv2Configuration.MAX_SIDE, complete().rows(Mcv2Configuration.MAX_SIDE).video(0, 4096).build().getRows());
     // 0 is the wall's own size, 128 pixels per map
     assertEquals(5 * 128, complete().video(0, 0).build().getVideoWidth());
     assertEquals(3 * 128, complete().video(0, 0).build().getVideoHeight());
@@ -301,6 +302,18 @@ final class Mcv2ConfigurationTest {
     refuses(builder -> builder.pageMap(0));
     assertEquals(3, complete().pageSlots(4).pageMap(3).build().getPageMap());
     assertEquals(22, complete().pageMap(22).build().getPageMap());
+  }
+
+  @Test
+  void refusesAWallWhoseNativeSizeIsLargerThanTheCodecTakes() {
+    // 33 maps are 4224 pixels at 128 a map
+    final IllegalArgumentException wide = assertThrows(IllegalArgumentException.class, () -> complete().columns(33).build());
+    assertEquals("A wall of 33 by 3 maps is 4224 by 384 pixels, more than the codec's 4096: set a smaller video size", wide.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> complete().rows(33).build());
+    // the same walls with a video size the codec takes, and the largest wall at its native size
+    assertEquals(4096, complete().columns(33).video(4096, 0).build().getVideoWidth());
+    assertEquals(4096, complete().rows(33).video(0, 4096).build().getVideoHeight());
+    assertEquals(4096, complete().columns(32).rows(32).build().getVideoWidth());
   }
 
   @Test

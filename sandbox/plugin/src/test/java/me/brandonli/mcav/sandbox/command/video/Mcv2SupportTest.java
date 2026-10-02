@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +56,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -122,6 +124,17 @@ final class Mcv2SupportTest {
     );
   }
 
+  private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
+    return this.support.configure(
+      this.sender,
+      Pair.pair(columns, rows),
+      Pair.pair(width, height),
+      20,
+      EncoderSettings.LOW_BANDWIDTH,
+      List.of(this.viewer)
+    );
+  }
+
   @Test
   void findsTheFrameHoldingAMap() {
     final ItemFrame wrongMap = frame(map(Material.FILLED_MAP, true, 3));
@@ -171,6 +184,19 @@ final class Mcv2SupportTest {
       System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
     }
+  }
+
+  @Test
+  void tellsTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
+    // the plugin's walls go up to 64 maps a side and its videos up to 8192 pixels, MCV2's to 63 and 4096
+    assertNull(this.configure(64, 3, 640, 384));
+    assertNull(this.configure(5, 64, 640, 384));
+    assertNull(this.configure(5, 3, 4097, 384));
+    assertNull(this.configure(5, 3, 640, 4097));
+    verify(this.sender, times(4)).sendMessage(Message.MCV2_SIZE_ERROR.build());
+    final Mcv2Configuration largest = Objects.requireNonNull(this.configure(63, 63, 4096, 4096));
+    assertEquals(63, largest.getColumns());
+    assertEquals(4096, largest.getVideoHeight());
   }
 
   @Test

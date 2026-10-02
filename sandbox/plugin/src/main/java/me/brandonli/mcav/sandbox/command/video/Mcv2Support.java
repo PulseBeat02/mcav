@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
@@ -135,8 +136,9 @@ public final class Mcv2Support {
   }
 
   /**
-   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none.
-   * Call on the main thread, which may look at the worlds' entities.
+   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none, or
+   * that the screen is larger than MCV2 plays: the plugin's walls go up to 64 maps a side and 8192 pixels, MCV2's
+   * to 63 maps and 4096 pixels. Call on the main thread, which may look at the worlds' entities.
    *
    * @param sender     who ran the command
    * @param blocks     the size of the wall in maps
@@ -144,7 +146,7 @@ public final class Mcv2Support {
    * @param mapId      the id of the top-left map
    * @param settings   the encoder profile
    * @param viewers    the players who watch
-   * @return the configuration, or null if no frame holds the map
+   * @return the configuration, or null if the screen is too large for MCV2 or no frame holds the map
    */
   public @Nullable Mcv2Configuration configure(
     final CommandSender sender,
@@ -154,6 +156,11 @@ public final class Mcv2Support {
     final EncoderSettings settings,
     final Collection<UUID> viewers
   ) {
+    // the library refuses such a screen with an exception, which no command expects
+    if (!fitsMcv2(blocks, resolution)) {
+      sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
+      return null;
+    }
     final ItemFrame frame = findFrame(Bukkit.getWorlds(), mapId);
     if (frame == null) {
       sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
@@ -172,6 +179,12 @@ public final class Mcv2Support {
       .backlogLimit(VideoMcv2Command.backlogLimit())
       .unsentLimit(VideoMcv2Command.unsentLimit())
       .build();
+  }
+
+  private static boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
+    final boolean maps = blocks.getFirst() <= Mcv2Configuration.MAX_SIDE && blocks.getSecond() <= Mcv2Configuration.MAX_SIDE;
+    final boolean pixels = resolution.getFirst() <= Mcv2Format.MAX_DIMENSION && resolution.getSecond() <= Mcv2Format.MAX_DIMENSION;
+    return maps && pixels;
   }
 
   /**
