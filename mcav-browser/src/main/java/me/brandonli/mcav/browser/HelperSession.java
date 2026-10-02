@@ -394,10 +394,15 @@ final class HelperSession implements BrowserSession {
     return builder;
   }
 
-  private static SocketChannel accept(final ServerSocketChannel server, final Process process, final long deadline) throws IOException {
+  @VisibleForTesting
+  static SocketChannel accept(final ServerSocketChannel server, final Process process, final long deadline) throws IOException {
     try (final Selector selector = Selector.open()) {
       server.register(selector, SelectionKey.OP_ACCEPT);
       while (true) {
+        // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
+        if (Thread.currentThread().isInterrupted()) {
+          throw new PlayerException("Interrupted while the browser helper connected");
+        }
         final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
         if (remaining <= 0) {
           throw new PlayerException("The browser helper did not connect in time");

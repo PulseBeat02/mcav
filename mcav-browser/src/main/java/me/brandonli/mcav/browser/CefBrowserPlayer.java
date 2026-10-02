@@ -86,6 +86,10 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
+  // the thread that starts a helper while it does, which a release interrupts instead of waiting for the start's lock up
+  // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
+  private final Object starter;
+  private @Nullable Thread starting;
   // a player who clicks while the helper does not read its input makes a report for every click
   private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
@@ -130,6 +134,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.lock = new ReentrantLock();
     this.state = new AtomicReference<>(State.IDLE);
     this.released = new AtomicBoolean();
+    this.starter = new Object();
     this.dropReports = new LogBudget(clock);
   }
 
@@ -139,9 +144,33 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.lock.lock();
     try {
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
-      return idle && this.startSession(source);
+      return idle && this.startReleasably(source);
     } finally {
       this.lock.unlock();
+    }
+  }
+
+  // a release while the helper starts interrupts the start, which then fails; the release closes what it had opened
+  private boolean startReleasably(final BrowserSource source) {
+    synchronized (this.starter) {
+      this.starting = Thread.currentThread();
+    }
+    try {
+      // a release between the check of start and the line above found no start to interrupt
+      return !this.released.get() && this.startSession(source);
+    } catch (final PlayerException failure) {
+      if (this.released.get()) {
+        return false;
+      }
+      throw failure;
+    } finally {
+      synchronized (this.starter) {
+        this.starting = null;
+      }
+      if (this.released.get()) {
+        // the interrupt of the release is the player's own, not the caller's
+        Thread.interrupted();
+      }
     }
   }
 
@@ -192,17 +221,25 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public boolean release() {
+    final boolean first = this.released.compareAndSet(false, true);
+    if (!first) {
+      return false;
+    }
+    // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLIS, so it is stopped rather than awaited
+    synchronized (this.starter) {
+      final Thread thread = this.starting;
+      if (thread != null) {
+        thread.interrupt();
+      }
+    }
     this.lock.lock();
     try {
-      final boolean first = this.released.compareAndSet(false, true);
-      if (first) {
-        this.state.set(State.IDLE);
-        this.closeSession();
-      }
-      return first;
+      this.state.set(State.IDLE);
+      this.closeSession();
     } finally {
       this.lock.unlock();
     }
+    return true;
   }
 
   @Override

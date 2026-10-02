@@ -38,8 +38,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -234,6 +236,34 @@ class CefBrowserPlayerTest {
     assertTrue(player.start(SOURCE));
     assertTrue(player.isPlaying());
     assertEquals(List.of(), this.processed);
+  }
+
+  @Test
+  void aReleaseStopsAStartInProgressInsteadOfWaitingForIt() throws Exception {
+    final CountDownLatch opening = new CountDownLatch(1);
+    // a helper that takes its time to show the page, as the first start after a download can, up to three minutes
+    final CefBrowserPlayer slow = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      opening.countDown();
+      try {
+        new CountDownLatch(1).await();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+        throw new PlayerException("Interrupted while starting the browser", exception);
+      }
+      return new FakeSession();
+    });
+    final ExecutorService starter = Executors.newSingleThreadExecutor();
+    try {
+      final Future<Boolean> started = starter.submit(() -> slow.start(SOURCE));
+      opening.await();
+      assertTrue(assertTimeoutPreemptively(Duration.ofSeconds(5), slow::release), "the release does not wait for the start");
+      assertFalse(started.get(5, TimeUnit.SECONDS), "the start of a released player fails");
+      assertFalse(slow.isPlaying());
+      final boolean interrupted = starter.submit(() -> Thread.currentThread().isInterrupted()).get(5, TimeUnit.SECONDS);
+      assertFalse(interrupted, "the release's interrupt is the player's own, not left to the thread that called start");
+    } finally {
+      starter.shutdownNow();
+    }
   }
 
   @Test

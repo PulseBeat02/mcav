@@ -22,21 +22,28 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -151,6 +158,27 @@ class HelperSessionTest {
   private static int blue(final ImageBuffer frame) {
     final ByteBuffer pixels = frame.getData();
     return pixels.get(0) & 0xFF;
+  }
+
+  @Test
+  void anInterruptedStartStopsWaitingForTheHelperAtOnce() throws IOException {
+    // a helper that is alive and never connects, and a wait that the release of the player interrupts
+    final Process alive = mock(Process.class);
+    when(alive.isAlive()).thenReturn(true);
+    try (final ServerSocketChannel server = ServerSocketChannel.open()) {
+      server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+      server.configureBlocking(false);
+      final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+      final PlayerException interrupted = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+        Thread.currentThread().interrupt();
+        try {
+          return assertThrows(PlayerException.class, () -> HelperSession.accept(server, alive, deadline));
+        } finally {
+          Thread.interrupted();
+        }
+      });
+      assertEquals("Interrupted while the browser helper connected", interrupted.getMessage());
+    }
   }
 
   @Test
