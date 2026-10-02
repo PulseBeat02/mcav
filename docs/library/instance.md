@@ -2,7 +2,9 @@
 
 To use the library, create an instance with `MCAV.api()` and call `install` with the modules you use. When you are
 done with the library, call `release` to stop the modules and free native resources. Keep one instance for the whole
-life of your application or plugin.
+life of your application or plugin: some of a module's state belongs to the class loader rather than to the instance,
+so releasing a second instance stops it for the first too. The Bukkit module's injected plugin and packet listener are
+such state.
 
 ```java
   final MCAVApi api = MCAV.api();

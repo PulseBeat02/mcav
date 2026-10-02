@@ -102,6 +102,10 @@ public final class BukkitModule implements MCAVModule {
 
   /**
    * Unregisters the listeners of the module. The injected plugin is kept, so the module can be started again.
+   *
+   * <p>The plugin and the packet listener are shared by everything that loaded MCAV's classes from one class loader, so
+   * this stops them for every MCAV instance there, not only for the one released. One instance per plugin, as
+   * {@code MCAV.api()} asks for, never notices.
    */
   @Override
   public void stop() {
