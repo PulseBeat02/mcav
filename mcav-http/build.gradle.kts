@@ -63,6 +63,30 @@ val buildWebsite = tasks.register<Exec>("buildWebsite") {
     outputs.cacheIf { false }
 }
 
+// the tests of the website's own code, on the same Node.js; they need none of its npm dependencies
+val testWebsite = tasks.register<Exec>("testWebsite") {
+    group = "verification"
+    description = "Run the tests of the website"
+    dependsOn("nodeSetup")
+    workingDir = file("mcav-website")
+    executable = npm.absolutePath
+    environment("PATH", npmPath)
+    args("test")
+    inputs.dir("mcav-website/src")
+    inputs.dir("mcav-website/test")
+    inputs.file("mcav-website/package.json")
+    // npm leaves nothing behind, so a marker tells a later build that these inputs passed
+    val passed = layout.buildDirectory.file("website-tests/passed")
+    outputs.file(passed)
+    doLast {
+        passed.get().asFile.writeText("passed\n")
+    }
+}
+
+tasks.check {
+    dependsOn(testWebsite)
+}
+
 tasks.jar {
     from(buildWebsite) {
         into("static")

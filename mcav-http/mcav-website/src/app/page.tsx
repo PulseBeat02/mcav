@@ -310,6 +310,7 @@ export default function AudioStreamPlayer() {
     const metadataIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const reconnectAttemptsRef = useRef(0);
     const shouldReconnectRef = useRef(false);
     const titleRef = useRef<HTMLHeadingElement>(null);
@@ -475,6 +476,11 @@ export default function AudioStreamPlayer() {
             reconnectTimeoutRef.current = null;
         }
 
+        if (connectTimeoutRef.current) {
+            clearTimeout(connectTimeoutRef.current);
+            connectTimeoutRef.current = null;
+        }
+
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -494,6 +500,8 @@ export default function AudioStreamPlayer() {
         stopHeartbeat();
 
         setIsConnected(false);
+        // the closed socket's own close no longer reaches the page, so a stop during a reconnect ends its loading here
+        setIsLoading(false);
         updateStatus('Disconnected');
 
         const canvas = canvasRef.current;
@@ -518,9 +526,15 @@ export default function AudioStreamPlayer() {
             pcmProcessorRef.current = null;
         }
 
+        // a connection that has not started yet is replaced, not joined by a second one
+        if (connectTimeoutRef.current) {
+            clearTimeout(connectTimeoutRef.current);
+        }
+
         startMetadataRefresh();
 
-        setTimeout(() => {
+        connectTimeoutRef.current = setTimeout(() => {
+            connectTimeoutRef.current = null;
             try {
                 setIsLoading(true);
                 updateStatus('Connecting...');
@@ -538,10 +552,14 @@ export default function AudioStreamPlayer() {
                 const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
                 const endpoint = `${scheme}://${window.location.host}/audio`;
 
-                wsRef.current = new WebSocket(endpoint);
-                wsRef.current.binaryType = 'arraybuffer';
+                const socket = new WebSocket(endpoint);
+                socket.binaryType = 'arraybuffer';
+                wsRef.current = socket;
 
-                wsRef.current.onopen = () => {
+                // a socket the page closed or replaced may still report its end; it no longer acts on the page, or its
+                // late close would reconnect a stream that was stopped and started again, next to the new one
+                socket.onopen = () => {
+                    if (wsRef.current !== socket) return;
                     updateStatus('Connected', true);
                     streamingRef.current = false;
                     setIsConnected(true);
@@ -565,7 +583,8 @@ export default function AudioStreamPlayer() {
                     }
                 };
 
-                wsRef.current.onmessage = (e) => {
+                socket.onmessage = (e) => {
+                    if (wsRef.current !== socket) return;
                     try {
                         if (e.data.byteLength > 0 && pcmProcessorRef.current && !pcmProcessorRef.current.isDestroyed) {
                             if (!streamingRef.current) {
@@ -582,7 +601,8 @@ export default function AudioStreamPlayer() {
                     }
                 };
 
-                wsRef.current.onerror = (e) => {
+                socket.onerror = (e) => {
+                    if (wsRef.current !== socket) return;
                     console.error('WebSocket error:', e);
                     setIsLoading(false);
                     if (shouldReconnectRef.current) {
@@ -594,7 +614,8 @@ export default function AudioStreamPlayer() {
                     }
                 };
 
-                wsRef.current.onclose = () => {
+                socket.onclose = () => {
+                    if (wsRef.current !== socket) return;
                     streamingRef.current = false;
                     stopHeartbeat();
                     setIsLoading(false);
@@ -623,8 +644,13 @@ export default function AudioStreamPlayer() {
     }, [connectWebSocket]);
 
     const handleStart = useCallback(() => {
+        // one stream at a time: a second Start before the first one connected opened a second stream next to it
+        if (shouldReconnectRef.current) {
+            return;
+        }
         shouldReconnectRef.current = true;
         reconnectAttemptsRef.current = 0;
+        setIsLoading(true);
 
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
@@ -653,10 +679,16 @@ export default function AudioStreamPlayer() {
         } else {
             audioContextRef.current.resume().then(() => {
                 updateStatus('Audio permission granted!');
-                if (audioContextRef.current!.state === 'running') {
+                if (audioContextRef.current?.state === 'running') {
                     connectWebSocket();
+                } else {
+                    // no sound allowed yet, so no stream: Start may be pressed again
+                    shouldReconnectRef.current = false;
+                    setIsLoading(false);
                 }
             }).catch(err => {
+                shouldReconnectRef.current = false;
+                setIsLoading(false);
                 updateStatus(`Failed to get audio permission: ${err}`);
             });
         }
@@ -736,6 +768,9 @@ export default function AudioStreamPlayer() {
             }
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (connectTimeoutRef.current) {
+                clearTimeout(connectTimeoutRef.current);
             }
 
             if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -844,7 +879,7 @@ export default function AudioStreamPlayer() {
                 <div className={styles.controls}>
                     <button
                         onClick={handleStart}
-                        disabled={isConnected}
+                        disabled={isConnected || isLoading}
                         className={styles.btn}
                     >
                         Start

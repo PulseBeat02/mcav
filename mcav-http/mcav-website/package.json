@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build && node third-party-notices.mjs out/THIRD-PARTY-NOTICES.txt",
     "start": "next start",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
